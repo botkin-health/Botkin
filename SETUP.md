@@ -1,24 +1,25 @@
 # Настройка HealthVault на GitHub
 
-## Шаги для создания репозитория на GitHub
+## 📋 Быстрая инструкция
 
-1. **Создайте новый репозиторий на GitHub:**
-   - Перейдите на https://github.com/new
+**См. подробную инструкцию в `GITHUB_SETUP.md`**
+
+## Краткие шаги:
+
+1. **Создайте репозиторий на GitHub:**
+   - Перейдите: https://github.com/new
    - Название: `HealthVault`
-   - Описание: "Personal health knowledge base"
-   - Выберите **Private** (приватный репозиторий)
-   - **НЕ** создавайте README, .gitignore или лицензию (они уже есть)
+   - Выберите **🔒 Private**
+   - **НЕ** создавайте README, .gitignore или лицензию
 
-2. **Подключите локальный репозиторий к GitHub:**
+2. **Подключите локальный репозиторий:**
 
 ```bash
 cd /Users/alexlyskovsky/HealthVault
-git remote add origin https://github.com/YOUR_USERNAME/HealthVault.git
+git remote add origin https://github.com/Lyskovsky/HealthVault.git
 git branch -M main
 git push -u origin main
 ```
-
-Замените `YOUR_USERNAME` на ваш GitHub username.
 
 ## Проверка текущего состояния
 
