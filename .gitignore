@@ -1,0 +1,18 @@
+# Personal health data - keep private
+# Add any sensitive files here
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+
