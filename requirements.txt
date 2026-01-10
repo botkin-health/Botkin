@@ -1,0 +1,8 @@
+# Библиотеки для обработки медицинских файлов
+python-docx>=1.0.0
+openpyxl>=3.0.0
+
+# Библиотеки для OCR (опционально, если используется Google Vision API)
+# google-cloud-vision>=3.0.0
+# requests>=2.28.0
+

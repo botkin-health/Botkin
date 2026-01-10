@@ -1,0 +1,112 @@
+[
+  {
+    "id": "case_1",
+    "description": "Simple Text Meal",
+    "input_text": "Обед: гречка 200г, курица 150г"
+  },
+  {
+    "id": "case_2",
+    "description": "Complex Text with Brands",
+    "input_text": "Перекус EXPONENTA HIGH-PRO вишня 160г"
+  },
+  {
+    "id": "case_3",
+    "description": "Meal with Multiple Items & Weights",
+    "input_text": "Ужин: салат 100г, тунец 85г, огурец 150г, масло 5г"
+  },
+  {
+    "id": "case_4",
+    "description": "Drink with Calories",
+    "input_text": "Латте на кокосовом, средний"
+  },
+  {
+    "id": "case_5",
+    "description": "Product with 'Piece' units",
+    "input_text": "Яблоко зеленое 1 шт, банан 1 шт"
+  },
+  {
+    "id": "case_6",
+    "description": "Correction to previous meal (Context)",
+    "input_text": "Добавь к обеду хлеб 30г"
+  },
+  {
+    "id": "case_7",
+    "description": "Sport Nutrition",
+    "input_text": "Протеин Tree of Life 1 скуп"
+  },
+  {
+    "id": "case_8",
+    "description": "Restaurant Dish",
+    "input_text": "Суп Рассольник Московский, порция"
+  },
+  {
+    "id": "case_9",
+    "description": "Evening Snack with Alcohol",
+    "input_text": "Пиво Guinness 0.0 0.5л, чипсы 50г"
+  },
+  {
+    "id": "case_10",
+    "description": "Uncertain Weight",
+    "input_text": "Горсть орехов, примерно 30г"
+  },
+  {
+    "id": "case_11",
+    "description": "Nutrition Label Parsing",
+    "input_text": "Этикетка с продукта",
+    "photo_path": "tests/fixtures/images/nutrition_label.jpg"
+  },
+  {
+    "id": "case_12",
+    "description": "Chicken on Scale",
+    "input_text": "Это куриное филе на весах",
+    "photo_path": "tests/fixtures/images/kitchen_scale_chicken.jpg"
+  },
+  {
+    "id": "case_13",
+    "description": "Restaurant Menu",
+    "input_text": "Меню Макдональдс",
+    "photo_path": "tests/fixtures/images/restaurant_menu.jpg"
+  },
+  {
+    "id": "case_14",
+    "description": "Poke Bowl Photo",
+    "input_text": "Поке с тунцом",
+    "photo_path": "tests/fixtures/images/bowl_food.jpg"
+  },
+  {
+    "id": "case_15",
+    "description": "Protein Powder Scale",
+    "input_text": "Скуп протеина",
+    "photo_path": "tests/fixtures/images/protein_powder.jpg"
+  },
+  {
+    "id": "case_16",
+    "description": "Выпил чашку латте с рисунком",
+    "input_text": "Выпил чашку латте с рисунком",
+    "photo_path": "tests/fixtures/images/latte_art.jpg"
+  },
+  {
+    "id": "case_17",
+    "description": "Одно большое зеленое яблоко",
+    "input_text": "Одно большое зеленое яблоко",
+    "photo_path": "tests/fixtures/images/apple_on_scale.jpg"
+  },
+  {
+    "id": "case_18",
+    "description": "Выпил банку пива Guinness",
+    "input_text": "Выпил банку пива Guinness",
+    "photo_path": "tests/fixtures/images/guinness_can.jpg"
+  },
+  {
+    "id": "case_19",
+    "description": "Eggs Carton",
+    "input_text": "Десяток яиц",
+    "photo_path": "tests/fixtures/images/eggs_carton.jpg"
+  },
+  {
+    "id": "case_20",
+    "description": "Walnuts in Hand",
+    "input_text": "Горсть орехов",
+    "photo_path": "tests/fixtures/images/walnuts_hand.jpg"
+  }
+]

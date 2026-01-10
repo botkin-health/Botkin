@@ -1,0 +1,178 @@
+{
+    "case_1": [
+        {
+            "product": "гречка",
+            "weight_g": 200.0
+        },
+        {
+            "product": "куриное филе",
+            "weight_g": 150.0
+        }
+    ],
+    "case_2": [
+        {
+            "product": "EXPONENTA HIGH-PRO вишня",
+            "weight_g": 160.0
+        }
+    ],
+    "case_3": [
+        {
+            "product": "масло",
+            "weight_g": 5.0
+        },
+        {
+            "product": "огурец",
+            "weight_g": 150.0
+        },
+        {
+            "product": "салат",
+            "weight_g": 100.0
+        },
+        {
+            "product": "тунец",
+            "weight_g": 85.0
+        }
+    ],
+    "case_4": [
+        {
+            "product": "латте на кокосовом",
+            "weight_g": 300.0
+        }
+    ],
+    "case_5": [
+        {
+            "product": "банан",
+            "weight_g": 120.0
+        },
+        {
+            "product": "яблоко зеленое",
+            "weight_g": 150.0
+        }
+    ],
+    "case_6": [
+        {
+            "product": "хлеб",
+            "weight_g": 30.0
+        }
+    ],
+    "case_7": [
+        {
+            "product": "протеин Tree of Life",
+            "weight_g": 30.0
+        }
+    ],
+    "case_8": [
+        {
+            "product": "суп рассольник московский",
+            "weight_g": 300.0
+        }
+    ],
+    "case_9": [
+        {
+            "product": "пиво Guinness 0.0",
+            "weight_g": 500.0
+        },
+        {
+            "product": "чипсы",
+            "weight_g": 50.0
+        }
+    ],
+    "case_10": [
+        {
+            "product": "орехи",
+            "weight_g": 30.0
+        }
+    ],
+    "case_11": [
+        {
+            "product": "продукт с этикетки",
+            "weight_g": 100.0,
+            "calories": 230.0,
+            "protein": 3.0,
+            "fats": 1.0,
+            "carbs": 52.0
+        }
+    ],
+    "case_12": [
+        {
+            "product": "куриное филе",
+            "weight_g": 345.0
+        }
+    ],
+    "case_13": [
+        {
+            "product": "Биг Мак",
+            "weight_g": 215.0,
+            "calories": 503.0,
+            "protein": 26.0,
+            "fats": 25.0,
+            "carbs": 42.0
+        }
+    ],
+    "case_14": [
+        {
+            "product": "поке с тунцом",
+            "weight_g": 400.0
+        }
+    ],
+    "case_15": [
+        {
+            "product": "протеин Tree of Life",
+            "weight_g": 30.0,
+            "calories": 30.0,
+            "protein": 3.0,
+            "fats": 1.5,
+            "carbs": 4.5
+        }
+    ],
+    "case_16": [
+        {
+            "product": "латте на кокосовом",
+            "weight_g": 300.0,
+            "calories": 300.0,
+            "protein": 30.0,
+            "fats": 15.0,
+            "carbs": 45.0
+        }
+    ],
+    "case_17": [
+        {
+            "product": "яблоко",
+            "weight_g": 182.0
+        }
+    ],
+    "case_18": [
+        {
+            "product": "пиво Guinness 0.0",
+            "weight_g": 500.0,
+            "calories": 500.0,
+            "protein": 50.0,
+            "fats": 25.0,
+            "carbs": 75.0
+        },
+        {
+            "product": "чипсы",
+            "weight_g": 50.0,
+            "calories": 50.0,
+            "protein": 5.0,
+            "fats": 2.5,
+            "carbs": 7.5
+        }
+    ],
+    "case_19": [
+        {
+            "product": "яйцо",
+            "weight_g": 600.0
+        }
+    ],
+    "case_20": [
+        {
+            "product": "орехи",
+            "weight_g": 30.0,
+            "calories": 30.0,
+            "protein": 3.0,
+            "fats": 1.5,
+            "carbs": 4.5
+        }
+    ]
+}

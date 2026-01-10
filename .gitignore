@@ -1,18 +1,56 @@
-# Personal health data - keep private
-# Add any sensitive files here
 
-# Temporary files
-*.tmp
-*.temp
-.DS_Store
+# Data
+data/nutrition/nutrition_log.json
+data/workouts_database.json
+data/medical-records/
+data/medications/
+data/sports/
+data/sleepcycle/
+data/ultrasound/
+data/urine-tests/
+data/vitamins/
+data/weights/
+data/apple-health/export/*
+data/apple-health/parsed/*
+!data/apple-health/export/.gitkeep
+!data/apple-health/parsed/.gitkeep
 
-# Editor files
-.vscode/
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE and Editors
 .idea/
+.vscode/
 *.swp
 *.swo
-*~
-
-# Logs
-*.log
-
+.DS_Store

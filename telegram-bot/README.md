@@ -1,0 +1,81 @@
+# HealthVault Telegram Bot
+
+Telegram-бот для учёта питания с интеграцией в HealthVault.
+
+## Быстрый старт
+
+### 1. Установка зависимостей
+
+```bash
+cd telegram-bot
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+### 2. Настройка
+
+Скопируйте `.env.example` в `.env` и заполните:
+
+```bash
+cp .env.example .env
+# Отредактируйте .env
+```
+
+### 3. Запуск
+
+**Вариант 1: Простой способ (рекомендуется)**
+```bash
+./start.sh
+```
+
+**Вариант 2: Вручную**
+```bash
+# Убедитесь, что виртуальное окружение активировано
+source ../venv/bin/activate
+
+# Запустите бота
+python3 bot.py
+```
+
+**Важно:** Бот должен запускаться из директории `telegram-bot/` с активированным виртуальным окружением.
+
+## Структура проекта
+
+```
+telegram-bot/
+├── bot.py                 # Главный файл бота
+├── handlers/              # Обработчики команд и сообщений
+│   ├── __init__.py
+│   ├── commands.py       # Команды (/start, /help, /status)
+│   ├── photo.py          # Обработка фото
+│   └── text.py           # Обработка текста/голоса
+├── services/             # Бизнес-логика
+│   ├── __init__.py
+│   ├── nutrition.py      # Расчёт КБЖУ
+│   ├── storage.py        # Работа с YAML
+│   └── state.py          # State machine
+├── data/                 # Данные
+│   ├── products.json     # База продуктов
+│   └── user_config.yaml  # Конфиг пользователя
+├── media/                # Медиа файлы (gitignored)
+│   ├── nutrition/
+│   └── supplements/
+└── logs/                 # Логи питания (синхронизируется с HealthVault)
+    ├── nutrition/
+    └── supplements/
+```
+
+## Команды
+
+- `/start` — приветствие
+- `/help` — помощь
+- `/status` — сколько осталось сегодня
+- `/burn <калории>` — ввод активных калорий
+- `/targets` — настройка целей
+- `/mode immediate|batch` — режим уточнений
+
+## Деплой
+
+См. `DEPLOY.md`
+
