@@ -54,3 +54,8 @@ venv.bak/
 *.swp
 *.swo
 .DS_Store
+
+# API Keys
+.openai_api_key
+.google_api_key
+.gemini_api_key
