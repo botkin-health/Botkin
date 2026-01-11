@@ -13,4 +13,6 @@ google-generativeai>=0.3.0
 # Data Processing (Scripts)
 xmltodict>=0.13.0
 garminconnect>=0.2.0
+garminconnect>=0.2.0
 pandas>=2.0.0
+pypdf>=3.0.0
