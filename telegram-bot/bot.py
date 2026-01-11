@@ -12,7 +12,7 @@ from aiogram import Bot, Dispatcher, F
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.types import Update
+from aiogram.types import Update, BotCommand, BotCommandScopeAllPrivateChats
 from aiogram.filters import Command
 from dotenv import load_dotenv
 import os
@@ -189,6 +189,19 @@ async def main():
     try:
         # Удаляем вебхук, если он был установлен
         await bot.delete_webhook(drop_pending_updates=True)
+
+        commands = [
+            BotCommand(command="day", description="Итоги дня (еда + витамины)"),
+            BotCommand(command="vitamins", description="Чек-лист добавок"),
+            BotCommand(command="week", description="Анализ недели"),
+            BotCommand(command="help", description="Справка"),
+            BotCommand(command="start", description="Начать работу")
+        ]
+
+        # Обновляем меню команд (Default + Private)
+        await bot.set_my_commands(commands)
+        await bot.set_my_commands(commands, scope=BotCommandScopeAllPrivateChats())
+        logger.info("✅ Меню команд обновлено (Default + Private)")
         
         # Запускаем polling
         await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())

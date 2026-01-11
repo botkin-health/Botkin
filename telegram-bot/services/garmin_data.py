@@ -78,5 +78,75 @@ def get_average_calories(days: int = 14) -> float:
     return round(avg, 1)
 
 
+# Импорт библиотеки (пытаемся, чтобы не падать если нет)
+try:
+    from garminconnect import Garmin
+except ImportError:
+    Garmin = None
+
+import os
+import logging
+from dotenv import load_dotenv
+
+load_dotenv()
+
+logger = logging.getLogger(__name__)
+
+def update_today_data() -> bool:
+    """
+    Обновляет данные Garmin за сегодня.
+    Возвращает True если успешно, False если ошибка.
+    """
+    if Garmin is None:
+        logger.error("Library 'garminconnect' not found")
+        return False
+        
+    email = os.getenv('GARMIN_EMAIL')
+    password = os.getenv('GARMIN_PASSWORD')
+    
+    if not email or not password:
+        logger.error("No Garmin credentials in .env")
+        return False
+        
+    try:
+        # 1. Auth
+        client = Garmin(email, password)
+        client.login()
+        
+        # 2. Get Date
+        today_str = datetime.now().strftime('%Y-%m-%d')
+        
+        # 3. Fetch Data
+        # Daily Stats
+        stats = client.get_stats(today_str)
+        
+        # Combine (simple version for now: mainly stats)
+        summary = {
+            'stats': stats
+        }
+        
+        # Try steps if available
+        try:
+             daily_steps = client.get_daily_steps(today_str)
+             summary['daily_steps'] = daily_steps
+        except:
+             pass
+
+        # 4. Save
+        file_path = GARMIN_DIR / f"{today_str}.json"
+        
+        # Ensure dir
+        GARMIN_DIR.mkdir(parents=True, exist_ok=True)
+        
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(summary, f, ensure_ascii=False, indent=2, default=str)
+            
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error updating Garmin data: {e}")
+        return False
+
+
 
 

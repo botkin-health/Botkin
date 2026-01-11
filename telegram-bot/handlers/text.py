@@ -254,6 +254,21 @@ async def handle_text(message: Message, state: FSMContext):
         await handle_description(message, message.text)
         return
     
+    # --- ЛОГИКА ДОБАВОК ---
+    from services.supplement_service import supplement_service
+    logged_items, remaining_items = supplement_service.log_intake(message.text)
+    if logged_items:
+        # Если нашли витамины - сохраняем и отвечаем, дальше не идем
+        response = f"💊 <b>Сохранено:</b> {', '.join(logged_items)}\n\n"
+        if remaining_items:
+            response += "⏳ <b>Осталось принять сегодня:</b>\n" + "\n".join(remaining_items)
+        else:
+            response += "🎉 <b>На сегодня все витамины приняты!</b>"
+            
+        await message.answer(response)
+        return
+    # ----------------------
+    
     # Проверяем, ожидается ли подтверждение сохранения
     if user_state and user_state.state == 'waiting_confirmation':
         text = message.text.strip()

@@ -181,6 +181,30 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
     # Логируем результат распознавания меню
     if menu_data:
         logger.info(f"Распознано меню/еда: {menu_data.get('dish_name')}, КБЖУ: {menu_data.get('calories')} ккал")
+        
+        # --- ЛОГИКА ДОБАВОК ---
+        if menu_data.get('is_supplement'):
+            dish_name = menu_data.get('dish_name', '')
+            logger.info(f"💊 Распознаны добавки по фото: {dish_name}")
+            
+            from services.supplement_service import supplement_service
+            logged_items, remaining_items = supplement_service.log_intake(dish_name)
+            
+            response = f"💊 <b>По фото распознано:</b> {dish_name}\n"
+            if logged_items:
+                response += f"✅ <b>Записано в журнал:</b> {', '.join(logged_items)}\n\n"
+            else:
+                response += "⚠️ <b>Не удалось сопоставить с вашим планом.</b> Проверьте названия.\n\n"
+                
+            if remaining_items:
+                response += "⏳ <b>Осталось принять сегодня:</b>\n" + "\n".join(remaining_items)
+            else:
+                response += "🎉 <b>На сегодня все витамины приняты!</b>"
+            
+            await message.answer(response)
+            return
+        # ----------------------
+        
     else:
         logger.info("Меню/еда не распознано")
     
