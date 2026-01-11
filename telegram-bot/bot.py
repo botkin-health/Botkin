@@ -114,6 +114,16 @@ async def main():
         logger.error(f"❌ Ошибка регистрации обработчика фото: {e}")
     
     try:
+        from handlers.voice import router as voice_router
+        dp.include_router(voice_router)
+        count = len(voice_router.observers) if hasattr(voice_router, 'observers') else 0
+        handlers_count += count
+        registered_modules.append("голоса")
+    except Exception as e:
+        errors.append(f"Обработчик голоса: {e}")
+        logger.error(f"❌ Ошибка регистрации обработчика голоса: {e}")
+
+    try:
         from handlers.text import router as text_router
         dp.include_router(text_router)
         count = len(text_router.observers) if hasattr(text_router, 'observers') else 0

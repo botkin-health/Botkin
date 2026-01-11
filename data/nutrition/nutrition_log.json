@@ -832,6 +832,186 @@
         "fats": 70.4,
         "carbs": 138.5
       }
+    },
+    {
+      "date": "2026-01-11",
+      "had_workout": false,
+      "meals": [
+        {
+          "meal": "Обед",
+          "time": "13:29",
+          "items": [
+            {
+              "food": "винегрет",
+              "amount": 130.0,
+              "unit": "г",
+              "calories": 91.0,
+              "protein": 2.0,
+              "fats": 4.5,
+              "carbs": 13.7
+            }
+          ]
+        },
+        {
+          "meal": "Обед",
+          "time": "13:35",
+          "items": [
+            {
+              "food": "хлебец бородинский",
+              "amount": 60.0,
+              "unit": "г",
+              "calories": 150.0,
+              "protein": 5.4,
+              "fats": 1.8,
+              "carbs": 28.8
+            }
+          ]
+        },
+        {
+          "meal": "Завтрак",
+          "time": "13:57",
+          "items": [
+            {
+              "food": "яйцо",
+              "amount": 150.0,
+              "unit": "г",
+              "calories": 214.5,
+              "protein": 18.9,
+              "fats": 14.2,
+              "carbs": 1.0
+            },
+            {
+              "food": "подсолнечное масло",
+              "amount": 5.0,
+              "unit": "г",
+              "calories": 44.2,
+              "protein": 0.0,
+              "fats": 5.0,
+              "carbs": 0.0
+            },
+            {
+              "food": "лук",
+              "amount": 50.0,
+              "unit": "г",
+              "calories": 23.5,
+              "protein": 0.7,
+              "fats": 0.0,
+              "carbs": 5.2
+            }
+          ]
+        },
+        {
+          "meal": "Обед",
+          "time": "13:58",
+          "items": [
+            {
+              "food": "скумбрия консервированная",
+              "amount": 50.0,
+              "unit": "г",
+              "calories": 125.0,
+              "protein": 12.5,
+              "fats": 9.0,
+              "carbs": 0.0
+            }
+          ]
+        },
+        {
+          "meal": "Обед",
+          "time": "18:23",
+          "items": [
+            {
+              "food": "огурец",
+              "amount": 160.0,
+              "unit": "г",
+              "calories": 25.6,
+              "protein": 1.1,
+              "fats": 0.2,
+              "carbs": 5.8
+            },
+            {
+              "food": "квашеная капуста",
+              "amount": 100.0,
+              "unit": "г",
+              "calories": 25.0,
+              "protein": 1.9,
+              "fats": 0.3,
+              "carbs": 5.0
+            },
+            {
+              "food": "семечки подсолнечные и тыквенные",
+              "amount": 15.0,
+              "unit": "г",
+              "calories": 87.0,
+              "protein": 3.1,
+              "fats": 7.5,
+              "carbs": 1.6
+            },
+            {
+              "food": "консервированная скумбрия",
+              "amount": 50.0,
+              "unit": "г",
+              "calories": 125.0,
+              "protein": 12.5,
+              "fats": 9.0,
+              "carbs": 0.0
+            },
+            {
+              "food": "хлебец бородинский",
+              "amount": 20.0,
+              "unit": "г",
+              "calories": 50.0,
+              "protein": 1.8,
+              "fats": 0.6,
+              "carbs": 9.6
+            },
+            {
+              "food": "холодец",
+              "amount": 60.0,
+              "unit": "г",
+              "calories": 72.0,
+              "protein": 6.0,
+              "fats": 4.8,
+              "carbs": 0.6
+            }
+          ]
+        },
+        {
+          "meal": "Творог мягкий натуральный высокобелковый",
+          "time": "18:41",
+          "items": [
+            {
+              "food": "Творог мягкий натуральный высокобелковый",
+              "amount": null,
+              "unit": "г",
+              "calories": 145.0,
+              "protein": 10.8,
+              "fats": 7.2,
+              "carbs": 4.2
+            }
+          ]
+        },
+        {
+          "meal": "Ужин",
+          "time": "18:42",
+          "items": [
+            {
+              "food": "мандаринка",
+              "amount": 100.0,
+              "unit": "г",
+              "calories": 53.0,
+              "protein": 0.8,
+              "fats": 0.3,
+              "carbs": 13.3
+            }
+          ]
+        }
+      ],
+      "totals": {
+        "calories": 1190.8,
+        "protein": 76.1,
+        "fats": 63.6,
+        "carbs": 79.0
+      }
     }
   ]
 }

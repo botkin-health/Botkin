@@ -331,3 +331,180 @@
 2026-01-11 00:02:25,098 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
 2026-01-11 00:02:25,099 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
 2026-01-11 00:02:36,523 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-01-11 13:27:16,758 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-11 13:27:17,184 - __main__ - INFO - ✅ Обработчики команд, фото, текста, голоса зарегистрированы: 96 обработчиков
+2026-01-11 13:27:17,627 - aiogram.dispatcher - INFO - Start polling
+2026-01-11 13:27:17,710 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 13:29:02,822 - handlers.commands - INFO - 📊 Команда /status вызвана пользователем 895655
+2026-01-11 13:29:17,127 - handlers.text - INFO - 📝 Обработчик текста: получено сообщение от 895655: '130 грамм винегрета...'
+2026-01-11 13:29:17,127 - handlers.text - INFO - У пользователя 895655 нет состояния
+2026-01-11 13:29:17,127 - handlers.text - INFO - Обработка текстового описания без фото: '130 грамм винегрета'
+2026-01-11 13:29:17,316 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-11 13:29:19,029 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-11 13:29:19,040 - handlers.photo - INFO - Извлечено название приёма пищи: 'Обед' из описания: '130 грамм винегрета
+130 грамм винегрета...'
+2026-01-11 13:29:19,040 - handlers.photo - INFO - Сохранено в состояние: meal_name='Обед', meal_time='13:29'
+2026-01-11 13:29:22,639 - handlers.photo - INFO - Обработка callback: action=save, meal_type=regular, user_id=895655
+2026-01-11 13:29:22,640 - handlers.photo - INFO - Используется meal_name из состояния: 'Обед'
+2026-01-11 13:29:22,640 - handlers.photo - INFO - Сохранение блюда: meal_name='Обед', meal_type='regular'
+2026-01-11 13:35:38,667 - handlers.text - INFO - 📝 Обработчик текста: получено сообщение от 895655: '3 Хлебца "Щедрые" бородинские 
+Калории: 110 ккал
+Белки: 4 г
+Жиры: 1 г 
+Углеводы: 19 г...'
+2026-01-11 13:35:38,668 - handlers.text - INFO - У пользователя 895655 нет состояния
+2026-01-11 13:35:38,668 - handlers.text - INFO - Обработка текстового описания без фото: '3 Хлебца "Щедрые" бородинские 
+Калории: 110 ккал
+Белки: 4 г
+Жиры: 1 г 
+Углеводы: 19 г'
+2026-01-11 13:35:38,805 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-11 13:35:40,772 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-11 13:35:40,776 - services.nutrition - INFO - ✅ Найдены явные КБЖУ в описании: {'calories': 110.0, 'protein': 4.0, 'fats': 1.0, 'carbs': 19.0}
+2026-01-11 13:35:40,779 - services.nutrition - INFO - Продукт 'хлебец бородинский' не найден в базе, ищу в интернете...
+2026-01-11 13:35:40,779 - services.product_search - INFO - 🌐 Поиск продукта 'хлебец бородинский' через AI...
+2026-01-11 13:35:40,781 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-11 13:35:43,726 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-11 13:35:43,732 - services.product_search - INFO - ✅ AI нашел: хлебец бородинский -> 250.0 ккал/100г
+2026-01-11 13:35:43,735 - services.product_search - INFO - 💾 Продукт 'хлебец бородинский' сохранен в базу
+2026-01-11 13:35:43,738 - handlers.photo - INFO - Извлечено название приёма пищи: 'Обед' из описания: '3 Хлебца "Щедрые" бородинские 
+Калории: 110 ккал
+Б...'
+2026-01-11 13:35:43,738 - handlers.photo - INFO - Сохранено в состояние: meal_name='Обед', meal_time='13:35'
+2026-01-11 13:35:53,406 - handlers.photo - INFO - Обработка callback: action=save, meal_type=regular, user_id=895655
+2026-01-11 13:35:53,408 - handlers.photo - INFO - Используется meal_name из состояния: 'Обед'
+2026-01-11 13:35:53,408 - handlers.photo - INFO - Сохранение блюда: meal_name='Обед', meal_type='regular'
+2026-01-11 13:38:56,900 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-11 13:38:57,087 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-11 13:38:57,527 - aiogram.dispatcher - INFO - Start polling
+2026-01-11 13:38:57,613 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 13:45:30,394 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-11 13:45:30,586 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-11 13:45:31,644 - aiogram.dispatcher - INFO - Start polling
+2026-01-11 13:45:31,734 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 13:47:09,935 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-11 13:47:10,124 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-11 13:47:10,544 - aiogram.dispatcher - INFO - Start polling
+2026-01-11 13:47:10,649 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 13:49:29,297 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-11 13:49:29,495 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-11 13:49:29,950 - aiogram.dispatcher - INFO - Start polling
+2026-01-11 13:49:30,046 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 13:52:17,987 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-11 13:52:18,126 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-11 13:52:18,642 - aiogram.dispatcher - INFO - Start polling
+2026-01-11 13:52:18,756 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 13:57:19,452 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-11 13:57:19,637 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-11 13:57:20,036 - aiogram.dispatcher - INFO - Start polling
+2026-01-11 13:57:20,124 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 13:57:53,204 - services.voice_service - INFO - 🎤 Отправляю файл в Whisper: data/media/voice/AgADSYgAAr_SIUs.ogg
+2026-01-11 13:57:53,328 - openai._base_client - DEBUG - Request options: {'method': 'post', 'url': '/audio/transcriptions', 'headers': {'Content-Type': 'multipart/form-data'}, 'files': [('file', SerializationIterator(index=0, iterator=SerializationIterator(index=0, iterator=<_io.BufferedReader name='data/media/voice/AgADSYgAAr_SIUs.ogg'>)))], 'idempotency_key': 'stainless-python-retry-6bb9647d-d342-4cfc-a4bf-172499605849', 'json_data': {'model': 'whisper-1', 'response_format': 'text'}}
+2026-01-11 13:57:53,361 - openai._base_client - DEBUG - Sending HTTP Request: POST https://api.openai.com/v1/audio/transcriptions
+2026-01-11 13:57:54,757 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/audio/transcriptions "HTTP/1.1 200 OK"
+2026-01-11 13:57:54,758 - openai._base_client - DEBUG - HTTP Response: POST https://api.openai.com/v1/audio/transcriptions "200 OK" Headers([('date', 'Sun, 11 Jan 2026 10:57:54 GMT'), ('content-type', 'text/plain; charset=utf-8'), ('transfer-encoding', 'chunked'), ('connection', 'keep-alive'), ('access-control-expose-headers', 'X-Request-ID'), ('openai-organization', 'user-mfccqfqkqg55xg1tdpbdohkh'), ('openai-processing-ms', '780'), ('openai-project', 'proj_ssXgeB3HOw1WQTgTn4XCKSER'), ('openai-version', '2020-10-01'), ('strict-transport-security', 'max-age=31536000; includeSubDomains; preload'), ('via', 'envoy-router-7c8f4f97c-bgv9n'), ('x-envoy-upstream-service-time', '801'), ('x-ratelimit-limit-requests', '500'), ('x-ratelimit-remaining-requests', '499'), ('x-ratelimit-reset-requests', '120ms'), ('x-request-id', 'req_261b429efab44d3d876757a4598fe044'), ('x-openai-proxy-wasm', 'v0.1'), ('cf-cache-status', 'DYNAMIC'), ('set-cookie', '__cf_bm=pOLA_DUKNGN2Ka317mGerz8mAyrpbFnqnY1zxDLLd74-1768129074-1.0.1.1-0NqvfMNFa6y7iI7sEgzGyaKhz4Y7vyYiTAG_cjmQ8Ng1gBBqCh365u6Bu2RK2GwaPHex3o6KNVD5SywQT5ISoY6sz8Kq2l0w501_iO1Jcjw; path=/; expires=Sun, 11-Jan-26 11:27:54 GMT; domain=.api.openai.com; HttpOnly; Secure; SameSite=None'), ('x-content-type-options', 'nosniff'), ('set-cookie', '_cfuvid=7feYBc.lfQ9tbK0Dumrp.cD.TgnlgZ.cT5T5Qx.qEeQ-1768129074877-0.0.1.1-604800000; path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None'), ('server', 'cloudflare'), ('cf-ray', '9bc3e557eb66edcf-MXP'), ('content-encoding', 'gzip'), ('alt-svc', 'h3=":443"; ma=86400')])
+2026-01-11 13:57:54,758 - openai._base_client - DEBUG - request_id: req_261b429efab44d3d876757a4598fe044
+2026-01-11 13:57:54,758 - services.voice_service - INFO - ✅ Успешно транскрибировано: На завтрак яичница из трёх яиц, чайной ложки подсо...
+2026-01-11 13:57:55,021 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-11 13:57:56,234 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-11 13:57:56,272 - handlers.photo - INFO - Извлечено название приёма пищи: 'Завтрак' из описания: 'На завтрак яичница из трёх яиц, чайной ложки подсо...'
+2026-01-11 13:57:56,273 - handlers.photo - INFO - Сохранено в состояние: meal_name='Завтрак', meal_time='13:57'
+2026-01-11 13:58:12,895 - handlers.photo - INFO - Обработка callback: action=save, meal_type=regular, user_id=895655
+2026-01-11 13:58:12,896 - handlers.photo - INFO - Используется meal_name из состояния: 'Завтрак'
+2026-01-11 13:58:12,896 - handlers.photo - INFO - Сохранение блюда: meal_name='Завтрак', meal_type='regular'
+2026-01-11 13:58:42,930 - services.voice_service - INFO - 🎤 Отправляю файл в Whisper: data/media/voice/AgADS4gAAr_SIUs.ogg
+2026-01-11 13:58:42,932 - openai._base_client - DEBUG - Request options: {'method': 'post', 'url': '/audio/transcriptions', 'headers': {'Content-Type': 'multipart/form-data'}, 'files': [('file', SerializationIterator(index=0, iterator=SerializationIterator(index=0, iterator=<_io.BufferedReader name='data/media/voice/AgADS4gAAr_SIUs.ogg'>)))], 'idempotency_key': 'stainless-python-retry-afd7ffa6-59b8-4c56-adf5-e15b8ecf7628', 'json_data': {'model': 'whisper-1', 'response_format': 'text'}}
+2026-01-11 13:58:42,933 - openai._base_client - DEBUG - Sending HTTP Request: POST https://api.openai.com/v1/audio/transcriptions
+2026-01-11 13:58:45,143 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/audio/transcriptions "HTTP/1.1 200 OK"
+2026-01-11 13:58:45,144 - openai._base_client - DEBUG - HTTP Response: POST https://api.openai.com/v1/audio/transcriptions "200 OK" Headers({'date': 'Sun, 11 Jan 2026 10:58:45 GMT', 'content-type': 'text/plain; charset=utf-8', 'transfer-encoding': 'chunked', 'connection': 'keep-alive', 'access-control-expose-headers': 'X-Request-ID', 'openai-organization': 'user-mfccqfqkqg55xg1tdpbdohkh', 'openai-processing-ms': '1454', 'openai-project': 'proj_ssXgeB3HOw1WQTgTn4XCKSER', 'openai-version': '2020-10-01', 'strict-transport-security': 'max-age=31536000; includeSubDomains; preload', 'via': 'envoy-router-68bd966fd8-fglqs', 'x-envoy-upstream-service-time': '1693', 'x-ratelimit-limit-requests': '500', 'x-ratelimit-remaining-requests': '499', 'x-ratelimit-reset-requests': '120ms', 'x-request-id': 'req_4acdc6385d80450ead02ba3fe2a20a91', 'x-openai-proxy-wasm': 'v0.1', 'cf-cache-status': 'DYNAMIC', 'x-content-type-options': 'nosniff', 'server': 'cloudflare', 'cf-ray': '9bc3e68d3a39ba9d-MXP', 'content-encoding': 'gzip', 'alt-svc': 'h3=":443"; ma=86400'})
+2026-01-11 13:58:45,144 - openai._base_client - DEBUG - request_id: req_4acdc6385d80450ead02ba3fe2a20a91
+2026-01-11 13:58:45,145 - services.voice_service - INFO - ✅ Успешно транскрибировано: 50 грамм консервированной скумбрии.
+...
+2026-01-11 13:58:45,377 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-11 13:58:46,509 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-11 13:58:46,546 - services.nutrition - INFO - Продукт 'скумбрия консервированная' не найден в базе, ищу в интернете...
+2026-01-11 13:58:46,547 - services.product_search - INFO - 🌐 Поиск продукта 'скумбрия консервированная' через AI...
+2026-01-11 13:58:46,548 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-11 13:58:48,908 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-11 13:58:48,912 - services.product_search - INFO - ✅ AI нашел: скумбрия консервированная -> 250.0 ккал/100г
+2026-01-11 13:58:48,916 - services.product_search - INFO - 💾 Продукт 'скумбрия консервированная' сохранен в базу
+2026-01-11 13:58:48,918 - handlers.photo - INFO - Извлечено название приёма пищи: 'Обед' из описания: '50 грамм консервированной скумбрии.
+
+50 грамм конс...'
+2026-01-11 13:58:48,918 - handlers.photo - INFO - Сохранено в состояние: meal_name='Обед', meal_time='13:58'
+2026-01-11 13:58:59,879 - handlers.photo - INFO - Обработка callback: action=save, meal_type=regular, user_id=895655
+2026-01-11 13:58:59,880 - handlers.photo - INFO - Используется meal_name из состояния: 'Обед'
+2026-01-11 13:58:59,880 - handlers.photo - INFO - Сохранение блюда: meal_name='Обед', meal_type='regular'
+2026-01-11 13:59:05,577 - handlers.commands - INFO - 📊 Команда /status вызвана пользователем 895655
+2026-01-11 15:26:27,417 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-01-11 15:26:27,466 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-01-11 15:26:38,907 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-01-11 15:30:37,969 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-01-11 15:30:38,081 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-01-11 15:30:50,550 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-01-11 18:17:04,298 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-11 18:17:04,508 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-11 18:17:04,923 - aiogram.dispatcher - INFO - Start polling
+2026-01-11 18:17:05,009 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 18:17:14,102 - handlers.commands - INFO - 📊 Команда /status вызвана пользователем 895655
+2026-01-11 18:23:12,106 - handlers.text - INFO - 📝 Обработчик текста: получено сообщение от 895655: 'обед:
+160 грамм огурец 
+100 грамм квашенной капусты   
+15 грамм семечек (подсолнечные и тыквенные)
+5...'
+2026-01-11 18:23:12,107 - handlers.text - INFO - У пользователя 895655 нет состояния
+2026-01-11 18:23:12,107 - handlers.text - INFO - Обработка текстового описания без фото: 'обед:
+160 грамм огурец 
+100 грамм квашенной капусты   
+15 грамм семечек (подсолнечные и тыквенные)
+50 грамм консервированной скумбрии
+2 Хлебца "Щедрые" бородинские 
+60 грам холодца'
+2026-01-11 18:23:12,221 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-11 18:23:15,436 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-11 18:23:15,442 - services.nutrition - INFO - Продукт 'семечки подсолнечные и тыквенные' не найден в базе, ищу в интернете...
+2026-01-11 18:23:15,443 - services.product_search - INFO - 🌐 Поиск продукта 'семечки подсолнечные и тыквенные' через AI...
+2026-01-11 18:23:15,444 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-11 18:23:18,816 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-11 18:23:18,821 - services.product_search - INFO - ✅ AI нашел: семечки подсолнечные и тыквенные -> 580.0 ккал/100г
+2026-01-11 18:23:18,825 - services.product_search - INFO - 💾 Продукт 'семечки подсолнечные и тыквенные' сохранен в базу
+2026-01-11 18:23:18,827 - services.nutrition - INFO - Продукт 'холодец' не найден в базе, ищу в интернете...
+2026-01-11 18:23:18,828 - services.product_search - INFO - 🌐 Поиск продукта 'холодец' через AI...
+2026-01-11 18:23:18,829 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-11 18:23:21,480 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-11 18:23:21,485 - services.product_search - INFO - ✅ AI нашел: холодец -> 120.0 ккал/100г
+2026-01-11 18:23:21,488 - services.product_search - INFO - 💾 Продукт 'холодец' сохранен в базу
+2026-01-11 18:23:21,490 - handlers.photo - INFO - Извлечено название приёма пищи: 'Обед' из описания: 'обед:
+160 грамм огурец 
+100 грамм квашенной капуст...'
+2026-01-11 18:23:21,490 - handlers.photo - INFO - Сохранено в состояние: meal_name='Обед', meal_time='18:23'
+2026-01-11 18:23:36,750 - handlers.photo - INFO - Обработка callback: action=save, meal_type=regular, user_id=895655
+2026-01-11 18:23:36,752 - handlers.photo - INFO - Используется meal_name из состояния: 'Обед'
+2026-01-11 18:23:36,752 - handlers.photo - INFO - Сохранение блюда: meal_name='Обед', meal_type='regular'
+2026-01-11 18:32:30,780 - handlers.commands - INFO - 📊 Команда /status вызвана пользователем 895655
+2026-01-11 18:41:16,460 - handlers.photo - INFO - 📸 Получено фото от пользователя 895655
+2026-01-11 18:41:17,236 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-11 18:41:22,380 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-11 18:41:22,384 - handlers.photo - INFO - Распознано меню/еда: Творог мягкий натуральный высокобелковый, КБЖУ: 145.0 ккал
+2026-01-11 18:41:22,384 - handlers.photo - INFO - Распознано: Творог мягкий натуральный высокобелковый
+2026-01-11 18:41:22,384 - handlers.photo - INFO - Используем данные без caption: Творог мягкий натуральный высокобелковый
+2026-01-11 18:41:43,341 - handlers.photo - INFO - Обработка callback: action=save, meal_type=menu, user_id=895655
+2026-01-11 18:41:43,341 - handlers.photo - INFO - Сохранение блюда: meal_name='Творог мягкий натуральный высокобелковый', meal_type='menu'
+2026-01-11 18:41:58,267 - handlers.text - INFO - 📝 Обработчик текста: получено сообщение от 895655: 'Одна мандаринка...'
+2026-01-11 18:41:58,267 - handlers.text - INFO - У пользователя 895655 нет состояния
+2026-01-11 18:41:58,267 - handlers.text - INFO - Обработка текстового описания без фото: 'Одна мандаринка'
+2026-01-11 18:41:58,381 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-11 18:42:00,096 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-11 18:42:00,105 - services.nutrition - INFO - Продукт 'мандаринка' не найден в базе, ищу в интернете...
+2026-01-11 18:42:00,105 - services.product_search - INFO - 🌐 Поиск продукта 'мандаринка' через AI...
+2026-01-11 18:42:00,107 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-11 18:42:03,918 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-11 18:42:03,925 - services.product_search - INFO - ✅ AI нашел: мандаринка -> 53.0 ккал/100г
+2026-01-11 18:42:03,929 - services.product_search - INFO - 💾 Продукт 'мандаринка' сохранен в базу
+2026-01-11 18:42:03,932 - handlers.photo - INFO - Извлечено название приёма пищи: 'Ужин' из описания: 'Одна мандаринка
+Одна мандаринка...'
+2026-01-11 18:42:03,933 - handlers.photo - INFO - Сохранено в состояние: meal_name='Ужин', meal_time='18:42'
+2026-01-11 18:42:18,594 - handlers.photo - INFO - Обработка callback: action=save, meal_type=regular, user_id=895655
+2026-01-11 18:42:18,595 - handlers.photo - INFO - Используется meal_name из состояния: 'Ужин'
+2026-01-11 18:42:18,595 - handlers.photo - INFO - Сохранение блюда: meal_name='Ужин', meal_type='regular'
+2026-01-11 18:42:28,907 - handlers.commands - INFO - 📊 Команда /status вызвана пользователем 895655
