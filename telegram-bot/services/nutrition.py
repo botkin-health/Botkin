@@ -416,10 +416,10 @@ def process_meal_description_with_menu(
     # Иначе используем значения из menu_data (могут быть пересчитаны на вес порции)
     nutrition_per_100g = menu_data.get('nutrition_per_100g', {})
     if nutrition_per_100g:
-        menu_calories_per_100g = nutrition_per_100g.get('calories', 0)
-        menu_protein_per_100g = nutrition_per_100g.get('protein', 0)
-        menu_fats_per_100g = nutrition_per_100g.get('fats', 0)
-        menu_carbs_per_100g = nutrition_per_100g.get('carbs', 0)
+        menu_calories_per_100g = nutrition_per_100g.get('calories') or 0
+        menu_protein_per_100g = nutrition_per_100g.get('protein') or 0
+        menu_fats_per_100g = nutrition_per_100g.get('fats') or 0
+        menu_carbs_per_100g = nutrition_per_100g.get('carbs') or 0
     else:
         # Если нет nutrition_per_100g, используем значения из menu_data
         # Но нужно проверить, не пересчитаны ли они уже на вес порции
@@ -428,16 +428,16 @@ def process_meal_description_with_menu(
             # Если есть вес порции, возможно значения уже пересчитаны
             # Пересчитываем обратно на 100г
             multiplier = 100.0 / menu_weight
-            menu_calories_per_100g = menu_data.get('calories', 0) * multiplier
-            menu_protein_per_100g = menu_data.get('protein', 0) * multiplier
-            menu_fats_per_100g = menu_data.get('fats', 0) * multiplier
-            menu_carbs_per_100g = menu_data.get('carbs', 0) * multiplier
+            menu_calories_per_100g = (menu_data.get('calories') or 0) * multiplier
+            menu_protein_per_100g = (menu_data.get('protein') or 0) * multiplier
+            menu_fats_per_100g = (menu_data.get('fats') or 0) * multiplier
+            menu_carbs_per_100g = (menu_data.get('carbs') or 0) * multiplier
         else:
             # Нет веса порции, считаем что значения на 100г
-            menu_calories_per_100g = menu_data.get('calories', 0)
-            menu_protein_per_100g = menu_data.get('protein', 0)
-            menu_fats_per_100g = menu_data.get('fats', 0)
-            menu_carbs_per_100g = menu_data.get('carbs', 0)
+            menu_calories_per_100g = menu_data.get('calories') or 0
+            menu_protein_per_100g = menu_data.get('protein') or 0
+            menu_fats_per_100g = menu_data.get('fats') or 0
+            menu_carbs_per_100g = menu_data.get('carbs') or 0
     
     # Вес из меню (если указан)
     menu_weight = menu_data.get('weight')
