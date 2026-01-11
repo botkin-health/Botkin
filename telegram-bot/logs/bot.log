@@ -3194,3 +3194,9 @@ Exception: Ошибки при инициализации бота
 2026-01-10 14:27:37,815 - handlers.photo - INFO - Обработка callback: action=save, meal_type=regular, user_id=895655
 2026-01-10 14:27:37,815 - handlers.photo - INFO - Используется meal_name из состояния: 'Обед'
 2026-01-10 14:27:37,815 - handlers.photo - INFO - Сохранение блюда: meal_name='Обед', meal_type='regular'
+2026-01-10 16:12:56,340 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-01-10 16:12:56,480 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-01-10 16:13:08,258 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-01-10 16:17:13,628 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-01-10 16:17:13,629 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-01-10 16:17:25,226 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)

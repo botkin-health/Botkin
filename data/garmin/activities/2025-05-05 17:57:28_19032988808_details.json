@@ -80,13 +80,13 @@
     "groupRideUUID": null,
     "hasHeatMap": false,
     "personalRecord": false,
+    "gcj02": false,
     "runPowerWindDataEnabled": true,
     "manualActivity": false,
     "autoCalcCalories": false,
     "favorite": false,
     "elevationCorrected": false,
-    "trimmed": false,
-    "gcj02": false
+    "trimmed": false
   },
   "summaryDTO": {
     "startTimeLocal": "2025-05-05T17:57:28.0",

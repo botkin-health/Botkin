@@ -1,7 +1,7 @@
 .PHONY: run install backup clean
 
 # Variables
-PYTHON := python3
+PYTHON := ./venv/bin/python
 BOT_SCRIPT := telegram-bot/bot.py
 BACKUP_SCRIPT := scripts/create_backup.sh
 
@@ -13,7 +13,7 @@ run:
 # Install dependencies
 install:
 	@echo "Installing dependencies..."
-	pip install -r requirements.txt
+	$(PYTHON) -m pip install -r requirements.txt
 
 # Create a backup
 backup:

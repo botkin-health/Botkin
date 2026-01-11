@@ -334,13 +334,15 @@ def extract_dish_name_from_text(text: str) -> Optional[str]:
     return None
 
 
-def parse_menu_photo(photo_path: Path, api_key: Optional[str] = None, use_chatgpt: bool = True) -> Optional[Dict]:
+from typing import Dict, Optional, List, Union
+
+def parse_menu_photo(photo_paths: Union[Path, List[Path]], api_key: Optional[str] = None, use_chatgpt: bool = True) -> Optional[Dict]:
     """
     Распознает меню кафе с КБЖУ из фото.
     Сначала пробует ChatGPT Vision (если доступен), затем OCR.
     
     Args:
-        photo_path: Путь к фото меню
+        photo_paths: Путь к фото меню или список путей
         api_key: API ключ (опционально, для OCR)
         use_chatgpt: Использовать ChatGPT Vision если доступен (по умолчанию True)
         
@@ -355,13 +357,25 @@ def parse_menu_photo(photo_path: Path, api_key: Optional[str] = None, use_chatgp
             'weight': None  # Вес обычно не указан в меню
         }
     """
-    if not photo_path.exists():
-        print(f"    ❌ Файл не существует: {photo_path}")
+    # Нормализуем входные данные в список
+    if isinstance(photo_paths, (str, Path)):
+        paths_list = [Path(photo_paths)]
+    else:
+        paths_list = photo_paths
+        
+    # Фильтруем и сортируем (одно фото - основное)
+    valid_paths = [p for p in paths_list if p.exists()]
+    if not valid_paths:
+        if isinstance(photo_paths, Path):
+            print(f"    ❌ Файл не существует: {photo_paths}")
         return None
+        
+    main_photo = valid_paths[0]
     
-    # 1. Пробуем Gemini Vision (самый точный)
+    # 1. Пробуем Gemini Vision (самый точный, поддерживает мульти-фото)
     if GEMINI_AVAILABLE and parse_menu_with_gemini:
-        gemini_result = parse_menu_with_gemini(photo_path)
+        # Передаем весь список фото
+        gemini_result = parse_menu_with_gemini(valid_paths)
         if gemini_result:
             return gemini_result
     
@@ -369,12 +383,14 @@ def parse_menu_photo(photo_path: Path, api_key: Optional[str] = None, use_chatgp
     if use_chatgpt and CHATGPT_AVAILABLE and parse_menu_with_chatgpt:
         openai_key = get_openai_api_key()
         if openai_key:
-            result = parse_menu_with_chatgpt(photo_path, openai_key)
+            # TODO: Добавить поддержку списков в ChatGPT Vision
+            # Пока используем только первое фото
+            result = parse_menu_with_chatgpt(main_photo, openai_key)
             if result:
                 return result
             print(f"    ⚠️  ChatGPT не распознал, пробую OCR...")
     
-    # Fallback: используем OCR
+    # Fallback: используем OCR (только первое фото)
     if ocr_with_google_vision is None:
         print("⚠️  OCR функция недоступна. Установите зависимости.")
         return None
@@ -382,6 +398,8 @@ def parse_menu_photo(photo_path: Path, api_key: Optional[str] = None, use_chatgp
     # Получаем API ключ
     if not api_key:
         api_key = get_google_vision_api_key()
+    
+    photo_path = main_photo # Для OCR используем только первое фото
     
     try:
         # Распознаём текст с фото

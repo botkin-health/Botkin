@@ -80,10 +80,10 @@
     "groupRideUUID": null,
     "hasHeatMap": false,
     "personalRecord": false,
+    "runPowerWindDataEnabled": null,
+    "trimmed": false,
     "elevationCorrected": false,
     "manualActivity": false,
-    "trimmed": false,
-    "runPowerWindDataEnabled": null,
     "autoCalcCalories": false,
     "favorite": false,
     "gcj02": false

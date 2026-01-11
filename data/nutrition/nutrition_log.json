@@ -794,13 +794,43 @@
               "carbs": 1.5
             }
           ]
+        },
+        {
+          "meal": "Перекус",
+          "time": "23:05",
+          "items": [
+            {
+              "food": "винегрет",
+              "amount": 45.0,
+              "unit": "г",
+              "calories": 31.5,
+              "protein": 0.7,
+              "fats": 1.6,
+              "carbs": 4.7
+            }
+          ]
+        },
+        {
+          "meal": "Ужин",
+          "time": "23:36",
+          "items": [
+            {
+              "food": "перец",
+              "amount": 450,
+              "unit": "г",
+              "calories": 697.5,
+              "protein": 42.8,
+              "fats": 38.2,
+              "carbs": 40.5
+            }
+          ]
         }
       ],
       "totals": {
-        "calories": 810.0,
-        "protein": 46.0,
-        "fats": 54.0,
-        "carbs": 42.0
+        "calories": 1509.9,
+        "protein": 73.9,
+        "fats": 70.4,
+        "carbs": 138.5
       }
     }
   ]

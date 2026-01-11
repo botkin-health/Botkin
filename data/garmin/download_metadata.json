@@ -1,11 +1,11 @@
 {
-  "download_date": "2026-01-10T13:55:27.473995",
+  "download_date": "2026-01-10T23:38:25.428371",
   "period": {
     "start": "2025-01-10",
     "end": "2026-01-10"
   },
   "results": {
-    "activities": 25,
+    "activities": 26,
     "daily_summary": 1,
     "sleep": 1,
     "body_battery": 1,

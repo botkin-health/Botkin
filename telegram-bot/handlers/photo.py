@@ -25,19 +25,15 @@ class MealConfirmationCallback(CallbackData, prefix="meal"):
     action: str  # "save" или "cancel"
     meal_type: str = "default"  # "menu" или "regular"
 
-# Блокировки для синхронизации обработки media group
-# Ключ: (user_id, media_group_id), Значение: asyncio.Lock
+# Блокировки и задачи для синхронизации обработки media group
+# Ключ: (user_id, media_group_id), Значение: asyncio.Lock / asyncio.Task
 _media_group_locks = {}
+_media_group_tasks = {}
 
 
 async def process_image_message(message: Message, photo_path: Path, photo_file_id: str = None):
     """
     Общая функция для обработки изображений (как photo, так и document)
-    
-    Args:
-        message: Сообщение с изображением
-        photo_path: Путь к сохранённому изображению
-        photo_file_id: file_id фото (если есть, иначе будет получен из document)
     """
     import logging
     logger = logging.getLogger(__name__)
@@ -83,30 +79,76 @@ async def process_image_message(message: Message, photo_path: Path, photo_file_i
                 state_manager.set_state(user_id, user_state)
             else:
                 # Добавляем фото к существующей группе
-                user_state.data['photo_file_ids'].append(photo_file_id)
-                user_state.data['photo_paths'].append(str(photo_path))
+                # Проверяем дубликаты (иногда Telegram шлет дубли)
+                if str(photo_path) not in user_state.data['photo_paths']:
+                    user_state.data['photo_file_ids'].append(photo_file_id)
+                    user_state.data['photo_paths'].append(str(photo_path))
+                
+                # Обновляем caption, если он пришел в этом сообщении
                 if message.caption:
                     user_state.data['caption'] = message.caption
                 state_manager.set_state(user_id, user_state)
         
-        # Запускаем задачу обработки только для фото с caption (обычно последнее)
-        # или если это первое фото без caption
-        if message.caption or (not user_state.data.get('answered', False) and not message.caption):
-            # Запускаем обработку в фоне
-            asyncio.create_task(process_single_photo(message, photo_path, media_group_id))
+        # Debounce: отменяем предыдущую задачу и запускаем новую
+        task_key = (user_id, media_group_id)
+        if task_key in _media_group_tasks:
+            _media_group_tasks[task_key].cancel()
+            
+        # Запускаем отложенную обработку (ждем 2 секунды, чтобы собрать все фото)
+        _media_group_tasks[task_key] = asyncio.create_task(
+            process_media_group_delayed(message, media_group_id, user_id)
+        )
+            
     else:
         # Одно фото - обрабатываем сразу
-        await process_single_photo(message, photo_path, None)
+        await process_photos_list(message, [photo_path], None)
 
 
-async def process_single_photo(message: Message, photo_path: Path, media_group_id: str = None):
-    """Обрабатывает одно фото (используется для одиночных фото и фото из группы)"""
+async def process_media_group_delayed(message: Message, media_group_id: str, user_id: str):
+    """Отложенная обработка группы фото"""
+    try:
+        await asyncio.sleep(2.0)  # Ждем загрузки всех фото
+        
+        # Удаляем задачу из списка
+        task_key = (user_id, media_group_id)
+        if task_key in _media_group_tasks:
+            del _media_group_tasks[task_key]
+            
+        # Получаем актуальное состояние
+        user_state = state_manager.get_state(user_id)
+        if not user_state or user_state.data.get('media_group_id') != media_group_id:
+            return
+            
+        if user_state.data.get('answered', False):
+            return
+            
+        # Получаем все пути к фото
+        photo_paths = [Path(p) for p in user_state.data.get('photo_paths', [])]
+        
+        if not photo_paths:
+            return
+            
+        # Обрабатываем список фото
+        await process_photos_list(message, photo_paths, media_group_id)
+        
+    except asyncio.CancelledError:
+        # Задача была отменена (пришло новое фото), это нормально
+        pass
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Ошибка в process_media_group_delayed: {e}")
+
+
+from typing import List
+
+async def process_photos_list(message: Message, photo_paths: List[Path], media_group_id: str = None):
+    """Обрабатывает список фото (одиночное или группа)"""
     import logging
     logger = logging.getLogger(__name__)
     
     user_id = str(message.from_user.id)
     
-    # Если это медиа-группа, проверяем, не отвечали ли уже
+    # Если это медиа-группа, проверяем, не ответили ли уже
     if media_group_id:
         user_state = state_manager.get_state(user_id)
         if user_state and user_state.data.get('answered', False):
@@ -116,19 +158,14 @@ async def process_single_photo(message: Message, photo_path: Path, media_group_i
         if user_state:
             user_state.data['answered'] = True
             state_manager.set_state(user_id, user_state)
-    
-    # Получаем количество фото
-    current_state = state_manager.get_state(user_id)
-    if current_state and current_state.data.get('media_group_id') == media_group_id:
-        # Если это часть группы, берем количество из состояния
-        photo_count = len(current_state.data.get('photo_file_ids', []))
-        # Если список пуст (странно, но возможно), то хотя бы 1
-        if photo_count == 0:
-            photo_count = 1
-    else:
-        # Если одиночное фото или новое состояние
-        photo_count = 1
+            
+            # Актуализируем caption из состояния, если в текущем сообщении его нет
+            if not message.caption and user_state.data.get('caption'):
+                # Создаем копию сообщения с caption из состояния (для обработки)
+                # Note: message.caption is immutable usually, we just use local var
+                pass
 
+    photo_count = len(photo_paths)
     await message.answer(f"📸 Получено {photo_count} фото! Анализирую через ИИ: еда, меню, весы, КБЖУ...")
     
     # Получаем API ключ для OCR
@@ -138,71 +175,87 @@ async def process_single_photo(message: Message, photo_path: Path, media_group_i
     except ImportError:
         api_key = os.getenv('GOOGLE_VISION_API_KEY')
     
-    menu_data = parse_menu_photo(photo_path, api_key)
+    # Передаем весь список фото в парсер
+    menu_data = parse_menu_photo(photo_paths, api_key)
     
     # Логируем результат распознавания меню
     if menu_data:
-        logger.info(f"Распознано меню: {menu_data.get('dish_name')}, КБЖУ: {menu_data.get('calories')} ккал")
+        logger.info(f"Распознано меню/еда: {menu_data.get('dish_name')}, КБЖУ: {menu_data.get('calories')} ккал")
     else:
-        logger.info("Меню не распознано")
+        logger.info("Меню/еда не распознано")
     
     if menu_data and menu_data.get('calories', 0) > 0:
-        # Это меню с КБЖУ
-        logger.info(f"Распознано меню: {menu_data.get('dish_name')}")
+        # Это меню или еда с распознанными КБЖУ
+        logger.info(f"Распознано: {menu_data.get('dish_name')}")
+        
+        # Получаем caption из состояния или сообщения
+        user_state = state_manager.get_state(user_id)
+        caption = message.caption
+        if user_state and user_state.data.get('caption'):
+            caption = user_state.data.get('caption')
         
         # Если есть caption - обрабатываем его как описание с учетом данных меню
-        if message.caption:
-            logger.info(f"Есть caption, обрабатываем с учетом меню: {message.caption}")
-            # Сохраняем данные меню в состоянии для использования в handle_description
-            user_state = state_manager.get_state(user_id)
+        if caption:
+            logger.info(f"Есть caption, обрабатываем с учетом распознанного: {caption}")
+            
             if not user_state:
                 user_state = UserState(
                     user_id=user_id,
                     state='waiting_description',
                     data={
-                        'photo_paths': [str(photo_path)],
-                        'photo_file_ids': [message.photo[-1].file_id if message.photo else message.document.file_id if message.document else ''],
-                        'caption': message.caption,
-                        'menu_data': menu_data,  # Сохраняем данные меню
+                        'photo_paths': [str(p) for p in photo_paths],
+                        'photo_file_ids': [message.photo[-1].file_id if message.photo else ''],
+                        'caption': caption,
+                        'menu_data': menu_data,
                     }
                 )
             else:
                 user_state.data['menu_data'] = menu_data
-                user_state.data['caption'] = message.caption
+                # Убедимся, что caption актуальный
+                user_state.data['caption'] = caption
             state_manager.set_state(user_id, user_state)
             
             # Обрабатываем описание с учетом меню
-            await handle_description(message, message.caption)
+            await handle_description(message, caption)
         else:
-            # Нет caption - используем меню как есть
-            logger.info(f"Используем меню без caption: {menu_data.get('dish_name')}")
-            await handle_menu_photo(message, menu_data, photo_path)
+            # Нет caption - используем данные как есть
+            logger.info(f"Используем данные без caption: {menu_data.get('dish_name')}")
+            # Для handle_menu_photo передаем первое фото как "основное" для отображения
+            await handle_menu_photo(message, menu_data, photo_paths[0])
     else:
-        # Не меню - обрабатываем описание или просим его
-        if message.caption:
+        # Не меню/еда (или не удалось распознать КБЖУ) - просим описание
+        
+        # Получаем caption
+        user_state = state_manager.get_state(user_id)
+        caption = message.caption
+        if user_state and user_state.data.get('caption'):
+            caption = user_state.data.get('caption')
+
+        if caption:
             # Если есть caption - обрабатываем сразу
-            logger.info(f"Обрабатываем описание: {message.caption}")
-            await handle_description(message, message.caption)
+            logger.info(f"Обрабатываем описание: {caption}")
+            await handle_description(message, caption)
         else:
             # Не меню и нет caption - устанавливаем состояние и просим описание
-            user_state = UserState(
-                user_id=user_id,
-                state='waiting_description',
-                data={
-                    'photo_paths': [str(photo_path)],
-                    'photo_file_ids': [message.photo[-1].file_id if message.photo else message.document.file_id if message.document else ''],
-                    'caption': '',
-                }
-            )
-            state_manager.set_state(user_id, user_state)
+            # Если состояния нет (одиночное фото без группы)
+            if not user_state:
+                 user_state = UserState(
+                    user_id=user_id,
+                    state='waiting_description',
+                    data={
+                        'photo_paths': [str(p) for p in photo_paths],
+                        'photo_file_ids': [message.photo[-1].file_id if message.photo else ''],
+                        'caption': '',
+                    }
+                )
+                 state_manager.set_state(user_id, user_state)
             
             await message.answer(
-                f"📸 Получено 1 фото!\n"
+                f"📸 Получено {photo_count} фото!\n"
                 "Отправь описание:\n"
-                "• Название блюда или продукта (например: 'кофе', 'чай', 'салат из курицы')\n"
-                "• Компоненты с весами (например: 'курица 200г, помидоры 150г')\n"
-                "• Или просто название - бот попробует распознать меню или найти продукт\n\n"
-                "💡 Совет: если это меню кафе с КБЖУ - отправь фото без описания, бот распознает автоматически!"
+                "• Название блюда или продукта\n"
+                "• Компоненты с весами\n"
+                "• Или просто название - бот попробует распознать меню или найти продукт"
             )
 
 

@@ -352,14 +352,49 @@ def extract_products_from_description(description: str) -> List[Dict[str, any]]:
                 except ValueError:
                     continue
     
+    # Преобразование текстовых числительных в цифры
+    def replace_text_numbers(text):
+        text_numbers = {
+            'один': '1', 'одна': '1', 'одно': '1',
+            'два': '2', 'две': '2', 'двух': '2',
+            'три': '3', 'трёх': '3', 'трех': '3',
+            'четыре': '4', 'четырёх': '4', 'четырех': '4',
+            'пять': '5', 'пяти': '5',
+            'шесть': '6',
+            'семь': '7',
+            'восемь': '8',
+            'девять': '9',
+            'десять': '10',
+            'пол': '0.5', 'половину': '0.5', 'половина': '0.5',
+        }
+        
+        words = text.split()
+        new_words = []
+        for word in words:
+            word_lower = word.lower()
+            if word_lower in text_numbers:
+                new_words.append(text_numbers[word_lower])
+            else:
+                new_words.append(word)
+        return ' '.join(new_words)
+
+    # Предварительная обработка описания: заменяем текстовые числа
+    description_lower = replace_text_numbers(description_lower)
+
+    # Специальные продукты с количеством: яйца, томаты и т.д.
     # Специальные продукты с количеством: яйца, томаты и т.д.
     quantity_patterns = [
-        (r'(\d+(?:-х|-и|-о)?)\s*(?:шт|штук|шт\.)?\s*(?:яйц|яиц)', 50, 'яйцо'),  # "2-х яиц" или "2 яйца" = 50г каждое
-        (r'(\d+)\s*(?:томат|томатов|помидор|помидоров)', 20, 'томат'),  # "6 томатов" = 20г каждое
-        (r'(\d+)\s*(?:черри)', 15, 'томат черри'),  # "6 черри" = 15г каждое
-        (r'маленьк[а-я]*\s*(?:луковичк|лук)', 50, 'лук'),  # "маленькой луковички" = 50г
-        (r'средн[а-я]*\s*(?:луковичк|лук)', 100, 'лук'),  # "средней луковицы" = 100г
-        (r'больш[а-я]*\s*(?:луковичк|лук)', 150, 'лук'),  # "большой луковицы" = 150г
+        (r'(\d+(?:-х|-и|-о)?)\s*(?:шт|штук|шт\.)?\s*(?:яйц|яиц)', 55, 'яйцо'), 
+        (r'(\d+)\s*(?:томат|томатов|помидор|помидоров)', 100, 'томат'),  
+        (r'(\d+)\s*(?:черри)', 15, 'томат черри'), 
+        (r'маленьк[а-я]*\s*(?:луковичк|лук)', 50, 'лук'),
+        (r'средн[а-я]*\s*(?:луковичк|лук)', 80, 'лук'),
+        (r'больш[а-я]*\s*(?:луковичк|лук)', 120, 'лук'),
+        # Разрешаем одно слово между числом и продуктом (например "3 тушеных перца")
+        (r'(\d+)\s*(?:[а-яё]+\s+)?(?:перц[а-я]*|перец)', 150, 'перец фаршированный' if 'тушон' in description_lower or 'фарш' in description_lower else 'перец'),
+        (r'(\d+)\s*(?:[а-яё]+\s+)?(?:голубц[а-я]*|голубец)', 200, 'голубцы'),
+        (r'(\d+)\s*(?:[а-яё]+\s+)?(?:котлет[а-я]*)', 80, 'котлета'),
+        (r'(\d+)\s*(?:[а-яё]+\s+)?(?:сосиск[а-я]*)', 50, 'сосиска'),
     ]
     
     for pattern, weight_per_unit, product_name in quantity_patterns:
@@ -468,12 +503,25 @@ def parse_meal_description(
             pass
     
     products = []
-    # Пробуем ChatGPT API для обработки текстового описания (приоритет над regex парсером)
+    
+    # 1. Сначала пробуем regex парсер
+    # Это важно для приоритета жестких правил (например, 3 перца = 450г, а не то что решит AI)
+    regex_products = extract_products_from_description(description)
+    
+    # Если regex нашел продукты с явным количеством (quantity_estimate) - доверяем ему больше чем AI
+    # (так как мы специально прописали веса для шт/порций)
+    if regex_products and any(p.get('source') == 'quantity_estimate' for p in regex_products):
+        print(f"    ✅ Regex нашел явные количества ({len(regex_products)} продуктов), пропускаем ChatGPT")
+        # Но также проверяем, не пропустили ли мы что-то важное, что нашел бы ChatGPT?
+        # В данном случае считаем, что если пользователь указал "2 перца", он хочет именно 2 перца с нашим весом
+        return regex_products
+
+    # 2. Пробуем ChatGPT API для обработки текстового описания (если regex не нашел quantity_estimate)
     try:
         from .chatgpt_vision import parse_text_description_with_chatgpt, get_openai_api_key
         openai_key = get_openai_api_key()
         if openai_key and description and len(description.strip()) > 10:
-            # Пробуем ChatGPT только для достаточно длинных описаний
+             # Пробуем ChatGPT только для достаточно длинных описаний
             chatgpt_products = parse_text_description_with_chatgpt(description, openai_key)
             if chatgpt_products and len(chatgpt_products) > 0:
                 # Дедупликация (дополнительная проверка)

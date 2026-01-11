@@ -2,35 +2,35 @@
   {
     "date": "2026-01-10",
     "charged": 65,
-    "drained": 12,
+    "drained": 64,
     "startTimestampGMT": "2026-01-09T21:00:00.0",
-    "endTimestampGMT": "2026-01-10T10:53:00.0",
+    "endTimestampGMT": "2026-01-10T20:37:00.0",
     "startTimestampLocal": "2026-01-10T00:00:00.0",
-    "endTimestampLocal": "2026-01-10T13:53:00.0",
+    "endTimestampLocal": "2026-01-10T23:37:00.0",
     "bodyBatteryValuesArray": [
       [
         1767997080000,
         12
       ],
       [
-        1768008960000,
-        32
-      ],
-      [
-        1768009140000,
-        32
-      ],
-      [
-        1768025340000,
-        72
+        1768020660000,
+        64
       ],
       [
         1768028760000,
         77
       ],
       [
-        1768042260000,
-        68
+        1768048920000,
+        54
+      ],
+      [
+        1768049280000,
+        53
+      ],
+      [
+        1768076460000,
+        16
       ]
     ],
     "bodyBatteryValueDescriptorDTOList": [
@@ -44,10 +44,10 @@
       }
     ],
     "bodyBatteryDynamicFeedbackEvent": {
-      "eventTimestampGmt": "2026-01-10T10:45:44.0",
-      "bodyBatteryLevel": "HIGH",
-      "feedbackShortType": "DAY_RECOVERING_AND_INACTIVE",
-      "feedbackLongType": "DAY_RECOVERING_AND_INACTIVE"
+      "eventTimestampGmt": "2026-01-10T20:16:52.0",
+      "bodyBatteryLevel": "LOW",
+      "feedbackShortType": "SLEEP_PREPARATION_STRESSFUL_AND_INTENSIVE_EXERCISE",
+      "feedbackLongType": "SLEEP_PREPARATION_STRESSFUL_AND_INTENSIVE_EXERCISE_AND_BB_LOW"
     },
     "bodyBatteryActivityEvent": [
       {
@@ -67,6 +67,24 @@
         "bodyBatteryImpact": -1,
         "feedbackType": "RECOVERY_LONG_BODY_BATTERY_NOT_INCREASE",
         "shortFeedback": "LONG_RESTFUL_PERIOD"
+      },
+      {
+        "eventType": "STRESS",
+        "eventStartTimeGmt": "2026-01-10T10:41:50.0",
+        "timezoneOffset": 10800000,
+        "durationInMilliseconds": 2820000,
+        "bodyBatteryImpact": -8,
+        "feedbackType": "STRESS",
+        "shortFeedback": "STRESSFUL_PERIOD"
+      },
+      {
+        "eventType": "ACTIVITY",
+        "eventStartTimeGmt": "2026-01-10T14:01:54.0",
+        "timezoneOffset": 10800000,
+        "durationInMilliseconds": 4200000,
+        "bodyBatteryImpact": -11,
+        "feedbackType": "EXERCISE_TRAINING_EFFECT_3",
+        "shortFeedback": "IMPROVING_AEROBIC_BASE"
       }
     ],
     "endOfDayBodyBatteryDynamicFeedbackEvent": {

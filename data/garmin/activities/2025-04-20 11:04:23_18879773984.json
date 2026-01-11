@@ -190,13 +190,13 @@
   "powerTimeInZone_5": 1.0,
   "endTimeGMT": "2025-04-20 08:28:04",
   "qualifyingDive": false,
-  "parent": false,
   "decoDive": false,
-  "autoCalcCalories": false,
   "elevationCorrected": false,
-  "favorite": false,
   "atpActivity": false,
-  "pr": false,
+  "parent": false,
+  "autoCalcCalories": false,
+  "manualActivity": false,
   "purposeful": false,
-  "manualActivity": false
+  "favorite": false,
+  "pr": false
 }

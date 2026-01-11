@@ -58,18 +58,24 @@ def get_gemini_api_key() -> Optional[str]:
     return None
 
 
-def parse_menu_with_gemini(photo_path: Path, api_key: Optional[str] = None) -> Optional[Dict]:
+def parse_menu_with_gemini(photo_paths: List[Path] | Path, api_key: Optional[str] = None) -> Optional[Dict]:
     """
     Распознает меню или еду через Gemini 1.5 Flash API.
     
     Args:
-        photo_path: Путь к фото
+        photo_paths: Путь к фото или список путей
         api_key: Google API ключ
         
     Returns:
         Словарь с данными или None
     """
-    if not photo_path.exists():
+    if isinstance(photo_paths, (str, Path)):
+        photo_paths = [Path(photo_paths)]
+        
+    # Фильтруем несуществующие файлы
+    valid_paths = [p for p in photo_paths if p.exists()]
+    
+    if not valid_paths:
         return None
         
     if not api_key:
@@ -83,9 +89,17 @@ def parse_menu_with_gemini(photo_path: Path, api_key: Optional[str] = None) -> O
         print("    ❌ Библиотека requests не установлена")
         return None
 
-    # Кодируем изображение
-    with open(photo_path, "rb") as image_file:
-        base64_image = base64.b64encode(image_file.read()).decode('utf-8')
+    # Кодируем изображения
+    image_parts = []
+    for path in valid_paths:
+        with open(path, "rb") as image_file:
+            base64_image = base64.b64encode(image_file.read()).decode('utf-8')
+            image_parts.append({
+                "inline_data": {
+                    "mime_type": "image/jpeg",  # Gemini понимает jpg/png, мы всегда сохраняем как jpg
+                    "data": base64_image
+                }
+            })
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
     
@@ -93,10 +107,11 @@ def parse_menu_with_gemini(photo_path: Path, api_key: Optional[str] = None) -> O
         "Content-Type": "application/json"
     }
     
-    prompt_text = """Analyze this food image. Identify the dish and estimate nutrition.
+    prompt_text = """Analyze these food images. Identify the dish/products and estimate nutrition.
+If there are multiple photos (e.g. front and back of a package, or multiple items), combine the information.
 Return STRICT JSON ONLY:
 {
-  "dish_name": "Name of the dish (in Russian if it looks Russian)",
+  "dish_name": "Name of the dish or meal (in Russian)",
   "calories": total calories (number),
   "protein": total protein g (number),
   "fats": total fats g (number),
@@ -109,20 +124,16 @@ Return STRICT JSON ONLY:
     "carbs": g per 100g
   }
 }
-If nutritional info is visible (tables/text), use it PRECISELY.
-If not, ESTIMATE based on visual ingredients (e.g. 2 eggs ~100g, porridge ~150g).
-Be realistic.
+If nutritional info is visible (tables/text on packages), use it PRECISELY.
+If not, ESTIMATE based on visual ingredients.
 Reply ONLY with JSON."""
+
+    # Формируем контент: текст + изображения
+    content_parts = [{"text": prompt_text}] + image_parts
 
     payload = {
         "contents": [{
-            "parts": [
-                {"text": prompt_text},
-                {"inline_data": {
-                    "mime_type": "image/jpeg",
-                    "data": base64_image
-                }}
-            ]
+            "parts": content_parts
         }],
         "generationConfig": {
             "temperature": 0.1,
