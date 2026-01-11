@@ -344,10 +344,7 @@ async def handle_text(message: Message, state: FSMContext):
             await handle_description(message, text, processing_message=processing_msg)
 
 
-@router.message(F.voice)
-async def handle_voice(message: Message, state: FSMContext):
-    """Обработчик голосовых сообщений"""
-    await message.answer("🎤 Голосовые сообщения пока не поддерживаются. Отправь текстовое описание.")
+
 
 
 @router.message(F.video_note)

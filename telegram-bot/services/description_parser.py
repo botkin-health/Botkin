@@ -510,11 +510,12 @@ def parse_meal_description(
     
     # Если regex нашел продукты с явным количеством (quantity_estimate) - доверяем ему больше чем AI
     # (так как мы специально прописали веса для шт/порций)
-    if regex_products and any(p.get('source') == 'quantity_estimate' for p in regex_products):
-        print(f"    ✅ Regex нашел явные количества ({len(regex_products)} продуктов), пропускаем ChatGPT")
-        # Но также проверяем, не пропустили ли мы что-то важное, что нашел бы ChatGPT?
-        # В данном случае считаем, что если пользователь указал "2 перца", он хочет именно 2 перца с нашим весом
-        return regex_products
+    # DISABLE OPTIMIZATION: ChatGPT is smarter. Regex missed "teaspoon of oil" because it lacked a number.
+    # if regex_products and any(p.get('source') == 'quantity_estimate' for p in regex_products):
+    #     print(f"    ✅ Regex нашел явные количества ({len(regex_products)} продуктов), пропускаем ChatGPT")
+    #     # Но также проверяем, не пропустили ли мы что-то важное, что нашел бы ChatGPT?
+    #     # В данном случае считаем, что если пользователь указал "2 перца", он хочет именно 2 перца с нашим весом
+    #     return regex_products
 
     # 2. Пробуем ChatGPT API для обработки текстового описания (если regex не нашел quantity_estimate)
     try:

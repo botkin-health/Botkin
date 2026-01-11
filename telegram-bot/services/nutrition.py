@@ -151,7 +151,7 @@ def calculate_nutrition(product_name: str, weight_g: float, description: str = "
         logger.warning(f"Продукт '{normalized_name}' не найден, использую средние значения")
         # Используем средние значения для конкретных продуктов
         default_values = {
-            'яйцо': {'calories_per_100g': 157, 'protein_per_100g': 12.7, 'fats_per_100g': 11.5, 'carbs_per_100g': 0.7},
+            'яйцо': {'calories_per_100g': 143, 'protein_per_100g': 12.6, 'fats_per_100g': 9.5, 'carbs_per_100g': 0.7},
             'лук': {'calories_per_100g': 47, 'protein_per_100g': 1.4, 'fats_per_100g': 0.0, 'carbs_per_100g': 10.4},
             'томат': {'calories_per_100g': 18, 'protein_per_100g': 0.9, 'fats_per_100g': 0.2, 'carbs_per_100g': 3.9},
             'сыр': {'calories_per_100g': 363, 'protein_per_100g': 23.0, 'fats_per_100g': 30.0, 'carbs_per_100g': 0.0},
