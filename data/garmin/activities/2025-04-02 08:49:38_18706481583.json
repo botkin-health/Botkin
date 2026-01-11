@@ -194,10 +194,10 @@
   "decoDive": false,
   "elevationCorrected": false,
   "atpActivity": false,
-  "parent": false,
   "autoCalcCalories": false,
-  "manualActivity": false,
   "purposeful": false,
+  "manualActivity": false,
+  "pr": false,
   "favorite": false,
-  "pr": false
+  "parent": false
 }

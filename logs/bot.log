@@ -508,3 +508,655 @@
 2026-01-11 18:42:18,595 - handlers.photo - INFO - Используется meal_name из состояния: 'Ужин'
 2026-01-11 18:42:18,595 - handlers.photo - INFO - Сохранение блюда: meal_name='Ужин', meal_type='regular'
 2026-01-11 18:42:28,907 - handlers.commands - INFO - 📊 Команда /status вызвана пользователем 895655
+2026-01-11 19:38:04,909 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-11 19:38:05,114 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-11 19:38:05,664 - aiogram.dispatcher - INFO - Start polling
+2026-01-11 19:38:05,793 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 19:38:05,918 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-11 19:38:05,919 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-01-11 19:38:10,050 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+
+==================================================
+🚀  HealthVault Tracker v1.2
+✅  Бот успешно запущен и готов к работе
+📝  Логи пишутся в файл: logs/bot.log
+==================================================
+
+Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-11 19:38:10,050 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-01-11 19:38:11,152 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-11 19:38:11,152 - aiogram.dispatcher - WARNING - Sleep for 1.365725 seconds and try again... (tryings = 1, bot id = 8500310863)
+2026-01-11 19:38:15,640 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-11 19:38:15,640 - aiogram.dispatcher - WARNING - Sleep for 1.467206 seconds and try again... (tryings = 1, bot id = 8500310863)
+Sleep for 1.467206 seconds and try again... (tryings = 1, bot id = 8500310863)
+2026-01-11 19:38:17,216 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-11 19:38:17,216 - aiogram.dispatcher - WARNING - Sleep for 1.873700 seconds and try again... (tryings = 2, bot id = 8500310863)
+2026-01-11 19:38:22,193 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-11 19:38:22,193 - aiogram.dispatcher - WARNING - Sleep for 2.145688 seconds and try again... (tryings = 2, bot id = 8500310863)
+Sleep for 2.145688 seconds and try again... (tryings = 2, bot id = 8500310863)
+2026-01-11 19:38:24,473 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-11 19:38:24,473 - aiogram.dispatcher - WARNING - Sleep for 2.414204 seconds and try again... (tryings = 3, bot id = 8500310863)
+2026-01-11 19:38:30,014 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-11 19:38:30,014 - aiogram.dispatcher - WARNING - Sleep for 2.815639 seconds and try again... (tryings = 3, bot id = 8500310863)
+Sleep for 2.815639 seconds and try again... (tryings = 3, bot id = 8500310863)
+2026-01-11 19:38:35,387 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-11 19:38:35,569 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-11 19:38:36,004 - aiogram.dispatcher - INFO - Start polling
+2026-01-11 19:38:36,100 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 19:40:44,781 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+
+==================================================
+🚀  HealthVault Tracker v1.2
+✅  Бот успешно запущен и готов к работе
+📝  Логи пишутся в файл: logs/bot.log
+==================================================
+
+Received SIGTERM signal
+2026-01-11 19:40:44,782 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 19:40:44,782 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-11 19:40:45,696 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-11 19:40:45,886 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-11 19:40:46,478 - __main__ - INFO - ✅ Меню команд обновлено
+
+==================================================
+🚀  HealthVault Tracker v1.2
+✅  Бот успешно запущен и готов к работе
+📝  Логи пишутся в файл: logs/bot.log
+==================================================
+
+✅ Меню команд обновлено
+2026-01-11 19:40:46,478 - aiogram.dispatcher - INFO - Start polling
+2026-01-11 19:40:46,576 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 19:42:31,085 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+Received SIGTERM signal
+2026-01-11 19:42:31,086 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 19:42:31,086 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-11 19:42:31,997 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-11 19:42:32,185 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-11 19:42:33,004 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+
+==================================================
+🚀  HealthVault Tracker v1.2
+✅  Бот успешно запущен и готов к работе
+📝  Логи пишутся в файл: logs/bot.log
+==================================================
+
+✅ Меню команд обновлено (Default + Private)
+2026-01-11 19:42:33,005 - aiogram.dispatcher - INFO - Start polling
+2026-01-11 19:42:33,167 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 19:49:54,327 - aiogram.event - ERROR - Cause exception while process update id=318623240 by bot id=8500310863
+TelegramBadRequest: Telegram server says - Bad Request: can't parse entities: Unsupported start tag "ккал" at byte offset 737
+Traceback (most recent call last):
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/dispatcher.py", line 320, in _process_update
+    response = await self.feed_update(bot, update, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/dispatcher.py", line 164, in feed_update
+    response = await self.update.wrap_outer_middleware(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/middlewares/error.py", line 27, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/middlewares/user_context.py", line 58, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/fsm/middleware.py", line 43, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/event/telegram.py", line 126, in trigger
+    return await wrapped_inner(event, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/event/handler.py", line 71, in call
+    return await wrapped()
+           ^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/dispatcher.py", line 283, in _listen_update
+    return await self.propagate_event(update_type=update_type, event=event, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/router.py", line 161, in propagate_event
+    return await observer.wrap_outer_middleware(_wrapped, event=event, data=kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/router.py", line 153, in _wrapped
+    return await self._propagate_event(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+    )
+    ^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/router.py", line 189, in _propagate_event
+    response = await router.propagate_event(update_type=update_type, event=event, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/router.py", line 161, in propagate_event
+    return await observer.wrap_outer_middleware(_wrapped, event=event, data=kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/router.py", line 153, in _wrapped
+    return await self._propagate_event(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+    )
+    ^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/router.py", line 181, in _propagate_event
+    response = await observer.trigger(event, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/event/telegram.py", line 126, in trigger
+    return await wrapped_inner(event, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/event/handler.py", line 71, in call
+    return await wrapped()
+           ^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/telegram-bot/handlers/commands.py", line 38, in cmd_help
+    await message.answer(
+    ...<15 lines>...
+    )
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/methods/base.py", line 82, in emit
+    return await bot(self)
+           ^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/client/bot.py", line 484, in __call__
+    return await self.session(self, method, timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/client/session/base.py", line 259, in __call__
+    return cast(TelegramType, await middleware(bot, method))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/client/session/aiohttp.py", line 177, in make_request
+    response = self.check_response(
+        bot=bot,
+    ...<2 lines>...
+        content=raw_result,
+    )
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/client/session/base.py", line 121, in check_response
+    raise TelegramBadRequest(method=method, message=description)
+aiogram.exceptions.TelegramBadRequest: Telegram server says - Bad Request: can't parse entities: Unsupported start tag "ккал" at byte offset 737
+Cause exception while process update id=318623240 by bot id=8500310863
+TelegramBadRequest: Telegram server says - Bad Request: can't parse entities: Unsupported start tag "ккал" at byte offset 737
+Traceback (most recent call last):
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/dispatcher.py", line 320, in _process_update
+    response = await self.feed_update(bot, update, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/dispatcher.py", line 164, in feed_update
+    response = await self.update.wrap_outer_middleware(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/middlewares/error.py", line 27, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/middlewares/user_context.py", line 58, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/fsm/middleware.py", line 43, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/event/telegram.py", line 126, in trigger
+    return await wrapped_inner(event, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/event/handler.py", line 71, in call
+    return await wrapped()
+           ^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/dispatcher.py", line 283, in _listen_update
+    return await self.propagate_event(update_type=update_type, event=event, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/router.py", line 161, in propagate_event
+    return await observer.wrap_outer_middleware(_wrapped, event=event, data=kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/router.py", line 153, in _wrapped
+    return await self._propagate_event(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+    )
+    ^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/router.py", line 189, in _propagate_event
+    response = await router.propagate_event(update_type=update_type, event=event, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/router.py", line 161, in propagate_event
+    return await observer.wrap_outer_middleware(_wrapped, event=event, data=kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/router.py", line 153, in _wrapped
+    return await self._propagate_event(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+    )
+    ^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/router.py", line 181, in _propagate_event
+    response = await observer.trigger(event, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/event/telegram.py", line 126, in trigger
+    return await wrapped_inner(event, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/event/handler.py", line 71, in call
+    return await wrapped()
+           ^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/telegram-bot/handlers/commands.py", line 38, in cmd_help
+    await message.answer(
+    ...<15 lines>...
+    )
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/methods/base.py", line 82, in emit
+    return await bot(self)
+           ^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/client/bot.py", line 484, in __call__
+    return await self.session(self, method, timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/client/session/base.py", line 259, in __call__
+    return cast(TelegramType, await middleware(bot, method))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/client/session/aiohttp.py", line 177, in make_request
+    response = self.check_response(
+        bot=bot,
+    ...<2 lines>...
+        content=raw_result,
+    )
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/client/session/base.py", line 121, in check_response
+    raise TelegramBadRequest(method=method, message=description)
+aiogram.exceptions.TelegramBadRequest: Telegram server says - Bad Request: can't parse entities: Unsupported start tag "ккал" at byte offset 737
+2026-01-11 19:50:03,858 - handlers.commands - INFO - 📊 Команда /day вызвана пользователем 895655
+📊 Команда /day вызвана пользователем 895655
+2026-01-11 19:52:00,085 - handlers.text - INFO - 📝 Обработчик текста: получено сообщение от 895655: 'Утром принял Псиллиум, 3 капсулы Омега, 2 капсулы стирола и 1 таблетку витамина Д...'
+📝 Обработчик текста: получено сообщение от 895655: 'Утром принял Псиллиум, 3 капсулы Омега, 2 капсулы стирола и 1 таблетку витамина Д...'
+2026-01-11 19:52:00,085 - handlers.text - INFO - У пользователя 895655 нет состояния
+У пользователя 895655 нет состояния
+2026-01-11 19:53:29,955 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+Received SIGTERM signal
+2026-01-11 19:53:29,955 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 19:53:29,955 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-11 19:53:30,863 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-11 19:53:31,054 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-11 19:53:31,912 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+
+==================================================
+🚀  HealthVault Tracker v1.2
+✅  Бот успешно запущен и готов к работе
+📝  Логи пишутся в файл: logs/bot.log
+==================================================
+
+✅ Меню команд обновлено (Default + Private)
+2026-01-11 19:53:31,913 - aiogram.dispatcher - INFO - Start polling
+2026-01-11 19:53:32,021 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 19:54:26,874 - handlers.text - INFO - 📝 Обработчик текста: получено сообщение от 895655: '"Выпил стирол и витамин Д"...'
+📝 Обработчик текста: получено сообщение от 895655: '"Выпил стирол и витамин Д"...'
+2026-01-11 19:54:26,875 - handlers.text - INFO - У пользователя 895655 нет состояния
+У пользователя 895655 нет состояния
+2026-01-11 19:57:41,702 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+Received SIGTERM signal
+2026-01-11 19:57:41,703 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 19:57:41,704 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-11 19:57:42,654 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-11 19:57:42,846 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-11 19:57:43,693 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+
+==================================================
+🚀  HealthVault Tracker v1.2
+✅  Бот успешно запущен и готов к работе
+📝  Логи пишутся в файл: logs/bot.log
+==================================================
+
+✅ Меню команд обновлено (Default + Private)
+2026-01-11 19:57:43,694 - aiogram.dispatcher - INFO - Start polling
+2026-01-11 19:57:43,799 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 20:05:25,447 - handlers.commands - INFO - 📊 Команда /day вызвана пользователем 895655
+📊 Команда /day вызвана пользователем 895655
+2026-01-11 20:08:34,217 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+Received SIGTERM signal
+2026-01-11 20:08:34,218 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 20:08:34,219 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-11 20:08:35,176 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-11 20:08:35,412 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-11 20:08:36,390 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+
+==================================================
+🚀  HealthVault Tracker v1.2
+✅  Бот успешно запущен и готов к работе
+📝  Логи пишутся в файл: logs/bot.log
+==================================================
+
+✅ Меню команд обновлено (Default + Private)
+2026-01-11 20:08:36,390 - aiogram.dispatcher - INFO - Start polling
+2026-01-11 20:08:36,493 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 20:16:02,139 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+Received SIGTERM signal
+2026-01-11 20:16:02,140 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 20:16:02,141 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-11 20:16:02,998 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-11 20:16:03,234 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-11 20:16:04,854 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+
+==================================================
+🚀  HealthVault Tracker v1.2
+✅  Бот успешно запущен и готов к работе
+📝  Логи пишутся в файл: logs/bot.log
+==================================================
+
+✅ Меню команд обновлено (Default + Private)
+2026-01-11 20:16:04,855 - aiogram.dispatcher - INFO - Start polling
+2026-01-11 20:16:04,962 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 20:16:13,946 - aiogram.event - ERROR - Cause exception while process update id=318623248 by bot id=8500310863
+TelegramBadRequest: Telegram server says - Bad Request: can't parse entities: Unsupported start tag "ккал" at byte offset 737
+Traceback (most recent call last):
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/dispatcher.py", line 320, in _process_update
+    response = await self.feed_update(bot, update, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/dispatcher.py", line 164, in feed_update
+    response = await self.update.wrap_outer_middleware(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/middlewares/error.py", line 27, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/middlewares/user_context.py", line 58, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/fsm/middleware.py", line 43, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/event/telegram.py", line 126, in trigger
+    return await wrapped_inner(event, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/event/handler.py", line 71, in call
+    return await wrapped()
+           ^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/dispatcher.py", line 283, in _listen_update
+    return await self.propagate_event(update_type=update_type, event=event, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/router.py", line 161, in propagate_event
+    return await observer.wrap_outer_middleware(_wrapped, event=event, data=kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/router.py", line 153, in _wrapped
+    return await self._propagate_event(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+    )
+    ^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/router.py", line 189, in _propagate_event
+    response = await router.propagate_event(update_type=update_type, event=event, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/router.py", line 161, in propagate_event
+    return await observer.wrap_outer_middleware(_wrapped, event=event, data=kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/router.py", line 153, in _wrapped
+    return await self._propagate_event(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+    )
+    ^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/router.py", line 181, in _propagate_event
+    response = await observer.trigger(event, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/event/telegram.py", line 126, in trigger
+    return await wrapped_inner(event, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/event/handler.py", line 71, in call
+    return await wrapped()
+           ^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/telegram-bot/handlers/commands.py", line 38, in cmd_help
+    await message.answer(
+    ...<15 lines>...
+    )
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/methods/base.py", line 82, in emit
+    return await bot(self)
+           ^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/client/bot.py", line 484, in __call__
+    return await self.session(self, method, timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/client/session/base.py", line 259, in __call__
+    return cast(TelegramType, await middleware(bot, method))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/client/session/aiohttp.py", line 177, in make_request
+    response = self.check_response(
+        bot=bot,
+    ...<2 lines>...
+        content=raw_result,
+    )
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/client/session/base.py", line 121, in check_response
+    raise TelegramBadRequest(method=method, message=description)
+aiogram.exceptions.TelegramBadRequest: Telegram server says - Bad Request: can't parse entities: Unsupported start tag "ккал" at byte offset 737
+Cause exception while process update id=318623248 by bot id=8500310863
+TelegramBadRequest: Telegram server says - Bad Request: can't parse entities: Unsupported start tag "ккал" at byte offset 737
+Traceback (most recent call last):
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/dispatcher.py", line 320, in _process_update
+    response = await self.feed_update(bot, update, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/dispatcher.py", line 164, in feed_update
+    response = await self.update.wrap_outer_middleware(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/middlewares/error.py", line 27, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/middlewares/user_context.py", line 58, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/fsm/middleware.py", line 43, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/event/telegram.py", line 126, in trigger
+    return await wrapped_inner(event, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/event/handler.py", line 71, in call
+    return await wrapped()
+           ^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/dispatcher.py", line 283, in _listen_update
+    return await self.propagate_event(update_type=update_type, event=event, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/router.py", line 161, in propagate_event
+    return await observer.wrap_outer_middleware(_wrapped, event=event, data=kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/router.py", line 153, in _wrapped
+    return await self._propagate_event(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+    )
+    ^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/router.py", line 189, in _propagate_event
+    response = await router.propagate_event(update_type=update_type, event=event, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/router.py", line 161, in propagate_event
+    return await observer.wrap_outer_middleware(_wrapped, event=event, data=kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/router.py", line 153, in _wrapped
+    return await self._propagate_event(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+    )
+    ^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/router.py", line 181, in _propagate_event
+    response = await observer.trigger(event, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/event/telegram.py", line 126, in trigger
+    return await wrapped_inner(event, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/event/handler.py", line 71, in call
+    return await wrapped()
+           ^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/telegram-bot/handlers/commands.py", line 38, in cmd_help
+    await message.answer(
+    ...<15 lines>...
+    )
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/methods/base.py", line 82, in emit
+    return await bot(self)
+           ^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/client/bot.py", line 484, in __call__
+    return await self.session(self, method, timeout=request_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/client/session/base.py", line 259, in __call__
+    return cast(TelegramType, await middleware(bot, method))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/client/session/aiohttp.py", line 177, in make_request
+    response = self.check_response(
+        bot=bot,
+    ...<2 lines>...
+        content=raw_result,
+    )
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/client/session/base.py", line 121, in check_response
+    raise TelegramBadRequest(method=method, message=description)
+aiogram.exceptions.TelegramBadRequest: Telegram server says - Bad Request: can't parse entities: Unsupported start tag "ккал" at byte offset 737
+2026-01-11 20:18:19,715 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+Received SIGTERM signal
+2026-01-11 20:18:19,717 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 20:18:19,717 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-11 20:18:20,868 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-11 20:18:21,110 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-11 20:18:22,304 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+
+==================================================
+🚀  HealthVault Tracker v1.2
+✅  Бот успешно запущен и готов к работе
+📝  Логи пишутся в файл: logs/bot.log
+==================================================
+
+✅ Меню команд обновлено (Default + Private)
+2026-01-11 20:18:22,305 - aiogram.dispatcher - INFO - Start polling
+2026-01-11 20:18:22,392 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 20:23:31,615 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+Received SIGTERM signal
+2026-01-11 20:23:31,616 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 20:23:31,616 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-11 20:23:32,491 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-11 20:23:32,743 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-11 20:23:33,706 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+
+==================================================
+🚀  HealthVault Tracker v1.2
+✅  Бот успешно запущен и готов к работе
+📝  Логи пишутся в файл: logs/bot.log
+==================================================
+
+✅ Меню команд обновлено (Default + Private)
+2026-01-11 20:23:33,707 - aiogram.dispatcher - INFO - Start polling
+2026-01-11 20:23:33,803 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 20:28:36,842 - handlers.commands - INFO - 📊 Команда /day вызвана пользователем 895655
+📊 Команда /day вызвана пользователем 895655
+2026-01-11 20:28:36,992 - services.garmin_data - ERROR - No Garmin credentials in .env
+No Garmin credentials in .env
+2026-01-11 20:29:04,393 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+Received SIGTERM signal
+2026-01-11 20:29:04,394 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 20:29:04,394 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-11 20:29:05,266 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-11 20:29:05,507 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-11 20:29:06,543 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+
+==================================================
+🚀  HealthVault Tracker v1.2
+✅  Бот успешно запущен и готов к работе
+📝  Логи пишутся в файл: logs/bot.log
+==================================================
+
+✅ Меню команд обновлено (Default + Private)
+2026-01-11 20:29:06,544 - aiogram.dispatcher - INFO - Start polling
+2026-01-11 20:29:06,640 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 20:31:10,994 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+Received SIGTERM signal
+2026-01-11 20:31:10,995 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 20:31:10,995 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-11 20:31:11,956 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-11 20:31:12,191 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-11 20:31:13,336 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+
+==================================================
+🚀  HealthVault Tracker v1.2
+✅  Бот успешно запущен и готов к работе
+📝  Логи пишутся в файл: logs/bot.log
+==================================================
+
+✅ Меню команд обновлено (Default + Private)
+2026-01-11 20:31:13,336 - aiogram.dispatcher - INFO - Start polling
+2026-01-11 20:31:13,431 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 20:33:00,749 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+Received SIGTERM signal
+2026-01-11 20:33:00,751 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 20:33:00,751 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-11 20:33:01,646 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-11 20:33:01,879 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-11 20:33:02,844 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+
+==================================================
+🚀  HealthVault Tracker v1.2
+✅  Бот успешно запущен и готов к работе
+📝  Логи пишутся в файл: logs/bot.log
+==================================================
+
+✅ Меню команд обновлено (Default + Private)
+2026-01-11 20:33:02,844 - aiogram.dispatcher - INFO - Start polling
+2026-01-11 20:33:02,935 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 20:38:58,241 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+Received SIGTERM signal
+2026-01-11 20:38:58,244 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 20:38:58,245 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-11 20:38:59,231 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-11 20:38:59,467 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-11 20:39:00,642 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+
+==================================================
+🚀  HealthVault Tracker v1.2
+✅  Бот успешно запущен и готов к работе
+📝  Логи пишутся в файл: logs/bot.log
+==================================================
+
+✅ Меню команд обновлено (Default + Private)
+2026-01-11 20:39:00,642 - aiogram.dispatcher - INFO - Start polling
+2026-01-11 20:39:00,747 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 20:40:37,308 - handlers.commands - INFO - 📊 Команда /day вызвана пользователем 895655
+📊 Команда /day вызвана пользователем 895655
+2026-01-11 20:40:37,856 - services.garmin_data - ERROR - No Garmin credentials in .env
+No Garmin credentials in .env
+2026-01-11 20:43:49,397 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+Received SIGTERM signal
+2026-01-11 20:43:49,398 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 20:43:49,398 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-11 20:43:50,280 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-11 20:43:50,513 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-11 20:43:51,541 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+
+==================================================
+🚀  HealthVault Tracker v1.2
+✅  Бот успешно запущен и готов к работе
+📝  Логи пишутся в файл: logs/bot.log
+==================================================
+
+✅ Меню команд обновлено (Default + Private)
+2026-01-11 20:43:51,541 - aiogram.dispatcher - INFO - Start polling
+2026-01-11 20:43:51,673 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 20:47:43,540 - handlers.commands - INFO - 📊 Команда /day вызвана пользователем 895655
+📊 Команда /day вызвана пользователем 895655
+2026-01-11 20:47:43,694 - services.garmin_data - ERROR - No Garmin credentials in .env
+No Garmin credentials in .env
+2026-01-11 20:50:55,139 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+Received SIGTERM signal
+2026-01-11 20:50:55,167 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 20:50:55,167 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-11 20:50:56,154 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-11 20:50:56,389 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-11 20:50:57,353 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+
+==================================================
+🚀  HealthVault Tracker v1.2
+✅  Бот успешно запущен и готов к работе
+📝  Логи пишутся в файл: logs/bot.log
+==================================================
+
+✅ Меню команд обновлено (Default + Private)
+2026-01-11 20:50:57,354 - aiogram.dispatcher - INFO - Start polling
+2026-01-11 20:50:57,460 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'

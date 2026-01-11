@@ -13,6 +13,9 @@ from collections import defaultdict
 HEALTHVAULT_ROOT = Path(__file__).parent.parent.parent
 NUTRITION_LOG = HEALTHVAULT_ROOT / 'data' / 'nutrition' / 'nutrition_log.json'
 
+# Import supplement service to check for psyllium
+from services.supplement_service import supplement_service
+
 
 def get_week_start(date_str: str = None) -> str:
     """Возвращает дату начала недели (понедельник) для указанной даты"""
@@ -94,12 +97,26 @@ def estimate_fiber(food_name: str, amount_g: float) -> float:
     food_lower = food_name.lower()
     
     # Высокое содержание клетчатки (5-10 г на 100г)
-    high_fiber = ['овощи', 'фасоль', 'бобовые', 'овощ', 'капуста', 'брокколи', 'шпинат', 'овощной', 'vegetable', 'beans', 'legumes', 'cabbage', 'broccoli', 'spinach']
+    # Высокое содержание клетчатки (5-10 г на 100г)
+    high_fiber = [
+        'овощи', 'фасоль', 'бобовые', 'овощ', 'капуста', 'брокколи', 'шпинат', 'овощной', 
+        'vegetable', 'beans', 'legumes', 'cabbage', 'broccoli', 'spinach',
+        'хлебец', 'отруби', 'чечевица', 'нут', 'горох', 'винегрет', 'авокадо',
+        'семечки', 'орех', 'seeds', 'nuts', 'миндаль', 'кешью', 'фундук'
+    ]
     if any(keyword in food_lower for keyword in high_fiber):
         return (amount_g / 100) * 5  # ~5г на 100г
     
     # Среднее содержание клетчатки (2-4 г на 100г)
-    medium_fiber = ['каша', 'гречка', 'рис', 'овсянка', 'porridge', 'buckwheat', 'rice', 'oatmeal', 'цельнозерновой', 'whole grain']
+    medium_fiber = [
+        'каша', 'греч', 'рис', 'овсянка', 'porridge', 'buckwheat', 'rice', 'oatmeal', 
+        'цельнозерновой', 'whole grain', 'крупа', 'зерн',
+        'огурец', 'помидор', 'томат', 'перец', 'морковь', 'свекла', 'зелень', 'салат', 'лук',
+        'картофель', 'картошка', 'potato', 'onion',
+        'суп', 'soup', 'борщ', 'щи',
+        'фрукт', 'яблоко', 'груша', 'мандарин', 'апельсин', 'цитрус', 'ягода',
+        'хлеб', 'bread', 'cucumber', 'tomato', 'pepper', 'carrot', 'beet', 'fruit', 'apple', 'pear', 'berry'
+    ]
     if any(keyword in food_lower for keyword in medium_fiber):
         return (amount_g / 100) * 2  # ~2г на 100г
     
@@ -220,6 +237,12 @@ def analyze_weekly_nutrition(week_start: str = None, last_7_days: bool = False) 
                 # Оценка клетчатки
                 totals['fiber'] += estimate_fiber(food_name, amount_g)
         
+        # Check Psyllium intake for additional fiber (approx 5g per tsp)
+        # We access the log directly from the service (a bit hacky but efficient)
+        supp_log = supplement_service._get_log()
+        if 'psyllium' in supp_log.get(entry_date, {}):
+             totals['fiber'] += 5.0
+
         if has_high_carb_dinner:
             categories['high_carb_dinners'] += 1
         

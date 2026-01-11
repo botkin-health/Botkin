@@ -81,11 +81,11 @@
     "hasHeatMap": false,
     "personalRecord": false,
     "manualActivity": false,
-    "elevationCorrected": false,
-    "trimmed": false,
     "autoCalcCalories": false,
     "favorite": false,
+    "trimmed": false,
     "runPowerWindDataEnabled": true,
+    "elevationCorrected": false,
     "gcj02": false
   },
   "summaryDTO": {

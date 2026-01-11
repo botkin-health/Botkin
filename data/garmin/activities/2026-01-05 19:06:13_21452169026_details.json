@@ -79,14 +79,14 @@
     "calendarEventInfo": null,
     "groupRideUUID": null,
     "hasHeatMap": false,
-    "personalRecord": false,
     "runPowerWindDataEnabled": null,
-    "trimmed": false,
+    "personalRecord": false,
+    "gcj02": false,
     "elevationCorrected": false,
+    "trimmed": false,
     "manualActivity": false,
     "autoCalcCalories": false,
-    "favorite": false,
-    "gcj02": false
+    "favorite": false
   },
   "summaryDTO": {
     "startTimeLocal": "2026-01-05T19:06:13.0",
