@@ -336,7 +336,7 @@ def extract_dish_name_from_text(text: str) -> Optional[str]:
 
 from typing import Dict, Optional, List, Union
 
-def parse_menu_photo(photo_paths: Union[Path, List[Path]], api_key: Optional[str] = None, use_chatgpt: bool = True) -> Optional[Dict]:
+def parse_menu_photo(photo_paths: Union[Path, List[Path]], api_key: Optional[str] = None, use_chatgpt: bool = True, description: Optional[str] = None) -> Optional[Dict]:
     """
     Распознает меню кафе с КБЖУ из фото.
     Сначала пробует ChatGPT Vision (если доступен), затем OCR.
@@ -345,6 +345,7 @@ def parse_menu_photo(photo_paths: Union[Path, List[Path]], api_key: Optional[str
         photo_paths: Путь к фото меню или список путей
         api_key: API ключ (опционально, для OCR)
         use_chatgpt: Использовать ChatGPT Vision если доступен (по умолчанию True)
+        description: Описание блюда от пользователя (опционально)
         
     Returns:
         Словарь с данными блюда или None:
@@ -385,7 +386,7 @@ def parse_menu_photo(photo_paths: Union[Path, List[Path]], api_key: Optional[str
         if openai_key:
             # TODO: Добавить поддержку списков в ChatGPT Vision
             # Пока используем только первое фото
-            result = parse_menu_with_chatgpt(main_photo, openai_key)
+            result = parse_menu_with_chatgpt(main_photo, openai_key, description=description)
             if result:
                 return result
             print(f"    ⚠️  ChatGPT не распознал, пробую OCR...")

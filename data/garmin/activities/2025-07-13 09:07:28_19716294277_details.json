@@ -79,11 +79,11 @@
     "calendarEventInfo": null,
     "groupRideUUID": null,
     "hasHeatMap": false,
+    "runPowerWindDataEnabled": true,
     "personalRecord": false,
     "gcj02": false,
-    "runPowerWindDataEnabled": true,
-    "elevationCorrected": false,
     "manualActivity": false,
+    "elevationCorrected": false,
     "trimmed": false,
     "autoCalcCalories": false,
     "favorite": false

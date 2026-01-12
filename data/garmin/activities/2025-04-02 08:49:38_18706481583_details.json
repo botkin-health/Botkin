@@ -84,9 +84,9 @@
     "runPowerWindDataEnabled": true,
     "autoCalcCalories": false,
     "favorite": false,
-    "trimmed": false,
     "manualActivity": false,
-    "elevationCorrected": false
+    "elevationCorrected": false,
+    "trimmed": false
   },
   "summaryDTO": {
     "startTimeLocal": "2025-04-02T08:49:38.0",

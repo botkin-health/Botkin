@@ -160,13 +160,13 @@
   "powerTimeInZone_5": 7.0,
   "endTimeGMT": "2025-09-10 05:21:26",
   "qualifyingDive": false,
-  "pr": false,
-  "purposeful": false,
-  "manualActivity": false,
   "autoCalcCalories": false,
   "favorite": false,
+  "decoDive": false,
   "elevationCorrected": false,
   "atpActivity": false,
-  "decoDive": false,
+  "purposeful": false,
+  "manualActivity": false,
+  "pr": false,
   "parent": false
 }

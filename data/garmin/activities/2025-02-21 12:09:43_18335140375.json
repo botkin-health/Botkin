@@ -162,13 +162,13 @@
   "powerTimeInZone_5": 62.998,
   "endTimeGMT": "2025-02-21 10:11:28",
   "qualifyingDive": false,
+  "autoCalcCalories": false,
+  "favorite": false,
   "decoDive": false,
   "elevationCorrected": false,
   "atpActivity": false,
-  "autoCalcCalories": false,
   "purposeful": false,
   "manualActivity": false,
   "pr": false,
-  "favorite": false,
   "parent": false
 }

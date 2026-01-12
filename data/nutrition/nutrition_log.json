@@ -1004,13 +1004,190 @@
               "carbs": 13.3
             }
           ]
+        },
+        {
+          "meal": "Ужин",
+          "time": "22:09",
+          "items": [
+            {
+              "food": "салат с овощами и запеченной рыбой",
+              "amount": 350,
+              "unit": "г",
+              "calories": 350.0,
+              "protein": 30.1,
+              "fats": 15.0,
+              "carbs": 19.9
+            }
+          ]
+        },
+        {
+          "meal": "Ужин",
+          "time": "22:13",
+          "items": [
+            {
+              "food": "десерта после ужина",
+              "amount": 10,
+              "unit": "г",
+              "calories": 25.1,
+              "protein": 0.2,
+              "fats": 1.6,
+              "carbs": 2.5
+            }
+          ]
         }
       ],
       "totals": {
-        "calories": 1190.8,
-        "protein": 76.1,
-        "fats": 63.6,
-        "carbs": 79.0
+        "calories": 1565.9,
+        "protein": 106.4,
+        "fats": 80.2,
+        "carbs": 101.4
+      }
+    },
+    {
+      "date": "2026-01-12",
+      "had_workout": false,
+      "meals": [
+        {
+          "meal": "Завтрак",
+          "time": "15:44",
+          "items": [
+            {
+              "food": "салат с овощами",
+              "amount": 150,
+              "unit": "г",
+              "calories": 100.5,
+              "protein": 2.0,
+              "fats": 4.9,
+              "carbs": 10.1
+            }
+          ]
+        },
+        {
+          "meal": "Полдник",
+          "time": "15:51",
+          "items": [
+            {
+              "food": "овсяная каша",
+              "amount": 200,
+              "unit": "г",
+              "calories": 150,
+              "protein": 5,
+              "fats": 3,
+              "carbs": 27
+            }
+          ]
+        },
+        {
+          "meal": "Скумбрия дальневосточная натуральная с добавлением масла",
+          "time": "15:51",
+          "items": [
+            {
+              "food": "Скумбрия дальневосточная натуральная с добавлением масла",
+              "amount": null,
+              "unit": "г",
+              "calories": 250,
+              "protein": 19,
+              "fats": 19,
+              "carbs": 0
+            }
+          ]
+        },
+        {
+          "meal": "Полдник",
+          "time": "15:54",
+          "items": [
+            {
+              "food": "салат оливье с икрой и яйцом",
+              "amount": 300,
+              "unit": "г",
+              "calories": 351,
+              "protein": 10,
+              "fats": 25,
+              "carbs": 20
+            }
+          ]
+        },
+        {
+          "meal": "Полдник",
+          "time": "17:37",
+          "items": [
+            {
+              "food": "заячьи почки",
+              "amount": 150,
+              "unit": "г",
+              "calories": 194,
+              "protein": 13,
+              "fats": 11,
+              "carbs": 13
+            },
+            {
+              "food": "картофель",
+              "amount": 150,
+              "unit": "г",
+              "calories": 194,
+              "protein": 13,
+              "fats": 11,
+              "carbs": 13
+            },
+            {
+              "food": "грибной соус",
+              "amount": 50,
+              "unit": "г",
+              "calories": 26,
+              "protein": 4,
+              "fats": 0,
+              "carbs": 2
+            }
+          ]
+        },
+        {
+          "meal": "Ужин",
+          "time": "00:41",
+          "items": [
+            {
+              "food": "тушённая рыба",
+              "amount": 150,
+              "unit": "г",
+              "calories": 135,
+              "protein": 10,
+              "fats": 4,
+              "carbs": 14
+            },
+            {
+              "food": "картофель отварной",
+              "amount": 200,
+              "unit": "г",
+              "calories": 160,
+              "protein": 4,
+              "fats": 0,
+              "carbs": 34
+            },
+            {
+              "food": "овощи",
+              "amount": 100,
+              "unit": "г",
+              "calories": 90,
+              "protein": 7,
+              "fats": 3,
+              "carbs": 9
+            },
+            {
+              "food": "салат айсберг",
+              "amount": 50,
+              "unit": "г",
+              "calories": 45,
+              "protein": 4,
+              "fats": 2,
+              "carbs": 4
+            }
+          ]
+        }
+      ],
+      "totals": {
+        "calories": 1694.0,
+        "protein": 91.0,
+        "fats": 82.0,
+        "carbs": 146.0
       }
     }
   ]

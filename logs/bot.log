@@ -1160,3 +1160,101 @@ Received SIGTERM signal
 ✅ Меню команд обновлено (Default + Private)
 2026-01-11 20:50:57,354 - aiogram.dispatcher - INFO - Start polling
 2026-01-11 20:50:57,460 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 21:56:59,524 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-11 21:56:59,769 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-11 21:57:00,547 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+2026-01-11 21:57:00,548 - aiogram.dispatcher - INFO - Start polling
+2026-01-11 21:57:00,660 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 21:59:45,486 - handlers.photo - INFO - 📸 Получено фото от пользователя 895655
+2026-01-11 21:59:46,276 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-11 21:59:51,136 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-11 21:59:51,139 - handlers.photo - INFO - Распознано меню/еда: Салат с овощами и запеченной рыбой, КБЖУ: 350.0 ккал
+2026-01-11 21:59:51,139 - handlers.photo - INFO - Распознано: Салат с овощами и запеченной рыбой
+2026-01-11 21:59:51,139 - handlers.photo - INFO - Есть caption, обрабатываем с учетом распознанного: ужин
+2026-01-11 21:59:51,140 - handlers.photo - INFO - Обработка описания с учетом меню: ужин
+ужин
+2026-01-11 21:59:51,144 - services.nutrition - INFO - Обработка 0 продуктов с учетом меню: салат с овощами и запеченной рыбой
+2026-01-11 21:59:51,144 - services.nutrition - INFO - КБЖУ из меню (на 100г): 100 ккал, Б: 8.6г, Ж: 4.3г, У: 5.7г
+2026-01-11 22:01:02,728 - handlers.photo - INFO - 📸 Получено фото от пользователя 895655
+2026-01-11 22:01:03,384 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-11 22:01:08,858 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-11 22:01:08,859 - handlers.photo - INFO - Распознано меню/еда: Салат с овощами и запеченной рыбой, КБЖУ: 350.0 ккал
+2026-01-11 22:01:08,859 - handlers.photo - INFO - Распознано: Салат с овощами и запеченной рыбой
+2026-01-11 22:01:08,859 - handlers.photo - INFO - Есть caption, обрабатываем с учетом распознанного: ужин
+2026-01-11 22:01:08,859 - handlers.photo - INFO - Обработка описания с учетом меню: ужин
+ужин
+2026-01-11 22:01:08,859 - services.nutrition - INFO - Обработка 0 продуктов с учетом меню: салат с овощами и запеченной рыбой
+2026-01-11 22:01:08,859 - services.nutrition - INFO - КБЖУ из меню (на 100г): 100 ккал, Б: 8.6г, Ж: 4.3г, У: 5.7г
+2026-01-11 22:05:45,688 - aiogram.dispatcher - WARNING - Received SIGINT signal
+2026-01-11 22:05:45,691 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 22:05:45,691 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-11 22:05:54,749 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-11 22:05:54,982 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-11 22:05:55,838 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+2026-01-11 22:05:55,838 - aiogram.dispatcher - INFO - Start polling
+2026-01-11 22:05:55,966 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-11 22:09:43,283 - handlers.photo - INFO - 📸 Получено фото от пользователя 895655
+2026-01-11 22:09:44,154 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-11 22:09:48,915 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-11 22:09:48,917 - handlers.photo - INFO - Распознано меню/еда: Салат с овощами и запеченной рыбой, КБЖУ: 350.0 ккал
+2026-01-11 22:09:48,917 - handlers.photo - INFO - Распознано: Салат с овощами и запеченной рыбой
+2026-01-11 22:09:48,917 - handlers.photo - INFO - Есть caption, обрабатываем с учетом распознанного: ужин
+2026-01-11 22:09:48,918 - handlers.photo - INFO - Обработка описания с учетом меню: ужин
+ужин
+2026-01-11 22:09:48,922 - services.nutrition - INFO - В описании не найдено продуктов, добавляем блюдо из меню: Салат с овощами и запеченной рыбой
+2026-01-11 22:09:48,922 - services.nutrition - INFO - Обработка 1 продуктов с учетом меню: салат с овощами и запеченной рыбой
+2026-01-11 22:09:48,922 - services.nutrition - INFO - КБЖУ из меню (на 100г): 100 ккал, Б: 8.6г, Ж: 4.3г, У: 5.7г
+2026-01-11 22:09:48,922 - services.nutrition - INFO - Проверка продукта: 'салат с овощами и запеченной рыбой' (вес: Noneг)
+2026-01-11 22:09:48,922 - services.nutrition - INFO -   Ключевые слова меню: {'овощами', 'запеченной', 'салат', 'рыбой'}
+2026-01-11 22:09:48,922 - services.nutrition - INFO -   Ключевые слова продукта: {'овощами', 'запеченной', 'салат', 'рыбой'}
+2026-01-11 22:09:48,922 - services.nutrition - INFO -   ✅ Продукт 'салат с овощами и запеченной рыбой' соответствует меню
+2026-01-11 22:09:48,923 - handlers.photo - INFO - Извлечено название приёма пищи: 'Ужин' из описания: 'ужин
+ужин...'
+2026-01-11 22:09:48,923 - handlers.photo - INFO - Сохранено в состояние: meal_name='Ужин', meal_time='22:09'
+2026-01-11 22:10:02,363 - handlers.photo - INFO - Обработка callback: action=save, meal_type=regular, user_id=895655
+2026-01-11 22:10:02,366 - handlers.photo - INFO - Используется meal_name из состояния: 'Ужин'
+2026-01-11 22:10:02,366 - handlers.photo - INFO - Сохранение блюда: meal_name='Ужин', meal_type='regular'
+2026-01-11 22:10:07,262 - handlers.photo - INFO - 📸 Получено фото от пользователя 895655
+2026-01-11 22:10:07,822 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-11 22:10:13,058 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-11 22:10:13,061 - handlers.photo - INFO - Распознано меню/еда: Рыба с овощным салатом, КБЖУ: 350.0 ккал
+2026-01-11 22:10:13,061 - handlers.photo - INFO - Распознано: Рыба с овощным салатом
+2026-01-11 22:10:13,061 - handlers.photo - INFO - Используем данные без caption: Рыба с овощным салатом
+2026-01-11 22:10:19,583 - handlers.photo - INFO - Обработка callback: action=cancel, meal_type=menu, user_id=895655
+2026-01-11 22:10:37,988 - handlers.commands - INFO - 📊 Команда /day вызвана пользователем 895655
+2026-01-11 22:10:38,126 - services.garmin_data - ERROR - No Garmin credentials in .env
+2026-01-11 22:12:22,302 - services.voice_service - INFO - 🎤 Отправляю файл в Whisper: data/media/voice/AgADn5QAAmM7IEs.ogg
+2026-01-11 22:12:22,513 - openai._base_client - DEBUG - Request options: {'method': 'post', 'url': '/audio/transcriptions', 'headers': {'Content-Type': 'multipart/form-data'}, 'files': [('file', SerializationIterator(index=0, iterator=SerializationIterator(index=0, iterator=<_io.BufferedReader name='data/media/voice/AgADn5QAAmM7IEs.ogg'>)))], 'idempotency_key': 'stainless-python-retry-b6196c2a-ec7e-4d1f-bb59-d245f7e3ace7', 'json_data': {'model': 'whisper-1', 'response_format': 'text'}}
+2026-01-11 22:12:22,515 - openai._base_client - DEBUG - Sending HTTP Request: POST https://api.openai.com/v1/audio/transcriptions
+2026-01-11 22:12:24,670 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/audio/transcriptions "HTTP/1.1 200 OK"
+2026-01-11 22:12:24,672 - openai._base_client - DEBUG - HTTP Response: POST https://api.openai.com/v1/audio/transcriptions "200 OK" Headers([('date', 'Sun, 11 Jan 2026 19:12:24 GMT'), ('content-type', 'text/plain; charset=utf-8'), ('transfer-encoding', 'chunked'), ('connection', 'keep-alive'), ('access-control-expose-headers', 'X-Request-ID'), ('openai-organization', 'user-mfccqfqkqg55xg1tdpbdohkh'), ('openai-processing-ms', '686'), ('openai-project', 'proj_ssXgeB3HOw1WQTgTn4XCKSER'), ('openai-version', '2020-10-01'), ('strict-transport-security', 'max-age=31536000; includeSubDomains; preload'), ('via', 'envoy-router-5d9674f5bb-bjspl'), ('x-envoy-upstream-service-time', '947'), ('x-ratelimit-limit-requests', '500'), ('x-ratelimit-remaining-requests', '499'), ('x-ratelimit-reset-requests', '120ms'), ('x-request-id', 'req_86ee6d32e15b428dae1730200bfd92ad'), ('x-openai-proxy-wasm', 'v0.1'), ('cf-cache-status', 'DYNAMIC'), ('set-cookie', '__cf_bm=djy.vBviW9JctvOn86vNCM_oagMxLhLFjpxAqHMH5kU-1768158744-1.0.1.1-u.AsT_DcmBJbzcIlNzYyKTKdhOMk_clo.tBbFLYKQYdBBS9m6Ttay6mzbaz4GIE3clDSSWD9w8xGCk7Cvra.HricwRl3MGYgyntR88nwEq8; path=/; expires=Sun, 11-Jan-26 19:42:24 GMT; domain=.api.openai.com; HttpOnly; Secure; SameSite=None'), ('x-content-type-options', 'nosniff'), ('set-cookie', '_cfuvid=sRWQY5WFmkte64pW9JWVUzr.r8oW5S49c7YD8NvCIYA-1768158744835-0.0.1.1-604800000; path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None'), ('server', 'cloudflare'), ('cf-ray', '9bc6b9b02e130e02-MXP'), ('content-encoding', 'gzip'), ('alt-svc', 'h3=":443"; ma=86400')])
+2026-01-11 22:12:24,672 - openai._base_client - DEBUG - request_id: req_86ee6d32e15b428dae1730200bfd92ad
+2026-01-11 22:12:24,672 - services.voice_service - INFO - ✅ Успешно транскрибировано: Принял ЦИНК и бета-ситостерол, две капсулы.
+...
+2026-01-11 22:13:45,532 - handlers.photo - INFO - 📸 Получено фото от пользователя 895655
+2026-01-11 22:13:46,082 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-11 22:13:51,689 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-11 22:13:51,691 - handlers.photo - INFO - Распознано меню/еда: Десерт Грушевый крамбл «Из Лавки» со вкусом бергамота, КБЖУ: 251.0 ккал
+2026-01-11 22:13:51,691 - handlers.photo - INFO - Распознано: Десерт Грушевый крамбл «Из Лавки» со вкусом бергамота
+2026-01-11 22:13:51,692 - handlers.photo - INFO - Есть caption, обрабатываем с учетом распознанного: Две чайные ложки десерта после ужина
+2026-01-11 22:13:51,692 - handlers.photo - INFO - Обработка описания с учетом меню: Две чайные ложки десерта после ужина
+Две чайные ложки десерта после ужина
+2026-01-11 22:13:51,692 - services.nutrition - INFO - Обработка 1 продуктов с учетом меню: десерт грушевый крамбл «из лавки» со вкусом бергамота
+2026-01-11 22:13:51,692 - services.nutrition - INFO - КБЖУ из меню (на 100г): 251 ккал, Б: 2.3г, Ж: 15.6г, У: 25.4г
+2026-01-11 22:13:51,692 - services.nutrition - INFO - Проверка продукта: 'десерта после ужина' (вес: 10г)
+2026-01-11 22:13:51,692 - services.nutrition - INFO -   Ключевые слова меню: {'вкусом', 'крамбл', 'лавки', 'десерт', 'бергамота', 'грушевый'}
+2026-01-11 22:13:51,692 - services.nutrition - INFO -   Ключевые слова продукта: {'десерта', 'ужина', 'после'}
+2026-01-11 22:13:51,693 - services.nutrition - INFO -   ✅ Продукт 'десерта после ужина' соответствует меню
+2026-01-11 22:13:51,693 - services.nutrition - INFO -   Пересчитано КБЖУ из меню для 10г:
+2026-01-11 22:13:51,693 - services.nutrition - INFO -     251 ккал/100г × 0.10 = 25.1 ккал
+2026-01-11 22:13:51,693 - services.nutrition - INFO -     2.3г белка/100г × 0.10 = 0.2г
+2026-01-11 22:13:51,693 - services.nutrition - INFO -     15.6г жиров/100г × 0.10 = 1.6г
+2026-01-11 22:13:51,693 - services.nutrition - INFO -     25.4г углеводов/100г × 0.10 = 2.5г
+2026-01-11 22:13:51,693 - handlers.photo - INFO - Извлечено название приёма пищи: 'Ужин' из описания: 'Две чайные ложки десерта после ужина
+Две чайные ло...'
+2026-01-11 22:13:51,693 - handlers.photo - INFO - Сохранено в состояние: meal_name='Ужин', meal_time='22:13'
+2026-01-11 22:14:09,537 - handlers.photo - INFO - Обработка callback: action=save, meal_type=regular, user_id=895655
+2026-01-11 22:14:09,537 - handlers.photo - INFO - Используется meal_name из состояния: 'Ужин'
+2026-01-11 22:14:09,537 - handlers.photo - INFO - Сохранение блюда: meal_name='Ужин', meal_type='regular'
+2026-01-11 22:14:21,787 - handlers.commands - INFO - 📊 Команда /day вызвана пользователем 895655
+2026-01-11 22:14:21,911 - services.garmin_data - ERROR - No Garmin credentials in .env

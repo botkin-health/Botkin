@@ -3,6 +3,16 @@
     "omega": true,
     "psyllium": true,
     "vit_d": true,
-    "sterols_am": true
+    "sterols_am": true,
+    "zinc": true,
+    "sterols_pm": true
+  },
+  "2026-01-12": {
+    "omega": true,
+    "sterols_am": true,
+    "vit_d": true,
+    "psyllium": true,
+    "sterols_pm": true,
+    "zinc": true
   }
 }

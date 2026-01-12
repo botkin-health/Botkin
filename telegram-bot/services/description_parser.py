@@ -479,16 +479,49 @@ def parse_meal_description(
     if photo_paths and len(photo_paths) == 1:
         try:
             from .menu_parser import parse_menu_photo
-            menu_data = parse_menu_photo(photo_paths[0], api_key)
-            if menu_data and menu_data.get('calories', 0) > 0:
+            menu_data = parse_menu_photo(photo_paths[0], api_key, description=description)
+            if menu_data and (menu_data.get('calories', 0) > 0 or menu_data.get('components')):
                 # Это меню! Возвращаем как продукт (приоритет меню над описанием)
                 print(f"    ✅ Распознано меню из фото: {menu_data.get('dish_name')}")
+                
+                # Если есть разбивка по компонентам - используем её
+                components = menu_data.get('components')
+                if components and isinstance(components, list) and len(components) > 0:
+                    print(f"    🧩 Найдено {len(components)} компонентов в меню")
+                    component_products = []
+                    for comp in components:
+                        comp_name = comp.get('name')
+                        if comp_name:
+                            # Нормализуем имя
+                            try:
+                                deep_norm = normalize_product_name(comp_name)
+                            except Exception:
+                                deep_norm = comp_name
+                                
+                            prod = {
+                                'name': deep_norm,
+                                'weight': comp.get('weight'),
+                                'source': 'menu_ocr_component',
+                                'menu_data': menu_data # Ссылка на родительское меню
+                            }
+                            # Если у компонента есть КБЖУ, добавляем
+                            if comp.get('calories'):
+                                prod['calories'] = comp.get('calories')
+                                prod['protein'] = comp.get('protein', 0)
+                                prod['fats'] = comp.get('fats', 0)
+                                prod['carbs'] = comp.get('carbs', 0)
+                            
+                            component_products.append(prod)
+                    
+                    if component_products:
+                         return component_products
+
                 print(f"       КБЖУ из меню: {menu_data.get('calories')} ккал, "
                       f"Б: {menu_data.get('protein')}г, "
                       f"Ж: {menu_data.get('fats')}г, "
                       f"У: {menu_data.get('carbs')}г")
                 return [{
-                    'name': menu_data.get('dish_name', description),
+                    'name': menu_data.get('dish_name') or description or 'Блюдо из меню',
                     'weight': menu_data.get('weight'),
                     'calories': menu_data.get('calories', 0),
                     'protein': menu_data.get('protein', 0),

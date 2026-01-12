@@ -174,9 +174,15 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
         api_key = get_google_vision_api_key()
     except ImportError:
         api_key = os.getenv('GOOGLE_VISION_API_KEY')
+        
+    # Извлекаем caption ДО вызова парсера, чтобы передать контекст
+    user_state = state_manager.get_state(user_id)
+    caption = message.caption
+    if user_state and user_state.data.get('caption'):
+        caption = user_state.data.get('caption')
     
-    # Передаем весь список фото в парсер
-    menu_data = parse_menu_photo(photo_paths, api_key)
+    # Передаем весь список фото в парсер ВМЕСТЕ с описанием
+    menu_data = parse_menu_photo(photo_paths, api_key, description=caption)
     
     # Логируем результат распознавания меню
     if menu_data:
@@ -258,6 +264,21 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
         if caption:
             # Если есть caption - обрабатываем сразу
             logger.info(f"Обрабатываем описание: {caption}")
+            
+            # Если это одиночное фото (или состояние не подходит), инициализируем состояние
+            # Это критично, так как handle_description берет пути к фото из состояния
+            if not user_state or user_state.state != 'waiting_description':
+                user_state = UserState(
+                    user_id=user_id,
+                    state='waiting_description',
+                    data={
+                        'photo_paths': [str(p) for p in photo_paths],
+                        'photo_file_ids': [message.photo[-1].file_id if message.photo else ''],
+                        'caption': caption,
+                    }
+                )
+                state_manager.set_state(user_id, user_state)
+
             await handle_description(message, caption)
         else:
             # Не меню и нет caption - устанавливаем состояние и просим описание
@@ -609,9 +630,9 @@ async def handle_menu_photo(message: Message, menu_data: dict, photo_path: Path)
         f"<b>{dish_name}</b>\n\n"
         f"📊 КБЖУ:\n"
         f"• Калории: {calories:.0f} ккал\n"
-        f"• Белки: {protein:.1f} г\n"
-        f"• Жиры: {fats:.1f} г\n"
-        f"• Углеводы: {carbs:.1f} г"
+        f"• Белки: {protein:.0f} г\n"
+        f"• Жиры: {fats:.0f} г\n"
+        f"• Углеводы: {carbs:.0f} г"
     )
     
     # Создаём inline keyboard с кнопками
@@ -670,11 +691,11 @@ def format_meal_response(meal_items: list, meal_totals: dict, portion_multiplier
     # Добавляем информацию о каждом продукте
     for item in meal_items:
         product_name = item.get('product', 'Неизвестный продукт')
-        weight = item.get('weight_g', 0)
-        calories = item.get('calories', 0)
-        protein = item.get('protein', 0)
-        fats = item.get('fats', 0)
-        carbs = item.get('carbs', 0)
+        weight = int(round(item.get('weight_g', 0)))
+        calories = int(round(item.get('calories', 0)))
+        protein = int(round(item.get('protein', 0)))
+        fats = int(round(item.get('fats', 0)))
+        carbs = int(round(item.get('carbs', 0)))
         weight_source = item.get('weight_source', 'unknown')
         
         # Определяем источник веса для отображения
@@ -687,10 +708,10 @@ def format_meal_response(meal_items: list, meal_totals: dict, portion_multiplier
     
     # Добавляем итоги
     lines.append("\n<b>Итого:</b>")
-    lines.append(f"Калории: {meal_totals.get('calories', 0)} ккал")
-    lines.append(f"Белки: {meal_totals.get('protein', 0)} г")
-    lines.append(f"Жиры: {meal_totals.get('fats', 0)} г")
-    lines.append(f"Углеводы: {meal_totals.get('carbs', 0)} г")
+    lines.append(f"Калории: {int(round(meal_totals.get('calories', 0)))} ккал")
+    lines.append(f"Белки: {int(round(meal_totals.get('protein', 0)))} г")
+    lines.append(f"Жиры: {int(round(meal_totals.get('fats', 0)))} г")
+    lines.append(f"Углеводы: {int(round(meal_totals.get('carbs', 0)))} г")
     
     # Добавляем информацию о точности
     has_estimated = any(item.get('weight_estimated', False) for item in meal_items)
@@ -758,9 +779,9 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
                 f"🍽️ <b>{meal_name}</b>\n"
                 f"📊 КБЖУ:\n"
                 f"• Калории: {user_state.data.get('meal_totals', {}).get('calories', 0):.0f} ккал\n"
-                f"• Белки: {user_state.data.get('meal_totals', {}).get('protein', 0):.1f} г\n"
-                f"• Жиры: {user_state.data.get('meal_totals', {}).get('fats', 0):.1f} г\n"
-                f"• Углеводы: {user_state.data.get('meal_totals', {}).get('carbs', 0):.1f} г",
+                f"• Белки: {user_state.data.get('meal_totals', {}).get('protein', 0):.0f} г\n"
+                f"• Жиры: {user_state.data.get('meal_totals', {}).get('fats', 0):.0f} г\n"
+                f"• Углеводы: {user_state.data.get('meal_totals', {}).get('carbs', 0):.0f} г",
                 parse_mode='HTML'
             )
         else:

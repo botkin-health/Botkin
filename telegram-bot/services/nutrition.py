@@ -395,8 +395,39 @@ def process_meal_description_with_menu(
     # Используем напрямую парсер описания
     from .description_parser import extract_products_from_description
     
-    # Извлекаем продукты из описания
-    products = extract_products_from_description(description)
+    # Если в menu_data есть компоненты (от ChatGPT), используем их!
+    # Это приоритетный источник, так как ИИ уже разбил блюдо на части
+    if menu_data and menu_data.get('components'):
+        logger.info(f"✅ Найдено {len(menu_data['components'])} компонентов от ИИ. Используем их вместо парсинга описания.")
+        products = []
+        for comp in menu_data['components']:
+            products.append({
+                'name': comp.get('name'),
+                'weight': comp.get('weight'),
+                'calories': comp.get('calories'),
+                'protein': comp.get('protein'),
+                'fats': comp.get('fats'),
+                'carbs': comp.get('carbs'),
+                'source': 'menu_ocr_component',
+                'menu_data': menu_data # Ссылка на родителя
+            })
+            
+    # Если компонентов нет, парсим описание
+    if not products:
+        # Извлекаем продукты из описания
+        products = extract_products_from_description(description)
+    
+    # Если продукты не найдены в описании, но есть данные меню - используем их
+    if not products and menu_data:
+        dish_name = menu_data.get('dish_name', 'Блюдо из меню')
+        # Проверяем, что описание не содержит явного отказа (хотя это сложно)
+        # Просто добавляем блюдо из меню
+        logger.info(f"В описании не найдено продуктов, добавляем блюдо из меню: {dish_name}")
+        products = [{
+            'name': dish_name,
+            'weight': None,
+            'source': 'menu_ocr'
+        }]
     
     # Применяем множитель порции
     if portion_multiplier != 1.0:
@@ -456,7 +487,7 @@ def process_meal_description_with_menu(
         product_name_clean = re.sub(r'\s*(переку|перекус|обед|завтрак|ужин|бранч|полдник)\s*$', '', product_name)
         # Нормализуем через функцию нормализации
         normalized_name = normalize_product_name(product_name_clean)
-        product_weight = product.get('weight', 0)
+        product_weight = product.get('weight') or 0
         
         # Дополнительная нормализация для картошки (убираем разные окончания)
         # "варенной картошки" и "варенной картошк" должны стать одинаковыми
@@ -592,32 +623,32 @@ def process_meal_description_with_menu(
                 logger.info(f"    {menu_fats_per_100g}г жиров/100г × {multiplier:.2f} = {fats:.1f}г")
                 logger.info(f"    {menu_carbs_per_100g}г углеводов/100г × {multiplier:.2f} = {carbs:.1f}г")
             
-            meal_items.append({
-                'product': product.get('name', menu_data.get('dish_name', 'Продукт из меню')),
-                'weight_g': round(product_weight, 2),
-                'weight_source': 'description',
-                'weight_estimated': False,
-                'calories': round(calories, 1),
-                'protein': round(protein, 1),
-                'fats': round(fats, 1),
-                'carbs': round(carbs, 1),
-                'source': 'menu_ocr',
-            })
-        elif is_menu_product and not product_weight:
-            # Это продукт из меню, но вес не указан - используем вес из меню или 100г по умолчанию
-            weight_to_use = menu_weight if menu_weight else 100.0
-            
-            meal_items.append({
-                'product': product.get('name', menu_data.get('dish_name', 'Продукт из меню')),
-                'weight_g': weight_to_use,
-                'weight_source': 'menu',
-                'weight_estimated': False,
-                'calories': menu_calories_per_100g * (weight_to_use / 100.0),
-                'protein': menu_protein_per_100g * (weight_to_use / 100.0),
-                'fats': menu_fats_per_100g * (weight_to_use / 100.0),
-                'carbs': menu_carbs_per_100g * (weight_to_use / 100.0),
-                'source': 'menu_ocr',
-            })
+                meal_items.append({
+                    'product': product.get('name', menu_data.get('dish_name', 'Продукт из меню')),
+                    'weight_g': round(product_weight, 2),
+                    'weight_source': 'description',
+                    'weight_estimated': False,
+                    'calories': round(calories, 1),
+                    'protein': round(protein, 1),
+                    'fats': round(fats, 1),
+                    'carbs': round(carbs, 1),
+                    'source': 'menu_ocr',
+                })
+            else:
+                # Это продукт из меню, но вес не указан - используем вес из меню или 100г по умолчанию
+                weight_to_use = menu_weight if menu_weight else 100.0
+                
+                meal_items.append({
+                    'product': product.get('name', menu_data.get('dish_name', 'Продукт из меню')),
+                    'weight_g': weight_to_use,
+                    'weight_source': 'menu',
+                    'weight_estimated': False,
+                    'calories': menu_calories_per_100g * (weight_to_use / 100.0),
+                    'protein': menu_protein_per_100g * (weight_to_use / 100.0),
+                    'fats': menu_fats_per_100g * (weight_to_use / 100.0),
+                    'carbs': menu_carbs_per_100g * (weight_to_use / 100.0),
+                    'source': 'menu_ocr',
+                })
         else:
             # Это дополнительный продукт (не из меню) - обрабатываем как обычно
             logger.info(f"  ❌ Продукт '{product_name}' НЕ соответствует меню, обрабатываем как обычный продукт")

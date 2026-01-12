@@ -19,6 +19,7 @@ import os
 
 # Загружаем переменные окружения
 load_dotenv()
+load_dotenv(Path(__file__).parent.parent / '.env')
 
 # Настраиваем логирование
 class ConsoleFilter(logging.Filter):

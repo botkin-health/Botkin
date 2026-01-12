@@ -3200,3 +3200,653 @@ Exception: Ошибки при инициализации бота
 2026-01-10 16:17:13,628 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
 2026-01-10 16:17:13,629 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
 2026-01-10 16:17:25,226 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-01-12 14:46:22,206 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-12 14:46:22,451 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-12 14:46:23,480 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+2026-01-12 14:46:23,481 - aiogram.dispatcher - INFO - Start polling
+2026-01-12 14:46:23,603 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-12 14:47:05,725 - handlers.text - INFO - 📝 Обработчик текста: получено сообщение от 895655: 'Витамин D3, Омега (2 капсулы), Стеролы (2 капсулы), Псиллиум...'
+2026-01-12 14:47:05,726 - handlers.text - INFO - У пользователя 895655 нет состояния
+2026-01-12 15:44:05,427 - handlers.photo - INFO - 📸 Получено фото от пользователя 895655
+2026-01-12 15:44:05,431 - handlers.photo - INFO - 📸 Получено фото от пользователя 895655
+2026-01-12 15:44:08,696 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-12 15:44:15,122 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-12 15:44:15,127 - handlers.photo - INFO - Распознано меню/еда: Салат с овощами, КБЖУ: 150.0 ккал
+2026-01-12 15:44:15,127 - handlers.photo - INFO - Распознано: Салат с овощами
+2026-01-12 15:44:15,127 - handlers.photo - INFO - Есть caption, обрабатываем с учетом распознанного: Завтрак
+2026-01-12 15:44:15,128 - handlers.photo - INFO - Обработка описания с учетом меню: Завтрак
+Завтрак
+2026-01-12 15:44:15,134 - services.nutrition - INFO - В описании не найдено продуктов, добавляем блюдо из меню: Салат с овощами
+2026-01-12 15:44:15,134 - services.nutrition - INFO - Обработка 1 продуктов с учетом меню: салат с овощами
+2026-01-12 15:44:15,134 - services.nutrition - INFO - КБЖУ из меню (на 100г): 60 ккал, Б: 1.2г, Ж: 4г, У: 4.8г
+2026-01-12 15:44:15,134 - services.nutrition - INFO - Проверка продукта: 'салат с овощами' (вес: Noneг)
+2026-01-12 15:44:15,134 - services.nutrition - INFO -   Ключевые слова меню: {'овощами', 'салат'}
+2026-01-12 15:44:15,134 - services.nutrition - INFO -   Ключевые слова продукта: {'овощами', 'салат'}
+2026-01-12 15:44:15,134 - services.nutrition - INFO -   ✅ Продукт 'салат с овощами' соответствует меню
+2026-01-12 15:44:15,135 - handlers.photo - INFO - Извлечено название приёма пищи: 'Завтрак' из описания: 'Завтрак
+Завтрак...'
+2026-01-12 15:44:15,135 - handlers.photo - INFO - Сохранено в состояние: meal_name='Завтрак', meal_time='15:44'
+2026-01-12 15:44:27,693 - handlers.photo - INFO - Обработка callback: action=cancel, meal_type=regular, user_id=895655
+2026-01-12 15:44:42,774 - handlers.photo - INFO - 📸 Получено фото от пользователя 895655
+2026-01-12 15:44:43,568 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-12 15:44:51,119 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-12 15:44:51,122 - handlers.photo - INFO - Распознано меню/еда: Салат с овощами, КБЖУ: 100.0 ккал
+2026-01-12 15:44:51,123 - handlers.photo - INFO - Распознано: Салат с овощами
+2026-01-12 15:44:51,123 - handlers.photo - INFO - Есть caption, обрабатываем с учетом распознанного: Завтрак
+2026-01-12 15:44:51,123 - handlers.photo - INFO - Обработка описания с учетом меню: Завтрак
+Завтрак
+2026-01-12 15:44:51,123 - services.nutrition - INFO - В описании не найдено продуктов, добавляем блюдо из меню: Салат с овощами
+2026-01-12 15:44:51,123 - services.nutrition - INFO - Обработка 1 продуктов с учетом меню: салат с овощами
+2026-01-12 15:44:51,123 - services.nutrition - INFO - КБЖУ из меню (на 100г): 67 ккал, Б: 1.3г, Ж: 3.3г, У: 6.7г
+2026-01-12 15:44:51,123 - services.nutrition - INFO - Проверка продукта: 'салат с овощами' (вес: Noneг)
+2026-01-12 15:44:51,124 - services.nutrition - INFO -   Ключевые слова меню: {'овощами', 'салат'}
+2026-01-12 15:44:51,124 - services.nutrition - INFO -   Ключевые слова продукта: {'овощами', 'салат'}
+2026-01-12 15:44:51,124 - services.nutrition - INFO -   ✅ Продукт 'салат с овощами' соответствует меню
+2026-01-12 15:44:51,124 - handlers.photo - INFO - Извлечено название приёма пищи: 'Завтрак' из описания: 'Завтрак
+Завтрак...'
+2026-01-12 15:44:51,124 - handlers.photo - INFO - Сохранено в состояние: meal_name='Завтрак', meal_time='15:44'
+2026-01-12 15:45:46,570 - handlers.photo - INFO - 📸 Получено фото от пользователя 895655
+2026-01-12 15:45:47,314 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-12 15:45:52,979 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-12 15:45:52,989 - handlers.photo - INFO - Распознано меню/еда: Гречневая каша, КБЖУ: 300.0 ккал
+2026-01-12 15:45:52,989 - handlers.photo - INFO - Распознано: Гречневая каша
+2026-01-12 15:45:52,990 - handlers.photo - INFO - Есть caption, обрабатываем с учетом распознанного: Завтрак
+2026-01-12 15:46:08,863 - handlers.photo - INFO - Обработка callback: action=save, meal_type=regular, user_id=895655
+2026-01-12 15:46:08,864 - handlers.photo - INFO - Используется meal_name из состояния: 'Завтрак'
+2026-01-12 15:46:08,864 - handlers.photo - INFO - Сохранение блюда: meal_name='Завтрак', meal_type='regular'
+2026-01-12 15:47:35,341 - handlers.photo - INFO - 📸 Получено фото от пользователя 895655
+2026-01-12 15:47:36,048 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-12 15:47:43,661 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-12 15:47:43,664 - handlers.photo - INFO - Распознано меню/еда: Овсяная каша, КБЖУ: 150.0 ккал
+2026-01-12 15:47:43,664 - handlers.photo - INFO - Распознано: Овсяная каша
+2026-01-12 15:47:43,664 - handlers.photo - INFO - Есть caption, обрабатываем с учетом распознанного: 6 ложек перловой каши
+2026-01-12 15:47:43,665 - handlers.photo - INFO - Обработка описания с учетом меню: 6 ложек перловой каши
+6 ложек перловой каши
+2026-01-12 15:47:43,665 - services.nutrition - INFO - В описании не найдено продуктов, добавляем блюдо из меню: Овсяная каша
+2026-01-12 15:47:43,665 - services.nutrition - INFO - Обработка 1 продуктов с учетом меню: овсяная каша
+2026-01-12 15:47:43,665 - services.nutrition - INFO - КБЖУ из меню (на 100г): 75 ккал, Б: 2.5г, Ж: 1.5г, У: 13.5г
+2026-01-12 15:47:43,665 - services.nutrition - INFO - Проверка продукта: 'овсяная каша' (вес: Noneг)
+2026-01-12 15:47:43,665 - services.nutrition - INFO -   Ключевые слова меню: {'каша', 'овсяная'}
+2026-01-12 15:47:43,665 - services.nutrition - INFO -   Ключевые слова продукта: {'каша', 'овсяная'}
+2026-01-12 15:47:43,665 - services.nutrition - INFO -   ✅ Продукт 'овсяная каша' соответствует меню
+2026-01-12 15:47:43,666 - handlers.photo - INFO - Извлечено название приёма пищи: 'Полдник' из описания: '6 ложек перловой каши
+6 ложек перловой каши...'
+2026-01-12 15:47:43,666 - handlers.photo - INFO - Сохранено в состояние: meal_name='Полдник', meal_time='15:47'
+2026-01-12 15:49:09,410 - aiogram.dispatcher - WARNING - Received SIGINT signal
+2026-01-12 15:49:09,412 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-12 15:49:09,412 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-12 15:49:27,752 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-12 15:49:27,985 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-12 15:49:28,863 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+2026-01-12 15:49:28,863 - aiogram.dispatcher - INFO - Start polling
+2026-01-12 15:49:28,999 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-12 15:50:32,119 - handlers.photo - INFO - Обработка callback: action=save, meal_type=regular, user_id=895655
+2026-01-12 15:50:56,185 - handlers.photo - INFO - 📸 Получено фото от пользователя 895655
+2026-01-12 15:50:56,957 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-12 15:51:04,008 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-12 15:51:04,013 - handlers.photo - INFO - Распознано меню/еда: Овсяная каша, КБЖУ: 150.0 ккал
+2026-01-12 15:51:04,013 - handlers.photo - INFO - Распознано: Овсяная каша
+2026-01-12 15:51:04,013 - handlers.photo - INFO - Есть caption, обрабатываем с учетом распознанного: 6 ложек перловой каши
+2026-01-12 15:51:04,014 - handlers.photo - INFO - Обработка описания с учетом меню: 6 ложек перловой каши
+6 ложек перловой каши
+2026-01-12 15:51:04,018 - services.nutrition - INFO - В описании не найдено продуктов, добавляем блюдо из меню: Овсяная каша
+2026-01-12 15:51:04,019 - services.nutrition - INFO - Обработка 1 продуктов с учетом меню: овсяная каша
+2026-01-12 15:51:04,019 - services.nutrition - INFO - КБЖУ из меню (на 100г): 75 ккал, Б: 2.5г, Ж: 1.5г, У: 13.5г
+2026-01-12 15:51:04,019 - services.nutrition - INFO - Проверка продукта: 'овсяная каша' (вес: Noneг)
+2026-01-12 15:51:04,019 - services.nutrition - INFO -   Ключевые слова меню: {'овсяная', 'каша'}
+2026-01-12 15:51:04,019 - services.nutrition - INFO -   Ключевые слова продукта: {'овсяная', 'каша'}
+2026-01-12 15:51:04,019 - services.nutrition - INFO -   ✅ Продукт 'овсяная каша' соответствует меню
+2026-01-12 15:51:04,021 - handlers.photo - INFO - Извлечено название приёма пищи: 'Полдник' из описания: '6 ложек перловой каши
+6 ложек перловой каши...'
+2026-01-12 15:51:04,021 - handlers.photo - INFO - Сохранено в состояние: meal_name='Полдник', meal_time='15:51'
+2026-01-12 15:51:08,075 - handlers.photo - INFO - Обработка callback: action=save, meal_type=regular, user_id=895655
+2026-01-12 15:51:08,076 - handlers.photo - INFO - Используется meal_name из состояния: 'Полдник'
+2026-01-12 15:51:08,076 - handlers.photo - INFO - Сохранение блюда: meal_name='Полдник', meal_type='regular'
+2026-01-12 15:51:16,236 - handlers.photo - INFO - 📸 Получено фото от пользователя 895655
+2026-01-12 15:51:17,150 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-12 15:51:24,014 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-12 15:51:24,018 - handlers.photo - INFO - Распознано меню/еда: Скумбрия дальневосточная натуральная с добавлением масла, КБЖУ: 250.0 ккал
+2026-01-12 15:51:24,018 - handlers.photo - INFO - Распознано: Скумбрия дальневосточная натуральная с добавлением масла
+2026-01-12 15:51:24,018 - handlers.photo - INFO - Используем данные без caption: Скумбрия дальневосточная натуральная с добавлением масла
+2026-01-12 15:54:05,565 - handlers.photo - INFO - Обработка callback: action=save, meal_type=menu, user_id=895655
+2026-01-12 15:54:05,565 - handlers.photo - INFO - Сохранение блюда: meal_name='Скумбрия дальневосточная натуральная с добавлением масла', meal_type='menu'
+2026-01-12 15:54:23,787 - handlers.photo - INFO - 📸 Получено фото от пользователя 895655
+2026-01-12 15:54:24,494 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-12 15:54:29,930 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-12 15:54:29,932 - handlers.photo - INFO - Распознано меню/еда: Салат Оливье с икрой и яйцом, КБЖУ: 350.0 ккал
+2026-01-12 15:54:29,932 - handlers.photo - INFO - Распознано: Салат Оливье с икрой и яйцом
+2026-01-12 15:54:29,932 - handlers.photo - INFO - Есть caption, обрабатываем с учетом распознанного: Оьед
+2026-01-12 15:54:29,932 - handlers.photo - INFO - Обработка описания с учетом меню: Оьед
+Оьед
+2026-01-12 15:54:29,932 - services.nutrition - INFO - В описании не найдено продуктов, добавляем блюдо из меню: Салат Оливье с икрой и яйцом
+2026-01-12 15:54:29,932 - services.nutrition - INFO - Обработка 1 продуктов с учетом меню: салат оливье с икрой и яйцом
+2026-01-12 15:54:29,932 - services.nutrition - INFO - КБЖУ из меню (на 100г): 117 ккал, Б: 3.3г, Ж: 8.3г, У: 6.7г
+2026-01-12 15:54:29,932 - services.nutrition - INFO - Проверка продукта: 'салат оливье с икрой и яйцом' (вес: Noneг)
+2026-01-12 15:54:29,932 - services.nutrition - INFO -   Ключевые слова меню: {'яйцом', 'оливье', 'салат', 'икрой'}
+2026-01-12 15:54:29,932 - services.nutrition - INFO -   Ключевые слова продукта: {'яйцом', 'оливье', 'салат', 'икрой'}
+2026-01-12 15:54:29,932 - services.nutrition - INFO -   ✅ Продукт 'салат оливье с икрой и яйцом' соответствует меню
+2026-01-12 15:54:29,932 - handlers.photo - INFO - Извлечено название приёма пищи: 'Полдник' из описания: 'Оьед
+Оьед...'
+2026-01-12 15:54:29,933 - handlers.photo - INFO - Сохранено в состояние: meal_name='Полдник', meal_time='15:54'
+2026-01-12 15:56:05,770 - handlers.photo - INFO - Обработка callback: action=save, meal_type=regular, user_id=895655
+2026-01-12 15:56:05,772 - handlers.photo - INFO - Используется meal_name из состояния: 'Полдник'
+2026-01-12 15:56:05,772 - handlers.photo - INFO - Сохранение блюда: meal_name='Полдник', meal_type='regular'
+2026-01-12 15:56:35,680 - handlers.photo - INFO - 📸 Получено фото от пользователя 895655
+2026-01-12 15:56:36,517 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-12 15:56:44,275 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-12 15:56:44,279 - handlers.photo - INFO - Распознано меню/еда: Картофельное пюре с грибным соусом и зеленью, КБЖУ: 350.0 ккал
+2026-01-12 15:56:44,279 - handlers.photo - INFO - Распознано: Картофельное пюре с грибным соусом и зеленью
+2026-01-12 15:56:44,279 - handlers.photo - INFO - Есть caption, обрабатываем с учетом распознанного: Заячьи почки с картофельным пюре и грибным соусом
+2026-01-12 15:56:44,280 - handlers.photo - INFO - Обработка описания с учетом меню: Заячьи почки с картофельным пюре и грибным соусом
+Заячьи почки с картофельным пюре и грибным соусом
+2026-01-12 15:56:44,280 - services.nutrition - INFO - В описании не найдено продуктов, добавляем блюдо из меню: Картофельное пюре с грибным соусом и зеленью
+2026-01-12 15:56:44,280 - services.nutrition - INFO - Обработка 1 продуктов с учетом меню: картофельное пюре с грибным соусом и зеленью
+2026-01-12 15:56:44,280 - services.nutrition - INFO - КБЖУ из меню (на 100г): 100 ккал, Б: 2.3г, Ж: 5.1г, У: 11.4г
+2026-01-12 15:56:44,280 - services.nutrition - INFO - Проверка продукта: 'картофель' (вес: Noneг)
+2026-01-12 15:56:44,280 - services.nutrition - INFO -   Ключевые слова меню: {'зеленью', 'картофельное', 'грибным', 'пюре', 'соусом'}
+2026-01-12 15:56:44,280 - services.nutrition - INFO -   Ключевые слова продукта: {'картофель'}
+2026-01-12 15:56:44,280 - services.nutrition - INFO -   ✅ Продукт 'картофель' соответствует меню
+2026-01-12 15:56:44,281 - handlers.photo - INFO - Извлечено название приёма пищи: 'Полдник' из описания: 'Заячьи почки с картофельным пюре и грибным соусом
+...'
+2026-01-12 15:56:44,281 - handlers.photo - INFO - Сохранено в состояние: meal_name='Полдник', meal_time='15:56'
+2026-01-12 16:06:56,094 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-12 16:06:56,326 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-12 16:06:57,234 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+2026-01-12 16:06:57,234 - aiogram.dispatcher - INFO - Start polling
+2026-01-12 16:06:57,365 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-12 16:06:57,494 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:06:57,494 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-01-12 16:07:01,620 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:07:01,621 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-01-12 16:07:02,751 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:07:02,751 - aiogram.dispatcher - WARNING - Sleep for 1.316960 seconds and try again... (tryings = 1, bot id = 8500310863)
+2026-01-12 16:07:07,220 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:07:07,223 - aiogram.dispatcher - WARNING - Sleep for 1.270027 seconds and try again... (tryings = 1, bot id = 8500310863)
+2026-01-12 16:07:08,598 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:07:08,598 - aiogram.dispatcher - WARNING - Sleep for 1.691847 seconds and try again... (tryings = 2, bot id = 8500310863)
+2026-01-12 16:07:13,433 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:07:13,433 - aiogram.dispatcher - WARNING - Sleep for 1.494725 seconds and try again... (tryings = 2, bot id = 8500310863)
+2026-01-12 16:07:15,375 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:07:15,375 - aiogram.dispatcher - WARNING - Sleep for 2.170357 seconds and try again... (tryings = 3, bot id = 8500310863)
+2026-01-12 16:07:18,758 - aiogram.dispatcher - INFO - Connection established (tryings = 4, bot id = 8500310863)
+2026-01-12 16:07:18,761 - handlers.photo - INFO - Обработка callback: action=cancel, meal_type=regular, user_id=895655
+2026-01-12 16:07:20,722 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:07:20,723 - aiogram.dispatcher - WARNING - Sleep for 1.962188 seconds and try again... (tryings = 3, bot id = 8500310863)
+2026-01-12 16:07:22,819 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:07:22,819 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-01-12 16:07:25,088 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-01-12 16:07:25,091 - handlers.photo - INFO - 📸 Получено фото от пользователя 895655
+2026-01-12 16:07:25,883 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-12 16:07:26,972 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:07:26,972 - aiogram.dispatcher - WARNING - Sleep for 2.350724 seconds and try again... (tryings = 4, bot id = 8500310863)
+2026-01-12 16:07:31,589 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-12 16:07:31,591 - handlers.photo - INFO - Распознано меню/еда: Картофельное пюре с грибным соусом и зеленью, КБЖУ: 350.0 ккал
+2026-01-12 16:07:31,592 - handlers.photo - INFO - Распознано: Картофельное пюре с грибным соусом и зеленью
+2026-01-12 16:07:31,592 - handlers.photo - INFO - Есть caption, обрабатываем с учетом распознанного: Заячьи почки с картофельным пюре и грибным соусом
+2026-01-12 16:07:31,592 - handlers.photo - INFO - Обработка описания с учетом меню: Заячьи почки с картофельным пюре и грибным соусом
+Заячьи почки с картофельным пюре и грибным соусом
+2026-01-12 16:07:31,592 - services.nutrition - INFO - В описании не найдено продуктов, добавляем блюдо из меню: Картофельное пюре с грибным соусом и зеленью
+2026-01-12 16:07:31,592 - services.nutrition - INFO - Обработка 1 продуктов с учетом меню: картофельное пюре с грибным соусом и зеленью
+2026-01-12 16:07:31,593 - services.nutrition - INFO - КБЖУ из меню (на 100г): 100 ккал, Б: 2.3г, Ж: 5.1г, У: 11.4г
+2026-01-12 16:07:31,593 - services.nutrition - INFO - Проверка продукта: 'картофель' (вес: Noneг)
+2026-01-12 16:07:31,593 - services.nutrition - INFO -   Ключевые слова меню: {'зеленью', 'картофельное', 'грибным', 'пюре', 'соусом'}
+2026-01-12 16:07:31,593 - services.nutrition - INFO -   Ключевые слова продукта: {'картофель'}
+2026-01-12 16:07:31,593 - services.nutrition - INFO -   ✅ Продукт 'картофель' соответствует меню
+2026-01-12 16:07:31,593 - handlers.photo - INFO - Извлечено название приёма пищи: 'Полдник' из описания: 'Заячьи почки с картофельным пюре и грибным соусом
+...'
+2026-01-12 16:07:31,593 - handlers.photo - INFO - Сохранено в состояние: meal_name='Полдник', meal_time='16:07'
+2026-01-12 16:07:31,595 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:07:31,595 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-01-12 16:07:32,728 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:07:32,728 - aiogram.dispatcher - WARNING - Sleep for 3.029113 seconds and try again... (tryings = 5, bot id = 8500310863)
+2026-01-12 16:07:35,893 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:07:35,893 - aiogram.dispatcher - WARNING - Sleep for 1.233059 seconds and try again... (tryings = 1, bot id = 8500310863)
+2026-01-12 16:07:40,278 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:07:40,279 - aiogram.dispatcher - WARNING - Sleep for 3.792851 seconds and try again... (tryings = 6, bot id = 8500310863)
+2026-01-12 16:07:44,223 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:07:44,223 - aiogram.dispatcher - WARNING - Sleep for 1.741688 seconds and try again... (tryings = 2, bot id = 8500310863)
+2026-01-12 16:07:49,097 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:07:49,098 - aiogram.dispatcher - WARNING - Sleep for 4.965657 seconds and try again... (tryings = 7, bot id = 8500310863)
+2026-01-12 16:07:54,229 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:07:54,230 - aiogram.dispatcher - WARNING - Sleep for 2.208284 seconds and try again... (tryings = 3, bot id = 8500310863)
+2026-01-12 16:07:59,567 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:07:59,567 - aiogram.dispatcher - WARNING - Sleep for 5.043044 seconds and try again... (tryings = 8, bot id = 8500310863)
+2026-01-12 16:08:04,739 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:08:04,739 - aiogram.dispatcher - WARNING - Sleep for 2.751813 seconds and try again... (tryings = 4, bot id = 8500310863)
+2026-01-12 16:08:10,653 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:08:10,653 - aiogram.dispatcher - WARNING - Sleep for 5.193282 seconds and try again... (tryings = 9, bot id = 8500310863)
+2026-01-12 16:08:15,985 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:08:15,986 - aiogram.dispatcher - WARNING - Sleep for 3.404424 seconds and try again... (tryings = 5, bot id = 8500310863)
+2026-01-12 16:08:19,533 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:08:19,533 - aiogram.dispatcher - WARNING - Sleep for 4.976986 seconds and try again... (tryings = 10, bot id = 8500310863)
+2026-01-12 16:08:24,639 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:08:24,639 - aiogram.dispatcher - WARNING - Sleep for 4.521619 seconds and try again... (tryings = 6, bot id = 8500310863)
+2026-01-12 16:08:29,287 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:08:29,287 - aiogram.dispatcher - WARNING - Sleep for 4.940758 seconds and try again... (tryings = 11, bot id = 8500310863)
+2026-01-12 16:08:34,369 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:08:34,370 - aiogram.dispatcher - WARNING - Sleep for 4.954519 seconds and try again... (tryings = 7, bot id = 8500310863)
+2026-01-12 16:08:39,566 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:08:39,567 - aiogram.dispatcher - WARNING - Sleep for 5.124582 seconds and try again... (tryings = 12, bot id = 8500310863)
+2026-01-12 16:08:44,825 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:08:44,827 - aiogram.dispatcher - WARNING - Sleep for 4.939449 seconds and try again... (tryings = 8, bot id = 8500310863)
+2026-01-12 16:08:49,901 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:08:49,902 - aiogram.dispatcher - WARNING - Sleep for 5.108741 seconds and try again... (tryings = 13, bot id = 8500310863)
+2026-01-12 16:08:55,131 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:08:55,133 - aiogram.dispatcher - WARNING - Sleep for 4.752058 seconds and try again... (tryings = 9, bot id = 8500310863)
+2026-01-12 16:09:00,035 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:09:00,036 - aiogram.dispatcher - WARNING - Sleep for 4.924604 seconds and try again... (tryings = 14, bot id = 8500310863)
+2026-01-12 16:09:05,094 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:09:05,094 - aiogram.dispatcher - WARNING - Sleep for 5.008119 seconds and try again... (tryings = 10, bot id = 8500310863)
+2026-01-12 16:09:10,240 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:09:10,241 - aiogram.dispatcher - WARNING - Sleep for 5.009314 seconds and try again... (tryings = 15, bot id = 8500310863)
+2026-01-12 16:09:15,378 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:09:15,379 - aiogram.dispatcher - WARNING - Sleep for 5.068436 seconds and try again... (tryings = 11, bot id = 8500310863)
+2026-01-12 16:09:20,620 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:09:20,620 - aiogram.dispatcher - WARNING - Sleep for 5.125403 seconds and try again... (tryings = 16, bot id = 8500310863)
+2026-01-12 16:09:25,886 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:09:25,887 - aiogram.dispatcher - WARNING - Sleep for 4.981203 seconds and try again... (tryings = 12, bot id = 8500310863)
+2026-01-12 16:09:31,024 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:09:31,024 - aiogram.dispatcher - WARNING - Sleep for 4.809312 seconds and try again... (tryings = 17, bot id = 8500310863)
+2026-01-12 16:09:35,973 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:09:35,973 - aiogram.dispatcher - WARNING - Sleep for 4.914944 seconds and try again... (tryings = 13, bot id = 8500310863)
+2026-01-12 16:09:41,039 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:09:41,039 - aiogram.dispatcher - WARNING - Sleep for 5.131160 seconds and try again... (tryings = 18, bot id = 8500310863)
+2026-01-12 16:09:46,294 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:09:46,295 - aiogram.dispatcher - WARNING - Sleep for 5.032731 seconds and try again... (tryings = 14, bot id = 8500310863)
+2026-01-12 16:09:51,491 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:09:51,492 - aiogram.dispatcher - WARNING - Sleep for 4.948835 seconds and try again... (tryings = 19, bot id = 8500310863)
+2026-01-12 16:09:56,591 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:09:56,591 - aiogram.dispatcher - WARNING - Sleep for 5.037942 seconds and try again... (tryings = 15, bot id = 8500310863)
+2026-01-12 16:10:01,758 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:10:01,759 - aiogram.dispatcher - WARNING - Sleep for 4.750470 seconds and try again... (tryings = 20, bot id = 8500310863)
+2026-01-12 16:10:06,647 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:10:06,648 - aiogram.dispatcher - WARNING - Sleep for 4.910759 seconds and try again... (tryings = 16, bot id = 8500310863)
+2026-01-12 16:10:11,683 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:10:11,684 - aiogram.dispatcher - WARNING - Sleep for 5.058350 seconds and try again... (tryings = 21, bot id = 8500310863)
+2026-01-12 16:10:16,888 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:10:16,889 - aiogram.dispatcher - WARNING - Sleep for 4.861214 seconds and try again... (tryings = 17, bot id = 8500310863)
+2026-01-12 16:10:22,319 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:10:22,321 - aiogram.dispatcher - WARNING - Sleep for 4.978973 seconds and try again... (tryings = 22, bot id = 8500310863)
+2026-01-12 16:10:27,436 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:10:27,437 - aiogram.dispatcher - WARNING - Sleep for 5.077280 seconds and try again... (tryings = 18, bot id = 8500310863)
+2026-01-12 16:10:32,673 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:10:32,674 - aiogram.dispatcher - WARNING - Sleep for 4.886052 seconds and try again... (tryings = 23, bot id = 8500310863)
+2026-01-12 16:10:37,748 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:10:37,749 - aiogram.dispatcher - WARNING - Sleep for 5.001845 seconds and try again... (tryings = 19, bot id = 8500310863)
+2026-01-12 16:10:40,861 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+2026-01-12 16:10:40,861 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+2026-01-12 16:10:40,861 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-12 16:10:40,861 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-12 16:10:40,861 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-12 16:10:40,862 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-12 16:10:47,603 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-12 16:10:47,842 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-12 16:10:48,762 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+2026-01-12 16:10:48,763 - aiogram.dispatcher - INFO - Start polling
+2026-01-12 16:10:48,885 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-12 16:11:46,240 - handlers.photo - INFO - Обработка callback: action=cancel, meal_type=regular, user_id=895655
+2026-01-12 16:11:53,556 - handlers.photo - INFO - 📸 Получено фото от пользователя 895655
+2026-01-12 16:11:54,307 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-12 16:12:05,394 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-12 16:12:05,400 - handlers.photo - INFO - Распознано меню/еда: None, КБЖУ: 350.0 ккал
+2026-01-12 16:12:05,401 - handlers.photo - INFO - Распознано: None
+2026-01-12 16:12:05,401 - handlers.photo - INFO - Есть caption, обрабатываем с учетом распознанного: Заячьи почки с картофельным пюре и грибным соусом
+2026-01-12 16:12:05,401 - handlers.photo - INFO - Обработка описания с учетом меню: Заячьи почки с картофельным пюре и грибным соусом
+Заячьи почки с картофельным пюре и грибным соусом
+2026-01-12 16:12:05,405 - services.nutrition - INFO - В описании не найдено продуктов, добавляем блюдо из меню: None
+2026-01-12 16:12:05,406 - services.nutrition - INFO - Обработка 1 продуктов с учетом меню: none
+2026-01-12 16:12:05,406 - services.nutrition - INFO - КБЖУ из меню (на 100г): 116.67 ккал, Б: 6.67г, Ж: 6г, У: 8.33г
+2026-01-12 16:12:05,406 - services.nutrition - INFO - Проверка продукта: 'none' (вес: Noneг)
+2026-01-12 16:12:05,406 - services.nutrition - INFO -   Ключевые слова меню: {'none'}
+2026-01-12 16:12:05,406 - services.nutrition - INFO -   Ключевые слова продукта: {'none'}
+2026-01-12 16:12:05,406 - services.nutrition - INFO -   ✅ Продукт 'none' соответствует меню
+2026-01-12 16:12:05,407 - handlers.photo - INFO - Извлечено название приёма пищи: 'Полдник' из описания: 'Заячьи почки с картофельным пюре и грибным соусом
+...'
+2026-01-12 16:12:05,408 - handlers.photo - INFO - Сохранено в состояние: meal_name='Полдник', meal_time='16:12'
+2026-01-12 16:14:02,504 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-12 16:14:02,813 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-12 16:14:04,148 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+2026-01-12 16:14:04,148 - aiogram.dispatcher - INFO - Start polling
+2026-01-12 16:14:04,276 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-12 16:14:04,398 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:14:04,398 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-01-12 16:14:08,555 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:14:08,556 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-01-12 16:14:09,713 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:14:09,714 - aiogram.dispatcher - WARNING - Sleep for 1.306038 seconds and try again... (tryings = 1, bot id = 8500310863)
+2026-01-12 16:14:14,160 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:14:14,160 - aiogram.dispatcher - WARNING - Sleep for 1.518145 seconds and try again... (tryings = 1, bot id = 8500310863)
+2026-01-12 16:14:15,818 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:14:15,818 - aiogram.dispatcher - WARNING - Sleep for 1.589519 seconds and try again... (tryings = 2, bot id = 8500310863)
+2026-01-12 16:14:15,845 - aiogram.dispatcher - INFO - Connection established (tryings = 2, bot id = 8500310863)
+2026-01-12 16:14:15,847 - handlers.photo - INFO - Обработка callback: action=cancel, meal_type=regular, user_id=895655
+2026-01-12 16:14:20,529 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:14:20,529 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-01-12 16:14:21,656 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:14:21,657 - aiogram.dispatcher - WARNING - Sleep for 2.021468 seconds and try again... (tryings = 3, bot id = 8500310863)
+2026-01-12 16:14:26,817 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:14:26,817 - aiogram.dispatcher - WARNING - Sleep for 1.216544 seconds and try again... (tryings = 1, bot id = 8500310863)
+2026-01-12 16:14:28,169 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:14:28,169 - aiogram.dispatcher - WARNING - Sleep for 2.552385 seconds and try again... (tryings = 4, bot id = 8500310863)
+2026-01-12 16:14:33,599 - aiogram.dispatcher - INFO - Connection established (tryings = 5, bot id = 8500310863)
+2026-01-12 16:14:33,602 - handlers.photo - INFO - 📸 Получено фото от пользователя 895655
+2026-01-12 16:14:33,862 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:14:33,862 - aiogram.dispatcher - WARNING - Sleep for 1.561959 seconds and try again... (tryings = 2, bot id = 8500310863)
+2026-01-12 16:14:34,422 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-12 16:14:43,701 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-12 16:14:43,704 - handlers.photo - INFO - Распознано меню/еда: None, КБЖУ: 450.0 ккал
+2026-01-12 16:14:43,704 - handlers.photo - INFO - Распознано: None
+2026-01-12 16:14:43,704 - handlers.photo - INFO - Есть caption, обрабатываем с учетом распознанного: Заячьи почки с картофельным пюре и грибным соусом
+2026-01-12 16:14:43,705 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:14:43,705 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-01-12 16:14:44,814 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:14:44,814 - aiogram.dispatcher - WARNING - Sleep for 2.058505 seconds and try again... (tryings = 3, bot id = 8500310863)
+2026-01-12 16:14:50,260 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:14:50,260 - aiogram.dispatcher - WARNING - Sleep for 1.354053 seconds and try again... (tryings = 1, bot id = 8500310863)
+2026-01-12 16:14:51,741 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:14:51,741 - aiogram.dispatcher - WARNING - Sleep for 2.671571 seconds and try again... (tryings = 4, bot id = 8500310863)
+2026-01-12 16:14:57,568 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:14:57,569 - aiogram.dispatcher - WARNING - Sleep for 1.828922 seconds and try again... (tryings = 2, bot id = 8500310863)
+2026-01-12 16:14:59,580 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:14:59,581 - aiogram.dispatcher - WARNING - Sleep for 3.546801 seconds and try again... (tryings = 5, bot id = 8500310863)
+2026-01-12 16:15:03,259 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:15:03,260 - aiogram.dispatcher - WARNING - Sleep for 2.462998 seconds and try again... (tryings = 3, bot id = 8500310863)
+2026-01-12 16:15:08,872 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:15:08,872 - aiogram.dispatcher - WARNING - Sleep for 4.599068 seconds and try again... (tryings = 6, bot id = 8500310863)
+2026-01-12 16:15:13,606 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:15:13,606 - aiogram.dispatcher - WARNING - Sleep for 3.093966 seconds and try again... (tryings = 4, bot id = 8500310863)
+2026-01-12 16:15:16,812 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:15:16,812 - aiogram.dispatcher - WARNING - Sleep for 5.090075 seconds and try again... (tryings = 7, bot id = 8500310863)
+2026-01-12 16:15:22,047 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:15:22,047 - aiogram.dispatcher - WARNING - Sleep for 3.908826 seconds and try again... (tryings = 5, bot id = 8500310863)
+2026-01-12 16:15:26,122 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:15:26,122 - aiogram.dispatcher - WARNING - Sleep for 5.076242 seconds and try again... (tryings = 8, bot id = 8500310863)
+2026-01-12 16:15:31,360 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:15:31,361 - aiogram.dispatcher - WARNING - Sleep for 5.073521 seconds and try again... (tryings = 6, bot id = 8500310863)
+2026-01-12 16:15:36,590 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:15:36,590 - aiogram.dispatcher - WARNING - Sleep for 5.278415 seconds and try again... (tryings = 9, bot id = 8500310863)
+2026-01-12 16:15:42,031 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:15:42,032 - aiogram.dispatcher - WARNING - Sleep for 5.005008 seconds and try again... (tryings = 7, bot id = 8500310863)
+2026-01-12 16:15:47,535 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:15:47,535 - aiogram.dispatcher - WARNING - Sleep for 4.876459 seconds and try again... (tryings = 10, bot id = 8500310863)
+2026-01-12 16:15:52,558 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:15:52,558 - aiogram.dispatcher - WARNING - Sleep for 5.037603 seconds and try again... (tryings = 8, bot id = 8500310863)
+2026-01-12 16:15:57,730 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:15:57,730 - aiogram.dispatcher - WARNING - Sleep for 5.029190 seconds and try again... (tryings = 11, bot id = 8500310863)
+2026-01-12 16:16:02,897 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-12 16:16:02,898 - aiogram.dispatcher - WARNING - Sleep for 5.084282 seconds and try again... (tryings = 9, bot id = 8500310863)
+2026-01-12 16:16:07,173 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+2026-01-12 16:16:07,173 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+2026-01-12 16:16:07,173 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-12 16:16:07,174 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-12 16:16:07,174 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-12 16:16:07,174 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-12 16:16:38,723 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-12 16:16:38,955 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-12 16:16:40,065 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+2026-01-12 16:16:40,066 - aiogram.dispatcher - INFO - Start polling
+2026-01-12 16:16:40,186 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-12 16:17:46,422 - handlers.photo - INFO - 📸 Получено фото от пользователя 895655
+2026-01-12 16:17:47,543 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-12 16:18:00,330 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-12 16:18:00,335 - handlers.photo - INFO - Распознано меню/еда: None, КБЖУ: 350.0 ккал
+2026-01-12 16:18:00,335 - handlers.photo - INFO - Распознано: None
+2026-01-12 16:18:00,336 - handlers.photo - INFO - Есть caption, обрабатываем с учетом распознанного: Заячьи почки с картофельным пюре и грибным соусом
+2026-01-12 16:18:00,336 - handlers.photo - INFO - Обработка описания с учетом меню: Заячьи почки с картофельным пюре и грибным соусом
+Заячьи почки с картофельным пюре и грибным соусом
+2026-01-12 16:18:00,341 - services.nutrition - INFO - В описании не найдено продуктов, добавляем блюдо из меню: None
+2026-01-12 16:18:00,342 - services.nutrition - INFO - Обработка 1 продуктов с учетом меню: none
+2026-01-12 16:18:00,342 - services.nutrition - INFO - КБЖУ из меню (на 100г): 116.67 ккал, Б: 6.67г, Ж: 5г, У: 11.67г
+2026-01-12 16:18:00,343 - services.nutrition - INFO - Проверка продукта: 'none' (вес: Noneг)
+2026-01-12 16:18:00,343 - services.nutrition - INFO -   Ключевые слова меню: {'none'}
+2026-01-12 16:18:00,343 - services.nutrition - INFO -   Ключевые слова продукта: {'none'}
+2026-01-12 16:18:00,343 - services.nutrition - INFO -   ✅ Продукт 'none' соответствует меню
+2026-01-12 16:18:00,344 - handlers.photo - INFO - Извлечено название приёма пищи: 'Полдник' из описания: 'Заячьи почки с картофельным пюре и грибным соусом
+...'
+2026-01-12 16:18:00,344 - handlers.photo - INFO - Сохранено в состояние: meal_name='Полдник', meal_time='16:18'
+2026-01-12 17:09:46,858 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-01-12 17:09:46,882 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-01-12 17:10:08,169 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-01-12 17:11:29,164 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-01-12 17:11:29,182 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-01-12 17:11:40,527 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-01-12 17:28:49,891 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+2026-01-12 17:28:49,894 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-12 17:28:49,894 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-12 17:28:50,787 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-12 17:28:51,045 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-12 17:28:51,624 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+2026-01-12 17:28:51,624 - aiogram.dispatcher - INFO - Start polling
+2026-01-12 17:28:51,705 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-12 17:32:47,073 - handlers.photo - INFO - Обработка callback: action=cancel, meal_type=regular, user_id=895655
+2026-01-12 17:32:58,028 - handlers.photo - INFO - 📸 Получено фото от пользователя 895655
+2026-01-12 17:32:58,642 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-12 17:33:11,668 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-12 17:33:11,672 - handlers.photo - INFO - Распознано меню/еда: Заячьи почки с картофельным пюре и грибным соусом, КБЖУ: 450.0 ккал
+2026-01-12 17:33:11,672 - handlers.photo - INFO - Распознано: Заячьи почки с картофельным пюре и грибным соусом
+2026-01-12 17:33:11,672 - handlers.photo - INFO - Есть caption, обрабатываем с учетом распознанного: Заячьи почки с картофельным пюре и грибным соусом
+2026-01-12 17:33:11,673 - handlers.photo - INFO - Обработка описания с учетом меню: Заячьи почки с картофельным пюре и грибным соусом
+Заячьи почки с картофельным пюре и грибным соусом
+2026-01-12 17:33:11,677 - services.nutrition - INFO - В описании не найдено продуктов, добавляем блюдо из меню: Заячьи почки с картофельным пюре и грибным соусом
+2026-01-12 17:33:11,677 - services.nutrition - INFO - Обработка 1 продуктов с учетом меню: заячьи почки с картофельным пюре и грибным соусом
+2026-01-12 17:33:11,677 - services.nutrition - INFO - КБЖУ из меню (на 100г): 128.57 ккал, Б: 8.57г, Ж: 5.71г, У: 11.43г
+2026-01-12 17:33:11,677 - services.nutrition - INFO - Проверка продукта: 'картофель' (вес: Noneг)
+2026-01-12 17:33:11,677 - services.nutrition - INFO -   Ключевые слова меню: {'картофельным', 'соусом', 'пюре', 'почки', 'заячьи', 'грибным'}
+2026-01-12 17:33:11,677 - services.nutrition - INFO -   Ключевые слова продукта: {'картофель'}
+2026-01-12 17:33:11,677 - services.nutrition - INFO -   ✅ Продукт 'картофель' соответствует меню
+2026-01-12 17:33:11,679 - handlers.photo - INFO - Извлечено название приёма пищи: 'Полдник' из описания: 'Заячьи почки с картофельным пюре и грибным соусом
+...'
+2026-01-12 17:33:11,679 - handlers.photo - INFO - Сохранено в состояние: meal_name='Полдник', meal_time='17:33'
+2026-01-12 17:34:33,806 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+2026-01-12 17:34:33,807 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-12 17:34:33,807 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-12 17:34:34,780 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-12 17:34:35,055 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-12 17:34:35,699 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+2026-01-12 17:34:35,700 - aiogram.dispatcher - INFO - Start polling
+2026-01-12 17:34:35,776 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-12 17:36:44,297 - handlers.photo - INFO - Обработка callback: action=cancel, meal_type=regular, user_id=895655
+2026-01-12 17:36:53,714 - handlers.photo - INFO - 📸 Получено фото от пользователя 895655
+2026-01-12 17:36:54,561 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-12 17:37:04,891 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-12 17:37:04,895 - handlers.photo - INFO - Распознано меню/еда: Заячьи почки с картофельным пюре и грибным соусом, КБЖУ: 450.0 ккал
+2026-01-12 17:37:04,895 - handlers.photo - INFO - Распознано: Заячьи почки с картофельным пюре и грибным соусом
+2026-01-12 17:37:04,895 - handlers.photo - INFO - Есть caption, обрабатываем с учетом распознанного: Заячьи почки с картофельным пюре и грибным соусом
+2026-01-12 17:37:04,895 - handlers.photo - INFO - Обработка описания с учетом меню: Заячьи почки с картофельным пюре и грибным соусом
+Заячьи почки с картофельным пюре и грибным соусом
+2026-01-12 17:37:04,896 - services.nutrition - INFO - ✅ Найдено 3 компонентов от ИИ. Используем их вместо парсинга описания.
+2026-01-12 17:37:04,896 - services.nutrition - INFO - Обработка 3 продуктов с учетом меню: заячьи почки с картофельным пюре и грибным соусом
+2026-01-12 17:37:04,896 - services.nutrition - INFO - КБЖУ из меню (на 100г): 129 ккал, Б: 8.6г, Ж: 7.1г, У: 8.6г
+2026-01-12 17:37:04,896 - services.nutrition - INFO - Проверка продукта: 'заячьи почки' (вес: 150г)
+2026-01-12 17:37:04,896 - services.nutrition - INFO -   Ключевые слова меню: {'почки', 'заячьи', 'грибным', 'пюре', 'картофельным', 'соусом'}
+2026-01-12 17:37:04,896 - services.nutrition - INFO -   Ключевые слова продукта: {'почки', 'заячьи'}
+2026-01-12 17:37:04,896 - services.nutrition - INFO -   ✅ Продукт 'заячьи почки' соответствует меню
+2026-01-12 17:37:04,896 - services.nutrition - INFO -   Пересчитано КБЖУ из меню для 150г:
+2026-01-12 17:37:04,896 - services.nutrition - INFO -     129 ккал/100г × 1.50 = 193.5 ккал
+2026-01-12 17:37:04,896 - services.nutrition - INFO -     8.6г белка/100г × 1.50 = 12.9г
+2026-01-12 17:37:04,896 - services.nutrition - INFO -     7.1г жиров/100г × 1.50 = 10.6г
+2026-01-12 17:37:04,896 - services.nutrition - INFO -     8.6г углеводов/100г × 1.50 = 12.9г
+2026-01-12 17:37:04,896 - services.nutrition - INFO - Проверка продукта: 'картофель' (вес: 150г)
+2026-01-12 17:37:04,896 - services.nutrition - INFO -   Ключевые слова меню: {'почки', 'заячьи', 'грибным', 'пюре', 'картофельным', 'соусом'}
+2026-01-12 17:37:04,896 - services.nutrition - INFO -   Ключевые слова продукта: {'картофель'}
+2026-01-12 17:37:04,897 - services.nutrition - INFO -   ✅ Продукт 'картофель' соответствует меню
+2026-01-12 17:37:04,897 - services.nutrition - INFO -   Пересчитано КБЖУ из меню для 150г:
+2026-01-12 17:37:04,897 - services.nutrition - INFO -     129 ккал/100г × 1.50 = 193.5 ккал
+2026-01-12 17:37:04,897 - services.nutrition - INFO -     8.6г белка/100г × 1.50 = 12.9г
+2026-01-12 17:37:04,897 - services.nutrition - INFO -     7.1г жиров/100г × 1.50 = 10.6г
+2026-01-12 17:37:04,897 - services.nutrition - INFO -     8.6г углеводов/100г × 1.50 = 12.9г
+2026-01-12 17:37:04,897 - services.nutrition - INFO - Проверка продукта: 'грибной соус' (вес: 50г)
+2026-01-12 17:37:04,897 - services.nutrition - INFO -   Ключевые слова меню: {'почки', 'заячьи', 'грибным', 'пюре', 'картофельным', 'соусом'}
+2026-01-12 17:37:04,897 - services.nutrition - INFO -   Ключевые слова продукта: {'грибной'}
+2026-01-12 17:37:04,898 - services.nutrition - INFO -   ❌ Продукт 'грибной соус' НЕ соответствует меню, обрабатываем как обычный продукт
+2026-01-12 17:37:04,903 - handlers.photo - INFO - Извлечено название приёма пищи: 'Полдник' из описания: 'Заячьи почки с картофельным пюре и грибным соусом
+...'
+2026-01-12 17:37:04,903 - handlers.photo - INFO - Сохранено в состояние: meal_name='Полдник', meal_time='17:37'
+2026-01-12 17:39:34,784 - handlers.photo - INFO - Обработка callback: action=save, meal_type=regular, user_id=895655
+2026-01-12 17:39:34,785 - handlers.photo - INFO - Используется meal_name из состояния: 'Полдник'
+2026-01-12 17:39:34,785 - handlers.photo - INFO - Сохранение блюда: meal_name='Полдник', meal_type='regular'
+2026-01-12 17:43:08,172 - handlers.commands - INFO - 📊 Команда /day вызвана пользователем 895655
+2026-01-12 17:43:08,297 - services.garmin_data - ERROR - No Garmin credentials in .env
+2026-01-13 00:00:06,041 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-13 00:00:06,443 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-13 00:00:07,152 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+2026-01-13 00:00:07,152 - aiogram.dispatcher - INFO - Start polling
+2026-01-13 00:00:07,246 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-13 00:04:08,260 - handlers.photo - INFO - 📸 Получено фото от пользователя 895655
+2026-01-13 00:04:09,215 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-13 00:04:24,113 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-13 00:04:24,131 - handlers.photo - INFO - Меню/еда не распознано
+2026-01-13 00:04:24,131 - handlers.photo - INFO - Обрабатываем описание: Ужин
+2026-01-13 00:08:37,476 - handlers.commands - INFO - 📊 Команда /day вызвана пользователем 895655
+2026-01-13 00:08:37,621 - services.garmin_data - ERROR - No Garmin credentials in .env
+2026-01-13 00:32:41,467 - aiogram.dispatcher - WARNING - Received SIGINT signal
+2026-01-13 00:32:41,469 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-13 00:32:41,470 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-13 00:32:52,521 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-13 00:32:52,979 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-13 00:32:53,744 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+2026-01-13 00:32:53,744 - aiogram.dispatcher - INFO - Start polling
+2026-01-13 00:32:53,825 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-13 00:34:23,481 - handlers.photo - INFO - 📸 Получено фото от пользователя 895655
+2026-01-13 00:34:24,417 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-13 00:34:37,937 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-13 00:34:37,941 - handlers.photo - INFO - Меню/еда не распознано
+2026-01-13 00:34:37,941 - handlers.photo - INFO - Обрабатываем описание: Ужин 12-го января
+2026-01-13 00:34:37,945 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-13 00:34:47,627 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-13 00:34:47,636 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-13 00:34:49,546 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-13 00:35:54,287 - handlers.photo - INFO - 📸 Получено фото от пользователя 895655
+2026-01-13 00:35:54,820 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-13 00:36:08,127 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-13 00:36:08,130 - handlers.photo - INFO - Меню/еда не распознано
+2026-01-13 00:36:08,130 - handlers.photo - INFO - Обрабатываем описание: Ужин 12-го января
+2026-01-13 00:36:08,135 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-13 00:36:21,421 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-13 00:36:21,425 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-13 00:36:23,311 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-13 00:38:42,309 - aiogram.dispatcher - WARNING - Received SIGINT signal
+2026-01-13 00:38:42,313 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-13 00:38:42,314 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-13 00:39:29,992 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-13 00:39:30,432 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-13 00:39:31,100 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+2026-01-13 00:39:31,100 - aiogram.dispatcher - INFO - Start polling
+2026-01-13 00:39:31,187 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-13 00:40:56,481 - handlers.photo - INFO - 📸 Получено фото от пользователя 895655
+2026-01-13 00:40:57,376 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-13 00:41:12,796 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-13 00:41:12,798 - handlers.photo - INFO - Распознано меню/еда: Ужин 12-го января: тушённая рыба, варенная картошка, овощи и салат айсберг., КБЖУ: 450.0 ккал
+2026-01-13 00:41:12,798 - handlers.photo - INFO - Распознано: Ужин 12-го января: тушённая рыба, варенная картошка, овощи и салат айсберг.
+2026-01-13 00:41:12,798 - handlers.photo - INFO - Есть caption, обрабатываем с учетом распознанного: Ужин 12-го января: тушённая рыба, варенная картошка, овощи и салат айсберг.
+2026-01-13 00:41:12,799 - handlers.photo - INFO - Обработка описания с учетом меню: Ужин 12-го января: тушённая рыба, варенная картошка, овощи и салат айсберг.
+Ужин 12-го января: тушённая рыба, варенная картошка, овощи и салат айсберг.
+2026-01-13 00:41:12,799 - services.nutrition - INFO - ✅ Найдено 4 компонентов от ИИ. Используем их вместо парсинга описания.
+2026-01-13 00:41:12,799 - services.nutrition - INFO - Обработка 4 продуктов с учетом меню: ужин 12-го января: тушённая рыба, варенная картошка, овощи и салат айсберг.
+2026-01-13 00:41:12,799 - services.nutrition - INFO - КБЖУ из меню (на 100г): 90 ккал, Б: 7г, Ж: 3г, У: 9г
+2026-01-13 00:41:12,799 - services.nutrition - INFO - Проверка продукта: 'тушённая рыба' (вес: 150г)
+2026-01-13 00:41:12,799 - services.nutrition - INFO -   Ключевые слова меню: {'тушённая', 'ужин', 'овощи', 'рыба', 'салат', 'айсберг', 'варенная', 'картошка', 'января'}
+2026-01-13 00:41:12,799 - services.nutrition - INFO -   Ключевые слова продукта: {'рыба', 'тушённая'}
+2026-01-13 00:41:12,799 - services.nutrition - INFO -   ✅ Продукт 'тушённая рыба' соответствует меню
+2026-01-13 00:41:12,799 - services.nutrition - INFO -   Пересчитано КБЖУ из меню для 150г:
+2026-01-13 00:41:12,799 - services.nutrition - INFO -     90 ккал/100г × 1.50 = 135.0 ккал
+2026-01-13 00:41:12,799 - services.nutrition - INFO -     7г белка/100г × 1.50 = 10.5г
+2026-01-13 00:41:12,800 - services.nutrition - INFO -     3г жиров/100г × 1.50 = 4.5г
+2026-01-13 00:41:12,800 - services.nutrition - INFO -     9г углеводов/100г × 1.50 = 13.5г
+2026-01-13 00:41:12,800 - services.nutrition - INFO - Проверка продукта: 'картофель отварной' (вес: 200г)
+2026-01-13 00:41:12,800 - services.nutrition - INFO -   Ключевые слова меню: {'тушённая', 'ужин', 'овощи', 'рыба', 'салат', 'айсберг', 'варенная', 'картошка', 'января'}
+2026-01-13 00:41:12,800 - services.nutrition - INFO -   Ключевые слова продукта: {'картофель', 'отварной'}
+2026-01-13 00:41:12,801 - services.nutrition - INFO -   ❌ Продукт 'картофель отварной' НЕ соответствует меню, обрабатываем как обычный продукт
+2026-01-13 00:41:12,802 - services.nutrition - INFO - Проверка продукта: 'овощи' (вес: 100г)
+2026-01-13 00:41:12,802 - services.nutrition - INFO -   Ключевые слова меню: {'тушённая', 'ужин', 'овощи', 'рыба', 'салат', 'айсберг', 'варенная', 'картошка', 'января'}
+2026-01-13 00:41:12,802 - services.nutrition - INFO -   Ключевые слова продукта: {'овощи'}
+2026-01-13 00:41:12,802 - services.nutrition - INFO -   ✅ Продукт 'овощи' соответствует меню
+2026-01-13 00:41:12,802 - services.nutrition - INFO -   Пересчитано КБЖУ из меню для 100г:
+2026-01-13 00:41:12,802 - services.nutrition - INFO -     90 ккал/100г × 1.00 = 90.0 ккал
+2026-01-13 00:41:12,802 - services.nutrition - INFO -     7г белка/100г × 1.00 = 7.0г
+2026-01-13 00:41:12,802 - services.nutrition - INFO -     3г жиров/100г × 1.00 = 3.0г
+2026-01-13 00:41:12,802 - services.nutrition - INFO -     9г углеводов/100г × 1.00 = 9.0г
+2026-01-13 00:41:12,802 - services.nutrition - INFO - Проверка продукта: 'салат айсберг' (вес: 50г)
+2026-01-13 00:41:12,802 - services.nutrition - INFO -   Ключевые слова меню: {'тушённая', 'ужин', 'овощи', 'рыба', 'салат', 'айсберг', 'варенная', 'картошка', 'января'}
+2026-01-13 00:41:12,802 - services.nutrition - INFO -   Ключевые слова продукта: {'салат', 'айсберг'}
+2026-01-13 00:41:12,802 - services.nutrition - INFO -   ✅ Продукт 'салат айсберг' соответствует меню
+2026-01-13 00:41:12,802 - services.nutrition - INFO -   Пересчитано КБЖУ из меню для 50г:
+2026-01-13 00:41:12,802 - services.nutrition - INFO -     90 ккал/100г × 0.50 = 45.0 ккал
+2026-01-13 00:41:12,803 - services.nutrition - INFO -     7г белка/100г × 0.50 = 3.5г
+2026-01-13 00:41:12,803 - services.nutrition - INFO -     3г жиров/100г × 0.50 = 1.5г
+2026-01-13 00:41:12,803 - services.nutrition - INFO -     9г углеводов/100г × 0.50 = 4.5г
+2026-01-13 00:41:12,803 - handlers.photo - INFO - Извлечено название приёма пищи: 'Ужин' из описания: 'Ужин 12-го января: тушённая рыба, варенная картошк...'
+2026-01-13 00:41:12,803 - handlers.photo - INFO - Сохранено в состояние: meal_name='Ужин', meal_time='00:41'
+2026-01-13 00:41:28,413 - handlers.photo - INFO - Обработка callback: action=save, meal_type=regular, user_id=895655
+2026-01-13 00:41:28,413 - handlers.photo - INFO - Используется meal_name из состояния: 'Ужин'
+2026-01-13 00:41:28,413 - handlers.photo - INFO - Сохранение блюда: meal_name='Ужин', meal_type='regular'
+2026-01-13 00:42:13,199 - handlers.commands - INFO - 📊 Команда /day вызвана пользователем 895655
+2026-01-13 00:42:13,308 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sso.garmin.com:443
+2026-01-13 00:42:14,227 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "GET /sso/embed?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso HTTP/1.1" 200 None
+2026-01-13 00:42:14,540 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "GET /sso/signin?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&service=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&source=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountLoginUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountCreationUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed HTTP/1.1" 200 None
+2026-01-13 00:42:15,385 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "POST /sso/signin?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&service=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&source=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountLoginUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountCreationUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed HTTP/1.1" 200 None
+2026-01-13 00:42:15,387 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): thegarth.s3.amazonaws.com:443
+2026-01-13 00:42:16,203 - urllib3.connectionpool - DEBUG - https://thegarth.s3.amazonaws.com:443 "GET /oauth_consumer.json HTTP/1.1" 200 124
+2026-01-13 00:42:16,205 - requests_oauthlib.oauth1_auth - DEBUG - Signing request <PreparedRequest [GET]> using client <Client client_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0, client_secret=****, resource_owner_key=None, resource_owner_secret=None, signature_method=HMAC-SHA1, signature_type=AUTH_HEADER, callback_uri=None, rsa_key=None, verifier=None, realm=None, encoding=utf-8, decoding=utf-8, nonce=None, timestamp=None>
+2026-01-13 00:42:16,205 - requests_oauthlib.oauth1_auth - DEBUG - Including body in call to sign: False
+2026-01-13 00:42:16,206 - oauthlib.oauth1.rfc5849 - DEBUG - Collected params: [('ticket', 'ST-0218459-3LgMchOCst19C66BdnDz-cas'), ('login-url', 'https://sso.garmin.com/sso/embed'), ('accepts-mfa-tokens', 'true'), ('oauth_nonce', '139862090278528447991768254136'), ('oauth_timestamp', '1768254136'), ('oauth_version', '1.0'), ('oauth_signature_method', 'HMAC-SHA1'), ('oauth_consumer_key', 'fc3e99d2-118c-44b8-8ae3-03370dde24c0')]
+2026-01-13 00:42:16,206 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized params: accepts-mfa-tokens=true&login-url=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&oauth_consumer_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0&oauth_nonce=139862090278528447991768254136&oauth_signature_method=HMAC-SHA1&oauth_timestamp=1768254136&oauth_version=1.0&ticket=ST-0218459-3LgMchOCst19C66BdnDz-cas
+2026-01-13 00:42:16,206 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized URI: https://connectapi.garmin.com/oauth-service/oauth/preauthorized
+2026-01-13 00:42:16,206 - oauthlib.oauth1.rfc5849 - DEBUG - Signing: signature base string: GET&https%3A%2F%2Fconnectapi.garmin.com%2Foauth-service%2Foauth%2Fpreauthorized&accepts-mfa-tokens%3Dtrue%26login-url%3Dhttps%253A%252F%252Fsso.garmin.com%252Fsso%252Fembed%26oauth_consumer_key%3Dfc3e99d2-118c-44b8-8ae3-03370dde24c0%26oauth_nonce%3D139862090278528447991768254136%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1768254136%26oauth_version%3D1.0%26ticket%3DST-0218459-3LgMchOCst19C66BdnDz-cas
+2026-01-13 00:42:16,207 - oauthlib.oauth1.rfc5849 - DEBUG - Signature: d+vdrOi3p1B90D7VllSJRucfMLM=
+2026-01-13 00:42:16,207 - oauthlib.oauth1.rfc5849 - DEBUG - Encoding URI, headers and body to utf-8.
+2026-01-13 00:42:16,207 - requests_oauthlib.oauth1_auth - DEBUG - Updated url: https://connectapi.garmin.com/oauth-service/oauth/preauthorized?ticket=ST-0218459-3LgMchOCst19C66BdnDz-cas&login-url=https://sso.garmin.com/sso/embed&accepts-mfa-tokens=true
+2026-01-13 00:42:16,207 - requests_oauthlib.oauth1_auth - DEBUG - Updated headers: {b'User-Agent': b'com.garmin.android.apps.connectmobile', b'Accept-Encoding': b'gzip, deflate', b'Accept': b'*/*', b'Connection': b'keep-alive', b'Authorization': b'OAuth oauth_nonce="139862090278528447991768254136", oauth_timestamp="1768254136", oauth_version="1.0", oauth_signature_method="HMAC-SHA1", oauth_consumer_key="fc3e99d2-118c-44b8-8ae3-03370dde24c0", oauth_signature="d%2BvdrOi3p1B90D7VllSJRucfMLM%3D"'}
+2026-01-13 00:42:16,207 - requests_oauthlib.oauth1_auth - DEBUG - Updated body: None
+2026-01-13 00:42:16,208 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): connectapi.garmin.com:443
+2026-01-13 00:42:17,071 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /oauth-service/oauth/preauthorized?ticket=ST-0218459-3LgMchOCst19C66BdnDz-cas&login-url=https://sso.garmin.com/sso/embed&accepts-mfa-tokens=true HTTP/1.1" 200 None
+2026-01-13 00:42:17,073 - requests_oauthlib.oauth1_auth - DEBUG - Signing request <PreparedRequest [POST]> using client <Client client_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0, client_secret=****, resource_owner_key=3d6345ce-0ead-42e6-adee-2bda9ffe2426, resource_owner_secret=****, signature_method=HMAC-SHA1, signature_type=AUTH_HEADER, callback_uri=None, rsa_key=None, verifier=None, realm=None, encoding=utf-8, decoding=utf-8, nonce=None, timestamp=None>
+2026-01-13 00:42:17,073 - requests_oauthlib.oauth1_auth - DEBUG - Including body in call to sign: True
+2026-01-13 00:42:17,074 - oauthlib.oauth1.rfc5849 - DEBUG - Collected params: [('oauth_nonce', '167820611783810430511768254137'), ('oauth_timestamp', '1768254137'), ('oauth_version', '1.0'), ('oauth_signature_method', 'HMAC-SHA1'), ('oauth_consumer_key', 'fc3e99d2-118c-44b8-8ae3-03370dde24c0'), ('oauth_token', '3d6345ce-0ead-42e6-adee-2bda9ffe2426')]
+2026-01-13 00:42:17,074 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized params: oauth_consumer_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0&oauth_nonce=167820611783810430511768254137&oauth_signature_method=HMAC-SHA1&oauth_timestamp=1768254137&oauth_token=3d6345ce-0ead-42e6-adee-2bda9ffe2426&oauth_version=1.0
+2026-01-13 00:42:17,074 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized URI: https://connectapi.garmin.com/oauth-service/oauth/exchange/user/2.0
+2026-01-13 00:42:17,074 - oauthlib.oauth1.rfc5849 - DEBUG - Signing: signature base string: POST&https%3A%2F%2Fconnectapi.garmin.com%2Foauth-service%2Foauth%2Fexchange%2Fuser%2F2.0&oauth_consumer_key%3Dfc3e99d2-118c-44b8-8ae3-03370dde24c0%26oauth_nonce%3D167820611783810430511768254137%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1768254137%26oauth_token%3D3d6345ce-0ead-42e6-adee-2bda9ffe2426%26oauth_version%3D1.0
+2026-01-13 00:42:17,074 - oauthlib.oauth1.rfc5849 - DEBUG - Signature: Mu00msjr64t4FHWeqX0Gs0LJW+4=
+2026-01-13 00:42:17,074 - oauthlib.oauth1.rfc5849 - DEBUG - Encoding URI, headers and body to utf-8.
+2026-01-13 00:42:17,074 - requests_oauthlib.oauth1_auth - DEBUG - Updated url: https://connectapi.garmin.com/oauth-service/oauth/exchange/user/2.0
+2026-01-13 00:42:17,074 - requests_oauthlib.oauth1_auth - DEBUG - Updated headers: {b'User-Agent': b'com.garmin.android.apps.connectmobile', b'Accept-Encoding': b'gzip, deflate', b'Accept': b'*/*', b'Connection': b'keep-alive', b'Content-Type': b'application/x-www-form-urlencoded', b'Content-Length': b'0', b'Authorization': b'OAuth oauth_nonce="167820611783810430511768254137", oauth_timestamp="1768254137", oauth_version="1.0", oauth_signature_method="HMAC-SHA1", oauth_consumer_key="fc3e99d2-118c-44b8-8ae3-03370dde24c0", oauth_token="3d6345ce-0ead-42e6-adee-2bda9ffe2426", oauth_signature="Mu00msjr64t4FHWeqX0Gs0LJW%2B4%3D"'}
+2026-01-13 00:42:17,074 - requests_oauthlib.oauth1_auth - DEBUG - Updated body: ''
+2026-01-13 00:42:17,306 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "POST /oauth-service/oauth/exchange/user/2.0 HTTP/1.1" 200 None
+2026-01-13 00:42:17,510 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /userprofile-service/socialProfile HTTP/1.1" 200 None
+2026-01-13 00:42:17,807 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /userprofile-service/userprofile/user-settings HTTP/1.1" 200 None
+2026-01-13 00:42:17,827 - garminconnect - DEBUG - Requesting user summary
+2026-01-13 00:42:18,059 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /usersummary-service/usersummary/daily/Lyskovsky?calendarDate=2026-01-13 HTTP/1.1" 200 None
+2026-01-13 00:51:37,930 - handlers.commands - INFO - 📊 Команда /day вызвана пользователем 895655
+2026-01-13 00:51:38,046 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sso.garmin.com:443
+2026-01-13 00:51:38,710 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "GET /sso/embed?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso HTTP/1.1" 200 None
+2026-01-13 00:51:39,005 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "GET /sso/signin?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&service=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&source=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountLoginUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountCreationUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed HTTP/1.1" 200 None
+2026-01-13 00:51:39,809 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "POST /sso/signin?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&service=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&source=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountLoginUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountCreationUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed HTTP/1.1" 200 None
+2026-01-13 00:51:39,831 - requests_oauthlib.oauth1_auth - DEBUG - Signing request <PreparedRequest [GET]> using client <Client client_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0, client_secret=****, resource_owner_key=None, resource_owner_secret=None, signature_method=HMAC-SHA1, signature_type=AUTH_HEADER, callback_uri=None, rsa_key=None, verifier=None, realm=None, encoding=utf-8, decoding=utf-8, nonce=None, timestamp=None>
+2026-01-13 00:51:39,831 - requests_oauthlib.oauth1_auth - DEBUG - Including body in call to sign: False
+2026-01-13 00:51:39,832 - oauthlib.oauth1.rfc5849 - DEBUG - Collected params: [('ticket', 'ST-077326-xdq7frxbragMRjAAEZVa-cas'), ('login-url', 'https://sso.garmin.com/sso/embed'), ('accepts-mfa-tokens', 'true'), ('oauth_nonce', '94094868160363173941768254699'), ('oauth_timestamp', '1768254699'), ('oauth_version', '1.0'), ('oauth_signature_method', 'HMAC-SHA1'), ('oauth_consumer_key', 'fc3e99d2-118c-44b8-8ae3-03370dde24c0')]
+2026-01-13 00:51:39,832 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized params: accepts-mfa-tokens=true&login-url=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&oauth_consumer_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0&oauth_nonce=94094868160363173941768254699&oauth_signature_method=HMAC-SHA1&oauth_timestamp=1768254699&oauth_version=1.0&ticket=ST-077326-xdq7frxbragMRjAAEZVa-cas
+2026-01-13 00:51:39,832 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized URI: https://connectapi.garmin.com/oauth-service/oauth/preauthorized
+2026-01-13 00:51:39,832 - oauthlib.oauth1.rfc5849 - DEBUG - Signing: signature base string: GET&https%3A%2F%2Fconnectapi.garmin.com%2Foauth-service%2Foauth%2Fpreauthorized&accepts-mfa-tokens%3Dtrue%26login-url%3Dhttps%253A%252F%252Fsso.garmin.com%252Fsso%252Fembed%26oauth_consumer_key%3Dfc3e99d2-118c-44b8-8ae3-03370dde24c0%26oauth_nonce%3D94094868160363173941768254699%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1768254699%26oauth_version%3D1.0%26ticket%3DST-077326-xdq7frxbragMRjAAEZVa-cas
+2026-01-13 00:51:39,832 - oauthlib.oauth1.rfc5849 - DEBUG - Signature: k8tZe2GH6BgAnTNX+Vva6YpMcCQ=
+2026-01-13 00:51:39,832 - oauthlib.oauth1.rfc5849 - DEBUG - Encoding URI, headers and body to utf-8.
+2026-01-13 00:51:39,832 - requests_oauthlib.oauth1_auth - DEBUG - Updated url: https://connectapi.garmin.com/oauth-service/oauth/preauthorized?ticket=ST-077326-xdq7frxbragMRjAAEZVa-cas&login-url=https://sso.garmin.com/sso/embed&accepts-mfa-tokens=true
+2026-01-13 00:51:39,832 - requests_oauthlib.oauth1_auth - DEBUG - Updated headers: {b'User-Agent': b'com.garmin.android.apps.connectmobile', b'Accept-Encoding': b'gzip, deflate', b'Accept': b'*/*', b'Connection': b'keep-alive', b'Authorization': b'OAuth oauth_nonce="94094868160363173941768254699", oauth_timestamp="1768254699", oauth_version="1.0", oauth_signature_method="HMAC-SHA1", oauth_consumer_key="fc3e99d2-118c-44b8-8ae3-03370dde24c0", oauth_signature="k8tZe2GH6BgAnTNX%2BVva6YpMcCQ%3D"'}
+2026-01-13 00:51:39,832 - requests_oauthlib.oauth1_auth - DEBUG - Updated body: None
+2026-01-13 00:51:39,833 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): connectapi.garmin.com:443
+2026-01-13 00:51:40,830 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /oauth-service/oauth/preauthorized?ticket=ST-077326-xdq7frxbragMRjAAEZVa-cas&login-url=https://sso.garmin.com/sso/embed&accepts-mfa-tokens=true HTTP/1.1" 200 None
+2026-01-13 00:51:40,832 - requests_oauthlib.oauth1_auth - DEBUG - Signing request <PreparedRequest [POST]> using client <Client client_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0, client_secret=****, resource_owner_key=3d6345ce-0ead-42e6-adee-2bda9ffe2426, resource_owner_secret=****, signature_method=HMAC-SHA1, signature_type=AUTH_HEADER, callback_uri=None, rsa_key=None, verifier=None, realm=None, encoding=utf-8, decoding=utf-8, nonce=None, timestamp=None>
+2026-01-13 00:51:40,832 - requests_oauthlib.oauth1_auth - DEBUG - Including body in call to sign: True
+2026-01-13 00:51:40,832 - oauthlib.oauth1.rfc5849 - DEBUG - Collected params: [('oauth_nonce', '40457384831396617431768254700'), ('oauth_timestamp', '1768254700'), ('oauth_version', '1.0'), ('oauth_signature_method', 'HMAC-SHA1'), ('oauth_consumer_key', 'fc3e99d2-118c-44b8-8ae3-03370dde24c0'), ('oauth_token', '3d6345ce-0ead-42e6-adee-2bda9ffe2426')]
+2026-01-13 00:51:40,832 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized params: oauth_consumer_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0&oauth_nonce=40457384831396617431768254700&oauth_signature_method=HMAC-SHA1&oauth_timestamp=1768254700&oauth_token=3d6345ce-0ead-42e6-adee-2bda9ffe2426&oauth_version=1.0
+2026-01-13 00:51:40,832 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized URI: https://connectapi.garmin.com/oauth-service/oauth/exchange/user/2.0
+2026-01-13 00:51:40,833 - oauthlib.oauth1.rfc5849 - DEBUG - Signing: signature base string: POST&https%3A%2F%2Fconnectapi.garmin.com%2Foauth-service%2Foauth%2Fexchange%2Fuser%2F2.0&oauth_consumer_key%3Dfc3e99d2-118c-44b8-8ae3-03370dde24c0%26oauth_nonce%3D40457384831396617431768254700%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1768254700%26oauth_token%3D3d6345ce-0ead-42e6-adee-2bda9ffe2426%26oauth_version%3D1.0
+2026-01-13 00:51:40,833 - oauthlib.oauth1.rfc5849 - DEBUG - Signature: RZnoZTs618aMEIUXX7Ipii5OpV4=
+2026-01-13 00:51:40,833 - oauthlib.oauth1.rfc5849 - DEBUG - Encoding URI, headers and body to utf-8.
+2026-01-13 00:51:40,833 - requests_oauthlib.oauth1_auth - DEBUG - Updated url: https://connectapi.garmin.com/oauth-service/oauth/exchange/user/2.0
+2026-01-13 00:51:40,833 - requests_oauthlib.oauth1_auth - DEBUG - Updated headers: {b'User-Agent': b'com.garmin.android.apps.connectmobile', b'Accept-Encoding': b'gzip, deflate', b'Accept': b'*/*', b'Connection': b'keep-alive', b'Content-Type': b'application/x-www-form-urlencoded', b'Content-Length': b'0', b'Authorization': b'OAuth oauth_nonce="40457384831396617431768254700", oauth_timestamp="1768254700", oauth_version="1.0", oauth_signature_method="HMAC-SHA1", oauth_consumer_key="fc3e99d2-118c-44b8-8ae3-03370dde24c0", oauth_token="3d6345ce-0ead-42e6-adee-2bda9ffe2426", oauth_signature="RZnoZTs618aMEIUXX7Ipii5OpV4%3D"'}
+2026-01-13 00:51:40,833 - requests_oauthlib.oauth1_auth - DEBUG - Updated body: ''
+2026-01-13 00:51:41,070 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "POST /oauth-service/oauth/exchange/user/2.0 HTTP/1.1" 200 None
+2026-01-13 00:51:41,261 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /userprofile-service/socialProfile HTTP/1.1" 200 None
+2026-01-13 00:51:41,611 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /userprofile-service/userprofile/user-settings HTTP/1.1" 200 None
+2026-01-13 00:51:41,612 - garminconnect - DEBUG - Requesting user summary
+2026-01-13 00:51:41,854 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /usersummary-service/usersummary/daily/Lyskovsky?calendarDate=2026-01-13 HTTP/1.1" 200 None
