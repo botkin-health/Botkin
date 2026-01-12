@@ -187,10 +187,10 @@ def save_meal_to_json(meal_data: dict, meal_name: str = None):
             'food': item.get('product', 'Неизвестный продукт'),
             'amount': item.get('weight_g', 0.0),
             'unit': 'г',
-            'calories': round(item.get('calories', 0.0), 1),
-            'protein': round(item.get('protein', 0.0), 1),
-            'fats': round(item.get('fats', 0.0), 1),
-            'carbs': round(item.get('carbs', 0.0), 1),
+            'calories': int(round(item.get('calories', 0.0))),
+            'protein': int(round(item.get('protein', 0.0))),
+            'fats': int(round(item.get('fats', 0.0))),
+            'carbs': int(round(item.get('carbs', 0.0))),
         })
     
     # Добавляем приём пищи
@@ -203,10 +203,10 @@ def save_meal_to_json(meal_data: dict, meal_name: str = None):
     
     # Обновляем totals
     totals = today_entry['totals']
-    totals['calories'] = round(totals.get('calories', 0.0) + meal_totals.get('calories', 0.0), 1)
-    totals['protein'] = round(totals.get('protein', 0.0) + meal_totals.get('protein', 0.0), 1)
-    totals['fats'] = round(totals.get('fats', 0.0) + meal_totals.get('fats', 0.0), 1)
-    totals['carbs'] = round(totals.get('carbs', 0.0) + meal_totals.get('carbs', 0.0), 1)
+    totals['calories'] = int(round(totals.get('calories', 0.0) + meal_totals.get('calories', 0.0)))
+    totals['protein'] = int(round(totals.get('protein', 0.0) + meal_totals.get('protein', 0.0)))
+    totals['fats'] = int(round(totals.get('fats', 0.0) + meal_totals.get('fats', 0.0)))
+    totals['carbs'] = int(round(totals.get('carbs', 0.0) + meal_totals.get('carbs', 0.0)))
     
     # Сохраняем
     try:
@@ -287,9 +287,9 @@ async def handle_text(message: Message, state: FSMContext):
                     f"🍽️ <b>{meal_name}</b>\n"
                     f"📊 КБЖУ:\n"
                     f"• Калории: {user_state.data.get('meal_totals', {}).get('calories', 0):.0f} ккал\n"
-                    f"• Белки: {user_state.data.get('meal_totals', {}).get('protein', 0):.1f} г\n"
-                    f"• Жиры: {user_state.data.get('meal_totals', {}).get('fats', 0):.1f} г\n"
-                    f"• Углеводы: {user_state.data.get('meal_totals', {}).get('carbs', 0):.1f} г",
+                    f"• Белки: {user_state.data.get('meal_totals', {}).get('protein', 0):.0f} г\n"
+                    f"• Жиры: {user_state.data.get('meal_totals', {}).get('fats', 0):.0f} г\n"
+                    f"• Углеводы: {user_state.data.get('meal_totals', {}).get('carbs', 0):.0f} г",
                     parse_mode='HTML'
                 )
             else:

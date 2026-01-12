@@ -6,6 +6,7 @@
 
 import base64
 import json
+import re
 from pathlib import Path
 from typing import Dict, Optional, List
 import os
@@ -49,13 +50,14 @@ def encode_image(image_path: Path) -> str:
         return base64.b64encode(image_file.read()).decode('utf-8')
 
 
-def parse_menu_with_chatgpt(photo_path: Path, api_key: Optional[str] = None) -> Optional[Dict]:
+def parse_menu_with_chatgpt(photo_path: Path, api_key: Optional[str] = None, description: Optional[str] = None) -> Optional[Dict]:
     """
     Распознает меню кафе с КБЖУ через ChatGPT Vision API.
     
     Args:
         photo_path: Путь к фото меню
         api_key: OpenAI API ключ (опционально)
+        description: Описание блюда от пользователя (опционально)
         
     Returns:
         Словарь с данными блюда или None:
@@ -95,50 +97,82 @@ def parse_menu_with_chatgpt(photo_path: Path, api_key: Optional[str] = None) -> 
         "Authorization": f"Bearer {api_key}"
     }
     
-    prompt = """Проанализируй это изображение еды, меню или добавок.
+    user_context = ""
+    if description:
+        user_context = f"КОНТЕКСТ ОТ ПОЛЬЗОВАТЕЛЯ: \"{description}\". Используй это, чтобы точнее определить ингредиенты."
     
-ЦЕЛЬ: Оценить нутриенты для дневника питания или распознать прием витаминов.
+    prompt = f"""Проанализируй это изображение еды, меню или добавок.
+    {user_context}
+    
+ЦЕЛЬ: Оценить нутриенты для дневника питания.
+
+ПРИОРИТЕТ КОНТЕКСТА:
+Пользователь предоставил описание: "{description}".
+ТЫ ОБЯЗАН ИСПОЛЬЗОВАТЬ ЭТО ОПИСАНИЕ КАК ИСТИНУ В ПОСЛЕДНЕЙ ИНСТАНЦИИ.
+Если пользователь пишет "почки", "соус", "картофель" - ты ДОЛЖЕН найти и вернуть ВСЕ эти компоненты, даже если на фото их плохо видно или они выглядят как что-то другое.
+НЕ ИГНОРИРУЙ ингредиенты из описания!
+Если ты видишь только картофель, но написано "почки", добавь компонент "Почки" и оцени его вес примерно (или стандартно 100-150г), если не можешь определить точно.
 
 СЦЕНАРИЙ 1: ВИТАМИНЫ / ТАБЛЕТКИ / БАДЫ
 Если на фото таблетки, капсулы, блистеры или банки с витаминами:
 - Формат JSON:
-{
+{{
   "is_supplement": true,
-  "dish_name": "список распознанных добавок (например: 'Витамин D3 и Омега-3')",
+  "dish_name": "список распознанных добавок",
   "calories": 0,
   "protein": 0,
   "fats": 0,
   "carbs": 0,
   "weight_grams": 0
-}
+}}
 
 СЦЕНАРИЙ 2: ЕДА / МЕНЮ
 Если это УПАКОВКА ЕДЫ или МЕНЮ:
 - Извлеки точные цифры.
-- Если указано КБЖУ на 100г, заполни "nutrition_per_100g".
-- Если указан вес, заполни "weight_grams".
 
 Если это ГОТОВОЕ БЛЮДО (тарелка с едой):
-- ОПРЕДЕЛИ состав визуально (например: "гречка, курица, огурец").
-- ОЦЕНИ вес порции (например, стандартная тарелка ~300-400г).
-- РАССЧИТАЙ примерное КБЖУ для всей порции исходя из ингредиентов.
-- Назови блюдо описательно (например: "Гречка с вареным яйцом и овощами").
+- ТВОЯ ЗАДАЧА: Разбить блюдо на компоненты согласно описанию пользователя.
+- Назови блюдо так, как его назвал пользователь.
+- В "components" перечисли ВСЕ ингредиенты из описания.
+- ОЦЕНИ вес каждого компонента.
+- РАССЧИТАЙ КБЖУ для каждого компонента.
 
 Формат JSON для еды:
-{
-  "dish_name": "название блюда",
-  "calories": число (калории для ВСЕЙ порции),
-  "protein": число (белки, г),
-  "fats": число (жиры, г),
-  "carbs": число (углеводы, г),
-  "weight_grams": число (оценка веса в граммах),
-  "nutrition_per_100g": {
-    "calories": число (на 100г, если известно/рассчитано),
+{{
+  "dish_name": "название блюда (из описания)",
+  "calories": число (сумма калорий компонентов),
+  "protein": число (сумма),
+  "fats": число (сумма),
+  "carbs": число (сумма),
+  "weight_grams": число (общий вес),
+  "nutrition_per_100g": {{
+    "calories": число,
     "protein": число,
     "fats": число,
     "carbs": число
-  }
-}
+  }},
+  "components": [
+    {{
+      "name": "название ингредиента (например 'Заячьи почки')",
+      "weight": число (г),
+      "calories": число,
+      "protein": число,
+      "fats": число,
+      "carbs": число
+    }}
+  ]
+}}
+  "components": [
+    {{
+      "name": "название ингредиента",
+      "weight": число (г),
+      "calories": число (опционально),
+      "protein": число (опционально),
+      "fats": число (опционально),
+      "carbs": число (опционально)
+    }}
+  ]
+}}
 
 Возвращай ТОЛЬКО JSON."""
 
@@ -161,7 +195,7 @@ def parse_menu_with_chatgpt(photo_path: Path, api_key: Optional[str] = None) -> 
                 ]
             }
         ],
-        "max_tokens": 300,
+        "max_tokens": 2000,
         "temperature": 0.1  # Низкая температура для более точных результатов
     }
     
@@ -230,12 +264,27 @@ def parse_menu_with_chatgpt(photo_path: Path, api_key: Optional[str] = None) -> 
         content = content.strip()
         
         # Убираем markdown блоки если есть
-        if content.startswith('```'):
-            lines = content.split('\n')
-            content = '\n'.join(lines[1:-1]) if len(lines) > 2 else content
+        if '```json' in content:
+            # Ищем блок кода
+            match = re.search(r'```json\s*([\s\S]*?)\s*```', content)
+            if match:
+                content = match.group(1)
+        elif '```' in content:
+            match = re.search(r'```\s*([\s\S]*?)\s*```', content)
+            if match:
+                content = match.group(1)
         
         # Парсим JSON
         try:
+            # Очищаем от возможных лишних символов
+            content = content.strip()
+            # Если начинается с "Here is the JSON" или подобного, ищем первую { и последнюю }
+            if not content.startswith('{'):
+                start = content.find('{')
+                end = content.rfind('}')
+                if start != -1 and end != -1:
+                    content = content[start:end+1]
+            
             data = json.loads(content)
             
             # Если есть nutrition_per_100g и weight_grams, пересчитываем КБЖУ для всей порции
@@ -322,14 +371,20 @@ def parse_menu_with_chatgpt(photo_path: Path, api_key: Optional[str] = None) -> 
                     nutrition_per_100g_result['fats'] = per_100g_fats
                     nutrition_per_100g_result['carbs'] = per_100g_carbs
                 
+                
+                dish_name = data.get('dish_name')
+                if not dish_name or str(dish_name).lower() == 'none':
+                    dish_name = 'Блюдо из меню'
+                
                 return {
-                    'dish_name': data.get('dish_name', 'Блюдо из меню'),
+                    'dish_name': dish_name,
                     'calories': float(calories),
                     'protein': float(protein),
                     'fats': validated_fats,
                     'carbs': validated_carbs,
                     'weight': data.get('weight_grams') or data.get('weight'),
                     'nutrition_per_100g': nutrition_per_100g_result,  # Сохраняем исходные значения на 100г
+                    'components': data.get('components', []), # Сохраняем компоненты
                     'source': 'chatgpt_vision',
                 }
             else:
@@ -449,7 +504,7 @@ basis может быть: "cooked" (готовое), "raw" (сырое), "dry" 
                 "content": prompt
             }
         ],
-        "max_tokens": 500,
+        "max_tokens": 2000,
         "temperature": 0.1  # Низкая температура для более точных результатов
     }
     
