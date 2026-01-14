@@ -29,7 +29,7 @@ def load_google_vision_api_key() -> Optional[str]:
             return api_key
     
     # 2. Проверяем файл в корне HealthVault
-    healthvault_root = Path(__file__).parent.parent.parent
+    healthvault_root = Path(__file__).parent.parent
     key_file = healthvault_root / '.google_vision_api_key'
     
     if key_file.exists():

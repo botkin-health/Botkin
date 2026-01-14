@@ -80,7 +80,7 @@ def parse_meal_description(
             # Fallback: старая логика
             api_key = os.getenv('GOOGLE_VISION_API_KEY')
             if not api_key:
-                key_file = Path(__file__).parent.parent.parent / '.google_vision_api_key'
+                key_file = Path(__file__).parent.parent / '.google_vision_api_key'
                 if not key_file.exists():
                     family_docs_key = Path.home() / "FamilyDocs" / ".google_vision_api_key"
                     if family_docs_key.exists():

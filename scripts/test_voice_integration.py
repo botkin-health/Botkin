@@ -4,14 +4,14 @@ import sys
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Add telegram-bot to sys.path
-sys.path.append(str(Path(__file__).parent.parent / "telegram-bot"))
+# Add HealthVault root to sys.path
+sys.path.append(str(Path(__file__).parent.parent))
 
-# Load .env
+# Load .env (assuming it is in telegram-bot or root)
 load_dotenv(Path(__file__).parent.parent / "telegram-bot" / ".env")
 
-from services.voice_service import voice_service
-from services.nutrition import process_meal_description
+from core.voice_service import voice_service
+from core.nutrition import process_meal_description
 
 async def main():
     file_path = Path("/Users/alexlyskovsky/Downloads/2026-01-11 13.37.04.ogg")

@@ -22,7 +22,7 @@ class VoiceService:
         # 2. Project Root File (.openai_api_key)
         try:
             # services/voice_service.py -> telegram-bot/services/ -> telegram-bot/ -> HealthVault/
-            root_key = Path(__file__).parent.parent.parent / ".openai_api_key"
+            root_key = Path(__file__).parent.parent / ".openai_api_key"
             if root_key.exists():
                 return root_key.read_text().strip()
         except Exception as e:

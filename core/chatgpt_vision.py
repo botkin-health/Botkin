@@ -21,7 +21,7 @@ def get_openai_api_key() -> Optional[str]:
         return api_key.strip()
     
     # 2. Файл в корне HealthVault
-    healthvault_root = Path(__file__).parent.parent.parent
+    healthvault_root = Path(__file__).parent.parent
     key_file = healthvault_root / '.openai_api_key'
     if key_file.exists():
         try:
@@ -81,6 +81,10 @@ def parse_menu_with_chatgpt(photo_path: Path, api_key: Optional[str] = None, des
     if not api_key:
         print("    ⚠️  OpenAI API ключ не найден")
         return None
+    
+    # Debug log
+    masked_key = f"{api_key[:8]}...{api_key[-4:]}" if len(api_key) > 12 else "INVALID_LEN"
+    print(f"    🔑 ChatGPT Vision using key: {masked_key}")
     
     try:
         import requests

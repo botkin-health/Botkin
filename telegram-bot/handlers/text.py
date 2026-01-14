@@ -255,7 +255,7 @@ async def handle_text(message: Message, state: FSMContext):
         return
     
     # --- ЛОГИКА ДОБАВОК ---
-    from services.supplement_service import supplement_service
+    from core.supplements import supplement_service
     logged_items, remaining_items = supplement_service.log_intake(message.text)
     if logged_items:
         # Если нашли витамины - сохраняем и отвечаем, дальше не идем
@@ -315,7 +315,7 @@ async def handle_text(message: Message, state: FSMContext):
                     user_id=user_id,
                     state='waiting_description',
                     data={
-                        'caption': text,
+                        'caption': '',  # Не дублируем текст в caption
                         'photo_paths': [],
                         'photo_file_ids': [],
                     }
@@ -347,7 +347,7 @@ async def handle_text(message: Message, state: FSMContext):
                 data={
                     'photo_paths': [],
                     'photo_file_ids': [],
-                    'caption': text,
+                    'caption': '',  # Не дублируем текст в caption
                 }
             )
             state_manager.set_state(user_id, new_user_state)
