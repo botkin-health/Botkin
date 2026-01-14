@@ -166,7 +166,7 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
                 pass
 
     photo_count = len(photo_paths)
-    await message.answer(f"📸 Получено {photo_count} фото! Анализирую через ИИ: еда, меню, весы, КБЖУ...")
+    processing_msg = await message.answer(f"📸 Получено {photo_count} фото! Анализирую через ИИ: еда, меню, весы, КБЖУ...")
     
     # Получаем API ключ для OCR
     try:
@@ -207,7 +207,10 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
             else:
                 response += "🎉 <b>На сегодня все витамины приняты!</b>"
             
-            await message.answer(response)
+            if processing_msg:
+                await processing_msg.edit_text(response, parse_mode='HTML')
+            else:
+                await message.answer(response, parse_mode='HTML')
             return
         # ----------------------
         
@@ -246,12 +249,12 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
             state_manager.set_state(user_id, user_state)
             
             # Обрабатываем описание с учетом меню
-            await handle_description(message, caption)
+            await handle_description(message, caption, processing_message=processing_msg)
         else:
             # Нет caption - используем данные как есть
             logger.info(f"Используем данные без caption: {menu_data.get('dish_name')}")
             # Для handle_menu_photo передаем первое фото как "основное" для отображения
-            await handle_menu_photo(message, menu_data, photo_paths[0])
+            await handle_menu_photo(message, menu_data, photo_paths[0], processing_message=processing_msg)
     else:
         # Не меню/еда (или не удалось распознать КБЖУ) - просим описание
         
@@ -279,7 +282,7 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
                 )
                 state_manager.set_state(user_id, user_state)
 
-            await handle_description(message, caption)
+            await handle_description(message, caption, processing_message=processing_msg)
         else:
             # Не меню и нет caption - устанавливаем состояние и просим описание
             # Если состояния нет (одиночное фото без группы)
@@ -295,13 +298,17 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
                 )
                  state_manager.set_state(user_id, user_state)
             
-            await message.answer(
+            prompt_text = (
                 f"📸 Получено {photo_count} фото!\n"
                 "Отправь описание:\n"
                 "• Название блюда или продукта\n"
                 "• Компоненты с весами\n"
                 "• Или просто название - бот попробует распознать меню или найти продукт"
             )
+            if processing_msg:
+                await processing_msg.edit_text(prompt_text)
+            else:
+                await message.answer(prompt_text)
 
 
 @router.message(F.photo)
@@ -613,7 +620,7 @@ async def handle_description(message: Message, description: str = None, processi
         )
 
 
-async def handle_menu_photo(message: Message, menu_data: dict, photo_path: Path):
+async def handle_menu_photo(message: Message, menu_data: dict, photo_path: Path, processing_message: Message = None):
     """Обработка распознанного меню кафе с КБЖУ"""
     
     user_id = str(message.from_user.id)
@@ -676,7 +683,10 @@ async def handle_menu_photo(message: Message, menu_data: dict, photo_path: Path)
     )
     state_manager.set_state(user_id, user_state)
     
-    await message.answer(response, parse_mode='HTML', reply_markup=keyboard)
+    if processing_message:
+        await processing_message.edit_text(response, parse_mode='HTML', reply_markup=keyboard)
+    else:
+        await message.answer(response, parse_mode='HTML', reply_markup=keyboard)
 
 
 def format_meal_response(meal_items: list, meal_totals: dict, portion_multiplier: float, meal_name: str = None) -> str:

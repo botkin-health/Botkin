@@ -4481,3 +4481,559 @@ NameError: name 'weight' is not defined
 2026-01-13 17:19:37,490 - core.garmin_data - INFO - Garmin Sync: Fetching 1 days: ['2026-01-13']
 2026-01-13 17:19:37,490 - garminconnect - DEBUG - Requesting user summary
 2026-01-13 17:19:37,734 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /usersummary-service/usersummary/daily/Lyskovsky?calendarDate=2026-01-13 HTTP/1.1" 200 None
+2026-01-14 20:24:58,014 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-14 20:24:58,265 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-14 20:24:58,960 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+2026-01-14 20:24:58,961 - aiogram.dispatcher - INFO - Start polling
+2026-01-14 20:24:59,074 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-14 20:28:33,054 - handlers.photo - INFO - 📸 Получено фото от пользователя 895655
+2026-01-14 20:28:33,057 - handlers.photo - INFO - 📸 Получено фото от пользователя 895655
+2026-01-14 20:28:35,948 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-14 20:28:49,530 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-14 20:28:49,536 - handlers.photo - INFO - Распознано меню/еда: 1 банан, 30 грамм сыворочного протеина (bombbar pro), банка кокосовой воды, КБЖУ: 230.0 ккал
+2026-01-14 20:28:49,536 - handlers.photo - INFO - Распознано: 1 банан, 30 грамм сыворочного протеина (bombbar pro), банка кокосовой воды
+2026-01-14 20:28:49,536 - handlers.photo - INFO - Есть caption, обрабатываем с учетом распознанного: 1 банан
+30 грамм сыворочного протеина (bombbar pro)
+Банка кокосовой воды
+2026-01-14 20:28:49,536 - handlers.photo - INFO - Обработка описания с учетом меню: 1 банан
+30 грамм сыворочного протеина (bombbar pro)
+Банка кокосовой воды
+1 банан
+30 грамм сыворочного протеина (bombbar pro)
+Банка кокосовой воды
+2026-01-14 20:28:49,536 - core.nutrition - INFO - ✅ Найдено 3 компонентов от ИИ. Используем их вместо парсинга описания.
+2026-01-14 20:28:49,537 - core.nutrition - INFO - Обработка 3 продуктов с учетом меню: 1 банан, 30 грамм сыворочного протеина (bombbar pro), банка кокосовой воды
+2026-01-14 20:28:49,537 - core.nutrition - INFO - КБЖУ из меню (на 100г): 47.9 ккал, Б: 5.4г, Ж: 0.3г, У: 7г
+2026-01-14 20:28:49,537 - core.nutrition - INFO - Проверка продукта: 'банан' (вес: 100г)
+2026-01-14 20:28:49,537 - core.nutrition - INFO -   Ключевые слова меню: {'грамм', 'протеина', 'кокосовой', 'воды', 'банка', 'bombbar', 'сыворочного', 'банан', 'pro'}
+2026-01-14 20:28:49,537 - core.nutrition - INFO -   Ключевые слова продукта: {'банан'}
+2026-01-14 20:28:49,537 - core.nutrition - INFO -   ✅ Продукт 'банан' соответствует меню
+2026-01-14 20:28:49,537 - core.nutrition - INFO -   Пересчитано КБЖУ из меню для 100г:
+2026-01-14 20:28:49,537 - core.nutrition - INFO -     47.9 ккал/100г × 1.00 = 47.9 ккал
+2026-01-14 20:28:49,537 - core.nutrition - INFO -     5.4г белка/100г × 1.00 = 5.4г
+2026-01-14 20:28:49,537 - core.nutrition - INFO -     0.3г жиров/100г × 1.00 = 0.3г
+2026-01-14 20:28:49,537 - core.nutrition - INFO -     7г углеводов/100г × 1.00 = 7.0г
+2026-01-14 20:28:49,537 - core.nutrition - INFO - Проверка продукта: 'сыворочный протеин (bombbar pro)' (вес: 30г)
+2026-01-14 20:28:49,537 - core.nutrition - INFO -   Ключевые слова меню: {'грамм', 'протеина', 'кокосовой', 'воды', 'банка', 'bombbar', 'сыворочного', 'банан', 'pro'}
+2026-01-14 20:28:49,537 - core.nutrition - INFO -   Ключевые слова продукта: {'протеин', 'bombbar', 'pro', 'сыворочный'}
+2026-01-14 20:28:49,537 - core.nutrition - INFO -   ✅ Продукт 'сыворочный протеин (bombbar pro)' соответствует меню
+2026-01-14 20:28:49,537 - core.nutrition - INFO -   Пересчитано КБЖУ из меню для 30г:
+2026-01-14 20:28:49,537 - core.nutrition - INFO -     47.9 ккал/100г × 0.30 = 14.4 ккал
+2026-01-14 20:28:49,537 - core.nutrition - INFO -     5.4г белка/100г × 0.30 = 1.6г
+2026-01-14 20:28:49,537 - core.nutrition - INFO -     0.3г жиров/100г × 0.30 = 0.1г
+2026-01-14 20:28:49,538 - core.nutrition - INFO -     7г углеводов/100г × 0.30 = 2.1г
+2026-01-14 20:28:49,538 - core.nutrition - INFO - Проверка продукта: 'кокосовая вода' (вес: 350г)
+2026-01-14 20:28:49,538 - core.nutrition - INFO -   Ключевые слова меню: {'грамм', 'протеина', 'кокосовой', 'воды', 'банка', 'bombbar', 'сыворочного', 'банан', 'pro'}
+2026-01-14 20:28:49,538 - core.nutrition - INFO -   Ключевые слова продукта: {'вода', 'кокосовая'}
+2026-01-14 20:28:49,539 - core.nutrition - INFO -   ❌ Продукт 'кокосовая вода' НЕ соответствует меню, обрабатываем как обычный продукт
+2026-01-14 20:28:49,540 - core.nutrition - INFO - Продукт 'кокосовая вода' не найден в базе, ищу в интернете...
+2026-01-14 20:28:49,540 - core.product_search - INFO - 🌐 Поиск продукта 'кокосовая вода' через AI...
+2026-01-14 20:28:49,542 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-14 20:28:53,377 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-14 20:28:53,379 - core.product_search - INFO - ✅ AI нашел: кокосовая вода -> 19.0 ккал/100г
+2026-01-14 20:28:53,381 - core.product_search - INFO - 💾 Продукт 'кокосовая вода' сохранен в базу
+2026-01-14 20:28:53,384 - handlers.photo - INFO - Извлечено название приёма пищи: 'Ужин' из описания: '1 банан
+30 грамм сыворочного протеина (bombbar pro...'
+2026-01-14 20:28:53,384 - handlers.photo - INFO - Сохранено в состояние: meal_name='Ужин', meal_time='20:28'
+2026-01-14 20:33:58,775 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+2026-01-14 20:33:58,777 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-14 20:33:58,777 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-14 20:34:01,551 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-14 20:34:01,778 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-14 20:34:02,530 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+2026-01-14 20:34:02,530 - aiogram.dispatcher - INFO - Start polling
+2026-01-14 20:34:02,616 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-14 20:35:17,824 - handlers.photo - INFO - Обработка callback: action=cancel, meal_type=regular, user_id=895655
+2026-01-14 20:35:29,075 - handlers.photo - INFO - 📸 Получен документ-изображение от пользователя 895655: 2026-01-14 20.28.15.jpg (image/jpeg)
+2026-01-14 20:35:29,076 - handlers.photo - INFO - 📸 Получен документ-изображение от пользователя 895655: 2026-01-14 20.28.09.jpg (image/jpeg)
+2026-01-14 20:35:32,213 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-14 20:35:46,707 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-14 20:35:46,710 - handlers.photo - INFO - Распознано меню/еда: 1 банан, 30 грамм сыворочного протеина (bombbar pro), банка кокосовой воды, КБЖУ: 230.0 ккал
+2026-01-14 20:35:46,710 - handlers.photo - INFO - Распознано: 1 банан, 30 грамм сыворочного протеина (bombbar pro), банка кокосовой воды
+2026-01-14 20:35:46,710 - handlers.photo - INFO - Есть caption, обрабатываем с учетом распознанного: 1 банан
+30 грамм сыворочного протеина (bombbar pro)
+Банка кокосовой воды
+2026-01-14 20:35:46,710 - handlers.photo - INFO - Обработка описания с учетом меню: 1 банан
+30 грамм сыворочного протеина (bombbar pro)
+Банка кокосовой воды
+1 банан
+30 грамм сыворочного протеина (bombbar pro)
+Банка кокосовой воды
+2026-01-14 20:35:46,711 - core.nutrition - INFO - ✅ Найдено 3 компонентов от ИИ. Используем их вместо парсинга описания.
+2026-01-14 20:35:46,711 - core.nutrition - INFO - Обработка 3 продуктов с учетом меню: 1 банан, 30 грамм сыворочного протеина (bombbar pro), банка кокосовой воды
+2026-01-14 20:35:46,711 - core.nutrition - INFO - КБЖУ из меню (на 100г): 43.4 ккал, Б: 5г, Ж: 0.3г, У: 6.6г
+2026-01-14 20:35:46,711 - core.nutrition - INFO - Проверка продукта: 'банан' (вес: 120г)
+2026-01-14 20:35:46,711 - core.nutrition - INFO -   Ключевые слова меню: {'банан', 'pro', 'банка', 'грамм', 'сыворочного', 'кокосовой', 'воды', 'bombbar', 'протеина'}
+2026-01-14 20:35:46,711 - core.nutrition - INFO -   Ключевые слова продукта: {'банан'}
+2026-01-14 20:35:46,711 - core.nutrition - INFO -   ✅ Продукт 'банан' соответствует меню
+2026-01-14 20:35:46,711 - core.nutrition - INFO -   Пересчитано КБЖУ из меню для 120г:
+2026-01-14 20:35:46,711 - core.nutrition - INFO -     43.4 ккал/100г × 1.20 = 52.1 ккал
+2026-01-14 20:35:46,711 - core.nutrition - INFO -     5г белка/100г × 1.20 = 6.0г
+2026-01-14 20:35:46,711 - core.nutrition - INFO -     0.3г жиров/100г × 1.20 = 0.4г
+2026-01-14 20:35:46,711 - core.nutrition - INFO -     6.6г углеводов/100г × 1.20 = 7.9г
+2026-01-14 20:35:46,711 - core.nutrition - INFO - Проверка продукта: 'сыворочный протеин (bombbar pro)' (вес: 30г)
+2026-01-14 20:35:46,711 - core.nutrition - INFO -   Ключевые слова меню: {'банан', 'pro', 'банка', 'грамм', 'сыворочного', 'кокосовой', 'воды', 'bombbar', 'протеина'}
+2026-01-14 20:35:46,711 - core.nutrition - INFO -   Ключевые слова продукта: {'сыворочный', 'bombbar', 'протеин', 'pro'}
+2026-01-14 20:35:46,711 - core.nutrition - INFO -   ✅ Продукт 'сыворочный протеин (bombbar pro)' соответствует меню
+2026-01-14 20:35:46,711 - core.nutrition - INFO -   Пересчитано КБЖУ из меню для 30г:
+2026-01-14 20:35:46,711 - core.nutrition - INFO -     43.4 ккал/100г × 0.30 = 13.0 ккал
+2026-01-14 20:35:46,711 - core.nutrition - INFO -     5г белка/100г × 0.30 = 1.5г
+2026-01-14 20:35:46,711 - core.nutrition - INFO -     0.3г жиров/100г × 0.30 = 0.1г
+2026-01-14 20:35:46,712 - core.nutrition - INFO -     6.6г углеводов/100г × 0.30 = 2.0г
+2026-01-14 20:35:46,712 - core.nutrition - INFO - Проверка продукта: 'кокосовая вода' (вес: 380г)
+2026-01-14 20:35:46,712 - core.nutrition - INFO -   Ключевые слова меню: {'банан', 'pro', 'банка', 'грамм', 'сыворочного', 'кокосовой', 'воды', 'bombbar', 'протеина'}
+2026-01-14 20:35:46,712 - core.nutrition - INFO -   Ключевые слова продукта: {'вода', 'кокосовая'}
+2026-01-14 20:35:46,713 - core.nutrition - INFO -   ❌ Продукт 'кокосовая вода' НЕ соответствует меню, обрабатываем как обычный продукт
+2026-01-14 20:35:46,716 - handlers.photo - INFO - Извлечено название приёма пищи: 'Ужин' из описания: '1 банан
+30 грамм сыворочного протеина (bombbar pro...'
+2026-01-14 20:35:46,716 - handlers.photo - INFO - Сохранено в состояние: meal_name='Ужин', meal_time='20:35'
+2026-01-14 20:37:43,021 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+2026-01-14 20:37:43,022 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-14 20:37:43,022 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-14 20:37:45,831 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-14 20:37:46,119 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-14 20:37:46,793 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+2026-01-14 20:37:46,794 - aiogram.dispatcher - INFO - Start polling
+2026-01-14 20:37:46,880 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-14 20:40:35,365 - handlers.photo - INFO - 📸 Получен документ-изображение от пользователя 895655: 2026-01-14 20.28.15.jpg (image/jpeg)
+2026-01-14 20:40:35,368 - handlers.photo - INFO - 📸 Получен документ-изображение от пользователя 895655: 2026-01-14 20.28.09.jpg (image/jpeg)
+2026-01-14 20:40:36,117 - handlers.photo - INFO - Обработка callback: action=cancel, meal_type=regular, user_id=895655
+2026-01-14 20:40:38,616 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-14 20:40:49,687 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-14 20:40:49,691 - handlers.photo - INFO - Распознано меню/еда: 1 банан, 30 грамм сыворочного протеина (bombbar pro), банка кокосовой воды, КБЖУ: 210.0 ккал
+2026-01-14 20:40:49,691 - handlers.photo - INFO - Распознано: 1 банан, 30 грамм сыворочного протеина (bombbar pro), банка кокосовой воды
+2026-01-14 20:40:49,691 - handlers.photo - INFO - Есть caption, обрабатываем с учетом распознанного: 1 банан
+30 грамм сыворочного протеина (bombbar pro)
+Банка кокосовой воды
+2026-01-14 20:40:49,692 - handlers.photo - INFO - Обработка описания с учетом меню: 1 банан
+30 грамм сыворочного протеина (bombbar pro)
+Банка кокосовой воды
+1 банан
+30 грамм сыворочного протеина (bombbar pro)
+Банка кокосовой воды
+2026-01-14 20:40:49,692 - core.nutrition - INFO - ✅ Найдено 3 компонентов от ИИ. Используем их вместо парсинга описания.
+2026-01-14 20:40:49,692 - core.nutrition - INFO - Обработка 3 продуктов с учетом меню: 1 банан, 30 грамм сыворочного протеина (bombbar pro), банка кокосовой воды
+2026-01-14 20:40:49,692 - core.nutrition - INFO - КБЖУ из меню (на 100г): 43.75 ккал, Б: 5.44г, Ж: 0.21г, У: 8.5г
+2026-01-14 20:40:49,692 - core.nutrition - INFO - Проверка продукта: 'банан' (вес: 100г)
+2026-01-14 20:40:49,693 - core.nutrition - INFO -   Ключевые слова меню: {'протеина', 'банка', 'воды', 'pro', 'грамм', 'bombbar', 'сыворочного', 'кокосовой', 'банан'}
+2026-01-14 20:40:49,693 - core.nutrition - INFO -   Ключевые слова продукта: {'банан'}
+2026-01-14 20:40:49,693 - core.nutrition - INFO -   ✅ Продукт 'банан' соответствует меню
+2026-01-14 20:40:49,693 - core.nutrition - INFO -   ✅ Используем собственные КБЖУ компонента (не пересчитываем от общего меню):
+2026-01-14 20:40:49,693 - core.nutrition - INFO -     89 ккал, 1.1г б, 0.3г ж, 23г у
+2026-01-14 20:40:49,693 - core.nutrition - INFO - Проверка продукта: 'сыворочный протеин (bombbar pro)' (вес: 30г)
+2026-01-14 20:40:49,693 - core.nutrition - INFO -   Ключевые слова меню: {'протеина', 'банка', 'воды', 'pro', 'грамм', 'bombbar', 'сыворочного', 'кокосовой', 'банан'}
+2026-01-14 20:40:49,693 - core.nutrition - INFO -   Ключевые слова продукта: {'bombbar', 'протеин', 'сыворочный', 'pro'}
+2026-01-14 20:40:49,693 - core.nutrition - INFO -   ✅ Продукт 'сыворочный протеин (bombbar pro)' соответствует меню
+2026-01-14 20:40:49,693 - core.nutrition - INFO -   ✅ Используем собственные КБЖУ компонента (не пересчитываем от общего меню):
+2026-01-14 20:40:49,693 - core.nutrition - INFO -     120 ккал, 25г б, 1г ж, 3г у
+2026-01-14 20:40:49,693 - core.nutrition - INFO - Проверка продукта: 'кокосовая вода' (вес: 350г)
+2026-01-14 20:40:49,693 - core.nutrition - INFO -   Ключевые слова меню: {'протеина', 'банка', 'воды', 'pro', 'грамм', 'bombbar', 'сыворочного', 'кокосовой', 'банан'}
+2026-01-14 20:40:49,693 - core.nutrition - INFO -   Ключевые слова продукта: {'кокосовая', 'вода'}
+2026-01-14 20:40:49,694 - core.nutrition - INFO -   ❌ Продукт 'кокосовая вода' НЕ соответствует меню, обрабатываем как обычный продукт
+2026-01-14 20:40:49,698 - handlers.photo - INFO - Извлечено название приёма пищи: 'Ужин' из описания: '1 банан
+30 грамм сыворочного протеина (bombbar pro...'
+2026-01-14 20:40:49,698 - handlers.photo - INFO - Сохранено в состояние: meal_name='Ужин', meal_time='20:40'
+2026-01-14 20:44:35,717 - handlers.photo - INFO - Обработка callback: action=save, meal_type=regular, user_id=895655
+2026-01-14 20:44:35,719 - handlers.photo - INFO - Используется meal_name из состояния: 'Ужин'
+2026-01-14 20:44:35,719 - handlers.photo - INFO - Сохранение блюда: meal_name='Ужин', meal_type='regular'
+2026-01-14 20:45:03,967 - handlers.commands - INFO - 📊 Команда /day вызвана пользователем 895655
+2026-01-14 20:45:04,162 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sso.garmin.com:443
+2026-01-14 20:45:04,765 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "GET /sso/embed?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso HTTP/1.1" 200 None
+2026-01-14 20:45:05,074 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "GET /sso/signin?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&service=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&source=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountLoginUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountCreationUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed HTTP/1.1" 200 None
+2026-01-14 20:45:05,996 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "POST /sso/signin?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&service=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&source=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountLoginUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountCreationUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed HTTP/1.1" 200 None
+2026-01-14 20:45:06,001 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): thegarth.s3.amazonaws.com:443
+2026-01-14 20:45:26,568 - garminconnect - ERROR - Login failed
+Traceback (most recent call last):
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/urllib3/connectionpool.py", line 464, in _make_request
+    self._validate_conn(conn)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/urllib3/connectionpool.py", line 1093, in _validate_conn
+    conn.connect()
+    ~~~~~~~~~~~~^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/urllib3/connection.py", line 796, in connect
+    sock_and_verified = _ssl_wrap_socket_and_match_hostname(
+        sock=sock,
+    ...<14 lines>...
+        assert_fingerprint=self.assert_fingerprint,
+    )
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/urllib3/connection.py", line 975, in _ssl_wrap_socket_and_match_hostname
+    ssl_sock = ssl_wrap_socket(
+        sock=sock,
+    ...<8 lines>...
+        tls_in_tls=tls_in_tls,
+    )
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/urllib3/util/ssl_.py", line 483, in ssl_wrap_socket
+    ssl_sock = _ssl_wrap_socket_impl(sock, context, tls_in_tls, server_hostname)
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/urllib3/util/ssl_.py", line 527, in _ssl_wrap_socket_impl
+    return ssl_context.wrap_socket(sock, server_hostname=server_hostname)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.6/Frameworks/Python.framework/Versions/3.13/lib/python3.13/ssl.py", line 455, in wrap_socket
+    return self.sslsocket_class._create(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        sock=sock,
+        ^^^^^^^^^^
+    ...<5 lines>...
+        session=session
+        ^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.6/Frameworks/Python.framework/Versions/3.13/lib/python3.13/ssl.py", line 1076, in _create
+    self.do_handshake()
+    ~~~~~~~~~~~~~~~~~^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.6/Frameworks/Python.framework/Versions/3.13/lib/python3.13/ssl.py", line 1372, in do_handshake
+    self._sslobj.do_handshake()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+ssl.SSLError: [SSL] record layer failure (_ssl.c:1035)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/urllib3/connectionpool.py", line 787, in urlopen
+    response = self._make_request(
+        conn,
+    ...<10 lines>...
+        **response_kw,
+    )
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/urllib3/connectionpool.py", line 488, in _make_request
+    raise new_e
+urllib3.exceptions.SSLError: [SSL] record layer failure (_ssl.c:1035)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/requests/adapters.py", line 644, in send
+    resp = conn.urlopen(
+        method=request.method,
+    ...<9 lines>...
+        chunked=chunked,
+    )
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/urllib3/connectionpool.py", line 841, in urlopen
+    retries = retries.increment(
+        method, url, error=new_e, _pool=self, _stacktrace=sys.exc_info()[2]
+    )
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/urllib3/util/retry.py", line 519, in increment
+    raise MaxRetryError(_pool, url, reason) from reason  # type: ignore[arg-type]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+urllib3.exceptions.MaxRetryError: HTTPSConnectionPool(host='thegarth.s3.amazonaws.com', port=443): Max retries exceeded with url: /oauth_consumer.json (Caused by SSLError(SSLError(1, '[SSL] record layer failure (_ssl.c:1035)')))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/garminconnect/__init__.py", line 452, in login
+    token1, token2 = self.garth.login(
+                     ~~~~~~~~~~~~~~~~^
+        self.username,
+        ^^^^^^^^^^^^^^
+        self.password,
+        ^^^^^^^^^^^^^^
+        prompt_mfa=self.prompt_mfa,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/garth/http.py", line 167, in login
+    self.oauth1_token, self.oauth2_token = sso.login(
+                                           ~~~~~~~~~^
+        *args, **kwargs, client=self
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/garth/sso.py", line 132, in login
+    return _complete_login(client)
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/garth/sso.py", line 257, in _complete_login
+    oauth1 = get_oauth1_token(ticket, client)
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/garth/sso.py", line 136, in get_oauth1_token
+    sess = GarminOAuth1Session(parent=client.sess)
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/garth/sso.py", line 33, in __init__
+    OAUTH_CONSUMER = requests.get(OAUTH_CONSUMER_URL).json()
+                     ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/requests/api.py", line 73, in get
+    return request("get", url, params=params, **kwargs)
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/requests/api.py", line 59, in request
+    return session.request(method=method, url=url, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/requests/sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/requests/sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/requests/adapters.py", line 675, in send
+    raise SSLError(e, request=request)
+requests.exceptions.SSLError: HTTPSConnectionPool(host='thegarth.s3.amazonaws.com', port=443): Max retries exceeded with url: /oauth_consumer.json (Caused by SSLError(SSLError(1, '[SSL] record layer failure (_ssl.c:1035)')))
+2026-01-14 20:45:26,584 - core.garmin_data - ERROR - Error updating Garmin data: Login failed: HTTPSConnectionPool(host='thegarth.s3.amazonaws.com', port=443): Max retries exceeded with url: /oauth_consumer.json (Caused by SSLError(SSLError(1, '[SSL] record layer failure (_ssl.c:1035)')))
+Traceback (most recent call last):
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/urllib3/connectionpool.py", line 464, in _make_request
+    self._validate_conn(conn)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/urllib3/connectionpool.py", line 1093, in _validate_conn
+    conn.connect()
+    ~~~~~~~~~~~~^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/urllib3/connection.py", line 796, in connect
+    sock_and_verified = _ssl_wrap_socket_and_match_hostname(
+        sock=sock,
+    ...<14 lines>...
+        assert_fingerprint=self.assert_fingerprint,
+    )
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/urllib3/connection.py", line 975, in _ssl_wrap_socket_and_match_hostname
+    ssl_sock = ssl_wrap_socket(
+        sock=sock,
+    ...<8 lines>...
+        tls_in_tls=tls_in_tls,
+    )
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/urllib3/util/ssl_.py", line 483, in ssl_wrap_socket
+    ssl_sock = _ssl_wrap_socket_impl(sock, context, tls_in_tls, server_hostname)
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/urllib3/util/ssl_.py", line 527, in _ssl_wrap_socket_impl
+    return ssl_context.wrap_socket(sock, server_hostname=server_hostname)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.6/Frameworks/Python.framework/Versions/3.13/lib/python3.13/ssl.py", line 455, in wrap_socket
+    return self.sslsocket_class._create(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        sock=sock,
+        ^^^^^^^^^^
+    ...<5 lines>...
+        session=session
+        ^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.6/Frameworks/Python.framework/Versions/3.13/lib/python3.13/ssl.py", line 1076, in _create
+    self.do_handshake()
+    ~~~~~~~~~~~~~~~~~^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.6/Frameworks/Python.framework/Versions/3.13/lib/python3.13/ssl.py", line 1372, in do_handshake
+    self._sslobj.do_handshake()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+ssl.SSLError: [SSL] record layer failure (_ssl.c:1035)
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/urllib3/connectionpool.py", line 787, in urlopen
+    response = self._make_request(
+        conn,
+    ...<10 lines>...
+        **response_kw,
+    )
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/urllib3/connectionpool.py", line 488, in _make_request
+    raise new_e
+urllib3.exceptions.SSLError: [SSL] record layer failure (_ssl.c:1035)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/requests/adapters.py", line 644, in send
+    resp = conn.urlopen(
+        method=request.method,
+    ...<9 lines>...
+        chunked=chunked,
+    )
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/urllib3/connectionpool.py", line 841, in urlopen
+    retries = retries.increment(
+        method, url, error=new_e, _pool=self, _stacktrace=sys.exc_info()[2]
+    )
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/urllib3/util/retry.py", line 519, in increment
+    raise MaxRetryError(_pool, url, reason) from reason  # type: ignore[arg-type]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+urllib3.exceptions.MaxRetryError: HTTPSConnectionPool(host='thegarth.s3.amazonaws.com', port=443): Max retries exceeded with url: /oauth_consumer.json (Caused by SSLError(SSLError(1, '[SSL] record layer failure (_ssl.c:1035)')))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/garminconnect/__init__.py", line 452, in login
+    token1, token2 = self.garth.login(
+                     ~~~~~~~~~~~~~~~~^
+        self.username,
+        ^^^^^^^^^^^^^^
+        self.password,
+        ^^^^^^^^^^^^^^
+        prompt_mfa=self.prompt_mfa,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/garth/http.py", line 167, in login
+    self.oauth1_token, self.oauth2_token = sso.login(
+                                           ~~~~~~~~~^
+        *args, **kwargs, client=self
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/garth/sso.py", line 132, in login
+    return _complete_login(client)
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/garth/sso.py", line 257, in _complete_login
+    oauth1 = get_oauth1_token(ticket, client)
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/garth/sso.py", line 136, in get_oauth1_token
+    sess = GarminOAuth1Session(parent=client.sess)
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/garth/sso.py", line 33, in __init__
+    OAUTH_CONSUMER = requests.get(OAUTH_CONSUMER_URL).json()
+                     ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/requests/api.py", line 73, in get
+    return request("get", url, params=params, **kwargs)
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/requests/api.py", line 59, in request
+    return session.request(method=method, url=url, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/requests/sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/requests/sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/requests/adapters.py", line 675, in send
+    raise SSLError(e, request=request)
+requests.exceptions.SSLError: HTTPSConnectionPool(host='thegarth.s3.amazonaws.com', port=443): Max retries exceeded with url: /oauth_consumer.json (Caused by SSLError(SSLError(1, '[SSL] record layer failure (_ssl.c:1035)')))
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/alexlyskovsky/HealthVault/core/garmin_data.py", line 145, in sync_garmin_data
+    client.login()
+    ~~~~~~~~~~~~^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/garminconnect/__init__.py", line 536, in login
+    raise GarminConnectConnectionError(f"Login failed: {e}") from e
+garminconnect.GarminConnectConnectionError: Login failed: HTTPSConnectionPool(host='thegarth.s3.amazonaws.com', port=443): Max retries exceeded with url: /oauth_consumer.json (Caused by SSLError(SSLError(1, '[SSL] record layer failure (_ssl.c:1035)')))
+2026-01-14 20:49:23,126 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+2026-01-14 20:49:23,127 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-14 20:49:23,127 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-14 20:49:25,903 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-14 20:49:26,140 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-14 20:49:26,936 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+2026-01-14 20:49:26,936 - aiogram.dispatcher - INFO - Start polling
+2026-01-14 20:49:27,044 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-14 20:50:28,007 - handlers.commands - INFO - 📊 Команда /day вызвана пользователем 895655
+2026-01-14 20:50:28,537 - core.garmin_data - INFO - ✅ Patched garth.sso.OAUTH_CONSUMER manually
+2026-01-14 20:50:28,542 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sso.garmin.com:443
+2026-01-14 20:50:29,190 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "GET /sso/embed?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso HTTP/1.1" 200 None
+2026-01-14 20:50:29,503 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "GET /sso/signin?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&service=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&source=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountLoginUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountCreationUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed HTTP/1.1" 200 None
+2026-01-14 20:50:30,329 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "POST /sso/signin?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&service=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&source=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountLoginUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountCreationUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed HTTP/1.1" 200 None
+2026-01-14 20:50:30,332 - requests_oauthlib.oauth1_auth - DEBUG - Signing request <PreparedRequest [GET]> using client <Client client_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0, client_secret=****, resource_owner_key=None, resource_owner_secret=None, signature_method=HMAC-SHA1, signature_type=AUTH_HEADER, callback_uri=None, rsa_key=None, verifier=None, realm=None, encoding=utf-8, decoding=utf-8, nonce=None, timestamp=None>
+2026-01-14 20:50:30,333 - requests_oauthlib.oauth1_auth - DEBUG - Including body in call to sign: False
+2026-01-14 20:50:30,333 - oauthlib.oauth1.rfc5849 - DEBUG - Collected params: [('ticket', 'ST-01508-VUCqtRdrLRPkaOyeUbH6-cas'), ('login-url', 'https://sso.garmin.com/sso/embed'), ('accepts-mfa-tokens', 'true'), ('oauth_nonce', '174510579650657140611768413030'), ('oauth_timestamp', '1768413030'), ('oauth_version', '1.0'), ('oauth_signature_method', 'HMAC-SHA1'), ('oauth_consumer_key', 'fc3e99d2-118c-44b8-8ae3-03370dde24c0')]
+2026-01-14 20:50:30,333 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized params: accepts-mfa-tokens=true&login-url=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&oauth_consumer_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0&oauth_nonce=174510579650657140611768413030&oauth_signature_method=HMAC-SHA1&oauth_timestamp=1768413030&oauth_version=1.0&ticket=ST-01508-VUCqtRdrLRPkaOyeUbH6-cas
+2026-01-14 20:50:30,333 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized URI: https://connectapi.garmin.com/oauth-service/oauth/preauthorized
+2026-01-14 20:50:30,334 - oauthlib.oauth1.rfc5849 - DEBUG - Signing: signature base string: GET&https%3A%2F%2Fconnectapi.garmin.com%2Foauth-service%2Foauth%2Fpreauthorized&accepts-mfa-tokens%3Dtrue%26login-url%3Dhttps%253A%252F%252Fsso.garmin.com%252Fsso%252Fembed%26oauth_consumer_key%3Dfc3e99d2-118c-44b8-8ae3-03370dde24c0%26oauth_nonce%3D174510579650657140611768413030%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1768413030%26oauth_version%3D1.0%26ticket%3DST-01508-VUCqtRdrLRPkaOyeUbH6-cas
+2026-01-14 20:50:30,334 - oauthlib.oauth1.rfc5849 - DEBUG - Signature: /eBRE8tPcIczovdFXeOGE/B9WJE=
+2026-01-14 20:50:30,334 - oauthlib.oauth1.rfc5849 - DEBUG - Encoding URI, headers and body to utf-8.
+2026-01-14 20:50:30,334 - requests_oauthlib.oauth1_auth - DEBUG - Updated url: https://connectapi.garmin.com/oauth-service/oauth/preauthorized?ticket=ST-01508-VUCqtRdrLRPkaOyeUbH6-cas&login-url=https://sso.garmin.com/sso/embed&accepts-mfa-tokens=true
+2026-01-14 20:50:30,334 - requests_oauthlib.oauth1_auth - DEBUG - Updated headers: {b'User-Agent': b'com.garmin.android.apps.connectmobile', b'Accept-Encoding': b'gzip, deflate', b'Accept': b'*/*', b'Connection': b'keep-alive', b'Authorization': b'OAuth oauth_nonce="174510579650657140611768413030", oauth_timestamp="1768413030", oauth_version="1.0", oauth_signature_method="HMAC-SHA1", oauth_consumer_key="fc3e99d2-118c-44b8-8ae3-03370dde24c0", oauth_signature="%2FeBRE8tPcIczovdFXeOGE%2FB9WJE%3D"'}
+2026-01-14 20:50:30,334 - requests_oauthlib.oauth1_auth - DEBUG - Updated body: None
+2026-01-14 20:50:30,335 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): connectapi.garmin.com:443
+2026-01-14 20:50:31,314 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /oauth-service/oauth/preauthorized?ticket=ST-01508-VUCqtRdrLRPkaOyeUbH6-cas&login-url=https://sso.garmin.com/sso/embed&accepts-mfa-tokens=true HTTP/1.1" 200 None
+2026-01-14 20:50:31,318 - requests_oauthlib.oauth1_auth - DEBUG - Signing request <PreparedRequest [POST]> using client <Client client_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0, client_secret=****, resource_owner_key=3d6345ce-0ead-42e6-adee-2bda9ffe2426, resource_owner_secret=****, signature_method=HMAC-SHA1, signature_type=AUTH_HEADER, callback_uri=None, rsa_key=None, verifier=None, realm=None, encoding=utf-8, decoding=utf-8, nonce=None, timestamp=None>
+2026-01-14 20:50:31,318 - requests_oauthlib.oauth1_auth - DEBUG - Including body in call to sign: True
+2026-01-14 20:50:31,318 - oauthlib.oauth1.rfc5849 - DEBUG - Collected params: [('oauth_nonce', '51125155845551041371768413031'), ('oauth_timestamp', '1768413031'), ('oauth_version', '1.0'), ('oauth_signature_method', 'HMAC-SHA1'), ('oauth_consumer_key', 'fc3e99d2-118c-44b8-8ae3-03370dde24c0'), ('oauth_token', '3d6345ce-0ead-42e6-adee-2bda9ffe2426')]
+2026-01-14 20:50:31,318 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized params: oauth_consumer_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0&oauth_nonce=51125155845551041371768413031&oauth_signature_method=HMAC-SHA1&oauth_timestamp=1768413031&oauth_token=3d6345ce-0ead-42e6-adee-2bda9ffe2426&oauth_version=1.0
+2026-01-14 20:50:31,319 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized URI: https://connectapi.garmin.com/oauth-service/oauth/exchange/user/2.0
+2026-01-14 20:50:31,319 - oauthlib.oauth1.rfc5849 - DEBUG - Signing: signature base string: POST&https%3A%2F%2Fconnectapi.garmin.com%2Foauth-service%2Foauth%2Fexchange%2Fuser%2F2.0&oauth_consumer_key%3Dfc3e99d2-118c-44b8-8ae3-03370dde24c0%26oauth_nonce%3D51125155845551041371768413031%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1768413031%26oauth_token%3D3d6345ce-0ead-42e6-adee-2bda9ffe2426%26oauth_version%3D1.0
+2026-01-14 20:50:31,319 - oauthlib.oauth1.rfc5849 - DEBUG - Signature: 8ktxo1apCczwEOk/cE/OI5qzwbk=
+2026-01-14 20:50:31,319 - oauthlib.oauth1.rfc5849 - DEBUG - Encoding URI, headers and body to utf-8.
+2026-01-14 20:50:31,319 - requests_oauthlib.oauth1_auth - DEBUG - Updated url: https://connectapi.garmin.com/oauth-service/oauth/exchange/user/2.0
+2026-01-14 20:50:31,319 - requests_oauthlib.oauth1_auth - DEBUG - Updated headers: {b'User-Agent': b'com.garmin.android.apps.connectmobile', b'Accept-Encoding': b'gzip, deflate', b'Accept': b'*/*', b'Connection': b'keep-alive', b'Content-Type': b'application/x-www-form-urlencoded', b'Content-Length': b'0', b'Authorization': b'OAuth oauth_nonce="51125155845551041371768413031", oauth_timestamp="1768413031", oauth_version="1.0", oauth_signature_method="HMAC-SHA1", oauth_consumer_key="fc3e99d2-118c-44b8-8ae3-03370dde24c0", oauth_token="3d6345ce-0ead-42e6-adee-2bda9ffe2426", oauth_signature="8ktxo1apCczwEOk%2FcE%2FOI5qzwbk%3D"'}
+2026-01-14 20:50:31,319 - requests_oauthlib.oauth1_auth - DEBUG - Updated body: ''
+2026-01-14 20:50:31,639 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "POST /oauth-service/oauth/exchange/user/2.0 HTTP/1.1" 200 None
+2026-01-14 20:50:31,869 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /userprofile-service/socialProfile HTTP/1.1" 200 None
+2026-01-14 20:50:32,186 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /userprofile-service/userprofile/user-settings HTTP/1.1" 200 None
+2026-01-14 20:50:32,193 - core.garmin_data - INFO - Garmin Sync: Fetching 1 days: ['2026-01-14']
+2026-01-14 20:50:32,193 - garminconnect - DEBUG - Requesting user summary
+2026-01-14 20:50:32,497 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /usersummary-service/usersummary/daily/Lyskovsky?calendarDate=2026-01-14 HTTP/1.1" 200 None
+2026-01-14 21:39:27,280 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-01-14 21:39:27,355 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-01-14 21:39:30,055 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-01-14 21:39:30,068 - handlers.text - INFO - 📝 Обработчик текста: получено сообщение от 895655: '200 грамм буженины 
+85 Грам вверенной картошки 
+115 грамм капусты 
+Чайная ложка растительного масла...'
+2026-01-14 21:39:30,068 - handlers.text - INFO - У пользователя 895655 нет состояния
+2026-01-14 21:39:30,069 - handlers.text - INFO - Обработка текстового описания без фото: '200 грамм буженины 
+85 Грам вверенной картошки 
+115 грамм капусты 
+Чайная ложка растительного масла'
+2026-01-14 21:39:30,636 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-14 21:39:33,585 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-14 21:39:33,588 - core.nutrition - INFO - Продукт 'буженина' не найден в базе, ищу в интернете...
+2026-01-14 21:39:33,588 - core.product_search - INFO - 🌐 Поиск продукта 'буженина' через AI...
+2026-01-14 21:39:33,589 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-14 21:39:41,451 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-14 21:39:41,486 - core.product_search - INFO - ✅ AI нашел: буженина -> 250.0 ккал/100г
+2026-01-14 21:39:41,489 - core.product_search - INFO - 💾 Продукт 'буженина' сохранен в базу
+2026-01-14 21:39:41,493 - handlers.photo - INFO - Извлечено название приёма пищи: 'Ужин' из описания: '200 грамм буженины 
+85 Грам вверенной картошки 
+11...'
+2026-01-14 21:39:41,493 - handlers.photo - INFO - Сохранено в состояние: meal_name='Ужин', meal_time='21:39'
+2026-01-14 21:40:30,062 - handlers.photo - INFO - Обработка callback: action=cancel, meal_type=regular, user_id=895655
+2026-01-14 21:40:33,626 - handlers.text - INFO - 📝 Обработчик текста: получено сообщение от 895655: '230 г буженины 
+100 Г вверенной картошки 
+115 г капусты 
+Чайная ложка растительного масла
+2 Чайной л...'
+2026-01-14 21:40:33,626 - handlers.text - INFO - У пользователя 895655 нет состояния
+2026-01-14 21:40:33,627 - handlers.text - INFO - Обработка текстового описания без фото: '230 г буженины 
+100 Г вверенной картошки 
+115 г капусты 
+Чайная ложка растительного масла
+2 Чайной ложки дижонской  горчицы
+2 Чайной ложки сметаны'
+2026-01-14 21:40:33,775 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-14 21:40:36,981 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-14 21:40:36,988 - handlers.photo - INFO - Извлечено название приёма пищи: 'Ужин' из описания: '230 г буженины 
+100 Г вверенной картошки 
+115 г ка...'
+2026-01-14 21:40:36,988 - handlers.photo - INFO - Сохранено в состояние: meal_name='Ужин', meal_time='21:40'
+2026-01-14 21:41:56,368 - handlers.photo - INFO - Обработка callback: action=cancel, meal_type=regular, user_id=895655
+2026-01-14 21:42:12,052 - handlers.text - INFO - 📝 Обработчик текста: получено сообщение от 895655: '230 г буженины 
+100 Г варенной картошки 
+115 г запеченной капусты 
+Чайная ложка растительного масла
+...'
+2026-01-14 21:42:12,053 - handlers.text - INFO - У пользователя 895655 нет состояния
+2026-01-14 21:42:12,053 - handlers.text - INFO - Обработка текстового описания без фото: '230 г буженины 
+100 Г варенной картошки 
+115 г запеченной капусты 
+Чайная ложка растительного масла
+2 Чайной ложки дижонской  горчицы
+2 Чайной ложки сметаны'
+2026-01-14 21:42:12,331 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-14 21:42:16,153 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-14 21:42:16,180 - handlers.photo - INFO - Извлечено название приёма пищи: 'Ужин' из описания: '230 г буженины 
+100 Г варенной картошки 
+115 г зап...'
+2026-01-14 21:42:16,180 - handlers.photo - INFO - Сохранено в состояние: meal_name='Ужин', meal_time='21:42'
+2026-01-14 21:42:56,805 - handlers.photo - INFO - Обработка callback: action=save, meal_type=regular, user_id=895655
+2026-01-14 21:42:56,807 - handlers.photo - INFO - Используется meal_name из состояния: 'Ужин'
+2026-01-14 21:42:56,807 - handlers.photo - INFO - Сохранение блюда: meal_name='Ужин', meal_type='regular'
+2026-01-14 21:43:39,006 - handlers.text - INFO - 📝 Обработчик текста: получено сообщение от 895655: 'Стеролы, магний, цинк...'
+2026-01-14 21:43:39,006 - handlers.text - INFO - У пользователя 895655 нет состояния
+2026-01-14 21:43:51,311 - handlers.commands - INFO - 📊 Команда /day вызвана пользователем 895655
+2026-01-14 21:43:51,451 - core.garmin_data - INFO - ✅ Patched garth.sso.OAUTH_CONSUMER manually
+2026-01-14 21:43:51,453 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sso.garmin.com:443
+2026-01-14 21:43:53,912 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "GET /sso/embed?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso HTTP/1.1" 200 None
+2026-01-14 21:43:54,218 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "GET /sso/signin?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&service=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&source=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountLoginUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountCreationUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed HTTP/1.1" 200 None
+2026-01-14 21:43:55,378 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "POST /sso/signin?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&service=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&source=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountLoginUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountCreationUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed HTTP/1.1" 200 None
+2026-01-14 21:43:55,380 - requests_oauthlib.oauth1_auth - DEBUG - Signing request <PreparedRequest [GET]> using client <Client client_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0, client_secret=****, resource_owner_key=None, resource_owner_secret=None, signature_method=HMAC-SHA1, signature_type=AUTH_HEADER, callback_uri=None, rsa_key=None, verifier=None, realm=None, encoding=utf-8, decoding=utf-8, nonce=None, timestamp=None>
+2026-01-14 21:43:55,380 - requests_oauthlib.oauth1_auth - DEBUG - Including body in call to sign: False
+2026-01-14 21:43:55,380 - oauthlib.oauth1.rfc5849 - DEBUG - Collected params: [('ticket', 'ST-02347-7O7BQydm7fPvISo7rJ1p-cas'), ('login-url', 'https://sso.garmin.com/sso/embed'), ('accepts-mfa-tokens', 'true'), ('oauth_nonce', '7111569054510830121768416235'), ('oauth_timestamp', '1768416235'), ('oauth_version', '1.0'), ('oauth_signature_method', 'HMAC-SHA1'), ('oauth_consumer_key', 'fc3e99d2-118c-44b8-8ae3-03370dde24c0')]
+2026-01-14 21:43:55,381 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized params: accepts-mfa-tokens=true&login-url=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&oauth_consumer_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0&oauth_nonce=7111569054510830121768416235&oauth_signature_method=HMAC-SHA1&oauth_timestamp=1768416235&oauth_version=1.0&ticket=ST-02347-7O7BQydm7fPvISo7rJ1p-cas
+2026-01-14 21:43:55,381 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized URI: https://connectapi.garmin.com/oauth-service/oauth/preauthorized
+2026-01-14 21:43:55,381 - oauthlib.oauth1.rfc5849 - DEBUG - Signing: signature base string: GET&https%3A%2F%2Fconnectapi.garmin.com%2Foauth-service%2Foauth%2Fpreauthorized&accepts-mfa-tokens%3Dtrue%26login-url%3Dhttps%253A%252F%252Fsso.garmin.com%252Fsso%252Fembed%26oauth_consumer_key%3Dfc3e99d2-118c-44b8-8ae3-03370dde24c0%26oauth_nonce%3D7111569054510830121768416235%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1768416235%26oauth_version%3D1.0%26ticket%3DST-02347-7O7BQydm7fPvISo7rJ1p-cas
+2026-01-14 21:43:55,381 - oauthlib.oauth1.rfc5849 - DEBUG - Signature: 16UziHC0duiIQ0rfXAUOA4kNkIg=
+2026-01-14 21:43:55,381 - oauthlib.oauth1.rfc5849 - DEBUG - Encoding URI, headers and body to utf-8.
+2026-01-14 21:43:55,381 - requests_oauthlib.oauth1_auth - DEBUG - Updated url: https://connectapi.garmin.com/oauth-service/oauth/preauthorized?ticket=ST-02347-7O7BQydm7fPvISo7rJ1p-cas&login-url=https://sso.garmin.com/sso/embed&accepts-mfa-tokens=true
+2026-01-14 21:43:55,381 - requests_oauthlib.oauth1_auth - DEBUG - Updated headers: {b'User-Agent': b'com.garmin.android.apps.connectmobile', b'Accept-Encoding': b'gzip, deflate', b'Accept': b'*/*', b'Connection': b'keep-alive', b'Authorization': b'OAuth oauth_nonce="7111569054510830121768416235", oauth_timestamp="1768416235", oauth_version="1.0", oauth_signature_method="HMAC-SHA1", oauth_consumer_key="fc3e99d2-118c-44b8-8ae3-03370dde24c0", oauth_signature="16UziHC0duiIQ0rfXAUOA4kNkIg%3D"'}
+2026-01-14 21:43:55,381 - requests_oauthlib.oauth1_auth - DEBUG - Updated body: None
+2026-01-14 21:43:55,382 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): connectapi.garmin.com:443
+2026-01-14 21:43:56,354 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /oauth-service/oauth/preauthorized?ticket=ST-02347-7O7BQydm7fPvISo7rJ1p-cas&login-url=https://sso.garmin.com/sso/embed&accepts-mfa-tokens=true HTTP/1.1" 200 None
+2026-01-14 21:43:56,356 - requests_oauthlib.oauth1_auth - DEBUG - Signing request <PreparedRequest [POST]> using client <Client client_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0, client_secret=****, resource_owner_key=3d6345ce-0ead-42e6-adee-2bda9ffe2426, resource_owner_secret=****, signature_method=HMAC-SHA1, signature_type=AUTH_HEADER, callback_uri=None, rsa_key=None, verifier=None, realm=None, encoding=utf-8, decoding=utf-8, nonce=None, timestamp=None>
+2026-01-14 21:43:56,356 - requests_oauthlib.oauth1_auth - DEBUG - Including body in call to sign: True
+2026-01-14 21:43:56,356 - oauthlib.oauth1.rfc5849 - DEBUG - Collected params: [('oauth_nonce', '179436231698759374191768416236'), ('oauth_timestamp', '1768416236'), ('oauth_version', '1.0'), ('oauth_signature_method', 'HMAC-SHA1'), ('oauth_consumer_key', 'fc3e99d2-118c-44b8-8ae3-03370dde24c0'), ('oauth_token', '3d6345ce-0ead-42e6-adee-2bda9ffe2426')]
+2026-01-14 21:43:56,356 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized params: oauth_consumer_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0&oauth_nonce=179436231698759374191768416236&oauth_signature_method=HMAC-SHA1&oauth_timestamp=1768416236&oauth_token=3d6345ce-0ead-42e6-adee-2bda9ffe2426&oauth_version=1.0
+2026-01-14 21:43:56,356 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized URI: https://connectapi.garmin.com/oauth-service/oauth/exchange/user/2.0
+2026-01-14 21:43:56,356 - oauthlib.oauth1.rfc5849 - DEBUG - Signing: signature base string: POST&https%3A%2F%2Fconnectapi.garmin.com%2Foauth-service%2Foauth%2Fexchange%2Fuser%2F2.0&oauth_consumer_key%3Dfc3e99d2-118c-44b8-8ae3-03370dde24c0%26oauth_nonce%3D179436231698759374191768416236%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1768416236%26oauth_token%3D3d6345ce-0ead-42e6-adee-2bda9ffe2426%26oauth_version%3D1.0
+2026-01-14 21:43:56,356 - oauthlib.oauth1.rfc5849 - DEBUG - Signature: BbnhMEItqGiScILTyjlloE4fK9o=
+2026-01-14 21:43:56,356 - oauthlib.oauth1.rfc5849 - DEBUG - Encoding URI, headers and body to utf-8.
+2026-01-14 21:43:56,356 - requests_oauthlib.oauth1_auth - DEBUG - Updated url: https://connectapi.garmin.com/oauth-service/oauth/exchange/user/2.0
+2026-01-14 21:43:56,356 - requests_oauthlib.oauth1_auth - DEBUG - Updated headers: {b'User-Agent': b'com.garmin.android.apps.connectmobile', b'Accept-Encoding': b'gzip, deflate', b'Accept': b'*/*', b'Connection': b'keep-alive', b'Content-Type': b'application/x-www-form-urlencoded', b'Content-Length': b'0', b'Authorization': b'OAuth oauth_nonce="179436231698759374191768416236", oauth_timestamp="1768416236", oauth_version="1.0", oauth_signature_method="HMAC-SHA1", oauth_consumer_key="fc3e99d2-118c-44b8-8ae3-03370dde24c0", oauth_token="3d6345ce-0ead-42e6-adee-2bda9ffe2426", oauth_signature="BbnhMEItqGiScILTyjlloE4fK9o%3D"'}
+2026-01-14 21:43:56,356 - requests_oauthlib.oauth1_auth - DEBUG - Updated body: ''
+2026-01-14 21:43:56,591 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "POST /oauth-service/oauth/exchange/user/2.0 HTTP/1.1" 200 None
+2026-01-14 21:43:56,818 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /userprofile-service/socialProfile HTTP/1.1" 200 None
+2026-01-14 21:43:57,176 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /userprofile-service/userprofile/user-settings HTTP/1.1" 200 None
+2026-01-14 21:43:57,208 - core.garmin_data - INFO - Garmin Sync: Fetching 1 days: ['2026-01-14']
+2026-01-14 21:43:57,209 - garminconnect - DEBUG - Requesting user summary
+2026-01-14 21:43:57,489 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /usersummary-service/usersummary/daily/Lyskovsky?calendarDate=2026-01-14 HTTP/1.1" 200 None
+2026-01-14 22:00:00,450 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-01-14 22:00:00,490 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-01-14 22:00:11,796 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-01-14 22:09:55,380 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-01-14 22:09:55,413 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-01-14 22:10:06,986 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
