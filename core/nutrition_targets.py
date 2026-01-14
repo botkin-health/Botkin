@@ -20,36 +20,44 @@ def get_user_settings() -> Dict:
         'deficit_pct': float(os.getenv('TARGET_DEFICIT_PCT', DEFAULT_DEFICIT_PCT)),
     }
 
-def calculate_targets(avg_tdee: float) -> Dict:
+def calculate_targets(avg_tdee: Optional[float] = None, stats: Optional[Dict] = None) -> Dict:
     """
-    Рассчитывает целевые калории и макросы на основе TDEE и параметров пользователя.
-    
-    Алгоритм:
-    1. Target Calories = TDEE * (1 - deficit_pct)
-       - Ограничение дефицита: не более 700 ккал
-       - Target не может быть больше TDEE (чтобы не было профицита)
-    2. Protein = weight * protein_per_kg
-    3. Fats = weight * fat_per_kg_min
-    4. Carbs = (Target - Protein*4 - Fats*9) / 4
-       - Если Carbs < 0: снижаем жиры до 0.5 г/кг, пересчитываем
-       - Если всё равно < 0: снижаем белок до 1.6 г/кг, пересчитываем
+    Рассчитывает целевые калории и макросы.
+    Можно передать avg_tdee напрямую или словарь stats от garmin_data.
+    Если данных нет или они слишком низкие (<1500), используются Fallback значения.
     """
     settings = get_user_settings()
     weight = settings['weight_kg']
     deficit_pct = settings['deficit_pct']
     
+    # Fallback Values (для мужчины 48 лет, 82 кг, ~170 см)
+    # BMR Mifflin-St Jeor: ~1750 + активность. Garmin BMR обычно ~1950 (включает бытовую?)
+    FALLBACK_BMR = 1950
+    FALLBACK_ACTIVE = 400
+    FALLBACK_TDEE = FALLBACK_BMR + FALLBACK_ACTIVE  # 2350
+    
+    estimated_tdee = 0.0
+    
+    if stats and stats.get('total', 0) > 1500:
+        estimated_tdee = stats['total']
+    elif avg_tdee and avg_tdee > 1500:
+        estimated_tdee = avg_tdee
+    else:
+        # Если данных нет, используем Fallback
+        estimated_tdee = FALLBACK_TDEE
+        
     # 1. Считаем целевые калории
-    target_calories = round(avg_tdee * (1 - deficit_pct))
+    target_calories = round(estimated_tdee * (1 - deficit_pct))
     
     # Проверка на максимальный дефицит (безопасность)
-    max_deficit = 700
-    actual_deficit = avg_tdee - target_calories
+    max_deficit = 800
+    actual_deficit = estimated_tdee - target_calories
     if actual_deficit > max_deficit:
-        target_calories = round(avg_tdee - max_deficit)
+        target_calories = round(estimated_tdee - max_deficit)
         
-    # Проверка на превышение TDEE (странный случай, но возможен при отрицательном deficit_pct)
-    if target_calories > avg_tdee:
-        target_calories = round(avg_tdee)
+    # Проверка на превышение TDEE
+    if target_calories > estimated_tdee:
+        target_calories = round(estimated_tdee)
         
     # 2. Считаем макросы
     # Белки - фиксировано от веса
@@ -93,7 +101,7 @@ def calculate_targets(avg_tdee: float) -> Dict:
         'protein': protein_g,
         'fats': fats_g,
         'carbs': carbs_g,
-        'avg_tdee': round(avg_tdee)
+        'avg_tdee': round(estimated_tdee)
     }
 
 def check_feasibility(remaining_calories: float, remaining_protein: float) -> Optional[str]:

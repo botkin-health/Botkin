@@ -8,11 +8,11 @@ from aiogram.types import Message
 from aiogram.filters import Command
 from datetime import datetime
 
-from services.storage import get_today_totals
-from services.garmin_data import get_garmin_data_for_date, get_average_calories
-from services.weekly_nutrition import analyze_weekly_nutrition
-from services.nutrition_targets import calculate_targets, check_feasibility
-from services.supplement_service import supplement_service
+from core.storage import get_today_totals
+from core.garmin_data import get_garmin_data_for_date, get_average_stats
+from core.weekly_nutrition import analyze_weekly_nutrition
+from core.nutrition_targets import calculate_targets, check_feasibility
+from core.supplements import supplement_service
 
 router = Router()
 
@@ -59,37 +59,33 @@ async def cmd_day(message: Message):
     """Обработчик команды /day (бывший /status) - итоги дня"""
     import logging
     import asyncio
-    from services.garmin_data import update_today_data
+    from core.garmin_data import sync_garmin_data, get_average_stats
     
     logger = logging.getLogger(__name__)
     logger.info(f"📊 Команда /day вызвана пользователем {message.from_user.id}")
     
-    status_msg = await message.answer("🔄 Обновляю данные из Garmin...")
+    status_msg = await message.answer("🔄 Синхронизирую данные Garmin...")
     
     try:
         # Update Garmin Data (in thread to not block event loop)
-        await asyncio.to_thread(update_today_data)
+        await asyncio.to_thread(sync_garmin_data)
         
         today = datetime.now().strftime('%Y-%m-%d')
         today_formatted = datetime.now().strftime('%d.%m.%Y')
         
         totals = get_today_totals()
         
-        # Garmin Data
+        # Garmin Data (Actual for TODAY)
         garmin_data = get_garmin_data_for_date(today)
         active_calories = 0.0
-        steps = 0
         if garmin_data:
             active_calories = garmin_data.get('activeKilocalories', 0.0) or 0.0
-            # Try to find steps
-            # Data format from update_today_data: {'stats': ..., 'daily_steps': ...}
-            # We need to adapt get_garmin_data_for_date or read manually.
-            # Currently get_garmin_data_for_date returns 'stats' sub-dict.
-            # Active cals are in stats.
         
-        # Targets
-        avg_calories = get_average_calories(days=14)
-        targets_data = calculate_targets(avg_calories)
+        # Targets Calculation (Based on Average History)
+        # Получаем средние статы за 14 дней для расчета планки
+        avg_stats = get_average_stats(days=14) 
+        targets_data = calculate_targets(stats=avg_stats) # Передаем словарь stats
+        
         targets = {
             'calories': targets_data['calories'],
             'protein': targets_data['protein'],
@@ -104,7 +100,7 @@ async def cmd_day(message: Message):
         }
         
         # Supplements Status
-        supplements_text = supplement_service.get_daily_status()
+        supplements_text = supplement_service.get_brief_status()
         
         # Response Construction
         response_parts = [
@@ -116,7 +112,7 @@ async def cmd_day(message: Message):
             f"• Жиры: {totals['fats']:.0f} / {targets['fats']} г",
             f"• Углеводы: {totals['carbs']:.0f} / {targets['carbs']} г",
             "",
-            f"🔥 Активность: <b>{active_calories:.0f}</b> ккал",
+            f"🔥 Активность (сегодня): <b>{active_calories:.0f}</b> ккал",
             "",
             supplements_text
         ]
@@ -139,7 +135,7 @@ async def cmd_day(message: Message):
 async def cmd_vitamins(message: Message):
     """Обработчик команды /vitamins - статус приема добавок"""
     try:
-        status = supplement_service.get_daily_status()
+        status = supplement_service.get_detailed_schedule()
         await message.answer(status)
     except Exception as e:
         await message.answer(f"❌ Ошибка: {e}")
@@ -173,8 +169,8 @@ async def cmd_week(message: Message):
         # Actually verify logic: calculate_targets needs BMR or Avg.
         # Let's use the avg_cal from the week report itself as the "maintenance estimate" basis?
         # Or better: use the same standard get_average_calories(14) to be consistent with daily.
-        base_avg_cals = get_average_calories(days=14) 
-        targets_data = calculate_targets(base_avg_cals)
+        base_avg_stats = get_average_stats(days=14) 
+        targets_data = calculate_targets(stats=base_avg_stats)
         target_cal = targets_data['calories']
         target_prot = targets_data['protein']
         

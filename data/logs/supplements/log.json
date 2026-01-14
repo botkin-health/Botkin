@@ -14,5 +14,16 @@
     "psyllium": true,
     "sterols_pm": true,
     "zinc": true
+  },
+  "2026-01-13": {
+    "psyllium": true,
+    "sterols_am": true,
+    "vit_d": true,
+    "omega": true,
+    "zinc": true,
+    "sterols_pm": true
+  },
+  "2026-01-14": {
+    "psyllium": true
   }
 }

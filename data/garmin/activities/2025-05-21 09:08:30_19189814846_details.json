@@ -79,14 +79,14 @@
     "calendarEventInfo": null,
     "groupRideUUID": null,
     "hasHeatMap": false,
-    "runPowerWindDataEnabled": true,
     "personalRecord": false,
     "gcj02": false,
-    "manualActivity": false,
-    "elevationCorrected": false,
+    "runPowerWindDataEnabled": true,
     "trimmed": false,
+    "manualActivity": false,
     "autoCalcCalories": false,
-    "favorite": false
+    "favorite": false,
+    "elevationCorrected": false
   },
   "summaryDTO": {
     "startTimeLocal": "2025-05-21T09:08:30.0",

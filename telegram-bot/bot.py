@@ -8,6 +8,9 @@ import logging
 import sys
 from pathlib import Path
 
+# Добавляем корень проекта в sys.path
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+
 from aiogram import Bot, Dispatcher, F
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.client.default import DefaultBotProperties

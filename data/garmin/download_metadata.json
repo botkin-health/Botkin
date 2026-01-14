@@ -1,15 +1,15 @@
 {
-  "download_date": "2026-01-12T23:59:56.286131",
+  "download_date": "2026-01-14T13:57:33.903748",
   "period": {
-    "start": "2025-01-12",
-    "end": "2026-01-12"
+    "start": "2025-01-14",
+    "end": "2026-01-14"
   },
   "results": {
-    "activities": 26,
+    "activities": 27,
     "daily_summary": 1,
-    "sleep": 1,
-    "body_battery": 1,
-    "stress": 1,
-    "hrv": 1
+    "sleep": 2,
+    "body_battery": 2,
+    "stress": 2,
+    "hrv": 2
   }
 }

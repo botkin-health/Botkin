@@ -82,9 +82,9 @@
     "runPowerWindDataEnabled": true,
     "personalRecord": false,
     "gcj02": false,
-    "manualActivity": false,
     "elevationCorrected": false,
     "trimmed": false,
+    "manualActivity": false,
     "autoCalcCalories": false,
     "favorite": false
   },

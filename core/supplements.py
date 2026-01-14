@@ -11,7 +11,10 @@ class SupplementService:
     def __init__(self):
         self.data_dir = Path(__file__).parent.parent / 'data'
         self.supplements_file = self.data_dir / 'supplements.json'
-        self.log_file = self.data_dir / 'supplements_log.json'
+        # Log is now in data/logs/supplements/log.json
+        self.log_file = self.data_dir / 'logs' / 'supplements' / 'log.json'
+        # Ensure dir exists
+        self.log_file.parent.mkdir(parents=True, exist_ok=True)
         
         self.schema = self._load_schema()
         self._ensure_log_file()
@@ -204,8 +207,11 @@ class SupplementService:
                 
         return remaining
 
-    def get_daily_status(self) -> str:
-        """Returns a formatted string of what was taken and what is left (Compact)"""
+    def get_brief_status(self) -> str:
+        """
+        Returns a compact status for /day command.
+        Contains ONLY taken/remaining blocks. NO schedule.
+        """
         today_str = datetime.now().strftime('%Y-%m-%d')
         log_data = self._get_log()
         daily_log = log_data.get(today_str, {})
@@ -223,12 +229,8 @@ class SupplementService:
             name = item['name']
             
             if item['id'] in daily_log:
-                # Just names for the single line
-                # Strip (Утро)/(Вечер) to be cleaner if needed? User didn't ask, but let's keep it simple.
-                # Actually user said "💊 Витамины: в одну строчку что принято"
                 taken_names.append(name)
             elif item['time'] != 'situational':
-                # Remaining list
                 remaining_list.append(f"⭕️ {name}")
                 
         # Build logic
@@ -238,19 +240,52 @@ class SupplementService:
         else:
             result += "—"
         
-        result += "\n\n"
-        
         if remaining_list:
-            result += "<b>Осталось:</b>\n" + "\n".join(remaining_list)
+            result += "\n<b>Осталось:</b> " + ", ".join(remaining_list)
         elif taken_names:
-            result += "🎉 <b>Всё принято!</b>"
-            
-        # Add Schedule Block
-        result += "\n\n<b>📋 Схема приема:</b>\n"
-        result += "☀️ <b>Утро:</b> Псиллиум + Вода ⮕ <i>40 мин</i> ⮕ Завтрак + Д3, Омега, Стеролы.\n"
-        result += "🌙 <b>Вечер:</b> Ужин + Стеролы, Цинк, Магний."
+            result += "\n🎉 <b>Всё принято!</b>"
             
         return result
+
+    def get_detailed_schedule(self) -> str:
+        """
+        Returns detailed status for /vitamins command.
+        Includes Status + Detailed Schedule with doses.
+        """
+        # 1. Base Status (using brief logic but maybe formatted differently if needed)
+        status_part = self.get_brief_status()
+        
+        # 2. Build Dynamic Schedule
+        schedule_map = {'morning': [], 'evening': [], 'situational': []}
+        
+        for item in self.schema:
+            if not item.get('is_active', True):
+                continue
+            
+            time_key = item['time']
+            if time_key not in schedule_map:
+                continue
+            
+            # Format: "Name (Dose)"
+            dose = item.get('dose', '')
+            entry = f"{item['name']}"
+            if dose:
+                entry += f" ({dose})"
+            schedule_map[time_key].append(entry)
+            
+        result = status_part + "\n\n<b>📋 Схема приема:</b>\n"
+        
+        if schedule_map['morning']:
+            result += f"☀️ <b>Утро:</b> {', '.join(schedule_map['morning'])}.\n"
+            
+        if schedule_map['evening']:
+            result += f"🌙 <b>Вечер:</b> {', '.join(schedule_map['evening'])}.\n"
+            
+        return result
+
+    # Deprecated alias to keep code working if called elsewhere
+    def get_daily_status(self) -> str:
+        return self.get_brief_status()
 
 # Singleton instance
 supplement_service = SupplementService()

@@ -81,12 +81,12 @@
     "hasHeatMap": false,
     "personalRecord": false,
     "gcj02": false,
+    "runPowerWindDataEnabled": true,
+    "elevationCorrected": false,
     "autoCalcCalories": false,
     "favorite": false,
     "trimmed": false,
-    "manualActivity": false,
-    "elevationCorrected": false,
-    "runPowerWindDataEnabled": true
+    "manualActivity": false
   },
   "summaryDTO": {
     "startTimeLocal": "2025-11-16T18:34:17.0",

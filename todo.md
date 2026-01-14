@@ -1,17 +1,9 @@
 
 # Roadmap
 
-- [ ] **1. База знаний по добавкам (Приоритет: Сегодня)**
-    - [ ] Составить список (похудение, тестостерон, энергия, холестерин)
-    - [ ] Интегрировать в `HEALTH.md` и базу бота
-
-- [ ] **2. Бот: Трекинг добавок (Приоритет: Сегодня)**
-    - [ ] Модель данных "Склад" и "Потребление"
-    - [ ] Команды чекина (текст/фото) с обновлением остатков
-
-- [ ] **3. Голосовой ввод (Приоритет: Сегодня)**
-    - [ ] Распознавание голоса (Whisper/Telegram API)
-    - [ ] Парсинг съеденного из текста
+- [x] **3. Голосовой ввод**
+    - [x] Распознавание голоса (Whisper/Telegram API)
+    - [x] Парсинг съеденного из текста
 
 - [x] **Snapshot Testing for Nutrition Data**
     - [x] Create test fixtures for nutrition data (10 variants based on recent logs)
@@ -27,18 +19,25 @@
     - [ ] Configure systemd/Docker for auto-restart
     - [ ] Setup remote data access (or sync)
 
-- [ ] **Reporting Improvements**
-    - [ ] **Daily Status**: Simplify to show N meals, Total Calories/Macros, Remaining vs Target (considering deficit avg).
-    - [ ] **Weekly Analysis**: Summary of last 7 days, deficits/surpluses, specific nutrient recommendations.
+- [x] **Reporting Improvements**
+    - [x] **Daily Status**: Simplify to show N meals, Total Calories/Macros, Remaining vs Target (considering deficit avg).
+    - [x] **Weekly Analysis**: Summary of last 7 days, deficits/surpluses, specific nutrient recommendations.
 
 - [ ] **Multi-user Support & Auth**
     - [ ] Implement user authorization (whitelist or password)
     - [ ] Isolate data per user (separate `knowledge_base` / `nutrition_log` paths)
     - [ ] Configurable storage location per user
 
-- [ ] **Architectural Refactoring**
-    - [ ] Extract shared logic into `health_lib` or `core`
-    - [ ] Update `telegram-bot` and `scripts` to use shared library
+- [x] Create comprehensive backup
+- [x] Refactor module structure
+    - [x] Create `core` package
+    - [x] Move shared logic (`nutrition`, `storage`, etc.)
+    - [x] Standardize data paths to `HealthVault/data`
+- [x] Update import paths in Bot and Scripts
+- [x] Verify functionality
+    - [x] Develop verification script
+    - [x] Test photo/text/voice flows
+- [x] Generate final report (Russian)
 
 - [ ] **Stress Testing (Chaos Monkey)**
     - [ ] Generate 100 days of nutrition data

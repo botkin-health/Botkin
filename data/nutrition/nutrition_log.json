@@ -1189,6 +1189,147 @@
         "fats": 82.0,
         "carbs": 146.0
       }
+    },
+    {
+      "date": "2026-01-13",
+      "had_workout": false,
+      "meals": [
+        {
+          "meal": "Завтрак",
+          "time": "12:32",
+          "items": [
+            {
+              "food": "консервированный тунец",
+              "amount": 70.0,
+              "unit": "г",
+              "calories": 70,
+              "protein": 7,
+              "fats": 4,
+              "carbs": 10
+            },
+            {
+              "food": "кафа с тыквой",
+              "amount": 205.0,
+              "unit": "г",
+              "calories": 205,
+              "protein": 20,
+              "fats": 10,
+              "carbs": 31
+            },
+            {
+              "food": "квашенная капуста",
+              "amount": 80.0,
+              "unit": "г",
+              "calories": 20,
+              "protein": 2,
+              "fats": 0,
+              "carbs": 4
+            }
+          ]
+        },
+        {
+          "meal": "Обед",
+          "time": "17:19",
+          "items": [
+            {
+              "food": "мясо тушенного куриного бедра",
+              "amount": 200,
+              "unit": "г",
+              "calories": 200,
+              "protein": 16,
+              "fats": 8,
+              "carbs": 14
+            },
+            {
+              "food": "картофель отварной",
+              "amount": 200,
+              "unit": "г",
+              "calories": 160,
+              "protein": 4,
+              "fats": 0,
+              "carbs": 34
+            },
+            {
+              "food": "морковка и лук",
+              "amount": 50,
+              "unit": "г",
+              "calories": 24,
+              "protein": 1,
+              "fats": 0,
+              "carbs": 5
+            }
+          ]
+        },
+        {
+          "meal": "Вечерний перекус",
+          "time": "23:13",
+          "items": [
+            {
+              "food": "грецкий орех",
+              "amount": 10.0,
+              "unit": "г",
+              "calories": 65,
+              "protein": 2,
+              "fats": 6,
+              "carbs": 1
+            },
+            {
+              "food": "сыр",
+              "amount": 30.0,
+              "unit": "г",
+              "calories": 109,
+              "protein": 7,
+              "fats": 9,
+              "carbs": 0
+            },
+            {
+              "food": "капуста запечённая",
+              "amount": 200.0,
+              "unit": "г",
+              "calories": 50,
+              "protein": 4,
+              "fats": 1,
+              "carbs": 10
+            }
+          ]
+        },
+        {
+          "meal": "Ужин",
+          "time": "23:14",
+          "items": [
+            {
+              "food": "фишбургер из кеты с брокколи",
+              "amount": 200,
+              "unit": "г",
+              "calories": 360,
+              "protein": 36,
+              "fats": 16,
+              "carbs": 20
+            }
+          ]
+        },
+        {
+          "meal": "EXONENTA HIGH-PRO кокос-миндаль",
+          "time": "23:20",
+          "items": [
+            {
+              "food": "EXONENTA HIGH-PRO кокос-миндаль",
+              "amount": null,
+              "unit": "г",
+              "calories": 150,
+              "protein": 30,
+              "fats": 0,
+              "carbs": 6
+            }
+          ]
+        }
+      ],
+      "totals": {
+        "calories": 1412,
+        "protein": 128,
+        "fats": 54,
+        "carbs": 135
+      }
     }
   ]
 }

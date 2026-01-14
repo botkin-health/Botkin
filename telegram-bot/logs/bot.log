@@ -3850,3 +3850,634 @@ Exception: Ошибки при инициализации бота
 2026-01-13 00:51:41,611 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /userprofile-service/userprofile/user-settings HTTP/1.1" 200 None
 2026-01-13 00:51:41,612 - garminconnect - DEBUG - Requesting user summary
 2026-01-13 00:51:41,854 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /usersummary-service/usersummary/daily/Lyskovsky?calendarDate=2026-01-13 HTTP/1.1" 200 None
+2026-01-13 11:15:30,934 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-13 11:15:31,183 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-13 11:15:31,479 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+2026-01-13 11:15:31,479 - aiogram.dispatcher - INFO - Start polling
+2026-01-13 11:15:31,536 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-13 11:16:45,987 - handlers.text - INFO - 📝 Обработчик текста: получено сообщение от 895655: 'псилиум...'
+2026-01-13 11:16:45,987 - handlers.text - INFO - У пользователя 895655 нет состояния
+2026-01-13 11:16:45,987 - handlers.text - INFO - Обработка текстового описания без фото: 'псилиум'
+2026-01-13 11:16:46,199 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-13 11:16:46,531 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 403 None
+2026-01-13 11:18:13,493 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+2026-01-13 11:18:13,494 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-13 11:18:13,494 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-13 11:18:14,956 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-13 11:18:15,171 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-13 11:18:15,465 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+2026-01-13 11:18:15,465 - aiogram.dispatcher - INFO - Start polling
+2026-01-13 11:18:15,521 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-13 11:18:27,372 - handlers.text - INFO - 📝 Обработчик текста: получено сообщение от 895655: 'псилиум...'
+2026-01-13 11:18:27,372 - handlers.text - INFO - У пользователя 895655 нет состояния
+2026-01-13 12:28:12,407 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+2026-01-13 12:28:12,415 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-13 12:28:12,415 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-13 12:28:13,316 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-13 12:28:13,543 - core.voice_service - ERROR - ❌ OPENAI_API_KEY не найден в переменных окружения или файлах!
+2026-01-13 12:28:13,543 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-13 12:28:15,931 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+2026-01-13 12:28:15,932 - aiogram.dispatcher - INFO - Start polling
+2026-01-13 12:28:16,358 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-13 12:29:07,683 - handlers.text - INFO - 📝 Обработчик текста: получено сообщение от 895655: 'Завтрак:
+Консервированный тунец 70 грамм
+Пшенная кафа с тыквой 205 грамм
+Квашенная капуста 80 грамм...'
+2026-01-13 12:29:07,684 - handlers.text - INFO - У пользователя 895655 нет состояния
+2026-01-13 12:29:07,684 - handlers.text - INFO - Обработка текстового описания без фото: 'Завтрак:
+Консервированный тунец 70 грамм
+Пшенная кафа с тыквой 205 грамм
+Квашенная капуста 80 грамм'
+2026-01-13 12:29:13,638 - core.nutrition - INFO - Продукт 'пшенная кафа' не найден в базе, ищу в интернете...
+2026-01-13 12:29:13,639 - core.product_search - WARNING - OpenAI API key not found, skipping online search
+2026-01-13 12:29:13,639 - core.nutrition - WARNING - Продукт 'пшенная кафа' не найден, использую средние значения
+2026-01-13 12:29:13,640 - handlers.photo - INFO - Извлечено название приёма пищи: 'Завтрак' из описания: 'Завтрак:
+Консервированный тунец 70 грамм
+Пшенная к...'
+2026-01-13 12:29:13,640 - handlers.photo - INFO - Сохранено в состояние: meal_name='Завтрак', meal_time='12:29'
+2026-01-13 12:32:03,299 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+2026-01-13 12:32:03,300 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-13 12:32:03,300 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-13 12:32:04,137 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-13 12:32:04,344 - core.voice_service - ERROR - ❌ OPENAI_API_KEY не найден в переменных окружения или файлах!
+2026-01-13 12:32:04,344 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-13 12:32:05,989 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+2026-01-13 12:32:05,990 - aiogram.dispatcher - INFO - Start polling
+2026-01-13 12:32:06,297 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-13 12:32:35,528 - handlers.photo - INFO - Обработка callback: action=cancel, meal_type=regular, user_id=895655
+2026-01-13 12:32:57,241 - handlers.text - INFO - 📝 Обработчик текста: получено сообщение от 895655: 'Завтрак:
+Консервированный тунец 70 грамм
+Пшенная кафа с тыквой 205 грамм
+Квашенная капуста 80 грамм...'
+2026-01-13 12:32:57,241 - handlers.text - INFO - У пользователя 895655 нет состояния
+2026-01-13 12:32:57,242 - handlers.text - INFO - Обработка текстового описания без фото: 'Завтрак:
+Консервированный тунец 70 грамм
+Пшенная кафа с тыквой 205 грамм
+Квашенная капуста 80 грамм'
+2026-01-13 12:32:57,540 - core.nutrition - INFO - Продукт 'консервированный тунец' не найден в базе, ищу в интернете...
+2026-01-13 12:32:57,540 - core.product_search - WARNING - OpenAI API key not found, skipping online search
+2026-01-13 12:32:57,541 - core.nutrition - WARNING - Продукт 'консервированный тунец' не найден, использую средние значения
+2026-01-13 12:32:57,541 - core.nutrition - INFO - Продукт 'кафа с тыквой' не найден в базе, ищу в интернете...
+2026-01-13 12:32:57,542 - core.product_search - WARNING - OpenAI API key not found, skipping online search
+2026-01-13 12:32:57,542 - core.nutrition - WARNING - Продукт 'кафа с тыквой' не найден, использую средние значения
+2026-01-13 12:32:57,543 - handlers.photo - INFO - Извлечено название приёма пищи: 'Завтрак' из описания: 'Завтрак:
+Консервированный тунец 70 грамм
+Пшенная к...'
+2026-01-13 12:32:57,543 - handlers.photo - INFO - Сохранено в состояние: meal_name='Завтрак', meal_time='12:32'
+2026-01-13 12:33:11,030 - handlers.photo - INFO - Обработка callback: action=save, meal_type=regular, user_id=895655
+2026-01-13 12:33:11,031 - handlers.photo - INFO - Используется meal_name из состояния: 'Завтрак'
+2026-01-13 12:33:11,031 - handlers.photo - INFO - Сохранение блюда: meal_name='Завтрак', meal_type='regular'
+2026-01-13 12:33:35,487 - aiogram.event - ERROR - Cause exception while process update id=318623319 by bot id=8500310863
+ModuleNotFoundError: No module named 'services.garmin_data'
+Traceback (most recent call last):
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/dispatcher.py", line 320, in _process_update
+    response = await self.feed_update(bot, update, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/dispatcher.py", line 164, in feed_update
+    response = await self.update.wrap_outer_middleware(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/middlewares/error.py", line 27, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/middlewares/user_context.py", line 58, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/fsm/middleware.py", line 43, in __call__
+    return await handler(event, data)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/event/telegram.py", line 126, in trigger
+    return await wrapped_inner(event, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/event/handler.py", line 71, in call
+    return await wrapped()
+           ^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/dispatcher.py", line 283, in _listen_update
+    return await self.propagate_event(update_type=update_type, event=event, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/router.py", line 161, in propagate_event
+    return await observer.wrap_outer_middleware(_wrapped, event=event, data=kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/router.py", line 153, in _wrapped
+    return await self._propagate_event(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+    )
+    ^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/router.py", line 189, in _propagate_event
+    response = await router.propagate_event(update_type=update_type, event=event, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/router.py", line 161, in propagate_event
+    return await observer.wrap_outer_middleware(_wrapped, event=event, data=kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/router.py", line 153, in _wrapped
+    return await self._propagate_event(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+    )
+    ^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/router.py", line 181, in _propagate_event
+    response = await observer.trigger(event, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/event/telegram.py", line 126, in trigger
+    return await wrapped_inner(event, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/venv/lib/python3.13/site-packages/aiogram/dispatcher/event/handler.py", line 71, in call
+    return await wrapped()
+           ^^^^^^^^^^^^^^^
+  File "/Users/alexlyskovsky/HealthVault/telegram-bot/handlers/commands.py", line 62, in cmd_day
+    from services.garmin_data import update_today_data
+ModuleNotFoundError: No module named 'services.garmin_data'
+2026-01-13 12:35:05,521 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+2026-01-13 12:35:05,523 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-13 12:35:05,524 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-13 12:35:06,467 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-13 12:35:06,689 - core.voice_service - ERROR - ❌ OPENAI_API_KEY не найден в переменных окружения или файлах!
+2026-01-13 12:35:06,690 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-13 12:35:11,134 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+2026-01-13 12:35:11,135 - aiogram.dispatcher - INFO - Start polling
+2026-01-13 12:35:11,919 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-13 12:36:18,850 - handlers.commands - INFO - 📊 Команда /day вызвана пользователем 895655
+2026-01-13 12:36:19,951 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sso.garmin.com:443
+2026-01-13 12:36:21,496 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "GET /sso/embed?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso HTTP/1.1" 200 None
+2026-01-13 12:36:21,997 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "GET /sso/signin?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&service=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&source=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountLoginUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountCreationUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed HTTP/1.1" 200 None
+2026-01-13 12:36:24,392 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "POST /sso/signin?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&service=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&source=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountLoginUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountCreationUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed HTTP/1.1" 200 None
+2026-01-13 12:36:24,396 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): thegarth.s3.amazonaws.com:443
+2026-01-13 12:36:26,732 - urllib3.connectionpool - DEBUG - https://thegarth.s3.amazonaws.com:443 "GET /oauth_consumer.json HTTP/1.1" 200 124
+2026-01-13 12:36:26,735 - requests_oauthlib.oauth1_auth - DEBUG - Signing request <PreparedRequest [GET]> using client <Client client_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0, client_secret=****, resource_owner_key=None, resource_owner_secret=None, signature_method=HMAC-SHA1, signature_type=AUTH_HEADER, callback_uri=None, rsa_key=None, verifier=None, realm=None, encoding=utf-8, decoding=utf-8, nonce=None, timestamp=None>
+2026-01-13 12:36:26,735 - requests_oauthlib.oauth1_auth - DEBUG - Including body in call to sign: False
+2026-01-13 12:36:26,736 - oauthlib.oauth1.rfc5849 - DEBUG - Collected params: [('ticket', 'ST-2122815-Xv4iQIyxKw54CLMVpbeq-cas'), ('login-url', 'https://sso.garmin.com/sso/embed'), ('accepts-mfa-tokens', 'true'), ('oauth_nonce', '134909276081475094651768296986'), ('oauth_timestamp', '1768296986'), ('oauth_version', '1.0'), ('oauth_signature_method', 'HMAC-SHA1'), ('oauth_consumer_key', 'fc3e99d2-118c-44b8-8ae3-03370dde24c0')]
+2026-01-13 12:36:26,736 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized params: accepts-mfa-tokens=true&login-url=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&oauth_consumer_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0&oauth_nonce=134909276081475094651768296986&oauth_signature_method=HMAC-SHA1&oauth_timestamp=1768296986&oauth_version=1.0&ticket=ST-2122815-Xv4iQIyxKw54CLMVpbeq-cas
+2026-01-13 12:36:26,736 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized URI: https://connectapi.garmin.com/oauth-service/oauth/preauthorized
+2026-01-13 12:36:26,736 - oauthlib.oauth1.rfc5849 - DEBUG - Signing: signature base string: GET&https%3A%2F%2Fconnectapi.garmin.com%2Foauth-service%2Foauth%2Fpreauthorized&accepts-mfa-tokens%3Dtrue%26login-url%3Dhttps%253A%252F%252Fsso.garmin.com%252Fsso%252Fembed%26oauth_consumer_key%3Dfc3e99d2-118c-44b8-8ae3-03370dde24c0%26oauth_nonce%3D134909276081475094651768296986%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1768296986%26oauth_version%3D1.0%26ticket%3DST-2122815-Xv4iQIyxKw54CLMVpbeq-cas
+2026-01-13 12:36:26,736 - oauthlib.oauth1.rfc5849 - DEBUG - Signature: vPQFMJtWkF3pRTuwCM47bOVe/8Q=
+2026-01-13 12:36:26,736 - oauthlib.oauth1.rfc5849 - DEBUG - Encoding URI, headers and body to utf-8.
+2026-01-13 12:36:26,737 - requests_oauthlib.oauth1_auth - DEBUG - Updated url: https://connectapi.garmin.com/oauth-service/oauth/preauthorized?ticket=ST-2122815-Xv4iQIyxKw54CLMVpbeq-cas&login-url=https://sso.garmin.com/sso/embed&accepts-mfa-tokens=true
+2026-01-13 12:36:26,737 - requests_oauthlib.oauth1_auth - DEBUG - Updated headers: {b'User-Agent': b'com.garmin.android.apps.connectmobile', b'Accept-Encoding': b'gzip, deflate', b'Accept': b'*/*', b'Connection': b'keep-alive', b'Authorization': b'OAuth oauth_nonce="134909276081475094651768296986", oauth_timestamp="1768296986", oauth_version="1.0", oauth_signature_method="HMAC-SHA1", oauth_consumer_key="fc3e99d2-118c-44b8-8ae3-03370dde24c0", oauth_signature="vPQFMJtWkF3pRTuwCM47bOVe%2F8Q%3D"'}
+2026-01-13 12:36:26,737 - requests_oauthlib.oauth1_auth - DEBUG - Updated body: None
+2026-01-13 12:36:26,738 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): connectapi.garmin.com:443
+2026-01-13 12:36:31,428 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /oauth-service/oauth/preauthorized?ticket=ST-2122815-Xv4iQIyxKw54CLMVpbeq-cas&login-url=https://sso.garmin.com/sso/embed&accepts-mfa-tokens=true HTTP/1.1" 200 None
+2026-01-13 12:36:31,431 - requests_oauthlib.oauth1_auth - DEBUG - Signing request <PreparedRequest [POST]> using client <Client client_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0, client_secret=****, resource_owner_key=3d6345ce-0ead-42e6-adee-2bda9ffe2426, resource_owner_secret=****, signature_method=HMAC-SHA1, signature_type=AUTH_HEADER, callback_uri=None, rsa_key=None, verifier=None, realm=None, encoding=utf-8, decoding=utf-8, nonce=None, timestamp=None>
+2026-01-13 12:36:31,431 - requests_oauthlib.oauth1_auth - DEBUG - Including body in call to sign: True
+2026-01-13 12:36:31,431 - oauthlib.oauth1.rfc5849 - DEBUG - Collected params: [('oauth_nonce', '141547029567422135521768296991'), ('oauth_timestamp', '1768296991'), ('oauth_version', '1.0'), ('oauth_signature_method', 'HMAC-SHA1'), ('oauth_consumer_key', 'fc3e99d2-118c-44b8-8ae3-03370dde24c0'), ('oauth_token', '3d6345ce-0ead-42e6-adee-2bda9ffe2426')]
+2026-01-13 12:36:31,432 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized params: oauth_consumer_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0&oauth_nonce=141547029567422135521768296991&oauth_signature_method=HMAC-SHA1&oauth_timestamp=1768296991&oauth_token=3d6345ce-0ead-42e6-adee-2bda9ffe2426&oauth_version=1.0
+2026-01-13 12:36:31,432 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized URI: https://connectapi.garmin.com/oauth-service/oauth/exchange/user/2.0
+2026-01-13 12:36:31,432 - oauthlib.oauth1.rfc5849 - DEBUG - Signing: signature base string: POST&https%3A%2F%2Fconnectapi.garmin.com%2Foauth-service%2Foauth%2Fexchange%2Fuser%2F2.0&oauth_consumer_key%3Dfc3e99d2-118c-44b8-8ae3-03370dde24c0%26oauth_nonce%3D141547029567422135521768296991%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1768296991%26oauth_token%3D3d6345ce-0ead-42e6-adee-2bda9ffe2426%26oauth_version%3D1.0
+2026-01-13 12:36:31,432 - oauthlib.oauth1.rfc5849 - DEBUG - Signature: smxQ+7xGz25F6ohgvvplR97Hx64=
+2026-01-13 12:36:31,432 - oauthlib.oauth1.rfc5849 - DEBUG - Encoding URI, headers and body to utf-8.
+2026-01-13 12:36:31,432 - requests_oauthlib.oauth1_auth - DEBUG - Updated url: https://connectapi.garmin.com/oauth-service/oauth/exchange/user/2.0
+2026-01-13 12:36:31,432 - requests_oauthlib.oauth1_auth - DEBUG - Updated headers: {b'User-Agent': b'com.garmin.android.apps.connectmobile', b'Accept-Encoding': b'gzip, deflate', b'Accept': b'*/*', b'Connection': b'keep-alive', b'Content-Type': b'application/x-www-form-urlencoded', b'Content-Length': b'0', b'Authorization': b'OAuth oauth_nonce="141547029567422135521768296991", oauth_timestamp="1768296991", oauth_version="1.0", oauth_signature_method="HMAC-SHA1", oauth_consumer_key="fc3e99d2-118c-44b8-8ae3-03370dde24c0", oauth_token="3d6345ce-0ead-42e6-adee-2bda9ffe2426", oauth_signature="smxQ%2B7xGz25F6ohgvvplR97Hx64%3D"'}
+2026-01-13 12:36:31,432 - requests_oauthlib.oauth1_auth - DEBUG - Updated body: ''
+2026-01-13 12:36:32,164 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "POST /oauth-service/oauth/exchange/user/2.0 HTTP/1.1" 200 None
+2026-01-13 12:36:32,680 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /userprofile-service/socialProfile HTTP/1.1" 200 None
+2026-01-13 12:36:33,328 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /userprofile-service/userprofile/user-settings HTTP/1.1" 200 None
+2026-01-13 12:36:33,335 - garminconnect - DEBUG - Requesting user summary
+2026-01-13 12:36:34,108 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /usersummary-service/usersummary/daily/Lyskovsky?calendarDate=2026-01-13 HTTP/1.1" 200 None
+2026-01-13 12:37:09,591 - handlers.text - INFO - 📝 Обработчик текста: получено сообщение от 895655: 'Принял за завтраком: Витамин D3, Омега (2 капсулы) и Стеролы (2 капсулы)...'
+2026-01-13 12:37:09,592 - handlers.text - INFO - У пользователя 895655 нет состояния
+2026-01-13 12:44:42,484 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+2026-01-13 12:44:42,488 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-13 12:44:42,489 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-13 12:44:43,733 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-13 12:44:44,414 - core.voice_service - ERROR - ❌ OPENAI_API_KEY не найден в переменных окружения или файлах!
+2026-01-13 12:44:44,415 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-13 12:44:47,466 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+2026-01-13 12:44:47,467 - aiogram.dispatcher - INFO - Start polling
+2026-01-13 12:44:47,857 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-13 12:46:53,027 - handlers.commands - INFO - 📊 Команда /day вызвана пользователем 895655
+2026-01-13 12:46:54,446 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sso.garmin.com:443
+2026-01-13 12:46:58,841 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "GET /sso/embed?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso HTTP/1.1" 200 None
+2026-01-13 12:46:59,564 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "GET /sso/signin?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&service=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&source=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountLoginUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountCreationUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed HTTP/1.1" 200 None
+2026-01-13 12:47:01,055 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "POST /sso/signin?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&service=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&source=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountLoginUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountCreationUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed HTTP/1.1" 200 None
+2026-01-13 12:47:01,059 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): thegarth.s3.amazonaws.com:443
+2026-01-13 12:47:02,818 - urllib3.connectionpool - DEBUG - https://thegarth.s3.amazonaws.com:443 "GET /oauth_consumer.json HTTP/1.1" 200 124
+2026-01-13 12:47:02,820 - requests_oauthlib.oauth1_auth - DEBUG - Signing request <PreparedRequest [GET]> using client <Client client_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0, client_secret=****, resource_owner_key=None, resource_owner_secret=None, signature_method=HMAC-SHA1, signature_type=AUTH_HEADER, callback_uri=None, rsa_key=None, verifier=None, realm=None, encoding=utf-8, decoding=utf-8, nonce=None, timestamp=None>
+2026-01-13 12:47:02,820 - requests_oauthlib.oauth1_auth - DEBUG - Including body in call to sign: False
+2026-01-13 12:47:02,821 - oauthlib.oauth1.rfc5849 - DEBUG - Collected params: [('ticket', 'ST-2173066-sxCMhKmpSceiGdYyNF3V-cas'), ('login-url', 'https://sso.garmin.com/sso/embed'), ('accepts-mfa-tokens', 'true'), ('oauth_nonce', '22499702104571969741768297622'), ('oauth_timestamp', '1768297622'), ('oauth_version', '1.0'), ('oauth_signature_method', 'HMAC-SHA1'), ('oauth_consumer_key', 'fc3e99d2-118c-44b8-8ae3-03370dde24c0')]
+2026-01-13 12:47:02,821 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized params: accepts-mfa-tokens=true&login-url=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&oauth_consumer_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0&oauth_nonce=22499702104571969741768297622&oauth_signature_method=HMAC-SHA1&oauth_timestamp=1768297622&oauth_version=1.0&ticket=ST-2173066-sxCMhKmpSceiGdYyNF3V-cas
+2026-01-13 12:47:02,821 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized URI: https://connectapi.garmin.com/oauth-service/oauth/preauthorized
+2026-01-13 12:47:02,821 - oauthlib.oauth1.rfc5849 - DEBUG - Signing: signature base string: GET&https%3A%2F%2Fconnectapi.garmin.com%2Foauth-service%2Foauth%2Fpreauthorized&accepts-mfa-tokens%3Dtrue%26login-url%3Dhttps%253A%252F%252Fsso.garmin.com%252Fsso%252Fembed%26oauth_consumer_key%3Dfc3e99d2-118c-44b8-8ae3-03370dde24c0%26oauth_nonce%3D22499702104571969741768297622%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1768297622%26oauth_version%3D1.0%26ticket%3DST-2173066-sxCMhKmpSceiGdYyNF3V-cas
+2026-01-13 12:47:02,821 - oauthlib.oauth1.rfc5849 - DEBUG - Signature: Gv7ie9Ev898/RNmdUpjsaWSk088=
+2026-01-13 12:47:02,821 - oauthlib.oauth1.rfc5849 - DEBUG - Encoding URI, headers and body to utf-8.
+2026-01-13 12:47:02,821 - requests_oauthlib.oauth1_auth - DEBUG - Updated url: https://connectapi.garmin.com/oauth-service/oauth/preauthorized?ticket=ST-2173066-sxCMhKmpSceiGdYyNF3V-cas&login-url=https://sso.garmin.com/sso/embed&accepts-mfa-tokens=true
+2026-01-13 12:47:02,821 - requests_oauthlib.oauth1_auth - DEBUG - Updated headers: {b'User-Agent': b'com.garmin.android.apps.connectmobile', b'Accept-Encoding': b'gzip, deflate', b'Accept': b'*/*', b'Connection': b'keep-alive', b'Authorization': b'OAuth oauth_nonce="22499702104571969741768297622", oauth_timestamp="1768297622", oauth_version="1.0", oauth_signature_method="HMAC-SHA1", oauth_consumer_key="fc3e99d2-118c-44b8-8ae3-03370dde24c0", oauth_signature="Gv7ie9Ev898%2FRNmdUpjsaWSk088%3D"'}
+2026-01-13 12:47:02,821 - requests_oauthlib.oauth1_auth - DEBUG - Updated body: None
+2026-01-13 12:47:02,822 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): connectapi.garmin.com:443
+2026-01-13 12:47:08,522 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /oauth-service/oauth/preauthorized?ticket=ST-2173066-sxCMhKmpSceiGdYyNF3V-cas&login-url=https://sso.garmin.com/sso/embed&accepts-mfa-tokens=true HTTP/1.1" 200 None
+2026-01-13 12:47:08,524 - requests_oauthlib.oauth1_auth - DEBUG - Signing request <PreparedRequest [POST]> using client <Client client_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0, client_secret=****, resource_owner_key=3d6345ce-0ead-42e6-adee-2bda9ffe2426, resource_owner_secret=****, signature_method=HMAC-SHA1, signature_type=AUTH_HEADER, callback_uri=None, rsa_key=None, verifier=None, realm=None, encoding=utf-8, decoding=utf-8, nonce=None, timestamp=None>
+2026-01-13 12:47:08,524 - requests_oauthlib.oauth1_auth - DEBUG - Including body in call to sign: True
+2026-01-13 12:47:08,525 - oauthlib.oauth1.rfc5849 - DEBUG - Collected params: [('oauth_nonce', '90666292290095506831768297628'), ('oauth_timestamp', '1768297628'), ('oauth_version', '1.0'), ('oauth_signature_method', 'HMAC-SHA1'), ('oauth_consumer_key', 'fc3e99d2-118c-44b8-8ae3-03370dde24c0'), ('oauth_token', '3d6345ce-0ead-42e6-adee-2bda9ffe2426')]
+2026-01-13 12:47:08,525 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized params: oauth_consumer_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0&oauth_nonce=90666292290095506831768297628&oauth_signature_method=HMAC-SHA1&oauth_timestamp=1768297628&oauth_token=3d6345ce-0ead-42e6-adee-2bda9ffe2426&oauth_version=1.0
+2026-01-13 12:47:08,525 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized URI: https://connectapi.garmin.com/oauth-service/oauth/exchange/user/2.0
+2026-01-13 12:47:08,525 - oauthlib.oauth1.rfc5849 - DEBUG - Signing: signature base string: POST&https%3A%2F%2Fconnectapi.garmin.com%2Foauth-service%2Foauth%2Fexchange%2Fuser%2F2.0&oauth_consumer_key%3Dfc3e99d2-118c-44b8-8ae3-03370dde24c0%26oauth_nonce%3D90666292290095506831768297628%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1768297628%26oauth_token%3D3d6345ce-0ead-42e6-adee-2bda9ffe2426%26oauth_version%3D1.0
+2026-01-13 12:47:08,525 - oauthlib.oauth1.rfc5849 - DEBUG - Signature: +50VAgeNC+YE6rueXTYz1lejgEc=
+2026-01-13 12:47:08,525 - oauthlib.oauth1.rfc5849 - DEBUG - Encoding URI, headers and body to utf-8.
+2026-01-13 12:47:08,525 - requests_oauthlib.oauth1_auth - DEBUG - Updated url: https://connectapi.garmin.com/oauth-service/oauth/exchange/user/2.0
+2026-01-13 12:47:08,525 - requests_oauthlib.oauth1_auth - DEBUG - Updated headers: {b'User-Agent': b'com.garmin.android.apps.connectmobile', b'Accept-Encoding': b'gzip, deflate', b'Accept': b'*/*', b'Connection': b'keep-alive', b'Content-Type': b'application/x-www-form-urlencoded', b'Content-Length': b'0', b'Authorization': b'OAuth oauth_nonce="90666292290095506831768297628", oauth_timestamp="1768297628", oauth_version="1.0", oauth_signature_method="HMAC-SHA1", oauth_consumer_key="fc3e99d2-118c-44b8-8ae3-03370dde24c0", oauth_token="3d6345ce-0ead-42e6-adee-2bda9ffe2426", oauth_signature="%2B50VAgeNC%2BYE6rueXTYz1lejgEc%3D"'}
+2026-01-13 12:47:08,525 - requests_oauthlib.oauth1_auth - DEBUG - Updated body: ''
+2026-01-13 12:47:09,323 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "POST /oauth-service/oauth/exchange/user/2.0 HTTP/1.1" 200 None
+2026-01-13 12:47:10,066 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /userprofile-service/socialProfile HTTP/1.1" 200 None
+2026-01-13 12:47:10,456 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /userprofile-service/userprofile/user-settings HTTP/1.1" 200 None
+2026-01-13 12:47:10,461 - garminconnect - DEBUG - Requesting user summary
+2026-01-13 12:47:10,895 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /usersummary-service/usersummary/daily/Lyskovsky?calendarDate=2026-01-13 HTTP/1.1" 200 None
+2026-01-13 12:47:10,904 - handlers.commands - ERROR - Error in /day: name 'weight' is not defined
+Traceback (most recent call last):
+  File "/Users/alexlyskovsky/HealthVault/telegram-bot/handlers/commands.py", line 87, in cmd_day
+    targets_data = calculate_targets(stats=avg_stats) # Передаем словарь stats
+  File "/Users/alexlyskovsky/HealthVault/core/nutrition_targets.py", line 63, in calculate_targets
+    protein_g = round(weight * settings['protein_per_kg'])
+                      ^^^^^^
+NameError: name 'weight' is not defined
+2026-01-13 12:48:13,558 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-13 12:48:13,764 - core.voice_service - ERROR - ❌ OPENAI_API_KEY не найден в переменных окружения или файлах!
+2026-01-13 12:48:13,764 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-13 12:48:16,408 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+2026-01-13 12:48:16,409 - aiogram.dispatcher - INFO - Start polling
+2026-01-13 12:48:16,672 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-13 12:48:17,415 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-13 12:48:17,415 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-01-13 12:48:21,872 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-13 12:48:21,873 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-01-13 12:48:23,314 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-13 12:48:23,315 - aiogram.dispatcher - WARNING - Sleep for 1.269578 seconds and try again... (tryings = 1, bot id = 8500310863)
+2026-01-13 12:48:28,031 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-13 12:48:28,032 - aiogram.dispatcher - WARNING - Sleep for 1.294682 seconds and try again... (tryings = 1, bot id = 8500310863)
+2026-01-13 12:48:29,876 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-13 12:48:29,876 - aiogram.dispatcher - WARNING - Sleep for 1.534368 seconds and try again... (tryings = 2, bot id = 8500310863)
+2026-01-13 12:48:34,849 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-13 12:48:34,850 - aiogram.dispatcher - WARNING - Sleep for 1.634751 seconds and try again... (tryings = 2, bot id = 8500310863)
+2026-01-13 12:48:36,889 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-13 12:48:36,889 - aiogram.dispatcher - WARNING - Sleep for 1.931813 seconds and try again... (tryings = 3, bot id = 8500310863)
+2026-01-13 12:48:42,260 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-13 12:48:42,260 - aiogram.dispatcher - WARNING - Sleep for 2.029170 seconds and try again... (tryings = 3, bot id = 8500310863)
+2026-01-13 12:48:44,820 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-13 12:48:44,820 - aiogram.dispatcher - WARNING - Sleep for 2.552309 seconds and try again... (tryings = 4, bot id = 8500310863)
+2026-01-13 12:48:48,157 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-13 12:48:48,157 - aiogram.dispatcher - WARNING - Sleep for 2.622496 seconds and try again... (tryings = 4, bot id = 8500310863)
+2026-01-13 12:48:51,144 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-13 12:48:51,144 - aiogram.dispatcher - WARNING - Sleep for 3.416988 seconds and try again... (tryings = 5, bot id = 8500310863)
+2026-01-13 12:48:54,923 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-13 12:48:54,923 - aiogram.dispatcher - WARNING - Sleep for 3.411098 seconds and try again... (tryings = 5, bot id = 8500310863)
+2026-01-13 12:48:58,750 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-13 12:48:58,751 - aiogram.dispatcher - WARNING - Sleep for 4.435727 seconds and try again... (tryings = 6, bot id = 8500310863)
+2026-01-13 12:48:59,369 - aiogram.dispatcher - INFO - Connection established (tryings = 6, bot id = 8500310863)
+2026-01-13 12:48:59,370 - handlers.commands - INFO - 📊 Команда /day вызвана пользователем 895655
+2026-01-13 12:48:59,574 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sso.garmin.com:443
+2026-01-13 12:49:01,437 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "GET /sso/embed?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso HTTP/1.1" 200 None
+2026-01-13 12:49:02,113 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "GET /sso/signin?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&service=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&source=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountLoginUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountCreationUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed HTTP/1.1" 200 None
+2026-01-13 12:49:03,612 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "POST /sso/signin?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&service=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&source=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountLoginUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountCreationUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed HTTP/1.1" 200 None
+2026-01-13 12:49:03,614 - requests_oauthlib.oauth1_auth - DEBUG - Signing request <PreparedRequest [GET]> using client <Client client_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0, client_secret=****, resource_owner_key=None, resource_owner_secret=None, signature_method=HMAC-SHA1, signature_type=AUTH_HEADER, callback_uri=None, rsa_key=None, verifier=None, realm=None, encoding=utf-8, decoding=utf-8, nonce=None, timestamp=None>
+2026-01-13 12:49:03,614 - requests_oauthlib.oauth1_auth - DEBUG - Including body in call to sign: False
+2026-01-13 12:49:03,615 - oauthlib.oauth1.rfc5849 - DEBUG - Collected params: [('ticket', 'ST-282366-RsU9QsrWaRyF66lcoyAP-cas'), ('login-url', 'https://sso.garmin.com/sso/embed'), ('accepts-mfa-tokens', 'true'), ('oauth_nonce', '68490921278017370731768297743'), ('oauth_timestamp', '1768297743'), ('oauth_version', '1.0'), ('oauth_signature_method', 'HMAC-SHA1'), ('oauth_consumer_key', 'fc3e99d2-118c-44b8-8ae3-03370dde24c0')]
+2026-01-13 12:49:03,615 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized params: accepts-mfa-tokens=true&login-url=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&oauth_consumer_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0&oauth_nonce=68490921278017370731768297743&oauth_signature_method=HMAC-SHA1&oauth_timestamp=1768297743&oauth_version=1.0&ticket=ST-282366-RsU9QsrWaRyF66lcoyAP-cas
+2026-01-13 12:49:03,615 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized URI: https://connectapi.garmin.com/oauth-service/oauth/preauthorized
+2026-01-13 12:49:03,615 - oauthlib.oauth1.rfc5849 - DEBUG - Signing: signature base string: GET&https%3A%2F%2Fconnectapi.garmin.com%2Foauth-service%2Foauth%2Fpreauthorized&accepts-mfa-tokens%3Dtrue%26login-url%3Dhttps%253A%252F%252Fsso.garmin.com%252Fsso%252Fembed%26oauth_consumer_key%3Dfc3e99d2-118c-44b8-8ae3-03370dde24c0%26oauth_nonce%3D68490921278017370731768297743%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1768297743%26oauth_version%3D1.0%26ticket%3DST-282366-RsU9QsrWaRyF66lcoyAP-cas
+2026-01-13 12:49:03,615 - oauthlib.oauth1.rfc5849 - DEBUG - Signature: eQFxOQkmqrcM0F9u2psc4SrBy+0=
+2026-01-13 12:49:03,616 - oauthlib.oauth1.rfc5849 - DEBUG - Encoding URI, headers and body to utf-8.
+2026-01-13 12:49:03,616 - requests_oauthlib.oauth1_auth - DEBUG - Updated url: https://connectapi.garmin.com/oauth-service/oauth/preauthorized?ticket=ST-282366-RsU9QsrWaRyF66lcoyAP-cas&login-url=https://sso.garmin.com/sso/embed&accepts-mfa-tokens=true
+2026-01-13 12:49:03,616 - requests_oauthlib.oauth1_auth - DEBUG - Updated headers: {b'User-Agent': b'com.garmin.android.apps.connectmobile', b'Accept-Encoding': b'gzip, deflate', b'Accept': b'*/*', b'Connection': b'keep-alive', b'Authorization': b'OAuth oauth_nonce="68490921278017370731768297743", oauth_timestamp="1768297743", oauth_version="1.0", oauth_signature_method="HMAC-SHA1", oauth_consumer_key="fc3e99d2-118c-44b8-8ae3-03370dde24c0", oauth_signature="eQFxOQkmqrcM0F9u2psc4SrBy%2B0%3D"'}
+2026-01-13 12:49:03,616 - requests_oauthlib.oauth1_auth - DEBUG - Updated body: None
+2026-01-13 12:49:03,617 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): connectapi.garmin.com:443
+2026-01-13 12:49:04,741 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-13 12:49:04,742 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-01-13 12:49:06,216 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /oauth-service/oauth/preauthorized?ticket=ST-282366-RsU9QsrWaRyF66lcoyAP-cas&login-url=https://sso.garmin.com/sso/embed&accepts-mfa-tokens=true HTTP/1.1" 200 None
+2026-01-13 12:49:06,217 - requests_oauthlib.oauth1_auth - DEBUG - Signing request <PreparedRequest [POST]> using client <Client client_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0, client_secret=****, resource_owner_key=3d6345ce-0ead-42e6-adee-2bda9ffe2426, resource_owner_secret=****, signature_method=HMAC-SHA1, signature_type=AUTH_HEADER, callback_uri=None, rsa_key=None, verifier=None, realm=None, encoding=utf-8, decoding=utf-8, nonce=None, timestamp=None>
+2026-01-13 12:49:06,217 - requests_oauthlib.oauth1_auth - DEBUG - Including body in call to sign: True
+2026-01-13 12:49:06,217 - oauthlib.oauth1.rfc5849 - DEBUG - Collected params: [('oauth_nonce', '22416950556290001751768297746'), ('oauth_timestamp', '1768297746'), ('oauth_version', '1.0'), ('oauth_signature_method', 'HMAC-SHA1'), ('oauth_consumer_key', 'fc3e99d2-118c-44b8-8ae3-03370dde24c0'), ('oauth_token', '3d6345ce-0ead-42e6-adee-2bda9ffe2426')]
+2026-01-13 12:49:06,218 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized params: oauth_consumer_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0&oauth_nonce=22416950556290001751768297746&oauth_signature_method=HMAC-SHA1&oauth_timestamp=1768297746&oauth_token=3d6345ce-0ead-42e6-adee-2bda9ffe2426&oauth_version=1.0
+2026-01-13 12:49:06,218 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized URI: https://connectapi.garmin.com/oauth-service/oauth/exchange/user/2.0
+2026-01-13 12:49:06,218 - oauthlib.oauth1.rfc5849 - DEBUG - Signing: signature base string: POST&https%3A%2F%2Fconnectapi.garmin.com%2Foauth-service%2Foauth%2Fexchange%2Fuser%2F2.0&oauth_consumer_key%3Dfc3e99d2-118c-44b8-8ae3-03370dde24c0%26oauth_nonce%3D22416950556290001751768297746%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1768297746%26oauth_token%3D3d6345ce-0ead-42e6-adee-2bda9ffe2426%26oauth_version%3D1.0
+2026-01-13 12:49:06,218 - oauthlib.oauth1.rfc5849 - DEBUG - Signature: j94noy0pnJsoTujSc4nemUYFtc8=
+2026-01-13 12:49:06,218 - oauthlib.oauth1.rfc5849 - DEBUG - Encoding URI, headers and body to utf-8.
+2026-01-13 12:49:06,218 - requests_oauthlib.oauth1_auth - DEBUG - Updated url: https://connectapi.garmin.com/oauth-service/oauth/exchange/user/2.0
+2026-01-13 12:49:06,218 - requests_oauthlib.oauth1_auth - DEBUG - Updated headers: {b'User-Agent': b'com.garmin.android.apps.connectmobile', b'Accept-Encoding': b'gzip, deflate', b'Accept': b'*/*', b'Connection': b'keep-alive', b'Content-Type': b'application/x-www-form-urlencoded', b'Content-Length': b'0', b'Authorization': b'OAuth oauth_nonce="22416950556290001751768297746", oauth_timestamp="1768297746", oauth_version="1.0", oauth_signature_method="HMAC-SHA1", oauth_consumer_key="fc3e99d2-118c-44b8-8ae3-03370dde24c0", oauth_token="3d6345ce-0ead-42e6-adee-2bda9ffe2426", oauth_signature="j94noy0pnJsoTujSc4nemUYFtc8%3D"'}
+2026-01-13 12:49:06,218 - requests_oauthlib.oauth1_auth - DEBUG - Updated body: ''
+2026-01-13 12:49:07,131 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "POST /oauth-service/oauth/exchange/user/2.0 HTTP/1.1" 200 None
+2026-01-13 12:49:08,167 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /userprofile-service/socialProfile HTTP/1.1" 200 None
+2026-01-13 12:49:09,275 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /userprofile-service/userprofile/user-settings HTTP/1.1" 200 None
+2026-01-13 12:49:09,276 - garminconnect - DEBUG - Requesting user summary
+2026-01-13 12:49:09,485 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-13 12:49:09,485 - aiogram.dispatcher - WARNING - Sleep for 4.901681 seconds and try again... (tryings = 7, bot id = 8500310863)
+2026-01-13 12:49:09,875 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /usersummary-service/usersummary/daily/Lyskovsky?calendarDate=2026-01-13 HTTP/1.1" 200 None
+2026-01-13 12:49:09,885 - handlers.commands - ERROR - Error in /day: name 'weight' is not defined
+Traceback (most recent call last):
+  File "/Users/alexlyskovsky/HealthVault/telegram-bot/handlers/commands.py", line 87, in cmd_day
+    targets_data = calculate_targets(stats=avg_stats) # Передаем словарь stats
+  File "/Users/alexlyskovsky/HealthVault/core/nutrition_targets.py", line 63, in calculate_targets
+    # Белки - фиксировано от веса
+NameError: name 'weight' is not defined
+2026-01-13 12:49:14,986 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-13 12:49:14,986 - aiogram.dispatcher - WARNING - Sleep for 1.468703 seconds and try again... (tryings = 1, bot id = 8500310863)
+2026-01-13 12:49:19,885 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-13 12:49:19,885 - aiogram.dispatcher - WARNING - Sleep for 5.100701 seconds and try again... (tryings = 8, bot id = 8500310863)
+2026-01-13 12:49:25,348 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-13 12:49:25,349 - aiogram.dispatcher - WARNING - Sleep for 1.912160 seconds and try again... (tryings = 2, bot id = 8500310863)
+2026-01-13 12:49:30,558 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-13 12:49:30,558 - aiogram.dispatcher - WARNING - Sleep for 4.843708 seconds and try again... (tryings = 9, bot id = 8500310863)
+2026-01-13 12:49:35,812 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-13 12:49:35,813 - aiogram.dispatcher - WARNING - Sleep for 2.519219 seconds and try again... (tryings = 3, bot id = 8500310863)
+2026-01-13 12:49:41,589 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramConflictError: Telegram server says - Conflict: terminated by other getUpdates request; make sure that only one bot instance is running
+2026-01-13 12:49:41,590 - aiogram.dispatcher - WARNING - Sleep for 4.886688 seconds and try again... (tryings = 10, bot id = 8500310863)
+2026-01-13 12:50:12,209 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-13 12:50:12,416 - core.voice_service - ERROR - ❌ OPENAI_API_KEY не найден в переменных окружения или файлах!
+2026-01-13 12:50:12,416 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-13 12:50:18,428 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+2026-01-13 12:50:18,429 - aiogram.dispatcher - INFO - Start polling
+2026-01-13 12:50:19,280 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-13 12:52:36,046 - handlers.commands - INFO - 📊 Команда /day вызвана пользователем 895655
+2026-01-13 12:52:36,955 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sso.garmin.com:443
+2026-01-13 12:52:38,077 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "GET /sso/embed?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso HTTP/1.1" 200 None
+2026-01-13 12:52:39,375 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "GET /sso/signin?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&service=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&source=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountLoginUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountCreationUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed HTTP/1.1" 200 None
+2026-01-13 12:52:40,882 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "POST /sso/signin?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&service=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&source=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountLoginUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountCreationUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed HTTP/1.1" 200 None
+2026-01-13 12:52:40,886 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): thegarth.s3.amazonaws.com:443
+2026-01-13 12:52:42,598 - urllib3.connectionpool - DEBUG - https://thegarth.s3.amazonaws.com:443 "GET /oauth_consumer.json HTTP/1.1" 200 124
+2026-01-13 12:52:42,601 - requests_oauthlib.oauth1_auth - DEBUG - Signing request <PreparedRequest [GET]> using client <Client client_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0, client_secret=****, resource_owner_key=None, resource_owner_secret=None, signature_method=HMAC-SHA1, signature_type=AUTH_HEADER, callback_uri=None, rsa_key=None, verifier=None, realm=None, encoding=utf-8, decoding=utf-8, nonce=None, timestamp=None>
+2026-01-13 12:52:42,601 - requests_oauthlib.oauth1_auth - DEBUG - Including body in call to sign: False
+2026-01-13 12:52:42,602 - oauthlib.oauth1.rfc5849 - DEBUG - Collected params: [('ticket', 'ST-2175050-vlJQPaZdvJecJeQTNYoK-cas'), ('login-url', 'https://sso.garmin.com/sso/embed'), ('accepts-mfa-tokens', 'true'), ('oauth_nonce', '96139562473577533541768297962'), ('oauth_timestamp', '1768297962'), ('oauth_version', '1.0'), ('oauth_signature_method', 'HMAC-SHA1'), ('oauth_consumer_key', 'fc3e99d2-118c-44b8-8ae3-03370dde24c0')]
+2026-01-13 12:52:42,602 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized params: accepts-mfa-tokens=true&login-url=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&oauth_consumer_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0&oauth_nonce=96139562473577533541768297962&oauth_signature_method=HMAC-SHA1&oauth_timestamp=1768297962&oauth_version=1.0&ticket=ST-2175050-vlJQPaZdvJecJeQTNYoK-cas
+2026-01-13 12:52:42,602 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized URI: https://connectapi.garmin.com/oauth-service/oauth/preauthorized
+2026-01-13 12:52:42,602 - oauthlib.oauth1.rfc5849 - DEBUG - Signing: signature base string: GET&https%3A%2F%2Fconnectapi.garmin.com%2Foauth-service%2Foauth%2Fpreauthorized&accepts-mfa-tokens%3Dtrue%26login-url%3Dhttps%253A%252F%252Fsso.garmin.com%252Fsso%252Fembed%26oauth_consumer_key%3Dfc3e99d2-118c-44b8-8ae3-03370dde24c0%26oauth_nonce%3D96139562473577533541768297962%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1768297962%26oauth_version%3D1.0%26ticket%3DST-2175050-vlJQPaZdvJecJeQTNYoK-cas
+2026-01-13 12:52:42,602 - oauthlib.oauth1.rfc5849 - DEBUG - Signature: sGGkOI4Jzkyz7SRLwKPe2L7lu14=
+2026-01-13 12:52:42,602 - oauthlib.oauth1.rfc5849 - DEBUG - Encoding URI, headers and body to utf-8.
+2026-01-13 12:52:42,603 - requests_oauthlib.oauth1_auth - DEBUG - Updated url: https://connectapi.garmin.com/oauth-service/oauth/preauthorized?ticket=ST-2175050-vlJQPaZdvJecJeQTNYoK-cas&login-url=https://sso.garmin.com/sso/embed&accepts-mfa-tokens=true
+2026-01-13 12:52:42,603 - requests_oauthlib.oauth1_auth - DEBUG - Updated headers: {b'User-Agent': b'com.garmin.android.apps.connectmobile', b'Accept-Encoding': b'gzip, deflate', b'Accept': b'*/*', b'Connection': b'keep-alive', b'Authorization': b'OAuth oauth_nonce="96139562473577533541768297962", oauth_timestamp="1768297962", oauth_version="1.0", oauth_signature_method="HMAC-SHA1", oauth_consumer_key="fc3e99d2-118c-44b8-8ae3-03370dde24c0", oauth_signature="sGGkOI4Jzkyz7SRLwKPe2L7lu14%3D"'}
+2026-01-13 12:52:42,603 - requests_oauthlib.oauth1_auth - DEBUG - Updated body: None
+2026-01-13 12:52:42,604 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): connectapi.garmin.com:443
+2026-01-13 12:52:46,511 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /oauth-service/oauth/preauthorized?ticket=ST-2175050-vlJQPaZdvJecJeQTNYoK-cas&login-url=https://sso.garmin.com/sso/embed&accepts-mfa-tokens=true HTTP/1.1" 200 None
+2026-01-13 12:52:46,515 - requests_oauthlib.oauth1_auth - DEBUG - Signing request <PreparedRequest [POST]> using client <Client client_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0, client_secret=****, resource_owner_key=3d6345ce-0ead-42e6-adee-2bda9ffe2426, resource_owner_secret=****, signature_method=HMAC-SHA1, signature_type=AUTH_HEADER, callback_uri=None, rsa_key=None, verifier=None, realm=None, encoding=utf-8, decoding=utf-8, nonce=None, timestamp=None>
+2026-01-13 12:52:46,515 - requests_oauthlib.oauth1_auth - DEBUG - Including body in call to sign: True
+2026-01-13 12:52:46,515 - oauthlib.oauth1.rfc5849 - DEBUG - Collected params: [('oauth_nonce', '50180216748088709441768297966'), ('oauth_timestamp', '1768297966'), ('oauth_version', '1.0'), ('oauth_signature_method', 'HMAC-SHA1'), ('oauth_consumer_key', 'fc3e99d2-118c-44b8-8ae3-03370dde24c0'), ('oauth_token', '3d6345ce-0ead-42e6-adee-2bda9ffe2426')]
+2026-01-13 12:52:46,516 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized params: oauth_consumer_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0&oauth_nonce=50180216748088709441768297966&oauth_signature_method=HMAC-SHA1&oauth_timestamp=1768297966&oauth_token=3d6345ce-0ead-42e6-adee-2bda9ffe2426&oauth_version=1.0
+2026-01-13 12:52:46,516 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized URI: https://connectapi.garmin.com/oauth-service/oauth/exchange/user/2.0
+2026-01-13 12:52:46,516 - oauthlib.oauth1.rfc5849 - DEBUG - Signing: signature base string: POST&https%3A%2F%2Fconnectapi.garmin.com%2Foauth-service%2Foauth%2Fexchange%2Fuser%2F2.0&oauth_consumer_key%3Dfc3e99d2-118c-44b8-8ae3-03370dde24c0%26oauth_nonce%3D50180216748088709441768297966%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1768297966%26oauth_token%3D3d6345ce-0ead-42e6-adee-2bda9ffe2426%26oauth_version%3D1.0
+2026-01-13 12:52:46,516 - oauthlib.oauth1.rfc5849 - DEBUG - Signature: y7Eg3viczE0aYzF/QHRa83aFvXg=
+2026-01-13 12:52:46,516 - oauthlib.oauth1.rfc5849 - DEBUG - Encoding URI, headers and body to utf-8.
+2026-01-13 12:52:46,516 - requests_oauthlib.oauth1_auth - DEBUG - Updated url: https://connectapi.garmin.com/oauth-service/oauth/exchange/user/2.0
+2026-01-13 12:52:46,516 - requests_oauthlib.oauth1_auth - DEBUG - Updated headers: {b'User-Agent': b'com.garmin.android.apps.connectmobile', b'Accept-Encoding': b'gzip, deflate', b'Accept': b'*/*', b'Connection': b'keep-alive', b'Content-Type': b'application/x-www-form-urlencoded', b'Content-Length': b'0', b'Authorization': b'OAuth oauth_nonce="50180216748088709441768297966", oauth_timestamp="1768297966", oauth_version="1.0", oauth_signature_method="HMAC-SHA1", oauth_consumer_key="fc3e99d2-118c-44b8-8ae3-03370dde24c0", oauth_token="3d6345ce-0ead-42e6-adee-2bda9ffe2426", oauth_signature="y7Eg3viczE0aYzF%2FQHRa83aFvXg%3D"'}
+2026-01-13 12:52:46,516 - requests_oauthlib.oauth1_auth - DEBUG - Updated body: ''
+2026-01-13 12:52:47,060 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "POST /oauth-service/oauth/exchange/user/2.0 HTTP/1.1" 200 None
+2026-01-13 12:52:47,441 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /userprofile-service/socialProfile HTTP/1.1" 200 None
+2026-01-13 12:52:48,002 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /userprofile-service/userprofile/user-settings HTTP/1.1" 200 None
+2026-01-13 12:52:48,007 - garminconnect - DEBUG - Requesting user summary
+2026-01-13 12:52:50,323 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /usersummary-service/usersummary/daily/Lyskovsky?calendarDate=2026-01-13 HTTP/1.1" 200 None
+2026-01-13 12:54:11,147 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+2026-01-13 12:54:11,148 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-13 12:54:11,148 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-13 12:54:26,665 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-13 12:54:26,874 - core.voice_service - ERROR - ❌ OPENAI_API_KEY не найден в переменных окружения или файлах!
+2026-01-13 12:54:26,874 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-13 12:54:30,644 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+2026-01-13 12:54:30,645 - aiogram.dispatcher - INFO - Start polling
+2026-01-13 12:54:31,208 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-13 13:00:39,758 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+2026-01-13 13:00:39,759 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-13 13:00:39,759 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-13 13:00:56,490 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-13 13:00:56,696 - core.voice_service - ERROR - ❌ OPENAI_API_KEY не найден в переменных окружения или файлах!
+2026-01-13 13:00:56,696 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-13 13:00:59,894 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+2026-01-13 13:00:59,894 - aiogram.dispatcher - INFO - Start polling
+2026-01-13 13:01:00,682 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-13 13:04:01,055 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+2026-01-13 13:04:01,056 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-13 13:04:01,056 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-13 13:04:18,126 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-13 13:04:18,338 - core.voice_service - ERROR - ❌ OPENAI_API_KEY не найден в переменных окружения или файлах!
+2026-01-13 13:04:18,338 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-13 13:04:20,609 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+2026-01-13 13:04:20,610 - aiogram.dispatcher - INFO - Start polling
+2026-01-13 13:04:20,833 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-13 13:11:00,757 - handlers.commands - INFO - 📊 Команда /day вызвана пользователем 895655
+2026-01-13 13:11:02,906 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sso.garmin.com:443
+2026-01-13 13:11:04,529 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "GET /sso/embed?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso HTTP/1.1" 200 None
+2026-01-13 13:11:05,612 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "GET /sso/signin?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&service=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&source=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountLoginUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountCreationUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed HTTP/1.1" 200 None
+2026-01-13 13:11:06,671 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "POST /sso/signin?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&service=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&source=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountLoginUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountCreationUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed HTTP/1.1" 200 None
+2026-01-13 13:11:06,675 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): thegarth.s3.amazonaws.com:443
+2026-01-13 13:11:11,098 - urllib3.connectionpool - DEBUG - https://thegarth.s3.amazonaws.com:443 "GET /oauth_consumer.json HTTP/1.1" 200 124
+2026-01-13 13:11:11,101 - requests_oauthlib.oauth1_auth - DEBUG - Signing request <PreparedRequest [GET]> using client <Client client_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0, client_secret=****, resource_owner_key=None, resource_owner_secret=None, signature_method=HMAC-SHA1, signature_type=AUTH_HEADER, callback_uri=None, rsa_key=None, verifier=None, realm=None, encoding=utf-8, decoding=utf-8, nonce=None, timestamp=None>
+2026-01-13 13:11:11,102 - requests_oauthlib.oauth1_auth - DEBUG - Including body in call to sign: False
+2026-01-13 13:11:11,102 - oauthlib.oauth1.rfc5849 - DEBUG - Collected params: [('ticket', 'ST-2127190-nyn9nJrgJw2t2cj4Gp2B-cas'), ('login-url', 'https://sso.garmin.com/sso/embed'), ('accepts-mfa-tokens', 'true'), ('oauth_nonce', '54342949038563922261768299071'), ('oauth_timestamp', '1768299071'), ('oauth_version', '1.0'), ('oauth_signature_method', 'HMAC-SHA1'), ('oauth_consumer_key', 'fc3e99d2-118c-44b8-8ae3-03370dde24c0')]
+2026-01-13 13:11:11,102 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized params: accepts-mfa-tokens=true&login-url=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&oauth_consumer_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0&oauth_nonce=54342949038563922261768299071&oauth_signature_method=HMAC-SHA1&oauth_timestamp=1768299071&oauth_version=1.0&ticket=ST-2127190-nyn9nJrgJw2t2cj4Gp2B-cas
+2026-01-13 13:11:11,103 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized URI: https://connectapi.garmin.com/oauth-service/oauth/preauthorized
+2026-01-13 13:11:11,103 - oauthlib.oauth1.rfc5849 - DEBUG - Signing: signature base string: GET&https%3A%2F%2Fconnectapi.garmin.com%2Foauth-service%2Foauth%2Fpreauthorized&accepts-mfa-tokens%3Dtrue%26login-url%3Dhttps%253A%252F%252Fsso.garmin.com%252Fsso%252Fembed%26oauth_consumer_key%3Dfc3e99d2-118c-44b8-8ae3-03370dde24c0%26oauth_nonce%3D54342949038563922261768299071%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1768299071%26oauth_version%3D1.0%26ticket%3DST-2127190-nyn9nJrgJw2t2cj4Gp2B-cas
+2026-01-13 13:11:11,103 - oauthlib.oauth1.rfc5849 - DEBUG - Signature: W01QmSeNQ4NVcSXCOdqIdCGBXxk=
+2026-01-13 13:11:11,103 - oauthlib.oauth1.rfc5849 - DEBUG - Encoding URI, headers and body to utf-8.
+2026-01-13 13:11:11,103 - requests_oauthlib.oauth1_auth - DEBUG - Updated url: https://connectapi.garmin.com/oauth-service/oauth/preauthorized?ticket=ST-2127190-nyn9nJrgJw2t2cj4Gp2B-cas&login-url=https://sso.garmin.com/sso/embed&accepts-mfa-tokens=true
+2026-01-13 13:11:11,103 - requests_oauthlib.oauth1_auth - DEBUG - Updated headers: {b'User-Agent': b'com.garmin.android.apps.connectmobile', b'Accept-Encoding': b'gzip, deflate', b'Accept': b'*/*', b'Connection': b'keep-alive', b'Authorization': b'OAuth oauth_nonce="54342949038563922261768299071", oauth_timestamp="1768299071", oauth_version="1.0", oauth_signature_method="HMAC-SHA1", oauth_consumer_key="fc3e99d2-118c-44b8-8ae3-03370dde24c0", oauth_signature="W01QmSeNQ4NVcSXCOdqIdCGBXxk%3D"'}
+2026-01-13 13:11:11,103 - requests_oauthlib.oauth1_auth - DEBUG - Updated body: None
+2026-01-13 13:11:11,104 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): connectapi.garmin.com:443
+2026-01-13 13:11:13,339 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /oauth-service/oauth/preauthorized?ticket=ST-2127190-nyn9nJrgJw2t2cj4Gp2B-cas&login-url=https://sso.garmin.com/sso/embed&accepts-mfa-tokens=true HTTP/1.1" 200 None
+2026-01-13 13:11:13,341 - requests_oauthlib.oauth1_auth - DEBUG - Signing request <PreparedRequest [POST]> using client <Client client_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0, client_secret=****, resource_owner_key=3d6345ce-0ead-42e6-adee-2bda9ffe2426, resource_owner_secret=****, signature_method=HMAC-SHA1, signature_type=AUTH_HEADER, callback_uri=None, rsa_key=None, verifier=None, realm=None, encoding=utf-8, decoding=utf-8, nonce=None, timestamp=None>
+2026-01-13 13:11:13,341 - requests_oauthlib.oauth1_auth - DEBUG - Including body in call to sign: True
+2026-01-13 13:11:13,342 - oauthlib.oauth1.rfc5849 - DEBUG - Collected params: [('oauth_nonce', '150112085712281229061768299073'), ('oauth_timestamp', '1768299073'), ('oauth_version', '1.0'), ('oauth_signature_method', 'HMAC-SHA1'), ('oauth_consumer_key', 'fc3e99d2-118c-44b8-8ae3-03370dde24c0'), ('oauth_token', '3d6345ce-0ead-42e6-adee-2bda9ffe2426')]
+2026-01-13 13:11:13,342 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized params: oauth_consumer_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0&oauth_nonce=150112085712281229061768299073&oauth_signature_method=HMAC-SHA1&oauth_timestamp=1768299073&oauth_token=3d6345ce-0ead-42e6-adee-2bda9ffe2426&oauth_version=1.0
+2026-01-13 13:11:13,342 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized URI: https://connectapi.garmin.com/oauth-service/oauth/exchange/user/2.0
+2026-01-13 13:11:13,342 - oauthlib.oauth1.rfc5849 - DEBUG - Signing: signature base string: POST&https%3A%2F%2Fconnectapi.garmin.com%2Foauth-service%2Foauth%2Fexchange%2Fuser%2F2.0&oauth_consumer_key%3Dfc3e99d2-118c-44b8-8ae3-03370dde24c0%26oauth_nonce%3D150112085712281229061768299073%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1768299073%26oauth_token%3D3d6345ce-0ead-42e6-adee-2bda9ffe2426%26oauth_version%3D1.0
+2026-01-13 13:11:13,342 - oauthlib.oauth1.rfc5849 - DEBUG - Signature: FVtqkoBW0Qkbe0zZLLtPxBwBstQ=
+2026-01-13 13:11:13,342 - oauthlib.oauth1.rfc5849 - DEBUG - Encoding URI, headers and body to utf-8.
+2026-01-13 13:11:13,342 - requests_oauthlib.oauth1_auth - DEBUG - Updated url: https://connectapi.garmin.com/oauth-service/oauth/exchange/user/2.0
+2026-01-13 13:11:13,342 - requests_oauthlib.oauth1_auth - DEBUG - Updated headers: {b'User-Agent': b'com.garmin.android.apps.connectmobile', b'Accept-Encoding': b'gzip, deflate', b'Accept': b'*/*', b'Connection': b'keep-alive', b'Content-Type': b'application/x-www-form-urlencoded', b'Content-Length': b'0', b'Authorization': b'OAuth oauth_nonce="150112085712281229061768299073", oauth_timestamp="1768299073", oauth_version="1.0", oauth_signature_method="HMAC-SHA1", oauth_consumer_key="fc3e99d2-118c-44b8-8ae3-03370dde24c0", oauth_token="3d6345ce-0ead-42e6-adee-2bda9ffe2426", oauth_signature="FVtqkoBW0Qkbe0zZLLtPxBwBstQ%3D"'}
+2026-01-13 13:11:13,342 - requests_oauthlib.oauth1_auth - DEBUG - Updated body: ''
+2026-01-13 13:11:13,783 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "POST /oauth-service/oauth/exchange/user/2.0 HTTP/1.1" 200 None
+2026-01-13 13:11:14,287 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /userprofile-service/socialProfile HTTP/1.1" 200 None
+2026-01-13 13:11:15,081 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /userprofile-service/userprofile/user-settings HTTP/1.1" 200 None
+2026-01-13 13:11:15,085 - garminconnect - DEBUG - Requesting user summary
+2026-01-13 13:11:15,476 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /usersummary-service/usersummary/daily/Lyskovsky?calendarDate=2026-01-13 HTTP/1.1" 200 None
+2026-01-13 13:15:20,767 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+2026-01-13 13:15:20,768 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-13 13:15:20,768 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-13 13:15:38,484 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-13 13:15:38,695 - core.voice_service - ERROR - ❌ OPENAI_API_KEY не найден в переменных окружения или файлах!
+2026-01-13 13:15:38,696 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-13 13:15:41,446 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+2026-01-13 13:15:41,447 - aiogram.dispatcher - INFO - Start polling
+2026-01-13 13:15:41,913 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-13 13:16:58,921 - handlers.commands - INFO - 📊 Команда /day вызвана пользователем 895655
+2026-01-13 13:17:02,425 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sso.garmin.com:443
+2026-01-13 13:17:08,148 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "GET /sso/embed?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso HTTP/1.1" 200 None
+2026-01-13 13:17:08,759 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "GET /sso/signin?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&service=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&source=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountLoginUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountCreationUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed HTTP/1.1" 200 None
+2026-01-13 13:17:10,026 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "POST /sso/signin?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&service=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&source=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountLoginUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountCreationUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed HTTP/1.1" 200 None
+2026-01-13 13:17:10,029 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): thegarth.s3.amazonaws.com:443
+2026-01-13 13:17:11,895 - urllib3.connectionpool - DEBUG - https://thegarth.s3.amazonaws.com:443 "GET /oauth_consumer.json HTTP/1.1" 200 124
+2026-01-13 13:17:11,897 - requests_oauthlib.oauth1_auth - DEBUG - Signing request <PreparedRequest [GET]> using client <Client client_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0, client_secret=****, resource_owner_key=None, resource_owner_secret=None, signature_method=HMAC-SHA1, signature_type=AUTH_HEADER, callback_uri=None, rsa_key=None, verifier=None, realm=None, encoding=utf-8, decoding=utf-8, nonce=None, timestamp=None>
+2026-01-13 13:17:11,897 - requests_oauthlib.oauth1_auth - DEBUG - Including body in call to sign: False
+2026-01-13 13:17:11,898 - oauthlib.oauth1.rfc5849 - DEBUG - Collected params: [('ticket', 'ST-2127342-pZr3nLbmSO6ed7OrVQgF-cas'), ('login-url', 'https://sso.garmin.com/sso/embed'), ('accepts-mfa-tokens', 'true'), ('oauth_nonce', '25941973432645860411768299431'), ('oauth_timestamp', '1768299431'), ('oauth_version', '1.0'), ('oauth_signature_method', 'HMAC-SHA1'), ('oauth_consumer_key', 'fc3e99d2-118c-44b8-8ae3-03370dde24c0')]
+2026-01-13 13:17:11,898 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized params: accepts-mfa-tokens=true&login-url=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&oauth_consumer_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0&oauth_nonce=25941973432645860411768299431&oauth_signature_method=HMAC-SHA1&oauth_timestamp=1768299431&oauth_version=1.0&ticket=ST-2127342-pZr3nLbmSO6ed7OrVQgF-cas
+2026-01-13 13:17:11,898 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized URI: https://connectapi.garmin.com/oauth-service/oauth/preauthorized
+2026-01-13 13:17:11,898 - oauthlib.oauth1.rfc5849 - DEBUG - Signing: signature base string: GET&https%3A%2F%2Fconnectapi.garmin.com%2Foauth-service%2Foauth%2Fpreauthorized&accepts-mfa-tokens%3Dtrue%26login-url%3Dhttps%253A%252F%252Fsso.garmin.com%252Fsso%252Fembed%26oauth_consumer_key%3Dfc3e99d2-118c-44b8-8ae3-03370dde24c0%26oauth_nonce%3D25941973432645860411768299431%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1768299431%26oauth_version%3D1.0%26ticket%3DST-2127342-pZr3nLbmSO6ed7OrVQgF-cas
+2026-01-13 13:17:11,898 - oauthlib.oauth1.rfc5849 - DEBUG - Signature: Zod1YHfLWuYLfwnnNyPuBh6jozQ=
+2026-01-13 13:17:11,899 - oauthlib.oauth1.rfc5849 - DEBUG - Encoding URI, headers and body to utf-8.
+2026-01-13 13:17:11,899 - requests_oauthlib.oauth1_auth - DEBUG - Updated url: https://connectapi.garmin.com/oauth-service/oauth/preauthorized?ticket=ST-2127342-pZr3nLbmSO6ed7OrVQgF-cas&login-url=https://sso.garmin.com/sso/embed&accepts-mfa-tokens=true
+2026-01-13 13:17:11,899 - requests_oauthlib.oauth1_auth - DEBUG - Updated headers: {b'User-Agent': b'com.garmin.android.apps.connectmobile', b'Accept-Encoding': b'gzip, deflate', b'Accept': b'*/*', b'Connection': b'keep-alive', b'Authorization': b'OAuth oauth_nonce="25941973432645860411768299431", oauth_timestamp="1768299431", oauth_version="1.0", oauth_signature_method="HMAC-SHA1", oauth_consumer_key="fc3e99d2-118c-44b8-8ae3-03370dde24c0", oauth_signature="Zod1YHfLWuYLfwnnNyPuBh6jozQ%3D"'}
+2026-01-13 13:17:11,899 - requests_oauthlib.oauth1_auth - DEBUG - Updated body: None
+2026-01-13 13:17:11,900 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): connectapi.garmin.com:443
+2026-01-13 13:17:17,544 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /oauth-service/oauth/preauthorized?ticket=ST-2127342-pZr3nLbmSO6ed7OrVQgF-cas&login-url=https://sso.garmin.com/sso/embed&accepts-mfa-tokens=true HTTP/1.1" 200 None
+2026-01-13 13:17:17,545 - requests_oauthlib.oauth1_auth - DEBUG - Signing request <PreparedRequest [POST]> using client <Client client_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0, client_secret=****, resource_owner_key=3d6345ce-0ead-42e6-adee-2bda9ffe2426, resource_owner_secret=****, signature_method=HMAC-SHA1, signature_type=AUTH_HEADER, callback_uri=None, rsa_key=None, verifier=None, realm=None, encoding=utf-8, decoding=utf-8, nonce=None, timestamp=None>
+2026-01-13 13:17:17,545 - requests_oauthlib.oauth1_auth - DEBUG - Including body in call to sign: True
+2026-01-13 13:17:17,545 - oauthlib.oauth1.rfc5849 - DEBUG - Collected params: [('oauth_nonce', '9486412060590523311768299437'), ('oauth_timestamp', '1768299437'), ('oauth_version', '1.0'), ('oauth_signature_method', 'HMAC-SHA1'), ('oauth_consumer_key', 'fc3e99d2-118c-44b8-8ae3-03370dde24c0'), ('oauth_token', '3d6345ce-0ead-42e6-adee-2bda9ffe2426')]
+2026-01-13 13:17:17,545 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized params: oauth_consumer_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0&oauth_nonce=9486412060590523311768299437&oauth_signature_method=HMAC-SHA1&oauth_timestamp=1768299437&oauth_token=3d6345ce-0ead-42e6-adee-2bda9ffe2426&oauth_version=1.0
+2026-01-13 13:17:17,545 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized URI: https://connectapi.garmin.com/oauth-service/oauth/exchange/user/2.0
+2026-01-13 13:17:17,545 - oauthlib.oauth1.rfc5849 - DEBUG - Signing: signature base string: POST&https%3A%2F%2Fconnectapi.garmin.com%2Foauth-service%2Foauth%2Fexchange%2Fuser%2F2.0&oauth_consumer_key%3Dfc3e99d2-118c-44b8-8ae3-03370dde24c0%26oauth_nonce%3D9486412060590523311768299437%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1768299437%26oauth_token%3D3d6345ce-0ead-42e6-adee-2bda9ffe2426%26oauth_version%3D1.0
+2026-01-13 13:17:17,545 - oauthlib.oauth1.rfc5849 - DEBUG - Signature: 6xAReg7fT/FoZvkQtjwud8r9yPM=
+2026-01-13 13:17:17,546 - oauthlib.oauth1.rfc5849 - DEBUG - Encoding URI, headers and body to utf-8.
+2026-01-13 13:17:17,546 - requests_oauthlib.oauth1_auth - DEBUG - Updated url: https://connectapi.garmin.com/oauth-service/oauth/exchange/user/2.0
+2026-01-13 13:17:17,546 - requests_oauthlib.oauth1_auth - DEBUG - Updated headers: {b'User-Agent': b'com.garmin.android.apps.connectmobile', b'Accept-Encoding': b'gzip, deflate', b'Accept': b'*/*', b'Connection': b'keep-alive', b'Content-Type': b'application/x-www-form-urlencoded', b'Content-Length': b'0', b'Authorization': b'OAuth oauth_nonce="9486412060590523311768299437", oauth_timestamp="1768299437", oauth_version="1.0", oauth_signature_method="HMAC-SHA1", oauth_consumer_key="fc3e99d2-118c-44b8-8ae3-03370dde24c0", oauth_token="3d6345ce-0ead-42e6-adee-2bda9ffe2426", oauth_signature="6xAReg7fT%2FFoZvkQtjwud8r9yPM%3D"'}
+2026-01-13 13:17:17,546 - requests_oauthlib.oauth1_auth - DEBUG - Updated body: ''
+2026-01-13 13:17:18,240 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "POST /oauth-service/oauth/exchange/user/2.0 HTTP/1.1" 200 None
+2026-01-13 13:17:18,715 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /userprofile-service/socialProfile HTTP/1.1" 200 None
+2026-01-13 13:17:19,284 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /userprofile-service/userprofile/user-settings HTTP/1.1" 200 None
+2026-01-13 13:17:19,289 - garminconnect - DEBUG - Requesting user summary
+2026-01-13 13:17:19,812 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /usersummary-service/usersummary/daily/Lyskovsky?calendarDate=2026-01-13 HTTP/1.1" 200 None
+2026-01-13 13:24:26,108 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+2026-01-13 13:24:26,109 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-13 13:24:26,109 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-13 13:24:48,520 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-13 13:24:48,734 - core.voice_service - ERROR - ❌ OPENAI_API_KEY не найден в переменных окружения или файлах!
+2026-01-13 13:24:48,734 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-13 13:24:51,204 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+2026-01-13 13:24:51,205 - aiogram.dispatcher - INFO - Start polling
+2026-01-13 13:24:51,702 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-13 13:35:10,190 - handlers.commands - INFO - 📊 Команда /day вызвана пользователем 895655
+2026-01-13 13:35:10,723 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sso.garmin.com:443
+2026-01-13 13:35:13,593 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "GET /sso/embed?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso HTTP/1.1" 200 None
+2026-01-13 13:35:14,324 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "GET /sso/signin?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&service=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&source=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountLoginUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountCreationUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed HTTP/1.1" 200 None
+2026-01-13 13:35:16,780 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "POST /sso/signin?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&service=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&source=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountLoginUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountCreationUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed HTTP/1.1" 200 None
+2026-01-13 13:35:16,817 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): thegarth.s3.amazonaws.com:443
+2026-01-13 13:35:18,438 - urllib3.connectionpool - DEBUG - https://thegarth.s3.amazonaws.com:443 "GET /oauth_consumer.json HTTP/1.1" 200 124
+2026-01-13 13:35:18,441 - requests_oauthlib.oauth1_auth - DEBUG - Signing request <PreparedRequest [GET]> using client <Client client_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0, client_secret=****, resource_owner_key=None, resource_owner_secret=None, signature_method=HMAC-SHA1, signature_type=AUTH_HEADER, callback_uri=None, rsa_key=None, verifier=None, realm=None, encoding=utf-8, decoding=utf-8, nonce=None, timestamp=None>
+2026-01-13 13:35:18,441 - requests_oauthlib.oauth1_auth - DEBUG - Including body in call to sign: False
+2026-01-13 13:35:18,442 - oauthlib.oauth1.rfc5849 - DEBUG - Collected params: [('ticket', 'ST-2174067-4ZycF2ayvVTem0SAVxUm-cas'), ('login-url', 'https://sso.garmin.com/sso/embed'), ('accepts-mfa-tokens', 'true'), ('oauth_nonce', '143405565862544103621768300518'), ('oauth_timestamp', '1768300518'), ('oauth_version', '1.0'), ('oauth_signature_method', 'HMAC-SHA1'), ('oauth_consumer_key', 'fc3e99d2-118c-44b8-8ae3-03370dde24c0')]
+2026-01-13 13:35:18,442 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized params: accepts-mfa-tokens=true&login-url=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&oauth_consumer_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0&oauth_nonce=143405565862544103621768300518&oauth_signature_method=HMAC-SHA1&oauth_timestamp=1768300518&oauth_version=1.0&ticket=ST-2174067-4ZycF2ayvVTem0SAVxUm-cas
+2026-01-13 13:35:18,442 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized URI: https://connectapi.garmin.com/oauth-service/oauth/preauthorized
+2026-01-13 13:35:18,442 - oauthlib.oauth1.rfc5849 - DEBUG - Signing: signature base string: GET&https%3A%2F%2Fconnectapi.garmin.com%2Foauth-service%2Foauth%2Fpreauthorized&accepts-mfa-tokens%3Dtrue%26login-url%3Dhttps%253A%252F%252Fsso.garmin.com%252Fsso%252Fembed%26oauth_consumer_key%3Dfc3e99d2-118c-44b8-8ae3-03370dde24c0%26oauth_nonce%3D143405565862544103621768300518%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1768300518%26oauth_version%3D1.0%26ticket%3DST-2174067-4ZycF2ayvVTem0SAVxUm-cas
+2026-01-13 13:35:18,442 - oauthlib.oauth1.rfc5849 - DEBUG - Signature: ueQ7X+XuEiBr1pLDBfqVKUH7ZXY=
+2026-01-13 13:35:18,442 - oauthlib.oauth1.rfc5849 - DEBUG - Encoding URI, headers and body to utf-8.
+2026-01-13 13:35:18,443 - requests_oauthlib.oauth1_auth - DEBUG - Updated url: https://connectapi.garmin.com/oauth-service/oauth/preauthorized?ticket=ST-2174067-4ZycF2ayvVTem0SAVxUm-cas&login-url=https://sso.garmin.com/sso/embed&accepts-mfa-tokens=true
+2026-01-13 13:35:18,443 - requests_oauthlib.oauth1_auth - DEBUG - Updated headers: {b'User-Agent': b'com.garmin.android.apps.connectmobile', b'Accept-Encoding': b'gzip, deflate', b'Accept': b'*/*', b'Connection': b'keep-alive', b'Authorization': b'OAuth oauth_nonce="143405565862544103621768300518", oauth_timestamp="1768300518", oauth_version="1.0", oauth_signature_method="HMAC-SHA1", oauth_consumer_key="fc3e99d2-118c-44b8-8ae3-03370dde24c0", oauth_signature="ueQ7X%2BXuEiBr1pLDBfqVKUH7ZXY%3D"'}
+2026-01-13 13:35:18,443 - requests_oauthlib.oauth1_auth - DEBUG - Updated body: None
+2026-01-13 13:35:18,444 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): connectapi.garmin.com:443
+2026-01-13 13:35:21,268 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /oauth-service/oauth/preauthorized?ticket=ST-2174067-4ZycF2ayvVTem0SAVxUm-cas&login-url=https://sso.garmin.com/sso/embed&accepts-mfa-tokens=true HTTP/1.1" 200 None
+2026-01-13 13:35:21,271 - requests_oauthlib.oauth1_auth - DEBUG - Signing request <PreparedRequest [POST]> using client <Client client_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0, client_secret=****, resource_owner_key=3d6345ce-0ead-42e6-adee-2bda9ffe2426, resource_owner_secret=****, signature_method=HMAC-SHA1, signature_type=AUTH_HEADER, callback_uri=None, rsa_key=None, verifier=None, realm=None, encoding=utf-8, decoding=utf-8, nonce=None, timestamp=None>
+2026-01-13 13:35:21,271 - requests_oauthlib.oauth1_auth - DEBUG - Including body in call to sign: True
+2026-01-13 13:35:21,271 - oauthlib.oauth1.rfc5849 - DEBUG - Collected params: [('oauth_nonce', '64217453103595353951768300521'), ('oauth_timestamp', '1768300521'), ('oauth_version', '1.0'), ('oauth_signature_method', 'HMAC-SHA1'), ('oauth_consumer_key', 'fc3e99d2-118c-44b8-8ae3-03370dde24c0'), ('oauth_token', '3d6345ce-0ead-42e6-adee-2bda9ffe2426')]
+2026-01-13 13:35:21,271 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized params: oauth_consumer_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0&oauth_nonce=64217453103595353951768300521&oauth_signature_method=HMAC-SHA1&oauth_timestamp=1768300521&oauth_token=3d6345ce-0ead-42e6-adee-2bda9ffe2426&oauth_version=1.0
+2026-01-13 13:35:21,271 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized URI: https://connectapi.garmin.com/oauth-service/oauth/exchange/user/2.0
+2026-01-13 13:35:21,271 - oauthlib.oauth1.rfc5849 - DEBUG - Signing: signature base string: POST&https%3A%2F%2Fconnectapi.garmin.com%2Foauth-service%2Foauth%2Fexchange%2Fuser%2F2.0&oauth_consumer_key%3Dfc3e99d2-118c-44b8-8ae3-03370dde24c0%26oauth_nonce%3D64217453103595353951768300521%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1768300521%26oauth_token%3D3d6345ce-0ead-42e6-adee-2bda9ffe2426%26oauth_version%3D1.0
+2026-01-13 13:35:21,272 - oauthlib.oauth1.rfc5849 - DEBUG - Signature: wAzZaomVcdfYJS4oopODn3PhOqI=
+2026-01-13 13:35:21,272 - oauthlib.oauth1.rfc5849 - DEBUG - Encoding URI, headers and body to utf-8.
+2026-01-13 13:35:21,272 - requests_oauthlib.oauth1_auth - DEBUG - Updated url: https://connectapi.garmin.com/oauth-service/oauth/exchange/user/2.0
+2026-01-13 13:35:21,272 - requests_oauthlib.oauth1_auth - DEBUG - Updated headers: {b'User-Agent': b'com.garmin.android.apps.connectmobile', b'Accept-Encoding': b'gzip, deflate', b'Accept': b'*/*', b'Connection': b'keep-alive', b'Content-Type': b'application/x-www-form-urlencoded', b'Content-Length': b'0', b'Authorization': b'OAuth oauth_nonce="64217453103595353951768300521", oauth_timestamp="1768300521", oauth_version="1.0", oauth_signature_method="HMAC-SHA1", oauth_consumer_key="fc3e99d2-118c-44b8-8ae3-03370dde24c0", oauth_token="3d6345ce-0ead-42e6-adee-2bda9ffe2426", oauth_signature="wAzZaomVcdfYJS4oopODn3PhOqI%3D"'}
+2026-01-13 13:35:21,272 - requests_oauthlib.oauth1_auth - DEBUG - Updated body: ''
+2026-01-13 13:35:22,018 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "POST /oauth-service/oauth/exchange/user/2.0 HTTP/1.1" 200 None
+2026-01-13 13:35:22,799 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /userprofile-service/socialProfile HTTP/1.1" 200 None
+2026-01-13 13:35:23,306 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /userprofile-service/userprofile/user-settings HTTP/1.1" 200 None
+2026-01-13 13:35:23,313 - core.garmin_data - INFO - Garmin Sync: Fetching 1 days: ['2026-01-13']
+2026-01-13 13:35:23,314 - garminconnect - DEBUG - Requesting user summary
+2026-01-13 13:35:23,788 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /usersummary-service/usersummary/daily/Lyskovsky?calendarDate=2026-01-13 HTTP/1.1" 200 None
+2026-01-13 15:50:05,605 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-01-13 15:50:05,608 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-01-13 15:50:16,834 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-01-13 16:00:45,006 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - Request timeout error
+2026-01-13 16:00:45,009 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-01-13 16:00:56,261 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-01-13 16:08:46,406 - handlers.photo - INFO - 📸 Получено фото от пользователя 895655
+2026-01-13 16:08:47,443 - handlers.photo - INFO - Меню/еда не распознано
+2026-01-13 16:08:47,443 - handlers.photo - INFO - Обрабатываем описание: Обед: мясо тушенного куриного бедра, варенная картошка и немного морковки и лука
+2026-01-13 16:17:37,165 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+2026-01-13 16:17:37,167 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-13 16:17:37,167 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-13 16:17:52,249 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-13 16:17:52,479 - core.voice_service - ERROR - ❌ OPENAI_API_KEY не найден в переменных окружения или файлах!
+2026-01-13 16:17:52,479 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-13 16:17:53,203 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+2026-01-13 16:17:53,204 - aiogram.dispatcher - INFO - Start polling
+2026-01-13 16:17:53,291 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-13 16:19:15,315 - handlers.photo - INFO - 📸 Получено фото от пользователя 895655
+2026-01-13 16:19:16,215 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-13 16:19:16,695 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 403 None
+2026-01-13 16:19:16,699 - handlers.photo - INFO - Меню/еда не распознано
+2026-01-13 16:19:16,700 - handlers.photo - INFO - Обрабатываем описание: Обед: мясо тушенного куриного бедра, варенная картошка и немного морковки и лука
+2026-01-13 16:19:16,704 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-13 16:19:17,464 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 403 None
+2026-01-13 16:19:17,472 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-13 16:19:17,742 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 403 None
+2026-01-13 16:20:18,211 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+2026-01-13 16:20:18,212 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-13 16:20:18,212 - aiogram.dispatcher - INFO - Polling stopped
+2026-01-13 16:20:29,323 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-01-13 16:20:29,614 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-01-13 16:20:30,599 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+2026-01-13 16:20:30,599 - aiogram.dispatcher - INFO - Start polling
+2026-01-13 16:20:30,846 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-01-13 17:19:05,974 - handlers.photo - INFO - 📸 Получено фото от пользователя 895655
+2026-01-13 17:19:06,758 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-01-13 17:19:20,104 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-01-13 17:19:20,108 - handlers.photo - INFO - Распознано меню/еда: Обед: мясо тушенного куриного бедра, варенная картошка и немного морковки и лука, КБЖУ: 450.0 ккал
+2026-01-13 17:19:20,108 - handlers.photo - INFO - Распознано: Обед: мясо тушенного куриного бедра, варенная картошка и немного морковки и лука
+2026-01-13 17:19:20,108 - handlers.photo - INFO - Есть caption, обрабатываем с учетом распознанного: Обед: мясо тушенного куриного бедра, варенная картошка и немного морковки и лука
+2026-01-13 17:19:20,109 - handlers.photo - INFO - Обработка описания с учетом меню: Обед: мясо тушенного куриного бедра, варенная картошка и немного морковки и лука
+Обед: мясо тушенного куриного бедра, варенная картошка и немного морковки и лука
+2026-01-13 17:19:20,109 - core.nutrition - INFO - ✅ Найдено 3 компонентов от ИИ. Используем их вместо парсинга описания.
+2026-01-13 17:19:20,109 - core.nutrition - INFO - Обработка 3 продуктов с учетом меню: обед: мясо тушенного куриного бедра, варенная картошка и немного морковки и лука
+2026-01-13 17:19:20,109 - core.nutrition - INFO - КБЖУ из меню (на 100г): 100 ккал, Б: 8г, Ж: 4г, У: 7г
+2026-01-13 17:19:20,109 - core.nutrition - INFO - Проверка продукта: 'мясо тушенного куриного бедра' (вес: 200г)
+2026-01-13 17:19:20,109 - core.nutrition - INFO -   Ключевые слова меню: {'немного', 'мясо', 'морковки', 'бедра', 'картошка', 'лука', 'варенная', 'тушенного', 'обед', 'куриного'}
+2026-01-13 17:19:20,109 - core.nutrition - INFO -   Ключевые слова продукта: {'мясо', 'тушенного', 'бедра', 'куриного'}
+2026-01-13 17:19:20,109 - core.nutrition - INFO -   ✅ Продукт 'мясо тушенного куриного бедра' соответствует меню
+2026-01-13 17:19:20,109 - core.nutrition - INFO -   Пересчитано КБЖУ из меню для 200г:
+2026-01-13 17:19:20,109 - core.nutrition - INFO -     100 ккал/100г × 2.00 = 200.0 ккал
+2026-01-13 17:19:20,109 - core.nutrition - INFO -     8г белка/100г × 2.00 = 16.0г
+2026-01-13 17:19:20,109 - core.nutrition - INFO -     4г жиров/100г × 2.00 = 8.0г
+2026-01-13 17:19:20,109 - core.nutrition - INFO -     7г углеводов/100г × 2.00 = 14.0г
+2026-01-13 17:19:20,109 - core.nutrition - INFO - Проверка продукта: 'картофель отварной' (вес: 200г)
+2026-01-13 17:19:20,109 - core.nutrition - INFO -   Ключевые слова меню: {'немного', 'мясо', 'морковки', 'бедра', 'картошка', 'лука', 'варенная', 'тушенного', 'обед', 'куриного'}
+2026-01-13 17:19:20,109 - core.nutrition - INFO -   Ключевые слова продукта: {'отварной', 'картофель'}
+2026-01-13 17:19:20,111 - core.nutrition - INFO -   ❌ Продукт 'картофель отварной' НЕ соответствует меню, обрабатываем как обычный продукт
+2026-01-13 17:19:20,112 - core.nutrition - INFO - Проверка продукта: 'морковка и лук' (вес: 50г)
+2026-01-13 17:19:20,112 - core.nutrition - INFO -   Ключевые слова меню: {'немного', 'мясо', 'морковки', 'бедра', 'картошка', 'лука', 'варенная', 'тушенного', 'обед', 'куриного'}
+2026-01-13 17:19:20,112 - core.nutrition - INFO -   Ключевые слова продукта: {'лук', 'морковка'}
+2026-01-13 17:19:20,112 - core.nutrition - INFO -   ❌ Продукт 'морковка и лук' НЕ соответствует меню, обрабатываем как обычный продукт
+2026-01-13 17:19:20,113 - handlers.photo - INFO - Извлечено название приёма пищи: 'Обед' из описания: 'Обед: мясо тушенного куриного бедра, варенная карт...'
+2026-01-13 17:19:20,113 - handlers.photo - INFO - Сохранено в состояние: meal_name='Обед', meal_time='17:19'
+2026-01-13 17:19:29,549 - handlers.photo - INFO - Обработка callback: action=save, meal_type=regular, user_id=895655
+2026-01-13 17:19:29,550 - handlers.photo - INFO - Используется meal_name из состояния: 'Обед'
+2026-01-13 17:19:29,550 - handlers.photo - INFO - Сохранение блюда: meal_name='Обед', meal_type='regular'
+2026-01-13 17:19:31,970 - handlers.commands - INFO - 📊 Команда /day вызвана пользователем 895655
+2026-01-13 17:19:32,095 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sso.garmin.com:443
+2026-01-13 17:19:32,947 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "GET /sso/embed?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso HTTP/1.1" 200 None
+2026-01-13 17:19:33,232 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "GET /sso/signin?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&service=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&source=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountLoginUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountCreationUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed HTTP/1.1" 200 None
+2026-01-13 17:19:34,887 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "POST /sso/signin?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&service=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&source=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountLoginUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountCreationUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed HTTP/1.1" 200 None
+2026-01-13 17:19:34,889 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): thegarth.s3.amazonaws.com:443
+2026-01-13 17:19:35,648 - urllib3.connectionpool - DEBUG - https://thegarth.s3.amazonaws.com:443 "GET /oauth_consumer.json HTTP/1.1" 200 124
+2026-01-13 17:19:35,651 - requests_oauthlib.oauth1_auth - DEBUG - Signing request <PreparedRequest [GET]> using client <Client client_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0, client_secret=****, resource_owner_key=None, resource_owner_secret=None, signature_method=HMAC-SHA1, signature_type=AUTH_HEADER, callback_uri=None, rsa_key=None, verifier=None, realm=None, encoding=utf-8, decoding=utf-8, nonce=None, timestamp=None>
+2026-01-13 17:19:35,652 - requests_oauthlib.oauth1_auth - DEBUG - Including body in call to sign: False
+2026-01-13 17:19:35,652 - oauthlib.oauth1.rfc5849 - DEBUG - Collected params: [('ticket', 'ST-0105362-4zPkismNpNTfcnmwfTLN-cas'), ('login-url', 'https://sso.garmin.com/sso/embed'), ('accepts-mfa-tokens', 'true'), ('oauth_nonce', '13212038397855549731768313975'), ('oauth_timestamp', '1768313975'), ('oauth_version', '1.0'), ('oauth_signature_method', 'HMAC-SHA1'), ('oauth_consumer_key', 'fc3e99d2-118c-44b8-8ae3-03370dde24c0')]
+2026-01-13 17:19:35,653 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized params: accepts-mfa-tokens=true&login-url=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&oauth_consumer_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0&oauth_nonce=13212038397855549731768313975&oauth_signature_method=HMAC-SHA1&oauth_timestamp=1768313975&oauth_version=1.0&ticket=ST-0105362-4zPkismNpNTfcnmwfTLN-cas
+2026-01-13 17:19:35,653 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized URI: https://connectapi.garmin.com/oauth-service/oauth/preauthorized
+2026-01-13 17:19:35,653 - oauthlib.oauth1.rfc5849 - DEBUG - Signing: signature base string: GET&https%3A%2F%2Fconnectapi.garmin.com%2Foauth-service%2Foauth%2Fpreauthorized&accepts-mfa-tokens%3Dtrue%26login-url%3Dhttps%253A%252F%252Fsso.garmin.com%252Fsso%252Fembed%26oauth_consumer_key%3Dfc3e99d2-118c-44b8-8ae3-03370dde24c0%26oauth_nonce%3D13212038397855549731768313975%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1768313975%26oauth_version%3D1.0%26ticket%3DST-0105362-4zPkismNpNTfcnmwfTLN-cas
+2026-01-13 17:19:35,653 - oauthlib.oauth1.rfc5849 - DEBUG - Signature: R8351QfBe24Jhgq1DD4BzWd2dLA=
+2026-01-13 17:19:35,653 - oauthlib.oauth1.rfc5849 - DEBUG - Encoding URI, headers and body to utf-8.
+2026-01-13 17:19:35,653 - requests_oauthlib.oauth1_auth - DEBUG - Updated url: https://connectapi.garmin.com/oauth-service/oauth/preauthorized?ticket=ST-0105362-4zPkismNpNTfcnmwfTLN-cas&login-url=https://sso.garmin.com/sso/embed&accepts-mfa-tokens=true
+2026-01-13 17:19:35,653 - requests_oauthlib.oauth1_auth - DEBUG - Updated headers: {b'User-Agent': b'com.garmin.android.apps.connectmobile', b'Accept-Encoding': b'gzip, deflate', b'Accept': b'*/*', b'Connection': b'keep-alive', b'Authorization': b'OAuth oauth_nonce="13212038397855549731768313975", oauth_timestamp="1768313975", oauth_version="1.0", oauth_signature_method="HMAC-SHA1", oauth_consumer_key="fc3e99d2-118c-44b8-8ae3-03370dde24c0", oauth_signature="R8351QfBe24Jhgq1DD4BzWd2dLA%3D"'}
+2026-01-13 17:19:35,653 - requests_oauthlib.oauth1_auth - DEBUG - Updated body: None
+2026-01-13 17:19:35,654 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): connectapi.garmin.com:443
+2026-01-13 17:19:36,429 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /oauth-service/oauth/preauthorized?ticket=ST-0105362-4zPkismNpNTfcnmwfTLN-cas&login-url=https://sso.garmin.com/sso/embed&accepts-mfa-tokens=true HTTP/1.1" 200 None
+2026-01-13 17:19:36,433 - requests_oauthlib.oauth1_auth - DEBUG - Signing request <PreparedRequest [POST]> using client <Client client_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0, client_secret=****, resource_owner_key=3d6345ce-0ead-42e6-adee-2bda9ffe2426, resource_owner_secret=****, signature_method=HMAC-SHA1, signature_type=AUTH_HEADER, callback_uri=None, rsa_key=None, verifier=None, realm=None, encoding=utf-8, decoding=utf-8, nonce=None, timestamp=None>
+2026-01-13 17:19:36,433 - requests_oauthlib.oauth1_auth - DEBUG - Including body in call to sign: True
+2026-01-13 17:19:36,433 - oauthlib.oauth1.rfc5849 - DEBUG - Collected params: [('oauth_nonce', '167999422233146345101768313976'), ('oauth_timestamp', '1768313976'), ('oauth_version', '1.0'), ('oauth_signature_method', 'HMAC-SHA1'), ('oauth_consumer_key', 'fc3e99d2-118c-44b8-8ae3-03370dde24c0'), ('oauth_token', '3d6345ce-0ead-42e6-adee-2bda9ffe2426')]
+2026-01-13 17:19:36,433 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized params: oauth_consumer_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0&oauth_nonce=167999422233146345101768313976&oauth_signature_method=HMAC-SHA1&oauth_timestamp=1768313976&oauth_token=3d6345ce-0ead-42e6-adee-2bda9ffe2426&oauth_version=1.0
+2026-01-13 17:19:36,433 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized URI: https://connectapi.garmin.com/oauth-service/oauth/exchange/user/2.0
+2026-01-13 17:19:36,434 - oauthlib.oauth1.rfc5849 - DEBUG - Signing: signature base string: POST&https%3A%2F%2Fconnectapi.garmin.com%2Foauth-service%2Foauth%2Fexchange%2Fuser%2F2.0&oauth_consumer_key%3Dfc3e99d2-118c-44b8-8ae3-03370dde24c0%26oauth_nonce%3D167999422233146345101768313976%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1768313976%26oauth_token%3D3d6345ce-0ead-42e6-adee-2bda9ffe2426%26oauth_version%3D1.0
+2026-01-13 17:19:36,434 - oauthlib.oauth1.rfc5849 - DEBUG - Signature: x6W05S0DYurjvalEZS7MWIj+pFo=
+2026-01-13 17:19:36,434 - oauthlib.oauth1.rfc5849 - DEBUG - Encoding URI, headers and body to utf-8.
+2026-01-13 17:19:36,434 - requests_oauthlib.oauth1_auth - DEBUG - Updated url: https://connectapi.garmin.com/oauth-service/oauth/exchange/user/2.0
+2026-01-13 17:19:36,434 - requests_oauthlib.oauth1_auth - DEBUG - Updated headers: {b'User-Agent': b'com.garmin.android.apps.connectmobile', b'Accept-Encoding': b'gzip, deflate', b'Accept': b'*/*', b'Connection': b'keep-alive', b'Content-Type': b'application/x-www-form-urlencoded', b'Content-Length': b'0', b'Authorization': b'OAuth oauth_nonce="167999422233146345101768313976", oauth_timestamp="1768313976", oauth_version="1.0", oauth_signature_method="HMAC-SHA1", oauth_consumer_key="fc3e99d2-118c-44b8-8ae3-03370dde24c0", oauth_token="3d6345ce-0ead-42e6-adee-2bda9ffe2426", oauth_signature="x6W05S0DYurjvalEZS7MWIj%2BpFo%3D"'}
+2026-01-13 17:19:36,434 - requests_oauthlib.oauth1_auth - DEBUG - Updated body: ''
+2026-01-13 17:19:36,663 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "POST /oauth-service/oauth/exchange/user/2.0 HTTP/1.1" 200 None
+2026-01-13 17:19:37,112 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /userprofile-service/socialProfile HTTP/1.1" 200 None
+2026-01-13 17:19:37,484 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /userprofile-service/userprofile/user-settings HTTP/1.1" 200 None
+2026-01-13 17:19:37,490 - core.garmin_data - INFO - Garmin Sync: Fetching 1 days: ['2026-01-13']
+2026-01-13 17:19:37,490 - garminconnect - DEBUG - Requesting user summary
+2026-01-13 17:19:37,734 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /usersummary-service/usersummary/daily/Lyskovsky?calendarDate=2026-01-13 HTTP/1.1" 200 None

@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from aiogram import Router, F, Bot
 from aiogram.types import Message
-from services.voice_service import voice_service
+from core.voice_service import voice_service
 from services.state import state_manager, UserState
 from handlers.photo import handle_description
 
@@ -41,7 +41,7 @@ async def handle_voice_message(message: Message, bot: Bot):
         await message.reply(f"🎤 <b>Распознано:</b>\n\n{text}")
 
         # --- Логика обработки добавок ---
-        from services.supplement_service import supplement_service
+        from core.supplements import supplement_service
         logged_items, remaining_items = supplement_service.log_intake(text)
         if logged_items:
              response = f"💊 <b>Сохранено:</b> {', '.join(logged_items)}\n\n"

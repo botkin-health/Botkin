@@ -13,7 +13,7 @@ from os import getenv
 
 
 # Определяем корневую директорию HealthVault
-HEALTHVAULT_ROOT = Path(__file__).parent.parent.parent
+HEALTHVAULT_ROOT = Path(__file__).parent.parent
 
 # Директории для логов
 NUTRITION_LOG_DIR = HEALTHVAULT_ROOT / 'data' / 'logs' / 'nutrition'

@@ -113,13 +113,13 @@
   "hrTimeInZone_5": 0.0,
   "endTimeGMT": "2025-06-10 10:41:11",
   "qualifyingDive": false,
-  "autoCalcCalories": false,
-  "favorite": false,
+  "purposeful": false,
+  "manualActivity": false,
   "decoDive": false,
   "elevationCorrected": false,
   "atpActivity": false,
-  "purposeful": false,
-  "manualActivity": false,
+  "autoCalcCalories": false,
+  "favorite": false,
   "pr": false,
   "parent": false
 }

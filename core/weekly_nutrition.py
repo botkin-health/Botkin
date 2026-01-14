@@ -10,11 +10,11 @@ from typing import Dict, List, Optional, Tuple
 from collections import defaultdict
 
 # Определяем корневую директорию HealthVault
-HEALTHVAULT_ROOT = Path(__file__).parent.parent.parent
+HEALTHVAULT_ROOT = Path(__file__).parent.parent
 NUTRITION_LOG = HEALTHVAULT_ROOT / 'data' / 'nutrition' / 'nutrition_log.json'
 
 # Import supplement service to check for psyllium
-from services.supplement_service import supplement_service
+from core.supplements import supplement_service
 
 
 def get_week_start(date_str: str = None) -> str:
@@ -279,7 +279,7 @@ def generate_weekly_recommendations(totals: Dict, categories: Dict, dates_analyz
     
     if weekday <= 3:  # Понедельник-четверг
         if fatty_fish_portions < 1:
-            recommendations.append("🐟 Жирная рыба: к четвергу 0-1 порция. План: добавить в пт + вс (лосось/скумбрия/сардина 150-200г)")
+            recommendations.append("🐟 Жирная рыба: пока &lt; 1 порции (Цель: минимум 1-2 в неделю). План: добавить в пт + вс (лосось/скумбрия/сардина 150-200г)")
     elif fatty_fish_portions < 2:
         recommendations.append("🐟 Жирная рыба: за неделю &lt; 2 порций. Добавить до конца недели (лосось/скумбрия/сардина 150-200г)")
     

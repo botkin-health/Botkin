@@ -13,9 +13,9 @@ import os
 import asyncio
 
 from services.state import state_manager, UserState
-from services.storage import add_meal, get_today_totals
-from services.nutrition import process_meal_description
-from services.menu_parser import parse_menu_photo
+from core.storage import add_meal, get_today_totals
+from core.nutrition import process_meal_description
+from core.menu_parser import parse_menu_photo
 
 router = Router()
 
@@ -170,7 +170,7 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
     
     # Получаем API ключ для OCR
     try:
-        from services.api_key_loader import get_google_vision_api_key
+        from core.api_key_loader import get_google_vision_api_key
         api_key = get_google_vision_api_key()
     except ImportError:
         api_key = os.getenv('GOOGLE_VISION_API_KEY')
@@ -193,7 +193,7 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
             dish_name = menu_data.get('dish_name', '')
             logger.info(f"💊 Распознаны добавки по фото: {dish_name}")
             
-            from services.supplement_service import supplement_service
+            from core.supplements import supplement_service
             logged_items, remaining_items = supplement_service.log_intake(dish_name)
             
             response = f"💊 <b>По фото распознано:</b> {dish_name}\n"
@@ -511,7 +511,7 @@ async def handle_description(message: Message, description: str = None, processi
     
     # Получаем API ключ для OCR используя единую функцию
     try:
-        from services.api_key_loader import get_google_vision_api_key
+        from core.api_key_loader import get_google_vision_api_key
         api_key = get_google_vision_api_key()
     except ImportError:
         # Fallback: старая логика
@@ -536,7 +536,7 @@ async def handle_description(message: Message, description: str = None, processi
         # Это позволяет пересчитать КБЖУ на указанный вес и добавить дополнительные продукты
         if menu_data:
             logger.info(f"Обработка описания с учетом меню: {full_description}")
-            from services.nutrition import process_meal_description_with_menu
+            from core.nutrition import process_meal_description_with_menu
             meal_items, meal_totals = process_meal_description_with_menu(
                 description=full_description,
                 menu_data=menu_data,
