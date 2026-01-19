@@ -556,8 +556,8 @@ def parse_meal_description(
     try:
         from .chatgpt_vision import parse_text_description_with_chatgpt, get_openai_api_key
         openai_key = get_openai_api_key()
-        if openai_key and description and len(description.strip()) > 10:
-             # Пробуем ChatGPT только для достаточно длинных описаний
+        if openai_key and description and len(description.strip()) > 2:
+             # Пробуем ChatGPT для описаний длиннее 2 символов
             chatgpt_products = parse_text_description_with_chatgpt(description, openai_key)
             if chatgpt_products and len(chatgpt_products) > 0:
                 # Дедупликация (дополнительная проверка)
