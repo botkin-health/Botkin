@@ -453,7 +453,7 @@ async def save_document_as_image(message: Message, file_id: str, file_name: str 
 # Это нужно, чтобы текстовые сообщения без фото обрабатывались правильно
 
 
-async def handle_description(message: Message, description: str = None, processing_message: Message = None):
+async def handle_description(message: Message, description: str = None, processing_message: Message = None, custom_date: str = None):
     """
     Обработка описания блюда после получения фото.
     
@@ -461,6 +461,7 @@ async def handle_description(message: Message, description: str = None, processi
         message: Исходное сообщение
         description: Текст описания
         processing_message: Сообщение "Анализирую...", которое нужно отредактировать (опционально)
+        custom_date: Кастомная дата в формате YYYY-MM-DD (опционально)
     """
     
     import logging
@@ -585,12 +586,16 @@ async def handle_description(message: Message, description: str = None, processi
             'meal_name': meal_name,
         })
         
-        logger.info(f"Сохранено в состояние: meal_name='{meal_name}', meal_time='{meal_time}'")
+        # Если передана кастомная дата, сохраняем её (или обновляем)
+        if custom_date:
+            user_state.data['date'] = custom_date
+        
+        logger.info(f"Сохранено в состояние: meal_name='{meal_name}', meal_time='{meal_time}', date='{user_state.data.get('date')}'")
         user_state.state = 'waiting_confirmation'
         state_manager.set_state(user_id, user_state)
         
         # Формируем ответ
-        response = format_meal_response(meal_items, meal_totals, portion_multiplier, meal_name)
+        response = format_meal_response(meal_items, meal_totals, portion_multiplier, meal_name, user_state.data.get('date'))
         
         # Создаём inline keyboard с кнопками
         builder = InlineKeyboardBuilder()
@@ -689,7 +694,20 @@ async def handle_menu_photo(message: Message, menu_data: dict, photo_path: Path,
         await message.answer(response, parse_mode='HTML', reply_markup=keyboard)
 
 
-def format_meal_response(meal_items: list, meal_totals: dict, portion_multiplier: float, meal_name: str = None) -> str:
+def format_meal_response(meal_items: list, meal_totals: dict, portion_multiplier: float, meal_name: str = None, date: str = None) -> str:
+    """Форматирует ответ с информацией о блюде"""
+    
+    lines = []
+    
+    # Добавляем дату, если она не сегодня
+    if date:
+        try:
+            date_obj = datetime.strptime(date, '%Y-%m-%d')
+            today_str = datetime.now().strftime('%Y-%m-%d')
+            if date != today_str:
+                lines.append(f"📅 <b>{date_obj.strftime('%d.%m.%Y')}</b>")
+        except ValueError:
+            pass
     """Форматирует ответ с информацией о блюде"""
     
     lines = []

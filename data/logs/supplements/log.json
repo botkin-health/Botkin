@@ -24,6 +24,48 @@
     "sterols_pm": true
   },
   "2026-01-14": {
-    "psyllium": true
+    "psyllium": true,
+    "omega": true,
+    "vit_d": true,
+    "sterols_am": true,
+    "zinc": true,
+    "magnesium": true,
+    "sterols_pm": true
+  },
+  "2026-01-15": {
+    "sterols_pm": true,
+    "omega": true,
+    "vit_d": true,
+    "magnesium": true,
+    "zinc": true,
+    "sterols_am": true
+  },
+  "2026-01-16": {
+    "psyllium": true,
+    "omega": true,
+    "sterols_am": true
+  },
+  "2026-01-17": {
+    "omega": true,
+    "magnesium": true,
+    "sterols_pm": true,
+    "zinc": true,
+    "vit_d": true,
+    "sterols_am": true
+  },
+  "2026-01-18": {
+    "sterols_am": true,
+    "omega": true,
+    "vit_d": true,
+    "psyllium": true,
+    "zinc": true,
+    "magnesium": true,
+    "sterols_pm": true
+  },
+  "2026-01-19": {
+    "psyllium": true,
+    "vit_d": true,
+    "omega": true,
+    "sterols_am": true
   }
 }

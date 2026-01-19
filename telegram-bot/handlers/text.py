@@ -6,7 +6,7 @@
 import re
 import json
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from aiogram import Router, F
 from aiogram.types import Message
@@ -106,6 +106,47 @@ def extract_meal_name(text: str, meal_time: str = None) -> str:
         return "Вечерний перекус"
 
 
+def extract_date_from_text(text: str) -> tuple[str, str]:
+    """
+    Извлекает дату "вчера" из начала текста.
+    Возвращает (date_str, clean_text).
+    date_str в формате YYYY-MM-DD или None (если сегодня).
+    """
+    if not text:
+        return None, text
+        
+    text_lower = text.lower().strip()
+    
+    # Ключевые слова для "вчера"
+    yesterday_keywords = ['вчера', 'yesterday']
+    
+    # Проверяем начало строки
+    # Например: "Вчера ужин: ..." или "Вчера: ..."
+    for kw in yesterday_keywords:
+        if text_lower.startswith(kw):
+            # Проверяем, что идет после ключевого слова
+            after_kw = text_lower[len(kw):]
+            
+            # Если текст закончился - это просто "вчера"
+            if not after_kw:
+                yesterday = datetime.now() - timedelta(days=1)
+                date_str = yesterday.strftime('%Y-%m-%d')
+                return date_str, ''
+                
+            # Если после ключевого слова идет разделитель
+            if after_kw[0] in [':', ',', '-', ' ', '\n']:
+                # Вычисляем дату вчера
+                yesterday = datetime.now() - timedelta(days=1)
+                date_str = yesterday.strftime('%Y-%m-%d')
+                
+                # Очищаем текст от слова "вчера" и разделителей
+                clean_text = text[len(kw):].strip()
+                clean_text = re.sub(r'^[:,\-\s]+', '', clean_text).strip()
+                
+                return date_str, clean_text
+                
+    return None, text
+
 def is_confirmation(text: str) -> bool:
     """
     Проверяет, является ли текст подтверждением сохранения.
@@ -134,7 +175,9 @@ def save_meal_to_json(meal_data: dict, meal_name: str = None):
         meal_data: Данные о приёме пищи из состояния
         meal_name: Название приёма пищи (если None, используется из meal_data или "Приём пищи")
     """
-    today = datetime.now().strftime('%Y-%m-%d')
+    # Определяем дату: берем из meal_data или используем сегодня
+    custom_date = meal_data.get('date')
+    today = custom_date if custom_date else datetime.now().strftime('%Y-%m-%d')
     
     # Загружаем существующие данные
     if NUTRITION_LOG_JSON.exists():
@@ -333,8 +376,15 @@ async def handle_text(message: Message, state: FSMContext):
     else:
         # Текстовое сообщение без фото - обрабатываем как описание еды
         text = message.text.strip()
-        if text and len(text) > 3:  # Минимальная длина для описания
-            logger.info(f"Обработка текстового описания без фото: '{text}'")
+        
+        # Проверяем наличие ключевого слова "Вчера"
+        custom_date, clean_text = extract_date_from_text(text)
+        
+        # Если дата была извлечена, используем очищенный текст
+        processing_text = clean_text if custom_date else text
+        
+        if processing_text and len(processing_text) > 3:  # Минимальная длина для описания
+            logger.info(f"Обработка текстового описания без фото: '{processing_text}' (Date: {custom_date or 'Today'})")
             
             # Импортируем обработчик описания из photo.py
             from handlers.photo import handle_description
@@ -348,15 +398,20 @@ async def handle_text(message: Message, state: FSMContext):
                     'photo_paths': [],
                     'photo_file_ids': [],
                     'caption': '',  # Не дублируем текст в caption
+                    'date': custom_date,  # Сохраняем дату (может быть None)
                 }
             )
             state_manager.set_state(user_id, new_user_state)
             
             # Отправляем сообщение о начале анализа
-            processing_msg = await message.answer("🤖 Анализирую через ИИ: еда, время, вес, КБЖУ... ⏳")
+            msg_text = "🤖 Анализирую через ИИ: еда, время, вес, КБЖУ... ⏳"
+            if custom_date:
+                msg_text += f"\n📅 Дата записи: {custom_date}"
             
-            # Обрабатываем описание
-            await handle_description(message, text, processing_message=processing_msg)
+            processing_msg = await message.answer(msg_text)
+            
+            # Обрабатываем описание (передаем очищенный текст)
+            await handle_description(message, processing_text, processing_message=processing_msg, custom_date=custom_date)
 
 
 

@@ -141,6 +141,17 @@ def sync_garmin_data() -> bool:
         
     try:
         # 1. Auth
+        # FIX: Patch garth consumer keys to avoid SSL error on fetch
+        try:
+            import garth.sso
+            garth.sso.OAUTH_CONSUMER = {
+                "consumer_key": "fc3e99d2-118c-44b8-8ae3-03370dde24c0",
+                "consumer_secret": "E08WAR897WEy2knn7aFBrvegVAf0AFdWBBF"
+            }
+            logger.info("✅ Patched garth.sso.OAUTH_CONSUMER manually")
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to patch garth: {e}")
+
         client = Garmin(email, password)
         client.login()
         

@@ -44,6 +44,6 @@
     - [ ] Generate "broken" export files for parsers
     - [ ] Verify error handling
 
-- [ ] **File Migration to Google Drive**
-    - [ ] Move `/Users/alexlyskovsky/HealthVault/data` contents to Google Drive
-    - [ ] Keep `knowledge_base.json` and project code in current location
+- [x] **File Migration to Google Drive**
+    - [x] Move `/Users/alexlyskovsky/HealthVault/data` contents to Google Drive
+    - [x] Keep `knowledge_base.json` and project code in current location

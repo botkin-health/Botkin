@@ -1,0 +1,10 @@
+{
+    "blood_biochemistry": {
+        "vitamin_d": {
+            "target_range": "50-70 ng/ml",
+            "current_plan": "4000-5000 IU/day",
+            "note": "Цель для энергичности и активности (зима, Москва)"
+        }
+    },
+    "last_updated": "2026-01-17"
+}

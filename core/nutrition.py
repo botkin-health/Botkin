@@ -429,8 +429,11 @@ def process_meal_description_with_menu(
             'source': 'menu_ocr'
         }]
     
-    # Применяем множитель порции
-    if portion_multiplier != 1.0:
+    # Применяем множитель порции ТОЛЬКО если продукты НЕ из menu_data
+    # Если продукты из menu_data, ChatGPT уже учитывает порцию из описания (например "1/2 пиццы")
+    # и возвращает КБЖУ и вес уже для этой порции
+    products_from_menu = any(p.get('source') in ('menu_ocr', 'menu_ocr_component') for p in products)
+    if portion_multiplier != 1.0 and not products_from_menu:
         from .description_parser import apply_portion_multiplier
         products = apply_portion_multiplier(products, portion_multiplier)
     
@@ -582,6 +585,7 @@ def process_meal_description_with_menu(
         # ИЛИ если название продукта содержит название блюда из меню
         # ИЛИ если это рыба из рыбных консервов
         is_menu_product = (
+            product.get('source') == 'menu_ocr_component' or
             is_fish_product or
             len(menu_keywords & product_keywords) > 0 or
             any(keyword in product_name for keyword in menu_keywords if len(keyword) > 3) or
@@ -607,7 +611,25 @@ def process_meal_description_with_menu(
         
         if is_menu_product:
             logger.info(f"  ✅ Продукт '{product_name}' соответствует меню")
-            if product_weight and product_weight > 0:
+            
+            # Если у продукта уже есть свои КБЖУ (от ChatGPT components), используем их!
+            if product.get('source') == 'menu_ocr_component' and product.get('calories') is not None:
+                 logger.info(f"  ✅ Используем собственные КБЖУ компонента (не пересчитываем от общего меню):")
+                 logger.info(f"    {product.get('calories')} ккал, {product.get('protein')}г б, {product.get('fats')}г ж, {product.get('carbs')}г у")
+                 
+                 meal_items.append({
+                    'product': product.get('name', menu_data.get('dish_name', 'Продукт из меню')),
+                    'weight_g': round(product_weight, 2) if product_weight else None,
+                    'weight_source': 'description',
+                    'weight_estimated': False,
+                    'calories': round(product.get('calories', 0), 1),
+                    'protein': round(product.get('protein', 0), 1),
+                    'fats': round(product.get('fats', 0), 1),
+                    'carbs': round(product.get('carbs', 0), 1),
+                    'source': 'menu_ocr_component',
+                })
+
+            elif product_weight and product_weight > 0:
                 # Это продукт из меню с указанным весом - пересчитываем КБЖУ
                 # КБЖУ из меню обычно на 100г, пересчитываем на указанный вес
                 multiplier = product_weight / 100.0
