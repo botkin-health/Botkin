@@ -181,8 +181,39 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
     if user_state and user_state.data.get('caption'):
         caption = user_state.data.get('caption')
     
-    # Передаем весь список фото в парсер ВМЕСТЕ с описанием
-    menu_data = parse_menu_photo(photo_paths, api_key, description=caption)
+    # ИЗМЕНЕНО: Обрабатываем каждое фото ОТДЕЛЬНО, если это группа
+    all_menu_data = []
+    if photo_count > 1:
+        logger.info(f"📸 Обрабатываю {photo_count} фото по отдельности...")
+        for idx, photo_path in enumerate(photo_paths, 1):
+            logger.info(f"  Анализирую фото {idx}/{photo_count}: {photo_path.name}")
+            menu_item = parse_menu_photo([photo_path], api_key, description=caption)
+            if menu_item:
+                all_menu_data.append(menu_item)
+                logger.info(f"  ✅ Фото {idx}: распознано '{menu_item.get('dish_name')}'")
+            else:
+                logger.info(f"  ⚠️ Фото {idx}: ничего не распознано")
+        
+        # Если распознано несколько блюд, объединяем их
+        if len(all_menu_data) > 1:
+            menu_data = {
+                'dish_name': ', '.join([item.get('dish_name', 'Неизвестно') for item in all_menu_data]),
+                'calories': sum([item.get('calories', 0) for item in all_menu_data]),
+                'protein': sum([item.get('protein', 0) for item in all_menu_data]),
+                'fats': sum([item.get('fats', 0) for item in all_menu_data]),
+                'carbs': sum([item.get('carbs', 0) for item in all_menu_data]),
+                'weight': None,
+                'multiple_items': True,
+                'items': all_menu_data
+            }
+            logger.info(f"✅ Объединено {len(all_menu_data)} блюд: {menu_data['dish_name']}")
+        elif len(all_menu_data) == 1:
+            menu_data = all_menu_data[0]
+        else:
+            menu_data = None
+    else:
+        # Одно фото - обрабатываем как раньше
+        menu_data = parse_menu_photo(photo_paths, api_key, description=caption)
     
     # Логируем результат распознавания меню
     if menu_data:
@@ -249,7 +280,8 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
             state_manager.set_state(user_id, user_state)
             
             # Обрабатываем описание с учетом меню
-            await handle_description(message, caption, processing_message=processing_msg)
+            # Caption уже в state, не передаем его дублированно
+            await handle_description(message, '', processing_message=processing_msg)
         else:
             # Нет caption - используем данные как есть
             logger.info(f"Используем данные без caption: {menu_data.get('dish_name')}")
@@ -282,7 +314,8 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
                 )
                 state_manager.set_state(user_id, user_state)
 
-            await handle_description(message, caption, processing_message=processing_msg)
+            # Caption уже в state, не передаем его дублированно
+            await handle_description(message, '', processing_message=processing_msg)
         else:
             # Не меню и нет caption - устанавливаем состояние и просим описание
             # Если состояния нет (одиночное фото без группы)
@@ -488,6 +521,16 @@ async def handle_description(message: Message, description: str = None, processi
     
     # Объединяем caption и description
     full_description = f"{caption}\n{description}".strip() if caption else description
+    
+    # Извлекаем дату из описания (поддержка "вчера")
+    # Если custom_date не был передан, пытаемся извлечь из текста
+    if not custom_date:
+        from handlers.text import extract_date_from_text
+        extracted_date, clean_description = extract_date_from_text(full_description)
+        if extracted_date:
+            custom_date = extracted_date
+            full_description = clean_description
+            logger.info(f"Извлечена дата из описания: {custom_date}, очищенное описание: '{clean_description[:50]}...'")
     
     # Определяем множитель порции из описания
     portion_multiplier = 1.0

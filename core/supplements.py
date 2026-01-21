@@ -54,10 +54,35 @@ class SupplementService:
         """
         Parses text for supplement keywords and logs them for today.
         Smartly handles time-based duplicates (e.g. Sterols AM vs PM).
+        Supports "вчера" (yesterday) keyword at the beginning.
         """
-        today_str = datetime.now().strftime('%Y-%m-%d')
+        import re
+        
+        # Извлекаем дату из текста (поддержка "вчера")
+        text_lower = text.lower().strip()
+        yesterday_keywords = ['вчера', 'yesterday']
+        
+        # Определяем дату для записи
+        target_date = datetime.now()
+        
+        for kw in yesterday_keywords:
+            if text_lower.startswith(kw):
+                # Проверяем, что идет после ключевого слова
+                after_kw = text_lower[len(kw):]
+                
+                # Если после ключевого слова идет разделитель или текст закончился
+                if not after_kw or after_kw[0] in [':', ',', '-', ' ', '\n']:
+                    # Вычисляем дату вчера
+                    target_date = datetime.now() - timedelta(days=1)
+                    
+                    # Очищаем текст от слова "вчера" и разделителей
+                    text = text[len(kw):].strip()
+                    text = re.sub(r'^[:,\-\s]+', '', text).strip()
+                    text_lower = text.lower()
+                    break
+        
+        today_str = target_date.strftime('%Y-%m-%d')
         current_hour = datetime.now().hour
-        text_lower = text.lower()
         
         # 1. Identify potential matches
         candidates = []
