@@ -271,11 +271,15 @@ def extract_products_from_description(description: str) -> List[Dict[str, any]]:
     # Паттерны для поиска продуктов с весами
     # 1. "продукт 150г" или "продукт 150 г" или "150 грамм продукта" или "150 граммов продукта"
     # Ограничиваем: максимум 3 слова для названия продукта, чтобы не захватывать весь текст
+    # ВАЖНО: порядок паттернов важен! Сначала ищем "число + грамм + продукт", потом "продукт + число + г"
+    # чтобы "178 грамм ячневой каши" не парсилось как "грамм ячневой каш" с весом 178
     weight_patterns = [
-        # "сыр 30г" или "тунец 70 грамм" - support full 'грамм' word
-        r'([а-яё]+(?:\s+[а-яё]+){0,2})\s+(\d+(?:[.,]\d+)?)\s*(?:грамм|граммов|г|g|Г|G)\b',
-        # "30 грамм сыра" - restrict to horizontal whitespace to avoid matching "weight \n next_product"
+        # "30 грамм сыра" или "178 грамм ячневой каши" - ПЕРВЫЙ приоритет
+        # restrict to horizontal whitespace to avoid matching "weight \n next_product"
         r'(\d+(?:[.,]\d+)?)\s*(?:грамм|граммов|г|g|Г|G)[ \t]+([а-яё]+(?:\s+[а-яё]+){0,2})',
+        # "сыр 30г" или "тунец 70 грамм" - support full 'грамм' word
+        # Исключаем слова, связанные с весом, из названия продукта
+        r'([а-яё]+(?:\s+[а-яё]+){0,2})\s+(\d+(?:[.,]\d+)?)\s*(?:грамм|граммов|г|g|Г|G)\b',
     ]
     
     # Список названий приёмов пищи, которые нужно исключить
@@ -311,6 +315,11 @@ def extract_products_from_description(description: str) -> List[Dict[str, any]]:
                 product_name = re.sub(r'\s*(и|или|с|из|для|на|в|:)\s*$', '', product_name).strip()
                 product_name = re.sub(r'^[:\s]+', '', product_name).strip()  # Убираем двоеточие в начале
                 
+                # ВАЖНО: Убираем слова, связанные с весом, из названия продукта
+                # Это может произойти, если regex захватил "грамм" как часть названия
+                product_name = re.sub(r'^(грамм|граммов|г|g)\s+', '', product_name, flags=re.IGNORECASE).strip()
+                product_name = re.sub(r'\s+(грамм|граммов|г|g)$', '', product_name, flags=re.IGNORECASE).strip()
+                
                 # Убираем фразы типа "добавь к обеду", "к ужину" и т.д.
                 product_name = re.sub(r'^(?:добавь|плюс|еще|ещё)\s+', '', product_name, flags=re.IGNORECASE).strip()
                 product_name = re.sub(r'^(?:к|для|на)\s+(?:обед|ужин|завтрак|перекус|полдник)[у-я]*\s+', '', product_name, flags=re.IGNORECASE).strip()
@@ -334,15 +343,30 @@ def extract_products_from_description(description: str) -> List[Dict[str, any]]:
                         normalized_lower = normalized.lower()
                         if normalized_lower not in meal_names and not any(normalized_lower.startswith(meal) for meal in meal_names):
                             # Проверяем дубликаты по нормализованному названию и весу
-                            # (учитываем небольшие различия в весе из-за округления)
+                            # Улучшенная проверка: сравниваем базовые слова продуктов
                             is_duplicate = False
                             for existing_product in products:
                                 existing_name = existing_product.get('name', '').lower()
                                 existing_weight = existing_product.get('weight', 0)
-                                # Если названия совпадают (после нормализации) и веса близки (±1г)
-                                if normalized_lower == existing_name and abs(weight - existing_weight) < 1.0:
+                                
+                                # Проверка 1: точное совпадение названий
+                                if normalized_lower == existing_name:
                                     is_duplicate = True
                                     break
+                                
+                                # Проверка 2: одно название содержит другое (минимум 5 символов совпадения)
+                                # Например: "ячневой каш" vs "ячневая каша" или "сайры" vs "консервированной сайры"
+                                if len(normalized_lower) >= 5 and len(existing_name) >= 5:
+                                    # Извлекаем базовые слова (первые 5+ символов каждого слова)
+                                    norm_words = [w[:5] for w in normalized_lower.split() if len(w) >= 4]
+                                    exist_words = [w[:5] for w in existing_name.split() if len(w) >= 4]
+                                    
+                                    # Если есть пересечение базовых слов и близкие веса
+                                    if norm_words and exist_words:
+                                        common_words = set(norm_words) & set(exist_words)
+                                        if common_words and abs(weight - existing_weight) < 10:
+                                            is_duplicate = True
+                                            break
                             
                             if not is_duplicate:
                                 products.append({

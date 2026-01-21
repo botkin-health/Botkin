@@ -395,6 +395,9 @@ def process_meal_description_with_menu(
     # Используем напрямую парсер описания
     from .description_parser import extract_products_from_description
     
+    # Инициализируем products пустым списком
+    products = []
+    
     # Если в menu_data есть компоненты (от ChatGPT), используем их!
     # Это приоритетный источник, так как ИИ уже разбил блюдо на части
     if menu_data and menu_data.get('components'):
