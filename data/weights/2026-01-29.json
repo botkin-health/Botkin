@@ -1,0 +1,12 @@
+[
+  {
+    "is_body_metrics": true,
+    "weight": 80.4,
+    "bmi": 27.8,
+    "body_fat": 14,
+    "muscle": 54.34,
+    "water": 50.8,
+    "source": "screenshot_ocr",
+    "date": "2026-01-29 08:30"
+  }
+]
