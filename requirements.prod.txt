@@ -1,0 +1,32 @@
+# HealthVault Production Dependencies (минимальный набор)
+
+# Core (Telegram Bot) - ОБЯЗАТЕЛЬНО
+aiogram>=3.0.0
+python-dotenv>=1.0.0
+pyyaml>=6.0
+requests>=2.31.0
+
+# AI Services - ОБЯЗАТЕЛЬНО
+openai>=1.0.0
+google-generativeai>=0.3.0
+
+# Database - ОБЯЗАТЕЛЬНО
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.0
+
+# Garmin (для /garmin команды) - можно убрать если не используется
+garminconnect>=0.2.0
+
+# Остальные зависимости закомментированы для ускорения установки:
+# xmltodict>=0.13.0
+# huami-token>=0.5.0
+# bleak>=0.20.0
+# bleparser>=1.0.0
+# pandas>=2.0.0
+# pytest>=7.0.0
+# mypy>=1.0.0
+# types-requests>=2.31.0
+# types-PyYAML>=6.0
+# alembic>=1.12.0
+# fastapi>=0.104.0
+# uvicorn[standard]>=0.24.0

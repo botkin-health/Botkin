@@ -119,9 +119,11 @@ def calculate_nutrition(product_name: str, weight_g: float, description: str = "
     # Определяем basis, если не указан
     if not basis:
         basis = determine_product_basis(product_name, description)
-    
+
     # Нормализуем название с учётом basis
     normalized_name = normalize_product_name(product_name, basis)
+    
+    # Если basis = ambiguous, пробуем сначала cooked (Rule A)
     
     # Если basis = ambiguous, пробуем сначала cooked (Rule A)
     if basis == 'ambiguous':
@@ -156,15 +158,34 @@ def calculate_nutrition(product_name: str, weight_g: float, description: str = "
             'томат': {'calories_per_100g': 18, 'protein_per_100g': 0.9, 'fats_per_100g': 0.2, 'carbs_per_100g': 3.9},
             'сыр': {'calories_per_100g': 363, 'protein_per_100g': 23.0, 'fats_per_100g': 30.0, 'carbs_per_100g': 0.0},
             'сливочное масло': {'calories_per_100g': 748, 'protein_per_100g': 0.5, 'fats_per_100g': 82.5, 'carbs_per_100g': 0.8},
+            'морковь': {'calories_per_100g': 41, 'protein_per_100g': 0.9, 'fats_per_100g': 0.2, 'carbs_per_100g': 9.6},
+            'свекла': {'calories_per_100g': 43, 'protein_per_100g': 1.6, 'fats_per_100g': 0.2, 'carbs_per_100g': 9.6},
         }
         
-        # Проверяем, есть ли значения для этого продукта
+        # Проверяем, есть ли значения для этого продукта (используем точное совпадение слов)
+        import re
         product_lower = normalized_name.lower()
+        
+        # Токены продукта
+        product_tokens = set(re.findall(r'\w+', product_lower))
+        
         for key, values in default_values.items():
-            if key in product_lower or product_lower in key:
-                product = values
-                logger.info(f"Использованы значения по умолчанию для '{normalized_name}': {product}")
-                break
+            # Если ключ содержится как отдельное слово в названии продукта
+            # ИЛИ если название продукта содержится как отдельное слово в ключе (редко, но бывает)
+            key_tokens = set(re.findall(r'\w+', key.lower()))
+            
+            # Проверка 1: Ключ - это одно из слов продукта (например "сыр" в "сыр российский")
+            # Но НЕ "сыр" в "сырая морковь"
+            
+            if any(k_token in product_tokens for k_token in key_tokens):
+                 # Дополнительная проверка: для коротких ключей типа "сыр", "лук" требуем осторожности
+                 # "сырая" -> tokens: ["сырая"]. "сыр" -> tokens: ["сыр"]. No match. Correct.
+                 product = values
+                 logger.info(f"Использованы значения по умолчанию для '{normalized_name}': {product} (match: {key})")
+                 break
+                 
+            # Compatibility fallback (if needed? Maybe safer to just rely on product search if not exact match)
+            # Let's try restrictive matching first.
         
         # Если не нашли - используем общие средние значения
         if not product:
@@ -736,3 +757,161 @@ def extract_weight_from_photo_legacy(photo_path: Path, api_key: Optional[str] = 
     """
     return extract_weight_from_photo(photo_path, api_key)
 
+
+def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List[Dict], Dict[str, float]]:
+    """
+    Converts LLM Router 'food' data into internal meal structure.
+    Calculates macros for items if LLM didn't provide them.
+    
+    Args:
+        llm_data: Dict from llm_router.analyze_message (must be type='food')
+        description: Original text description (optional, used for regex fallback)
+        
+    Returns:
+        (meal_items, meal_totals)
+    """
+    if not llm_data or llm_data.get('type') != 'food':
+        return [], {'calories': 0, 'protein': 0, 'fats': 0, 'carbs': 0}
+        
+    data = llm_data.get('data', {})
+    items = data.get('items', [])
+    meal_items = []
+    
+    # Pre-calculate regex items if description is available
+    regex_items_map = {}
+    if description:
+        try:
+            from .description_parser import extract_products_from_description, normalize_product_name
+            regex_products = extract_products_from_description(description)
+            for p in regex_products:
+                if p.get('weight'):
+                    # Map normalized name to weight
+                    # Use simple normalization
+                    n_name = normalize_product_name(p['name'])
+                    regex_items_map[n_name] = p['weight']
+                    # Also map raw name just in case
+                    regex_items_map[p['name'].lower()] = p['weight']
+        except Exception as e:
+            print(f"Error in regex fallback: {e}")
+
+    for item in items:
+        name = item.get('name', 'Unknown')
+        weight = item.get('weight')
+        
+        # Fallback: Try to find weight in regex results if missing
+        if not weight and description:
+            from .description_parser import normalize_product_name
+            n_name = normalize_product_name(name)
+            if n_name in regex_items_map:
+                weight = regex_items_map[n_name]
+            elif name.lower() in regex_items_map:
+                weight = regex_items_map[name.lower()]
+            
+            # Additional fuzzy search?
+            # If "подсолнечное масло" (LLM) vs "масло подсолнечное" (Regex)
+            # Simple token overlap check
+            if not weight:
+                name_tokens = set(name.lower().split())
+                for r_name, r_weight in regex_items_map.items():
+                   r_tokens = set(r_name.split())
+                   # If significant overlap (e.g. "maslo" in both)
+                   if len(name_tokens & r_tokens) >= 1 and len(r_name) > 3 and len(name) > 3:
+                       # Be careful not to mix "oil" and "butter" if they have differenet weights?
+                       # But here we just want to rescue missing weights.
+                       weight = r_weight
+                       break
+        
+        # If LLM gave full macros, trust them (but prefer local calculation if weight is known to ensure consistency? 
+        # No, trust LLM if it saw the photo/text, it might be a specific product. 
+        # But if macros are 0/missing, use calculate_nutrition).
+        
+        has_macros = item.get('calories') is not None and item.get('calories') > 0
+        
+        if has_macros:
+            # Если вес не указан, но есть калории - пробуем оценить вес по названию (для отображения)
+            final_weight = weight
+            weight_src = 'llm'
+            
+            if not final_weight:
+                from .description_parser import get_default_unit_weight
+                # Если LLM вернул quantity, используем его
+                try:
+                    qty = float(item.get('quantity', 1))
+                except (ValueError, TypeError):
+                    qty = 1.0
+                
+                # Если quantity=0 или None, считаем 1 (для штучных товаров)
+                if not qty or qty <= 0:
+                    qty = 1.0
+                    
+                unit_weight = get_default_unit_weight(name)
+                if unit_weight > 0:
+                    final_weight = unit_weight * qty
+                    weight_src = 'estimate'
+                    
+            meal_items.append({
+                'product': name,
+                'weight_g': final_weight,
+                'weight_source': weight_src,
+                'calories': float(item.get('calories') or 0),
+                'protein': float(item.get('protein') or 0),
+                'fats': float(item.get('fats') or 0),
+                'carbs': float(item.get('carbs') or 0),
+                'source': 'llm_router'
+            })
+        elif weight and weight > 0:
+            # Calculate using local DB
+            nutrition = calculate_nutrition(name, weight)
+            meal_items.append({
+                'product': name,
+                'weight_g': weight,
+                'weight_source': 'llm',
+                'calories': nutrition['calories'],
+                'protein': nutrition['protein'],
+                'fats': nutrition['fats'],
+                'carbs': nutrition['carbs'],
+                'basis': nutrition.get('basis', 'raw'),
+                'source': 'local_db'
+            })
+        else:
+            # 3. No weight, no macros. Try to estimate!
+            from .description_parser import get_default_unit_weight
+            try:
+                qty = float(item.get('quantity', 1))
+            except (ValueError, TypeError):
+                qty = 1.0
+                
+            if not qty or qty <= 0: qty = 1.0
+            
+            unit_weight = get_default_unit_weight(name)
+            
+            if unit_weight > 0:
+                estimated_weight = unit_weight * qty
+                nutrition = calculate_nutrition(name, estimated_weight)
+                
+                meal_items.append({
+                    'product': name,
+                    'weight_g': estimated_weight,
+                    'weight_source': 'estimate',
+                    'weight_estimated': True,
+                    'calories': nutrition['calories'],
+                    'protein': nutrition['protein'],
+                    'fats': nutrition['fats'],
+                    'carbs': nutrition['carbs'],
+                    'source': 'local_db_estimate'
+                })
+            else:
+                # Fallback: just list it without weight
+                meal_items.append({
+                    'product': name,
+                    'weight_g': None,
+                    'weight_source': 'unknown',
+                    'calories': 0,
+                    'protein': 0,
+                    'fats': 0,
+                    'carbs': 0,
+                    'source': 'unknown'
+                })
+            
+    totals = calculate_meal_totals(meal_items)
+    return meal_items, totals

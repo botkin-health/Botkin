@@ -10,6 +10,7 @@ from pathlib import Path
 
 # Добавляем корень проекта в sys.path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
+sys.path.append(str(Path(__file__).resolve().parent))
 
 from aiogram import Bot, Dispatcher, F
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -145,24 +146,34 @@ async def main():
     # Вместо этого используем обработчик в handlers/text.py
     # Оставляем только обработчик для диагностики фото, которые не обработались
     
-    # Добавляем обработчик для всех обновлений (для диагностики)
-    @dp.update()
-    async def catch_all_updates(update: Update):
-        """Обработчик для всех обновлений (для диагностики)"""
-        if update.message:
-            # Если это сообщение, но оно не обработано - логируем детали
-            msg = update.message
-            if msg.photo:
-                logger.error(f"❌ КРИТИЧНО: Обновление с фото не обработано! update_id={update.update_id}, message_id={msg.message_id}, photo_count={len(msg.photo)}")
-                # Пытаемся обработать вручную
-                try:
-                    from handlers.photo import handle_photo
-                    logger.info(f"🔄 Пытаюсь обработать фото из update вручную...")
-                    await handle_photo(msg)
-                except Exception as e:
-                    logger.error(f"❌ Ошибка при ручной обработке фото из update: {e}")
-                    import traceback
-                    traceback.print_exc()
+    # Middleware для обеспечения идемпотентности (дедупликация)
+    try:
+        from middlewares.idempotency import IdempotencyMiddleware
+        dp.update.outer_middleware(IdempotencyMiddleware())
+        logger.info("✅ IdempotencyMiddleware подключен")
+    except ImportError as e:
+        logger.error(f"❌ Не удалось подключить IdempotencyMiddleware: {e}")
+        errors.append(f"Middleware: {e}")
+
+    # Middleware для логирования всех апдейтов
+    @dp.update.outer_middleware()
+    async def log_update_middleware(handler, event, data):
+        # event is the Update object here
+        if isinstance(event, Update):
+            log_msg = f"📥 Update {event.update_id}:"
+            if event.message:
+                log_msg += f" MSG id={event.message.message_id} date={event.message.date}"
+            elif event.edited_message:
+                log_msg += f" EDIT id={event.edited_message.message_id} date={event.edited_message.edit_date}"
+            elif event.callback_query:
+                log_msg += f" CB id={event.callback_query.id} data={event.callback_query.data}"
+            else:
+                log_msg += " (other type)"
+            logger.info(log_msg)
+        return await handler(event, data)
+    
+    # Добавляем обработчик для всех обновлений (для диагностики необработанных)
+    # catch_all_updates удален чтобы исключить побочные эффекты
     
     # Проверяем наличие необходимых директорий
     try:
@@ -191,8 +202,8 @@ async def main():
     
     # Запускаем бота
     try:
-        # Удаляем вебхук, если он был установлен
-        await bot.delete_webhook(drop_pending_updates=True)
+        # Удаляем вебхук, если он был установлен (не сбрасываем апдейты, чтобы не терять сообщения)
+        await bot.delete_webhook(drop_pending_updates=False)
 
         commands = [
             BotCommand(command="day", description="Итоги дня (еда + витамины)"),

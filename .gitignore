@@ -1,4 +1,3 @@
-
 # Data
 data/nutrition/nutrition_log.json
 data/workouts_database.json
@@ -10,10 +9,16 @@ data/ultrasound/
 data/urine-tests/
 data/vitamins/
 data/weights/
-data/apple-health/export/*
-data/apple-health/parsed/*
-!data/apple-health/export/.gitkeep
-!data/apple-health/parsed/.gitkeep
+data/apple-health/
+data/backup/
+*.xml
+*.sql
+!database/init.sql
+
+# Environment
+.env*
+!.env.example
+!.env.production.example
 
 # Python
 __pycache__/
@@ -55,7 +60,14 @@ venv.bak/
 *.swo
 .DS_Store
 
-# API Keys
-.openai_api_key
-.google_api_key
-.gemini_api_key
+# Logs
+logs/
+telegram-bot/logs/
+CREDENTIALS.md
+*.log
+*.txt
+!requirements.txt
+!requirements.prod.txt
+!README.md
+!KNOWLEDGE_BASE.md
+!HEALTH.md

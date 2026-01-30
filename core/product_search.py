@@ -116,31 +116,46 @@ def find_product(name: str) -> Optional[Dict]:
         # Проверяем точное совпадение с алиасами
         if name_lower in [a.lower() for a in aliases] or name_lower == product_name.lower():
             return product_data
-        # Проверяем частичное совпадение с алиасами
+            
+        # Проверяем частичное совпадение с алиасами (через токены)
+        import re
+        query_tokens = set(re.findall(r'\w+', name_lower))
+        
         for alias in aliases:
-            if name_lower in alias.lower() or alias.lower() in name_lower:
-                return product_data
+            alias_lower = alias.lower()
+            alias_tokens = set(re.findall(r'\w+', alias_lower))
+            
+            # То же самое: токены алиаса должны быть подмножеством токенов запроса
+            # "сыр" -> {"сыр"}. "сырая морковь" -> {"сырая", "морковь"}. Diff -> No match.
+            if alias_tokens and alias_tokens.issubset(query_tokens):
+                 return product_data
+                 
+            # Или наоборот (уточнение)
+            if query_tokens and query_tokens.issubset(alias_tokens):
+                 return product_data
     
+    # Частичное совпадение по названию продукта
     # Частичное совпадение по названию продукта
     import re
-    
-    # Частичное совпадение по названию продукта
+    query_tokens = set(re.findall(r'\w+', name_lower))
+    query_digits = set(re.findall(r'\d+', name_lower))
+
     for product_name, product_data in db.items():
-        # Если название продукта есть в запросе (query="кефир 4%", product="кефир")
-        if product_name.lower() in name_lower:
-             # Проверяем, не потеряли ли мы важные цифры (проценты, жирность)
-             # Находим все цифры в запросе, которых нет в найденном продукте
-             query_digits = set(re.findall(r'\d+', name_lower))
-             product_digits = set(re.findall(r'\d+', product_name.lower()))
-             
-             # Если в запросе есть цифры, которых нет в продукте - это плохой матчинг (ищем "кефир 4%", нашли "кефир")
+        product_lower = product_name.lower()
+        product_tokens = set(re.findall(r'\w+', product_lower))
+        
+        # 1. Если продукт содержится в запросе (query="кефир 4%", product="кефир")
+        # Вместо naive "if product in query", используем токены: все токены продукта должны быть в запросе
+        # "сыр" -> {"сыр"}. "сырая морковь" -> {"сырая", "морковь"}. Подмножество? НЕТ.
+        if product_tokens.issubset(query_tokens):
+             # Проверяем цифры
+             product_digits = set(re.findall(r'\d+', product_lower))
              if not query_digits.issubset(product_digits):
                  continue
-                 
              return product_data
              
-        # Если запрос есть в названии продукта (query="кефир", product="кефир 3.2%") - это ок, уточнение
-        if name_lower in product_name.lower():
+        # 2. Если запрос содержится в продукте (query="кефир", product="кефир 3.2%")
+        if query_tokens.issubset(product_tokens):
              return product_data
     
     return None
