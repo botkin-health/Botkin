@@ -1,14 +1,4 @@
 # Data
-data/nutrition/nutrition_log.json
-data/workouts_database.json
-data/medical-records/
-data/medications/
-data/sports/
-data/sleepcycle/
-data/ultrasound/
-data/urine-tests/
-data/vitamins/
-data/weights/
 data/apple-health/
 data/backup/
 *.xml
