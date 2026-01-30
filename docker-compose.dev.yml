@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  postgres_dev:
+    image: postgres:15
+    container_name: healthvault_postgres_dev
+    environment:
+      POSTGRES_DB: healthvault
+      POSTGRES_USER: healthvault
+      POSTGRES_PASSWORD: ***REMOVED***
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: unless-stopped
+    networks:
+      - healthvault_dev
+
+volumes:
+  postgres_dev_data:
+
+networks:
+  healthvault_dev:
+    driver: bridge

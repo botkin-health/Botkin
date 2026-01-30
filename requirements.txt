@@ -13,6 +13,22 @@ google-generativeai>=0.3.0
 # Data Processing (Scripts)
 xmltodict>=0.13.0
 garminconnect>=0.2.0
-garminconnect>=0.2.0
+huami-token>=0.5.0
+bleak>=0.20.0
+bleparser>=1.0.0
 pandas>=2.0.0
-pypdf>=3.0.0
+
+# Development & Testing
+pytest>=7.0.0
+mypy>=1.0.0
+types-requests>=2.31.0
+types-PyYAML>=6.0
+
+# Database (Multi-user Support)
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.0
+alembic>=1.12.0
+
+# API (Apple Health Integration)
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0

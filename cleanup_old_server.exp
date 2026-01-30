@@ -1,0 +1,57 @@
+#!/usr/bin/expect -f
+set timeout 120
+
+set host "95.142.45.135"
+set user "root"
+set password "G76qpAn9vNvb66T:czTG"
+
+send_user "\n🧹 STARTING CLEANUP OF OLD SERVER ($host)...\n"
+
+spawn ssh -o StrictHostKeyChecking=no $user@$host
+expect {
+    "password:" { send "$password\r" }
+    "root@" { }
+    timeout { send_user "\n❌ SSH Timeout\n"; exit 1 }
+}
+
+expect "#"
+
+# 1. Stop and remove containers + volumes
+send_user "\n1. Stopping containers and removing volumes...\n"
+send "cd /root/healthvault || true\r"
+expect "#"
+
+# Check if docker-compose file exists to use down
+# Escaping brackets for Expect
+send "if \[ -f docker-compose.yml \]; then docker-compose down -v; fi\r"
+expect "#"
+
+# 2. Aggressive Docker Cleanup (Prune)
+send_user "\n2. Pruning Docker system (images, networks)...\n"
+send "docker system prune -a -f --volumes\r"
+expect "#"
+
+# 3. Remove Project Directory
+send_user "\n3. Removing project files...\n"
+send "cd /root\r"
+expect "#"
+send "rm -rf /root/healthvault\r"
+expect "#"
+
+# 4. Verify
+send_user "\n4. Verifying cleanup...\n"
+send "ls -la /root/healthvault\r"
+expect {
+    "No such file or directory" { send_user "   ✅ Directory removed.\n" }
+    "total" { send_user "   ❌ Directory still exists!\n" }
+    timeout { } 
+}
+expect "#"
+
+send "docker ps -a\r"
+expect "#"
+
+send "exit\r"
+expect eof
+
+send_user "\n✨ CLEANUP COMPLETE. The server is now clean.\n"

@@ -1,0 +1,103 @@
+#!/usr/bin/expect -f
+set timeout 1200
+
+set host "146.103.111.109"
+set user "root"
+set password "SERVER_PASSWORD_REDACTED"
+set dump_file "database/healthvault_migration_20260131_001429.sql"
+
+send_user "\n📦 STARTING DEPLOYMENT TO NEW SERVER ($host)...\n"
+
+# 1. UPLOAD FILES
+send_user "\n1. Uploading project files (this may take a minute)...\n"
+
+# Create project dir just in case
+spawn ssh -o StrictHostKeyChecking=no $user@$host "mkdir -p /root/healthvault"
+expect {
+    "password:" { send "$password\r" }
+    timeout { send_user "\n❌ SSH Timeout\n"; exit 1 }
+}
+expect eof
+
+# Upload directories and files
+# Excluding venv, .git, __pycache__ etc via simple wildcard or specific list
+set files_to_upload {
+    docker-compose.prod.yml
+    requirements.prod.txt
+    Dockerfile
+    telegram-bot
+    core
+    services
+    database
+    config
+    helpers
+    domain
+    .env
+}
+
+foreach file $files_to_upload {
+    send_user "   - Uploading $file...\n"
+    spawn scp -r -o StrictHostKeyChecking=no $file $user@$host:/root/healthvault/
+    expect {
+        "password:" { send "$password\r" }
+        timeout { send_user "\n❌ Upload Timeout on $file\n"; exit 1 }
+    }
+    expect eof
+}
+
+# Rename prod files to standard names
+spawn ssh -o StrictHostKeyChecking=no $user@$host
+expect "password:"
+send "$password\r"
+expect "#"
+
+send "cd /root/healthvault\r"
+expect "#"
+send "mv docker-compose.prod.yml docker-compose.yml\r"
+expect "#"
+send "mv requirements.prod.txt requirements.txt\r"
+expect "#"
+
+# 2. SETUP SWAP (Retry)
+send_user "\n2. Configuring Swap...\n"
+# Using escaped brackets \[ \] for test command
+send "if \[ ! -f /swapfile \]; then fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile && echo '/swapfile none swap sw 0 0' >> /etc/fstab; fi\r"
+expect "#"
+
+# 3. BUILD AND START
+send_user "\n3. Building and Starting Docker containers...\n"
+send "docker-compose down --remove-orphans\r"
+expect "#"
+send "docker-compose up -d --build\r"
+# This might take a while
+expect {
+    "Started" { }
+    "Running" { }
+    timeout { send_user "\n❌ Build Timeout\n"; exit 1 }
+}
+expect "#"
+
+# 4. RESTORE DATABASE
+send_user "\n4. Restoring Database from Dump...\n"
+# Wait for DB to be potentially ready (simple sleep)
+send "sleep 10\r"
+expect "#"
+
+# The dump file needs to be in the postgres container or piped
+# Since we uploaded 'database/' folder, the dump is at /root/healthvault/database/healthvault_migration_20260131_001429.sql
+# We can cat it into the container
+
+send "cat /root/healthvault/$dump_file | docker-compose exec -T -e PGPASSWORD=***REMOVED*** postgres psql -U healthvault -d healthvault\r"
+expect "#"
+
+# 5. VERIFY
+send_user "\n5. Verifying deployment...\n"
+send "docker-compose ps\r"
+expect "#"
+send "docker-compose logs --tail=20 bot\r"
+expect "#"
+
+send "exit\r"
+expect eof
+
+send_user "\n✅ DEPLOYMENT COMPLETE! Bot should be running on new server.\n"

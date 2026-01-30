@@ -7,41 +7,29 @@
 import base64
 import json
 import re
+import sys
 from pathlib import Path
 from typing import Dict, Optional, List
-import os
 import time
+
+# Add project root to path for config import
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
+from config import get_settings
+
+try:
+    from infrastructure.cache.image_cache import get_image_cache
+    CACHE_AVAILABLE = True
+except ImportError:
+    CACHE_AVAILABLE = False
+    get_image_cache = None
 
 
 def get_openai_api_key() -> Optional[str]:
-    """Получает OpenAI API ключ из различных источников"""
-    # 1. Переменная окружения
-    api_key = os.getenv('OPENAI_API_KEY')
-    if api_key and api_key.strip() and api_key != "your_openai_key_here":
-        return api_key.strip()
-    
-    # 2. Файл в корне HealthVault
-    healthvault_root = Path(__file__).parent.parent
-    key_file = healthvault_root / '.openai_api_key'
-    if key_file.exists():
-        try:
-            api_key = key_file.read_text().strip()
-            if api_key and api_key != "your_openai_key_here" and len(api_key) > 20:
-                return api_key
-        except Exception:
-            pass
-    
-    # 3. Файл в FamilyDocs
-    family_docs_key = Path.home() / "FamilyDocs" / ".openai_api_key"
-    if family_docs_key.exists():
-        try:
-            api_key = family_docs_key.read_text().strip()
-            if api_key and api_key != "your_openai_key_here" and len(api_key) > 20:
-                return api_key
-        except Exception:
-            pass
-    
-    return None
+    """Получает OpenAI API ключ из конфигурации"""
+    settings = get_settings()
+    return settings.openai_api_key
 
 
 def encode_image(image_path: Path) -> str:
@@ -74,6 +62,15 @@ def parse_menu_with_chatgpt(photo_path: Path, api_key: Optional[str] = None, des
         print(f"    ❌ Файл не существует: {photo_path}")
         return None
     
+    # Проверяем кэш
+    if CACHE_AVAILABLE and get_settings().cache_enabled:
+        cache = get_image_cache()
+        cached_result = cache.get(photo_path)
+        if cached_result:
+            print(f"    ✅ Используем кэш для изображения {photo_path.name}")
+            print(f"       💰 Экономия: ~$0.01 (Vision API вызов пропущен)")
+            return cached_result
+    
     # Получаем API ключ
     if not api_key:
         api_key = get_openai_api_key()
@@ -102,20 +99,35 @@ def parse_menu_with_chatgpt(photo_path: Path, api_key: Optional[str] = None, des
     }
     
     user_context = ""
+    meal_type_hint = ""
     if description:
-        user_context = f"КОНТЕКСТ ОТ ПОЛЬЗОВАТЕЛЯ: \"{description}\". Используй это, чтобы точнее определить ингредиенты."
+        # Определяем hint для типа приема пищи из description
+        description_lower = description.lower()
+        if any(word in description_lower for word in ['завтрак', 'breakfast']):
+            meal_type_hint = "Время приема: завтрак."
+        elif any(word in description_lower for word in ['обед', 'lunch']):
+            meal_type_hint = "Время приема: обед."
+        elif any(word in description_lower for word in ['ужин', 'dinner']):
+            meal_type_hint = "Время приема: ужин."
+        elif any(word in description_lower for word in ['перекус', 'snack']):
+            meal_type_hint = "Время приема: перекус."
+        
+        user_context = f"КОНТЕКСТ ОТ ПОЛЬЗОВАТЕЛЯ: \"{description}\". {meal_type_hint} Используй это для уточнения ингредиентов и времени приема пищи."
     
     prompt = f"""Проанализируй это изображение еды, меню или добавок.
     {user_context}
     
 ЦЕЛЬ: Оценить нутриенты для дневника питания.
 
-ПРИОРИТЕТ КОНТЕКСТА:
-Пользователь предоставил описание: "{description}".
-ТЫ ОБЯЗАН ИСПОЛЬЗОВАТЬ ЭТО ОПИСАНИЕ КАК ИСТИНУ В ПОСЛЕДНЕЙ ИНСТАНЦИИ.
-Если пользователь пишет "почки", "соус", "картофель" - ты ДОЛЖЕН найти и вернуть ВСЕ эти компоненты, даже если на фото их плохо видно или они выглядят как что-то другое.
+ВАЖНО О НАЗВАНИИ БЛЮДА:
+- Если на изображении есть МЕНЮ с названием блюда - используй ТОЛЬКО название с меню
+- Если пользователь написал "завтрак"/"обед"/"ужин"/"перекус" - это время приема пищи, НЕ название блюда
+- Название блюда должно описывать ЧТО изображено (например: "Боул с индейкой, эдамаме и фунчозой")
+- description от пользователя используй ТОЛЬКО для уточнения ингредиентов, НЕ для замены названия блюда
+
+ПРИОРИТЕТ ИНГРЕДИЕНТОВ:
+Если пользователь упомянул конкретные ингредиенты (НЕ "завтрак/обед/ужин"), найди и верни ВСЕ эти компоненты.
 НЕ ИГНОРИРУЙ ингредиенты из описания!
-Если ты видишь только картофель, но написано "почки", добавь компонент "Почки" и оцени его вес примерно (или стандартно 100-150г), если не можешь определить точно.
 
 СЦЕНАРИЙ 1: ВИТАМИНЫ / ТАБЛЕТКИ / БАДЫ
 Если на фото таблетки, капсулы, блистеры или банки с витаминами:
@@ -146,7 +158,7 @@ def parse_menu_with_chatgpt(photo_path: Path, api_key: Optional[str] = None, des
 
 Формат JSON для еды:
 {{
-  "dish_name": "название блюда (из описания)",
+  "dish_name": "название блюда С МЕНЮ или описание того, что на фото (НЕ 'завтрак'/'обед'/'ужин')",
   "calories": число (сумма калорий компонентов),
   "protein": число (сумма),
   "fats": число (сумма),
@@ -160,23 +172,12 @@ def parse_menu_with_chatgpt(photo_path: Path, api_key: Optional[str] = None, des
   }},
   "components": [
     {{
-      "name": "название ингредиента (например 'Заячьи почки')",
+      "name": "название ингредиента (например 'Индейка')",
       "weight": число (г),
       "calories": число,
       "protein": число,
       "fats": число,
       "carbs": число
-    }}
-  ]
-}}
-  "components": [
-    {{
-      "name": "название ингредиента",
-      "weight": число (г),
-      "calories": число (опционально),
-      "protein": число (опционально),
-      "fats": число (опционально),
-      "carbs": число (опционально)
     }}
   ]
 }}
@@ -383,7 +384,7 @@ def parse_menu_with_chatgpt(photo_path: Path, api_key: Optional[str] = None, des
                 if not dish_name or str(dish_name).lower() == 'none':
                     dish_name = 'Блюдо из меню'
                 
-                return {
+                result = {
                     'dish_name': dish_name,
                     'calories': float(calories),
                     'protein': float(protein),
@@ -394,6 +395,14 @@ def parse_menu_with_chatgpt(photo_path: Path, api_key: Optional[str] = None, des
                     'components': data.get('components', []), # Сохраняем компоненты
                     'source': 'chatgpt_vision',
                 }
+                
+                # Сохраняем в кэш
+                if CACHE_AVAILABLE and get_settings().cache_enabled:
+                    cache = get_image_cache()
+                    cache.set(photo_path, result)
+                    print(f"    💾 Результат сохранен в кэш")
+                
+                return result
             else:
                 print(f"    ⚠️  ChatGPT не нашел КБЖУ в изображении")
                 return None

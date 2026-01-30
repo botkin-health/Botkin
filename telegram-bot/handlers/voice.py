@@ -40,19 +40,7 @@ async def handle_voice_message(message: Message, bot: Bot):
         # Отвечаем
         await message.reply(f"🎤 <b>Распознано:</b>\n\n{text}")
 
-        # --- Логика обработки добавок ---
-        from core.supplements import supplement_service
-        logged_items, remaining_items = supplement_service.log_intake(text)
-        if logged_items:
-             response = f"💊 <b>Сохранено:</b> {', '.join(logged_items)}\n\n"
-             if remaining_items:
-                 response += "⏳ <b>Осталось принять сегодня:</b>\n" + "\n".join(remaining_items)
-             else:
-                 response += "🎉 <b>На сегодня все витамины приняты!</b>"
-            
-             await message.answer(response)
-             return
-        # -----------------------------
+
         
         # --- Логика обработки еды ---
         # Если текст похож на описание еды (длиннее 3 символов), запускаем обработчик
@@ -66,7 +54,7 @@ async def handle_voice_message(message: Message, bot: Bot):
                 data={
                     'photo_paths': [],
                     'photo_file_ids': [],
-                    'caption': text,
+                    'caption': '',
                 }
             )
             state_manager.set_state(user_id, new_user_state)

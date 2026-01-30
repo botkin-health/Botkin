@@ -50,6 +50,7 @@ async def cmd_help(message: Message):
         "/day — Итоги дня: КБЖУ, спорт, витамины.\n"
         "/vitamins — Чек-лист и схема приема.\n"
         "/week — Анализ рациона за неделю.\n"
+        "/cache_stats — Статистика кэша (экономия токенов).\n"
         "/help — Эта справка."
     )
 
@@ -70,34 +71,24 @@ async def cmd_day(message: Message):
         # Update Garmin Data (in thread to not block event loop)
         await asyncio.to_thread(sync_garmin_data)
         
-        today = datetime.now().strftime('%Y-%m-%d')
-        today_formatted = datetime.now().strftime('%d.%m.%Y')
+        today_date = datetime.now().date()
+        today_str = today_date.strftime('%Y-%m-%d')
+        today_formatted = today_date.strftime('%d.%m.%Y')
         
-        totals = get_today_totals()
+        # New Service Logic
+        from services.nutrition_service import get_nutrition_service
+        service = get_nutrition_service()
+        stats = service.get_day_stats(today_date)
+        
+        totals = stats['totals']
+        targets = stats['targets']
+        remaining = stats['remaining']
         
         # Garmin Data (Actual for TODAY)
-        garmin_data = get_garmin_data_for_date(today)
+        garmin_data = get_garmin_data_for_date(today_str)
         active_calories = 0.0
         if garmin_data:
             active_calories = garmin_data.get('activeKilocalories', 0.0) or 0.0
-        
-        # Targets Calculation (Based on Average History)
-        # Получаем средние статы за 14 дней для расчета планки
-        avg_stats = get_average_stats(days=14) 
-        targets_data = calculate_targets(stats=avg_stats) # Передаем словарь stats
-        
-        targets = {
-            'calories': targets_data['calories'],
-            'protein': targets_data['protein'],
-            'fats': targets_data['fats'],
-            'carbs': targets_data['carbs'],
-        }
-        
-        # Remaining
-        remaining = {
-            'calories': targets['calories'] - totals['calories'],
-            'protein': targets['protein'] - totals['protein'],
-        }
         
         # Supplements Status
         supplements_text = supplement_service.get_brief_status()
@@ -107,10 +98,10 @@ async def cmd_day(message: Message):
             f"📅 <b>Итоги дня {today_formatted}</b>",
             "",
             "🥦 <b>Питание:</b>",
-            f"• Калории: <b>{totals['calories']:.0f}</b> / {targets['calories']} ккал (Дефицит 15%)",
-            f"• Белки: <b>{totals['protein']:.0f}</b> / {targets['protein']} г",
-            f"• Жиры: {totals['fats']:.0f} / {targets['fats']} г",
-            f"• Углеводы: {totals['carbs']:.0f} / {targets['carbs']} г",
+            f"• Калории: <b>{totals.calories:.0f}</b> / {targets['calories']} ккал (Дефицит 15%)",
+            f"• Белки: <b>{totals.protein:.0f}</b> / {targets['protein']} г",
+            f"• Жиры: {totals.fats:.0f} / {targets['fats']} г",
+            f"• Углеводы: {totals.carbs:.0f} / {targets['carbs']} г",
             "",
             f"🔥 Активность (сегодня): <b>{active_calories:.0f}</b> ккал",
             "",
@@ -175,16 +166,16 @@ async def cmd_week(message: Message):
         target_prot = targets_data['protein']
         
         response = [
-            f"📊 <b>Анализ за 7 дней</b> (дней с данными: {days_count})",
+            f"📊 Анализ за 7 дней (дней с данными: {days_count})",
             "",
-            "<b>Средние показатели:</b>",
+            "Средние показатели:",
             f"• Калории: {avg_cal:.0f} ккал (Цель: ~{target_cal} с дефицитом)",
-            f"• Белки: {avg_prot:.0f} г (Цель: >{target_prot}г)",
+            f"• Белки: {avg_prot:.0f} г (Цель: > {target_prot}г)",
             f"• Жиры: {avg_fats:.0f} г",
             f"• Углеводы: {avg_carbs:.0f} г",
-            f"• Клетчатка: {avg_fiber:.0f} г (Норма: >30г)",
+            f"• Клетчатка: {avg_fiber:.0f} г (Норма: > 30г)",
             "",
-            "<b>🔍 Анализ питания:</b>"
+            "🔍 Анализ питания:"
         ]
         
         if recommendations:
@@ -197,6 +188,57 @@ async def cmd_week(message: Message):
         
     except Exception as e:
         await message.answer(f"❌ Ошибка анализа недели: {e}")
+
+
+@router.message(Command("cache_stats"))
+async def cmd_cache_stats(message: Message):
+    """Показывает статистику Image Cache"""
+    try:
+        from infrastructure.cache.image_cache import get_image_cache
+        cache = get_image_cache()
+        stats = cache.stats()
+        
+        total = stats['total']
+        valid = stats['valid']
+        expired = stats['expired']
+        
+        if total == 0:
+            await message.answer(
+                "📊 <b>Статистика кэша изображений</b>\n\n"
+                "Кэш пустой. Отправьте фото для создания первой записи."
+            )
+        else:
+            hit_rate = (valid / total * 100) if total > 0 else 0
+            await message.answer(
+                "📊 <b>Статистика кэша изображений</b>\n\n"
+                f"• Всего записей: {total}\n"
+                f"• Активных: {valid}\n"
+                f"• Просрочено: {expired}\n"
+                f"• Hit Rate: ~{hit_rate:.0f}%\n\n"
+                f"💰 Экономия: ~${valid * 0.01:.2f}\n"
+                f"📅 TTL: 7 дней"
+            )
+    except ImportError:
+        await message.answer("❌ Кэш не настроен")
+
+
+@router.message(Command("cache_clear"))
+async def cmd_cache_clear(message: Message):
+    """Очищает Image Cache"""
+    try:
+        from infrastructure.cache.image_cache import get_image_cache
+        cache = get_image_cache()
+        
+        stats_before = cache.stats()
+        cache.clear()
+        
+        await message.answer(
+            "🗑 <b>Кэш очищен</b>\n\n"
+            f"Удалено записей: {stats_before['total']}\n"
+            f"Освобождено места: ~{stats_before['total'] * 10}KB"
+        )
+    except ImportError:
+        await message.answer("❌ Кэш не настроен")
 
 
 # Alias for old users / comfort
@@ -215,5 +257,6 @@ async def cmd_burn(message: Message):
 async def cmd_targets(message: Message):
     """Обработчик команды /targets"""
     await message.answer("⚠️ Настройка целей пока не реализована")
+
 
 

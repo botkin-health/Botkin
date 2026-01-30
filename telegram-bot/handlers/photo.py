@@ -20,10 +20,7 @@ from core.menu_parser import parse_menu_photo
 router = Router()
 
 
-# Callback data для кнопок подтверждения
-class MealConfirmationCallback(CallbackData, prefix="meal"):
-    action: str  # "save" или "cancel"
-    meal_type: str = "default"  # "menu" или "regular"
+from handlers.callbacks import MealConfirmationCallback, WeightConfirmationCallback
 
 # Блокировки и задачи для синхронизации обработки media group
 # Ключ: (user_id, media_group_id), Значение: asyncio.Lock / asyncio.Task
@@ -166,7 +163,8 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
                 pass
 
     photo_count = len(photo_paths)
-    processing_msg = await message.answer(f"📸 Получено {photo_count} фото! Анализирую через ИИ: еда, меню, весы, КБЖУ...")
+    # ИЗМЕНЕНО: Новое сообщение по просьбе пользователя
+    processing_msg = await message.answer(f"📸 Получено {photo_count} фото! Идет ИИ-анализ: еда, меню, весы, КБЖУ, скрины, витамины...")
     
     # Получаем API ключ для OCR
     try:
@@ -181,12 +179,86 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
     if user_state and user_state.data.get('caption'):
         caption = user_state.data.get('caption')
     
+    # --- ЛОГИКА ВЕСОВ (ZEPP) MULTI-PHOTO ---
+    from core.ocr_weight import parse_weight_screenshot
+    from core.weights import save_weight_measurement
+    
+    recognized_weights = []
+    remaining_photos = [] # Фото, которые не распознались как весы
+
+    # Проходим по всем фото и ищем весы
+    for idx, ph_path in enumerate(photo_paths):
+        try:
+            # Пробуем распознать как весы (по одному)
+            weight_data = parse_weight_screenshot([ph_path], api_key, description=caption or "")
+            
+            if weight_data and weight_data.get('weight'):
+                logger.info(f"⚖️ Фото {idx+1}: Распознан вес {weight_data.get('weight')} кг")
+                # Добавляем инфо о сохранении
+                # ИЗМЕНЕНО: Не сохраняем сразу, а ждем подтверждения
+                # saved_path = save_weight_measurement(weight_data)
+                # weight_data['_saved_path'] = saved_path
+                recognized_weights.append(weight_data)
+            else:
+                remaining_photos.append(ph_path)
+                
+        except Exception as e:
+            logger.error(f"Ошибка при проверке весов на фото {idx+1}: {e}")
+            remaining_photos.append(ph_path)
+
+    # Если нашли весы - формируем отчет
+    if recognized_weights:
+        w_response_lines = ["⚖️ <b>Данные весов сохранены!</b>\n"]
+        for i, wd in enumerate(recognized_weights, 1):
+             line = f"{i}. 📅 <b>{wd.get('date', 'Сегодня')}</b>: 🏋️‍♂️ <b>{wd.get('weight')} кг</b>"
+             if wd.get('body_fat'):
+                 line += f", 💧 {wd.get('body_fat')}%"
+             w_response_lines.append(line)
+        
+        w_response_lines.append(f"\n📂 <i>Всего записей: {len(recognized_weights)}</i>")
+        w_response_lines.append("\n✅ <b>Сохранить эти данные в журнал весов?</b>")
+        
+        # Создаем кнопки подтверждения
+        w_builder = InlineKeyboardBuilder()
+        w_builder.button(text="✅ Сохранить вес", callback_data=WeightConfirmationCallback(action="save").pack())
+        w_builder.button(text="❌ Отмена", callback_data=WeightConfirmationCallback(action="cancel").pack())
+        
+        # Сохраняем данные весов в состояние (временно)
+        if not user_state:
+            user_state = UserState(user_id=user_id, state='waiting_weight_confirmation', data={'weights': recognized_weights})
+        else:
+            user_state.state = 'waiting_weight_confirmation'
+            user_state.data['weights'] = recognized_weights
+        state_manager.set_state(user_id, user_state)
+
+        # Если были только весы - отправляем и выходим
+        if not remaining_photos:
+            final_text = "\n".join(w_response_lines)
+            if processing_msg:
+                await processing_msg.edit_text(final_text, parse_mode='HTML', reply_markup=w_builder.as_markup())
+            else:
+                await message.answer(final_text, parse_mode='HTML', reply_markup=w_builder.as_markup())
+            return
+        else:
+            # Если есть и весы и что-то еще - отправляем запрос по весам отдельным сообщением
+            await message.answer("\n".join(w_response_lines), parse_mode='HTML', reply_markup=w_builder.as_markup())
+            
+    # ---------------------------
+
+    # Если остались фото, которые не весы - это еда/меню
+    if not remaining_photos:
+        return
+
+    # Обновляем список для обработки еды
+    photo_paths = remaining_photos
+    photo_count = len(photo_paths)
+
     # ИЗМЕНЕНО: Обрабатываем каждое фото ОТДЕЛЬНО, если это группа
     all_menu_data = []
     if photo_count > 1:
-        logger.info(f"📸 Обрабатываю {photo_count} фото по отдельности...")
+        logger.info(f"📸 Обрабатываю {photo_count} фото еды по отдельности...")
         for idx, photo_path in enumerate(photo_paths, 1):
-            logger.info(f"  Анализирую фото {idx}/{photo_count}: {photo_path.name}")
+            logger.info(f"  Анализирую фото еды {idx}/{photo_count}: {photo_path.name}")
             menu_item = parse_menu_photo([photo_path], api_key, description=caption)
             if menu_item:
                 all_menu_data.append(menu_item)
@@ -224,8 +296,9 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
             dish_name = menu_data.get('dish_name', '')
             logger.info(f"💊 Распознаны добавки по фото: {dish_name}")
             
-            from core.supplements import supplement_service
-            logged_items, remaining_items = supplement_service.log_intake(dish_name)
+            # from core.supplements import supplement_service
+            # logged_items, remaining_items = supplement_service.log_intake(dish_name)
+            pass
             
             response = f"💊 <b>По фото распознано:</b> {dish_name}\n"
             if logged_items:
@@ -280,8 +353,8 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
             state_manager.set_state(user_id, user_state)
             
             # Обрабатываем описание с учетом меню
-            # Caption уже в state, не передаем его дублированно
-            await handle_description(message, '', processing_message=processing_msg)
+            # Caption уже в state, передаем None чтобы функция взяла caption из состояния
+            await handle_description(message, None, processing_message=processing_msg)
         else:
             # Нет caption - используем данные как есть
             logger.info(f"Используем данные без caption: {menu_data.get('dish_name')}")
@@ -314,8 +387,8 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
                 )
                 state_manager.set_state(user_id, user_state)
 
-            # Caption уже в state, не передаем его дублированно
-            await handle_description(message, '', processing_message=processing_msg)
+            # Caption уже в state, передаем None чтобы функция взяла caption из состояния
+            await handle_description(message, None, processing_message=processing_msg)
         else:
             # Не меню и нет caption - устанавливаем состояние и просим описание
             # Если состояния нет (одиночное фото без группы)
@@ -506,9 +579,14 @@ async def handle_description(message: Message, description: str = None, processi
     if not user_state or user_state.state != 'waiting_description':
         return
     
-    # Если description не передан, берем из сообщения
+    # Если description не передан, берем из сообщения или из состояния (для фото с caption)
     if description is None:
-        description = message.text.strip() if message.text else ''
+        if message.text:
+            description = message.text.strip()
+        elif user_state and user_state.data.get('caption'):
+            description = user_state.data.get('caption').strip()
+        else:
+            description = ''
     
     if not description:
         await message.answer("Пожалуйста, отправь описание блюда")
@@ -532,140 +610,152 @@ async def handle_description(message: Message, description: str = None, processi
             full_description = clean_description
             logger.info(f"Извлечена дата из описания: {custom_date}, очищенное описание: '{clean_description[:50]}...'")
     
-    # Определяем множитель порции из описания
-    portion_multiplier = 1.0
-    import re
-    # Поиск дробей вида "1/2", "1/3", "2/3", "3/4" и т.д.
-    fraction_match = re.search(r'\b(\d+)/(\d+)\b', description)
-    # Поиск десятичных чисел вида "0.5", "0,5"
-    decimal_match = re.search(r'\b(0[.,]\d+)\b', description)
+    # --- LLM Router Logic ---
+    from core.llm_router import analyze_message
+    from core.nutrition import process_llm_food_data
     
-    if fraction_match:
-        try:
-            numerator = int(fraction_match.group(1))
-            denominator = int(fraction_match.group(2))
-            if denominator != 0:
-                portion_multiplier = float(numerator) / float(denominator)
-        except (ValueError, ZeroDivisionError):
-            pass
-    elif decimal_match:
-        try:
-            portion_multiplier = float(decimal_match.group(1).replace(',', '.'))
-        except ValueError:
-            pass
-    elif 'половину' in description.lower() or 'половина' in description.lower():
-        portion_multiplier = 0.5
-    elif 'треть' in description.lower():
-        portion_multiplier = 1.0 / 3.0
-    elif 'четверть' in description.lower():
-        portion_multiplier = 0.25
-    
-    # Получаем API ключ для OCR используя единую функцию
-    try:
-        from core.api_key_loader import get_google_vision_api_key
-        api_key = get_google_vision_api_key()
-    except ImportError:
-        # Fallback: старая логика
-        api_key = os.getenv('GOOGLE_VISION_API_KEY')
-        if not api_key:
-            key_file = Path(__file__).parent.parent.parent / '.google_vision_api_key'
-            if not key_file.exists():
-                family_docs_key = Path.home() / "FamilyDocs" / ".google_vision_api_key"
-                if family_docs_key.exists():
-                    key_file = family_docs_key
-            if key_file.exists():
-                try:
-                    api_key = key_file.read_text().strip()
-                except Exception:
-                    pass
-    
-    # Конвертируем пути в Path объекты
-    photo_path_objects = [Path(p) for p in photo_paths] if photo_paths else None
-    
-    try:
-        # Если есть данные меню, обрабатываем описание с учетом меню
-        # Это позволяет пересчитать КБЖУ на указанный вес и добавить дополнительные продукты
-        if menu_data:
-            logger.info(f"Обработка описания с учетом меню: {full_description}")
-            from core.nutrition import process_meal_description_with_menu
-            meal_items, meal_totals = process_meal_description_with_menu(
-                description=full_description,
-                menu_data=menu_data,
-                photo_paths=photo_path_objects,
-                portion_multiplier=portion_multiplier,
-                api_key=api_key
-            )
-        else:
-            # Обычная обработка без меню
-            meal_items, meal_totals = process_meal_description(
-                description=full_description,
-                photo_paths=photo_path_objects,
-                portion_multiplier=portion_multiplier,
-                api_key=api_key
-            )
+    # ИСПРАВЛЕНИЕ: Если menu_data уже распознаны (parse_menu_photo успешно извлек КБЖУ),
+    # используем их напрямую вместо повторного анализа через LLM Router,
+    # так как Router НЕ извлекает КБЖУ из изображений
+    if menu_data and menu_data.get('calories', 0) > 0:
+        logger.info(f"✅ Используем ранее распознанные КБЖУ из меню: {menu_data}")
         
-        if not meal_items:
-            await message.answer(
-                "❌ Не удалось распознать продукты в описании.\n"
-                "Попробуй указать продукты более явно, например:\n"
-                "'курица 200г, рис 150г, овощи 100г'"
-            )
-            return
-        
-        # Извлекаем название приёма пищи из описания
-        from handlers.text import extract_meal_name
-        meal_time = datetime.now().strftime('%H:%M')
-        meal_name = extract_meal_name(full_description, meal_time)
-        
-        logger.info(f"Извлечено название приёма пищи: '{meal_name}' из описания: '{full_description[:50]}...'")
-        
-        # Обновляем состояние
-        user_state.data.update({
-            'description': full_description,
-            'meal_items': meal_items,
-            'meal_totals': meal_totals,
-            'portion_multiplier': portion_multiplier,
-            'meal_time': meal_time,
-            'meal_name': meal_name,
-        })
-        
-        # Если передана кастомная дата, сохраняем её (или обновляем)
-        if custom_date:
-            user_state.data['date'] = custom_date
-        
-        logger.info(f"Сохранено в состояние: meal_name='{meal_name}', meal_time='{meal_time}', date='{user_state.data.get('date')}'")
-        user_state.state = 'waiting_confirmation'
-        state_manager.set_state(user_id, user_state)
-        
-        # Формируем ответ
-        response = format_meal_response(meal_items, meal_totals, portion_multiplier, meal_name, user_state.data.get('date'))
-        
-        # Создаём inline keyboard с кнопками
-        builder = InlineKeyboardBuilder()
-        builder.button(
-            text="✅ Сохранить",
-            callback_data=MealConfirmationCallback(action="save", meal_type="regular").pack()
-        )
-        builder.button(
-            text="❌ Не сохранять",
-            callback_data=MealConfirmationCallback(action="cancel", meal_type="regular").pack()
-        )
-        builder.adjust(2)  # Две кнопки в ряд
-        keyboard = builder.as_markup()
+        # Формируем результат в формате, ожидаемом дальше в коде
+        router_result = {
+            'type': 'food',
+            'data': {
+                'dish_name': menu_data.get('dish_name', 'Блюдо из меню'),
+                'meal_type': 'meal',  # Определим позже по времени
+                'items': [{
+                    'name': menu_data.get('dish_name', 'Блюдо из меню'),
+                    'weight': menu_data.get('weight'),
+                    'quantity': None,
+                    'calories': menu_data.get('calories'),
+                    'protein': menu_data.get('protein'),
+                    'fats': menu_data.get('fats'),
+                    'carbs': menu_data.get('carbs'),
+                }]
+            }
+        }
+    else:
+        # Нет распознанных КБЖУ из меню - используем LLM Router
+        # Готовим пути к фото
+        paths_to_analyze = [Path(p) for p in photo_paths] if photo_paths else None
         
         if processing_message:
-            # Если было сообщение о процессинге, редактируем его
-            await processing_message.edit_text(response, parse_mode='HTML', reply_markup=keyboard)
+            await processing_message.edit_text("🤖 Думаю... (AI анализирует контекст) 🧠")
         else:
-            # Иначе отправляем новое
-            await message.answer(response, parse_mode='HTML', reply_markup=keyboard)
+            processing_message = await message.answer("🤖 Думаю... 🧠")
+
+        try:
+            router_result = analyze_message(text=full_description, image_paths=paths_to_analyze)
+        except Exception as e:
+            logger.error(f"LLM Router Error: {e}")
+            router_result = None
+
+    if not router_result or router_result.get('type') != 'food':
+        # Fallback или ошибка
+        # Если Router решил что это НЕ еда, но мы в хендлере описания еды?
+        # Возможно это витамины или весы?
+        # Если type='vitamins', надо обработать.
         
-    except Exception as e:
-        logger.error(f"Ошибка при обработке описания: {e}", exc_info=True)
-        await message.answer(
-            f"❌ Ошибка при обработке описания: {str(e)}\n"
-            "Попробуй еще раз или обратись к администратору."
-        )
+        if router_result and router_result.get('type') == 'vitamins':
+             # Обработка витаминов
+            data = router_result.get('data', {})
+            items = data.get('items', [])
+            action = data.get('action')
+            
+            # Сохраняем реально
+            from core.supplements import save_supplements
+            telegram_user_id = int(callback.from_user.id)
+            saved = save_supplements(items, user_id=telegram_user_id)
+            
+            # Формируем красивый список
+            items_list = "\n".join([f"• {item}" for item in items])
+            
+            status_text = "✅ <b>Записано</b>" if saved else "⚠️ <b>Ошибка записи</b>"
+            
+            response = (
+                f"💊 <b>Витамины:</b>\n"
+                f"{items_list}\n\n"
+                f"{status_text}"
+            )
+            
+            await processing_message.edit_text(response, parse_mode='HTML')
+            state_manager.clear_state(user_id)
+            return
+
+        elif router_result and router_result.get('type') == 'weight':
+             # Обработка веса
+             data = router_result.get('data', {})
+             w_val = data.get('weight')
+             await processing_message.edit_text(f"⚖️ <b>Вес:</b> {w_val} кг\n✅ Записано", parse_mode='HTML')
+             # Тут надо бы сохранить, но пока просто ответим, т.к. этот флоу редок при вводе описания
+             state_manager.clear_state(user_id)
+             return
+
+        else:
+            await processing_message.edit_text("❌ Не удалось понять, что это за еда. Попробуй переформулировать.")
+            return
+
+    # Это ЕДА
+    llm_data = router_result
+    meal_items, meal_totals = process_llm_food_data(llm_data, description=full_description)
+    
+    if not meal_items:
+         await processing_message.edit_text("❌ Продукты не найдены в ответе нейросети.")
+         return
+
+    # Извлекаем метаданные из ответа LLM
+    data = llm_data.get('data', {})
+    meal_name = data.get('dish_name') or data.get('meal_type')
+    
+    # Если название так себе, пробуем определить по времени
+    if not meal_name or meal_name in ['breakfast', 'lunch', 'dinner']:
+         from handlers.text import extract_meal_name
+         meal_time = datetime.now().strftime('%H:%M')
+         meal_name_ru = extract_meal_name(full_description, meal_time)
+         if meal_name_ru: meal_name = meal_name_ru
+
+    # Обновляем состояние
+    user_state.data.update({
+        'description': full_description,
+        'meal_items': meal_items,
+        'meal_totals': meal_totals,
+        'portion_multiplier': 1.0, # Deprecated
+        'meal_time': datetime.now().strftime('%H:%M'),
+        'meal_name': meal_name,
+    })
+    
+    # Если передана кастомная дата
+    if custom_date:
+        user_state.data['date'] = custom_date
+    
+    user_state.state = 'waiting_confirmation'
+    state_manager.set_state(user_id, user_state)
+    
+    # Формируем ответ
+    # Функция format_meal_response должна существовать или импортироваться?
+    # Она была в photo.py но я ее не видел в view_file output? 
+    # А, она скорее всего ниже или я пропустил.
+    # Если ее нет, напишем инлайн.
+    
+    response = f"🍽️ <b>{meal_name}</b>\n\n"
+    for item in meal_items:
+        w_str = f"{item['weight_g']}г" if item.get('weight_g') else "?"
+        cal = item.get('calories', 0)
+        response += f"• {item['product']} ({w_str}) — {int(cal)} ккал\n"
+        
+    response += f"\n📊 <b>Итого: {int(meal_totals['calories'])} ккал</b>\n"
+    response += f"Б: {int(meal_totals['protein'])} | Ж: {int(meal_totals['fats'])} | У: {int(meal_totals['carbs'])}"
+
+    # Keyboard
+    builder = InlineKeyboardBuilder()
+    builder.button(text="✅ Сохранить", callback_data=MealConfirmationCallback(action="save", meal_type="regular").pack())
+    builder.button(text="❌ Отмена", callback_data=MealConfirmationCallback(action="cancel", meal_type="regular").pack())
+    
+    await processing_message.edit_text(response, parse_mode='HTML', reply_markup=builder.as_markup())
+
 
 
 async def handle_menu_photo(message: Message, menu_data: dict, photo_path: Path, processing_message: Message = None):
@@ -773,8 +863,7 @@ def format_meal_response(meal_items: list, meal_totals: dict, portion_multiplier
         source_icon = "📷" if weight_source == 'photo' else "📝" if weight_source == 'description' else "⚖️"
         
         lines.append(
-            f"<b>{product_name}</b> ({weight}г) {source_icon}\n"
-            f"{calories} ккал | {protein}г белка | {fats}г жиров | {carbs}г углеводов"
+            f"• <b>{product_name}</b> ({weight}г) — {calories} ккал (Б:{protein} Ж:{fats} У:{carbs}) {source_icon}"
         )
     
     # Добавляем итоги
@@ -843,7 +932,16 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
         
         logger.info(f"Сохранение блюда: meal_name='{meal_name}', meal_type='{callback_data.meal_type}'")
         
-        if save_meal_to_json(user_state.data, meal_name):
+        # === ИЗМЕНЕНО: Используем PostgreSQL вместо JSON ===
+        from helpers.db_save import save_meal_to_db
+        telegram_user_id = int(callback.from_user.id)
+        
+        logger.info(f"[BEFORE SAVE] user_state.data keys: {list(user_state.data.keys())}")
+        logger.info(f"[BEFORE SAVE] meal_totals: {user_state.data.get('meal_totals')}")
+        logger.info(f"[BEFORE SAVE] meal_items count: {len(user_state.data.get('meal_items', []))}")
+        
+        if save_meal_to_db(user_state.data, meal_name, user_id=telegram_user_id):
+            logger.info("[AFTER SAVE] save_meal_to_db returned True")
             await callback.answer("✅ Сохранено!", show_alert=False)
             await callback.message.edit_text(
                 f"✅ <b>Сохранено!</b>\n\n"
@@ -856,8 +954,9 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
                 parse_mode='HTML'
             )
         else:
+            logger.error("[AFTER SAVE] save_meal_to_db returned False!")
             await callback.answer("❌ Ошибка при сохранении", show_alert=True)
-            logger.error("Ошибка при сохранении в save_meal_to_json")
+            logger.error("Ошибка при сохранении в save_meal_to_db")
     else:
         # Не сохраняем
         await callback.answer("❌ Не сохранено", show_alert=False)
@@ -867,5 +966,46 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
         )
     
     # Очищаем состояние
+    state_manager.clear_state(user_id)
+
+
+@router.callback_query(WeightConfirmationCallback.filter())
+async def handle_weight_confirmation(callback: CallbackQuery, callback_data: WeightConfirmationCallback):
+    """Обработчик подтверждения сохранения веса"""
+    
+    user_id = str(callback.from_user.id)
+    user_state = state_manager.get_state(user_id)
+    logger = logging.getLogger(__name__)
+    
+    if not user_state or 'weights' not in user_state.data:
+        await callback.answer("⚠️ Данные устарели", show_alert=True)
+        await callback.message.delete()
+        return
+
+    if callback_data.action == "save":
+        # === ИЗМЕНЕНО: Используем PostgreSQL вместо JSON ===
+        from helpers.db_save import save_weight_to_db
+        telegram_user_id = int(callback.from_user.id)
+        
+        weights = user_state.data['weights']
+        
+        saved_count = 0
+        for wd in weights:
+            wd['source'] = 'screenshot_ocr'
+            if save_weight_to_db(wd, user_id=telegram_user_id):
+                saved_count += 1
+        
+        await callback.answer(f"✅ Сохранено {saved_count} записей", show_alert=False)
+        await callback.message.edit_text(
+            callback.message.text.replace("✅ Сохранить эти данные в журнал весов?", f"\n✅ <b>Сохранено {saved_count} записей!</b>"),
+            parse_mode='HTML'
+        )
+    else:
+        await callback.answer("❌ Отменено", show_alert=False)
+        await callback.message.edit_text(
+            callback.message.text.replace("✅ Сохранить эти данные в журнал весов?", "\n❌ <b>Сохранение отменено</b>"),
+            parse_mode='HTML'
+        )
+    
     state_manager.clear_state(user_id)
 

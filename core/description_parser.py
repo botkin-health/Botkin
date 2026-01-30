@@ -17,6 +17,63 @@ except ImportError:
     from weight_extraction import extract_weights_from_photos
 
 
+# Вес одной штуки продукта (для оценки, если вес не указан)
+DEFAULT_UNIT_WEIGHTS = {
+    'киви': 75,
+    'мандарин': 80,
+    'яблоко': 160,
+    'груша': 140,
+    'банан': 120,
+    'апельсин': 150,
+    'яйцо': 55,
+    'томат': 100,
+    'помидор': 100,
+    'томат черри': 15,
+    'черри': 15,
+    'лук': 80, 
+    'картофель': 100,
+    'морковь': 75,
+    'огурец': 100,
+    'перец': 150,
+    'сосиска': 50,
+    'котлета': 80,
+    'голубец': 200,
+    'блин': 40,
+    'сырник': 50,
+    'оладья': 40,
+    'пельмень': 12,
+    'вареник': 15,
+    'хлеб': 30, # кусок
+    'просекко': 150,
+    'вино': 150,
+    'шампанское': 150,
+    'шампанского': 150,
+    'сэндвич': 200,
+    'сендвич': 200,
+    'бутерброд': 100,
+    'сырок': 45,
+    'конфета': 15,
+}
+
+def get_default_unit_weight(product_name: str) -> float:
+    """Возвращает вес одной штуки продукта, если он известен"""
+    if not product_name:
+        return 0
+    
+    name_lower = product_name.lower().strip()
+    
+    # Прямое совпадение
+    if name_lower in DEFAULT_UNIT_WEIGHTS:
+        return DEFAULT_UNIT_WEIGHTS[name_lower]
+        
+    # Поиск по частичному совпадению
+    # (но осторожно, чтобы "лук" не нашел "лук порей" с другим весом, хотя тут это приемлемо)
+    for key, weight in DEFAULT_UNIT_WEIGHTS.items():
+        if key in name_lower:
+            return weight
+            
+    return 0
+
 # Стандартные порции без веса
 PORTION_WEIGHTS = {
     'кусок': 30,
@@ -26,6 +83,12 @@ PORTION_WEIGHTS = {
     'порция': 100,
     'стакан': 200,
     'чашка': 250,
+    'бокал': 150,
+    'рюмка': 50,
+    'стопка': 50,
+    'кружка': 300,
+    'бутылка': 500,
+    'банка': 330,
 }
 
 # Нормализация названий продуктов
@@ -412,7 +475,17 @@ def extract_products_from_description(description: str) -> List[Dict[str, any]]:
     quantity_patterns = [
         (r'(\d+(?:-х|-и|-о)?)\s*(?:шт|штук|шт\.)?\s*(?:яйц|яиц)', 55, 'яйцо'), 
         (r'(\d+)\s*(?:томат|томатов|помидор|помидоров)', 100, 'томат'),  
-        (r'(\d+)\s*(?:черри)', 15, 'томат черри'), 
+        # Fix: allow word between number and cherry (e.g. "6 томатов черри")
+        (r'(\d+)\s*(?:томат[а-я]*\s+)?(?:черри)', 15, 'томат черри'), 
+        
+        # Fruits
+        (r'(\d+)\s*(?:киви)', 75, 'киви'),
+        (r'(\d+)\s*(?:мандарин[а-я]*)', 80, 'мандарин'),
+        (r'(\d+)\s*(?:яблок[а-я]*)', 160, 'яблоко'),
+        (r'(\d+)\s*(?:груш[а-я]*)', 140, 'груша'),
+        (r'(\d+)\s*(?:банан[а-я]*)', 120, 'банан'),
+        (r'(\d+)\s*(?:апельсин[а-я]*)', 150, 'апельсин'),
+        
         (r'маленьк[а-я]*\s*(?:луковичк|лук)', 50, 'лук'),
         (r'средн[а-я]*\s*(?:луковичк|лук)', 80, 'лук'),
         (r'больш[а-я]*\s*(?:луковичк|лук)', 120, 'лук'),
@@ -446,12 +519,25 @@ def extract_products_from_description(description: str) -> List[Dict[str, any]]:
     # Порции без веса: "чайная ложка масла", "кусок хлеба"
     portion_patterns = [
         (r'(\d+)\s*чайн[а-я]*\s*ложк[а-я]*\s+([а-яё\s]+)', PORTION_WEIGHTS['чайная ложка']),
+        (r'чайн[а-я]*\s*ложк[а-я]*\s+([а-яё\s]+)', PORTION_WEIGHTS['чайная ложка']), # Implied 1
         (r'(\d+)\s*столов[а-я]*\s*ложк[а-я]*\s+([а-яё\s]+)', PORTION_WEIGHTS['столовая ложка']),
+        (r'столов[а-я]*\s*ложк[а-я]*\s+([а-яё\s]+)', PORTION_WEIGHTS['столовая ложка']), # Implied 1
         (r'(?:маленьк[а-я]*|небольш[а-я]*)\s*кусочк[а-я]*\s+([а-яё\s]+)', PORTION_WEIGHTS['кусок'] * 0.5),  # "маленький кусочек" = 15г
         (r'(?:маленьк[а-я]*|небольш[а-я]*)\s*кусок\s+([а-яё\s]+)', PORTION_WEIGHTS['кусок'] * 0.5),  # "маленький кусок" = 15г
         (r'кусок\s+([а-яё\s]+)', PORTION_WEIGHTS['кусок']),
         (r'ломтик\s+([а-яё\s]+)', PORTION_WEIGHTS['ломтик']),
         (r'порция\s+([а-яё\s]+)', PORTION_WEIGHTS['порция']),
+        # Новые паттерны
+        (r'(\d+)\s*бокал[а-я]*\s+([а-яё\s]+)', PORTION_WEIGHTS['бокал']),
+        (r'бокал\s+([а-яё\s]+)', PORTION_WEIGHTS['бокал']),
+        (r'(\d+)\s*стакан[а-я]*\s+([а-яё\s]+)', PORTION_WEIGHTS['стакан']),
+        (r'стакан\s+([а-яё\s]+)', PORTION_WEIGHTS['стакан']),
+        (r'(\d+)\s*кружк[а-я]*\s+([а-яё\s]+)', PORTION_WEIGHTS['кружка']),
+        (r'кружка\s+([а-яё\s]+)', PORTION_WEIGHTS['кружка']),
+        (r'(\d+)\s*бутылк[а-я]*\s+([а-яё\s]+)', PORTION_WEIGHTS['бутылка']),
+        (r'бутылка\s+([а-яё\s]+)', PORTION_WEIGHTS['бутылка']),
+        (r'(\d+)\s*банк[а-я]*\s+([а-яё\s]+)', PORTION_WEIGHTS['банка']),
+        (r'банка\s+([а-яё\s]+)', PORTION_WEIGHTS['банка']),
     ]
     
     # Ищем порции без веса
@@ -809,8 +895,16 @@ def apply_portion_multiplier(products: List[Dict], multiplier: float) -> List[Di
     result = []
     for product in products:
         product_copy = product.copy()
-        if product_copy['weight'] is not None:
+        if product_copy.get('weight') is not None:
             product_copy['weight'] = product_copy['weight'] * multiplier
+            
+        # Also scale macros if they exist (e.g. from menu OCR)
+        for macro in ['calories', 'protein', 'fats', 'carbs']:
+            if product_copy.get(macro) is not None:
+                # Ensure we handle 0 correctly
+                if isinstance(product_copy[macro], (int, float)):
+                     product_copy[macro] = round(product_copy[macro] * multiplier, 1)
+                     
         result.append(product_copy)
     return result
 

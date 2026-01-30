@@ -21,6 +21,71 @@ HEALTHVAULT_ROOT = Path(__file__).parent.parent.parent
 NUTRITION_LOG_JSON = HEALTHVAULT_ROOT / 'data' / 'nutrition' / 'nutrition_log.json'
 
 
+def _is_food_description(text: str) -> bool:
+    """
+    Определяет, является ли текст описанием еды.
+    
+    Args:
+        text: Текст сообщения
+        
+    Returns:
+        True, если это описание еды
+    """
+    if not text:
+        return False
+        
+    text_lower = text.lower().strip()
+    
+    # Индикаторы еды (сильные)
+    strong_food_indicators = [
+        # Единицы измерения еды
+        r'\d+\s*(г|грамм|граммов|кг|килограмм)',
+        r'\d+\s*(мл|миллилитр|л|литр)',
+        r'\d+\s*(ч\.?\s*л\.?|чайн\w*\s*лож\w*|столов\w*\s*лож\w*)',
+        r'\d+\s*(стакан|чашк|тарелк|порци)',
+        r'\d+\s*(штук|шт\.?|кусоч|ломтик)',
+        
+        # Описание времени приема пищи
+        r'(завтрак|обед|ужин|перекус|бранч|полдник)\s*[:\-]',
+        r'(на\s+)?(завтрак|обед|ужин|перекус)',
+        r'(утром|днем|вечером|ночью)\s*(ел|съел|поел)',
+        
+        # Указания на прием пищи во времени  
+        r'(вчера|сегодня|позавчера)\s+(завтрак|обед|ужин|перекус|ел|съел)',
+        r'(завтрак|обед|ужин|перекус)\s+(вчера|сегодня)',
+        
+        # Процессы приготовления
+        r'(варен\w*|жарен\w*|тушен\w*|печен\w*|сыр\w*)',
+        r'(приготовил|готовил|сделал|смешал)\s'
+    ]
+    
+    # Продукты питания (средние индикаторы)
+    food_keywords = [
+        'яйц', 'курин', 'мяс', 'рыб', 'сыр', 'молок', 'творог', 'йогурт',
+        'хлеб', 'каш', 'рис', 'греч', 'овся', 'макарон', 'спагетти', 
+        'картофел', 'овощ', 'помидор', 'огурец', 'лук', 'морков', 'капуст',
+        'яблок', 'банан', 'апельсин', 'фрукт', 'ягод',
+        'масл', 'соус', 'солен', 'сахар', 'мед',
+        'печень', 'орех', 'семеч', 'крупа', 'бобов'
+    ]
+    
+    # Проверяем сильные индикаторы
+    for pattern in strong_food_indicators:
+        if re.search(pattern, text_lower):
+            return True
+    
+    # Если есть продукты И это достаточно длинное описание
+    food_keyword_count = sum(1 for keyword in food_keywords if keyword in text_lower)
+    if food_keyword_count >= 1 and len(text) > 15:
+        return True
+        
+    # Специальная проверка для сообщений с весом/количеством
+    if re.search(r'\d+.*(?:г|грамм|мл|ложк|стакан|штук|кусоч|порци)', text_lower) and len(text) > 10:
+        return True
+    
+    return False
+
+
 def extract_meal_name(text: str, meal_time: str = None) -> str:
     """
     Извлекает название приёма пищи из текста.
@@ -122,6 +187,7 @@ def extract_date_from_text(text: str) -> tuple[str, str]:
     
     # Проверяем начало строки
     # Например: "Вчера ужин: ..." или "Вчера: ..."
+    # 1. Проверка "вчера" / "yesterday"
     for kw in yesterday_keywords:
         if text_lower.startswith(kw):
             # Проверяем, что идет после ключевого слова
@@ -135,16 +201,75 @@ def extract_date_from_text(text: str) -> tuple[str, str]:
                 
             # Если после ключевого слова идет разделитель
             if after_kw[0] in [':', ',', '-', ' ', '\n']:
-                # Вычисляем дату вчера
                 yesterday = datetime.now() - timedelta(days=1)
                 date_str = yesterday.strftime('%Y-%m-%d')
                 
-                # Очищаем текст от слова "вчера" и разделителей
                 clean_text = text[len(kw):].strip()
                 clean_text = re.sub(r'^[:,\-\s]+', '', clean_text).strip()
-                
                 return date_str, clean_text
+
+    # 2. Проверка даты в формате ДД.ММ или ДД/ММ (например "29.01", "29/01")
+    # Ищем в начале строки
+    date_match = re.match(r'^(\d{1,2})[./](\d{1,2})\s*', text_lower)
+    if date_match:
+        day, month = int(date_match.group(1)), int(date_match.group(2))
+        try:
+            # Предполагаем текущий год. Если месяц больше текущего - значит прошлый год?
+            # Нет, просто текущий год для простоты, или умная логика
+            current_year = datetime.now().year
+            # Если дата в будущем (например, сегодня 01.02, а ввели 29.01) - это ок
+            # Если сегодня 01.01, а ввели 31.12 - это прошлый год
+            
+            # Простая логика: используем текущий год
+            target_date = datetime(current_year, month, day)
+            
+            # Если полученная дата в будущем (более чем на 1 день), то скорее всего имели в виду прошлый год
+            if target_date > datetime.now() + timedelta(days=1):
+                target_date = datetime(current_year - 1, month, day)
                 
+            date_str = target_date.strftime('%Y-%m-%d')
+            clean_text = text[date_match.end():].strip()
+            # Убираем разделители, если остались
+            clean_text = re.sub(r'^[:,\-\s]+', '', clean_text).strip()
+            return date_str, clean_text
+        except ValueError:
+            pass # Invalid date
+
+    # 3. Проверка даты текстом (например "29 января", "29-го января")
+    months = {
+        'январ': 1, 'феврал': 2, 'март': 3, 'апрел': 4, 'мая': 5, 'май': 5, 'июн': 6,
+        'июл': 7, 'август': 8, 'сентябр': 9, 'октябр': 10, 'ноябр': 11, 'декабр': 12
+    }
+    
+    # Регулярка для "29-го января" или "29 января"
+    text_date_match = re.search(r'^(\d{1,2})(?:-?го)?\s+([а-я]+)', text_lower)
+    if text_date_match:
+        day = int(text_date_match.group(1))
+        month_str = text_date_match.group(2)
+        
+        # Ищем месяц
+        month = 0
+        for m_name, m_num in months.items():
+            if month_str.startswith(m_name):
+                month = m_num
+                break
+        
+        if month > 0:
+            try:
+                current_year = datetime.now().year
+                target_date = datetime(current_year, month, day)
+                
+                # Коррекция года
+                if target_date > datetime.now() + timedelta(days=1):
+                    target_date = datetime(current_year - 1, month, day)
+                
+                date_str = target_date.strftime('%Y-%m-%d')
+                clean_text = text[text_date_match.end():].strip()
+                clean_text = re.sub(r'^[:,\-\s]+', '', clean_text).strip()
+                return date_str, clean_text
+            except ValueError:
+                pass
+
     return None, text
 
 def is_confirmation(text: str) -> bool:
@@ -297,121 +422,157 @@ async def handle_text(message: Message, state: FSMContext):
         await handle_description(message, message.text)
         return
     
-    # --- ЛОГИКА ДОБАВОК ---
-    from core.supplements import supplement_service
-    logged_items, remaining_items = supplement_service.log_intake(message.text)
-    if logged_items:
-        # Если нашли витамины - сохраняем и отвечаем, дальше не идем
-        response = f"💊 <b>Сохранено:</b> {', '.join(logged_items)}\n\n"
-        if remaining_items:
-            response += "⏳ <b>Осталось принять сегодня:</b>\n" + "\n".join(remaining_items)
+    # --- LLM Router Logic ---
+    from core.llm_router import analyze_message
+    from core.nutrition import process_llm_food_data
+    
+    # Отправляем сообщение "Думаю..."
+    processing_msg = await message.answer("🤖 Читаю и анализирую... 🧠")
+    
+    text = message.text.strip()
+    
+    # Извлекаем дату "Вчера" если есть, для контекста
+    from handlers.text import extract_date_from_text
+    custom_date, clean_text = extract_date_from_text(text)
+    if custom_date:
+        text = clean_text
+    
+    try:
+        router_result = analyze_message(text=text)
+    except Exception as e:
+        logger.error(f"LLM Router Error: {e}")
+        router_result = None
+        
+    if not router_result:
+        # Fallback: Regex for Vitamins
+        from core.supplements import supplement_service
+        # Simple keywords mapping
+        vitamin_map = {
+            'омега': 'Омега 3-6-9',
+            'омегу': 'Омега 3-6-9',
+            'omega': 'Омега 3-6-9',
+            'д3': 'Витамин D3',
+            'd3': 'Витамин D3',
+            'витамин д': 'Витамин D3',
+            'стирол': 'Plant Sterols',
+            'стерол': 'Plant Sterols',
+            'sterol': 'Plant Sterols',
+            'магний': 'Магний',
+            'magne': 'Магний',
+            'цинк': 'Цинк',
+            'zinc': 'Цинк',
+            'псиллиум': 'Псиллиум',
+            'псилиум': 'Псиллиум',
+            'psyllium': 'Псиллиум',
+            'ашваганд': 'Ашвагандха',
+        }
+        
+        found_items = []
+        text_lower = text.lower()
+        for kw, name in vitamin_map.items():
+            if kw in text_lower:
+                if name not in found_items:
+                    found_items.append(name)
+        
+        if found_items:
+            logger.info(f"Regex Fallback found vitamins: {found_items}")
+            router_result = {
+                'type': 'vitamins',
+                'data': {'items': found_items}
+            }
         else:
-            response += "🎉 <b>На сегодня все витамины приняты!</b>"
-            
-        await message.answer(response)
+            await processing_msg.edit_text("🤷‍♂️ Не понял, что это. Это еда? Попробуй описать точнее.\n⚠️ <b>OpenAI не отвечает</b> (возможно, выключен VPN или проблема с ключом).")
+            return
+
+    msg_type = router_result.get('type')
+    data = router_result.get('data', {})
+
+    if msg_type == 'other':
+        reply = data.get('reply', 'Не понял запрос.')
+        await processing_msg.edit_text(reply)
         return
-    # ----------------------
-    
-    # Проверяем, ожидается ли подтверждение сохранения
-    if user_state and user_state.state == 'waiting_confirmation':
-        text = message.text.strip()
-        is_confirm = is_confirmation(text)
+
+    elif msg_type == 'vitamins':
+        items = data.get('items', [])
         
-        logger.info(f"is_confirmation('{text}') = {is_confirm}")
+        # Сохраняем реально
+        from core.supplements import save_supplements
+        telegram_user_id = int(message.from_user.id)
+        saved = save_supplements(items, user_id=telegram_user_id, date_str=custom_date)
         
-        if is_confirm:
-            # Извлекаем название приёма пищи
-            meal_name = extract_meal_name(text)
+        # Формируем красивый список
+        items_list = "\n".join([f"• {item}" for item in items])
+        
+        status_text = "✅ <b>Записано</b>" if saved else "⚠️ <b>Ошибка записи</b>"
+        
+        response = (
+            f"💊 <b>Витамины:</b>\n"
+            f"{items_list}\n\n"
+            f"{status_text}"
+        )
+        
+        await processing_msg.edit_text(response, parse_mode='HTML')
+        return
+
+    elif msg_type == 'weight':
+        w_val = data.get('weight')
+        await processing_msg.edit_text(f"⚖️ <b>Вес:</b> {w_val} кг\n✅ Записано (Simulated)", parse_mode='HTML')
+        return
+        
+    elif msg_type == 'food':
+        # ЕДА
+        meal_items, meal_totals = process_llm_food_data(router_result, description=text)
+        
+        if not meal_items:
+             await processing_msg.edit_text("❌ Вроде еда, но продуктов не нашел.")
+             return
+
+        meal_name = data.get('dish_name') or data.get('meal_type')
+        if not meal_name:
+             meal_name = extract_meal_name(text, datetime.now().strftime('%H:%M'))
+        
+        # Создаем состояние confirmation
+        from services.state import UserState
+        new_state = UserState(
+            user_id=user_id,
+            state='waiting_confirmation',
+            data={
+                'description': text,
+                'meal_items': meal_items,
+                'meal_totals': meal_totals,
+                'meal_time': datetime.now().strftime('%H:%M'),
+                'meal_name': meal_name,
+                'date': custom_date
+            }
+        )
+        state_manager.set_state(user_id, new_state)
+        
+        # Формируем ответ
+        response = f"🍽️ <b>{meal_name}</b>\n\n"
+        for item in meal_items:
+            w_str = f"{item['weight_g']}г" if item.get('weight_g') else "?"
+            cal = item.get('calories', 0)
+            p = int(item.get('protein', 0))
+            f = int(item.get('fats', 0))
+            c = int(item.get('carbs', 0))
+            response += f"• {item['product']} ({w_str}) — {int(cal)} ккал (Б:{p} Ж:{f} У:{c})\n"
             
-            # Сохраняем в JSON
-            if save_meal_to_json(user_state.data, meal_name):
-                await message.answer(
-                    f"✅ <b>Сохранено!</b>\n\n"
-                    f"🍽️ <b>{meal_name}</b>\n"
-                    f"📊 КБЖУ:\n"
-                    f"• Калории: {user_state.data.get('meal_totals', {}).get('calories', 0):.0f} ккал\n"
-                    f"• Белки: {user_state.data.get('meal_totals', {}).get('protein', 0):.0f} г\n"
-                    f"• Жиры: {user_state.data.get('meal_totals', {}).get('fats', 0):.0f} г\n"
-                    f"• Углеводы: {user_state.data.get('meal_totals', {}).get('carbs', 0):.0f} г",
-                    parse_mode='HTML'
-                )
-            else:
-                await message.answer("❌ Ошибка при сохранении. Попробуйте ещё раз.")
-            
-            # Очищаем состояние
-            state_manager.clear_state(user_id)
-        else:
-            # Если не подтверждение, но это похоже на описание еды (длинное, содержит продукты)
-            # - обрабатываем как новое описание, сбрасывая старое состояние
-            text_lower = text.lower()
-            food_keywords = ['яйц', 'сыр', 'лук', 'томат', 'каша', 'греч', 'рис', 'макарон', 'куриц', 'мясо', 'рыб']
-            is_food_description = len(text) > 20 and any(keyword in text_lower for keyword in food_keywords)
-            
-            if is_food_description:
-                logger.info(f"Текст похож на описание еды, обрабатываем как новое описание (сбрасываем старое состояние)")
-                state_manager.clear_state(user_id)
-                # Обрабатываем как новое описание
-                from handlers.photo import handle_description
-                from services.state import UserState
-                
-                new_user_state = UserState(
-                    user_id=user_id,
-                    state='waiting_description',
-                    data={
-                        'caption': '',  # Не дублируем текст в caption
-                        'photo_paths': [],
-                        'photo_file_ids': [],
-                    }
-                )
-                state_manager.set_state(user_id, new_user_state)
-                await handle_description(message, text)
-            else:
-                # Если не похоже на описание - напоминаем о кнопках
-                await message.answer(
-                    "💡 Используй кнопки '✅ Сохранить' или '❌ Не сохранять' для подтверждения.\n"
-                    "Или отправь новое описание еды."
-                )
-    
-    # Текстовое сообщение без состояния или с другим состоянием - обрабатываем как описание еды
+        response += f"\n📊 <b>Итого: {int(meal_totals['calories'])} ккал</b>\n"
+        response += f"Б: {int(meal_totals['protein'])} | Ж: {int(meal_totals['fats'])} | У: {int(meal_totals['carbs'])}"
+
+        # Buttons
+        from handlers.callbacks import MealConfirmationCallback
+        from aiogram.utils.keyboard import InlineKeyboardBuilder
+        
+        builder = InlineKeyboardBuilder()
+        builder.button(text="✅ Сохранить", callback_data=MealConfirmationCallback(action="save", meal_type="regular").pack())
+        builder.button(text="❌ Отмена", callback_data=MealConfirmationCallback(action="cancel", meal_type="regular").pack())
+        
+        await processing_msg.edit_text(response, parse_mode='HTML', reply_markup=builder.as_markup())
+        return
+
     else:
-        # Текстовое сообщение без фото - обрабатываем как описание еды
-        text = message.text.strip()
-        
-        # Проверяем наличие ключевого слова "Вчера"
-        custom_date, clean_text = extract_date_from_text(text)
-        
-        # Если дата была извлечена, используем очищенный текст
-        processing_text = clean_text if custom_date else text
-        
-        if processing_text and len(processing_text) > 3:  # Минимальная длина для описания
-            logger.info(f"Обработка текстового описания без фото: '{processing_text}' (Date: {custom_date or 'Today'})")
-            
-            # Импортируем обработчик описания из photo.py
-            from handlers.photo import handle_description
-            from services.state import UserState
-            
-            # Создаём состояние для обработки
-            new_user_state = UserState(
-                user_id=user_id,
-                state='waiting_description',
-                data={
-                    'photo_paths': [],
-                    'photo_file_ids': [],
-                    'caption': '',  # Не дублируем текст в caption
-                    'date': custom_date,  # Сохраняем дату (может быть None)
-                }
-            )
-            state_manager.set_state(user_id, new_user_state)
-            
-            # Отправляем сообщение о начале анализа
-            msg_text = "🤖 Анализирую через ИИ: еда, время, вес, КБЖУ... ⏳"
-            if custom_date:
-                msg_text += f"\n📅 Дата записи: {custom_date}"
-            
-            processing_msg = await message.answer(msg_text)
-            
-            # Обрабатываем описание (передаем очищенный текст)
-            await handle_description(message, processing_text, processing_message=processing_msg, custom_date=custom_date)
+        await processing_message.edit_text(f"🤔 Тип сообщения: {msg_type}, но я пока не знаю что с этим делать.")
 
 
 

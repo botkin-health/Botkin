@@ -1,0 +1,30 @@
+#!/usr/bin/expect -f
+set timeout 300
+
+set remote_host "root@95.142.45.135"
+set password "G76qpAn9vNvb66T:czTG"
+set timestamp [clock format [clock seconds] -format {%Y%m%d_%H%M%S}]
+set dump_name "healthvault_migration_${timestamp}.sql"
+
+send_user "\n📦 Starting migration backup...\n"
+
+# 1. Create dump on server
+send_user "1. Creating database dump on server...\n"
+spawn ssh -o StrictHostKeyChecking=no $remote_host "cd /root/healthvault && docker-compose exec -T postgres pg_dump -U healthvault healthvault > ${dump_name}"
+expect "password:"
+send "$password\r"
+expect eof
+
+# 2. Download dump
+send_user "\n2. Downloading dump to local machine...\n"
+spawn scp $remote_host:/root/healthvault/${dump_name} ./database/
+expect "password:"
+send "$password\r"
+expect eof
+
+# 3. Check file size
+send_user "\n3. Verifying download...\n"
+spawn ls -lh ./database/${dump_name}
+expect eof
+
+send_user "\n✅ Backup saved to ./database/${dump_name}\n"

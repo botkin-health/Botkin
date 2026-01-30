@@ -1,14 +1,34 @@
-.PHONY: run install backup clean
+.PHONY: run install backup clean test check-types
 
 # Variables
 PYTHON := ./venv/bin/python
 BOT_SCRIPT := telegram-bot/bot.py
 BACKUP_SCRIPT := scripts/create_backup.sh
 
-# Run the Telegram Bot
-run:
+# Run the Telegram Bot (with checks!)
+run: stop test check-types
 	@echo "Starting HealthVault Bot..."
 	$(PYTHON) $(BOT_SCRIPT)
+
+# Run without checks (Dangerous! Use only if you know what you are doing)
+run-fast: stop
+	@echo "⚠️  Starting HealthVault Bot (SKIPPING TESTS)..."
+	$(PYTHON) $(BOT_SCRIPT)
+
+# Stop any running bot instances
+stop:
+	@echo "🛑 Stopping old bot instances..."
+	@pkill -f "telegram-bot/bot.py" || true
+
+# Run tests
+test:
+	@echo "🛡️  Running automated tests..."
+	@PYTHONPATH=. $(PYTHON) -m pytest tests
+
+# Check types
+check-types:
+	@echo "🧐 Checking types with mypy..."
+	@$(PYTHON) -m mypy core/supplements.py
 
 # Install dependencies
 install:
@@ -25,3 +45,36 @@ backup:
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +
 	find . -type f -name "*.pyc" -delete
+
+# === DATABASE COMMANDS ===
+
+# Start PostgreSQL (Docker)
+db-up:
+	@echo "🐘 Starting PostgreSQL..."
+	@docker-compose -f docker-compose.dev.yml up -d
+	@echo "✅ PostgreSQL is running on localhost:5432"
+	@echo "   Database: healthvault"
+	@echo "   User: healthvault"
+	@echo "   Password: ***REMOVED***"
+
+# Stop PostgreSQL
+db-down:
+	@echo "🛑 Stopping PostgreSQL..."
+	@docker-compose -f docker-compose.dev.yml down
+
+# Migrate data from JSON to PostgreSQL
+db-migrate:
+	@echo "📦 Migrating data to PostgreSQL..."
+	@$(PYTHON) scripts/migrate_to_postgres.py
+
+# Open PostgreSQL shell
+db-shell:
+	@echo "🐚 Opening PostgreSQL shell..."
+	@docker exec -it healthvault_postgres_dev psql -U healthvault -d healthvault
+
+# Reset database (DANGEROUS!)
+db-reset:
+	@echo "⚠️  WARNING: This will delete ALL data!"
+	@read -p "Are you sure? (yes/no): " confirm && [ "$$confirm" = "yes" ] || exit 1
+	@docker-compose -f docker-compose.dev.yml down -v
+	@echo "✅ Database reset complete. Run 'make db-up' to start fresh."
