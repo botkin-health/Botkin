@@ -123,13 +123,18 @@ class SupplementService:
         
         # Synonyms map for flexible matching
         self.synonyms = {
+            "стирол": "plant sterols",
             "стиролы": "plant sterols",
+            "стерол": "plant sterols",
             "стеролы": "plant sterols",
+            "растительные стеролы": "plant sterols",
+            "plant sterol": "plant sterols",
             "plant sterols": "plant sterols",
             "псилиум": "псиллиум",
             "псиллиум": "псиллиум",
             "psyllium": "псиллиум",
             "омега": "омега 3-6-9",
+            "омега-3": "омега 3-6-9",
             "omega": "омега 3-6-9",
             "д3": "витамин d3",
             "d3": "витамин d3",
@@ -149,25 +154,29 @@ class SupplementService:
         def is_taken(req_name: str) -> bool:
             """Check if requirement matches any taken item"""
             req_lower = req_name.lower()
+            # Remove time markers for base comparison
+            req_base = req_lower.replace(" (утро)", "").replace(" (вечер)", "").strip()
             
             for taken_name in taken_names:
                 taken_lower = taken_name.lower()
+                taken_base = taken_lower.replace(" (утро)", "").replace(" (вечер)", "").strip()
                 
-                # Direct match
-                if taken_lower == req_lower:
+                # Direct match (exact)
+                if taken_lower == req_lower or taken_base == req_base:
                     return True
                     
-                # Substring match
-                if taken_lower in req_lower or req_lower in taken_lower:
+                # Base name match (without time markers)
+                if taken_base in req_base or req_base in taken_base:
                     return True
                     
                 # Synonym matching
-                taken_canonical = self.synonyms.get(taken_lower, taken_lower)
+                taken_canonical = self.synonyms.get(taken_base, taken_base)
+                req_canonical = self.synonyms.get(req_base, req_base)
                 
-                if taken_canonical in req_lower:
+                if taken_canonical == req_canonical:
                     return True
                     
-                if req_lower in taken_canonical:
+                if taken_canonical in req_base or req_canonical in taken_base:
                     return True
                     
             return False

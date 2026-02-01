@@ -11,7 +11,7 @@ from database.models import Base
 load_dotenv()
 
 # Database URL from environment
-DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://healthvault:password@localhost:5432/healthvault')
+DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://healthvault:dev_password_123@localhost:5432/healthvault')
 
 # Create engine
 engine = create_engine(
@@ -53,6 +53,8 @@ from database.crud import (
     create_nutrition_log,
     get_nutrition_logs_by_date,
     get_nutrition_logs_by_period,
+    get_activity_logs_by_period,
+    get_last_activity_date,
     get_nutrition_totals_by_date,
     delete_nutrition_log,
     
@@ -92,6 +94,8 @@ __all__ = [
     'create_nutrition_log',
     'get_nutrition_logs_by_date',
     'get_nutrition_logs_by_period',
+    'get_activity_logs_by_period',
+    'get_last_activity_date',
     'get_nutrition_totals_by_date',
     'delete_nutrition_log',
     'create_weight',

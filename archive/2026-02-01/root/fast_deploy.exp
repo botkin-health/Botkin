@@ -1,0 +1,32 @@
+#!/usr/bin/expect -f
+
+# Set timeout
+set timeout 300
+
+# Server details - hardcoded as per previous context
+set host "146.103.111.109"
+set user "root"
+set password "SERVER_PASSWORD_REDACTED"
+
+# Directories to upload
+set files_to_upload { "core" "telegram-bot" }
+
+# Upload code files
+foreach file $files_to_upload {
+    spawn scp -r -o StrictHostKeyChecking=no $file $user@$host:/root/healthvault/
+    expect {
+        "password:" { send "$password\r" }
+        "yes/no" { send "yes\r"; exp_continue }
+    }
+    expect eof
+}
+
+# Restart bot container
+spawn ssh -o StrictHostKeyChecking=no $user@$host "cd /root/healthvault && docker-compose up -d --build --no-deps bot"
+expect {
+    "password:" { send "$password\r" }
+    "yes/no" { send "yes\r"; exp_continue }
+}
+expect eof
+
+puts "\n🚀 Deployment completed! Bot restarted."

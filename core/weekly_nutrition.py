@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, date as date_type
 from typing import Dict, List, Optional
 from collections import defaultdict
 
-from database import SessionLocal, get_nutrition_logs_by_period, get_supplements_by_period
+from database import SessionLocal, get_nutrition_logs_by_period, get_supplements_by_period, get_activity_logs_by_period
 
 
 def get_last_7_days() -> List[date_type]:
@@ -36,7 +36,7 @@ def categorize_food_item(food_name: str, meal_time: str = None) -> Dict[str, boo
     }
     
     # Жирная рыба
-    fatty_fish_keywords = ['лосось', 'скумбрия', 'сардина', 'сельдь', 'salmon', 'mackerel', 'sardine', 'herring']
+    fatty_fish_keywords = ['лосось', 'скумбрия', 'сардина', 'сельдь', 'сайра', 'salmon', 'mackerel', 'sardine', 'herring', 'saira']
     if any(keyword in food_lower for keyword in fatty_fish_keywords):
         categories['fatty_fish'] = True
     
@@ -121,10 +121,32 @@ def analyze_weekly_nutrition(user_id: int = 895655, last_7_days: bool = True) ->
         # Получаем добавки за период (для учета псиллиума)
         supplements = get_supplements_by_period(db, user_id, start_date, end_date)
         
+        # Получаем активность Garmin за период
+        activity_logs = get_activity_logs_by_period(db, user_id, start_date, end_date)
+        
         # Группируем добавки по дате
         supplements_by_date = defaultdict(list)
         for supp in supplements:
             supplements_by_date[supp.date].append(supp.supplement_name.lower())
+        
+        # Считаем дни с псиллиумом для клетчатки
+        psyllium_days = set()
+        for date_key, supps in supplements_by_date.items():
+            if any('псилл' in s or 'psyll' in s for s in supps):
+                psyllium_days.add(date_key)
+        
+        # Расчет TDEE
+        total_active_cal = sum(log.active_calories or 0 for log in activity_logs)
+        days_with_activity = len([log for log in activity_logs if log.active_calories])
+        avg_active_cal = total_active_cal / max(days_with_activity, 1)
+        
+        # BMR (базовый обмен веществ) - можно рассчитать по формуле или взять из Garmin
+        # Используем среднее BMR из Garmin или стандартное значение 1700
+        bmr_values = [log.bmr_calories for log in activity_logs if log.bmr_calories]
+        avg_bmr = sum(bmr_values) / len(bmr_values) if bmr_values else 1700.0
+        
+        # TDEE = BMR + активные калории
+        avg_tdee = avg_bmr + avg_active_cal
         
         # Агрегируем данные
         totals = {
@@ -133,6 +155,9 @@ def analyze_weekly_nutrition(user_id: int = 895655, last_7_days: bool = True) ->
             'fats': 0.0,
             'carbs': 0.0,
             'fiber': 0.0,
+            'avg_tdee': avg_tdee,
+            'avg_bmr': avg_bmr,
+            'avg_active_cal': avg_active_cal,
         }
         
         categories = {
@@ -164,8 +189,9 @@ def analyze_weekly_nutrition(user_id: int = 895655, last_7_days: bool = True) ->
             is_dinner = 'ужин' in meal_name or 'dinner' in meal_name or 'вечер' in meal_name
             
             for item in log.items or []:
-                food_name = item.get('food', '')
-                amount_g = item.get('amount', 0.0) or 0.0
+                # Поддержка обоих форматов ключей в JSON (БД использует name/weight)
+                food_name = item.get('name') or item.get('food') or ''
+                amount_g = item.get('weight') or item.get('amount', 0.0) or 0.0
                 
                 # Категоризация
                 item_categories = categorize_food_item(food_name, meal_name if is_dinner else None)
@@ -188,19 +214,17 @@ def analyze_weekly_nutrition(user_id: int = 895655, last_7_days: bool = True) ->
                 if item_categories['alcohol']:
                     has_alcohol_today = True
                 
-                # Оценка клетчатки
+                # Оценка клетчатки из еды
                 totals['fiber'] += estimate_fiber(food_name, amount_g)
-            
-            # Check Psyllium intake for additional fiber
-            day_supplements = supplements_by_date.get(log.date, [])
-            if any('псилл' in s or 'psyll' in s for s in day_supplements):
-                totals['fiber'] += 5.0
             
             if has_high_carb_dinner:
                 categories['high_carb_dinners'] += 1
             
             if has_alcohol_today:
                 categories['alcohol_days'].add(log.date)
+        
+        # Добавляем клетчатку из псиллиума (2 ч.л. = ~10г клетчатки)
+        totals['fiber'] += len(psyllium_days) * 10.0
         
         # Преобразуем alcohol_days
         categories['alcohol_days_count'] = len(categories['alcohol_days'])
@@ -232,38 +256,46 @@ def generate_weekly_recommendations(totals: Dict, categories: Dict, dates_analyz
     
     # A) Жирная рыба
     fatty_fish_portions = categories.get('fatty_fish_portions', 0)
-    today = datetime.now()
-    weekday = today.weekday()  # 0 = понедельник, 6 = воскресенье
     
-    if weekday <= 3:  # Понедельник-четверг
-        if fatty_fish_portions < 1:
-            recommendations.append("🐟 Жирная рыба: пока меньше 1 порции (Цель: минимум 1-2 в неделю). План: добавить в пт + вс (лосось/скумбрия/сардина 150-200г)")
-    elif fatty_fish_portions < 2:
-        recommendations.append("🐟 Жирная рыба: за неделю меньше 2 порций. Добавить до конца недели (лосось/скумбрия/сардина 150-200г)")
+    if fatty_fish_portions < 2:
+        missing_portions = 2 - fatty_fish_portions
+        recommendations.append(
+            f"🐟 Жирная рыба: за неделю {fatty_fish_portions:.1f} порций из 2 рекомендуемых. "
+            f"Добавьте {missing_portions:.1f} порции (лосось/скумбрия/сардина 150-200г)"
+        )
     
     # B) Красное мясо и переработанное
     red_meat_portions = categories.get('red_meat_portions', 0)
     processed_portions = categories.get('processed_meat_portions', 0)
     
     if red_meat_portions >= 3:
-        recommendations.append("⚠️ Красное мясо 3+ порции/нед. Рекомендация: заменить на рыбу/птицу/бобовые")
+        recommendations.append("⚠️ Красное мясо: более 3 порций за неделю. Замените часть на рыбу/птицу/бобовые")
     
     if processed_portions >= 1:
-        recommendations.append("⚠️ Переработанное мясо 1+ порция/нед. Рекомендация: заменить на рыбу/птицу/бобовые")
+        recommendations.append("⚠️ Переработанное мясо: есть в рационе. Лучше заменить на свежее мясо/рыбу")
     
     # C) Углеводы вечером
     high_carb_dinners = categories.get('high_carb_dinners', 0)
     if high_carb_dinners >= 3:
-        recommendations.append("🍞 Высокоуглеводные ужины 3+ раза за последние 5 дней. Сегодня: белок + овощи, углеводы перенести на обед/после тренировки")
+        recommendations.append(
+            f"🍞 Высокоуглеводные ужины: {high_carb_dinners} раз за неделю. "
+            "Переносите углеводы на обед или после тренировки"
+        )
     
     # D) Клетчатка
     fiber_avg = totals.get('fiber', 0) / len(dates_analyzed) if dates_analyzed else 0
     if fiber_avg < 25:
-        recommendations.append("🥬 Клетчатка: мало овощей/бобовых/цельных круп. Добавить 1-2 простых добора сегодня (овощи, бобовые, цельные крупы)")
+        recommendations.append(
+            f"🥬 Клетчатка: {fiber_avg:.0f}г/день (норма 30+). "
+            "Увеличьте овощи, бобовые, цельные крупы в рационе"
+        )
     
     # E) Алкоголь
     alcohol_days = categories.get('alcohol_days_count', 0)
     if alcohol_days > 2:
-        recommendations.append("🍷 Алкоголь: больше 2 дней/нед. Рекомендация: максимум 2 дней/нед, избегать поздно вечером (храп/АД/сон)")
+        recommendations.append(
+            f"🍷 Алкоголь: {alcohol_days} дней за неделю (рекомендуется макс 2). "
+            "Избегайте поздно вечером для лучшего сна"
+        )
     
     return recommendations

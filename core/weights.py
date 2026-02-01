@@ -4,22 +4,29 @@ import logging
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, List
+import os
 
 logger = logging.getLogger(__name__)
+
+# NOTE: Dual-write REMOVED по решению пользователя 2026-02-01
+# Стратегия: Postgres-only + автобэкап БД
+# TODO: После полной миграции бота убрать JSON логику вообще
 
 DATA_DIR = Path(__file__).parent.parent / "data" / "weights"
 
 def save_weight_measurement(data: Dict[str, Any]) -> str:
     """
-    Saves a weight measurement to a JSON file.
-    Recommended structure: data/weights/YYYY-MM-DD.json
-    Or append to a log.
+    Saves a weight measurement to JSON file.
+    
+    NOTE: Только JSON до полной миграции бота на Postgres.
+    После миграции: данные будут писаться ТОЛЬКО в Postgres.
+    JSON файлы (до 2026-02-01) остаются как архив.
     
     Args:
         data: Dict containing weight, date, source, etc.
         
     Returns:
-        Path to the saved file (as string).
+        Path to the saved JSON file (as string).
     """
     try:
         DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -122,7 +129,7 @@ def save_weight_measurement(data: Dict[str, Any]) -> str:
             with open(file_path, 'w') as f:
                 json.dump(day_measurements, f, indent=2, ensure_ascii=False)
                 
-            logger.info(f"Weight saved to {file_path}")
+            logger.info(f"✅ Weight saved to JSON backup: {file_path}")
         else:
             logger.info(f"Duplicate weight skipped: {new_date} / {new_weight}")
             

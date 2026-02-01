@@ -68,8 +68,9 @@ async def cmd_day(message: Message):
     status_msg = await message.answer("🔄 Синхронизирую данные Garmin...")
     
     try:
-        # Update Garmin Data (in thread to not block event loop)
-        await asyncio.to_thread(sync_garmin_data)
+        # Умная синхронизация - только недостающие дни
+        from core.garmin_data import sync_missing_garmin_days
+        await asyncio.to_thread(sync_missing_garmin_days)
         
         today_date = datetime.now().date()
         today_str = today_date.strftime('%Y-%m-%d')
@@ -145,35 +146,58 @@ async def cmd_week(message: Message):
             await message.answer("📊 Нет данных за последние 7 дней.")
             return
 
-        # Средние значения
-        avg_cal = totals.get('calories', 0) / days_count
+        # Средние значения потребления
+        avg_consumed = totals.get('calories', 0) / days_count
         avg_prot = totals.get('protein', 0) / days_count
         avg_fats = totals.get('fats', 0) / days_count
         avg_carbs = totals.get('carbs', 0) / days_count
         avg_fiber = totals.get('fiber', 0) / days_count
         
+        # TDEE (расход) и дефицит
+        avg_tdee = totals.get('avg_tdee', 0)
+        avg_active_cal = totals.get('avg_active_cal', 0)
+        avg_bmr = totals.get('avg_bmr', 1700)
+        
+        # Расчет дефицита
+        deficit = avg_tdee - avg_consumed
+        deficit_pct = (deficit / avg_tdee * 100) if avg_tdee > 0 else 0
+        
+        # Цель с дефицитом 15%
+        target_cal = avg_tdee * 0.85
+        
+        # Эмодзи для оценки дефицита
+        if deficit_pct < 10:
+            deficit_emoji = "⚠️"  # Слишком мало
+        elif 10 <= deficit_pct <= 20:
+            deficit_emoji = "✅"  # Отлично
+        elif 20 < deficit_pct <= 30:
+            deficit_emoji = "👍"  # Хорошо
+        else:
+            deficit_emoji = "⚠️"  # Слишком много
+        
+        # Целевые значения БЖУ
+        target_protein = 150  # Целевое значение
+        
         recommendations = weekly_data.get('recommendations', [])
         
-        # Targets for comparison (based on 14-day average or just standard)
-        # We need average calories to calculate targets
-        # Or we can just use the same avg_cals we calculated for the report effectively?
-        # Actually verify logic: calculate_targets needs BMR or Avg.
-        # Let's use the avg_cal from the week report itself as the "maintenance estimate" basis?
-        # Or better: use the same standard get_average_calories(14) to be consistent with daily.
-        base_avg_stats = get_average_stats(days=14) 
-        targets_data = calculate_targets(stats=base_avg_stats)
-        target_cal = targets_data['calories']
-        target_prot = targets_data['protein']
+        # Заголовок (показываем дни только если не все 7)
+        if days_count < 7:
+            title = f"📊 Анализ за 7 дней (дней с данными: {days_count})"
+        else:
+            title = "📊 Анализ за 7 дней"
         
         response = [
-            f"📊 Анализ за 7 дней (дней с данными: {days_count})",
+            title,
             "",
-            "Средние показатели:",
-            f"• Калории: {avg_cal:.0f} ккал (Цель: ~{target_cal} с дефицитом)",
-            f"• Белки: {avg_prot:.0f} г (Цель: > {target_prot}г)",
+            "📥 Среднее потребление:",
+            f"• Калории: {avg_consumed:.0f} ккал",
+            f"• Белки: {avg_prot:.0f} г (Цель: > {target_protein}г)",
             f"• Жиры: {avg_fats:.0f} г",
             f"• Углеводы: {avg_carbs:.0f} г",
             f"• Клетчатка: {avg_fiber:.0f} г (Норма: > 30г)",
+            "",
+            f"🔥 Расход {avg_tdee:.0f} = {avg_bmr:.0f}😴 + {avg_active_cal:.0f}🏃",
+            f"🎯 Цель {target_cal:.0f} (-15%) : {deficit:.0f} ({deficit_pct:.1f}%) {deficit_emoji}",
             "",
             "🔍 Анализ питания:"
         ]
