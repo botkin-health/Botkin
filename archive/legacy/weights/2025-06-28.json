@@ -1,0 +1,18 @@
+[
+  {
+    "Name": "Alexander Lyskovsky",
+    "Body score": 45,
+    "Progress": "-0.60kg",
+    "date": "2025-06-28 09:59",
+    "weight": 83.0,
+    "Body type": "Overweight",
+    "bmi": 28.9,
+    "water": 49.6,
+    "bmr": 1571.0,
+    "bone_mass": 2.96,
+    "protein": 16.3,
+    "muscle": 55.19,
+    "source": "reprocessed_ocr",
+    "visceral_fat": 15
+  }
+]

@@ -28,3 +28,12 @@
 - **Run Bot**: `python3 telegram-bot/bot.py`
 - **Analyze Food**: Bot accepts text or photos (via Gemini/OpenAI).
 - **Sync Data**: Run `scripts/apple-health/run_update.py`.
+
+## Health Analysis (IMPORTANT for AI Assistants)
+When the user asks to analyze body, weight, nutrition, sleep, or workouts:
+1. **First** run: `python3 scripts/validate_health_data.py`
+2. Check the validation status (КРИТИЧНО / ПРЕДУПРЕЖДЕНИЕ / ХОРОШО)
+3. If КРИТИЧНО — report issues, do not proceed with full analysis
+4. Otherwise — proceed with analysis, noting any limitations from the report
+
+See: `README.md` (section "Анализ здоровья"), `.agent/workflows/health-analysis.md`

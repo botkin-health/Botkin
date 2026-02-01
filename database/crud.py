@@ -122,6 +122,20 @@ def get_nutrition_logs_by_period(
     ).order_by(NutritionLog.date, NutritionLog.meal_time).all()
 
 
+def get_activity_logs_by_period(
+    db: Session,
+    user_id: int,
+    start_date: date,
+    end_date: date
+) -> List[ActivityLog]:
+    """Get activity logs (Garmin data) for a date range"""
+    return db.query(ActivityLog).filter(
+        ActivityLog.user_id == user_id,
+        ActivityLog.date >= start_date,
+        ActivityLog.date <= end_date
+    ).order_by(ActivityLog.date).all()
+
+
 def get_nutrition_totals_by_date(db: Session, user_id: int, date: date) -> Dict:
     """Calculate total nutrition for a specific date"""
     logs = get_nutrition_logs_by_date(db, user_id, date)
@@ -456,3 +470,11 @@ def get_all_blood_tests(db: Session, user_id: int) -> List[BloodTest]:
     return db.query(BloodTest).filter(
         BloodTest.user_id == user_id
     ).order_by(desc(BloodTest.test_date)).all()
+
+
+def get_last_activity_date(db: Session, user_id: int) -> Optional[date]:
+    """Get the most recent date with activity data"""
+    result = db.query(ActivityLog.date).filter(
+        ActivityLog.user_id == user_id
+    ).order_by(ActivityLog.date.desc()).first()
+    return result[0] if result else None

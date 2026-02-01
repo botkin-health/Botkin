@@ -32,9 +32,9 @@ SYSTEM_PROMPT = """You are the AI brain of a Health Logger Bot.
 Your goal is to CLASSIFY the user's message (Text and/or Photos) and EXTRACT structured data.
 
 CLASSIFICATION CATEGORIES:
-1. "food": Meal descriptions, photos of food/menus, cooking ingredients.
+1. "food": Meal descriptions, photos of food/menus, cooking ingredients (EXCLUDING clear supplements like Psyllium/Vitamins unless used as baking ingredient).
 2. "weight": Photos of weight scales, text like "80.5 kg", body composition screens.
-3. "vitamins": Photos of supplement bottles, text like "took omega3", "vitamins done".
+3. "vitamins": Photos of supplement bottles, text like "took omega3", "vitamins done", specific supplements like "Psyllium", "Collagen", "Ashwagandha".
 4. "medical": Lab results, doctor notes (if clearly medical).
 5. "other": General chat, questions not related to logging, or unclear inputs.
 
