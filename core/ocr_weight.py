@@ -121,13 +121,12 @@ def parse_weight_screenshot(file_paths: list[Path], api_key: Optional[str], desc
 
 def _get_prompt():
     return (
-        "This is an OCR task for identifying body composition metrics (weight, body fat, etc.) "
-        "usually from health apps like Zepp Life, Mi Fit, or Apple Health. "
-        "IMPORTANT: If the image shows a restaurant menu, food descriptions, or prices, "
-        "set 'is_body_metrics' to false and return an empty object for metrics. "
-        "If it IS a body weight measurement, set 'is_body_metrics' to true and "
-        "extract: weight (kg), bmi, body_fat (%), muscle_mass, water, visceral_fat, etc. "
-        "Return a JSON object: {\"is_body_metrics\": bool, \"weight\": float, \"body_fat\": float, ...}."
+        "This is an OCR task for identifying body composition metrics from health apps (Zepp Life, Mi Fit, Apple Health). "
+        "Extract: weight (kg), bmi, body_fat (%), muscle (kg or %), water (%), visceral_fat (index), bone_mass (kg), protein (%). "
+        "CRITICAL RULE: Distinguish 'Body Fat' (usually 15-40%) from 'Visceral Fat' (usually integer 1-20). "
+        "If you see a value like '14' labeled 'Visceral Fat', put it in 'visceral_fat', NOT 'body_fat'. "
+        "Return JSON: {\"is_body_metrics\": true, \"weight\": 80.4, \"body_fat\": 28.5, \"visceral_fat\": 14, ...}. "
+        "If not body metrics (e.g. food, menu), set \"is_body_metrics\": false."
     )
 
 def _map_keys_to_standard(data: Dict[str, Any]) -> Dict[str, Any]:

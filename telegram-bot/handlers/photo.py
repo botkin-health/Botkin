@@ -667,7 +667,7 @@ async def handle_description(message: Message, description: str = None, processi
             
             # Сохраняем реально
             from core.supplements import save_supplements
-            telegram_user_id = int(callback.from_user.id)
+            telegram_user_id = int(message.from_user.id)
             saved = save_supplements(items, user_id=telegram_user_id)
             
             # Формируем красивый список

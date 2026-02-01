@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from typing import Optional, List
-from sqlalchemy import String, Integer, BigInteger, Float, Boolean, DateTime, Date, Time, JSON, Text, ARRAY, ForeignKey, UniqueConstraint, Index
+from sqlalchemy import String, Integer, BigInteger, Float, Boolean, DateTime, Date, Time, JSON, Text, ARRAY, ForeignKey, UniqueConstraint, Index, TypeDecorator
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -11,6 +11,16 @@ class Base(DeclarativeBase):
     """Base class for all models"""
     pass
 
+
+
+class SafeArray(TypeDecorator):
+    impl = JSON
+    cache_ok = True
+    
+    def load_dialect_impl(self, dialect):
+        if dialect.name == 'postgresql':
+            return ARRAY(Text)
+        return JSON()
 
 class User(Base):
     __tablename__ = "users"
@@ -56,7 +66,7 @@ class NutritionLog(Base):
     meal_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     items: Mapped[dict] = mapped_column(JSON, nullable=False)  # JSONB in PostgreSQL
     totals: Mapped[dict] = mapped_column(JSON, nullable=False)
-    photo_paths: Mapped[Optional[List[str]]] = mapped_column(ARRAY(Text), nullable=True)
+    photo_paths: Mapped[Optional[List[str]]] = mapped_column(SafeArray, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     
     # Relationship
