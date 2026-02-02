@@ -106,13 +106,13 @@ class SupplementService:
         
         # Schedule defined in HEALTH.md
         self.schedule = {
+            "☀️ УТРО (до еды)": [
+                "Псиллиум"
+            ],
             "🌅 УТРО (с завтраком)": [
                 "Витамин D3",
                 "Омега 3-6-9",
                 "Plant Sterols (Утро)"
-            ],
-            "☀️ УТРО (до еды)": [
-                "Псиллиум"
             ],
             "🌙 ВЕЧЕР (с ужином)": [
                 "Plant Sterols (Вечер)",

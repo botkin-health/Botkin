@@ -219,3 +219,180 @@ ommands - INFO - 📊 Команда /day вызвана пользовател�
 2026-02-02 00:32:44,480 - aiogram.dispatcher - INFO - Start polling
 2026-02-02 00:32:44,567 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
 2026-02-02 00:33:12,269 - __main__ - INFO - 📥 Update 318623949: MSG id=1637 date=2026-02-01 21:33:12+00:00
+2026-02-02 00:38:55,308 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-02-02 00:38:55,310 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-02-02 00:39:06,680 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-02-02 00:54:36,195 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-02-02 00:54:36,220 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-02-02 00:54:37,592 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-02-02 00:54:37,595 - __main__ - INFO - 📥 Update 318623950: MSG id=1639 date=2026-02-01 21:53:11+00:00
+2026-02-02 00:54:37,596 - handlers.commands - INFO - 📊 Команда /day вызвана пользователем 895655
+2026-02-02 00:54:37,598 - __main__ - INFO - 📥 Update 318623951: MSG id=1640 date=2026-02-01 21:53:18+00:00
+2026-02-02 00:54:38,034 - core.garmin_data - INFO - Smart Garmin sync started for user 895655
+2026-02-02 00:54:38,044 - core.garmin_data - INFO - Syncing Garmin data for 2026-02-02
+2026-02-02 00:54:38,044 - core.garmin_data - INFO - Garmin sync called for user 895655, date: 2026-02-02
+2026-02-02 00:54:38,192 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sso.garmin.com:443
+2026-02-02 00:54:38,741 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "GET /sso/embed?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso HTTP/1.1" 200 None
+2026-02-02 00:54:39,329 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "GET /sso/signin?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&service=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&source=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountLoginUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountCreationUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed HTTP/1.1" 200 None
+2026-02-02 00:54:40,077 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "POST /sso/signin?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&service=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&source=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountLoginUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountCreationUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed HTTP/1.1" 200 None
+2026-02-02 00:54:40,098 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): thegarth.s3.amazonaws.com:443
+2026-02-02 00:54:40,899 - urllib3.connectionpool - DEBUG - https://thegarth.s3.amazonaws.com:443 "GET /oauth_consumer.json HTTP/1.1" 200 124
+2026-02-02 00:54:40,902 - requests_oauthlib.oauth1_auth - DEBUG - Signing request <PreparedRequest [GET]> using client <Client client_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0, client_secret=****, resource_owner_key=None, resource_owner_secret=None, signature_method=HMAC-SHA1, signature_type=AUTH_HEADER, callback_uri=None, rsa_key=None, verifier=None, realm=None, encoding=utf-8, decoding=utf-8, nonce=None, timestamp=None>
+2026-02-02 00:54:40,902 - requests_oauthlib.oauth1_auth - DEBUG - Including body in call to sign: False
+2026-02-02 00:54:40,903 - oauthlib.oauth1.rfc5849 - DEBUG - Collected params: [('ticket', 'ST-0553097-W6OA0Aoosd5E7VSd5jAV-cas'), ('login-url', 'https://sso.garmin.com/sso/embed'), ('accepts-mfa-tokens', 'true'), ('oauth_nonce', '171421814481250157781769982880'), ('oauth_timestamp', '1769982880'), ('oauth_version', '1.0'), ('oauth_signature_method', 'HMAC-SHA1'), ('oauth_consumer_key', 'fc3e99d2-118c-44b8-8ae3-03370dde24c0')]
+2026-02-02 00:54:40,903 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized params: accepts-mfa-tokens=true&login-url=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&oauth_consumer_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0&oauth_nonce=171421814481250157781769982880&oauth_signature_method=HMAC-SHA1&oauth_timestamp=1769982880&oauth_version=1.0&ticket=ST-0553097-W6OA0Aoosd5E7VSd5jAV-cas
+2026-02-02 00:54:40,903 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized URI: https://connectapi.garmin.com/oauth-service/oauth/preauthorized
+2026-02-02 00:54:40,903 - oauthlib.oauth1.rfc5849 - DEBUG - Signing: signature base string: GET&https%3A%2F%2Fconnectapi.garmin.com%2Foauth-service%2Foauth%2Fpreauthorized&accepts-mfa-tokens%3Dtrue%26login-url%3Dhttps%253A%252F%252Fsso.garmin.com%252Fsso%252Fembed%26oauth_consumer_key%3Dfc3e99d2-118c-44b8-8ae3-03370dde24c0%26oauth_nonce%3D171421814481250157781769982880%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1769982880%26oauth_version%3D1.0%26ticket%3DST-0553097-W6OA0Aoosd5E7VSd5jAV-cas
+2026-02-02 00:54:40,903 - oauthlib.oauth1.rfc5849 - DEBUG - Signature: /1w7v1/89H17ZBWWLHhGR8pi2x4=
+2026-02-02 00:54:40,903 - oauthlib.oauth1.rfc5849 - DEBUG - Encoding URI, headers and body to utf-8.
+2026-02-02 00:54:40,904 - requests_oauthlib.oauth1_auth - DEBUG - Updated url: https://connectapi.garmin.com/oauth-service/oauth/preauthorized?ticket=ST-0553097-W6OA0Aoosd5E7VSd5jAV-cas&login-url=https://sso.garmin.com/sso/embed&accepts-mfa-tokens=true
+2026-02-02 00:54:40,904 - requests_oauthlib.oauth1_auth - DEBUG - Updated headers: {b'User-Agent': b'com.garmin.android.apps.connectmobile', b'Accept-Encoding': b'gzip, deflate', b'Accept': b'*/*', b'Connection': b'keep-alive', b'Authorization': b'OAuth oauth_nonce="171421814481250157781769982880", oauth_timestamp="1769982880", oauth_version="1.0", oauth_signature_method="HMAC-SHA1", oauth_consumer_key="fc3e99d2-118c-44b8-8ae3-03370dde24c0", oauth_signature="%2F1w7v1%2F89H17ZBWWLHhGR8pi2x4%3D"'}
+2026-02-02 00:54:40,904 - requests_oauthlib.oauth1_auth - DEBUG - Updated body: None
+2026-02-02 00:54:40,905 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): connectapi.garmin.com:443
+2026-02-02 00:54:41,764 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /oauth-service/oauth/preauthorized?ticket=ST-0553097-W6OA0Aoosd5E7VSd5jAV-cas&login-url=https://sso.garmin.com/sso/embed&accepts-mfa-tokens=true HTTP/1.1" 200 None
+2026-02-02 00:54:41,766 - requests_oauthlib.oauth1_auth - DEBUG - Signing request <PreparedRequest [POST]> using client <Client client_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0, client_secret=****, resource_owner_key=3d6345ce-0ead-42e6-adee-2bda9ffe2426, resource_owner_secret=****, signature_method=HMAC-SHA1, signature_type=AUTH_HEADER, callback_uri=None, rsa_key=None, verifier=None, realm=None, encoding=utf-8, decoding=utf-8, nonce=None, timestamp=None>
+2026-02-02 00:54:41,766 - requests_oauthlib.oauth1_auth - DEBUG - Including body in call to sign: True
+2026-02-02 00:54:41,766 - oauthlib.oauth1.rfc5849 - DEBUG - Collected params: [('oauth_nonce', '67603705469446996991769982881'), ('oauth_timestamp', '1769982881'), ('oauth_version', '1.0'), ('oauth_signature_method', 'HMAC-SHA1'), ('oauth_consumer_key', 'fc3e99d2-118c-44b8-8ae3-03370dde24c0'), ('oauth_token', '3d6345ce-0ead-42e6-adee-2bda9ffe2426')]
+2026-02-02 00:54:41,766 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized params: oauth_consumer_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0&oauth_nonce=67603705469446996991769982881&oauth_signature_method=HMAC-SHA1&oauth_timestamp=1769982881&oauth_token=3d6345ce-0ead-42e6-adee-2bda9ffe2426&oauth_version=1.0
+2026-02-02 00:54:41,766 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized URI: https://connectapi.garmin.com/oauth-service/oauth/exchange/user/2.0
+2026-02-02 00:54:41,766 - oauthlib.oauth1.rfc5849 - DEBUG - Signing: signature base string: POST&https%3A%2F%2Fconnectapi.garmin.com%2Foauth-service%2Foauth%2Fexchange%2Fuser%2F2.0&oauth_consumer_key%3Dfc3e99d2-118c-44b8-8ae3-03370dde24c0%26oauth_nonce%3D67603705469446996991769982881%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1769982881%26oauth_token%3D3d6345ce-0ead-42e6-adee-2bda9ffe2426%26oauth_version%3D1.0
+2026-02-02 00:54:41,766 - oauthlib.oauth1.rfc5849 - DEBUG - Signature: yeRW8JzyyIv00bxGXgnF4jtFAAA=
+2026-02-02 00:54:41,766 - oauthlib.oauth1.rfc5849 - DEBUG - Encoding URI, headers and body to utf-8.
+2026-02-02 00:54:41,766 - requests_oauthlib.oauth1_auth - DEBUG - Updated url: https://connectapi.garmin.com/oauth-service/oauth/exchange/user/2.0
+2026-02-02 00:54:41,766 - requests_oauthlib.oauth1_auth - DEBUG - Updated headers: {b'User-Agent': b'com.garmin.android.apps.connectmobile', b'Accept-Encoding': b'gzip, deflate', b'Accept': b'*/*', b'Connection': b'keep-alive', b'Content-Type': b'application/x-www-form-urlencoded', b'Content-Length': b'0', b'Authorization': b'OAuth oauth_nonce="67603705469446996991769982881", oauth_timestamp="1769982881", oauth_version="1.0", oauth_signature_method="HMAC-SHA1", oauth_consumer_key="fc3e99d2-118c-44b8-8ae3-03370dde24c0", oauth_token="3d6345ce-0ead-42e6-adee-2bda9ffe2426", oauth_signature="yeRW8JzyyIv00bxGXgnF4jtFAAA%3D"'}
+2026-02-02 00:54:41,767 - requests_oauthlib.oauth1_auth - DEBUG - Updated body: ''
+2026-02-02 00:54:41,998 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "POST /oauth-service/oauth/exchange/user/2.0 HTTP/1.1" 200 None
+2026-02-02 00:54:42,222 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /userprofile-service/socialProfile HTTP/1.1" 200 None
+2026-02-02 00:54:42,548 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /userprofile-service/userprofile/user-settings HTTP/1.1" 200 None
+2026-02-02 00:54:42,567 - garminconnect - DEBUG - Requesting user summary
+2026-02-02 00:54:42,796 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /usersummary-service/usersummary/daily/Lyskovsky?calendarDate=2026-02-02 HTTP/1.1" 200 None
+2026-02-02 00:54:42,829 - core.garmin_data - INFO - Smart sync completed: 1 days synced
+2026-02-02 01:11:36,191 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-02-02 01:11:36,240 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-02-02 01:11:47,612 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-02-02 01:19:27,202 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-02-02 01:19:27,232 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-02-02 01:19:38,591 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-02-02 01:39:21,205 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-02-02 01:39:21,236 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-02-02 01:39:32,578 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-02-02 01:57:18,205 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-02-02 01:57:18,239 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-02-02 01:57:29,608 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-02-02 03:17:06,220 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-02-02 03:17:06,240 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-02-02 03:17:17,682 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-02-02 03:33:29,190 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-02-02 03:33:29,247 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-02-02 03:33:40,620 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-02-02 03:39:01,209 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-02-02 03:39:01,237 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-02-02 03:39:12,598 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-02-02 03:55:28,227 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-02-02 03:55:28,240 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-02-02 03:55:39,776 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-02-02 04:11:24,315 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-02-02 04:11:24,316 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-02-02 04:11:35,655 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-02-02 04:27:29,198 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-02-02 04:27:29,236 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-02-02 04:27:40,673 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-02-02 04:40:01,210 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-02-02 04:40:01,233 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-02-02 04:40:12,615 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-02-02 04:57:15,201 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-02-02 04:57:15,233 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-02-02 04:57:26,623 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-02-02 05:15:11,274 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-02-02 05:15:11,283 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-02-02 05:15:22,677 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-02-02 05:31:29,185 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-02-02 05:31:29,229 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-02-02 05:31:40,615 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-02-02 05:41:01,233 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-02-02 05:41:01,236 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-02-02 05:41:12,641 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-02-02 05:57:08,205 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-02-02 05:57:08,224 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-02-02 05:57:19,560 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-02-02 06:14:27,267 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-02-02 06:14:27,268 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-02-02 06:14:38,620 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-02-02 06:30:51,206 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-02-02 06:30:51,263 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-02-02 06:31:02,698 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-02-02 06:42:01,192 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-02-02 06:42:01,220 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-02-02 06:42:12,583 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-02-02 06:58:39,184 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-02-02 06:58:39,221 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-02-02 06:58:50,572 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-02-02 07:16:09,301 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-02-02 07:16:09,302 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-02-02 07:16:20,704 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-02-02 07:34:59,198 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-02-02 07:34:59,236 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-02-02 07:35:10,601 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-02-02 07:43:01,178 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-02-02 07:43:01,217 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-02-02 07:43:12,572 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-02-02 07:59:31,200 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-02-02 07:59:31,214 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-02-02 07:59:42,591 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-02-02 08:10:42,786 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-02-02 08:10:42,870 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-02-02 08:10:54,769 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-02-02 08:13:45,088 - __main__ - INFO - 📥 Update 318623952: MSG id=1644 date=2026-02-02 05:13:45+00:00
+2026-02-02 08:13:45,090 - handlers.commands - INFO - 📊 Команда /day вызвана пользователем 895655
+2026-02-02 08:13:45,512 - core.garmin_data - INFO - Smart Garmin sync started for user 895655
+2026-02-02 08:13:45,532 - core.garmin_data - INFO - Syncing Garmin data for 2026-02-02
+2026-02-02 08:13:45,532 - core.garmin_data - INFO - Garmin sync called for user 895655, date: 2026-02-02
+2026-02-02 08:13:45,539 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sso.garmin.com:443
+2026-02-02 08:13:46,155 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "GET /sso/embed?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso HTTP/1.1" 200 None
+2026-02-02 08:13:46,771 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "GET /sso/signin?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&service=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&source=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountLoginUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountCreationUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed HTTP/1.1" 200 None
+2026-02-02 08:13:48,029 - urllib3.connectionpool - DEBUG - https://sso.garmin.com:443 "POST /sso/signin?id=gauth-widget&embedWidget=true&gauthHost=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&service=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&source=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountLoginUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&redirectAfterAccountCreationUrl=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed HTTP/1.1" 200 None
+2026-02-02 08:13:48,038 - requests_oauthlib.oauth1_auth - DEBUG - Signing request <PreparedRequest [GET]> using client <Client client_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0, client_secret=****, resource_owner_key=None, resource_owner_secret=None, signature_method=HMAC-SHA1, signature_type=AUTH_HEADER, callback_uri=None, rsa_key=None, verifier=None, realm=None, encoding=utf-8, decoding=utf-8, nonce=None, timestamp=None>
+2026-02-02 08:13:48,038 - requests_oauthlib.oauth1_auth - DEBUG - Including body in call to sign: False
+2026-02-02 08:13:48,038 - oauthlib.oauth1.rfc5849 - DEBUG - Collected params: [('ticket', 'ST-0290929-4gwvp4FuqspNMAwHeVCB-cas'), ('login-url', 'https://sso.garmin.com/sso/embed'), ('accepts-mfa-tokens', 'true'), ('oauth_nonce', '30985519270068530591770009228'), ('oauth_timestamp', '1770009228'), ('oauth_version', '1.0'), ('oauth_signature_method', 'HMAC-SHA1'), ('oauth_consumer_key', 'fc3e99d2-118c-44b8-8ae3-03370dde24c0')]
+2026-02-02 08:13:48,039 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized params: accepts-mfa-tokens=true&login-url=https%3A%2F%2Fsso.garmin.com%2Fsso%2Fembed&oauth_consumer_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0&oauth_nonce=30985519270068530591770009228&oauth_signature_method=HMAC-SHA1&oauth_timestamp=1770009228&oauth_version=1.0&ticket=ST-0290929-4gwvp4FuqspNMAwHeVCB-cas
+2026-02-02 08:13:48,039 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized URI: https://connectapi.garmin.com/oauth-service/oauth/preauthorized
+2026-02-02 08:13:48,039 - oauthlib.oauth1.rfc5849 - DEBUG - Signing: signature base string: GET&https%3A%2F%2Fconnectapi.garmin.com%2Foauth-service%2Foauth%2Fpreauthorized&accepts-mfa-tokens%3Dtrue%26login-url%3Dhttps%253A%252F%252Fsso.garmin.com%252Fsso%252Fembed%26oauth_consumer_key%3Dfc3e99d2-118c-44b8-8ae3-03370dde24c0%26oauth_nonce%3D30985519270068530591770009228%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1770009228%26oauth_version%3D1.0%26ticket%3DST-0290929-4gwvp4FuqspNMAwHeVCB-cas
+2026-02-02 08:13:48,040 - oauthlib.oauth1.rfc5849 - DEBUG - Signature: kzAs25andePn+rSx9ICGrj8IM2Q=
+2026-02-02 08:13:48,040 - oauthlib.oauth1.rfc5849 - DEBUG - Encoding URI, headers and body to utf-8.
+2026-02-02 08:13:48,040 - requests_oauthlib.oauth1_auth - DEBUG - Updated url: https://connectapi.garmin.com/oauth-service/oauth/preauthorized?ticket=ST-0290929-4gwvp4FuqspNMAwHeVCB-cas&login-url=https://sso.garmin.com/sso/embed&accepts-mfa-tokens=true
+2026-02-02 08:13:48,040 - requests_oauthlib.oauth1_auth - DEBUG - Updated headers: {b'User-Agent': b'com.garmin.android.apps.connectmobile', b'Accept-Encoding': b'gzip, deflate', b'Accept': b'*/*', b'Connection': b'keep-alive', b'Authorization': b'OAuth oauth_nonce="30985519270068530591770009228", oauth_timestamp="1770009228", oauth_version="1.0", oauth_signature_method="HMAC-SHA1", oauth_consumer_key="fc3e99d2-118c-44b8-8ae3-03370dde24c0", oauth_signature="kzAs25andePn%2BrSx9ICGrj8IM2Q%3D"'}
+2026-02-02 08:13:48,040 - requests_oauthlib.oauth1_auth - DEBUG - Updated body: None
+2026-02-02 08:13:48,041 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): connectapi.garmin.com:443
+2026-02-02 08:13:48,937 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /oauth-service/oauth/preauthorized?ticket=ST-0290929-4gwvp4FuqspNMAwHeVCB-cas&login-url=https://sso.garmin.com/sso/embed&accepts-mfa-tokens=true HTTP/1.1" 200 None
+2026-02-02 08:13:48,940 - requests_oauthlib.oauth1_auth - DEBUG - Signing request <PreparedRequest [POST]> using client <Client client_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0, client_secret=****, resource_owner_key=3d6345ce-0ead-42e6-adee-2bda9ffe2426, resource_owner_secret=****, signature_method=HMAC-SHA1, signature_type=AUTH_HEADER, callback_uri=None, rsa_key=None, verifier=None, realm=None, encoding=utf-8, decoding=utf-8, nonce=None, timestamp=None>
+2026-02-02 08:13:48,940 - requests_oauthlib.oauth1_auth - DEBUG - Including body in call to sign: True
+2026-02-02 08:13:48,940 - oauthlib.oauth1.rfc5849 - DEBUG - Collected params: [('oauth_nonce', '100756569066803342051770009228'), ('oauth_timestamp', '1770009228'), ('oauth_version', '1.0'), ('oauth_signature_method', 'HMAC-SHA1'), ('oauth_consumer_key', 'fc3e99d2-118c-44b8-8ae3-03370dde24c0'), ('oauth_token', '3d6345ce-0ead-42e6-adee-2bda9ffe2426')]
+2026-02-02 08:13:48,940 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized params: oauth_consumer_key=fc3e99d2-118c-44b8-8ae3-03370dde24c0&oauth_nonce=100756569066803342051770009228&oauth_signature_method=HMAC-SHA1&oauth_timestamp=1770009228&oauth_token=3d6345ce-0ead-42e6-adee-2bda9ffe2426&oauth_version=1.0
+2026-02-02 08:13:48,940 - oauthlib.oauth1.rfc5849 - DEBUG - Normalized URI: https://connectapi.garmin.com/oauth-service/oauth/exchange/user/2.0
+2026-02-02 08:13:48,940 - oauthlib.oauth1.rfc5849 - DEBUG - Signing: signature base string: POST&https%3A%2F%2Fconnectapi.garmin.com%2Foauth-service%2Foauth%2Fexchange%2Fuser%2F2.0&oauth_consumer_key%3Dfc3e99d2-118c-44b8-8ae3-03370dde24c0%26oauth_nonce%3D100756569066803342051770009228%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1770009228%26oauth_token%3D3d6345ce-0ead-42e6-adee-2bda9ffe2426%26oauth_version%3D1.0
+2026-02-02 08:13:48,940 - oauthlib.oauth1.rfc5849 - DEBUG - Signature: hb6qEjX0mcnds6Z7o5pTf7Gw6S0=
+2026-02-02 08:13:48,940 - oauthlib.oauth1.rfc5849 - DEBUG - Encoding URI, headers and body to utf-8.
+2026-02-02 08:13:48,940 - requests_oauthlib.oauth1_auth - DEBUG - Updated url: https://connectapi.garmin.com/oauth-service/oauth/exchange/user/2.0
+2026-02-02 08:13:48,940 - requests_oauthlib.oauth1_auth - DEBUG - Updated headers: {b'User-Agent': b'com.garmin.android.apps.connectmobile', b'Accept-Encoding': b'gzip, deflate', b'Accept': b'*/*', b'Connection': b'keep-alive', b'Content-Type': b'application/x-www-form-urlencoded', b'Content-Length': b'0', b'Authorization': b'OAuth oauth_nonce="100756569066803342051770009228", oauth_timestamp="1770009228", oauth_version="1.0", oauth_signature_method="HMAC-SHA1", oauth_consumer_key="fc3e99d2-118c-44b8-8ae3-03370dde24c0", oauth_token="3d6345ce-0ead-42e6-adee-2bda9ffe2426", oauth_signature="hb6qEjX0mcnds6Z7o5pTf7Gw6S0%3D"'}
+2026-02-02 08:13:48,941 - requests_oauthlib.oauth1_auth - DEBUG - Updated body: ''
+2026-02-02 08:13:49,166 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "POST /oauth-service/oauth/exchange/user/2.0 HTTP/1.1" 200 None
+2026-02-02 08:13:49,360 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /userprofile-service/socialProfile HTTP/1.1" 200 None
+2026-02-02 08:13:49,705 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /userprofile-service/userprofile/user-settings HTTP/1.1" 200 None
+2026-02-02 08:13:49,707 - garminconnect - DEBUG - Requesting user summary
+2026-02-02 08:13:49,978 - urllib3.connectionpool - DEBUG - https://connectapi.garmin.com:443 "GET /usersummary-service/usersummary/daily/Lyskovsky?calendarDate=2026-02-02 HTTP/1.1" 200 None
+2026-02-02 08:13:50,013 - core.garmin_data - INFO - Smart sync completed: 1 days synced
+2026-02-02 08:14:05,169 - __main__ - INFO - 📥 Update 318623953: MSG id=1647 date=2026-02-02 05:14:05+00:00
+2026-02-02 08:14:05,170 - handlers.text - INFO - 📝 Обработчик текста: получено сообщение от 895655: 'псилиум...'
+2026-02-02 08:14:05,170 - handlers.text - INFO - У пользователя 895655 нет состояния
+2026-02-02 08:14:05,346 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-02-02 08:14:07,302 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-02-02 08:14:14,374 - __main__ - INFO - 📥 Update 318623954: MSG id=1649 date=2026-02-02 05:14:14+00:00
+2026-02-02 08:16:30,837 - aiogram.dispatcher - WARNING - Received SIGTERM signal
+2026-02-02 08:16:30,838 - aiogram.dispatcher - INFO - Polling stopped for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-02-02 08:16:30,838 - aiogram.dispatcher - INFO - Polling stopped
+2026-02-02 08:16:32,667 - asyncio - DEBUG - Using selector: KqueueSelector
+2026-02-02 08:16:33,039 - __main__ - INFO - ✅ Обработчики команд, фото, голоса, текста зарегистрированы: 96 обработчиков
+2026-02-02 08:16:33,039 - __main__ - INFO - ✅ IdempotencyMiddleware подключен
+2026-02-02 08:16:33,713 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
+2026-02-02 08:16:33,714 - aiogram.dispatcher - INFO - Start polling
+2026-02-02 08:16:33,816 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
