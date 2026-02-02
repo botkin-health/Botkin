@@ -396,3 +396,57 @@ ommands - INFO - 📊 Команда /day вызвана пользовател�
 2026-02-02 08:16:33,713 - __main__ - INFO - ✅ Меню команд обновлено (Default + Private)
 2026-02-02 08:16:33,714 - aiogram.dispatcher - INFO - Start polling
 2026-02-02 08:16:33,816 - aiogram.dispatcher - INFO - Run polling for bot @HealthVault_bot id=8500310863 - 'HealthVault Tracker'
+2026-02-02 09:41:41,991 - __main__ - INFO - 📥 Update 318623955: MSG id=1651 date=2026-02-02 06:41:41+00:00
+2026-02-02 09:41:41,995 - handlers.text - INFO - 📝 Обработчик текста: получено сообщение от 895655: '120 г огурцов
+65 г квашенной капусты
+100 г гречки
+2 яйца
+чайная ложка подсолнечного масла
+чайная лож...'
+2026-02-02 09:41:41,995 - handlers.text - INFO - У пользователя 895655 нет состояния
+2026-02-02 09:41:42,675 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): api.openai.com:443
+2026-02-02 09:41:48,713 - urllib3.connectionpool - DEBUG - https://api.openai.com:443 "POST /v1/chat/completions HTTP/1.1" 200 None
+2026-02-02 09:42:52,357 - __main__ - INFO - 📥 Update 318623956: CB id=3846810689236086 data=meal:save:regular
+2026-02-02 09:42:52,358 - handlers.photo - INFO - Обработка callback: action=save, meal_type=regular, user_id=895655
+2026-02-02 09:42:52,358 - handlers.photo - INFO - Используется meal_name из состояния: 'Meal with various ingredients'
+2026-02-02 09:42:52,358 - handlers.photo - INFO - Сохранение блюда: meal_name='Meal with various ingredients', meal_type='regular'
+2026-02-02 09:42:52,361 - handlers.photo - INFO - [BEFORE SAVE] user_state.data keys: ['description', 'meal_items', 'meal_totals', 'meal_time', 'meal_name', 'date']
+2026-02-02 09:42:52,361 - handlers.photo - INFO - [BEFORE SAVE] meal_totals: {'calories': 602.0, 'protein': 29.0, 'fats': 22.1, 'carbs': 80.5}
+2026-02-02 09:42:52,361 - handlers.photo - INFO - [BEFORE SAVE] meal_items count: 6
+2026-02-02 09:42:52,573 - helpers.db_save - INFO - Meal saved to DB: Meal with various ingredients on 2026-02-02 at 09:41:00
+2026-02-02 09:42:52,573 - handlers.photo - INFO - [AFTER SAVE] save_meal_to_db returned True
+2026-02-02 11:29:43,895 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-02-02 11:29:43,915 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-02-02 11:29:47,248 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientConnectorError: Cannot connect to host api.telegram.org:443 ssl:default [Connection reset by peer]
+2026-02-02 11:29:47,248 - aiogram.dispatcher - WARNING - Sleep for 1.221437 seconds and try again... (tryings = 1, bot id = 8500310863)
+2026-02-02 11:29:50,490 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientConnectorError: Cannot connect to host api.telegram.org:443 ssl:default [Connection reset by peer]
+2026-02-02 11:29:50,490 - aiogram.dispatcher - WARNING - Sleep for 1.707726 seconds and try again... (tryings = 2, bot id = 8500310863)
+2026-02-02 11:29:54,219 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientConnectorError: Cannot connect to host api.telegram.org:443 ssl:default [Connection reset by peer]
+2026-02-02 11:29:54,219 - aiogram.dispatcher - WARNING - Sleep for 2.199043 seconds and try again... (tryings = 3, bot id = 8500310863)
+2026-02-02 11:29:58,436 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientConnectorError: Cannot connect to host api.telegram.org:443 ssl:default [Connection reset by peer]
+2026-02-02 11:29:58,436 - aiogram.dispatcher - WARNING - Sleep for 2.936883 seconds and try again... (tryings = 4, bot id = 8500310863)
+2026-02-02 11:30:03,391 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientConnectorError: Cannot connect to host api.telegram.org:443 ssl:default [Connection reset by peer]
+2026-02-02 11:30:03,391 - aiogram.dispatcher - WARNING - Sleep for 3.767791 seconds and try again... (tryings = 5, bot id = 8500310863)
+2026-02-02 11:30:09,179 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientConnectorError: Cannot connect to host api.telegram.org:443 ssl:default [Connection reset by peer]
+2026-02-02 11:30:09,179 - aiogram.dispatcher - WARNING - Sleep for 5.108293 seconds and try again... (tryings = 6, bot id = 8500310863)
+2026-02-02 11:30:16,309 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientConnectorError: Cannot connect to host api.telegram.org:443 ssl:default [Connection reset by peer]
+2026-02-02 11:30:16,309 - aiogram.dispatcher - WARNING - Sleep for 4.927537 seconds and try again... (tryings = 7, bot id = 8500310863)
+2026-02-02 11:30:23,254 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientConnectorError: Cannot connect to host api.telegram.org:443 ssl:default [Connection reset by peer]
+2026-02-02 11:30:23,255 - aiogram.dispatcher - WARNING - Sleep for 4.968307 seconds and try again... (tryings = 8, bot id = 8500310863)
+2026-02-02 11:30:30,245 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientConnectorError: Cannot connect to host api.telegram.org:443 ssl:default [Connection reset by peer]
+2026-02-02 11:30:30,246 - aiogram.dispatcher - WARNING - Sleep for 4.952988 seconds and try again... (tryings = 9, bot id = 8500310863)
+2026-02-02 11:31:22,485 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientConnectorError: Cannot connect to host api.telegram.org:443 ssl:default [Connection reset by peer]
+2026-02-02 11:31:22,486 - aiogram.dispatcher - WARNING - Sleep for 5.018741 seconds and try again... (tryings = 10, bot id = 8500310863)
+2026-02-02 11:31:29,543 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientConnectorError: Cannot connect to host api.telegram.org:443 ssl:default [Connection reset by peer]
+2026-02-02 11:31:29,543 - aiogram.dispatcher - WARNING - Sleep for 4.987909 seconds and try again... (tryings = 11, bot id = 8500310863)
+2026-02-02 11:31:46,040 - aiogram.dispatcher - INFO - Connection established (tryings = 12, bot id = 8500310863)
+2026-02-02 11:51:47,490 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-02-02 11:51:47,493 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-02-02 11:52:28,619 - aiogram.dispatcher - INFO - Connection established (tryings = 1, bot id = 8500310863)
+2026-02-02 11:59:54,022 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientOSError: [Errno 54] Connection reset by peer
+2026-02-02 11:59:54,044 - aiogram.dispatcher - WARNING - Sleep for 1.000000 seconds and try again... (tryings = 0, bot id = 8500310863)
+2026-02-02 11:59:57,093 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientConnectorError: Cannot connect to host api.telegram.org:443 ssl:default [Connection reset by peer]
+2026-02-02 11:59:57,094 - aiogram.dispatcher - WARNING - Sleep for 1.155798 seconds and try again... (tryings = 1, bot id = 8500310863)
+2026-02-02 12:00:00,262 - aiogram.dispatcher - ERROR - Failed to fetch updates - TelegramNetworkError: HTTP Client says - ClientConnectorError: Cannot connect to host api.telegram.org:443 ssl:default [Connection reset by peer]
+2026-02-02 12:00:00,263 - aiogram.dispatcher - WARNING - Sleep for 1.759033 seconds and try again... (tryings = 2, bot id = 8500310863)
+2026-02-02 12:00:14,728 - aiogram.dispatcher - INFO - Connection established (tryings = 3, bot id = 8500310863)
