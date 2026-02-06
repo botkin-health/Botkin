@@ -1370,6 +1370,44 @@
       ],
       "source": "gpt-4o-mini",
       "note": "Стейк из лосося, богатый белком и полезными жирами"
+    },
+    "шампиньоны": {
+      "calories_per_100g": 22.0,
+      "protein_per_100g": 3.1,
+      "fats_per_100g": 0.3,
+      "carbs_per_100g": 3.3,
+      "aliases": [
+        "шампиньоны",
+        "гриб шампиньон"
+      ],
+      "source": "gpt-4o-mini",
+      "note": "Свежие шампиньоны"
+    },
+    "шпинат": {
+      "calories_per_100g": 23.0,
+      "protein_per_100g": 2.9,
+      "fats_per_100g": 0.4,
+      "carbs_per_100g": 3.6,
+      "aliases": [
+        "шпинат свежий",
+        "шпинат листовой"
+      ],
+      "source": "gpt-4o-mini",
+      "note": "Свежий шпинат, богатый витаминами и минералами"
+    },
+    "coca-cola": {
+      "calories_per_100g": 42.0,
+      "protein_per_100g": 0.0,
+      "fats_per_100g": 0.0,
+      "carbs_per_100g": 10.6,
+      "aliases": [
+        "coca cola",
+        "кока кола",
+        "кока-кола",
+        "coke"
+      ],
+      "source": "manual",
+      "note": "Coca-Cola Classic"
     }
   }
 }

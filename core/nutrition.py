@@ -825,6 +825,113 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
         # No, trust LLM if it saw the photo/text, it might be a specific product. 
         # But if macros are 0/missing, use calculate_nutrition).
         
+        # Custom Logic: Prioritize Database Lookup over LLM macros
+        # Даже если LLM вернул макросы, проверяем базу данных, так как там могут быть
+        # более точные/любимые продукты пользователя (например, Bombbar)
+        from .description_parser import normalize_product_name
+        
+        # Нормализуем имя для поиска
+        norm_name = normalize_product_name(name)
+        
+        # Пытаемся распарсить quantity если нет веса
+        if (not weight or weight == 0) and item.get('quantity'):
+            qty_str = str(item.get('quantity')).lower().strip()
+            import re
+            
+            # Миллилитры (1 мл = 1 г приближенно для напитков)
+            ml_match = re.search(r'(\d+(?:[.,]\d+)?)\s*(?:мл|ml|milliliter)', qty_str)
+            if ml_match:
+                try:
+                    weight = float(ml_match.group(1).replace(',', '.'))
+                    weight_src = 'quantity_ml'
+                except ValueError:
+                    pass
+                    
+            # Литры
+            l_match = re.search(r'(\d+(?:[.,]\d+)?)\s*(?:л|l|liter)', qty_str)
+            if l_match:
+                try:
+                    weight = float(l_match.group(1).replace(',', '.')) * 1000
+                    weight_src = 'quantity_l'
+                except ValueError:
+                    pass
+                    
+            # Граммы
+            g_match = re.search(r'(\d+(?:[.,]\d+)?)\s*(?:г|g|gram)', qty_str)
+            if g_match:
+                try:
+                    weight = float(g_match.group(1).replace(',', '.'))
+                    weight_src = 'quantity_g'
+                except ValueError:
+                    pass
+                    
+            # Килограммы
+            kg_match = re.search(r'(\d+(?:[.,]\d+)?)\s*(?:кг|kg|kilogram)', qty_str)
+            if kg_match:
+                try:
+                    weight = float(kg_match.group(1).replace(',', '.')) * 1000
+                    weight_src = 'quantity_kg'
+                except ValueError:
+                    pass
+
+        db_product = find_product(norm_name)
+        if not db_product:
+            # Пробуем без нормализации или lowercase
+            db_product = find_product(name)
+            
+        if db_product:
+            logger.info(f"✅ Product found in DB (overriding LLM): {name}")
+            
+            # Определяем вес
+            final_weight = weight
+            weight_src = 'llm'
+            
+            if not final_weight:
+                # Если вес не указан, берем дефолтный вес из базы (если есть) или оцениваем
+                final_weight = db_product.get('weight_g')
+                if final_weight:
+                   weight_src = 'db_default'
+                else:
+                   # Оценка веса
+                   from .description_parser import get_default_unit_weight
+                   try:
+                       qty = float(item.get('quantity', 1))
+                   except (ValueError, TypeError):
+                       qty = 1.0
+                   if not qty or qty <= 0: qty = 1.0
+                   
+                   unit_weight = get_default_unit_weight(name)
+                   if unit_weight > 0:
+                       final_weight = unit_weight * qty
+                       weight_src = 'estimate'
+            
+            # Если веса все еще нет, ставим 100г для расчета (но помечаем?)
+            # Нет, если веса нет, мы не можем добавить продукт корректно в лог с весом.
+            # Но мы можем добавить его с весом 0 или None?
+            if not final_weight:
+                 logger.warning(f"Product {name} found in DB but no weight determined. Using 100g default.")
+                 final_weight = 100.0
+                 weight_src = 'default_100g'
+
+            # Рассчитываем макросы на основе веса и данных БД
+            # Данные в БД хранятся на 100г
+            multiplier = final_weight / 100.0
+            
+            meal_items.append({
+                'product': db_product.get('name', name), # Используем имя из БД (оно может быть красивее)
+                'weight_g': final_weight,
+                'weight_source': weight_src,
+                'calories': round(db_product.get('calories_per_100g', 0) * multiplier, 1),
+                'protein': round(db_product.get('protein_per_100g', 0) * multiplier, 1),
+                'fats': round(db_product.get('fats_per_100g', 0) * multiplier, 1),
+                'carbs': round(db_product.get('carbs_per_100g', 0) * multiplier, 1),
+                'source': 'local_db_priority', # Mark as DB source
+                'note': db_product.get('note')
+            })
+            # Skip checking LLM macros if DB found
+            continue
+        
+        # ORIGINAL LOGIC
         has_macros = item.get('calories') is not None and item.get('calories') > 0
         
         if has_macros:
@@ -913,5 +1020,21 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
                     'source': 'unknown'
                 })
             
-    totals = calculate_meal_totals(meal_items)
-    return meal_items, totals
+    
+    # Check for explicit total_nutrition from LLM (Recipe Cards/Labels)
+    total_nutrition = data.get('total_nutrition')
+    
+    # Calculate totals from items first (as baseline)
+    computed_totals = calculate_meal_totals(meal_items)
+    
+    if total_nutrition and total_nutrition.get('calories', 0) > 0:
+        logger.info(f"✅ Using explicit total nutrition from LLM (Recipe/Label): {total_nutrition}")
+        # Override computed totals
+        return meal_items, {
+            'calories': float(total_nutrition.get('calories', 0)),
+            'protein': float(total_nutrition.get('protein', 0)),
+            'fats': float(total_nutrition.get('fats', 0)),
+            'carbs': float(total_nutrition.get('carbs', 0))
+        }
+
+    return meal_items, computed_totals
