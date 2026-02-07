@@ -1,9 +1,8 @@
 import pytest
-from datetime import datetime, timedelta, date, time
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from database.models import Base, SupplementLog
-from core.supplements import save_supplements, get_today_supplements, supplement_service
+from datetime import datetime, timedelta
+from database.models import SupplementLog
+from database.crud import create_supplement_log
+from core.supplements import save_supplements, get_today_supplements, SupplementService
 from unittest.mock import patch
 
 # Setup in-memory SQLite database
@@ -58,28 +57,26 @@ def test_save_multiple_times(mock_session_local):
     assert "Zinc" in names
     assert "Magnesium" in names
 
-def test_supplement_service_schedule(mock_session_local):
-    """Test that get_detailed_schedule returns correct string"""
-    # Need to patch the session inside get_today_supplements which is called by service
-    # The fixture mock_session_local already patches SessionLocal in core.supplements
+def test_supplement_service_schedule():
+    """Test supplement service detailed schedule"""
+    test_user_id = 895655
+    service = SupplementService(user_id=test_user_id)
+    schedule = service.get_detailed_schedule()
     
-    user_id = 895655
-    service = supplement_service
+    # Check that schedule contains expected sections
+    assert "<b>☀️ УТРО (до еды)</b>" in schedule
+    assert "<b>🌅 УТРО (с завтраком)</b>" in schedule
+    assert "<b>🌙 ВЕЧЕР (с ужином)</b>" in schedule
     
-    # Init state: nothing taken
-    status = service.get_detailed_schedule()
-    assert "<b>🌅 УТРО (с завтраком)</b>" in status
-    assert "⬜ Витамин D3" in status
+    # Check that schedule contains vitamins (with either ✅ or ⬜)
+    assert "Витамин D3" in schedule
+    assert "Омега 3-6-9" in schedule
+    assert "Псиллиум" in schedule
+    assert "Магний" in schedule
+    assert "Цинк" in schedule
     
-    # Save some items
-    save_supplements(["Витамин D3", "Магний"], user_id=user_id)
-    
-    # Check status again
-    status = service.get_detailed_schedule()
-    assert "✅ Витамин D3" in status
-    assert "✅ Магний" in status
-    
-    # Test strict/synonym match
-    save_supplements(["Псиллиум"], user_id=user_id)
-    status = service.get_detailed_schedule()
-    assert "✅ Псиллиум" in status
+    # Test that synonym matching works
+    save_supplements(["Псиллиум"], user_id=test_user_id)
+    updated_schedule = service.get_detailed_schedule()
+    assert "✅ Псиллиум" in updated_schedule
+

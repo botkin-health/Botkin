@@ -1,0 +1,37 @@
+#!/usr/bin/expect -f
+set timeout 60
+
+set host "146.103.111.109"
+set user "root"
+set password "G76qpAn9vNvb66T:czTG"
+set project_path "/root/healthvault"
+
+send_user "\nðŸ§¹ CLEAN RESTART ON NETHERLANDS SERVER ($host)...\n"
+
+spawn ssh -o StrictHostKeyChecking=no $user@$host
+expect {
+    "password:" { send "$password\r" }
+    timeout { send_user "\nâ Œ SSH Timeout\n"; exit 1 }
+}
+expect "#"
+send "cd $project_path\r"
+expect "#"
+
+send_user "\nðŸ”» Scaling down...\n"
+send "docker-compose down\r"
+expect "#"
+
+send_user "\nðŸ”º Scaling up...\n"
+send "docker-compose up -d bot\r"
+expect "#"
+
+send_user "\nâ ³ Waiting for startup...\n"
+send "sleep 10\r"
+expect "#"
+
+send_user "\nðŸ“‹ Checking logs...\n"
+send "docker-compose logs --tail=10 bot\r"
+expect "#"
+
+send "exit\r"
+expect eof
