@@ -1,0 +1,18 @@
+#!/usr/bin/expect -f
+set timeout 30
+
+set host "146.103.111.109"
+set user "root"
+set password "W749a#j%37z8_138UBYA"
+
+spawn ssh -o StrictHostKeyChecking=no $user@$host
+expect "password:"
+send "$password\r"
+expect "#"
+
+# Fetch last 100 lines of logs
+send "docker logs --tail 100 healthvault_bot\r"
+expect "#"
+
+send "exit\r"
+expect eof
