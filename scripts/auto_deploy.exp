@@ -1,0 +1,22 @@
+#!/usr/bin/expect
+
+set timeout 600
+set password "SERVER_PASSWORD_REDACTED"
+
+# 1. Запуск deploy.sh (загрузка файлов)
+spawn ./deploy.sh
+expect {
+    "password:" { send "$password\r"; exp_continue }
+    "yes/no" { send "yes\r"; exp_continue }
+    eof
+}
+
+# 2. Запуск start_bot.sh (перезапуск контейнеров)
+spawn ./scripts/start_bot.sh
+expect {
+    "password:" { send "$password\r" }
+    "yes/no" { send "yes\r" }
+}
+
+# Передаем управление пользователю (чтобы видеть логи)
+interact
