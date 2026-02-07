@@ -1,0 +1,25 @@
+#!/usr/bin/expect -f
+set timeout 30
+
+set host "146.103.111.109"
+set user "root"
+set password "SERVER_PASSWORD_REDACTED"
+
+spawn ssh -o StrictHostKeyChecking=no $user@$host
+expect "password:"
+send "$password\r"
+expect "#"
+
+send "cd /root/healthvault\r"
+expect "#"
+
+# List backups
+send "ls -la backup\r"
+expect "#"
+
+# List database dir to see init scripts
+send "ls -la database\r"
+expect "#"
+
+send "exit\r"
+expect eof

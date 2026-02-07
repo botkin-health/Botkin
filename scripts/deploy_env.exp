@@ -1,0 +1,40 @@
+#!/usr/bin/expect -f
+set timeout 60
+
+set host "146.103.111.109"
+set user "root"
+set password "G76qpAn9vNvb66T:czTG"
+set project_path "/root/healthvault"
+
+send_user "\n🚀 DEPLOYING ENV TO NETHERLANDS SERVER ($host)...\n"
+
+# Upload .env.production as .env
+send_user "\n📤 Uploading .env.production -> .env...\n"
+spawn scp -o StrictHostKeyChecking=no .env.production $user@$host:$project_path/.env
+expect {
+    "password:" { send "$password\r" }
+    timeout { send_user "\n❌ Upload Timeout\n"; exit 1 }
+}
+expect eof
+
+# Restart Bot
+spawn ssh -o StrictHostKeyChecking=no $user@$host
+expect "password:"
+send "$password\r"
+expect "#"
+
+send "cd $project_path\r"
+expect "#"
+
+send_user "\n🔄 Restarting Bot container...\n"
+send "docker-compose restart bot\r"
+expect "#"
+
+send_user "\n📋 Checking logs...\n"
+send "docker-compose logs --tail=20 bot\r"
+expect "#"
+
+send "exit\r"
+expect eof
+
+send_user "\n✅ ENV DEPLOYMENT COMPLETED!\n"

@@ -154,11 +154,21 @@ class TestWeightExtraction:
         
     def test_milliliters_conversion(self):
         """Конвертация миллилитров"""
+        # Test 1: Simple water
         desc = "Вода 500мл"
         products = extract_products_from_description(desc)
-        
-        # Парсер может не понимать "мл" - проверяем что работает без ошибок
         assert isinstance(products, list)
+        
+        # Test 2: Coca-Cola 200ml (Bugfix regression)
+        desc_coke = "200 мл Coca-Cola"
+        products_coke = extract_products_from_description(desc_coke)
+        
+        assert len(products_coke) > 0
+        coke = products_coke[0]
+        # Should be normalized to "coca-cola" or similar
+        assert 'cola' in coke['name'].lower()
+        # Should have weight 200 (1ml = 1g approximation)
+        assert coke['weight'] == 200.0
         
     def test_piece_to_grams(self):
         """Конвертация штук в граммы"""

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Настройки сервера
-SERVER_IP="95.142.45.135"
+SERVER_IP="146.103.111.109"
 SERVER_USER="root"
 SERVER_PATH="/root/healthvault"
 
@@ -47,6 +47,7 @@ cp -r services $DEPLOY_DIR/
 cp -r database $DEPLOY_DIR/
 cp -r helpers $DEPLOY_DIR/
 cp -r domain $DEPLOY_DIR/
+cp -r data $DEPLOY_DIR/
 
 echo "📤 Uploading to server..."
 echo "⚠️  You will be prompted for server password"
