@@ -1,0 +1,23 @@
+#!/usr/bin/expect
+
+# Скрипт для загрузки файла на сервер без ввода пароля (scp)
+# Использование: ./scripts/upload_nl.exp local_file remote_path
+# Пример: ./scripts/upload_nl.exp debug.py /tmp/debug.py
+
+set timeout 60
+set password "SERVER_PASSWORD_REDACTED"
+set local_file [lindex $argv 0]
+set remote_path [lindex $argv 1]
+set server "root@146.103.111.109"
+
+if {[llength $argv] < 2} {
+    send_user "Usage: $argv0 local_file remote_path\n"
+    exit 1
+}
+
+spawn scp $local_file $server:$remote_path
+expect {
+    "password:" { send "$password\r"; exp_continue }
+    "yes/no" { send "yes\r"; exp_continue }
+    eof
+}
