@@ -1051,7 +1051,7 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
     
     # ТОЛЬКО для рецептурных карточек (1 продукт с явной этикеткой питания),
     # НЕ для списков блюд (где LLM может вернуть total_nutrition только для последнего продукта)
-    if total_nutrition and total_nutrition.get('calories', 0) > 0:
+    if total_nutrition and (total_nutrition.get('calories') or 0) > 0:
         if len(meal_items) == 1:
             # Один продукт с явной этикеткой - используем total_nutrition
             logger.info(f"✅ Using explicit total nutrition from LLM (Recipe/Label): {total_nutrition}")
