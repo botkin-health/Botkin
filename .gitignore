@@ -46,6 +46,7 @@ venv.bak/
 # IDE and Editors
 .idea/
 .vscode/
+deploy_temp/
 *.swp
 *.swo
 .DS_Store

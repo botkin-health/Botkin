@@ -216,8 +216,10 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
                  line += f", 💧 {wd.get('body_fat')}%"
              w_response_lines.append(line)
         
-        w_response_lines.append(f"\n📂 <i>Всего записей: {len(recognized_weights)}</i>")
-        w_response_lines.append("\n✅ <b>Сохранить эти данные в журнал весов?</b>")
+        # Показываем количество записей только если их больше одной
+        if len(recognized_weights) > 1:
+            w_response_lines.append(f"\n📂 <i>Всего записей: {len(recognized_weights)}</i>")
+        w_response_lines.append("\nСохранить запись в журнал?")
         
         # Создаем кнопки подтверждения
         w_builder = InlineKeyboardBuilder()
@@ -1070,13 +1072,13 @@ async def handle_weight_confirmation(callback: CallbackQuery, callback_data: Wei
         
         await callback.answer(f"✅ Сохранено {saved_count} записей", show_alert=False)
         await callback.message.edit_text(
-            callback.message.text.replace("✅ Сохранить эти данные в журнал весов?", f"\n✅ <b>Сохранено {saved_count} записей!</b>"),
+            callback.message.text.replace("Сохранить запись в журнал?", f"\n✅ <b>Сохранено {saved_count} записей!</b>"),
             parse_mode='HTML'
         )
     else:
         await callback.answer("❌ Отменено", show_alert=False)
         await callback.message.edit_text(
-            callback.message.text.replace("✅ Сохранить эти данные в журнал весов?", "\n❌ <b>Сохранение отменено</b>"),
+            callback.message.text.replace("Сохранить запись в журнал?", "\n❌ <b>Сохранение отменено</b>"),
             parse_mode='HTML'
         )
     
