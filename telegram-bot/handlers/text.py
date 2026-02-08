@@ -442,6 +442,13 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
     
     try:
         router_result = analyze_message(text=text)
+        
+        # ДИАГНОСТИКА: логируем ответ от LLM
+        print("="*80)
+        print("🔍 [ДИАГНОСТИКА] Результат от LLM Router:")
+        import json
+        print(json.dumps(router_result, ensure_ascii=False, indent=2))
+        print("="*80)
     except Exception as e:
         logger.error(f"LLM Router Error: {e}")
         router_result = None
@@ -530,6 +537,15 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
         # ЕДА
         meal_items, meal_totals = process_llm_food_data(router_result, description=text)
         
+        # ДИАГНОСТИКА: логируем результат обработки
+        print("\n" + "="*80)
+        print("🔍 [ДИАГНОСТИКА] Результат после process_llm_food_data:")
+        print(f"Количество элементов: {len(meal_items)}")
+        for i, item in enumerate(meal_items, 1):
+            print(f"  {i}. {item.get('product')}: {item.get('weight_g')}г → {item.get('calories')} ккал")
+        print(f"\nИтого: {meal_totals.get('calories')} ккал (Б:{meal_totals.get('protein')} Ж:{meal_totals.get('fats')} У:{meal_totals.get('carbs')})")
+        print("="*80 + "\n")
+        
         if not meal_items:
              await processing_msg.edit_text("❌ Вроде еда, но продуктов не нашел.")
              return
@@ -554,8 +570,24 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
         )
         state_manager.set_state(user_id, new_state)
         
+        # Формируем заголовок с датой, если это не сегодня
+        header = f"🍽️ <b>{meal_name}</b>"
+        if custom_date:
+            # Парсим дату и форматируем красиво
+            try:
+                from datetime import datetime
+                date_obj = datetime.strptime(custom_date, '%Y-%m-%d')
+                # Названия дней недели на русском
+                weekdays_ru = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье']
+                weekday = weekdays_ru[date_obj.weekday()]
+                formatted_date = date_obj.strftime('%d.%m.%Y')
+                header = f"🍽️ <b>{meal_name} в {weekday} {formatted_date}</b>"
+            except:
+                # Если не удалось распарсить, просто показываем дату
+                header = f"🍽️ <b>{meal_name} ({custom_date})</b>"
+        
         # Формируем ответ
-        response = f"🍽️ <b>{meal_name}</b>\n\n"
+        response = f"{header}\n\n"
         for item in meal_items:
             w_str = f"{item['weight_g']}г" if item.get('weight_g') else "?"
             cal = item.get('calories', 0)
