@@ -798,28 +798,50 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
         name = item.get('name', 'Unknown')
         weight = item.get('weight')
         
-        # Fallback: Try to find weight in regex results if missing
-        if not weight and description:
+        # ВАЖНО: Проверяем вес от LLM и используем DEFAULT_UNIT_WEIGHTS для продуктов
+        # с известным стандартным весом (бутылки, банки и т.д.)
+        # Это исправляет случаи когда LLM возвращает неправильный вес
+        # (например "бутылка шампанского" → 100г вместо 750г)
+        from .description_parser import get_default_unit_weight
+        default_weight = get_default_unit_weight(name)
+        if default_weight > 0:
+            # Если у продукта есть стандартный вес (бутылка, банка и т.д.)
+            # и LLM вернул подозрительно маленький вес - используем стандартный
+            if not weight or weight < default_weight * 0.5:
+                # logger.info(f"🔧 Fixing weight for '{name}': LLM={weight}g → DEFAULT={default_weight}g")
+                weight = default_weight
+        
+        # Fallback & Override: Try to find weight in regex results
+        # Сценарий: LLM вернул "Шампанское" 100г, а Regex нашел "Бутылка шампанского" 750г
+        # Если вес от LLM похож на дефолтный (100г) или отсутствует, пробуем найти лучшее совпадение в Regex
+        if (not weight or weight == 100) and description:
             from .description_parser import normalize_product_name
             n_name = normalize_product_name(name)
-            if n_name in regex_items_map:
-                weight = regex_items_map[n_name]
-            elif name.lower() in regex_items_map:
-                weight = regex_items_map[name.lower()]
             
-            # Additional fuzzy search?
-            # If "подсолнечное масло" (LLM) vs "масло подсолнечное" (Regex)
-            # Simple token overlap check
-            if not weight:
+            regex_weight = None
+            if n_name in regex_items_map:
+                regex_weight = regex_items_map[n_name]
+            elif name.lower() in regex_items_map:
+                regex_weight = regex_items_map[name.lower()]
+            
+            # Fuzzy search
+            if not regex_weight:
                 name_tokens = set(name.lower().split())
                 for r_name, r_weight in regex_items_map.items():
                    r_tokens = set(r_name.split())
-                   # If significant overlap (e.g. "maslo" in both)
+                   # Если значительное пересечение токенов (например "шампанское" в "бутылка шампанского")
                    if len(name_tokens & r_tokens) >= 1 and len(r_name) > 3 and len(name) > 3:
-                       # Be careful not to mix "oil" and "butter" if they have differenet weights?
-                       # But here we just want to rescue missing weights.
-                       weight = r_weight
+                       regex_weight = r_weight
                        break
+            
+            # Если нашли вес в Regex и он существенно отличается от 100г (если у нас 100г)
+            # или просто нашли (если веса не было)
+            if regex_weight:
+                if not weight:
+                    weight = regex_weight
+                elif weight == 100 and regex_weight != 100:
+                    # logger.info(f"🔧 Overriding LLM weight 100g with Regex weight {regex_weight}g for '{name}'")
+                    weight = regex_weight
         
         # If LLM gave full macros, trust them (but prefer local calculation if weight is known to ensure consistency? 
         # No, trust LLM if it saw the photo/text, it might be a specific product. 
@@ -1027,14 +1049,20 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
     # Calculate totals from items first (as baseline)
     computed_totals = calculate_meal_totals(meal_items)
     
+    # ТОЛЬКО для рецептурных карточек (1 продукт с явной этикеткой питания),
+    # НЕ для списков блюд (где LLM может вернуть total_nutrition только для последнего продукта)
     if total_nutrition and total_nutrition.get('calories', 0) > 0:
-        logger.info(f"✅ Using explicit total nutrition from LLM (Recipe/Label): {total_nutrition}")
-        # Override computed totals
-        return meal_items, {
-            'calories': float(total_nutrition.get('calories', 0)),
-            'protein': float(total_nutrition.get('protein', 0)),
-            'fats': float(total_nutrition.get('fats', 0)),
-            'carbs': float(total_nutrition.get('carbs', 0))
-        }
+        if len(meal_items) == 1:
+            # Один продукт с явной этикеткой - используем total_nutrition
+            logger.info(f"✅ Using explicit total nutrition from LLM (Recipe/Label): {total_nutrition}")
+            return meal_items, {
+                'calories': float(total_nutrition.get('calories', 0)),
+                'protein': float(total_nutrition.get('protein', 0)),
+                'fats': float(total_nutrition.get('fats', 0)),
+                'carbs': float(total_nutrition.get('carbs', 0))
+            }
+        else:
+            # Список блюд - игнорируем total_nutrition, используем вычисленную сумму
+            logger.info(f"⚠️  Ignoring total_nutrition for multi-item meal (len={len(meal_items)}), using computed totals: {computed_totals}")
 
     return meal_items, computed_totals

@@ -47,7 +47,9 @@ cp -r services $DEPLOY_DIR/
 cp -r database $DEPLOY_DIR/
 cp -r helpers $DEPLOY_DIR/
 cp -r domain $DEPLOY_DIR/
-cp -r data $DEPLOY_DIR/
+
+# Копируем data/ но исключаем большие XML файлы Apple Health
+rsync -av --exclude='apple-health/export*.xml' data/ $DEPLOY_DIR/data/
 
 echo "📤 Uploading to server..."
 echo "⚠️  You will be prompted for server password"
