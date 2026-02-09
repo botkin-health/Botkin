@@ -795,6 +795,7 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
             print(f"Error in regex fallback: {e}")
 
     for item in items:
+        logger.info(f"🔍 Processing LLM item: {item}")
         name = item.get('name', 'Unknown')
         weight = item.get('weight')
         

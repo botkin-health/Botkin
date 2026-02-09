@@ -13,7 +13,8 @@ from pathlib import Path
 import os
 import asyncio
 
-from services.state import state_manager, UserState
+from services.state import UserState, state_manager
+from services.state_helpers import create_photo_state, update_state_menu_data
 from core.storage import add_meal, get_today_totals
 from core.nutrition import process_meal_description
 from core.menu_parser import parse_menu_photo
@@ -338,21 +339,15 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
         if caption:
             logger.info(f"Есть caption, обрабатываем с учетом распознанного: {caption}")
             
-            if not user_state:
-                user_state = UserState(
-                    user_id=user_id,
-                    state='waiting_description',
-                    data={
-                        'photo_paths': [str(p) for p in photo_paths],
-                        'photo_file_ids': [message.photo[-1].file_id if message.photo else ''],
-                        'caption': caption,
-                        'menu_data': menu_data,
-                    }
-                )
-            else:
-                user_state.data['menu_data'] = menu_data
-                # Убедимся, что caption актуальный
-                user_state.data['caption'] = caption
+            # Используем безопасный helper для создания/обновления состояния
+            user_state = create_photo_state(
+                user_id=user_id,
+                photo_paths=photo_paths,
+                photo_file_ids=[message.photo[-1].file_id if message.photo else ''],
+                caption=caption,
+                menu_data=menu_data,  # Новый menu_data
+                existing_state=user_state  # Сохранит другие данные если есть
+            )
             state_manager.set_state(user_id, user_state)
             
             # Обрабатываем описание с учетом меню
@@ -451,14 +446,14 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
         # Если это одиночное фото (или состояние не подходит), инициализируем состояние
         # Это критично, так как handle_description берет пути к фото из состояния
         if not user_state or user_state.state != 'waiting_description':
-            user_state = UserState(
+            # Используем безопасный helper - он АВТОМАТИЧЕСКИ сохранит menu_data
+            user_state = create_photo_state(
                 user_id=user_id,
-                state='waiting_description',
-                data={
-                    'photo_paths': [str(p) for p in photo_paths],
-                    'photo_file_ids': [message.photo[-1].file_id if message.photo else ''],
-                    'caption': caption,
-                }
+                photo_paths=photo_paths,
+                photo_file_ids=[message.photo[-1].file_id if message.photo else ''],
+                caption=caption,
+                menu_data=None,  # Не передаём - возьмёт из existing_state
+                existing_state=user_state  # ← Отсюда сохранится menu_data!
             )
             state_manager.set_state(user_id, user_state)
 
@@ -672,6 +667,9 @@ async def handle_description(message: Message, description: str = None, processi
     caption = user_state.data.get('caption', '')
     menu_data = user_state.data.get('menu_data')  # Данные меню, если есть
     
+    logger.info(f"🔍 [DEBUG] handle_description - menu_data in state: {menu_data}")
+    logger.info(f"🔍 [DEBUG] user_state.data keys: {list(user_state.data.keys())}")
+    
     # Объединяем caption и description
     full_description = f"{caption}\n{description}".strip() if caption else description
     
@@ -775,7 +773,9 @@ async def handle_description(message: Message, description: str = None, processi
 
     # Это ЕДА
     llm_data = router_result
+    logger.info(f"📊 Calling process_llm_food_data with llm_data: {llm_data}")
     meal_items, meal_totals = process_llm_food_data(llm_data, description=full_description)
+    logger.info(f"📊 process_llm_food_data returned: items={len(meal_items) if meal_items else 0}, totals={meal_totals}")
     
     if not meal_items:
          await processing_message.edit_text("❌ Продукты не найдены в ответе нейросети.")
