@@ -373,14 +373,7 @@ def parse_menu_photo(photo_paths: Union[Path, List[Path]], api_key: Optional[str
         
     main_photo = valid_paths[0]
     
-    # 1. Пробуем Gemini Vision (самый точный, поддерживает мульти-фото)
-    if GEMINI_AVAILABLE and parse_menu_with_gemini:
-        # Передаем весь список фото
-        gemini_result = parse_menu_with_gemini(valid_paths)
-        if gemini_result:
-            return gemini_result
-    
-    # 2. Пробуем ChatGPT Vision
+    # 1. Пробуем ChatGPT Vision (проверенный метод, работает надёжно)
     if use_chatgpt and CHATGPT_AVAILABLE and parse_menu_with_chatgpt:
         openai_key = get_openai_api_key()
         if openai_key:
@@ -389,7 +382,14 @@ def parse_menu_photo(photo_paths: Union[Path, List[Path]], api_key: Optional[str
             result = parse_menu_with_chatgpt(main_photo, openai_key, description=description)
             if result:
                 return result
-            print(f"    ⚠️  ChatGPT не распознал, пробую OCR...")
+            print(f"    ⚠️  ChatGPT не распознал, пробую Gemini...")
+    
+    # 2. Fallback: Gemini Vision (если ChatGPT не справился или недоступен)
+    if GEMINI_AVAILABLE and parse_menu_with_gemini:
+        # Передаем весь список фото
+        gemini_result = parse_menu_with_gemini(valid_paths)
+        if gemini_result:
+            return gemini_result
     
     # Fallback: используем OCR (только первое фото)
     if ocr_with_google_vision is None:

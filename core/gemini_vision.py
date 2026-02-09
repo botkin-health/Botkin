@@ -78,8 +78,21 @@ def parse_menu_with_gemini(photo_paths: List[Path] | Path, api_key: Optional[str
         "Content-Type": "application/json"
     }
     
-    prompt_text = """Analyze these food images. Identify the dish/products and estimate nutrition.
-If there are multiple photos (e.g. front and back of a package, or multiple items), combine the information.
+    prompt_text = """Analyze these food images and extract nutritional information.
+
+IMPORTANT - PRIORITIZE TEXT EXTRACTION:
+1. FIRST, carefully scan ALL visible text on the image for nutrition labels
+2. Look for Russian nutrition formats:
+   - "XXX ккал" or "XXX калорий" (calories)
+   - "Б XX г" or "белки: XX г" (protein)
+   - "Ж XX г" or "жиры: XX г" (fats)  
+   - "У XX г" or "углеводы: XX г" (carbs)
+   - Format: "500 ккал | Б 33 г | Ж 13 г | У 61 г"
+3. Look for "на порцию" (per serving) or "на 100г" (per 100g)
+4. Recipe cards (Elementaree, Grow Food, etc.) ALWAYS have visible nutrition - READ THE TEXT carefully
+5. If nutrition info is visible as TEXT, use it PRECISELY - DO NOT estimate
+6. Only estimate if absolutely no text is visible
+
 Return STRICT JSON ONLY:
 {
   "dish_name": "Name of the dish or meal (in Russian)",
@@ -87,7 +100,7 @@ Return STRICT JSON ONLY:
   "protein": total protein g (number),
   "fats": total fats g (number),
   "carbs": total carbs g (number),
-  "weight_grams": estimated weight in grams (number),
+  "weight_grams": weight in grams if visible (number),
   "nutrition_per_100g": {
     "calories": kcal per 100g,
     "protein": g per 100g,
@@ -95,8 +108,7 @@ Return STRICT JSON ONLY:
     "carbs": g per 100g
   }
 }
-If nutritional info is visible (tables/text on packages), use it PRECISELY.
-If not, ESTIMATE based on visual ingredients.
+
 Reply ONLY with JSON."""
 
     # Формируем контент: текст + изображения
