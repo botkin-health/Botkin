@@ -5,7 +5,7 @@
 
 import re
 import json
-from pathlib import Path
+import asyncio
 from datetime import datetime, timedelta, timezone
 
 # Московское время (UTC+3)
@@ -19,9 +19,7 @@ from services.state import state_manager, UserState
 
 router = Router()
 
-# Определяем корневую директорию HealthVault
-HEALTHVAULT_ROOT = Path(__file__).parent.parent.parent
-NUTRITION_LOG_JSON = HEALTHVAULT_ROOT / 'data' / 'nutrition' / 'nutrition_log.json'
+
 
 
 def _is_food_description(text: str) -> bool:
@@ -295,98 +293,6 @@ def is_confirmation(text: str) -> bool:
     return False
 
 
-def save_meal_to_json(meal_data: dict, meal_name: str = None):
-    """
-    Сохраняет приём пищи в nutrition_log.json
-    
-    Args:
-        meal_data: Данные о приёме пищи из состояния
-        meal_name: Название приёма пищи (если None, используется из meal_data или "Приём пищи")
-    """
-    # Определяем дату: берем из meal_data или используем сегодня
-    custom_date = meal_data.get('date')
-    today = custom_date if custom_date else datetime.now().strftime('%Y-%m-%d')
-    
-    # Загружаем существующие данные
-    if NUTRITION_LOG_JSON.exists():
-        try:
-            with open(NUTRITION_LOG_JSON, 'r', encoding='utf-8') as f:
-                nutrition_data = json.load(f)
-        except Exception as e:
-            print(f"Ошибка при загрузке nutrition_log.json: {e}")
-            nutrition_data = {'entries': []}
-    else:
-        nutrition_data = {'entries': []}
-    
-    # Ищем запись за сегодня
-    today_entry = None
-    for entry in nutrition_data.get('entries', []):
-        if entry.get('date') == today:
-            today_entry = entry
-            break
-    
-    if not today_entry:
-        today_entry = {
-            'date': today,
-            'had_workout': False,
-            'meals': [],
-            'totals': {
-                'calories': 0.0,
-                'protein': 0.0,
-                'fats': 0.0,
-                'carbs': 0.0,
-            }
-        }
-        nutrition_data.setdefault('entries', []).append(today_entry)
-    
-    # Формируем данные приёма пищи
-    meal_items = meal_data.get('meal_items', [])
-    meal_totals = meal_data.get('meal_totals', {})
-    meal_time = meal_data.get('meal_time', datetime.now().strftime('%H:%M'))
-    
-    # Используем название из параметра или из данных
-    if not meal_name:
-        meal_name = meal_data.get('dish_name') or meal_data.get('meal_name')
-        # Если всё ещё нет, определяем по времени
-        if not meal_name or meal_name == "Приём пищи":
-            meal_name = extract_meal_name(meal_data.get('description', ''), meal_time)
-    
-    # Формируем items в нужном формате
-    items = []
-    for item in meal_items:
-        items.append({
-            'food': item.get('product', 'Неизвестный продукт'),
-            'amount': item.get('weight_g', 0.0),
-            'unit': 'г',
-            'calories': int(round(item.get('calories', 0.0))),
-            'protein': int(round(item.get('protein', 0.0))),
-            'fats': int(round(item.get('fats', 0.0))),
-            'carbs': int(round(item.get('carbs', 0.0))),
-        })
-    
-    # Добавляем приём пищи
-    new_meal = {
-        'meal': meal_name,
-        'time': meal_time,
-        'items': items,
-    }
-    today_entry['meals'].append(new_meal)
-    
-    # Обновляем totals
-    totals = today_entry['totals']
-    totals['calories'] = int(round(totals.get('calories', 0.0) + meal_totals.get('calories', 0.0)))
-    totals['protein'] = int(round(totals.get('protein', 0.0) + meal_totals.get('protein', 0.0)))
-    totals['fats'] = int(round(totals.get('fats', 0.0) + meal_totals.get('fats', 0.0)))
-    totals['carbs'] = int(round(totals.get('carbs', 0.0) + meal_totals.get('carbs', 0.0)))
-    
-    # Сохраняем
-    try:
-        with open(NUTRITION_LOG_JSON, 'w', encoding='utf-8') as f:
-            json.dump(nutrition_data, f, ensure_ascii=False, indent=2)
-        return True
-    except Exception as e:
-        print(f"Ошибка при сохранении в nutrition_log.json: {e}")
-        return False
 
 
 @router.message(F.text & ~F.text.startswith('/'))
@@ -428,11 +334,27 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
     # --- LLM Router Logic ---
     from core.llm_router import analyze_message
     from core.nutrition import process_llm_food_data
+    import html
+    import traceback
+    import logging
+
+    
+    # Configure specific logger for debugging
+    debug_logger = logging.getLogger('bot_debug')
+    debug_logger.setLevel(logging.DEBUG)
+    
+    # Check if handler already exists to avoid duplicates
+    if not debug_logger.handlers:
+        fh = logging.FileHandler('logs/bot_debug.log', encoding='utf-8')
+        fh.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+        debug_logger.addHandler(fh)
+
+    text = message.text.strip()
+    debug_logger.info(f"🚀 START Processing message from {user_id}: {text[:50]}...")
     
     # Отправляем сообщение "Думаю..."
     processing_msg = await message.answer("🤖 Читаю и анализирую... 🧠")
-    
-    text = message.text.strip()
+    debug_logger.info("✅ Sent 'Thinking' message")
     
     # Извлекаем дату "Вчера" если есть, для контекста
     from handlers.text import extract_date_from_text
@@ -441,7 +363,18 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
         text = clean_text
     
     try:
-        router_result = analyze_message(text=text)
+        debug_logger.info("⏳ Calling analyze_message in executor...")
+        
+        # Get runnning loop
+        loop = asyncio.get_running_loop()
+        
+        # Run synchronous analyze_message in a separate thread
+        router_result = await loop.run_in_executor(
+            None, 
+            analyze_message, 
+            text
+        )
+        debug_logger.info(f"✅ analyze_message returned type: {router_result.get('type') if router_result else 'None'}")
         
         # ДИАГНОСТИКА: логируем ответ от LLM
         print("="*80)
@@ -450,7 +383,8 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
         print(json.dumps(router_result, ensure_ascii=False, indent=2))
         print("="*80)
     except Exception as e:
-        logger.error(f"LLM Router Error: {e}")
+        debug_logger.error(f"❌ analyze_message FAILED: {e}", exc_info=True)
+        logger.error(f"LLM Router Error: {e}", exc_info=True)
         router_result = None
         
     if not router_result:
@@ -498,120 +432,149 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             await processing_msg.edit_text("🤷‍♂️ Не понял, что это. Это еда? Попробуй описать точнее.\n⚠️ <b>OpenAI не отвечает</b> (возможно, выключен VPN или проблема с ключом).")
             return
 
-    msg_type = router_result.get('type')
-    data = router_result.get('data', {})
+    # Wrap the rest in try..except to catch formatting/sending errors
+    try:
+        msg_type = router_result.get('type')
+        data = router_result.get('data', {})
 
-    if msg_type == 'other':
-        reply = data.get('reply', 'Не понял запрос.')
-        await processing_msg.edit_text(reply)
-        return
+        if msg_type == 'other':
+            reply = data.get('reply', 'Не понял запрос.')
+            # Escape reply just in case
+            await processing_msg.edit_text(html.escape(reply))
+            return
 
-    elif msg_type == 'vitamins':
-        items = data.get('items', [])
-        
-        # Сохраняем реально
-        from core.supplements import save_supplements
-        telegram_user_id = int(message.from_user.id)
-        saved = save_supplements(items, user_id=telegram_user_id, date_str=custom_date)
-        
-        # Формируем красивый список
-        items_list = "\n".join([f"• {item}" for item in items])
-        
-        status_text = "✅ <b>Записано</b>" if saved else "⚠️ <b>Ошибка записи</b>"
-        
-        response = (
-            f"💊 <b>Витамины:</b>\n"
-            f"{items_list}\n\n"
-            f"{status_text}"
-        )
-        
-        await processing_msg.edit_text(response, parse_mode='HTML')
-        return
-
-    elif msg_type == 'weight':
-        w_val = data.get('weight')
-        await processing_msg.edit_text(f"⚖️ <b>Вес:</b> {w_val} кг\n✅ Записано (Simulated)", parse_mode='HTML')
-        return
-        
-    elif msg_type == 'food':
-        # ЕДА
-        meal_items, meal_totals = process_llm_food_data(router_result, description=text)
-        
-        # ДИАГНОСТИКА: логируем результат обработки
-        print("\n" + "="*80)
-        print("🔍 [ДИАГНОСТИКА] Результат после process_llm_food_data:")
-        print(f"Количество элементов: {len(meal_items)}")
-        for i, item in enumerate(meal_items, 1):
-            print(f"  {i}. {item.get('product')}: {item.get('weight_g')}г → {item.get('calories')} ккал")
-        print(f"\nИтого: {meal_totals.get('calories')} ккал (Б:{meal_totals.get('protein')} Ж:{meal_totals.get('fats')} У:{meal_totals.get('carbs')})")
-        print("="*80 + "\n")
-        
-        if not meal_items:
-             await processing_msg.edit_text("❌ Вроде еда, но продуктов не нашел.")
-             return
-
-        meal_name = data.get('dish_name') or data.get('meal_type')
-        if not meal_name:
-             meal_name = extract_meal_name(text, datetime.now().strftime('%H:%M'))
-        
-        # Создаем состояние confirmation
-        from services.state import UserState
-        new_state = UserState(
-            user_id=user_id,
-            state='waiting_confirmation',
-            data={
-                'description': text,
-                'meal_items': meal_items,
-                'meal_totals': meal_totals,
-                'meal_time': datetime.now().strftime('%H:%M'),
-                'meal_name': meal_name,
-                'date': custom_date
-            }
-        )
-        state_manager.set_state(user_id, new_state)
-        
-        # Формируем заголовок с датой, если это не сегодня
-        header = f"🍽️ <b>{meal_name}</b>"
-        if custom_date:
-            # Парсим дату и форматируем красиво
-            try:
-                from datetime import datetime
-                date_obj = datetime.strptime(custom_date, '%Y-%m-%d')
-                # Названия дней недели на русском
-                weekdays_ru = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье']
-                weekday = weekdays_ru[date_obj.weekday()]
-                formatted_date = date_obj.strftime('%d.%m.%Y')
-                header = f"🍽️ <b>{meal_name} в {weekday} {formatted_date}</b>"
-            except:
-                # Если не удалось распарсить, просто показываем дату
-                header = f"🍽️ <b>{meal_name} ({custom_date})</b>"
-        
-        # Формируем ответ
-        response = f"{header}\n\n"
-        for item in meal_items:
-            w_str = f"{item['weight_g']}г" if item.get('weight_g') else "?"
-            cal = item.get('calories', 0)
-            p = int(item.get('protein', 0))
-            f = int(item.get('fats', 0))
-            c = int(item.get('carbs', 0))
-            response += f"• {item['product']} ({w_str}) — {int(cal)} ккал (Б:{p} Ж:{f} У:{c})\n"
+        elif msg_type == 'vitamins':
+            items = data.get('items', [])
             
-        response += f"\n📊 <b>Итого: {int(meal_totals['calories'])} ккал</b>\n"
-        response += f"Б: {int(meal_totals['protein'])} | Ж: {int(meal_totals['fats'])} | У: {int(meal_totals['carbs'])}"
+            # Сохраняем реально
+            from core.supplements import save_supplements
+            telegram_user_id = int(message.from_user.id)
+            saved = save_supplements(items, user_id=telegram_user_id, date_str=custom_date)
+            
+            # Формируем красивый список
+            items_list = "\n".join([f"• {html.escape(str(item))}" for item in items])
+            
+            status_text = "✅ <b>Записано</b>" if saved else "⚠️ <b>Ошибка записи</b>"
+            
+            response = (
+                f"💊 <b>Витамины:</b>\n"
+                f"{items_list}\n\n"
+                f"{status_text}"
+            )
+            
+            await processing_msg.edit_text(response, parse_mode='HTML')
+            return
 
-        # Buttons
-        from handlers.callbacks import MealConfirmationCallback
-        from aiogram.utils.keyboard import InlineKeyboardBuilder
-        
-        builder = InlineKeyboardBuilder()
-        builder.button(text="✅ Сохранить", callback_data=MealConfirmationCallback(action="save", meal_type="regular").pack())
-        builder.button(text="❌ Отмена", callback_data=MealConfirmationCallback(action="cancel", meal_type="regular").pack())
-        
-        await processing_msg.edit_text(response, parse_mode='HTML', reply_markup=builder.as_markup())
-        return
+        elif msg_type == 'weight':
+            w_val = data.get('weight')
+            await processing_msg.edit_text(f"⚖️ <b>Вес:</b> {w_val} кг\n✅ Записано (Simulated)", parse_mode='HTML')
+            return
+            
+        elif msg_type == 'food':
+            # ЕДА
+            # process_llm_food_data is synchronous and might block loop (requests to OpenAI)
+            # Run it in executor to keep bot responsive
+            # loop is already defined at top of function
+            
+            debug_logger.info("⏳ Running process_llm_food_data in executor...")
+            
+            # Using run_in_executor to not block the main loop
+            meal_items, meal_totals = await loop.run_in_executor(
+                None, 
+                process_llm_food_data, 
+                router_result, 
+                text
+            )
+            debug_logger.info(f"✅ process_llm_food_data finished in executor. Items: {len(meal_items)}")
+            
+            # ДИАГНОСТИКА: логируем результат обработки
+            print("\n" + "="*80)
+            print("🔍 [ДИАГНОСТИКА] Результат после process_llm_food_data:")
+            print(f"Количество элементов: {len(meal_items)}")
+            for i, item in enumerate(meal_items, 1):
+                print(f"  {i}. {item.get('product')}: {item.get('weight_g')}г → {item.get('calories')} ккал")
+            print(f"\nИтого: {meal_totals.get('calories')} ккал (Б:{meal_totals.get('protein')} Ж:{meal_totals.get('fats')} У:{meal_totals.get('carbs')})")
+            print("="*80 + "\n")
+            
+            if not meal_items:
+                 await processing_msg.edit_text("❌ Вроде еда, но продуктов не нашел.")
+                 return
 
-    else:
-        await processing_message.edit_text(f"🤔 Тип сообщения: {msg_type}, но я пока не знаю что с этим делать.")
+            meal_name = data.get('dish_name') or data.get('meal_type')
+            if not meal_name:
+                 meal_name = extract_meal_name(text, datetime.now().strftime('%H:%M'))
+            
+            # Создаем состояние confirmation
+            from services.state import UserState
+            new_state = UserState(
+                user_id=user_id,
+                state='waiting_confirmation',
+                data={
+                    'description': text,
+                    'meal_items': meal_items,
+                    'meal_totals': meal_totals,
+                    'meal_time': datetime.now().strftime('%H:%M'),
+                    'meal_name': meal_name,
+                    'date': custom_date
+                }
+            )
+            state_manager.set_state(user_id, new_state)
+            
+            # Формируем заголовок с датой, если это не сегодня
+            # Escape meal_name!
+            safe_meal_name = html.escape(str(meal_name))
+            
+            header = f"🍽️ <b>{safe_meal_name}</b>"
+            if custom_date:
+                # Парсим дату и форматируем красиво
+                try:
+                    # datetime imported globally
+                    date_obj = datetime.strptime(custom_date, '%Y-%m-%d')
+                    # Названия дней недели на русском
+                    weekdays_ru = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье']
+                    weekday = weekdays_ru[date_obj.weekday()]
+                    formatted_date = date_obj.strftime('%d.%m.%Y')
+                    header = f"🍽️ <b>{safe_meal_name} в {weekday} {formatted_date}</b>"
+                except:
+                    # Если не удалось распарсить, просто показываем дату
+                    header = f"🍽️ <b>{safe_meal_name} ({custom_date})</b>"
+            
+            # Формируем ответ
+            response = f"{header}\n\n"
+            for item in meal_items:
+                w_str = f"{item['weight_g']}г" if item.get('weight_g') else "?"
+                cal = item.get('calories', 0)
+                p = int(item.get('protein', 0))
+                f = int(item.get('fats', 0))
+                c = int(item.get('carbs', 0))
+                
+                # Escape product name
+                safe_product = html.escape(str(item['product']))
+                
+                response += f"• {safe_product} ({w_str}) — {int(cal)} ккал (Б:{p} Ж:{f} У:{c})\n"
+                
+            response += f"\n📊 <b>Итого: {int(meal_totals['calories'])} ккал</b>\n"
+            response += f"Б: {int(meal_totals['protein'])} | Ж: {int(meal_totals['fats'])} | У: {int(meal_totals['carbs'])}"
+
+            # Buttons
+            from handlers.callbacks import MealConfirmationCallback
+            from aiogram.utils.keyboard import InlineKeyboardBuilder
+            
+            builder = InlineKeyboardBuilder()
+            builder.button(text="✅ Сохранить", callback_data=MealConfirmationCallback(action="save", meal_type="regular").pack())
+            builder.button(text="❌ Отмена", callback_data=MealConfirmationCallback(action="cancel", meal_type="regular").pack())
+            
+            await processing_msg.edit_text(response, parse_mode='HTML', reply_markup=builder.as_markup())
+            return
+
+        else:
+            await processing_msg.edit_text(f"🤔 Тип сообщения: {msg_type}, но я пока не знаю что с этим делать.")
+
+    except Exception as e:
+        logger.error(f"❌ Error processing message: {e}", exc_info=True)
+        error_text = f"❌ Произошла ошибка при обработке:\n<pre>{html.escape(str(e))}</pre>\n\nПопробуй еще раз или напиши разработчику."
+        await processing_msg.edit_text(error_text, parse_mode='HTML')
+
 
 
 

@@ -1,0 +1,5938 @@
+{
+  "measurements": [
+    {
+      "date": "2015-10-29",
+      "time": "09:58:17",
+      "weight_kg": 77.496,
+      "source": "Apple Watch — Alexander"
+    },
+    {
+      "date": "2016-10-06",
+      "time": "09:48:00",
+      "weight_kg": 79.7,
+      "source": "Health"
+    },
+    {
+      "date": "2019-01-13",
+      "time": "15:57:29",
+      "weight_kg": 82.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-01-13",
+      "time": "15:57:29",
+      "weight_kg": 82.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-01-13",
+      "time": "16:23:21",
+      "weight_kg": 83.1,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-01-13",
+      "time": "16:24:05",
+      "weight_kg": 83.1,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-01-14",
+      "time": "05:43:46",
+      "weight_kg": 81.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-01-14",
+      "time": "05:43:46",
+      "weight_kg": 81.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-01-15",
+      "time": "06:58:45",
+      "weight_kg": 82.1,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-01-15",
+      "time": "06:58:45",
+      "weight_kg": 82.1,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-01-16",
+      "time": "07:23:03",
+      "weight_kg": 81.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-01-16",
+      "time": "07:23:03",
+      "weight_kg": 81.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-01-17",
+      "time": "08:00:56",
+      "weight_kg": 81.3,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-01-17",
+      "time": "08:00:56",
+      "weight_kg": 81.3,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-01-19",
+      "time": "06:49:04",
+      "weight_kg": 81.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-01-19",
+      "time": "06:49:04",
+      "weight_kg": 81.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-01-20",
+      "time": "06:46:18",
+      "weight_kg": 81.7,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-01-20",
+      "time": "06:46:18",
+      "weight_kg": 81.7,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-01-21",
+      "time": "05:34:49",
+      "weight_kg": 82.1,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-01-21",
+      "time": "05:34:49",
+      "weight_kg": 82.1,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-01-22",
+      "time": "06:00:02",
+      "weight_kg": 82.1,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-01-22",
+      "time": "06:00:02",
+      "weight_kg": 82.1,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-01-23",
+      "time": "06:37:33",
+      "weight_kg": 81.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-01-23",
+      "time": "06:37:33",
+      "weight_kg": 81.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-01-24",
+      "time": "05:30:03",
+      "weight_kg": 82.1,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-01-24",
+      "time": "05:30:03",
+      "weight_kg": 82.1,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-01-26",
+      "time": "07:02:30",
+      "weight_kg": 81.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-01-26",
+      "time": "07:02:30",
+      "weight_kg": 81.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-01-27",
+      "time": "08:14:28",
+      "weight_kg": 81.7,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-01-27",
+      "time": "08:14:28",
+      "weight_kg": 81.7,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-01-28",
+      "time": "05:13:37",
+      "weight_kg": 82.3,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-01-28",
+      "time": "05:13:37",
+      "weight_kg": 82.3,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-01-29",
+      "time": "05:02:19",
+      "weight_kg": 82.5,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-01-29",
+      "time": "05:02:19",
+      "weight_kg": 82.5,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-01-30",
+      "time": "06:38:26",
+      "weight_kg": 82.3,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-01-30",
+      "time": "06:38:26",
+      "weight_kg": 82.3,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-01-31",
+      "time": "03:59:59",
+      "weight_kg": 81.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-01-31",
+      "time": "03:59:59",
+      "weight_kg": 81.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-02-01",
+      "time": "04:57:23",
+      "weight_kg": 81.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-02-01",
+      "time": "04:57:23",
+      "weight_kg": 81.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-02-04",
+      "time": "05:45:23",
+      "weight_kg": 82.5,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-02-04",
+      "time": "05:45:23",
+      "weight_kg": 82.5,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-02-14",
+      "time": "06:01:07",
+      "weight_kg": 82.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-02-14",
+      "time": "06:01:07",
+      "weight_kg": 82.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-02-18",
+      "time": "05:36:27",
+      "weight_kg": 82.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-02-18",
+      "time": "05:36:27",
+      "weight_kg": 82.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-02-20",
+      "time": "05:29:30",
+      "weight_kg": 81.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-02-20",
+      "time": "05:29:30",
+      "weight_kg": 81.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-02-23",
+      "time": "14:38:22",
+      "weight_kg": 81.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-02-23",
+      "time": "14:38:22",
+      "weight_kg": 81.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-02-24",
+      "time": "07:16:22",
+      "weight_kg": 81.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-02-24",
+      "time": "07:16:22",
+      "weight_kg": 81.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-02-24",
+      "time": "16:40:22",
+      "weight_kg": 81.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-02-24",
+      "time": "16:40:22",
+      "weight_kg": 81.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-02-26",
+      "time": "03:58:19",
+      "weight_kg": 81.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-02-26",
+      "time": "03:58:19",
+      "weight_kg": 81.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-02-28",
+      "time": "09:11:38",
+      "weight_kg": 80.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-02-28",
+      "time": "09:11:38",
+      "weight_kg": 80.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-03-01",
+      "time": "06:40:33",
+      "weight_kg": 80.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-03-01",
+      "time": "06:40:33",
+      "weight_kg": 80.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-03-02",
+      "time": "10:54:31",
+      "weight_kg": 81.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-03-02",
+      "time": "10:54:31",
+      "weight_kg": 81.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-03-05",
+      "time": "03:30:03",
+      "weight_kg": 82.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-03-05",
+      "time": "03:30:03",
+      "weight_kg": 82.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-03-20",
+      "time": "02:46:49",
+      "weight_kg": 82.7,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-03-20",
+      "time": "02:46:49",
+      "weight_kg": 82.7,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-03-21",
+      "time": "04:29:35",
+      "weight_kg": 81.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-03-21",
+      "time": "04:29:35",
+      "weight_kg": 81.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-03-21",
+      "time": "16:11:15",
+      "weight_kg": 81.8,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-03-21",
+      "time": "16:11:15",
+      "weight_kg": 81.8,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-03-22",
+      "time": "05:43:43",
+      "weight_kg": 81.8,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-03-22",
+      "time": "05:43:43",
+      "weight_kg": 81.8,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-03-25",
+      "time": "07:00:48",
+      "weight_kg": 82.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-03-25",
+      "time": "07:00:48",
+      "weight_kg": 82.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-03-26",
+      "time": "06:45:54",
+      "weight_kg": 82.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-03-26",
+      "time": "06:45:54",
+      "weight_kg": 82.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-03-27",
+      "time": "05:42:12",
+      "weight_kg": 82.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-03-27",
+      "time": "05:42:12",
+      "weight_kg": 82.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-03-28",
+      "time": "04:48:16",
+      "weight_kg": 82.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-03-28",
+      "time": "04:48:16",
+      "weight_kg": 82.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-03-29",
+      "time": "05:23:08",
+      "weight_kg": 81.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-03-29",
+      "time": "05:23:08",
+      "weight_kg": 81.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-03-30",
+      "time": "05:44:43",
+      "weight_kg": 81.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-03-30",
+      "time": "05:44:43",
+      "weight_kg": 81.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-03-31",
+      "time": "05:54:04",
+      "weight_kg": 82.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-03-31",
+      "time": "05:54:04",
+      "weight_kg": 82.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-04-01",
+      "time": "05:48:42",
+      "weight_kg": 82.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-04-01",
+      "time": "05:48:42",
+      "weight_kg": 82.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-04-03",
+      "time": "05:38:53",
+      "weight_kg": 82.1,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-04-03",
+      "time": "05:38:53",
+      "weight_kg": 82.1,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-04-04",
+      "time": "03:48:18",
+      "weight_kg": 82.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-04-04",
+      "time": "03:48:18",
+      "weight_kg": 82.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-04-05",
+      "time": "03:24:45",
+      "weight_kg": 81.8,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-04-05",
+      "time": "03:24:45",
+      "weight_kg": 81.8,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-04-06",
+      "time": "08:02:34",
+      "weight_kg": 82.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-04-06",
+      "time": "08:02:34",
+      "weight_kg": 82.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-04-06",
+      "time": "09:11:08",
+      "weight_kg": 81.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-04-06",
+      "time": "09:11:08",
+      "weight_kg": 81.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-04-06",
+      "time": "09:26:24",
+      "weight_kg": 81.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-04-07",
+      "time": "07:57:08",
+      "weight_kg": 82.1,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-04-07",
+      "time": "07:57:08",
+      "weight_kg": 82.1,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-04-21",
+      "time": "06:04:28",
+      "weight_kg": 81.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-04-21",
+      "time": "06:04:28",
+      "weight_kg": 81.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-04-25",
+      "time": "06:36:05",
+      "weight_kg": 81.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-04-25",
+      "time": "06:36:05",
+      "weight_kg": 81.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-05-15",
+      "time": "06:05:34",
+      "weight_kg": 82.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-05-15",
+      "time": "06:05:34",
+      "weight_kg": 82.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-05-17",
+      "time": "10:53:25",
+      "weight_kg": 82.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-05-17",
+      "time": "10:53:25",
+      "weight_kg": 82.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-05-23",
+      "time": "05:13:34",
+      "weight_kg": 81.8,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-05-23",
+      "time": "05:13:34",
+      "weight_kg": 81.8,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-06-09",
+      "time": "05:31:22",
+      "weight_kg": 81.0,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-06-09",
+      "time": "05:31:22",
+      "weight_kg": 81.0,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-06-13",
+      "time": "06:55:33",
+      "weight_kg": 80.7,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-06-13",
+      "time": "06:55:33",
+      "weight_kg": 80.7,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-06-16",
+      "time": "06:43:16",
+      "weight_kg": 82.1,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-06-16",
+      "time": "06:43:16",
+      "weight_kg": 82.1,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-06-16",
+      "time": "20:05:43",
+      "weight_kg": 81.8,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-06-17",
+      "time": "05:42:36",
+      "weight_kg": 81.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-06-17",
+      "time": "05:42:36",
+      "weight_kg": 81.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-06-20",
+      "time": "03:53:10",
+      "weight_kg": 81.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-06-20",
+      "time": "03:53:10",
+      "weight_kg": 81.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-06-20",
+      "time": "05:52:10",
+      "weight_kg": 81.0,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-06-20",
+      "time": "06:11:29",
+      "weight_kg": 80.5,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-06-20",
+      "time": "06:11:29",
+      "weight_kg": 80.5,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-06-22",
+      "time": "04:54:00",
+      "weight_kg": 81.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-06-22",
+      "time": "04:54:00",
+      "weight_kg": 81.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-06-26",
+      "time": "05:45:51",
+      "weight_kg": 84.0,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-06-26",
+      "time": "05:45:51",
+      "weight_kg": 84.0,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-06-27",
+      "time": "08:09:39",
+      "weight_kg": 82.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-06-27",
+      "time": "08:09:39",
+      "weight_kg": 82.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-06-27",
+      "time": "11:18:56",
+      "weight_kg": 83.1,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-06-27",
+      "time": "11:18:56",
+      "weight_kg": 83.1,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-06-28",
+      "time": "06:41:55",
+      "weight_kg": 81.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-06-28",
+      "time": "06:41:55",
+      "weight_kg": 81.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-06-29",
+      "time": "07:47:50",
+      "weight_kg": 81.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-06-29",
+      "time": "07:47:50",
+      "weight_kg": 81.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-07-02",
+      "time": "06:07:37",
+      "weight_kg": 81.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-07-02",
+      "time": "06:07:37",
+      "weight_kg": 81.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-07-03",
+      "time": "06:16:26",
+      "weight_kg": 81.5,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-07-03",
+      "time": "06:16:26",
+      "weight_kg": 81.5,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-07-04",
+      "time": "05:37:52",
+      "weight_kg": 80.5,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-07-04",
+      "time": "05:37:52",
+      "weight_kg": 80.5,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-07-05",
+      "time": "06:10:46",
+      "weight_kg": 81.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-07-05",
+      "time": "06:10:46",
+      "weight_kg": 81.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-08-03",
+      "time": "10:32:13",
+      "weight_kg": 80.1,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-08-03",
+      "time": "10:32:13",
+      "weight_kg": 80.1,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-08-04",
+      "time": "05:57:15",
+      "weight_kg": 80.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-08-04",
+      "time": "05:57:15",
+      "weight_kg": 80.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-08-06",
+      "time": "08:48:27",
+      "weight_kg": 80.8,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-08-06",
+      "time": "08:48:27",
+      "weight_kg": 80.8,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-08-07",
+      "time": "04:56:36",
+      "weight_kg": 80.5,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-08-07",
+      "time": "04:56:36",
+      "weight_kg": 80.5,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-08-08",
+      "time": "03:46:14",
+      "weight_kg": 80.8,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-08-08",
+      "time": "03:46:14",
+      "weight_kg": 80.8,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-08-09",
+      "time": "07:29:29",
+      "weight_kg": 81.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-08-09",
+      "time": "07:29:29",
+      "weight_kg": 81.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-08-10",
+      "time": "06:42:18",
+      "weight_kg": 81.0,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-08-10",
+      "time": "06:42:18",
+      "weight_kg": 81.0,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-08-12",
+      "time": "18:04:47",
+      "weight_kg": 79.7,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-08-12",
+      "time": "18:04:47",
+      "weight_kg": 79.7,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-08-13",
+      "time": "05:11:49",
+      "weight_kg": 79.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-08-13",
+      "time": "05:11:49",
+      "weight_kg": 79.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-08-14",
+      "time": "05:43:18",
+      "weight_kg": 80.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-08-14",
+      "time": "05:43:18",
+      "weight_kg": 80.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-08-15",
+      "time": "07:15:12",
+      "weight_kg": 80.3,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-08-15",
+      "time": "07:15:12",
+      "weight_kg": 80.3,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-08-16",
+      "time": "15:22:40",
+      "weight_kg": 79.7,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-08-16",
+      "time": "15:22:40",
+      "weight_kg": 79.7,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-08-30",
+      "time": "04:52:03",
+      "weight_kg": 79.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-08-30",
+      "time": "04:52:03",
+      "weight_kg": 79.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-08-30",
+      "time": "04:56:43",
+      "weight_kg": 79.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-09-01",
+      "time": "06:17:25",
+      "weight_kg": 80.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-09-01",
+      "time": "08:02:56",
+      "weight_kg": 80.0,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-09-01",
+      "time": "08:02:56",
+      "weight_kg": 80.0,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-09-04",
+      "time": "05:30:19",
+      "weight_kg": 81.0,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-10-16",
+      "time": "17:39:57",
+      "weight_kg": 81.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-10-16",
+      "time": "17:39:57",
+      "weight_kg": 81.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-10-19",
+      "time": "14:18:43",
+      "weight_kg": 83.0,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-10-19",
+      "time": "14:18:43",
+      "weight_kg": 83.0,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-10-22",
+      "time": "07:39:39",
+      "weight_kg": 82.5,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-10-22",
+      "time": "07:39:39",
+      "weight_kg": 82.5,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-10-26",
+      "time": "08:29:29",
+      "weight_kg": 81.8,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-10-26",
+      "time": "08:29:29",
+      "weight_kg": 81.8,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-10-29",
+      "time": "06:13:27",
+      "weight_kg": 82.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-10-29",
+      "time": "06:13:27",
+      "weight_kg": 82.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-10-30",
+      "time": "05:50:58",
+      "weight_kg": 81.7,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-10-30",
+      "time": "05:50:58",
+      "weight_kg": 81.7,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-10-31",
+      "time": "07:27:32",
+      "weight_kg": 82.3,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-10-31",
+      "time": "07:27:32",
+      "weight_kg": 82.3,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-11-01",
+      "time": "05:26:49",
+      "weight_kg": 82.3,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-11-01",
+      "time": "05:26:49",
+      "weight_kg": 82.3,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-11-02",
+      "time": "04:44:15",
+      "weight_kg": 82.3,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-11-02",
+      "time": "07:00:23",
+      "weight_kg": 81.7,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-11-02",
+      "time": "07:00:23",
+      "weight_kg": 81.7,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-12-01",
+      "time": "10:08:46",
+      "weight_kg": 83.0,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-12-01",
+      "time": "10:08:46",
+      "weight_kg": 83.0,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-12-03",
+      "time": "04:44:07",
+      "weight_kg": 83.5,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-12-03",
+      "time": "06:38:37",
+      "weight_kg": 83.5,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-12-03",
+      "time": "06:38:37",
+      "weight_kg": 83.5,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-12-05",
+      "time": "07:48:22",
+      "weight_kg": 81.7,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-12-05",
+      "time": "07:48:22",
+      "weight_kg": 81.7,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-12-06",
+      "time": "08:32:46",
+      "weight_kg": 81.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-12-06",
+      "time": "08:32:46",
+      "weight_kg": 81.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-12-09",
+      "time": "04:41:01",
+      "weight_kg": 83.1,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-12-09",
+      "time": "04:41:01",
+      "weight_kg": 83.1,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-12-18",
+      "time": "07:22:13",
+      "weight_kg": 83.3,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-12-18",
+      "time": "07:22:13",
+      "weight_kg": 83.3,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-12-21",
+      "time": "08:45:47",
+      "weight_kg": 83.3,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-12-21",
+      "time": "08:45:47",
+      "weight_kg": 83.3,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-12-22",
+      "time": "07:06:11",
+      "weight_kg": 83.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-12-22",
+      "time": "07:06:11",
+      "weight_kg": 83.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-12-24",
+      "time": "06:42:41",
+      "weight_kg": 83.8,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-12-24",
+      "time": "06:42:41",
+      "weight_kg": 83.8,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-12-24",
+      "time": "18:03:03",
+      "weight_kg": 82.8,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-12-24",
+      "time": "18:03:03",
+      "weight_kg": 82.8,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-12-25",
+      "time": "08:38:08",
+      "weight_kg": 82.8,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-12-25",
+      "time": "08:38:08",
+      "weight_kg": 82.8,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-12-26",
+      "time": "06:26:25",
+      "weight_kg": 83.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-12-26",
+      "time": "06:26:25",
+      "weight_kg": 83.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-12-26",
+      "time": "06:42:40",
+      "weight_kg": 86.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-12-26",
+      "time": "06:42:40",
+      "weight_kg": 86.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-12-27",
+      "time": "06:50:01",
+      "weight_kg": 83.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2019-12-27",
+      "time": "06:50:01",
+      "weight_kg": 83.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-01-19",
+      "time": "21:37:37",
+      "weight_kg": 81.0,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2020-01-19",
+      "time": "21:45:45",
+      "weight_kg": 81.4,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2020-01-21",
+      "time": "08:05:41",
+      "weight_kg": 80.55,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2020-01-24",
+      "time": "10:49:29",
+      "weight_kg": 79.75,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2020-01-29",
+      "time": "07:01:14",
+      "weight_kg": 80.0,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2020-01-30",
+      "time": "07:36:48",
+      "weight_kg": 79.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-01-30",
+      "time": "07:36:48",
+      "weight_kg": 79.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-01-31",
+      "time": "07:17:28",
+      "weight_kg": 79.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-01-31",
+      "time": "07:17:28",
+      "weight_kg": 79.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-02-02",
+      "time": "10:37:44",
+      "weight_kg": 79.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-02-02",
+      "time": "10:51:04",
+      "weight_kg": 79.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-02-02",
+      "time": "10:51:04",
+      "weight_kg": 79.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-02-04",
+      "time": "04:11:04",
+      "weight_kg": 80.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-02-04",
+      "time": "04:11:04",
+      "weight_kg": 80.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-02-04",
+      "time": "19:28:48",
+      "weight_kg": 80.0,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-02-04",
+      "time": "19:28:55",
+      "weight_kg": 80.0,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-02-04",
+      "time": "19:28:55",
+      "weight_kg": 80.0,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-02-06",
+      "time": "17:30:04",
+      "weight_kg": 79.0,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-02-06",
+      "time": "17:30:04",
+      "weight_kg": 79.0,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-02-07",
+      "time": "07:13:32",
+      "weight_kg": 79.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-02-07",
+      "time": "07:13:32",
+      "weight_kg": 79.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-02-08",
+      "time": "07:04:13",
+      "weight_kg": 79.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-02-08",
+      "time": "07:04:13",
+      "weight_kg": 79.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-02-08",
+      "time": "13:09:57",
+      "weight_kg": 79.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-02-08",
+      "time": "13:09:57",
+      "weight_kg": 79.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-02-09",
+      "time": "09:05:23",
+      "weight_kg": 79.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-02-09",
+      "time": "09:05:23",
+      "weight_kg": 79.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-02-10",
+      "time": "07:05:11",
+      "weight_kg": 79.8,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-02-10",
+      "time": "07:05:11",
+      "weight_kg": 79.8,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-02-11",
+      "time": "08:40:00",
+      "weight_kg": 78.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-02-11",
+      "time": "08:40:00",
+      "weight_kg": 78.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-02-11",
+      "time": "17:55:43",
+      "weight_kg": 78.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-02-11",
+      "time": "17:55:43",
+      "weight_kg": 78.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-02-12",
+      "time": "09:32:24",
+      "weight_kg": 78.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-02-12",
+      "time": "09:32:24",
+      "weight_kg": 78.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-02-14",
+      "time": "06:00:26",
+      "weight_kg": 78.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-02-14",
+      "time": "06:00:26",
+      "weight_kg": 78.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-02-18",
+      "time": "04:45:08",
+      "weight_kg": 79.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-02-18",
+      "time": "04:45:08",
+      "weight_kg": 79.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-02-20",
+      "time": "07:59:32",
+      "weight_kg": 78.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-02-20",
+      "time": "07:59:32",
+      "weight_kg": 78.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-02-21",
+      "time": "04:49:59",
+      "weight_kg": 78.5,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-02-21",
+      "time": "04:49:59",
+      "weight_kg": 78.5,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-02-22",
+      "time": "15:56:34",
+      "weight_kg": 78.5,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2020-03-08",
+      "time": "12:19:27",
+      "weight_kg": 79.4,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2020-03-09",
+      "time": "11:28:50",
+      "weight_kg": 78.6,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2020-03-09",
+      "time": "12:43:15",
+      "weight_kg": 78.0,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2020-03-28",
+      "time": "13:37:15",
+      "weight_kg": 76.45,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2020-04-21",
+      "time": "12:09:42",
+      "weight_kg": 76.7,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2020-04-23",
+      "time": "12:30:18",
+      "weight_kg": 76.2,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2020-06-10",
+      "time": "12:47:24",
+      "weight_kg": 77.3,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2020-06-20",
+      "time": "04:46:45",
+      "weight_kg": 82.7,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-06-20",
+      "time": "04:46:45",
+      "weight_kg": 82.7,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-06-21",
+      "time": "16:03:07",
+      "weight_kg": 82.3,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-06-21",
+      "time": "16:03:07",
+      "weight_kg": 82.3,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-06-22",
+      "time": "06:32:29",
+      "weight_kg": 82.3,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-06-22",
+      "time": "06:32:29",
+      "weight_kg": 82.3,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-06-23",
+      "time": "05:47:09",
+      "weight_kg": 82.7,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-06-23",
+      "time": "05:47:09",
+      "weight_kg": 82.7,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-06-23",
+      "time": "15:27:49",
+      "weight_kg": 82.1,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-06-23",
+      "time": "15:27:49",
+      "weight_kg": 82.1,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-06-24",
+      "time": "06:51:39",
+      "weight_kg": 81.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-06-24",
+      "time": "06:51:39",
+      "weight_kg": 81.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-07-01",
+      "time": "08:42:34",
+      "weight_kg": 80.7,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-07-01",
+      "time": "08:42:34",
+      "weight_kg": 80.7,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-07-04",
+      "time": "16:34:28",
+      "weight_kg": 80.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-07-04",
+      "time": "16:34:28",
+      "weight_kg": 80.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-07-07",
+      "time": "07:43:43",
+      "weight_kg": 80.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-07-07",
+      "time": "07:43:43",
+      "weight_kg": 80.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-07-08",
+      "time": "07:54:43",
+      "weight_kg": 81.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-07-08",
+      "time": "07:54:43",
+      "weight_kg": 81.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-07-18",
+      "time": "07:27:03",
+      "weight_kg": 81.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-07-18",
+      "time": "07:27:03",
+      "weight_kg": 81.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-07-20",
+      "time": "06:25:12",
+      "weight_kg": 82.3,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-07-20",
+      "time": "06:25:12",
+      "weight_kg": 82.3,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-07-22",
+      "time": "05:57:58",
+      "weight_kg": 81.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-07-22",
+      "time": "05:57:58",
+      "weight_kg": 81.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-07-22",
+      "time": "07:47:52",
+      "weight_kg": 80.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-07-22",
+      "time": "07:47:52",
+      "weight_kg": 80.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-07-30",
+      "time": "09:19:14",
+      "weight_kg": 80.1,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2020-08-24",
+      "time": "13:04:04",
+      "weight_kg": 80.4,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2020-08-26",
+      "time": "12:01:47",
+      "weight_kg": 78.1,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2020-09-07",
+      "time": "10:54:26",
+      "weight_kg": 80.35,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2020-09-27",
+      "time": "10:09:49",
+      "weight_kg": 81.55,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2020-09-27",
+      "time": "10:52:30",
+      "weight_kg": 81.5,
+      "source": "Welltory"
+    },
+    {
+      "date": "2020-10-05",
+      "time": "09:15:55",
+      "weight_kg": 82.0,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2020-10-14",
+      "time": "10:27:31",
+      "weight_kg": 79.95,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2020-10-18",
+      "time": "10:00:12",
+      "weight_kg": 77.85,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2020-10-23",
+      "time": "20:00:40",
+      "weight_kg": 80.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-10-23",
+      "time": "20:00:40",
+      "weight_kg": 80.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-10-23",
+      "time": "20:10:03",
+      "weight_kg": 80.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-10-24",
+      "time": "06:54:39",
+      "weight_kg": 78.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-10-24",
+      "time": "07:00:15",
+      "weight_kg": 78.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-10-24",
+      "time": "07:00:15",
+      "weight_kg": 78.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-10-24",
+      "time": "08:57:34",
+      "weight_kg": 78.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-10-24",
+      "time": "08:58:15",
+      "weight_kg": 78.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-10-24",
+      "time": "12:55:14",
+      "weight_kg": 78.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-10-24",
+      "time": "12:55:14",
+      "weight_kg": 78.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-10-27",
+      "time": "05:50:54",
+      "weight_kg": 78.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-10-27",
+      "time": "05:50:54",
+      "weight_kg": 78.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-10-27",
+      "time": "07:21:48",
+      "weight_kg": 78.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-10-27",
+      "time": "07:21:48",
+      "weight_kg": 78.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-10-27",
+      "time": "11:25:21",
+      "weight_kg": 77.5,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2020-10-27",
+      "time": "11:25:56",
+      "weight_kg": 77.5,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2020-10-29",
+      "time": "08:11:11",
+      "weight_kg": 77.8,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-10-29",
+      "time": "08:11:11",
+      "weight_kg": 77.8,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-10-30",
+      "time": "07:52:48",
+      "weight_kg": 77.8,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-10-30",
+      "time": "07:52:48",
+      "weight_kg": 77.8,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-10-31",
+      "time": "07:03:19",
+      "weight_kg": 77.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-10-31",
+      "time": "07:03:19",
+      "weight_kg": 77.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-10-31",
+      "time": "08:29:13",
+      "weight_kg": 77.1,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-10-31",
+      "time": "08:29:13",
+      "weight_kg": 77.1,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-11-01",
+      "time": "06:45:48",
+      "weight_kg": 76.7,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-11-01",
+      "time": "06:45:48",
+      "weight_kg": 76.7,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-11-02",
+      "time": "08:30:15",
+      "weight_kg": 76.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-11-02",
+      "time": "08:30:15",
+      "weight_kg": 76.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-11-03",
+      "time": "08:45:40",
+      "weight_kg": 77.0,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-11-03",
+      "time": "08:45:40",
+      "weight_kg": 77.0,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-11-04",
+      "time": "06:30:32",
+      "weight_kg": 76.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-11-04",
+      "time": "06:30:32",
+      "weight_kg": 76.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-11-05",
+      "time": "07:24:11",
+      "weight_kg": 76.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-11-05",
+      "time": "09:00:47",
+      "weight_kg": 76.3,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-11-05",
+      "time": "09:00:47",
+      "weight_kg": 76.3,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-11-06",
+      "time": "03:32:52",
+      "weight_kg": 75.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-11-06",
+      "time": "03:32:52",
+      "weight_kg": 75.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-11-08",
+      "time": "10:58:00",
+      "weight_kg": 74.7,
+      "source": "Health"
+    },
+    {
+      "date": "2020-11-08",
+      "time": "10:58:13",
+      "weight_kg": 74.7,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2020-11-11",
+      "time": "07:18:00",
+      "weight_kg": 75.5,
+      "source": "Health"
+    },
+    {
+      "date": "2020-11-11",
+      "time": "07:18:31",
+      "weight_kg": 75.5,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2020-11-18",
+      "time": "09:29:00",
+      "weight_kg": 77.1,
+      "source": "Health"
+    },
+    {
+      "date": "2020-11-25",
+      "time": "10:32:00",
+      "weight_kg": 74.2,
+      "source": "Health"
+    },
+    {
+      "date": "2020-12-08",
+      "time": "13:40:56",
+      "weight_kg": 76.4,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2020-12-13",
+      "time": "11:08:26",
+      "weight_kg": 76.3,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2020-12-14",
+      "time": "10:58:13",
+      "weight_kg": 76.1,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2020-12-15",
+      "time": "13:18:13",
+      "weight_kg": 75.55,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2020-12-16",
+      "time": "10:00:40",
+      "weight_kg": 74.9,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2020-12-17",
+      "time": "09:21:30",
+      "weight_kg": 75.4,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2020-12-18",
+      "time": "08:22:08",
+      "weight_kg": 75.9,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2020-12-20",
+      "time": "14:42:42",
+      "weight_kg": 75.95,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2020-12-21",
+      "time": "10:56:17",
+      "weight_kg": 75.8,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2020-12-24",
+      "time": "05:55:41",
+      "weight_kg": 75.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-12-24",
+      "time": "07:51:04",
+      "weight_kg": 75.7,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-12-26",
+      "time": "07:34:33",
+      "weight_kg": 75.7,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-12-26",
+      "time": "07:34:33",
+      "weight_kg": 75.7,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2020-12-31",
+      "time": "10:01:27",
+      "weight_kg": 75.4,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2021-01-07",
+      "time": "12:27:52",
+      "weight_kg": 75.4,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2021-01-23",
+      "time": "07:31:33",
+      "weight_kg": 75.7,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2021-01-23",
+      "time": "07:31:33",
+      "weight_kg": 75.7,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2021-01-24",
+      "time": "09:52:04",
+      "weight_kg": 75.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2021-01-24",
+      "time": "09:52:04",
+      "weight_kg": 75.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2021-02-10",
+      "time": "10:24:22",
+      "weight_kg": 76.4,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2021-02-11",
+      "time": "11:50:31",
+      "weight_kg": 75.9,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2021-02-13",
+      "time": "08:31:40",
+      "weight_kg": 75.0,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2021-02-27",
+      "time": "14:45:17",
+      "weight_kg": 76.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2021-03-21",
+      "time": "10:23:18",
+      "weight_kg": 76.5,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2021-03-27",
+      "time": "11:37:54",
+      "weight_kg": 76.5,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2021-04-10",
+      "time": "10:14:06",
+      "weight_kg": 76.8,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2021-05-03",
+      "time": "15:19:07",
+      "weight_kg": 78.5,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2021-06-27",
+      "time": "14:00:55",
+      "weight_kg": 77.2,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2021-07-03",
+      "time": "13:08:10",
+      "weight_kg": 76.4,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2021-07-07",
+      "time": "10:21:02",
+      "weight_kg": 76.8,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2021-07-07",
+      "time": "10:21:28",
+      "weight_kg": 76.9,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2021-07-08",
+      "time": "08:55:22",
+      "weight_kg": 76.9,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2021-07-10",
+      "time": "13:26:00",
+      "weight_kg": 76.9,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2021-07-24",
+      "time": "07:20:30",
+      "weight_kg": 78.5,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2021-07-24",
+      "time": "07:31:54",
+      "weight_kg": 78.5,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2021-07-24",
+      "time": "07:31:54",
+      "weight_kg": 78.5,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2021-08-27",
+      "time": "20:56:54",
+      "weight_kg": 77.4,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2021-11-04",
+      "time": "10:37:30",
+      "weight_kg": 82.05,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2021-11-14",
+      "time": "13:51:00",
+      "weight_kg": 81.4,
+      "source": "Health"
+    },
+    {
+      "date": "2021-11-29",
+      "time": "12:06:54",
+      "weight_kg": 82.85,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-01-22",
+      "time": "11:14:23",
+      "weight_kg": 83.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-02-05",
+      "time": "09:49:39",
+      "weight_kg": 86.1,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-02-06",
+      "time": "10:17:01",
+      "weight_kg": 84.45,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-02-06",
+      "time": "10:17:01",
+      "weight_kg": 84.45,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-02-07",
+      "time": "08:49:51",
+      "weight_kg": 84.0,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-02-07",
+      "time": "08:49:51",
+      "weight_kg": 84.0,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-02-08",
+      "time": "09:51:08",
+      "weight_kg": 83.75,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-02-08",
+      "time": "09:51:08",
+      "weight_kg": 83.75,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-02-09",
+      "time": "08:54:51",
+      "weight_kg": 82.95,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-02-09",
+      "time": "08:54:51",
+      "weight_kg": 82.95,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-02-10",
+      "time": "11:47:37",
+      "weight_kg": 82.0,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-02-10",
+      "time": "11:47:37",
+      "weight_kg": 82.0,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-02-11",
+      "time": "08:38:14",
+      "weight_kg": 82.8,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-02-11",
+      "time": "08:38:14",
+      "weight_kg": 82.8,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-02-12",
+      "time": "10:36:47",
+      "weight_kg": 83.05,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-02-12",
+      "time": "10:36:47",
+      "weight_kg": 83.05,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-02-13",
+      "time": "12:26:31",
+      "weight_kg": 83.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-02-13",
+      "time": "12:26:31",
+      "weight_kg": 83.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-02-15",
+      "time": "09:45:25",
+      "weight_kg": 83.9,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-02-15",
+      "time": "09:45:25",
+      "weight_kg": 83.9,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-02-16",
+      "time": "09:00:44",
+      "weight_kg": 82.9,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-02-16",
+      "time": "09:00:44",
+      "weight_kg": 82.9,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-02-17",
+      "time": "09:58:17",
+      "weight_kg": 82.55,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-02-17",
+      "time": "09:58:17",
+      "weight_kg": 82.55,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-02-18",
+      "time": "09:36:32",
+      "weight_kg": 83.3,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-02-18",
+      "time": "09:36:32",
+      "weight_kg": 83.3,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-02-21",
+      "time": "08:58:13",
+      "weight_kg": 83.7,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-02-21",
+      "time": "08:58:13",
+      "weight_kg": 83.7,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-02-21",
+      "time": "10:09:00",
+      "weight_kg": 83.5,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-02-21",
+      "time": "10:09:00",
+      "weight_kg": 83.5,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-02-22",
+      "time": "08:31:13",
+      "weight_kg": 82.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-02-22",
+      "time": "08:31:13",
+      "weight_kg": 82.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-02-22",
+      "time": "20:00:00",
+      "weight_kg": 81.0,
+      "source": "Connect"
+    },
+    {
+      "date": "2022-02-22",
+      "time": "21:00:00",
+      "weight_kg": 81.0,
+      "source": "Connect"
+    },
+    {
+      "date": "2022-02-23",
+      "time": "00:00:00",
+      "weight_kg": 81.0,
+      "source": "Connect"
+    },
+    {
+      "date": "2022-02-23",
+      "time": "02:00:00",
+      "weight_kg": 81.0,
+      "source": "Connect"
+    },
+    {
+      "date": "2022-02-23",
+      "time": "10:20:49",
+      "weight_kg": 82.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-02-23",
+      "time": "10:20:49",
+      "weight_kg": 82.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-02-24",
+      "time": "08:20:03",
+      "weight_kg": 81.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2022-02-24",
+      "time": "08:20:03",
+      "weight_kg": 81.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2022-02-27",
+      "time": "09:18:20",
+      "weight_kg": 83.0,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2022-02-27",
+      "time": "09:18:20",
+      "weight_kg": 83.0,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2022-02-28",
+      "time": "10:51:53",
+      "weight_kg": 81.25,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-03-01",
+      "time": "09:05:04",
+      "weight_kg": 80.7,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-03-01",
+      "time": "09:05:04",
+      "weight_kg": 80.7,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-03-01",
+      "time": "15:56:36",
+      "weight_kg": 81.25,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-03-01",
+      "time": "15:56:36",
+      "weight_kg": 81.25,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-03-02",
+      "time": "09:26:00",
+      "weight_kg": 81.95,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-03-02",
+      "time": "09:26:00",
+      "weight_kg": 81.95,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-03-02",
+      "time": "09:26:08",
+      "weight_kg": 82.05,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-03-02",
+      "time": "09:26:08",
+      "weight_kg": 82.05,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-03-05",
+      "time": "12:31:55",
+      "weight_kg": 83.15,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-03-05",
+      "time": "12:31:55",
+      "weight_kg": 83.15,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-03-06",
+      "time": "10:36:39",
+      "weight_kg": 82.7,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-03-06",
+      "time": "10:36:39",
+      "weight_kg": 82.7,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-03-08",
+      "time": "09:55:34",
+      "weight_kg": 83.55,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-03-08",
+      "time": "09:55:34",
+      "weight_kg": 83.55,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-03-11",
+      "time": "10:23:12",
+      "weight_kg": 81.85,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-03-11",
+      "time": "10:23:12",
+      "weight_kg": 81.85,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-03-11",
+      "time": "10:23:20",
+      "weight_kg": 81.75,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-03-11",
+      "time": "10:23:20",
+      "weight_kg": 81.75,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-03-12",
+      "time": "12:44:29",
+      "weight_kg": 82.4,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-03-12",
+      "time": "12:44:29",
+      "weight_kg": 82.4,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-03-13",
+      "time": "09:20:45",
+      "weight_kg": 82.9,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-03-13",
+      "time": "09:20:45",
+      "weight_kg": 82.9,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-05-08",
+      "time": "10:03:28",
+      "weight_kg": 84.2,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-05-15",
+      "time": "08:49:56",
+      "weight_kg": 84.0,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2022-05-15",
+      "time": "08:49:56",
+      "weight_kg": 84.0,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2022-05-16",
+      "time": "07:42:28",
+      "weight_kg": 84.7,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2022-05-16",
+      "time": "07:42:28",
+      "weight_kg": 84.7,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2022-05-16",
+      "time": "07:42:41",
+      "weight_kg": 84.7,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2022-05-17",
+      "time": "05:50:19",
+      "weight_kg": 84.0,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2022-05-17",
+      "time": "05:50:19",
+      "weight_kg": 84.0,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2022-05-18",
+      "time": "06:15:04",
+      "weight_kg": 83.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2022-05-18",
+      "time": "06:15:04",
+      "weight_kg": 83.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2022-05-21",
+      "time": "06:52:44",
+      "weight_kg": 83.7,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2022-05-21",
+      "time": "06:52:44",
+      "weight_kg": 83.7,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2022-06-04",
+      "time": "10:10:59",
+      "weight_kg": 84.8,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-06-05",
+      "time": "10:09:55",
+      "weight_kg": 84.3,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-06-05",
+      "time": "10:10:15",
+      "weight_kg": 84.3,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-06-08",
+      "time": "09:02:58",
+      "weight_kg": 83.15,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-06-09",
+      "time": "11:14:06",
+      "weight_kg": 82.95,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-06-12",
+      "time": "08:44:44",
+      "weight_kg": 83.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-06-23",
+      "time": "06:28:20",
+      "weight_kg": 83.55,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-07-08",
+      "time": "10:03:31",
+      "weight_kg": 82.8,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-07-09",
+      "time": "11:27:01",
+      "weight_kg": 82.6,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-07-10",
+      "time": "04:10:37",
+      "weight_kg": 82.0,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-07-12",
+      "time": "07:32:54",
+      "weight_kg": 82.6,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-07-14",
+      "time": "09:05:23",
+      "weight_kg": 82.05,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-07-29",
+      "time": "01:00:00",
+      "weight_kg": 81.99,
+      "source": "Connect"
+    },
+    {
+      "date": "2022-08-03",
+      "time": "01:00:00",
+      "weight_kg": 81.14,
+      "source": "Connect"
+    },
+    {
+      "date": "2022-08-05",
+      "time": "01:00:00",
+      "weight_kg": 80.93,
+      "source": "Connect"
+    },
+    {
+      "date": "2022-08-06",
+      "time": "01:00:00",
+      "weight_kg": 80.92,
+      "source": "Connect"
+    },
+    {
+      "date": "2022-08-07",
+      "time": "01:00:00",
+      "weight_kg": 81.2,
+      "source": "Connect"
+    },
+    {
+      "date": "2022-08-08",
+      "time": "20:00:00",
+      "weight_kg": 80.86,
+      "source": "Connect"
+    },
+    {
+      "date": "2022-08-08",
+      "time": "21:00:00",
+      "weight_kg": 80.86,
+      "source": "Connect"
+    },
+    {
+      "date": "2022-08-09",
+      "time": "00:00:00",
+      "weight_kg": 80.86,
+      "source": "Connect"
+    },
+    {
+      "date": "2022-08-09",
+      "time": "01:00:00",
+      "weight_kg": 80.86,
+      "source": "Connect"
+    },
+    {
+      "date": "2022-08-16",
+      "time": "09:42:40",
+      "weight_kg": 80.75,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-08-18",
+      "time": "09:42:23",
+      "weight_kg": 80.05,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-08-19",
+      "time": "14:41:14",
+      "weight_kg": 79.0,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-08-20",
+      "time": "07:52:59",
+      "weight_kg": 78.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-08-22",
+      "time": "08:53:55",
+      "weight_kg": 78.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-08-22",
+      "time": "08:54:06",
+      "weight_kg": 77.5,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-08-22",
+      "time": "12:40:08",
+      "weight_kg": 78.5,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-08-22",
+      "time": "12:40:56",
+      "weight_kg": 78.4,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-08-22",
+      "time": "12:41:08",
+      "weight_kg": 77.5,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-08-23",
+      "time": "06:21:00",
+      "weight_kg": 78.2,
+      "source": "Health"
+    },
+    {
+      "date": "2022-08-30",
+      "time": "09:33:15",
+      "weight_kg": 79.6,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-08-31",
+      "time": "07:18:23",
+      "weight_kg": 78.9,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-08-31",
+      "time": "07:18:23",
+      "weight_kg": 78.9,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-09-01",
+      "time": "09:51:50",
+      "weight_kg": 78.4,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-09-01",
+      "time": "09:51:50",
+      "weight_kg": 78.4,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-09-01",
+      "time": "13:54:28",
+      "weight_kg": 78.3,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-09-01",
+      "time": "13:54:28",
+      "weight_kg": 78.3,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-09-02",
+      "time": "10:48:27",
+      "weight_kg": 78.15,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-09-02",
+      "time": "10:48:27",
+      "weight_kg": 78.15,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-09-03",
+      "time": "08:53:55",
+      "weight_kg": 77.85,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-09-03",
+      "time": "08:53:55",
+      "weight_kg": 77.85,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-09-03",
+      "time": "08:54:03",
+      "weight_kg": 77.75,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-09-03",
+      "time": "08:54:03",
+      "weight_kg": 77.75,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-09-06",
+      "time": "10:03:57",
+      "weight_kg": 79.1,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-09-06",
+      "time": "10:03:57",
+      "weight_kg": 79.1,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-09-07",
+      "time": "09:07:33",
+      "weight_kg": 79.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-09-07",
+      "time": "09:07:33",
+      "weight_kg": 79.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-09-08",
+      "time": "08:08:55",
+      "weight_kg": 78.6,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-09-08",
+      "time": "08:08:55",
+      "weight_kg": 78.6,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-09-08",
+      "time": "19:26:47",
+      "weight_kg": 77.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-09-08",
+      "time": "19:26:47",
+      "weight_kg": 77.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-09-09",
+      "time": "08:40:54",
+      "weight_kg": 76.95,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-09-09",
+      "time": "08:40:54",
+      "weight_kg": 76.95,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-09-09",
+      "time": "09:46:57",
+      "weight_kg": 76.95,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-09-09",
+      "time": "09:46:57",
+      "weight_kg": 76.95,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-09-09",
+      "time": "09:47:13",
+      "weight_kg": 76.95,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-09-09",
+      "time": "09:47:13",
+      "weight_kg": 76.95,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-09-10",
+      "time": "10:16:13",
+      "weight_kg": 76.95,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-09-10",
+      "time": "10:16:13",
+      "weight_kg": 76.95,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-09-12",
+      "time": "08:41:09",
+      "weight_kg": 77.8,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-09-12",
+      "time": "08:41:09",
+      "weight_kg": 77.8,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-09-13",
+      "time": "09:13:20",
+      "weight_kg": 77.8,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-09-13",
+      "time": "09:13:20",
+      "weight_kg": 77.8,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-09-16",
+      "time": "01:00:00",
+      "weight_kg": 77.66,
+      "source": "Connect"
+    },
+    {
+      "date": "2022-09-17",
+      "time": "01:00:00",
+      "weight_kg": 77.34,
+      "source": "Connect"
+    },
+    {
+      "date": "2022-09-18",
+      "time": "01:00:00",
+      "weight_kg": 77.45,
+      "source": "Connect"
+    },
+    {
+      "date": "2022-09-20",
+      "time": "01:00:00",
+      "weight_kg": 78.12,
+      "source": "Connect"
+    },
+    {
+      "date": "2022-09-21",
+      "time": "01:00:00",
+      "weight_kg": 78.31,
+      "source": "Connect"
+    },
+    {
+      "date": "2022-09-22",
+      "time": "01:00:00",
+      "weight_kg": 78.26,
+      "source": "Connect"
+    },
+    {
+      "date": "2022-09-24",
+      "time": "01:00:00",
+      "weight_kg": 77.54,
+      "source": "Connect"
+    },
+    {
+      "date": "2022-09-25",
+      "time": "01:00:00",
+      "weight_kg": 79.12,
+      "source": "Connect"
+    },
+    {
+      "date": "2022-10-01",
+      "time": "00:00:00",
+      "weight_kg": 78.97,
+      "source": "Connect"
+    },
+    {
+      "date": "2022-10-02",
+      "time": "00:00:00",
+      "weight_kg": 79.7,
+      "source": "Connect"
+    },
+    {
+      "date": "2022-10-04",
+      "time": "00:00:00",
+      "weight_kg": 79.87,
+      "source": "Connect"
+    },
+    {
+      "date": "2022-10-07",
+      "time": "00:00:00",
+      "weight_kg": 78.47,
+      "source": "Connect"
+    },
+    {
+      "date": "2022-10-12",
+      "time": "00:00:00",
+      "weight_kg": 79.77,
+      "source": "Connect"
+    },
+    {
+      "date": "2022-10-12",
+      "time": "01:00:00",
+      "weight_kg": 79.77,
+      "source": "Connect"
+    },
+    {
+      "date": "2022-11-01",
+      "time": "09:17:36",
+      "weight_kg": 80.25,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-11-01",
+      "time": "09:17:36",
+      "weight_kg": 80.25,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-11-01",
+      "time": "09:17:36",
+      "weight_kg": 80.25,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-11-01",
+      "time": "09:17:36",
+      "weight_kg": 80.25,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-11-02",
+      "time": "08:34:26",
+      "weight_kg": 79.75,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-11-02",
+      "time": "08:34:26",
+      "weight_kg": 79.75,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-11-05",
+      "time": "08:54:50",
+      "weight_kg": 79.3,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-11-05",
+      "time": "08:54:50",
+      "weight_kg": 79.3,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-11-05",
+      "time": "08:54:50",
+      "weight_kg": 79.3,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-11-05",
+      "time": "08:54:50",
+      "weight_kg": 79.3,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-11-05",
+      "time": "08:54:50",
+      "weight_kg": 79.3,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-11-13",
+      "time": "13:54:00",
+      "weight_kg": 78.9,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-11-13",
+      "time": "13:54:00",
+      "weight_kg": 78.9,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2022-11-16",
+      "time": "00:00:00",
+      "weight_kg": 86.26,
+      "source": "Connect"
+    },
+    {
+      "date": "2022-11-18",
+      "time": "00:00:00",
+      "weight_kg": 82.52,
+      "source": "Connect"
+    },
+    {
+      "date": "2022-11-22",
+      "time": "22:00:00",
+      "weight_kg": 84.18,
+      "source": "Connect"
+    },
+    {
+      "date": "2022-11-23",
+      "time": "22:00:00",
+      "weight_kg": 83.24,
+      "source": "Connect"
+    },
+    {
+      "date": "2022-11-28",
+      "time": "22:00:00",
+      "weight_kg": 83.62,
+      "source": "Connect"
+    },
+    {
+      "date": "2022-11-29",
+      "time": "22:00:00",
+      "weight_kg": 84.0,
+      "source": "Connect"
+    },
+    {
+      "date": "2022-11-29",
+      "time": "23:00:00",
+      "weight_kg": 84.0,
+      "source": "Connect"
+    },
+    {
+      "date": "2022-12-04",
+      "time": "19:00:00",
+      "weight_kg": 82.92,
+      "source": "Connect"
+    },
+    {
+      "date": "2022-12-04",
+      "time": "23:00:00",
+      "weight_kg": 82.92,
+      "source": "Connect"
+    },
+    {
+      "date": "2022-12-05",
+      "time": "00:00:00",
+      "weight_kg": 82.92,
+      "source": "Connect"
+    },
+    {
+      "date": "2022-12-19",
+      "time": "00:00:00",
+      "weight_kg": 83.68,
+      "source": "Connect"
+    },
+    {
+      "date": "2023-01-03",
+      "time": "02:00:00",
+      "weight_kg": 80.65,
+      "source": "Connect"
+    },
+    {
+      "date": "2023-01-04",
+      "time": "02:00:00",
+      "weight_kg": 80.7,
+      "source": "Connect"
+    },
+    {
+      "date": "2023-01-05",
+      "time": "02:00:00",
+      "weight_kg": 81.59,
+      "source": "Connect"
+    },
+    {
+      "date": "2023-01-06",
+      "time": "02:00:00",
+      "weight_kg": 82.42,
+      "source": "Connect"
+    },
+    {
+      "date": "2023-01-07",
+      "time": "02:00:00",
+      "weight_kg": 81.66,
+      "source": "Connect"
+    },
+    {
+      "date": "2023-01-08",
+      "time": "02:00:00",
+      "weight_kg": 82.3,
+      "source": "Connect"
+    },
+    {
+      "date": "2023-01-09",
+      "time": "02:00:00",
+      "weight_kg": 82.93,
+      "source": "Connect"
+    },
+    {
+      "date": "2023-01-18",
+      "time": "02:00:00",
+      "weight_kg": 82.49,
+      "source": "Connect"
+    },
+    {
+      "date": "2023-01-18",
+      "time": "10:57:48",
+      "weight_kg": 82.49,
+      "source": "Connect"
+    },
+    {
+      "date": "2023-01-20",
+      "time": "11:55:07",
+      "weight_kg": 81.68,
+      "source": "Connect"
+    },
+    {
+      "date": "2023-01-21",
+      "time": "12:57:46",
+      "weight_kg": 81.58,
+      "source": "Connect"
+    },
+    {
+      "date": "2023-02-05",
+      "time": "11:25:40",
+      "weight_kg": 82.85,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-02-05",
+      "time": "11:25:40",
+      "weight_kg": 82.85,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-02-06",
+      "time": "10:46:12",
+      "weight_kg": 82.6,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-02-06",
+      "time": "10:46:12",
+      "weight_kg": 82.6,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-02-07",
+      "time": "09:28:28",
+      "weight_kg": 81.95,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-02-07",
+      "time": "09:28:28",
+      "weight_kg": 81.95,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-02-07",
+      "time": "09:45:57",
+      "weight_kg": 82.35,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-02-07",
+      "time": "09:45:57",
+      "weight_kg": 82.35,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-02-07",
+      "time": "09:46:31",
+      "weight_kg": 82.35,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-02-07",
+      "time": "09:46:31",
+      "weight_kg": 82.35,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-02-07",
+      "time": "09:46:49",
+      "weight_kg": 82.35,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-02-07",
+      "time": "09:46:49",
+      "weight_kg": 82.35,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-02-09",
+      "time": "08:51:27",
+      "weight_kg": 80.15,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-02-09",
+      "time": "08:51:27",
+      "weight_kg": 80.15,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-02-09",
+      "time": "08:51:57",
+      "weight_kg": 80.15,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-02-09",
+      "time": "08:51:57",
+      "weight_kg": 80.15,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-02-11",
+      "time": "11:10:57",
+      "weight_kg": 81.1,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-02-11",
+      "time": "11:10:57",
+      "weight_kg": 81.1,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-02-12",
+      "time": "07:20:05",
+      "weight_kg": 80.95,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-02-12",
+      "time": "07:20:05",
+      "weight_kg": 80.95,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-02-12",
+      "time": "07:20:36",
+      "weight_kg": 80.95,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-02-12",
+      "time": "07:20:36",
+      "weight_kg": 80.95,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-02-16",
+      "time": "05:22:53",
+      "weight_kg": 82.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2023-02-17",
+      "time": "06:09:37",
+      "weight_kg": 79.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2023-02-20",
+      "time": "06:20:14",
+      "weight_kg": 80.7,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2023-02-21",
+      "time": "07:13:22",
+      "weight_kg": 80.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2023-02-22",
+      "time": "06:33:54",
+      "weight_kg": 79.8,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2023-02-23",
+      "time": "06:33:29",
+      "weight_kg": 79.8,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2023-02-26",
+      "time": "10:32:49",
+      "weight_kg": 80.7,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-02-26",
+      "time": "10:32:49",
+      "weight_kg": 80.7,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-02-27",
+      "time": "09:26:59",
+      "weight_kg": 80.2,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-02-27",
+      "time": "09:26:59",
+      "weight_kg": 80.2,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-02-28",
+      "time": "09:41:08",
+      "weight_kg": 79.35,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-02-28",
+      "time": "09:41:08",
+      "weight_kg": 79.35,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-03-01",
+      "time": "12:00:17",
+      "weight_kg": 79.0,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-03-01",
+      "time": "12:00:17",
+      "weight_kg": 79.0,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-03-02",
+      "time": "09:58:11",
+      "weight_kg": 78.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-03-02",
+      "time": "09:58:11",
+      "weight_kg": 78.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-03-03",
+      "time": "09:45:34",
+      "weight_kg": 78.05,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-03-03",
+      "time": "09:45:34",
+      "weight_kg": 78.05,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-03-04",
+      "time": "08:33:27",
+      "weight_kg": 78.4,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-03-04",
+      "time": "08:33:27",
+      "weight_kg": 78.4,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-03-05",
+      "time": "08:20:49",
+      "weight_kg": 78.4,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-03-05",
+      "time": "08:20:49",
+      "weight_kg": 78.4,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-03-06",
+      "time": "10:06:42",
+      "weight_kg": 79.25,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-03-06",
+      "time": "10:06:42",
+      "weight_kg": 79.25,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-03-13",
+      "time": "09:54:43",
+      "weight_kg": 79.68,
+      "source": "Connect"
+    },
+    {
+      "date": "2023-03-15",
+      "time": "10:32:29",
+      "weight_kg": 78.44,
+      "source": "Connect"
+    },
+    {
+      "date": "2023-03-16",
+      "time": "11:54:29",
+      "weight_kg": 78.47,
+      "source": "Connect"
+    },
+    {
+      "date": "2023-03-17",
+      "time": "10:37:21",
+      "weight_kg": 77.44,
+      "source": "Connect"
+    },
+    {
+      "date": "2023-03-18",
+      "time": "12:14:21",
+      "weight_kg": 78.45,
+      "source": "Connect"
+    },
+    {
+      "date": "2023-03-19",
+      "time": "10:13:02",
+      "weight_kg": 78.84,
+      "source": "Connect"
+    },
+    {
+      "date": "2023-03-21",
+      "time": "09:46:32",
+      "weight_kg": 79.25,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-03-21",
+      "time": "09:46:32",
+      "weight_kg": 79.25,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-03-22",
+      "time": "09:27:56",
+      "weight_kg": 78.5,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-03-22",
+      "time": "09:27:56",
+      "weight_kg": 78.5,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-03-24",
+      "time": "05:56:08",
+      "weight_kg": 77.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2023-03-25",
+      "time": "06:52:54",
+      "weight_kg": 77.6,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2023-03-27",
+      "time": "06:07:07",
+      "weight_kg": 79.2,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2023-03-28",
+      "time": "06:37:49",
+      "weight_kg": 78.3,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2023-03-29",
+      "time": "06:17:37",
+      "weight_kg": 77.9,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2023-03-29",
+      "time": "10:15:40",
+      "weight_kg": 77.3,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2023-03-30",
+      "time": "06:49:10",
+      "weight_kg": 77.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2023-03-31",
+      "time": "07:04:26",
+      "weight_kg": 77.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2023-03-31",
+      "time": "07:53:49",
+      "weight_kg": 77.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2023-04-29",
+      "time": "11:34:15",
+      "weight_kg": 77.57,
+      "source": "Connect"
+    },
+    {
+      "date": "2023-04-30",
+      "time": "11:43:54",
+      "weight_kg": 78.22,
+      "source": "Connect"
+    },
+    {
+      "date": "2023-05-01",
+      "time": "10:12:46",
+      "weight_kg": 79.66,
+      "source": "Connect"
+    },
+    {
+      "date": "2023-05-05",
+      "time": "10:32:52",
+      "weight_kg": 77.95,
+      "source": "Connect"
+    },
+    {
+      "date": "2023-05-06",
+      "time": "11:01:53",
+      "weight_kg": 77.9,
+      "source": "Connect"
+    },
+    {
+      "date": "2023-05-07",
+      "time": "12:35:53",
+      "weight_kg": 77.0,
+      "source": "Connect"
+    },
+    {
+      "date": "2023-05-10",
+      "time": "10:01:33",
+      "weight_kg": 77.54,
+      "source": "Connect"
+    },
+    {
+      "date": "2023-05-13",
+      "time": "11:58:52",
+      "weight_kg": 76.47,
+      "source": "Connect"
+    },
+    {
+      "date": "2023-06-10",
+      "time": "09:16:13",
+      "weight_kg": 77.85,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-06-10",
+      "time": "09:16:13",
+      "weight_kg": 77.85,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-06-13",
+      "time": "11:19:20",
+      "weight_kg": 77.4,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-06-13",
+      "time": "11:19:20",
+      "weight_kg": 77.4,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-06-28",
+      "time": "07:29:25",
+      "weight_kg": 77.4,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2023-06-30",
+      "time": "06:23:40",
+      "weight_kg": 78.0,
+      "source": "PICOOC"
+    },
+    {
+      "date": "2023-07-04",
+      "time": "10:23:06",
+      "weight_kg": 78.0,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-07-04",
+      "time": "10:23:17",
+      "weight_kg": 77.9,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-07-05",
+      "time": "10:50:31",
+      "weight_kg": 77.9,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-07-05",
+      "time": "10:50:31",
+      "weight_kg": 77.9,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-07-05",
+      "time": "10:50:54",
+      "weight_kg": 77.9,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-07-05",
+      "time": "10:50:54",
+      "weight_kg": 77.9,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-07-21",
+      "time": "08:26:57",
+      "weight_kg": 77.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-07-21",
+      "time": "08:26:57",
+      "weight_kg": 77.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-07-29",
+      "time": "10:30:42",
+      "weight_kg": 78.05,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-08-01",
+      "time": "09:02:15",
+      "weight_kg": 77.8,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-08-01",
+      "time": "09:02:15",
+      "weight_kg": 77.8,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-08-06",
+      "time": "12:22:41",
+      "weight_kg": 79.3,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-08-06",
+      "time": "12:22:41",
+      "weight_kg": 79.3,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-08-07",
+      "time": "08:58:16",
+      "weight_kg": 79.15,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-08-07",
+      "time": "08:58:16",
+      "weight_kg": 79.15,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-08-08",
+      "time": "09:49:32",
+      "weight_kg": 78.15,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-08-08",
+      "time": "09:49:32",
+      "weight_kg": 78.15,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-08-09",
+      "time": "10:29:42",
+      "weight_kg": 78.15,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-08-09",
+      "time": "10:29:42",
+      "weight_kg": 78.15,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-08-10",
+      "time": "08:58:35",
+      "weight_kg": 78.4,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-08-10",
+      "time": "08:58:35",
+      "weight_kg": 78.4,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-08-14",
+      "time": "09:56:42",
+      "weight_kg": 77.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-08-14",
+      "time": "09:56:42",
+      "weight_kg": 77.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-08-14",
+      "time": "09:56:51",
+      "weight_kg": 77.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-08-14",
+      "time": "09:56:51",
+      "weight_kg": 77.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-08-14",
+      "time": "09:57:12",
+      "weight_kg": 77.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-08-14",
+      "time": "09:57:12",
+      "weight_kg": 77.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-08-16",
+      "time": "11:05:46",
+      "weight_kg": 78.3,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-08-16",
+      "time": "11:05:46",
+      "weight_kg": 78.3,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-08-17",
+      "time": "08:25:46",
+      "weight_kg": 78.15,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-08-17",
+      "time": "08:25:46",
+      "weight_kg": 78.15,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-08-19",
+      "time": "11:25:52",
+      "weight_kg": 78.25,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-08-19",
+      "time": "11:25:52",
+      "weight_kg": 78.25,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-08-22",
+      "time": "11:59:51",
+      "weight_kg": 77.85,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-08-22",
+      "time": "11:59:51",
+      "weight_kg": 77.85,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-08-23",
+      "time": "10:40:44",
+      "weight_kg": 77.7,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-08-23",
+      "time": "10:40:44",
+      "weight_kg": 77.7,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-08-24",
+      "time": "08:26:03",
+      "weight_kg": 78.15,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-08-24",
+      "time": "08:26:03",
+      "weight_kg": 78.15,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-08-25",
+      "time": "08:59:32",
+      "weight_kg": 78.0,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-08-25",
+      "time": "08:59:32",
+      "weight_kg": 78.0,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-08-28",
+      "time": "10:20:12",
+      "weight_kg": 78.0,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-08-28",
+      "time": "10:20:12",
+      "weight_kg": 78.0,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-08-30",
+      "time": "09:59:00",
+      "weight_kg": 78.15,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-08-30",
+      "time": "09:59:00",
+      "weight_kg": 78.15,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-08-31",
+      "time": "08:25:36",
+      "weight_kg": 78.5,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-08-31",
+      "time": "08:25:36",
+      "weight_kg": 78.5,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-09-01",
+      "time": "10:15:50",
+      "weight_kg": 78.1,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-09-01",
+      "time": "10:15:50",
+      "weight_kg": 78.1,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-09-02",
+      "time": "06:42:20",
+      "weight_kg": 78.8,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-09-02",
+      "time": "06:42:20",
+      "weight_kg": 78.8,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-09-11",
+      "time": "12:48:58",
+      "weight_kg": 79.2,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-09-11",
+      "time": "12:48:58",
+      "weight_kg": 79.2,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-09-13",
+      "time": "08:58:48",
+      "weight_kg": 78.7,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-09-13",
+      "time": "08:58:48",
+      "weight_kg": 78.7,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-09-17",
+      "time": "09:36:27",
+      "weight_kg": 79.9,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-09-17",
+      "time": "09:36:27",
+      "weight_kg": 79.9,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-09-19",
+      "time": "09:35:35",
+      "weight_kg": 78.6,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-09-19",
+      "time": "09:35:35",
+      "weight_kg": 78.6,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-09-25",
+      "time": "09:13:29",
+      "weight_kg": 79.7,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-09-25",
+      "time": "09:13:29",
+      "weight_kg": 79.7,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-09-26",
+      "time": "09:43:33",
+      "weight_kg": 79.35,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-09-26",
+      "time": "09:43:33",
+      "weight_kg": 79.35,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-09-27",
+      "time": "09:48:35",
+      "weight_kg": 78.75,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-09-27",
+      "time": "09:48:35",
+      "weight_kg": 78.75,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-10-01",
+      "time": "10:52:44",
+      "weight_kg": 79.7,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-10-01",
+      "time": "10:52:44",
+      "weight_kg": 79.7,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-10-20",
+      "time": "09:21:16",
+      "weight_kg": 78.75,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-10-20",
+      "time": "09:21:16",
+      "weight_kg": 78.75,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-11-07",
+      "time": "08:45:37",
+      "weight_kg": 81.25,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-11-07",
+      "time": "08:45:37",
+      "weight_kg": 81.25,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-11-15",
+      "time": "10:13:48",
+      "weight_kg": 79.4,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-11-15",
+      "time": "10:13:48",
+      "weight_kg": 79.4,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-12-10",
+      "time": "09:31:53",
+      "weight_kg": 79.75,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-12-10",
+      "time": "09:31:53",
+      "weight_kg": 79.75,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-12-19",
+      "time": "09:25:30",
+      "weight_kg": 79.5,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-12-19",
+      "time": "09:25:30",
+      "weight_kg": 79.5,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-12-22",
+      "time": "10:49:46",
+      "weight_kg": 80.3,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2023-12-22",
+      "time": "10:49:46",
+      "weight_kg": 80.3,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-02-11",
+      "time": "09:48:32",
+      "weight_kg": 80.3,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-02-11",
+      "time": "09:48:32",
+      "weight_kg": 80.3,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-02-11",
+      "time": "09:48:32",
+      "weight_kg": 80.3,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-02-11",
+      "time": "09:48:32",
+      "weight_kg": 80.3,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-02-11",
+      "time": "09:48:44",
+      "weight_kg": 80.3,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-02-11",
+      "time": "09:48:44",
+      "weight_kg": 80.3,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-02-25",
+      "time": "11:22:07",
+      "weight_kg": 81.85,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-02-25",
+      "time": "11:22:07",
+      "weight_kg": 81.85,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-02-25",
+      "time": "11:22:26",
+      "weight_kg": 81.75,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-02-25",
+      "time": "11:22:26",
+      "weight_kg": 81.75,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-02-25",
+      "time": "11:22:40",
+      "weight_kg": 81.75,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-02-25",
+      "time": "11:22:40",
+      "weight_kg": 81.75,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-02-25",
+      "time": "11:22:48",
+      "weight_kg": 81.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-02-25",
+      "time": "11:22:48",
+      "weight_kg": 81.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-02-26",
+      "time": "09:48:46",
+      "weight_kg": 80.8,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-02-26",
+      "time": "09:48:46",
+      "weight_kg": 80.8,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-02-27",
+      "time": "10:18:45",
+      "weight_kg": 81.15,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-02-27",
+      "time": "10:18:45",
+      "weight_kg": 81.15,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-02-28",
+      "time": "09:57:43",
+      "weight_kg": 81.6,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-02-28",
+      "time": "09:57:43",
+      "weight_kg": 81.6,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-02-29",
+      "time": "08:23:12",
+      "weight_kg": 81.35,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-02-29",
+      "time": "08:23:12",
+      "weight_kg": 81.35,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-03-05",
+      "time": "07:54:34",
+      "weight_kg": 80.0,
+      "source": "Connect"
+    },
+    {
+      "date": "2024-03-07",
+      "time": "08:19:41",
+      "weight_kg": 82.15,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-03-07",
+      "time": "08:19:41",
+      "weight_kg": 82.15,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-03-09",
+      "time": "08:12:34",
+      "weight_kg": 82.0,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-03-09",
+      "time": "08:12:34",
+      "weight_kg": 82.0,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-03-10",
+      "time": "08:09:31",
+      "weight_kg": 81.45,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-03-10",
+      "time": "08:09:31",
+      "weight_kg": 81.45,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-03-11",
+      "time": "07:42:43",
+      "weight_kg": 80.9,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-03-11",
+      "time": "07:42:43",
+      "weight_kg": 80.9,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-03-12",
+      "time": "08:45:50",
+      "weight_kg": 81.55,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-03-12",
+      "time": "08:45:50",
+      "weight_kg": 81.55,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-03-19",
+      "time": "10:45:24",
+      "weight_kg": 81.9,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-03-19",
+      "time": "10:45:24",
+      "weight_kg": 81.9,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-03-20",
+      "time": "11:01:11",
+      "weight_kg": 82.1,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-03-20",
+      "time": "11:01:11",
+      "weight_kg": 82.1,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-03-21",
+      "time": "08:13:51",
+      "weight_kg": 81.3,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-03-21",
+      "time": "08:13:51",
+      "weight_kg": 81.3,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-03-23",
+      "time": "10:33:48",
+      "weight_kg": 81.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-03-23",
+      "time": "10:33:48",
+      "weight_kg": 81.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-04-07",
+      "time": "10:04:28",
+      "weight_kg": 81.4,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-04-07",
+      "time": "10:04:28",
+      "weight_kg": 81.4,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-04-08",
+      "time": "10:15:02",
+      "weight_kg": 80.7,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-04-08",
+      "time": "10:15:02",
+      "weight_kg": 80.7,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-04-14",
+      "time": "09:46:55",
+      "weight_kg": 81.0,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-04-16",
+      "time": "09:13:22",
+      "weight_kg": 80.75,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-04-16",
+      "time": "09:13:22",
+      "weight_kg": 80.75,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-04-21",
+      "time": "10:23:52",
+      "weight_kg": 80.4,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-04-21",
+      "time": "10:23:52",
+      "weight_kg": 80.4,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-04-27",
+      "time": "08:02:35",
+      "weight_kg": 80.25,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-04-27",
+      "time": "08:02:35",
+      "weight_kg": 80.25,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-04-29",
+      "time": "12:21:37",
+      "weight_kg": 80.25,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-04-29",
+      "time": "12:21:37",
+      "weight_kg": 80.25,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-04-30",
+      "time": "12:17:08",
+      "weight_kg": 80.25,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-04-30",
+      "time": "12:17:08",
+      "weight_kg": 80.25,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-05-02",
+      "time": "08:42:56",
+      "weight_kg": 80.0,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-05-02",
+      "time": "08:42:56",
+      "weight_kg": 80.0,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-05-09",
+      "time": "11:31:33",
+      "weight_kg": 81.55,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-05-09",
+      "time": "11:31:33",
+      "weight_kg": 81.55,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-05-10",
+      "time": "11:26:03",
+      "weight_kg": 80.75,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-05-10",
+      "time": "11:26:03",
+      "weight_kg": 80.75,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-05-11",
+      "time": "09:42:10",
+      "weight_kg": 80.2,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-05-11",
+      "time": "09:42:10",
+      "weight_kg": 80.2,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-05-12",
+      "time": "09:56:24",
+      "weight_kg": 81.05,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-05-12",
+      "time": "09:56:24",
+      "weight_kg": 81.05,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-05-14",
+      "time": "08:45:07",
+      "weight_kg": 80.85,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-05-14",
+      "time": "08:45:07",
+      "weight_kg": 80.85,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-05-18",
+      "time": "10:04:54",
+      "weight_kg": 80.05,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-05-18",
+      "time": "10:04:54",
+      "weight_kg": 80.05,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-05-18",
+      "time": "12:43:54",
+      "weight_kg": 79.6,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-05-18",
+      "time": "12:43:54",
+      "weight_kg": 79.6,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-05-19",
+      "time": "09:40:51",
+      "weight_kg": 80.4,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-05-19",
+      "time": "09:40:51",
+      "weight_kg": 80.4,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-05-20",
+      "time": "09:31:18",
+      "weight_kg": 80.8,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-05-20",
+      "time": "09:31:18",
+      "weight_kg": 80.8,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-05-26",
+      "time": "10:04:52",
+      "weight_kg": 80.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-05-26",
+      "time": "10:04:52",
+      "weight_kg": 80.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-05-31",
+      "time": "11:34:15",
+      "weight_kg": 79.35,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-05-31",
+      "time": "11:34:15",
+      "weight_kg": 79.35,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-05-31",
+      "time": "13:09:48",
+      "weight_kg": 78.85,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-05-31",
+      "time": "13:09:48",
+      "weight_kg": 78.85,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-05-31",
+      "time": "13:10:19",
+      "weight_kg": 78.85,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-05-31",
+      "time": "13:10:19",
+      "weight_kg": 78.85,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-06-01",
+      "time": "10:27:18",
+      "weight_kg": 79.2,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-06-01",
+      "time": "10:27:18",
+      "weight_kg": 79.2,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-06-02",
+      "time": "09:24:40",
+      "weight_kg": 79.8,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-06-02",
+      "time": "09:24:40",
+      "weight_kg": 79.8,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-06-02",
+      "time": "11:04:22",
+      "weight_kg": 79.25,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-06-02",
+      "time": "11:04:22",
+      "weight_kg": 79.25,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-06-02",
+      "time": "11:04:50",
+      "weight_kg": 79.25,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-06-02",
+      "time": "11:04:50",
+      "weight_kg": 79.25,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-06-03",
+      "time": "10:27:14",
+      "weight_kg": 79.45,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-06-03",
+      "time": "10:27:14",
+      "weight_kg": 79.45,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-06-09",
+      "time": "12:27:17",
+      "weight_kg": 80.1,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-06-09",
+      "time": "12:27:17",
+      "weight_kg": 80.1,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-06-09",
+      "time": "13:54:50",
+      "weight_kg": 79.55,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-06-15",
+      "time": "11:41:04",
+      "weight_kg": 80.25,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-06-15",
+      "time": "11:41:04",
+      "weight_kg": 80.25,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-06-18",
+      "time": "09:15:33",
+      "weight_kg": 80.25,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-06-30",
+      "time": "14:06:17",
+      "weight_kg": 79.1,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-06-30",
+      "time": "14:06:17",
+      "weight_kg": 79.1,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-07-17",
+      "time": "09:00:26",
+      "weight_kg": 79.75,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-07-17",
+      "time": "09:00:26",
+      "weight_kg": 79.75,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-07-19",
+      "time": "09:44:16",
+      "weight_kg": 79.2,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-07-19",
+      "time": "09:44:16",
+      "weight_kg": 79.2,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-07-21",
+      "time": "09:17:24",
+      "weight_kg": 79.35,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-07-21",
+      "time": "09:17:24",
+      "weight_kg": 79.35,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-07-21",
+      "time": "16:07:19",
+      "weight_kg": 78.25,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-07-21",
+      "time": "16:07:19",
+      "weight_kg": 78.25,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-07-30",
+      "time": "21:54:19",
+      "weight_kg": 78.8,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-07-30",
+      "time": "21:54:19",
+      "weight_kg": 78.8,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-08-06",
+      "time": "09:07:17",
+      "weight_kg": 80.0,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-08-07",
+      "time": "07:47:57",
+      "weight_kg": 80.0,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-08-07",
+      "time": "07:47:57",
+      "weight_kg": 80.0,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-09-04",
+      "time": "10:25:26",
+      "weight_kg": 79.8,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-09-22",
+      "time": "10:50:40",
+      "weight_kg": 81.0,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-09-22",
+      "time": "10:50:40",
+      "weight_kg": 81.0,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-09-23",
+      "time": "09:07:18",
+      "weight_kg": 81.1,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-09-23",
+      "time": "09:07:18",
+      "weight_kg": 81.1,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-09-29",
+      "time": "12:18:07",
+      "weight_kg": 80.1,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-09-29",
+      "time": "12:18:07",
+      "weight_kg": 80.1,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-10-13",
+      "time": "10:18:50",
+      "weight_kg": 80.15,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2024-10-13",
+      "time": "10:18:50",
+      "weight_kg": 80.15,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-01-18",
+      "time": "15:56:25",
+      "weight_kg": 82.7,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-01-19",
+      "time": "11:17:57",
+      "weight_kg": 82.55,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-01-20",
+      "time": "08:54:58",
+      "weight_kg": 82.45,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-01-21",
+      "time": "08:36:13",
+      "weight_kg": 81.1,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-01-22",
+      "time": "08:47:05",
+      "weight_kg": 81.35,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-01-23",
+      "time": "09:20:17",
+      "weight_kg": 81.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-02-02",
+      "time": "08:46:48",
+      "weight_kg": 82.25,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-02-08",
+      "time": "13:51:29",
+      "weight_kg": 81.4,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-02-10",
+      "time": "04:06:34",
+      "weight_kg": 81.15,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-02-10",
+      "time": "09:27:38",
+      "weight_kg": 80.75,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-02-13",
+      "time": "09:58:13",
+      "weight_kg": 80.55,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-02-13",
+      "time": "09:58:21",
+      "weight_kg": 80.45,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-02-14",
+      "time": "10:21:08",
+      "weight_kg": 80.1,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-02-17",
+      "time": "23:24:24",
+      "weight_kg": 80.85,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-02-21",
+      "time": "10:11:37",
+      "weight_kg": 80.85,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-02-21",
+      "time": "11:10:36",
+      "weight_kg": 80.75,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-02-21",
+      "time": "13:23:45",
+      "weight_kg": 80.05,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-02-21",
+      "time": "13:34:26",
+      "weight_kg": 79.9,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-02-23",
+      "time": "11:55:58",
+      "weight_kg": 80.5,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-02-23",
+      "time": "11:56:11",
+      "weight_kg": 80.5,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-03-24",
+      "time": "10:51:47",
+      "weight_kg": 81.3,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-05-04",
+      "time": "10:36:42",
+      "weight_kg": 82.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-05-05",
+      "time": "18:59:38",
+      "weight_kg": 82.3,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-05-08",
+      "time": "10:11:04",
+      "weight_kg": 83.0,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-05-09",
+      "time": "11:16:34",
+      "weight_kg": 81.7,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-05-10",
+      "time": "09:25:48",
+      "weight_kg": 81.8,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-05-13",
+      "time": "10:20:40",
+      "weight_kg": 81.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-06-25",
+      "time": "21:38:01",
+      "weight_kg": 85.6,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-06-25",
+      "time": "21:49:25",
+      "weight_kg": 85.6,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-06-26",
+      "time": "09:22:10",
+      "weight_kg": 84.75,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-06-27",
+      "time": "09:39:09",
+      "weight_kg": 84.25,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-06-28",
+      "time": "09:59:58",
+      "weight_kg": 83.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-07-12",
+      "time": "09:21:58",
+      "weight_kg": 83.1,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-07-20",
+      "time": "09:49:24",
+      "weight_kg": 83.75,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-07-21",
+      "time": "10:29:38",
+      "weight_kg": 83.75,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-07-24",
+      "time": "10:38:33",
+      "weight_kg": 82.5,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-07-26",
+      "time": "12:04:13",
+      "weight_kg": 81.95,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-07-27",
+      "time": "09:36:46",
+      "weight_kg": 81.75,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-07-28",
+      "time": "09:52:01",
+      "weight_kg": 81.2,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-07-29",
+      "time": "10:04:55",
+      "weight_kg": 80.75,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-07-30",
+      "time": "09:58:42",
+      "weight_kg": 80.4,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-07-31",
+      "time": "10:22:39",
+      "weight_kg": 79.7,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-08-01",
+      "time": "11:33:53",
+      "weight_kg": 78.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-08-03",
+      "time": "09:27:51",
+      "weight_kg": 79.15,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-08-05",
+      "time": "09:52:21",
+      "weight_kg": 79.75,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-08-06",
+      "time": "09:23:40",
+      "weight_kg": 79.05,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-08-06",
+      "time": "09:24:15",
+      "weight_kg": 79.05,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-08-08",
+      "time": "10:44:38",
+      "weight_kg": 79.05,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-08-09",
+      "time": "10:09:22",
+      "weight_kg": 79.45,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-08-10",
+      "time": "10:37:02",
+      "weight_kg": 79.45,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-08-11",
+      "time": "20:28:28",
+      "weight_kg": 78.8,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-08-12",
+      "time": "10:41:13",
+      "weight_kg": 79.2,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-08-14",
+      "time": "09:22:27",
+      "weight_kg": 79.2,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-08-15",
+      "time": "08:01:10",
+      "weight_kg": 79.6,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-08-16",
+      "time": "10:10:49",
+      "weight_kg": 79.9,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-08-20",
+      "time": "08:54:18",
+      "weight_kg": 80.0,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-08-22",
+      "time": "10:29:48",
+      "weight_kg": 79.15,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-08-22",
+      "time": "20:09:42",
+      "weight_kg": 79.3,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-08-22",
+      "time": "22:21:41",
+      "weight_kg": 79.0,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-08-23",
+      "time": "07:28:18",
+      "weight_kg": 78.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-08-23",
+      "time": "14:30:38",
+      "weight_kg": 78.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-08-27",
+      "time": "09:17:06",
+      "weight_kg": 80.25,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-08-28",
+      "time": "09:12:06",
+      "weight_kg": 80.1,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-08-28",
+      "time": "09:12:21",
+      "weight_kg": 80.2,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-09-10",
+      "time": "08:28:08",
+      "weight_kg": 81.1,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-09-11",
+      "time": "09:23:18",
+      "weight_kg": 79.9,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-09-11",
+      "time": "20:54:40",
+      "weight_kg": 79.6,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-10-04",
+      "time": "09:58:48",
+      "weight_kg": 80.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-10-09",
+      "time": "08:49:13",
+      "weight_kg": 80.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-11-04",
+      "time": "09:51:57",
+      "weight_kg": 83.2,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-11-16",
+      "time": "12:45:39",
+      "weight_kg": 83.3,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-11-23",
+      "time": "13:23:58",
+      "weight_kg": 81.5,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-11-26",
+      "time": "10:32:43",
+      "weight_kg": 82.4,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-12-16",
+      "time": "11:17:32",
+      "weight_kg": 81.5,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-12-23",
+      "time": "14:09:11",
+      "weight_kg": 83.75,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-12-26",
+      "time": "12:57:51",
+      "weight_kg": 82.6,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2025-12-27",
+      "time": "11:20:53",
+      "weight_kg": 81.7,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-01-05",
+      "time": "22:51:12",
+      "weight_kg": 83.8,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-01-06",
+      "time": "10:54:06",
+      "weight_kg": 82.75,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-01-08",
+      "time": "13:16:19",
+      "weight_kg": 81.9,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-01-09",
+      "time": "09:13:38",
+      "weight_kg": 81.7,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-01-10",
+      "time": "12:27:21",
+      "weight_kg": 80.95,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-01-11",
+      "time": "12:16:25",
+      "weight_kg": 81.25,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-01-12",
+      "time": "09:42:00",
+      "weight_kg": 81.95,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-01-12",
+      "time": "13:34:57",
+      "weight_kg": 82.1,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-01-13",
+      "time": "11:05:44",
+      "weight_kg": 81.1,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-01-14",
+      "time": "11:00:18",
+      "weight_kg": 80.9,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-01-14",
+      "time": "21:09:45",
+      "weight_kg": 81.1,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-01-14",
+      "time": "21:10:09",
+      "weight_kg": 80.45,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-01-15",
+      "time": "11:14:19",
+      "weight_kg": 81.0,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-01-16",
+      "time": "09:46:35",
+      "weight_kg": 81.6,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-01-18",
+      "time": "11:07:04",
+      "weight_kg": 81.4,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-01-19",
+      "time": "08:49:01",
+      "weight_kg": 82.3,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-01-19",
+      "time": "20:29:51",
+      "weight_kg": 81.75,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-01-20",
+      "time": "09:20:43",
+      "weight_kg": 81.85,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-01-21",
+      "time": "09:38:06",
+      "weight_kg": 82.55,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-01-21",
+      "time": "20:29:13",
+      "weight_kg": 81.95,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-01-22",
+      "time": "10:23:03",
+      "weight_kg": 81.8,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-01-23",
+      "time": "07:41:51",
+      "weight_kg": 81.6,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-01-24",
+      "time": "11:02:32",
+      "weight_kg": 81.1,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-01-24",
+      "time": "17:28:20",
+      "weight_kg": 81.65,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-01-25",
+      "time": "09:26:23",
+      "weight_kg": 81.05,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-01-26",
+      "time": "08:16:38",
+      "weight_kg": 81.05,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-01-27",
+      "time": "09:37:50",
+      "weight_kg": 80.35,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-01-28",
+      "time": "09:13:07",
+      "weight_kg": 81.2,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-01-29",
+      "time": "08:27:15",
+      "weight_kg": 80.4,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-01-31",
+      "time": "10:17:17",
+      "weight_kg": 80.85,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-02-01",
+      "time": "09:36:24",
+      "weight_kg": 80.6,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-02-02",
+      "time": "07:46:03",
+      "weight_kg": 80.6,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-02-03",
+      "time": "10:59:21",
+      "weight_kg": 80.5,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-02-04",
+      "time": "09:11:53",
+      "weight_kg": 80.15,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-02-04",
+      "time": "20:18:37",
+      "weight_kg": 79.05,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-02-05",
+      "time": "10:54:16",
+      "weight_kg": 79.05,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-02-06",
+      "time": "10:19:40",
+      "weight_kg": 79.45,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-02-06",
+      "time": "20:44:29",
+      "weight_kg": 78.9,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-02-06",
+      "time": "20:44:51",
+      "weight_kg": 78.8,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-02-06",
+      "time": "20:45:13",
+      "weight_kg": 78.95,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-02-07",
+      "time": "10:58:43",
+      "weight_kg": 79.25,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-02-07",
+      "time": "13:59:12",
+      "weight_kg": 78.85,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-02-08",
+      "time": "11:52:24",
+      "weight_kg": 80.6,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-02-09",
+      "time": "08:24:43",
+      "weight_kg": 80.35,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-02-10",
+      "time": "09:26:23",
+      "weight_kg": 79.35,
+      "source": "Zepp Life"
+    }
+  ]
+}

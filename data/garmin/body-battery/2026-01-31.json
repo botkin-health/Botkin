@@ -1,0 +1,97 @@
+[
+  {
+    "date": "2026-01-31",
+    "charged": 76,
+    "drained": 43,
+    "startTimestampGMT": "2026-01-30T21:00:00.0",
+    "endTimestampGMT": "2026-01-31T21:00:00.0",
+    "startTimestampLocal": "2026-01-31T00:00:00.0",
+    "endTimestampLocal": "2026-02-01T00:00:00.0",
+    "bodyBatteryValuesArray": [
+      [
+        1769806800000,
+        5
+      ],
+      [
+        1769835420000,
+        69
+      ],
+      [
+        1769840100000,
+        79
+      ],
+      [
+        1769863680000,
+        48
+      ],
+      [
+        1769864400000,
+        48
+      ],
+      [
+        1769875200000,
+        38
+      ]
+    ],
+    "bodyBatteryValueDescriptorDTOList": [
+      {
+        "bodyBatteryValueDescriptorIndex": 0,
+        "bodyBatteryValueDescriptorKey": "timestamp"
+      },
+      {
+        "bodyBatteryValueDescriptorIndex": 1,
+        "bodyBatteryValueDescriptorKey": "bodyBatteryLevel"
+      }
+    ],
+    "bodyBatteryDynamicFeedbackEvent": {
+      "eventTimestampGmt": "2026-01-31T20:24:42.0",
+      "bodyBatteryLevel": "HIGH",
+      "feedbackShortType": "SLEEP_PREPARATION_RECOVERING_AND_EXERCISE",
+      "feedbackLongType": "SLEEP_PREPARATION_RECOVERING_AND_EXERCISE"
+    },
+    "bodyBatteryActivityEvent": [
+      {
+        "eventType": "RECOVERY",
+        "eventStartTimeGmt": "2026-01-30T21:17:12.0",
+        "timezoneOffset": 10800000,
+        "durationInMilliseconds": 7380000,
+        "bodyBatteryImpact": 0,
+        "feedbackType": "RECOVERY_EVENING",
+        "shortFeedback": "RESTFUL_PERIOD"
+      },
+      {
+        "eventType": "SLEEP",
+        "eventStartTimeGmt": "2026-01-31T00:12:57.0",
+        "timezoneOffset": 10800000,
+        "durationInMilliseconds": 21840000,
+        "bodyBatteryImpact": 70,
+        "feedbackType": "NONE",
+        "shortFeedback": "NONE"
+      },
+      {
+        "eventType": "ACTIVITY",
+        "eventStartTimeGmt": "2026-01-31T09:04:14.0",
+        "timezoneOffset": 10800000,
+        "durationInMilliseconds": 3660000,
+        "bodyBatteryImpact": -10,
+        "feedbackType": "NONE",
+        "shortFeedback": "NONE"
+      },
+      {
+        "eventType": "RECOVERY",
+        "eventStartTimeGmt": "2026-01-31T16:53:51.0",
+        "timezoneOffset": 10800000,
+        "durationInMilliseconds": 2460000,
+        "bodyBatteryImpact": 0,
+        "feedbackType": "RECOVERY_BODY_BATTERY_NOT_INCREASE",
+        "shortFeedback": "RESTFUL_PERIOD"
+      }
+    ],
+    "endOfDayBodyBatteryDynamicFeedbackEvent": {
+      "eventTimestampGmt": "2026-01-31T01:34:16.0",
+      "bodyBatteryLevel": "HIGH",
+      "feedbackShortType": "SLEEP_TIME_PASSED_BALANCED_AND_INACTIVE",
+      "feedbackLongType": "SLEEP_TIME_PASSED_BALANCED_AND_INACTIVE"
+    }
+  }
+]

@@ -1,0 +1,2699 @@
+{
+  "daily_averages": [
+    {
+      "date": "2015-10-29",
+      "weight_kg": 77.5,
+      "measurements_count": 1
+    },
+    {
+      "date": "2016-10-06",
+      "weight_kg": 79.7,
+      "measurements_count": 1
+    },
+    {
+      "date": "2019-01-13",
+      "weight_kg": 83.0,
+      "measurements_count": 4
+    },
+    {
+      "date": "2019-01-14",
+      "weight_kg": 81.9,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-01-15",
+      "weight_kg": 82.1,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-01-16",
+      "weight_kg": 81.4,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-01-17",
+      "weight_kg": 81.3,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-01-19",
+      "weight_kg": 81.2,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-01-20",
+      "weight_kg": 81.7,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-01-21",
+      "weight_kg": 82.1,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-01-22",
+      "weight_kg": 82.1,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-01-23",
+      "weight_kg": 81.4,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-01-24",
+      "weight_kg": 82.1,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-01-26",
+      "weight_kg": 81.6,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-01-27",
+      "weight_kg": 81.7,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-01-28",
+      "weight_kg": 82.3,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-01-29",
+      "weight_kg": 82.5,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-01-30",
+      "weight_kg": 82.3,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-01-31",
+      "weight_kg": 81.9,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-02-01",
+      "weight_kg": 81.9,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-02-04",
+      "weight_kg": 82.5,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-02-14",
+      "weight_kg": 82.4,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-02-18",
+      "weight_kg": 82.2,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-02-20",
+      "weight_kg": 81.9,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-02-23",
+      "weight_kg": 81.2,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-02-24",
+      "weight_kg": 81.75,
+      "measurements_count": 4
+    },
+    {
+      "date": "2019-02-26",
+      "weight_kg": 81.6,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-02-28",
+      "weight_kg": 80.9,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-03-01",
+      "weight_kg": 80.9,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-03-02",
+      "weight_kg": 81.4,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-03-05",
+      "weight_kg": 82.2,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-03-20",
+      "weight_kg": 82.7,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-03-21",
+      "weight_kg": 81.7,
+      "measurements_count": 4
+    },
+    {
+      "date": "2019-03-22",
+      "weight_kg": 81.8,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-03-25",
+      "weight_kg": 82.6,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-03-26",
+      "weight_kg": 82.4,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-03-27",
+      "weight_kg": 82.4,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-03-28",
+      "weight_kg": 82.4,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-03-29",
+      "weight_kg": 81.6,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-03-30",
+      "weight_kg": 81.6,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-03-31",
+      "weight_kg": 82.2,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-04-01",
+      "weight_kg": 82.4,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-04-03",
+      "weight_kg": 82.1,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-04-04",
+      "weight_kg": 82.2,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-04-05",
+      "weight_kg": 81.8,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-04-06",
+      "weight_kg": 81.84,
+      "measurements_count": 5
+    },
+    {
+      "date": "2019-04-07",
+      "weight_kg": 82.1,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-04-21",
+      "weight_kg": 81.2,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-04-25",
+      "weight_kg": 81.2,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-05-15",
+      "weight_kg": 82.4,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-05-17",
+      "weight_kg": 82.4,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-05-23",
+      "weight_kg": 81.8,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-06-09",
+      "weight_kg": 81.0,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-06-13",
+      "weight_kg": 80.7,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-06-16",
+      "weight_kg": 82.0,
+      "measurements_count": 3
+    },
+    {
+      "date": "2019-06-17",
+      "weight_kg": 81.4,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-06-20",
+      "weight_kg": 80.96,
+      "measurements_count": 5
+    },
+    {
+      "date": "2019-06-22",
+      "weight_kg": 81.6,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-06-26",
+      "weight_kg": 84.0,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-06-27",
+      "weight_kg": 83.0,
+      "measurements_count": 4
+    },
+    {
+      "date": "2019-06-28",
+      "weight_kg": 81.9,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-06-29",
+      "weight_kg": 81.6,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-07-02",
+      "weight_kg": 81.4,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-07-03",
+      "weight_kg": 81.5,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-07-04",
+      "weight_kg": 80.5,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-07-05",
+      "weight_kg": 81.2,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-08-03",
+      "weight_kg": 80.1,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-08-04",
+      "weight_kg": 80.9,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-08-06",
+      "weight_kg": 80.8,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-08-07",
+      "weight_kg": 80.5,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-08-08",
+      "weight_kg": 80.8,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-08-09",
+      "weight_kg": 81.6,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-08-10",
+      "weight_kg": 81.0,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-08-12",
+      "weight_kg": 79.7,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-08-13",
+      "weight_kg": 79.9,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-08-14",
+      "weight_kg": 80.4,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-08-15",
+      "weight_kg": 80.3,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-08-16",
+      "weight_kg": 79.7,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-08-30",
+      "weight_kg": 79.9,
+      "measurements_count": 3
+    },
+    {
+      "date": "2019-09-01",
+      "weight_kg": 80.07,
+      "measurements_count": 3
+    },
+    {
+      "date": "2019-09-04",
+      "weight_kg": 81.0,
+      "measurements_count": 1
+    },
+    {
+      "date": "2019-10-16",
+      "weight_kg": 81.9,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-10-19",
+      "weight_kg": 83.0,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-10-22",
+      "weight_kg": 82.5,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-10-26",
+      "weight_kg": 81.8,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-10-29",
+      "weight_kg": 82.6,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-10-30",
+      "weight_kg": 81.7,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-10-31",
+      "weight_kg": 82.3,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-11-01",
+      "weight_kg": 82.3,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-11-02",
+      "weight_kg": 81.9,
+      "measurements_count": 3
+    },
+    {
+      "date": "2019-12-01",
+      "weight_kg": 83.0,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-12-03",
+      "weight_kg": 83.5,
+      "measurements_count": 3
+    },
+    {
+      "date": "2019-12-05",
+      "weight_kg": 81.7,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-12-06",
+      "weight_kg": 81.9,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-12-09",
+      "weight_kg": 83.1,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-12-18",
+      "weight_kg": 83.3,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-12-21",
+      "weight_kg": 83.3,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-12-22",
+      "weight_kg": 83.4,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-12-24",
+      "weight_kg": 83.3,
+      "measurements_count": 4
+    },
+    {
+      "date": "2019-12-25",
+      "weight_kg": 82.8,
+      "measurements_count": 2
+    },
+    {
+      "date": "2019-12-26",
+      "weight_kg": 84.8,
+      "measurements_count": 4
+    },
+    {
+      "date": "2019-12-27",
+      "weight_kg": 83.2,
+      "measurements_count": 2
+    },
+    {
+      "date": "2020-01-19",
+      "weight_kg": 81.2,
+      "measurements_count": 2
+    },
+    {
+      "date": "2020-01-21",
+      "weight_kg": 80.55,
+      "measurements_count": 1
+    },
+    {
+      "date": "2020-01-24",
+      "weight_kg": 79.75,
+      "measurements_count": 1
+    },
+    {
+      "date": "2020-01-29",
+      "weight_kg": 80.0,
+      "measurements_count": 1
+    },
+    {
+      "date": "2020-01-30",
+      "weight_kg": 79.9,
+      "measurements_count": 2
+    },
+    {
+      "date": "2020-01-31",
+      "weight_kg": 79.6,
+      "measurements_count": 2
+    },
+    {
+      "date": "2020-02-02",
+      "weight_kg": 79.6,
+      "measurements_count": 3
+    },
+    {
+      "date": "2020-02-04",
+      "weight_kg": 80.16,
+      "measurements_count": 5
+    },
+    {
+      "date": "2020-02-06",
+      "weight_kg": 79.0,
+      "measurements_count": 2
+    },
+    {
+      "date": "2020-02-07",
+      "weight_kg": 79.2,
+      "measurements_count": 2
+    },
+    {
+      "date": "2020-02-08",
+      "weight_kg": 79.3,
+      "measurements_count": 4
+    },
+    {
+      "date": "2020-02-09",
+      "weight_kg": 79.2,
+      "measurements_count": 2
+    },
+    {
+      "date": "2020-02-10",
+      "weight_kg": 79.8,
+      "measurements_count": 2
+    },
+    {
+      "date": "2020-02-11",
+      "weight_kg": 78.5,
+      "measurements_count": 4
+    },
+    {
+      "date": "2020-02-12",
+      "weight_kg": 78.9,
+      "measurements_count": 2
+    },
+    {
+      "date": "2020-02-14",
+      "weight_kg": 78.9,
+      "measurements_count": 2
+    },
+    {
+      "date": "2020-02-18",
+      "weight_kg": 79.6,
+      "measurements_count": 2
+    },
+    {
+      "date": "2020-02-20",
+      "weight_kg": 78.2,
+      "measurements_count": 2
+    },
+    {
+      "date": "2020-02-21",
+      "weight_kg": 78.5,
+      "measurements_count": 2
+    },
+    {
+      "date": "2020-02-22",
+      "weight_kg": 78.5,
+      "measurements_count": 1
+    },
+    {
+      "date": "2020-03-08",
+      "weight_kg": 79.4,
+      "measurements_count": 1
+    },
+    {
+      "date": "2020-03-09",
+      "weight_kg": 78.3,
+      "measurements_count": 2
+    },
+    {
+      "date": "2020-03-28",
+      "weight_kg": 76.45,
+      "measurements_count": 1
+    },
+    {
+      "date": "2020-04-21",
+      "weight_kg": 76.7,
+      "measurements_count": 1
+    },
+    {
+      "date": "2020-04-23",
+      "weight_kg": 76.2,
+      "measurements_count": 1
+    },
+    {
+      "date": "2020-06-10",
+      "weight_kg": 77.3,
+      "measurements_count": 1
+    },
+    {
+      "date": "2020-06-20",
+      "weight_kg": 82.7,
+      "measurements_count": 2
+    },
+    {
+      "date": "2020-06-21",
+      "weight_kg": 82.3,
+      "measurements_count": 2
+    },
+    {
+      "date": "2020-06-22",
+      "weight_kg": 82.3,
+      "measurements_count": 2
+    },
+    {
+      "date": "2020-06-23",
+      "weight_kg": 82.4,
+      "measurements_count": 4
+    },
+    {
+      "date": "2020-06-24",
+      "weight_kg": 81.9,
+      "measurements_count": 2
+    },
+    {
+      "date": "2020-07-01",
+      "weight_kg": 80.7,
+      "measurements_count": 2
+    },
+    {
+      "date": "2020-07-04",
+      "weight_kg": 80.4,
+      "measurements_count": 2
+    },
+    {
+      "date": "2020-07-07",
+      "weight_kg": 80.4,
+      "measurements_count": 2
+    },
+    {
+      "date": "2020-07-08",
+      "weight_kg": 81.2,
+      "measurements_count": 2
+    },
+    {
+      "date": "2020-07-18",
+      "weight_kg": 81.6,
+      "measurements_count": 2
+    },
+    {
+      "date": "2020-07-20",
+      "weight_kg": 82.3,
+      "measurements_count": 2
+    },
+    {
+      "date": "2020-07-22",
+      "weight_kg": 80.9,
+      "measurements_count": 4
+    },
+    {
+      "date": "2020-07-30",
+      "weight_kg": 80.1,
+      "measurements_count": 1
+    },
+    {
+      "date": "2020-08-24",
+      "weight_kg": 80.4,
+      "measurements_count": 1
+    },
+    {
+      "date": "2020-08-26",
+      "weight_kg": 78.1,
+      "measurements_count": 1
+    },
+    {
+      "date": "2020-09-07",
+      "weight_kg": 80.35,
+      "measurements_count": 1
+    },
+    {
+      "date": "2020-09-27",
+      "weight_kg": 81.53,
+      "measurements_count": 2
+    },
+    {
+      "date": "2020-10-05",
+      "weight_kg": 82.0,
+      "measurements_count": 1
+    },
+    {
+      "date": "2020-10-14",
+      "weight_kg": 79.95,
+      "measurements_count": 1
+    },
+    {
+      "date": "2020-10-18",
+      "weight_kg": 77.85,
+      "measurements_count": 1
+    },
+    {
+      "date": "2020-10-23",
+      "weight_kg": 80.2,
+      "measurements_count": 3
+    },
+    {
+      "date": "2020-10-24",
+      "weight_kg": 78.49,
+      "measurements_count": 7
+    },
+    {
+      "date": "2020-10-27",
+      "weight_kg": 78.17,
+      "measurements_count": 6
+    },
+    {
+      "date": "2020-10-29",
+      "weight_kg": 77.8,
+      "measurements_count": 2
+    },
+    {
+      "date": "2020-10-30",
+      "weight_kg": 77.8,
+      "measurements_count": 2
+    },
+    {
+      "date": "2020-10-31",
+      "weight_kg": 77.25,
+      "measurements_count": 4
+    },
+    {
+      "date": "2020-11-01",
+      "weight_kg": 76.7,
+      "measurements_count": 2
+    },
+    {
+      "date": "2020-11-02",
+      "weight_kg": 76.9,
+      "measurements_count": 2
+    },
+    {
+      "date": "2020-11-03",
+      "weight_kg": 77.0,
+      "measurements_count": 2
+    },
+    {
+      "date": "2020-11-04",
+      "weight_kg": 76.6,
+      "measurements_count": 2
+    },
+    {
+      "date": "2020-11-05",
+      "weight_kg": 76.4,
+      "measurements_count": 3
+    },
+    {
+      "date": "2020-11-06",
+      "weight_kg": 75.9,
+      "measurements_count": 2
+    },
+    {
+      "date": "2020-11-08",
+      "weight_kg": 74.7,
+      "measurements_count": 2
+    },
+    {
+      "date": "2020-11-11",
+      "weight_kg": 75.5,
+      "measurements_count": 2
+    },
+    {
+      "date": "2020-11-18",
+      "weight_kg": 77.1,
+      "measurements_count": 1
+    },
+    {
+      "date": "2020-11-25",
+      "weight_kg": 74.2,
+      "measurements_count": 1
+    },
+    {
+      "date": "2020-12-08",
+      "weight_kg": 76.4,
+      "measurements_count": 1
+    },
+    {
+      "date": "2020-12-13",
+      "weight_kg": 76.3,
+      "measurements_count": 1
+    },
+    {
+      "date": "2020-12-14",
+      "weight_kg": 76.1,
+      "measurements_count": 1
+    },
+    {
+      "date": "2020-12-15",
+      "weight_kg": 75.55,
+      "measurements_count": 1
+    },
+    {
+      "date": "2020-12-16",
+      "weight_kg": 74.9,
+      "measurements_count": 1
+    },
+    {
+      "date": "2020-12-17",
+      "weight_kg": 75.4,
+      "measurements_count": 1
+    },
+    {
+      "date": "2020-12-18",
+      "weight_kg": 75.9,
+      "measurements_count": 1
+    },
+    {
+      "date": "2020-12-20",
+      "weight_kg": 75.95,
+      "measurements_count": 1
+    },
+    {
+      "date": "2020-12-21",
+      "weight_kg": 75.8,
+      "measurements_count": 1
+    },
+    {
+      "date": "2020-12-24",
+      "weight_kg": 75.8,
+      "measurements_count": 2
+    },
+    {
+      "date": "2020-12-26",
+      "weight_kg": 75.7,
+      "measurements_count": 2
+    },
+    {
+      "date": "2020-12-31",
+      "weight_kg": 75.4,
+      "measurements_count": 1
+    },
+    {
+      "date": "2021-01-07",
+      "weight_kg": 75.4,
+      "measurements_count": 1
+    },
+    {
+      "date": "2021-01-23",
+      "weight_kg": 75.7,
+      "measurements_count": 2
+    },
+    {
+      "date": "2021-01-24",
+      "weight_kg": 75.6,
+      "measurements_count": 2
+    },
+    {
+      "date": "2021-02-10",
+      "weight_kg": 76.4,
+      "measurements_count": 1
+    },
+    {
+      "date": "2021-02-11",
+      "weight_kg": 75.9,
+      "measurements_count": 1
+    },
+    {
+      "date": "2021-02-13",
+      "weight_kg": 75.0,
+      "measurements_count": 1
+    },
+    {
+      "date": "2021-02-27",
+      "weight_kg": 76.65,
+      "measurements_count": 1
+    },
+    {
+      "date": "2021-03-21",
+      "weight_kg": 76.5,
+      "measurements_count": 1
+    },
+    {
+      "date": "2021-03-27",
+      "weight_kg": 76.5,
+      "measurements_count": 1
+    },
+    {
+      "date": "2021-04-10",
+      "weight_kg": 76.8,
+      "measurements_count": 1
+    },
+    {
+      "date": "2021-05-03",
+      "weight_kg": 78.5,
+      "measurements_count": 1
+    },
+    {
+      "date": "2021-06-27",
+      "weight_kg": 77.2,
+      "measurements_count": 1
+    },
+    {
+      "date": "2021-07-03",
+      "weight_kg": 76.4,
+      "measurements_count": 1
+    },
+    {
+      "date": "2021-07-07",
+      "weight_kg": 76.85,
+      "measurements_count": 2
+    },
+    {
+      "date": "2021-07-08",
+      "weight_kg": 76.9,
+      "measurements_count": 1
+    },
+    {
+      "date": "2021-07-10",
+      "weight_kg": 76.9,
+      "measurements_count": 1
+    },
+    {
+      "date": "2021-07-24",
+      "weight_kg": 78.5,
+      "measurements_count": 3
+    },
+    {
+      "date": "2021-08-27",
+      "weight_kg": 77.4,
+      "measurements_count": 1
+    },
+    {
+      "date": "2021-11-04",
+      "weight_kg": 82.05,
+      "measurements_count": 1
+    },
+    {
+      "date": "2021-11-14",
+      "weight_kg": 81.4,
+      "measurements_count": 1
+    },
+    {
+      "date": "2021-11-29",
+      "weight_kg": 82.85,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-01-22",
+      "weight_kg": 83.65,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-02-05",
+      "weight_kg": 86.1,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-02-06",
+      "weight_kg": 84.45,
+      "measurements_count": 2
+    },
+    {
+      "date": "2022-02-07",
+      "weight_kg": 84.0,
+      "measurements_count": 2
+    },
+    {
+      "date": "2022-02-08",
+      "weight_kg": 83.75,
+      "measurements_count": 2
+    },
+    {
+      "date": "2022-02-09",
+      "weight_kg": 82.95,
+      "measurements_count": 2
+    },
+    {
+      "date": "2022-02-10",
+      "weight_kg": 82.0,
+      "measurements_count": 2
+    },
+    {
+      "date": "2022-02-11",
+      "weight_kg": 82.8,
+      "measurements_count": 2
+    },
+    {
+      "date": "2022-02-12",
+      "weight_kg": 83.05,
+      "measurements_count": 2
+    },
+    {
+      "date": "2022-02-13",
+      "weight_kg": 83.65,
+      "measurements_count": 2
+    },
+    {
+      "date": "2022-02-15",
+      "weight_kg": 83.9,
+      "measurements_count": 2
+    },
+    {
+      "date": "2022-02-16",
+      "weight_kg": 82.9,
+      "measurements_count": 2
+    },
+    {
+      "date": "2022-02-17",
+      "weight_kg": 82.55,
+      "measurements_count": 2
+    },
+    {
+      "date": "2022-02-18",
+      "weight_kg": 83.3,
+      "measurements_count": 2
+    },
+    {
+      "date": "2022-02-21",
+      "weight_kg": 83.6,
+      "measurements_count": 4
+    },
+    {
+      "date": "2022-02-22",
+      "weight_kg": 81.83,
+      "measurements_count": 4
+    },
+    {
+      "date": "2022-02-23",
+      "weight_kg": 81.83,
+      "measurements_count": 4
+    },
+    {
+      "date": "2022-02-24",
+      "weight_kg": 81.6,
+      "measurements_count": 2
+    },
+    {
+      "date": "2022-02-27",
+      "weight_kg": 83.0,
+      "measurements_count": 2
+    },
+    {
+      "date": "2022-02-28",
+      "weight_kg": 81.25,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-03-01",
+      "weight_kg": 80.97,
+      "measurements_count": 4
+    },
+    {
+      "date": "2022-03-02",
+      "weight_kg": 82.0,
+      "measurements_count": 4
+    },
+    {
+      "date": "2022-03-05",
+      "weight_kg": 83.15,
+      "measurements_count": 2
+    },
+    {
+      "date": "2022-03-06",
+      "weight_kg": 82.7,
+      "measurements_count": 2
+    },
+    {
+      "date": "2022-03-08",
+      "weight_kg": 83.55,
+      "measurements_count": 2
+    },
+    {
+      "date": "2022-03-11",
+      "weight_kg": 81.8,
+      "measurements_count": 4
+    },
+    {
+      "date": "2022-03-12",
+      "weight_kg": 82.4,
+      "measurements_count": 2
+    },
+    {
+      "date": "2022-03-13",
+      "weight_kg": 82.9,
+      "measurements_count": 2
+    },
+    {
+      "date": "2022-05-08",
+      "weight_kg": 84.2,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-05-15",
+      "weight_kg": 84.0,
+      "measurements_count": 2
+    },
+    {
+      "date": "2022-05-16",
+      "weight_kg": 84.7,
+      "measurements_count": 3
+    },
+    {
+      "date": "2022-05-17",
+      "weight_kg": 84.0,
+      "measurements_count": 2
+    },
+    {
+      "date": "2022-05-18",
+      "weight_kg": 83.2,
+      "measurements_count": 2
+    },
+    {
+      "date": "2022-05-21",
+      "weight_kg": 83.7,
+      "measurements_count": 2
+    },
+    {
+      "date": "2022-06-04",
+      "weight_kg": 84.8,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-06-05",
+      "weight_kg": 84.3,
+      "measurements_count": 2
+    },
+    {
+      "date": "2022-06-08",
+      "weight_kg": 83.15,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-06-09",
+      "weight_kg": 82.95,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-06-12",
+      "weight_kg": 83.65,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-06-23",
+      "weight_kg": 83.55,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-07-08",
+      "weight_kg": 82.8,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-07-09",
+      "weight_kg": 82.6,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-07-10",
+      "weight_kg": 82.0,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-07-12",
+      "weight_kg": 82.6,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-07-14",
+      "weight_kg": 82.05,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-07-29",
+      "weight_kg": 81.99,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-08-03",
+      "weight_kg": 81.14,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-08-05",
+      "weight_kg": 80.93,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-08-06",
+      "weight_kg": 80.92,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-08-07",
+      "weight_kg": 81.2,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-08-08",
+      "weight_kg": 80.86,
+      "measurements_count": 2
+    },
+    {
+      "date": "2022-08-09",
+      "weight_kg": 80.86,
+      "measurements_count": 2
+    },
+    {
+      "date": "2022-08-16",
+      "weight_kg": 80.75,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-08-18",
+      "weight_kg": 80.05,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-08-19",
+      "weight_kg": 79.0,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-08-20",
+      "weight_kg": 78.65,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-08-22",
+      "weight_kg": 78.11,
+      "measurements_count": 5
+    },
+    {
+      "date": "2022-08-23",
+      "weight_kg": 78.2,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-08-30",
+      "weight_kg": 79.6,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-08-31",
+      "weight_kg": 78.9,
+      "measurements_count": 2
+    },
+    {
+      "date": "2022-09-01",
+      "weight_kg": 78.35,
+      "measurements_count": 4
+    },
+    {
+      "date": "2022-09-02",
+      "weight_kg": 78.15,
+      "measurements_count": 2
+    },
+    {
+      "date": "2022-09-03",
+      "weight_kg": 77.8,
+      "measurements_count": 4
+    },
+    {
+      "date": "2022-09-06",
+      "weight_kg": 79.1,
+      "measurements_count": 2
+    },
+    {
+      "date": "2022-09-07",
+      "weight_kg": 79.65,
+      "measurements_count": 2
+    },
+    {
+      "date": "2022-09-08",
+      "weight_kg": 78.12,
+      "measurements_count": 4
+    },
+    {
+      "date": "2022-09-09",
+      "weight_kg": 76.95,
+      "measurements_count": 6
+    },
+    {
+      "date": "2022-09-10",
+      "weight_kg": 76.95,
+      "measurements_count": 2
+    },
+    {
+      "date": "2022-09-12",
+      "weight_kg": 77.8,
+      "measurements_count": 2
+    },
+    {
+      "date": "2022-09-13",
+      "weight_kg": 77.8,
+      "measurements_count": 2
+    },
+    {
+      "date": "2022-09-16",
+      "weight_kg": 77.66,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-09-17",
+      "weight_kg": 77.34,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-09-18",
+      "weight_kg": 77.45,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-09-20",
+      "weight_kg": 78.12,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-09-21",
+      "weight_kg": 78.31,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-09-22",
+      "weight_kg": 78.26,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-09-24",
+      "weight_kg": 77.54,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-09-25",
+      "weight_kg": 79.12,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-10-01",
+      "weight_kg": 78.97,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-10-02",
+      "weight_kg": 79.7,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-10-04",
+      "weight_kg": 79.87,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-10-07",
+      "weight_kg": 78.47,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-10-12",
+      "weight_kg": 79.77,
+      "measurements_count": 2
+    },
+    {
+      "date": "2022-11-01",
+      "weight_kg": 80.25,
+      "measurements_count": 4
+    },
+    {
+      "date": "2022-11-02",
+      "weight_kg": 79.75,
+      "measurements_count": 2
+    },
+    {
+      "date": "2022-11-05",
+      "weight_kg": 79.3,
+      "measurements_count": 5
+    },
+    {
+      "date": "2022-11-13",
+      "weight_kg": 78.9,
+      "measurements_count": 2
+    },
+    {
+      "date": "2022-11-16",
+      "weight_kg": 86.26,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-11-18",
+      "weight_kg": 82.52,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-11-22",
+      "weight_kg": 84.18,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-11-23",
+      "weight_kg": 83.24,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-11-28",
+      "weight_kg": 83.62,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-11-29",
+      "weight_kg": 84.0,
+      "measurements_count": 2
+    },
+    {
+      "date": "2022-12-04",
+      "weight_kg": 82.92,
+      "measurements_count": 2
+    },
+    {
+      "date": "2022-12-05",
+      "weight_kg": 82.92,
+      "measurements_count": 1
+    },
+    {
+      "date": "2022-12-19",
+      "weight_kg": 83.68,
+      "measurements_count": 1
+    },
+    {
+      "date": "2023-01-03",
+      "weight_kg": 80.65,
+      "measurements_count": 1
+    },
+    {
+      "date": "2023-01-04",
+      "weight_kg": 80.7,
+      "measurements_count": 1
+    },
+    {
+      "date": "2023-01-05",
+      "weight_kg": 81.59,
+      "measurements_count": 1
+    },
+    {
+      "date": "2023-01-06",
+      "weight_kg": 82.42,
+      "measurements_count": 1
+    },
+    {
+      "date": "2023-01-07",
+      "weight_kg": 81.66,
+      "measurements_count": 1
+    },
+    {
+      "date": "2023-01-08",
+      "weight_kg": 82.3,
+      "measurements_count": 1
+    },
+    {
+      "date": "2023-01-09",
+      "weight_kg": 82.93,
+      "measurements_count": 1
+    },
+    {
+      "date": "2023-01-18",
+      "weight_kg": 82.49,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-01-20",
+      "weight_kg": 81.68,
+      "measurements_count": 1
+    },
+    {
+      "date": "2023-01-21",
+      "weight_kg": 81.58,
+      "measurements_count": 1
+    },
+    {
+      "date": "2023-02-05",
+      "weight_kg": 82.85,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-02-06",
+      "weight_kg": 82.6,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-02-07",
+      "weight_kg": 82.25,
+      "measurements_count": 8
+    },
+    {
+      "date": "2023-02-09",
+      "weight_kg": 80.15,
+      "measurements_count": 4
+    },
+    {
+      "date": "2023-02-11",
+      "weight_kg": 81.1,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-02-12",
+      "weight_kg": 80.95,
+      "measurements_count": 4
+    },
+    {
+      "date": "2023-02-16",
+      "weight_kg": 82.4,
+      "measurements_count": 1
+    },
+    {
+      "date": "2023-02-17",
+      "weight_kg": 79.9,
+      "measurements_count": 1
+    },
+    {
+      "date": "2023-02-20",
+      "weight_kg": 80.7,
+      "measurements_count": 1
+    },
+    {
+      "date": "2023-02-21",
+      "weight_kg": 80.2,
+      "measurements_count": 1
+    },
+    {
+      "date": "2023-02-22",
+      "weight_kg": 79.8,
+      "measurements_count": 1
+    },
+    {
+      "date": "2023-02-23",
+      "weight_kg": 79.8,
+      "measurements_count": 1
+    },
+    {
+      "date": "2023-02-26",
+      "weight_kg": 80.7,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-02-27",
+      "weight_kg": 80.2,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-02-28",
+      "weight_kg": 79.35,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-03-01",
+      "weight_kg": 79.0,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-03-02",
+      "weight_kg": 78.65,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-03-03",
+      "weight_kg": 78.05,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-03-04",
+      "weight_kg": 78.4,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-03-05",
+      "weight_kg": 78.4,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-03-06",
+      "weight_kg": 79.25,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-03-13",
+      "weight_kg": 79.68,
+      "measurements_count": 1
+    },
+    {
+      "date": "2023-03-15",
+      "weight_kg": 78.44,
+      "measurements_count": 1
+    },
+    {
+      "date": "2023-03-16",
+      "weight_kg": 78.47,
+      "measurements_count": 1
+    },
+    {
+      "date": "2023-03-17",
+      "weight_kg": 77.44,
+      "measurements_count": 1
+    },
+    {
+      "date": "2023-03-18",
+      "weight_kg": 78.45,
+      "measurements_count": 1
+    },
+    {
+      "date": "2023-03-19",
+      "weight_kg": 78.84,
+      "measurements_count": 1
+    },
+    {
+      "date": "2023-03-21",
+      "weight_kg": 79.25,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-03-22",
+      "weight_kg": 78.5,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-03-24",
+      "weight_kg": 77.9,
+      "measurements_count": 1
+    },
+    {
+      "date": "2023-03-25",
+      "weight_kg": 77.6,
+      "measurements_count": 1
+    },
+    {
+      "date": "2023-03-27",
+      "weight_kg": 79.2,
+      "measurements_count": 1
+    },
+    {
+      "date": "2023-03-28",
+      "weight_kg": 78.3,
+      "measurements_count": 1
+    },
+    {
+      "date": "2023-03-29",
+      "weight_kg": 77.6,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-03-30",
+      "weight_kg": 77.4,
+      "measurements_count": 1
+    },
+    {
+      "date": "2023-03-31",
+      "weight_kg": 77.4,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-04-29",
+      "weight_kg": 77.57,
+      "measurements_count": 1
+    },
+    {
+      "date": "2023-04-30",
+      "weight_kg": 78.22,
+      "measurements_count": 1
+    },
+    {
+      "date": "2023-05-01",
+      "weight_kg": 79.66,
+      "measurements_count": 1
+    },
+    {
+      "date": "2023-05-05",
+      "weight_kg": 77.95,
+      "measurements_count": 1
+    },
+    {
+      "date": "2023-05-06",
+      "weight_kg": 77.9,
+      "measurements_count": 1
+    },
+    {
+      "date": "2023-05-07",
+      "weight_kg": 77.0,
+      "measurements_count": 1
+    },
+    {
+      "date": "2023-05-10",
+      "weight_kg": 77.54,
+      "measurements_count": 1
+    },
+    {
+      "date": "2023-05-13",
+      "weight_kg": 76.47,
+      "measurements_count": 1
+    },
+    {
+      "date": "2023-06-10",
+      "weight_kg": 77.85,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-06-13",
+      "weight_kg": 77.4,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-06-28",
+      "weight_kg": 77.4,
+      "measurements_count": 1
+    },
+    {
+      "date": "2023-06-30",
+      "weight_kg": 78.0,
+      "measurements_count": 1
+    },
+    {
+      "date": "2023-07-04",
+      "weight_kg": 77.95,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-07-05",
+      "weight_kg": 77.9,
+      "measurements_count": 4
+    },
+    {
+      "date": "2023-07-21",
+      "weight_kg": 77.65,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-07-29",
+      "weight_kg": 78.05,
+      "measurements_count": 1
+    },
+    {
+      "date": "2023-08-01",
+      "weight_kg": 77.8,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-08-06",
+      "weight_kg": 79.3,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-08-07",
+      "weight_kg": 79.15,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-08-08",
+      "weight_kg": 78.15,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-08-09",
+      "weight_kg": 78.15,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-08-10",
+      "weight_kg": 78.4,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-08-14",
+      "weight_kg": 77.65,
+      "measurements_count": 6
+    },
+    {
+      "date": "2023-08-16",
+      "weight_kg": 78.3,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-08-17",
+      "weight_kg": 78.15,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-08-19",
+      "weight_kg": 78.25,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-08-22",
+      "weight_kg": 77.85,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-08-23",
+      "weight_kg": 77.7,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-08-24",
+      "weight_kg": 78.15,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-08-25",
+      "weight_kg": 78.0,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-08-28",
+      "weight_kg": 78.0,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-08-30",
+      "weight_kg": 78.15,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-08-31",
+      "weight_kg": 78.5,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-09-01",
+      "weight_kg": 78.1,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-09-02",
+      "weight_kg": 78.8,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-09-11",
+      "weight_kg": 79.2,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-09-13",
+      "weight_kg": 78.7,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-09-17",
+      "weight_kg": 79.9,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-09-19",
+      "weight_kg": 78.6,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-09-25",
+      "weight_kg": 79.7,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-09-26",
+      "weight_kg": 79.35,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-09-27",
+      "weight_kg": 78.75,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-10-01",
+      "weight_kg": 79.7,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-10-20",
+      "weight_kg": 78.75,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-11-07",
+      "weight_kg": 81.25,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-11-15",
+      "weight_kg": 79.4,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-12-10",
+      "weight_kg": 79.75,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-12-19",
+      "weight_kg": 79.5,
+      "measurements_count": 2
+    },
+    {
+      "date": "2023-12-22",
+      "weight_kg": 80.3,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-02-11",
+      "weight_kg": 80.3,
+      "measurements_count": 6
+    },
+    {
+      "date": "2024-02-25",
+      "weight_kg": 81.75,
+      "measurements_count": 8
+    },
+    {
+      "date": "2024-02-26",
+      "weight_kg": 80.8,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-02-27",
+      "weight_kg": 81.15,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-02-28",
+      "weight_kg": 81.6,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-02-29",
+      "weight_kg": 81.35,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-03-05",
+      "weight_kg": 80.0,
+      "measurements_count": 1
+    },
+    {
+      "date": "2024-03-07",
+      "weight_kg": 82.15,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-03-09",
+      "weight_kg": 82.0,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-03-10",
+      "weight_kg": 81.45,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-03-11",
+      "weight_kg": 80.9,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-03-12",
+      "weight_kg": 81.55,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-03-19",
+      "weight_kg": 81.9,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-03-20",
+      "weight_kg": 82.1,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-03-21",
+      "weight_kg": 81.3,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-03-23",
+      "weight_kg": 81.65,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-04-07",
+      "weight_kg": 81.4,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-04-08",
+      "weight_kg": 80.7,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-04-14",
+      "weight_kg": 81.0,
+      "measurements_count": 1
+    },
+    {
+      "date": "2024-04-16",
+      "weight_kg": 80.75,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-04-21",
+      "weight_kg": 80.4,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-04-27",
+      "weight_kg": 80.25,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-04-29",
+      "weight_kg": 80.25,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-04-30",
+      "weight_kg": 80.25,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-05-02",
+      "weight_kg": 80.0,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-05-09",
+      "weight_kg": 81.55,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-05-10",
+      "weight_kg": 80.75,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-05-11",
+      "weight_kg": 80.2,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-05-12",
+      "weight_kg": 81.05,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-05-14",
+      "weight_kg": 80.85,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-05-18",
+      "weight_kg": 79.82,
+      "measurements_count": 4
+    },
+    {
+      "date": "2024-05-19",
+      "weight_kg": 80.4,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-05-20",
+      "weight_kg": 80.8,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-05-26",
+      "weight_kg": 80.65,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-05-31",
+      "weight_kg": 79.02,
+      "measurements_count": 6
+    },
+    {
+      "date": "2024-06-01",
+      "weight_kg": 79.2,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-06-02",
+      "weight_kg": 79.43,
+      "measurements_count": 6
+    },
+    {
+      "date": "2024-06-03",
+      "weight_kg": 79.45,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-06-09",
+      "weight_kg": 79.92,
+      "measurements_count": 3
+    },
+    {
+      "date": "2024-06-15",
+      "weight_kg": 80.25,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-06-18",
+      "weight_kg": 80.25,
+      "measurements_count": 1
+    },
+    {
+      "date": "2024-06-30",
+      "weight_kg": 79.1,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-07-17",
+      "weight_kg": 79.75,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-07-19",
+      "weight_kg": 79.2,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-07-21",
+      "weight_kg": 78.8,
+      "measurements_count": 4
+    },
+    {
+      "date": "2024-07-30",
+      "weight_kg": 78.8,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-08-06",
+      "weight_kg": 80.0,
+      "measurements_count": 1
+    },
+    {
+      "date": "2024-08-07",
+      "weight_kg": 80.0,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-09-04",
+      "weight_kg": 79.8,
+      "measurements_count": 1
+    },
+    {
+      "date": "2024-09-22",
+      "weight_kg": 81.0,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-09-23",
+      "weight_kg": 81.1,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-09-29",
+      "weight_kg": 80.1,
+      "measurements_count": 2
+    },
+    {
+      "date": "2024-10-13",
+      "weight_kg": 80.15,
+      "measurements_count": 2
+    },
+    {
+      "date": "2025-01-18",
+      "weight_kg": 82.7,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-01-19",
+      "weight_kg": 82.55,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-01-20",
+      "weight_kg": 82.45,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-01-21",
+      "weight_kg": 81.1,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-01-22",
+      "weight_kg": 81.35,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-01-23",
+      "weight_kg": 81.65,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-02-02",
+      "weight_kg": 82.25,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-02-08",
+      "weight_kg": 81.4,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-02-10",
+      "weight_kg": 80.95,
+      "measurements_count": 2
+    },
+    {
+      "date": "2025-02-13",
+      "weight_kg": 80.5,
+      "measurements_count": 2
+    },
+    {
+      "date": "2025-02-14",
+      "weight_kg": 80.1,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-02-17",
+      "weight_kg": 80.85,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-02-21",
+      "weight_kg": 80.39,
+      "measurements_count": 4
+    },
+    {
+      "date": "2025-02-23",
+      "weight_kg": 80.5,
+      "measurements_count": 2
+    },
+    {
+      "date": "2025-03-24",
+      "weight_kg": 81.3,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-05-04",
+      "weight_kg": 82.65,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-05-05",
+      "weight_kg": 82.3,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-05-08",
+      "weight_kg": 83.0,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-05-09",
+      "weight_kg": 81.7,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-05-10",
+      "weight_kg": 81.8,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-05-13",
+      "weight_kg": 81.65,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-06-25",
+      "weight_kg": 85.6,
+      "measurements_count": 2
+    },
+    {
+      "date": "2025-06-26",
+      "weight_kg": 84.75,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-06-27",
+      "weight_kg": 84.25,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-06-28",
+      "weight_kg": 83.65,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-07-12",
+      "weight_kg": 83.1,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-07-20",
+      "weight_kg": 83.75,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-07-21",
+      "weight_kg": 83.75,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-07-24",
+      "weight_kg": 82.5,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-07-26",
+      "weight_kg": 81.95,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-07-27",
+      "weight_kg": 81.75,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-07-28",
+      "weight_kg": 81.2,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-07-29",
+      "weight_kg": 80.75,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-07-30",
+      "weight_kg": 80.4,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-07-31",
+      "weight_kg": 79.7,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-08-01",
+      "weight_kg": 78.65,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-08-03",
+      "weight_kg": 79.15,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-08-05",
+      "weight_kg": 79.75,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-08-06",
+      "weight_kg": 79.05,
+      "measurements_count": 2
+    },
+    {
+      "date": "2025-08-08",
+      "weight_kg": 79.05,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-08-09",
+      "weight_kg": 79.45,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-08-10",
+      "weight_kg": 79.45,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-08-11",
+      "weight_kg": 78.8,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-08-12",
+      "weight_kg": 79.2,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-08-14",
+      "weight_kg": 79.2,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-08-15",
+      "weight_kg": 79.6,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-08-16",
+      "weight_kg": 79.9,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-08-20",
+      "weight_kg": 80.0,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-08-22",
+      "weight_kg": 79.15,
+      "measurements_count": 3
+    },
+    {
+      "date": "2025-08-23",
+      "weight_kg": 78.65,
+      "measurements_count": 2
+    },
+    {
+      "date": "2025-08-27",
+      "weight_kg": 80.25,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-08-28",
+      "weight_kg": 80.15,
+      "measurements_count": 2
+    },
+    {
+      "date": "2025-09-10",
+      "weight_kg": 81.1,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-09-11",
+      "weight_kg": 79.75,
+      "measurements_count": 2
+    },
+    {
+      "date": "2025-10-04",
+      "weight_kg": 80.65,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-10-09",
+      "weight_kg": 80.65,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-11-04",
+      "weight_kg": 83.2,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-11-16",
+      "weight_kg": 83.3,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-11-23",
+      "weight_kg": 81.5,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-11-26",
+      "weight_kg": 82.4,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-12-16",
+      "weight_kg": 81.5,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-12-23",
+      "weight_kg": 83.75,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-12-26",
+      "weight_kg": 82.6,
+      "measurements_count": 1
+    },
+    {
+      "date": "2025-12-27",
+      "weight_kg": 81.7,
+      "measurements_count": 1
+    },
+    {
+      "date": "2026-01-05",
+      "weight_kg": 83.8,
+      "measurements_count": 1
+    },
+    {
+      "date": "2026-01-06",
+      "weight_kg": 82.75,
+      "measurements_count": 1
+    },
+    {
+      "date": "2026-01-08",
+      "weight_kg": 81.9,
+      "measurements_count": 1
+    },
+    {
+      "date": "2026-01-09",
+      "weight_kg": 81.7,
+      "measurements_count": 1
+    },
+    {
+      "date": "2026-01-10",
+      "weight_kg": 80.95,
+      "measurements_count": 1
+    },
+    {
+      "date": "2026-01-11",
+      "weight_kg": 81.25,
+      "measurements_count": 1
+    },
+    {
+      "date": "2026-01-12",
+      "weight_kg": 82.03,
+      "measurements_count": 2
+    },
+    {
+      "date": "2026-01-13",
+      "weight_kg": 81.1,
+      "measurements_count": 1
+    },
+    {
+      "date": "2026-01-14",
+      "weight_kg": 80.82,
+      "measurements_count": 3
+    },
+    {
+      "date": "2026-01-15",
+      "weight_kg": 81.0,
+      "measurements_count": 1
+    },
+    {
+      "date": "2026-01-16",
+      "weight_kg": 81.6,
+      "measurements_count": 1
+    },
+    {
+      "date": "2026-01-18",
+      "weight_kg": 81.4,
+      "measurements_count": 1
+    },
+    {
+      "date": "2026-01-19",
+      "weight_kg": 82.03,
+      "measurements_count": 2
+    },
+    {
+      "date": "2026-01-20",
+      "weight_kg": 81.85,
+      "measurements_count": 1
+    },
+    {
+      "date": "2026-01-21",
+      "weight_kg": 82.25,
+      "measurements_count": 2
+    },
+    {
+      "date": "2026-01-22",
+      "weight_kg": 81.8,
+      "measurements_count": 1
+    },
+    {
+      "date": "2026-01-23",
+      "weight_kg": 81.6,
+      "measurements_count": 1
+    },
+    {
+      "date": "2026-01-24",
+      "weight_kg": 81.38,
+      "measurements_count": 2
+    },
+    {
+      "date": "2026-01-25",
+      "weight_kg": 81.05,
+      "measurements_count": 1
+    },
+    {
+      "date": "2026-01-26",
+      "weight_kg": 81.05,
+      "measurements_count": 1
+    },
+    {
+      "date": "2026-01-27",
+      "weight_kg": 80.35,
+      "measurements_count": 1
+    },
+    {
+      "date": "2026-01-28",
+      "weight_kg": 81.2,
+      "measurements_count": 1
+    },
+    {
+      "date": "2026-01-29",
+      "weight_kg": 80.4,
+      "measurements_count": 1
+    },
+    {
+      "date": "2026-01-31",
+      "weight_kg": 80.85,
+      "measurements_count": 1
+    },
+    {
+      "date": "2026-02-01",
+      "weight_kg": 80.6,
+      "measurements_count": 1
+    },
+    {
+      "date": "2026-02-02",
+      "weight_kg": 80.6,
+      "measurements_count": 1
+    },
+    {
+      "date": "2026-02-03",
+      "weight_kg": 80.5,
+      "measurements_count": 1
+    },
+    {
+      "date": "2026-02-04",
+      "weight_kg": 79.6,
+      "measurements_count": 2
+    },
+    {
+      "date": "2026-02-05",
+      "weight_kg": 79.05,
+      "measurements_count": 1
+    },
+    {
+      "date": "2026-02-06",
+      "weight_kg": 79.03,
+      "measurements_count": 4
+    },
+    {
+      "date": "2026-02-07",
+      "weight_kg": 79.05,
+      "measurements_count": 2
+    },
+    {
+      "date": "2026-02-08",
+      "weight_kg": 80.6,
+      "measurements_count": 1
+    },
+    {
+      "date": "2026-02-09",
+      "weight_kg": 80.35,
+      "measurements_count": 1
+    },
+    {
+      "date": "2026-02-10",
+      "weight_kg": 79.35,
+      "measurements_count": 1
+    }
+  ]
+}

@@ -1,0 +1,586 @@
+{
+  "measurements": [
+    {
+      "date": "2018-08-25",
+      "time": "11:12:00",
+      "systolic": 129,
+      "diastolic": 52
+    },
+    {
+      "date": "2018-10-16",
+      "time": "05:51:00",
+      "systolic": 119,
+      "diastolic": 79
+    },
+    {
+      "date": "2024-07-11",
+      "time": "08:07:00",
+      "systolic": 120,
+      "diastolic": 80
+    },
+    {
+      "date": "2025-08-13",
+      "time": "10:31:00",
+      "systolic": 132,
+      "diastolic": 87
+    },
+    {
+      "date": "2026-01-08",
+      "time": "16:22:16",
+      "systolic": 141,
+      "diastolic": 94
+    },
+    {
+      "date": "2026-01-08",
+      "time": "16:25:08",
+      "systolic": 138,
+      "diastolic": 85
+    },
+    {
+      "date": "2026-01-08",
+      "time": "16:30:56",
+      "systolic": 147,
+      "diastolic": 95
+    },
+    {
+      "date": "2026-01-09",
+      "time": "09:28:40",
+      "systolic": 139,
+      "diastolic": 91
+    },
+    {
+      "date": "2026-01-09",
+      "time": "09:29:44",
+      "systolic": 127,
+      "diastolic": 84
+    },
+    {
+      "date": "2026-01-10",
+      "time": "10:13:59",
+      "systolic": 118,
+      "diastolic": 74
+    },
+    {
+      "date": "2026-01-10",
+      "time": "10:15:54",
+      "systolic": 111,
+      "diastolic": 83
+    },
+    {
+      "date": "2026-01-10",
+      "time": "10:19:35",
+      "systolic": 114,
+      "diastolic": 81
+    },
+    {
+      "date": "2026-01-11",
+      "time": "11:37:39",
+      "systolic": 105,
+      "diastolic": 72
+    },
+    {
+      "date": "2026-01-11",
+      "time": "11:38:58",
+      "systolic": 116,
+      "diastolic": 74
+    },
+    {
+      "date": "2026-01-11",
+      "time": "11:43:36",
+      "systolic": 121,
+      "diastolic": 69
+    },
+    {
+      "date": "2026-01-11",
+      "time": "11:53:21",
+      "systolic": 129,
+      "diastolic": 81
+    },
+    {
+      "date": "2026-01-12",
+      "time": "09:10:53",
+      "systolic": 118,
+      "diastolic": 79
+    },
+    {
+      "date": "2026-01-12",
+      "time": "09:12:27",
+      "systolic": 119,
+      "diastolic": 79
+    },
+    {
+      "date": "2026-01-12",
+      "time": "09:14:21",
+      "systolic": 112,
+      "diastolic": 73
+    },
+    {
+      "date": "2026-01-13",
+      "time": "11:08:22",
+      "systolic": 124,
+      "diastolic": 86
+    },
+    {
+      "date": "2026-01-13",
+      "time": "11:09:38",
+      "systolic": 137,
+      "diastolic": 83
+    },
+    {
+      "date": "2026-01-13",
+      "time": "11:11:25",
+      "systolic": 136,
+      "diastolic": 80
+    },
+    {
+      "date": "2026-01-14",
+      "time": "11:11:27",
+      "systolic": 132,
+      "diastolic": 84
+    },
+    {
+      "date": "2026-01-14",
+      "time": "11:12:48",
+      "systolic": 129,
+      "diastolic": 83
+    },
+    {
+      "date": "2026-01-14",
+      "time": "11:14:23",
+      "systolic": 133,
+      "diastolic": 82
+    },
+    {
+      "date": "2026-01-15",
+      "time": "11:15:43",
+      "systolic": 107,
+      "diastolic": 80
+    },
+    {
+      "date": "2026-01-15",
+      "time": "11:17:24",
+      "systolic": 126,
+      "diastolic": 78
+    },
+    {
+      "date": "2026-01-15",
+      "time": "11:18:32",
+      "systolic": 121,
+      "diastolic": 83
+    },
+    {
+      "date": "2026-01-16",
+      "time": "09:29:46",
+      "systolic": 125,
+      "diastolic": 77
+    },
+    {
+      "date": "2026-01-16",
+      "time": "09:34:54",
+      "systolic": 121,
+      "diastolic": 76
+    },
+    {
+      "date": "2026-01-16",
+      "time": "17:00:16",
+      "systolic": 142,
+      "diastolic": 95
+    },
+    {
+      "date": "2026-01-16",
+      "time": "17:02:13",
+      "systolic": 138,
+      "diastolic": 88
+    },
+    {
+      "date": "2026-01-16",
+      "time": "17:03:03",
+      "systolic": 134,
+      "diastolic": 87
+    },
+    {
+      "date": "2026-01-17",
+      "time": "13:47:41",
+      "systolic": 139,
+      "diastolic": 91
+    },
+    {
+      "date": "2026-01-17",
+      "time": "13:49:16",
+      "systolic": 134,
+      "diastolic": 90
+    },
+    {
+      "date": "2026-01-17",
+      "time": "13:50:51",
+      "systolic": 141,
+      "diastolic": 90
+    },
+    {
+      "date": "2026-01-18",
+      "time": "10:56:47",
+      "systolic": 123,
+      "diastolic": 77
+    },
+    {
+      "date": "2026-01-18",
+      "time": "10:58:10",
+      "systolic": 120,
+      "diastolic": 79
+    },
+    {
+      "date": "2026-01-18",
+      "time": "10:59:48",
+      "systolic": 114,
+      "diastolic": 76
+    },
+    {
+      "date": "2026-01-19",
+      "time": "00:19:52",
+      "systolic": 121,
+      "diastolic": 76
+    },
+    {
+      "date": "2026-01-19",
+      "time": "00:21:58",
+      "systolic": 121,
+      "diastolic": 72
+    },
+    {
+      "date": "2026-01-19",
+      "time": "00:24:05",
+      "systolic": 124,
+      "diastolic": 74
+    },
+    {
+      "date": "2026-01-19",
+      "time": "08:50:31",
+      "systolic": 118,
+      "diastolic": 82
+    },
+    {
+      "date": "2026-01-19",
+      "time": "08:51:59",
+      "systolic": 119,
+      "diastolic": 77
+    },
+    {
+      "date": "2026-01-19",
+      "time": "08:53:26",
+      "systolic": 116,
+      "diastolic": 76
+    },
+    {
+      "date": "2026-01-19",
+      "time": "16:17:15",
+      "systolic": 136,
+      "diastolic": 85
+    },
+    {
+      "date": "2026-01-19",
+      "time": "16:18:21",
+      "systolic": 143,
+      "diastolic": 87
+    },
+    {
+      "date": "2026-01-20",
+      "time": "09:22:09",
+      "systolic": 122,
+      "diastolic": 84
+    },
+    {
+      "date": "2026-01-20",
+      "time": "09:23:30",
+      "systolic": 127,
+      "diastolic": 84
+    },
+    {
+      "date": "2026-01-20",
+      "time": "09:25:11",
+      "systolic": 121,
+      "diastolic": 89
+    },
+    {
+      "date": "2026-01-21",
+      "time": "09:40:05",
+      "systolic": 117,
+      "diastolic": 59
+    },
+    {
+      "date": "2026-01-21",
+      "time": "09:41:21",
+      "systolic": 110,
+      "diastolic": 70
+    },
+    {
+      "date": "2026-01-22",
+      "time": "10:26:22",
+      "systolic": 126,
+      "diastolic": 81
+    },
+    {
+      "date": "2026-01-22",
+      "time": "10:27:41",
+      "systolic": 126,
+      "diastolic": 81
+    },
+    {
+      "date": "2026-01-22",
+      "time": "10:29:28",
+      "systolic": 125,
+      "diastolic": 76
+    },
+    {
+      "date": "2026-01-23",
+      "time": "07:51:25",
+      "systolic": 132,
+      "diastolic": 86
+    },
+    {
+      "date": "2026-01-23",
+      "time": "07:52:33",
+      "systolic": 123,
+      "diastolic": 91
+    },
+    {
+      "date": "2026-01-23",
+      "time": "07:53:40",
+      "systolic": 130,
+      "diastolic": 88
+    },
+    {
+      "date": "2026-01-24",
+      "time": "11:03:33",
+      "systolic": 126,
+      "diastolic": 82
+    },
+    {
+      "date": "2026-01-24",
+      "time": "11:04:48",
+      "systolic": 121,
+      "diastolic": 89
+    },
+    {
+      "date": "2026-01-24",
+      "time": "11:05:51",
+      "systolic": 118,
+      "diastolic": 84
+    },
+    {
+      "date": "2026-01-24",
+      "time": "11:07:51",
+      "systolic": 124,
+      "diastolic": 86
+    },
+    {
+      "date": "2026-01-25",
+      "time": "09:29:53",
+      "systolic": 117,
+      "diastolic": 79
+    },
+    {
+      "date": "2026-01-26",
+      "time": "08:19:15",
+      "systolic": 114,
+      "diastolic": 72
+    },
+    {
+      "date": "2026-01-26",
+      "time": "08:20:14",
+      "systolic": 117,
+      "diastolic": 73
+    },
+    {
+      "date": "2026-01-26",
+      "time": "08:23:57",
+      "systolic": 103,
+      "diastolic": 65
+    },
+    {
+      "date": "2026-01-27",
+      "time": "09:48:21",
+      "systolic": 122,
+      "diastolic": 80
+    },
+    {
+      "date": "2026-01-27",
+      "time": "09:50:22",
+      "systolic": 121,
+      "diastolic": 81
+    },
+    {
+      "date": "2026-01-27",
+      "time": "09:51:29",
+      "systolic": 127,
+      "diastolic": 74
+    },
+    {
+      "date": "2026-01-30",
+      "time": "13:32:47",
+      "systolic": 135,
+      "diastolic": 84
+    },
+    {
+      "date": "2026-01-31",
+      "time": "10:19:06",
+      "systolic": 129,
+      "diastolic": 83
+    },
+    {
+      "date": "2026-01-31",
+      "time": "10:20:21",
+      "systolic": 130,
+      "diastolic": 84
+    },
+    {
+      "date": "2026-01-31",
+      "time": "10:25:11",
+      "systolic": 135,
+      "diastolic": 81
+    },
+    {
+      "date": "2026-02-01",
+      "time": "09:40:52",
+      "systolic": 123,
+      "diastolic": 77
+    },
+    {
+      "date": "2026-02-01",
+      "time": "09:43:42",
+      "systolic": 121,
+      "diastolic": 78
+    },
+    {
+      "date": "2026-02-01",
+      "time": "09:54:29",
+      "systolic": 122,
+      "diastolic": 82
+    },
+    {
+      "date": "2026-02-01",
+      "time": "17:49:16",
+      "systolic": 129,
+      "diastolic": 92
+    },
+    {
+      "date": "2026-02-03",
+      "time": "10:35:49",
+      "systolic": 119,
+      "diastolic": 80
+    },
+    {
+      "date": "2026-02-03",
+      "time": "10:37:48",
+      "systolic": 117,
+      "diastolic": 79
+    },
+    {
+      "date": "2026-02-04",
+      "time": "09:13:35",
+      "systolic": 126,
+      "diastolic": 89
+    },
+    {
+      "date": "2026-02-04",
+      "time": "09:14:49",
+      "systolic": 120,
+      "diastolic": 81
+    },
+    {
+      "date": "2026-02-04",
+      "time": "09:19:40",
+      "systolic": 122,
+      "diastolic": 83
+    },
+    {
+      "date": "2026-02-05",
+      "time": "10:56:21",
+      "systolic": 129,
+      "diastolic": 77
+    },
+    {
+      "date": "2026-02-05",
+      "time": "10:58:48",
+      "systolic": 128,
+      "diastolic": 72
+    },
+    {
+      "date": "2026-02-05",
+      "time": "11:02:21",
+      "systolic": 126,
+      "diastolic": 82
+    },
+    {
+      "date": "2026-02-07",
+      "time": "11:05:06",
+      "systolic": 121,
+      "diastolic": 78
+    },
+    {
+      "date": "2026-02-07",
+      "time": "11:08:22",
+      "systolic": 122,
+      "diastolic": 73
+    },
+    {
+      "date": "2026-02-07",
+      "time": "11:10:03",
+      "systolic": 116,
+      "diastolic": 74
+    },
+    {
+      "date": "2026-02-08",
+      "time": "11:20:29",
+      "systolic": 126,
+      "diastolic": 80
+    },
+    {
+      "date": "2026-02-08",
+      "time": "11:22:09",
+      "systolic": 113,
+      "diastolic": 83
+    },
+    {
+      "date": "2026-02-08",
+      "time": "11:27:48",
+      "systolic": 126,
+      "diastolic": 76
+    },
+    {
+      "date": "2026-02-08",
+      "time": "11:30:32",
+      "systolic": 119,
+      "diastolic": 76
+    },
+    {
+      "date": "2026-02-09",
+      "time": "08:25:35",
+      "systolic": 128,
+      "diastolic": 86
+    },
+    {
+      "date": "2026-02-09",
+      "time": "08:26:36",
+      "systolic": 135,
+      "diastolic": 82
+    },
+    {
+      "date": "2026-02-10",
+      "time": "09:28:41",
+      "systolic": 133,
+      "diastolic": 85
+    },
+    {
+      "date": "2026-02-10",
+      "time": "09:30:05",
+      "systolic": 125,
+      "diastolic": 82
+    },
+    {
+      "date": "2026-02-10",
+      "time": "09:33:35",
+      "systolic": 123,
+      "diastolic": 82
+    }
+  ]
+}

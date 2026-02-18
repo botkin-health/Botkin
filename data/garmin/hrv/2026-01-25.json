@@ -1,0 +1,27 @@
+{
+  "userProfilePk": 58868684,
+  "hrvSummary": {
+    "calendarDate": "2026-01-25",
+    "weeklyAvg": 51,
+    "lastNightAvg": null,
+    "lastNight5MinHigh": null,
+    "baseline": {
+      "lowUpper": 38,
+      "balancedLow": 41,
+      "balancedUpper": 53,
+      "markerValue": 0.6666565
+    },
+    "status": "BALANCED",
+    "feedbackPhrase": "HRV_BALANCED_7",
+    "createTimeStamp": "2026-01-25T06:17:07.198"
+  },
+  "hrvReadings": [],
+  "startTimestampGMT": "2026-01-25T06:18:09.0",
+  "endTimestampGMT": "2026-01-25T06:18:11.0",
+  "startTimestampLocal": "2026-01-25T09:18:09.0",
+  "endTimestampLocal": "2026-01-25T09:18:11.0",
+  "sleepStartTimestampGMT": null,
+  "sleepEndTimestampGMT": null,
+  "sleepStartTimestampLocal": null,
+  "sleepEndTimestampLocal": null
+}

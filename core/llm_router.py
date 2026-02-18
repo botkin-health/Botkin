@@ -78,7 +78,9 @@ CRITICAL FOR FOOD:
 - Use USER provided weights if present (e.g. "100g carrot" -> weight: 100).
 - If macros are provided in text (e.g. "Fat: 0.4g"), USE THEM exact. DO NOT interpret "0.4" as a percentage multiplier!
 - If text says "raw carrot 100g", item name is "raw carrot", weight is 100.
-- Do NOT hallucinate weights if they are totally absent, but you can estimate standard portions (e.g. "1 egg" -> 50g).
+- Do NOT leave weight and calories as null/0 for well-known dishes. ALWAYS estimate standard portion weight and macros.
+- If user lists dishes without weight (e.g. "lentil soup, salad, kebab"), use standard portion sizes from the database below.
+- NEVER return 0 calories for real food items. Estimate using your knowledge of typical nutritional values.
 
 STANDARD PORTIONS DATABASE (use when exact weight not provided):
 
@@ -145,12 +147,33 @@ STANDARD PORTIONS DATABASE (use when exact weight not provided):
 - Кешью: 10 шт = 15г
 - Семечки подсолнуха: 1 ст.л. = 15г
 
+ГОТОВЫЕ БЛЮДА (1 стандартная порция в ресторане/дома):
+- Борщ/щи: 300г, ~120 ккал (Б:5 Ж:4 У:15)
+- Куриный/овощной/грибной суп: 300г, ~100-150 ккал
+- Суп чечевичный/гороховый: 300г, ~180 ккал (Б:12 Ж:4 У:25)
+- Солянка: 300г, ~130 ккал (Б:8 Ж:7 У:8)
+- Овощной салат (греческий, турецкий, шопский): 200г, ~120 ккал (Б:3 Ж:8 У:10)
+- Оливье/Цезарь: 200г, ~280 ккал (Б:10 Ж:18 У:18)
+- Люля-кебаб: 1 шт = 100г, ~200 ккал (Б:12 Ж:16 У:2)
+- Шашлык: 200г, ~350 ккал (Б:25 Ж:27 У:0)
+- Котлеты (мясные): 1 шт = 80г, ~200 ккал (Б:12 Ж:15 У:7)
+- Пельмени (порция): 250г, ~500 ккал (Б:20 Ж:20 У:55)
+- Плов: 300г, ~450 ккал (Б:15 Ж:18 У:55)
+- Каша на воде (порция): 250г, ~200 ккал
+- Паста/макароны (порция): 250г готовой, ~350 ккал
+- Пицца: 1 кусок = 100г, ~250 ккал
+- Блины с начинкой: 1 шт = 80г, ~200 ккал
+- Рагу овощное: 250г, ~120 ккал
+- Гуляш: 250г, ~280 ккал (Б:20 Ж:16 У:12)
+
 CRITICAL RULES FOR ACCURACY:
 1. ALWAYS convert spoons to grams: "1 ч.л. масла" -> weight: 5
 2. ALWAYS convert pieces to grams: "6 оливок" -> weight: 30
 3. For eggs: Use 55g per egg if size not specified
 4. If user says "чайная ложка" or "столовая ложка" - ALWAYS provide weight in grams
 5. NEVER leave weight as null if portion type is known (spoons, pieces, slices)
+6. For dishes without explicit weight (soup, salad, kebab etc) - ALWAYS use standard portion from database above
+7. NEVER return calories: 0 for a real food item. Estimate based on your nutritional knowledge
 
 SCENARIO 2: WEIGHT
 Extract weight and body composition.
