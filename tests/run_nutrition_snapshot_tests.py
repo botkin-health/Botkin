@@ -6,10 +6,9 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 # Add project root to path
-# Add telegram-bot directory to path (because it has a hyphen)
-sys.path.insert(0, str(Path(__file__).parent.parent / "telegram-bot"))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from services.nutrition import process_meal_description
+from core.nutrition import process_meal_description
 
 def mock_chatgpt_response(description, key):
     desc_lower = description.lower()
@@ -148,20 +147,18 @@ def run_tests():
 
     print(f"Running {total} snapshot tests...\n")
 
-    # Mocking ChatGPT and Network calls
-    # Import modules to ensure they are loaded before patching
-    import services.chatgpt_vision
-    import services.description_parser
-    import services.menu_parser
-    
-    # We use mock_menu_photo_response for BOTH chatgpt wrapper and menu_parser direct call
-    with patch('services.chatgpt_vision.parse_text_description_with_chatgpt', side_effect=mock_chatgpt_response), \
-         patch('services.chatgpt_vision.parse_menu_with_chatgpt', side_effect=mock_menu_photo_response), \
-         patch('services.menu_parser.parse_menu_photo', side_effect=mock_menu_photo_response), \
-         patch('services.description_parser.extract_weights_from_photos', side_effect=mock_extract_weights), \
-         patch('services.chatgpt_vision.get_openai_api_key', return_value="fake_key"), \
-         patch('services.nutrition.search_product_online', return_value=None), \
-         patch('services.nutrition.find_product', return_value=None):
+    # Mocking ChatGPT and Network calls (patch at core.* where they are used)
+    import core.chatgpt_vision
+    import core.description_parser
+    import core.menu_parser
+
+    with patch('core.chatgpt_vision.parse_text_description_with_chatgpt', side_effect=mock_chatgpt_response), \
+         patch('core.chatgpt_vision.parse_menu_with_chatgpt', side_effect=mock_menu_photo_response), \
+         patch('core.menu_parser.parse_menu_photo', side_effect=mock_menu_photo_response), \
+         patch('core.description_parser.extract_weights_from_photos', side_effect=mock_extract_weights), \
+         patch('core.chatgpt_vision.get_openai_api_key', return_value="fake_key"), \
+         patch('core.product_search.search_product_online', return_value=None), \
+         patch('core.product_search.find_product', return_value=None):
 
         for case in inputs:
             case_id = case["id"]
