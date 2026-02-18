@@ -42,6 +42,7 @@
 - ✅ **Рефакторинг (этап 1)**: Удалён мёртвый код — неиспользуемые импорты storage в handlers, модули `common_config.py`, `biometrics.py`.
 - ✅ **Рефакторинг (этап 2)**: Удалён мёртвый `handlers/health.py`; в Docker добавлен `infrastructure/` (кэш изображений в проде); `core/storage.py` помечен как legacy.
 - ✅ **Рефакторинг (этап 3)**: Удалена папка `telegram-bot/scripts/debug/` (сломанные импорты); единый источник для env — корневой `.env.example`, в telegram-bot — ссылка.
+- ✅ **Рефакторинг (этап 4)**: В тестах обновлены пути с `services.*` на `core.*` в `run_nutrition_snapshot_tests.py` (импорт и патчи).
 
 ---
 
@@ -120,14 +121,13 @@
   - В ROADMAP: «слишком много ответственностей». Уже вынесены `llm_food_processor`, `menu_meal_processor`. В nutrition остаются парсинг, расчёт КБЖУ, реэкспорты.
   - Действие: разбить на подмодули (например, nutrition/calculation.py, nutrition/parsing.py) или явно описать зоны ответственности в docstring и не трогать, пока не появятся новые фичи.
 
-### 9. Тесты
+### 9. Тесты ✅ (2026-02-18)
 
-- [ ] **Тесты с устаревшими путями**
-  - `run_nutrition_snapshot_tests.py`, `verify_fix_nutrition.py` используют `services.nutrition` и старые имена.
-  - Действие: обновить импорты на `core.nutrition` (и актуальные имена) или пометить тесты как legacy и вынести в archive.
+- [x] **Тесты с устаревшими путями**
+  - В `run_nutrition_snapshot_tests.py` импорты и патчи переведены на `core.*` (core.nutrition, core.chatgpt_vision, core.product_search и т.д.). `verify_fix_nutrition.py` уже использовал `core.nutrition`.
 
 - [ ] **test_repository.py и test_domain_models.py**
-  - Завязаны на JSON-репозиторий и domain. При удалении domain/json_repository — переписать или удалить.
+  - Завязаны на JSON-репозиторий и domain. Оставлены без изменений; при удалении domain — переписать или удалить.
 
 ### 10. Чек-лист перед запуском рефакторинга
 
