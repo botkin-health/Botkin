@@ -429,7 +429,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                 'data': {'items': found_items}
             }
         else:
-            await processing_msg.edit_text("🤷‍♂️ Не понял, что это. Это еда? Попробуй описать точнее.\n⚠️ <b>OpenAI не отвечает</b> (возможно, выключен VPN или проблема с ключом).")
+            await processing_msg.edit_text("🤷‍♂️ Не понял, что это. Это еда? Попробуй описать точнее.\n⚠️ <b>OpenAI не отвечает</b> — доложи баланс в OpenAI или проверь ключ.")
             return
 
     # Wrap the rest in try..except to catch formatting/sending errors

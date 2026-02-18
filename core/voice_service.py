@@ -14,28 +14,9 @@ class VoiceService:
             self.client = AsyncOpenAI(api_key=self.api_key)
 
     def _get_api_key(self):
-        # 1. Env var
         key = os.getenv("OPENAI_API_KEY")
-        if key and key != "your_openai_key_here":
-            return key
-            
-        # 2. Project Root File (.openai_api_key)
-        try:
-            # services/voice_service.py -> telegram-bot/services/ -> telegram-bot/ -> HealthVault/
-            root_key = Path(__file__).parent.parent / ".openai_api_key"
-            if root_key.exists():
-                return root_key.read_text().strip()
-        except Exception as e:
-            logger.error(f"Error reading root key: {e}")
-
-        # 3. FamilyDocs
-        try:
-            key_path = Path(os.path.expanduser("~/FamilyDocs/.openai_api_key"))
-            if key_path.exists():
-                return key_path.read_text().strip()
-        except Exception as e:
-            logger.error(f"Error reading key from file: {e}")
-            
+        if key and key.strip() and key != "your_openai_key_here":
+            return key.strip()
         return None
 
     async def transcribe(self, file_path: Path) -> str:
