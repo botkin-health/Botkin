@@ -23,21 +23,18 @@ def test_db():
 
 @pytest.fixture
 def mock_session_local(test_db):
-    """Patches SessionLocal in both core.supplements and services.nutrition_service"""
-    # We patch where it is IMPORTED or USED.
-    # Since they import SessionLocal from database, we might need to patch 'database.SessionLocal'
-    # BUT they might have treated it as 'from database import SessionLocal'
+    """Patches SessionLocal in all modules that use it in tests"""
+    patches = [
+        patch("core.supplements.SessionLocal", return_value=test_db),
+        patch("services.nutrition_service.SessionLocal", return_value=test_db),
+        patch("core.weekly_nutrition.SessionLocal", return_value=test_db),
+        patch("core.garmin_data.SessionLocal", return_value=test_db),
+    ]
     
-    # Let's patch in the specific modules for safety
-    p1 = patch("core.supplements.SessionLocal", return_value=test_db)
-    p2 = patch("services.nutrition_service.SessionLocal", return_value=test_db)
-    
-    # Start patches
-    p1.start()
-    p2.start()
+    for p in patches:
+        p.start()
     
     yield test_db
     
-    # Stop patches
-    p1.stop()
-    p2.stop()
+    for p in patches:
+        p.stop()

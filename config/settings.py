@@ -22,8 +22,8 @@ class Settings:
     def __init__(self):
         # Load environment variables from .env file
         from dotenv import load_dotenv
-        load_dotenv()  # Load from .env in current directory
-        load_dotenv(Path(__file__).parent.parent / '.env')  # Load from project root
+        load_dotenv(override=True)  # Load from .env in current directory
+        load_dotenv(Path(__file__).parent.parent / '.env', override=True)  # Load from project root
         
         # Project paths
         self.project_root = Path(__file__).parent.parent

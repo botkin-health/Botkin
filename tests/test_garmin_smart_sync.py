@@ -16,7 +16,13 @@ class TestSmartGarminSync:
     
     def test_get_last_activity_date_with_data(self, test_db):
         """Тест: get_last_activity_date возвращает последнюю дату"""
+        from database.models import User
         user_id = 895655
+        
+        # Создаём пользователя
+        user = User(telegram_id=user_id, first_name="Test")
+        test_db.add(user)
+        test_db.flush()
         
         # Создаем несколько записей активности
         activity1 = ActivityLog(
@@ -47,10 +53,16 @@ class TestSmartGarminSync:
         last_date = get_last_activity_date(test_db, user_id)
         assert last_date is None
         
-    def test_sync_calls_garmin_api(self, test_db):
+    def test_sync_calls_garmin_api(self, test_db, mock_session_local):
         """Тест: sync_missing_garmin_days вызывает sync для нужных дней"""
         from core.garmin_data import sync_missing_garmin_days
+        from database.models import User
         user_id = 895655
+        
+        # Создаём пользователя в тестовой БД
+        user = User(telegram_id=user_id, first_name="Test")
+        test_db.add(user)
+        test_db.flush()
         
         # Создаем активность 2 дня назад
         old_date = date.today() - timedelta(days=2)
@@ -65,7 +77,8 @@ class TestSmartGarminSync:
         
         # Мокируем sync_garmin_data чтобы не делать реальные вызовы к API
         with patch('core.garmin_data.sync_garmin_data') as mock_sync:
-            with patch('core.garmin_data.SessionLocal', return_value=test_db):
+            with patch('database.get_user_by_telegram_id') as mock_get_user:
+                mock_get_user.return_value = user
                 sync_missing_garmin_days(user_id)
                 
                 # Проверяем что API был вызван
@@ -78,8 +91,13 @@ class TestGarminDataConsistency:
     
     def test_no_duplicate_dates(self, test_db):
         """Тест: не создаются дубликаты записей для одной даты"""
+        from database.models import User
         user_id = 895655
         test_date = date.today()
+        
+        user = User(telegram_id=user_id, first_name="Test")
+        test_db.add(user)
+        test_db.flush()
         
         # Создаем первую запись
         activity1 = ActivityLog(
@@ -121,8 +139,13 @@ class TestGarminDataConsistency:
     
     def test_activity_log_stores_correct_data(self, test_db):
         """Тест: ActivityLog корректно сохраняет данные"""
+        from database.models import User
         user_id = 895655
         test_date = date(2026, 2, 1)
+        
+        user = User(telegram_id=user_id, first_name="Test")
+        test_db.add(user)
+        test_db.flush()
         
         activity = ActivityLog(
             user_id=user_id,

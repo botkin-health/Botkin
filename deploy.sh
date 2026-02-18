@@ -100,7 +100,7 @@ sleep 3
 echo ""
 echo "Container status:"
 sshpass -p "$SERVER_PASSWORD" ssh ${SERVER_USER}@${SERVER_IP} \
-    "docker-compose ps"
+    "cd ${SERVER_PATH} && docker-compose ps"
 
 echo ""
 echo "Recent logs:"
@@ -133,28 +133,4 @@ echo "🔧 Check status: ssh ${SERVER_USER}@${SERVER_IP} 'docker-compose ps'"
 echo ""
 
 
-# Копируем data/ но исключаем большие XML файлы Apple Health
-rsync -av --exclude='apple-health/export*.xml' data/ $DEPLOY_DIR/data/
 
-echo "📤 Uploading to server..."
-echo "⚠️  You will be prompted for server password"
-echo ""
-
-# Создаем директорию на сервере
-ssh ${SERVER_USER}@${SERVER_IP} "mkdir -p ${SERVER_PATH}"
-
-# Загружаем файлы
-rsync -avz --progress $DEPLOY_DIR/ ${SERVER_USER}@${SERVER_IP}:${SERVER_PATH}/
-
-echo ""
-echo "✅ Files uploaded successfully!"
-echo ""
-echo "=== Next Steps ==="
-echo "Run the following command to start the bot on server:"
-echo ""
-echo "  ssh ${SERVER_USER}@${SERVER_IP} 'cd ${SERVER_PATH} && docker-compose up -d'"
-echo ""
-echo "Or use auto_deploy.exp for automated deployment"
-
-# Cleanup
-rm -rf $DEPLOY_DIR
