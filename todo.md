@@ -40,6 +40,7 @@
 - ✅ **База Данных**: Запуск PostgreSQL, частичная миграция (Витамины, Еженедельные отчеты).
 - ✅ **Исправление Логики**: Фикс подсчета итоговых калорий и веса продуктов.
 - ✅ **Рефакторинг (этап 1)**: Удалён мёртвый код — неиспользуемые импорты storage в handlers, модули `common_config.py`, `biometrics.py`.
+- ✅ **Рефакторинг (этап 2)**: Удалён мёртвый `handlers/health.py`; в Docker добавлен `infrastructure/` (кэш изображений в проде); `core/storage.py` помечен как legacy.
 
 ---
 
@@ -68,20 +69,19 @@
   - `core/biometrics.py` — класс `BodyMetrics` нигде не используется.
   - Действие: удалить оба файла (или перенести biometrics в archive, если планируется использование).
 
-### 2. Legacy storage и JSON-логика
+### 2. Legacy storage и JSON-логика ✅ (2026-02-18)
 
-- [ ] **Свести к минимуму или убрать `core/storage.py`**
-  - Сейчас: YAML/JSON логи, `load_nutrition_log`, `save_nutrition_log`, `add_meal`, `get_today_totals`. Продакшн сохраняет еду в PostgreSQL через `helpers/db_save.py`.
-  - Действие: после удаления импортов из handlers проверить, вызывается ли что-то из storage из кода бота. Если нет — оставить только то, что реально нужно (или пометить модуль deprecated и позже удалить).
+- [x] **Свести к минимуму или убрать `core/storage.py`**
+  - Импорты из handlers убраны в этапе 1. В активном коде storage не вызывается. Добавлен docstring: legacy, прод на PostgreSQL.
+  - Действие: оставлен для совместимости (archive-скрипты); при желании позже удалить.
 
 - [ ] **Уточнить про `core/weights.py`**
   - В ROADMAP указано «Удаление устаревшей JSON логики из core/weights.py» — файла `core/weights.py` в репозитории нет. Закрыть пункт в ROADMAP или искать остатки в других файлах.
 
-### 3. Обработчики и роутеры
+### 3. Обработчики и роутеры ✅ (2026-02-18)
 
-- [ ] **handlers/health.py**
-  - В `bot.py` роутер health не подключается (комментарий «Apple Health handlers removed»). Файл мёртв для продакшна.
-  - Действие: удалить `handlers/health.py` либо подключить в `bot.py`, если функциональность Apple Health через бота снова нужна.
+- [x] **handlers/health.py**
+  - В `bot.py` роутер health не подключался. Файл удалён (функциональность Apple Health через бота при необходимости можно вернуть из git history).
 
 ### 4. Domain и инфраструктура (JSON-репозиторий)
 
@@ -89,9 +89,8 @@
   - Используются только в тестах (`test_repository.py`, `test_domain_models.py`). Продакшн использует `database/repository.py` и `helpers/db_save.py`.
   - Действие: оставить тесты как проверку legacy-пути ИЛИ переписать тесты на DB-репозиторий и удалить `domain/`, `infrastructure/storage/json_repository.py` (и при необходимости интерфейс в `domain/interfaces.py`).
 
-- [ ] **Dockerfile и infrastructure**
-  - В образ не копируется `infrastructure/` — в проде `image_cache` не доступен (в коде есть try/except, кэш просто отключён).
-  - Действие: либо добавить `COPY infrastructure/ ./infrastructure/` в Dockerfile, если кэш изображений нужен на сервере, либо явно задокументировать, что кэш только для локального запуска.
+- [x] **Dockerfile и infrastructure** (2026-02-18)
+  - В образ добавлен `COPY infrastructure/ ./infrastructure/` — кэш изображений (image_cache) теперь доступен на сервере.
 
 ### 5. Скрипты и отладочные файлы
 

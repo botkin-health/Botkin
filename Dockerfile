@@ -20,6 +20,7 @@ COPY services/ ./services/
 COPY database/ ./database/
 COPY helpers/ ./helpers/
 COPY domain/ ./domain/
+COPY infrastructure/ ./infrastructure/
 
 # Создание директорий для логов и данных
 RUN mkdir -p /app/logs /app/data
