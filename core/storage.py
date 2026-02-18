@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Работа с хранилищем данных (YAML файлы и JSON)
+Работа с хранилищем данных (YAML/JSON). Legacy: прод использует PostgreSQL (helpers/db_save, services/nutrition_service).
+Импорты из handlers убраны; используется только в archive-скриптах.
 """
 
 import yaml
