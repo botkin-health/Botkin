@@ -17,11 +17,13 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from config import get_settings
+import logging
+
+logger = logging.getLogger(__name__)
 
 def get_openai_api_key() -> Optional[str]:
-    """Получает OpenAI API ключ из конфигурации"""
-    settings = get_settings()
-    return settings.openai_api_key
+    """Получает OpenAI API ключ из .env (OPENAI_API_KEY)."""
+    return get_settings().openai_api_key
 
 def encode_image(image_path: Path) -> str:
     """Encodes image to base64"""
@@ -284,7 +286,7 @@ def analyze_message(text: str = None, image_paths: List[Union[str, Path]] = None
             
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 403 or e.response.status_code == 401:
-                print(f"❌ OpenAI API {e.response.status_code} (Geo-block/Auth). Falling back to Gemini...")
+                print(f"❌ OpenAI API {e.response.status_code} (Auth). Falling back to Gemini...")
                 return analyze_message_gemini(text, image_paths)
             print(f"Error in LLM Router (Attempt {attempt+1}): {e}")
             time.sleep(1)
@@ -295,6 +297,10 @@ def analyze_message(text: str = None, image_paths: List[Union[str, Path]] = None
             print(f"Error in LLM Router (Attempt {attempt+1}): {e}")
             time.sleep(1)
 
+    logger.warning(
+        "LLM Router: OpenAI не ответил после всех попыток. "
+        "Если бот пишет «OpenAI не отвечает» — возможно, закончились токены по ключу: доложи баланс в OpenAI."
+    )
     return None
 
 def analyze_message_gemini(text: str = None, image_paths: List[Union[str, Path]] = None) -> Optional[Dict]:

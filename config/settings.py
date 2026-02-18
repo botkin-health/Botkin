@@ -65,7 +65,7 @@ class Settings:
     def _get_optional(self, key: str) -> Optional[str]:
         """Get optional environment variable"""
         return os.getenv(key)
-    
+
     def _get_bool(self, key: str, default: bool = False) -> bool:
         """Get boolean environment variable"""
         value = os.getenv(key)
