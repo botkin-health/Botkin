@@ -22,8 +22,8 @@ from dotenv import load_dotenv
 import os
 
 # Загружаем переменные окружения
-load_dotenv()
-load_dotenv(Path(__file__).parent.parent / '.env')
+load_dotenv(override=True)
+load_dotenv(Path(__file__).parent.parent / '.env', override=True)
 
 # Настраиваем логирование
 class ConsoleFilter(logging.Filter):
@@ -78,6 +78,8 @@ if not BOT_TOKEN:
     logger.error("❌ TELEGRAM_BOT_TOKEN не найден в переменных окружения!")
     logger.error("Создайте файл .env и добавьте: TELEGRAM_BOT_TOKEN=ваш_токен")
     sys.exit(1)
+
+
 
 # Инициализируем бота и диспетчер
 bot = Bot(

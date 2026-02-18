@@ -57,7 +57,7 @@ def test_save_multiple_times(mock_session_local):
     assert "Zinc" in names
     assert "Magnesium" in names
 
-def test_supplement_service_schedule():
+def test_supplement_service_schedule(mock_session_local):
     """Test supplement service detailed schedule"""
     test_user_id = 895655
     service = SupplementService(user_id=test_user_id)

@@ -6,14 +6,14 @@
 
 import pytest
 from datetime import date, timedelta, time
-from database.models import NutritionLog
+from database.models import NutritionLog, User
 from core.weekly_nutrition import analyze_weekly_nutrition
 
 
 class TestWeeklyReportCalculations:
     """Тесты расчетов в недельном отчете"""
     
-    def test_week_report_format_structure(self, test_db):
+    def test_week_report_format_structure(self, test_db, mock_session_local):
         """Тест: структура отчета содержит все нужные поля"""
         result = analyze_weekly_nutrition(user_id=895655, last_7_days=True)
         
@@ -24,9 +24,12 @@ class TestWeeklyReportCalculations:
         assert 'dates_analyzed' in result
         assert 'days_with_data' in result
         
-    def test_week_fatty_fish_detection(self, test_db):
+    def test_week_fatty_fish_detection(self, test_db, mock_session_local):
         """Тест: жирная рыба засчитывается"""
         user_id = 895655
+        user = User(telegram_id=user_id, first_name="Test")
+        test_db.add(user)
+        test_db.flush()
         log = NutritionLog(
             user_id=user_id,
             date=date.today(),
@@ -44,9 +47,12 @@ class TestWeeklyReportCalculations:
         assert 'categories' in result
         assert result['categories']['fatty_fish_portions'] >= 0
         
-    def test_week_protein_calculation(self, test_db):
+    def test_week_protein_calculation(self, test_db, mock_session_local):
         """Тест: белок суммируется корректно"""
         user_id = 895655
+        user = User(telegram_id=user_id, first_name="Test")
+        test_db.add(user)
+        test_db.flush()
         log = NutritionLog(
             user_id=user_id,
             date=date.today(),
@@ -63,7 +69,7 @@ class TestWeeklyReportCalculations:
         assert 'totals' in result
         assert result['totals']['protein'] >= 0
         
-    def test_week_empty_data_handling(self, test_db):
+    def test_week_empty_data_handling(self, test_db, mock_session_local):
         """Тест: пустые данные обрабатываются без ошибок"""
         result = analyze_weekly_nutrition(user_id=999999, last_7_days=True)
         
@@ -71,9 +77,12 @@ class TestWeeklyReportCalculations:
         assert result['days_with_data'] == 0
         assert result['totals']['calories'] == 0
         
-    def test_week_calorie_totals(self, test_db):
+    def test_week_calorie_totals(self, test_db, mock_session_local):
         """Тест: калории суммируются"""
         user_id = 895655
+        user = User(telegram_id=user_id, first_name="Test")
+        test_db.add(user)
+        test_db.flush()
         log = NutritionLog(
             user_id=user_id,
             date=date.today(),

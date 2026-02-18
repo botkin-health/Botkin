@@ -8,10 +8,25 @@ from aiogram.types import Message, CallbackQuery
 from aiogram import Bot
 from aiogram.filters.callback_data import CallbackData
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.exceptions import TelegramBadRequest
 from datetime import datetime
 from pathlib import Path
 import os
 import asyncio
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+async def safe_edit_text(message: Message, text: str, **kwargs):
+    """Безопасная обёртка для edit_text — игнорирует ошибку 'message is not modified'"""
+    try:
+        return await message.edit_text(text, **kwargs)
+    except TelegramBadRequest as e:
+        if 'message is not modified' in str(e):
+            logger.debug(f"Сообщение не изменилось, пропускаем edit_text")
+        else:
+            raise
 
 from services.state import UserState, state_manager
 from services.state_helpers import create_photo_state, update_state_menu_data
@@ -181,9 +196,7 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
     if user_state and user_state.data.get('caption'):
         caption = user_state.data.get('caption')
     
-    # --- ЛОГИКА ВЕСОВ (ZEPP) MULTI-PHOTO ---
     from core.ocr_weight import parse_weight_screenshot
-    from core.weights import save_weight_measurement
     
     recognized_weights = []
     remaining_photos = [] # Фото, которые не распознались как весы
@@ -196,10 +209,6 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
             
             if weight_data and weight_data.get('weight'):
                 logger.info(f"⚖️ Фото {idx+1}: Распознан вес {weight_data.get('weight')} кг")
-                # Добавляем инфо о сохранении
-                # ИЗМЕНЕНО: Не сохраняем сразу, а ждем подтверждения
-                # saved_path = save_weight_measurement(weight_data)
-                # weight_data['_saved_path'] = saved_path
                 recognized_weights.append(weight_data)
             else:
                 remaining_photos.append(ph_path)
@@ -829,7 +838,7 @@ async def handle_description(message: Message, description: str = None, processi
     builder.button(text="✅ Сохранить", callback_data=MealConfirmationCallback(action="save", meal_type="regular").pack())
     builder.button(text="❌ Отмена", callback_data=MealConfirmationCallback(action="cancel", meal_type="regular").pack())
     
-    await processing_message.edit_text(response, parse_mode='HTML', reply_markup=builder.as_markup())
+    await safe_edit_text(processing_message, response, parse_mode='HTML', reply_markup=builder.as_markup())
 
 
 
@@ -968,7 +977,7 @@ def format_meal_response(meal_items: list, meal_totals: dict, portion_multiplier
 import logging
 
 # Импортируем функцию сохранения
-from handlers.text import save_meal_to_json, extract_meal_name
+from handlers.text import extract_meal_name
 
 
 @router.callback_query(MealConfirmationCallback.filter())
@@ -1018,7 +1027,8 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
         if save_meal_to_db(user_state.data, meal_name, user_id=telegram_user_id):
             logger.info("[AFTER SAVE] save_meal_to_db returned True")
             await callback.answer("✅ Сохранено!", show_alert=False)
-            await callback.message.edit_text(
+            await safe_edit_text(
+                callback.message,
                 f"✅ <b>Сохранено!</b>\n\n"
                 f"🍽️ <b>{meal_name}</b>\n"
                 f"📊 КБЖУ:\n"
@@ -1035,7 +1045,8 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
     else:
         # Не сохраняем
         await callback.answer("❌ Не сохранено", show_alert=False)
-        await callback.message.edit_text(
+        await safe_edit_text(
+            callback.message,
             callback.message.text + "\n\n❌ Не сохранено",
             parse_mode='HTML'
         )
@@ -1071,13 +1082,15 @@ async def handle_weight_confirmation(callback: CallbackQuery, callback_data: Wei
                 saved_count += 1
         
         await callback.answer(f"✅ Сохранено {saved_count} записей", show_alert=False)
-        await callback.message.edit_text(
+        await safe_edit_text(
+            callback.message,
             callback.message.text.replace("Сохранить запись в журнал?", f"\n✅ <b>Сохранено {saved_count} записей!</b>"),
             parse_mode='HTML'
         )
     else:
         await callback.answer("❌ Отменено", show_alert=False)
-        await callback.message.edit_text(
+        await safe_edit_text(
+            callback.message,
             callback.message.text.replace("Сохранить запись в журнал?", "\n❌ <b>Сохранение отменено</b>"),
             parse_mode='HTML'
         )

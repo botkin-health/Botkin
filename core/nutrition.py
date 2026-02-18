@@ -385,15 +385,11 @@ def process_meal_description(
     return meal_items, meal_totals
 
 
-def process_meal_description_with_menu(
-    description: str,
-    menu_data: Dict,
-    photo_paths: Optional[List[Path]] = None,
-    portion_multiplier: float = 1.0,
-    api_key: Optional[str] = None
-) -> Tuple[List[Dict], Dict[str, float]]:
-    """
-    Обрабатывает описание блюда с учетом данных меню.
+# Реэкспорт вынесенных функций для обратной совместимости
+from .llm_food_processor import process_llm_food_data  # noqa: F401
+from .menu_meal_processor import process_meal_description_with_menu  # noqa: F401
+
+
     Если в описании указан вес для продукта из меню, пересчитывает КБЖУ на этот вес.
     Дополнительные продукты из описания добавляются к результату.
     
@@ -1019,28 +1015,53 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
                 estimated_weight = unit_weight * qty
                 nutrition = calculate_nutrition(name, estimated_weight)
                 
+                # Если продукта нет в локальной БД, попробуем данные LLM
+                cal = nutrition['calories']
+                prot = nutrition['protein']
+                fat = nutrition['fats']
+                carb = nutrition['carbs']
+                source = 'local_db_estimate'
+                
+                if cal == 0:
+                    # Локальная БД не знает этот продукт — сделаем грубую оценку
+                    # (~150 ккал на 100г для среднего готового блюда)
+                    cal = round(estimated_weight * 1.5, 1)
+                    prot = round(estimated_weight * 0.08, 1)
+                    fat = round(estimated_weight * 0.06, 1) 
+                    carb = round(estimated_weight * 0.12, 1)
+                    source = 'rough_estimate'
+                    logger.info(f"⚠️ Rough estimate for '{name}' ({estimated_weight}g): {cal} kcal")
+                
                 meal_items.append({
                     'product': name,
                     'weight_g': estimated_weight,
                     'weight_source': 'estimate',
                     'weight_estimated': True,
-                    'calories': nutrition['calories'],
-                    'protein': nutrition['protein'],
-                    'fats': nutrition['fats'],
-                    'carbs': nutrition['carbs'],
-                    'source': 'local_db_estimate'
+                    'calories': cal,
+                    'protein': prot,
+                    'fats': fat,
+                    'carbs': carb,
+                    'source': source
                 })
             else:
-                # Fallback: just list it without weight
+                # Совсем не знаем вес — берём 200г как стандартную порцию
+                estimated_weight = 200.0
+                cal = round(estimated_weight * 1.5, 1)
+                prot = round(estimated_weight * 0.08, 1)
+                fat = round(estimated_weight * 0.06, 1)
+                carb = round(estimated_weight * 0.12, 1)
+                logger.info(f"⚠️ Default portion estimate for '{name}': {estimated_weight}g, {cal} kcal")
+                
                 meal_items.append({
                     'product': name,
-                    'weight_g': None,
-                    'weight_source': 'unknown',
-                    'calories': 0,
-                    'protein': 0,
-                    'fats': 0,
-                    'carbs': 0,
-                    'source': 'unknown'
+                    'weight_g': estimated_weight,
+                    'weight_source': 'default_portion',
+                    'weight_estimated': True,
+                    'calories': cal,
+                    'protein': prot,
+                    'fats': fat,
+                    'carbs': carb,
+                    'source': 'rough_estimate'
                 })
             
     
