@@ -30,7 +30,6 @@ async def safe_edit_text(message: Message, text: str, **kwargs):
 
 from services.state import UserState, state_manager
 from services.state_helpers import create_photo_state, update_state_menu_data
-from core.storage import add_meal, get_today_totals
 from core.nutrition import process_meal_description
 from core.menu_parser import parse_menu_photo
 

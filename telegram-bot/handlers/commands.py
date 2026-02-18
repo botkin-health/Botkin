@@ -8,7 +8,6 @@ from aiogram.types import Message
 from aiogram.filters import Command
 from datetime import datetime
 
-from core.storage import get_today_totals
 from core.garmin_data import get_garmin_data_for_date, get_average_stats
 from core.weekly_nutrition import analyze_weekly_nutrition
 from core.nutrition_targets import calculate_targets, check_feasibility
