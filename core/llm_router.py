@@ -17,6 +17,7 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from config import get_settings
+from core.llm_models import parse_llm_response
 import logging
 
 logger = logging.getLogger(__name__)
@@ -282,7 +283,7 @@ def analyze_message(text: str = None, image_paths: List[Union[str, Path]] = None
                 raise ValueError("OpenAI returned None content")
                 
             parsed_json = json.loads(content_str)
-            return parsed_json
+            return parse_llm_response(parsed_json)
             
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 403 or e.response.status_code == 401:
@@ -359,7 +360,7 @@ def analyze_message_gemini(text: str = None, image_paths: List[Union[str, Path]]
             if content.endswith('```'):
                 content = content[:-3]
         
-        return json.loads(content)
+        return parse_llm_response(json.loads(content))
     except Exception as e:
         print(f"    ❌ Gemini Fallback failed: {e}")
         return None
