@@ -61,6 +61,28 @@ def update_user_last_active(db: Session, telegram_id: int):
         db.commit()
 
 
+def update_user_calorie_settings(
+    db: Session,
+    telegram_id: int,
+    bmr: Optional[float] = None,
+    avg_active_calories: Optional[float] = None,
+    target_weight_kg: Optional[float] = None
+) -> Optional[User]:
+    """Update manual calorie settings (for users without Garmin)"""
+    user = get_user_by_telegram_id(db, telegram_id)
+    if not user:
+        return None
+    if bmr is not None:
+        user.bmr = bmr
+    if avg_active_calories is not None:
+        user.avg_active_calories = avg_active_calories
+    if target_weight_kg is not None:
+        user.target_weight_kg = target_weight_kg
+    db.commit()
+    db.refresh(user)
+    return user
+
+
 def generate_health_token(db: Session, telegram_id: int) -> str:
     """Generate and save a unique Apple Health API token for user"""
     import secrets
@@ -454,15 +476,24 @@ def get_average_activity_stats(db: Session, user_id: int, days: int = 14) -> Dic
     if not activities:
         return {}
     
-    valid_activities = [a for a in activities if a.total_calories and a.total_calories > 1200]
+    # Полные записи (Garmin) или ручные с оценкой total = BMR + active
+    DEFAULT_BMR_ESTIMATE = 1400  # для ручных записей без BMR
+    totals_for_avg = []
+    for a in activities:
+        if a.total_calories and a.total_calories > 1200:
+            totals_for_avg.append(a.total_calories)
+        elif (a.active_calories or 0) > 0:
+            bmr = a.bmr_calories or DEFAULT_BMR_ESTIMATE
+            totals_for_avg.append(bmr + (a.active_calories or 0))
+    valid_activities = [a for a in activities if (a.total_calories and a.total_calories > 1200) or ((a.active_calories or 0) > 0)]
     
     if not valid_activities:
         return {}
     
     return {
         'active_calories': sum(a.active_calories or 0 for a in valid_activities) / len(valid_activities),
-        'total_calories': sum(a.total_calories or 0 for a in valid_activities) / len(valid_activities),
-        'bmr_calories': sum(a.bmr_calories or 0 for a in valid_activities) / len(valid_activities),
+        'total_calories': sum(totals_for_avg) / len(totals_for_avg) if totals_for_avg else 0,
+        'bmr_calories': sum(a.bmr_calories or DEFAULT_BMR_ESTIMATE for a in valid_activities) / len(valid_activities),
         'steps': sum(a.steps or 0 for a in valid_activities) / len(valid_activities),
         'count': len(valid_activities)
     }
