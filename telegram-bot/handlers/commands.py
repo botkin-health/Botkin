@@ -82,7 +82,7 @@ async def cmd_day(message: Message, user_id: int):
     from core.garmin_data import sync_garmin_data, get_average_stats
     
     logger = logging.getLogger(__name__)
-    logger.info(f"📊 Команда /day вызвана пользователем {message.from_user.id}")
+    logger.info(f"📊 /day user={message.from_user.id} ({message.from_user.first_name})")
     
     status_msg = await message.answer("🔄 Синхронизирую данные Garmin...")
     

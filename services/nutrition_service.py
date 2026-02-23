@@ -14,7 +14,8 @@ from database import (
     get_nutrition_logs_by_date,
     get_nutrition_totals_by_date,
     get_activity_by_date,
-    get_average_activity_stats
+    get_average_activity_stats,
+    get_user_by_telegram_id
 )
 from core.nutrition_targets import calculate_targets
 
@@ -56,13 +57,16 @@ class NutritionService:
             meals_count = len(meals)
             
             # Get average activity stats for targets calculation
+            user = get_user_by_telegram_id(db, self.user_id)
             try:
                 avg_stats = get_average_activity_stats(db, self.user_id, days=14)
-                targets_dict = calculate_targets(stats=avg_stats)
+                user_bmr = getattr(user, 'bmr', None) if user else None
+                user_active = getattr(user, 'avg_active_calories', None) if user else None
+                logger.info(f"[day_stats] user_id={self.user_id} user.bmr={user_bmr} user.avg_active={user_active} avg_stats={avg_stats}")
+                targets_dict = calculate_targets(stats=avg_stats, user=user)
             except Exception as e:
-                logger.error(f"Error calculating targets: {e}")
-                # Fallback to default
-                targets_dict = calculate_targets(stats=None)
+                logger.error(f"Error calculating targets: {e}", exc_info=True)
+                targets_dict = calculate_targets(stats=None, user=user)
             
             # Calculate remaining
             remaining = {
