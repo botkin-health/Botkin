@@ -42,10 +42,11 @@ async def cmd_start(message: Message, user_id: int, username: str, first_name: s
         "📸 Отправь фото еды/таблеток с описанием.\n"
         "🗣 Или просто скажи голосом: 'Выпил витамины', 'Съел яблоко'.\n\n"
         "Команды:\n"
-        "/day - итоги дня (еда + витамины)\n"
-        "/vitamins - чек-лист добавок\n"
-        "/week - анализ недели\n"
-        "/help - справка"
+        "/day — итоги дня (еда + витамины)\n"
+        "/vitamins — чек-лист добавок\n"
+        "/week — анализ недели\n"
+        "/setup — BMR и калории (без Garmin)\n"
+        "/help — справка"
     )
 
 
@@ -67,7 +68,8 @@ async def cmd_help(message: Message):
         "/day — Итоги дня: КБЖУ, спорт, витамины.\n"
         "/vitamins — Чек-лист и схема приема.\n"
         "/week — Анализ рациона за неделю.\n"
-        "/cache_stats — Статистика кэша (экономия токенов).\n"
+        "/setup — Настройка BMR и активных калорий (для тех, кто без Garmin).\n"
+        "/activity <число> — Ввести активные калории за сегодня вручную.\n"
         "/help — Эта справка."
     )
 
@@ -126,12 +128,14 @@ async def cmd_day(message: Message, user_id: int):
             if weight.measured_at.date() == today_date:
                 weight_text = f"⚖️ Вес: <b>{weight.weight} кг</b>"
         
+        tdee = targets.get('avg_tdee', 0)
+        tdee_hint = f" (тратишь ~{tdee} ккал/день)" if tdee else ""
         # Response Construction
         response_parts = [
             f"📅 <b>Итоги дня {today_formatted}</b>",
             "",
             "🥦 <b>Питание:</b>",
-            f"• Калории: <b>{totals.calories:.0f}</b> / {targets['calories']} ккал (Дефицит 15%)",
+            f"• Калории: <b>{totals.calories:.0f}</b> / {targets['calories']} ккал{tdee_hint}",
             f"• Белки: <b>{totals.protein:.0f}</b> / {targets['protein']} г",
             f"• Жиры: {totals.fats:.0f} / {targets['fats']} г",
             f"• Углеводы: {totals.carbs:.0f} / {targets['carbs']} г",
@@ -315,16 +319,117 @@ async def cmd_status_alias(message: Message):
     await cmd_day(message)
 
 
+import re
+
+
+@router.message(Command("setup"))
+async def cmd_setup(message: Message, user_id: int):
+    """
+    Настройка калорий для пользователей без Garmin.
+    Примеры: /setup BMR 1400 активные 250
+             /setup BMR 1400, активные 250, вес 60
+    """
+    text = (message.text or "").replace("/setup", "").strip()
+    if not text:
+        await message.answer(
+            "⚙️ <b>Настройка целей (для пользователей без Garmin)</b>\n\n"
+            "Укажи BMR и средние активные калории из Apple Health (Здоровье → Энергия):\n\n"
+            "<code>/setup BMR 1400, активные 250</code>\n"
+            "<code>/setup BMR 1400 активные 250 вес 60</code>\n\n"
+            "• BMR — базовая энергия (ккал/день)\n"
+            "• Активные — среднее сжигание от движения\n"
+            "• Вес — для расчёта белков (опционально)",
+            parse_mode="HTML"
+        )
+        return
+    bmr = None
+    active = None
+    weight = None
+    for m in re.finditer(r"(?:bmr|базовы[йе])\s*[=:]?\s*(\d+)", text, re.I):
+        bmr = float(m.group(1))
+        break
+    if not bmr:
+        for m in re.finditer(r"(\d+)\s*(?:ккал)?\s*(?:bmr|базовы)", text, re.I):
+            bmr = float(m.group(1))
+            break
+    for m in re.finditer(r"(?:активн[ые]?|active)\s*[=:]?\s*(\d+)", text, re.I):
+        active = float(m.group(1))
+        break
+    if not active:
+        for m in re.finditer(r"(\d+)\s*(?:ккал)?\s*(?:активн|active)", text, re.I):
+            active = float(m.group(1))
+            break
+    for m in re.finditer(r"(?:вес|weight)\s*[=:]?\s*(\d+(?:[.,]\d+)?)", text, re.I):
+        weight = float(m.group(1).replace(",", "."))
+        break
+    if not bmr and not active and not weight:
+        await message.answer("❌ Не удалось распознать BMR, активные или вес. Пример: /setup BMR 1400 активные 250")
+        return
+    from database import SessionLocal
+    from database.crud import update_user_calorie_settings
+    db = SessionLocal()
+    try:
+        update_user_calorie_settings(db, user_id, bmr=bmr, avg_active_calories=active, target_weight_kg=weight)
+        parts = ["✅ Настройки сохранены:"]
+        if bmr:
+            parts.append(f"• BMR: {bmr:.0f} ккал")
+        if active is not None:
+            parts.append(f"• Активные: {active:.0f} ккал")
+        if weight:
+            parts.append(f"• Целевой вес: {weight:.1f} кг")
+        parts.append(f"\nTDEE ≈ {((bmr or 1400) + (active or 0)):.0f} ккал. Цели в /day будут пересчитаны.")
+        await message.answer("\n".join(parts))
+    finally:
+        db.close()
+
+
+@router.message(Command("activity"))
+async def cmd_activity(message: Message, user_id: int):
+    """Логирование активных калорий за сегодня: /activity 300"""
+    text = (message.text or "").replace("/activity", "").strip()
+    try:
+        cal = int(text) if text else 0
+    except ValueError:
+        cal = 0
+    if cal <= 0 or cal > 3000:
+        await message.answer("Использование: /activity <число> — активные калории за сегодня.\nПример: /activity 300")
+        return
+    from database import SessionLocal
+    from database.crud import create_or_update_activity
+    db = SessionLocal()
+    try:
+        today = datetime.now().date()
+        create_or_update_activity(db, user_id, today, active_calories=float(cal), source="manual")
+        await message.answer(f"✅ Активность сегодня: {cal} ккал сохранена.")
+    finally:
+        db.close()
+
+
 @router.message(Command("burn"))
-async def cmd_burn(message: Message):
-    """Обработчик команды /burn <калории>"""
-    await message.answer("⚠️ Функция ввода активных калорий пока не реализована")
+async def cmd_burn(message: Message, user_id: int):
+    """Alias для /activity: /burn 300"""
+    text = (message.text or "").replace("/burn", "").strip()
+    try:
+        cal = int(text) if text else 0
+    except ValueError:
+        cal = 0
+    if cal <= 0 or cal > 3000:
+        await message.answer("Использование: /burn <число> — активные калории за сегодня.")
+        return
+    from database import SessionLocal
+    from database.crud import create_or_update_activity
+    db = SessionLocal()
+    try:
+        create_or_update_activity(db, user_id, datetime.now().date(), active_calories=float(cal), source="manual")
+        await message.answer(f"✅ Активность сегодня: {cal} ккал сохранена.")
+    finally:
+        db.close()
 
 
 @router.message(Command("targets"))
 async def cmd_targets(message: Message):
-    """Обработчик команды /targets"""
-    await message.answer("⚠️ Настройка целей пока не реализована")
+    """Redirect to /setup"""
+    await message.answer("Используй /setup для настройки BMR и активных калорий.")
 
 
 
