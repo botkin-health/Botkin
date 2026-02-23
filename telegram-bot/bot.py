@@ -46,8 +46,10 @@ def setup_logging():
     # Очищаем существующие хендлеры
     root_logger.handlers.clear()
     
-    # 1. Файловый хендлер - пишет ВСЁ (DEBUG и выше)
-    file_handler = logging.FileHandler('logs/bot.log', encoding='utf-8')
+    # 1. Файловый хендлер — пишет ВСЁ (DEBUG и выше), ротация 5 МБ × 3 бэкапа = ~15 МБ макс
+    file_handler = logging.handlers.RotatingFileHandler(
+        'logs/bot.log', encoding='utf-8', maxBytes=5*1024*1024, backupCount=3
+    )
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(logging.Formatter(
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
