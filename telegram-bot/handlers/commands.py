@@ -357,8 +357,10 @@ async def cmd_setup(message: Message, user_id: int):
         break
     if not active:
         for m in re.finditer(r"(\d+)\s*(?:ккал)?\s*(?:активн|active)", text, re.I):
-            active = float(m.group(1))
-            break
+            candidate = float(m.group(1))
+            if bmr is None or candidate != bmr:  # не подставлять BMR за активные
+                active = candidate
+                break
     for m in re.finditer(r"(?:вес|weight)\s*[=:]?\s*(\d+(?:[.,]\d+)?)", text, re.I):
         weight = float(m.group(1).replace(",", "."))
         break
