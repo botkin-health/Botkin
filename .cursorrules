@@ -3,3 +3,7 @@ Create all documents (plans, tasks, reports, artifacts) in Russian.
 Main language of the user: Russian.
 
 When you make code changes: always commit and push to origin (git add, git commit, git push).
+
+В любом проекте проверяй наличие deploy-скриптов (deploy.sh, scripts/*.sh, .github/workflows и т.д.) — при необходимости деплоя запускай их, а не предполагай что доступа нет.
+
+В HealthVault: не удалять debug-логирование в production ([day_stats], [targets], [avg_activity]) — оно помогает отладке и почти не занимает места.
