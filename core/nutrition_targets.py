@@ -1,7 +1,7 @@
 
 import os
 import math
-from typing import Dict, Tuple, Optional
+from typing import Dict, Tuple, Optional, Any
 
 # Значения по умолчанию (можно переопределить через ENV)
 DEFAULT_WEIGHT_KG = 82.0
@@ -10,8 +10,12 @@ DEFAULT_FAT_PER_KG_MIN = 0.7
 DEFAULT_FAT_PER_KG_MAX = 0.9
 DEFAULT_DEFICIT_PCT = 0.15  # 15%
 
+# Fallback для пользователей без Garmin (женщина, ~60 кг)
+FALLBACK_BMR_FEMALE = 1400
+FALLBACK_ACTIVE_FEMALE = 250
+
 def get_user_settings() -> Dict:
-    """Получает настройки пользователя из переменных окружения или дефолтные"""
+    """Получает настройки из ENV или дефолтные"""
     return {
         'weight_kg': float(os.getenv('TARGET_WEIGHT_KG', DEFAULT_WEIGHT_KG)),
         'protein_per_kg': float(os.getenv('TARGET_PROTEIN_PER_KG', DEFAULT_PROTEIN_PER_KG)),
@@ -20,30 +24,39 @@ def get_user_settings() -> Dict:
         'deficit_pct': float(os.getenv('TARGET_DEFICIT_PCT', DEFAULT_DEFICIT_PCT)),
     }
 
-def calculate_targets(avg_tdee: Optional[float] = None, stats: Optional[Dict] = None) -> Dict:
+def calculate_targets(
+    avg_tdee: Optional[float] = None,
+    stats: Optional[Dict] = None,
+    user: Any = None
+) -> Dict:
     """
     Рассчитывает целевые калории и макросы.
-    Можно передать avg_tdee напрямую или словарь stats от garmin_data.
-    Если данных нет или они слишком низкие (<1500), используются Fallback значения.
+    Источники TDEE: user.bmr+user.avg_active > stats/avg_tdee > fallback.
     """
     settings = get_user_settings()
     weight = settings['weight_kg']
     deficit_pct = settings['deficit_pct']
     
-    # Fallback Values (для мужчины 48 лет, 82 кг, ~170 см)
-    # BMR Mifflin-St Jeor: ~1750 + активность. Garmin BMR обычно ~1950 (включает бытовую?)
-    FALLBACK_BMR = 1950
-    FALLBACK_ACTIVE = 400
-    FALLBACK_TDEE = FALLBACK_BMR + FALLBACK_ACTIVE  # 2350
+    # Вес: user.target_weight > ENV > дефолт
+    if user and getattr(user, 'target_weight_kg', None) and user.target_weight_kg > 0:
+        weight = user.target_weight_kg
+    elif user and hasattr(user, 'target_weight_kg'):
+        pass  # use settings['weight_kg']
+    
+    FALLBACK_TDEE = FALLBACK_BMR_FEMALE + FALLBACK_ACTIVE_FEMALE  # 1650 — консервативно для пользователя без данных
     
     estimated_tdee = 0.0
     
-    if stats and stats.get('total', 0) > 1500:
-        estimated_tdee = stats['total']
+    # 1. Ручные настройки пользователя (BMR + активные)
+    if user and getattr(user, 'bmr', None) and user.bmr and user.bmr > 500:
+        bmr_val = float(user.bmr)
+        active_val = float(user.avg_active_calories or 0) if getattr(user, 'avg_active_calories', None) else FALLBACK_ACTIVE_FEMALE
+        estimated_tdee = bmr_val + active_val
+    elif stats and (stats.get('total_calories') or stats.get('total', 0) or 0) > 1500:
+        estimated_tdee = stats.get('total_calories') or stats.get('total')
     elif avg_tdee and avg_tdee > 1500:
         estimated_tdee = avg_tdee
     else:
-        # Если данных нет, используем Fallback
         estimated_tdee = FALLBACK_TDEE
         
     # 1. Считаем целевые калории
