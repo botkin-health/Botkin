@@ -1,3 +1,5 @@
 Always speak Russian.
 Create all documents (plans, tasks, reports, artifacts) in Russian.
 Main language of the user: Russian.
+
+When you make code changes: always commit and push to origin (git add, git commit, git push).
