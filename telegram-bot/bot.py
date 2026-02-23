@@ -5,6 +5,7 @@
 
 import asyncio
 import logging
+from logging.handlers import RotatingFileHandler
 import sys
 from pathlib import Path
 
@@ -47,7 +48,7 @@ def setup_logging():
     root_logger.handlers.clear()
     
     # 1. Файловый хендлер — пишет ВСЁ (DEBUG и выше), ротация 5 МБ × 3 бэкапа = ~15 МБ макс
-    file_handler = logging.handlers.RotatingFileHandler(
+    file_handler = RotatingFileHandler(
         'logs/bot.log', encoding='utf-8', maxBytes=5*1024*1024, backupCount=3
     )
     file_handler.setLevel(logging.DEBUG)
