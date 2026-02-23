@@ -467,6 +467,8 @@ def get_activities_by_period(
 
 
 def get_average_activity_stats(db: Session, user_id: int, days: int = 14) -> Dict:
+    import logging
+    _log = logging.getLogger(__name__)
     """Get average activity stats for the last N days"""
     end_date = datetime.now().date()
     start_date = end_date - timedelta(days=days)
@@ -474,6 +476,7 @@ def get_average_activity_stats(db: Session, user_id: int, days: int = 14) -> Dic
     activities = get_activities_by_period(db, user_id, start_date, end_date)
     
     if not activities:
+        _log.info(f"[avg_activity] user_id={user_id} дней={days}: нет записей в activity_log")
         return {}
     
     # Полные записи (Garmin) или ручные с оценкой total = BMR + active
@@ -488,15 +491,18 @@ def get_average_activity_stats(db: Session, user_id: int, days: int = 14) -> Dic
     valid_activities = [a for a in activities if (a.total_calories and a.total_calories > 1200) or ((a.active_calories or 0) > 0)]
     
     if not valid_activities:
+        _log.info(f"[avg_activity] user_id={user_id} дней={days}: нет валидных активностей")
         return {}
     
-    return {
+    result = {
         'active_calories': sum(a.active_calories or 0 for a in valid_activities) / len(valid_activities),
         'total_calories': sum(totals_for_avg) / len(totals_for_avg) if totals_for_avg else 0,
         'bmr_calories': sum(a.bmr_calories or DEFAULT_BMR_ESTIMATE for a in valid_activities) / len(valid_activities),
         'steps': sum(a.steps or 0 for a in valid_activities) / len(valid_activities),
         'count': len(valid_activities)
     }
+    _log.info(f"[avg_activity] user_id={user_id} count={result['count']} total_cal={result['total_calories']:.0f}")
+    return result
 
 
 # ==================== BLOOD TEST OPERATIONS ====================
