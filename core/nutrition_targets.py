@@ -1,7 +1,10 @@
 
+import logging
 import os
 import math
 from typing import Dict, Tuple, Optional, Any
+
+logger = logging.getLogger(__name__)
 
 # Значения по умолчанию (можно переопределить через ENV)
 DEFAULT_WEIGHT_KG = 82.0
@@ -52,12 +55,16 @@ def calculate_targets(
         bmr_val = float(user.bmr)
         active_val = float(user.avg_active_calories or 0) if getattr(user, 'avg_active_calories', None) else FALLBACK_ACTIVE_FEMALE
         estimated_tdee = bmr_val + active_val
+        logger.info(f"[targets] TDEE из user: telegram_id={getattr(user,'telegram_id',None)} bmr={bmr_val} active={active_val} → TDEE={estimated_tdee:.0f}")
     elif stats and (stats.get('total_calories') or stats.get('total', 0) or 0) > 1500:
         estimated_tdee = stats.get('total_calories') or stats.get('total')
+        logger.info(f"[targets] TDEE из activity stats: total_calories={stats.get('total_calories')} → TDEE={estimated_tdee:.0f}")
     elif avg_tdee and avg_tdee > 1500:
         estimated_tdee = avg_tdee
+        logger.info(f"[targets] TDEE из avg_tdee: {avg_tdee:.0f}")
     else:
         estimated_tdee = FALLBACK_TDEE
+        logger.info(f"[targets] TDEE fallback (нет user.bmr и stats): {FALLBACK_TDEE:.0f}")
         
     # 1. Считаем целевые калории
     target_calories = round(estimated_tdee * (1 - deficit_pct))
@@ -108,6 +115,8 @@ def calculate_targets(
     # Если всё равно минус, ставим 0 (значит калорий слишком мало)
     if carbs_g < 0:
         carbs_g = 0
+        
+    logger.info(f"[targets] Итог: TDEE={estimated_tdee:.0f} вес={weight:.1f} цель_ккал={target_calories} белок={protein_g}г")
         
     return {
         'calories': target_calories,
