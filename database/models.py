@@ -44,6 +44,11 @@ class User(Base):
     garmin_email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     garmin_password: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     
+    # Manual calorie targets (for users without Garmin)
+    bmr: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # Базовый метаболизм, ккал/день
+    avg_active_calories: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # Средние активные калории
+    target_weight_kg: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # Целевой вес для расчёта макросов
+    
     # Relationships
     nutrition_logs: Mapped[List["NutritionLog"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     weights: Mapped[List["Weight"]] = relationship(back_populates="user", cascade="all, delete-orphan")
@@ -72,6 +77,39 @@ class NutritionLog(Base):
     
     # Relationship
     user: Mapped["User"] = relationship(back_populates="nutrition_logs")
+
+
+class UserProduct(Base):
+    """Продукты пользователя: запоминаем название, алиасы, КБЖУ на 100г, порцию по умолчанию."""
+    __tablename__ = "user_products"
+    __table_args__ = (Index('idx_user_products_user', 'user_id'),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey('users.telegram_id', ondelete='CASCADE'))
+    name: Mapped[str] = mapped_column(String(255), nullable=False)  # Отображаемое имя
+    aliases: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)  # ["сыворочный протеин", "протеин"] для матча
+    calories_per_100g: Mapped[float] = mapped_column(Float, nullable=False)
+    protein_per_100g: Mapped[float] = mapped_column(Float, nullable=False)
+    fats_per_100g: Mapped[float] = mapped_column(Float, nullable=False)
+    carbs_per_100g: Mapped[float] = mapped_column(Float, nullable=False)
+    default_portion_g: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # 1 порция = N г
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    variants: Mapped[List["UserProductVariant"]] = relationship(back_populates="product", cascade="all, delete-orphan")
+
+
+class UserProductVariant(Base):
+    """Варианты одного продукта (напр. несколько видов протеина) для расчёта среднего КБЖУ."""
+    __tablename__ = "user_product_variants"
+    __table_args__ = (Index('idx_variants_product', 'product_id'),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    product_id: Mapped[int] = mapped_column(Integer, ForeignKey('user_products.id', ondelete='CASCADE'))
+    name: Mapped[str] = mapped_column(String(255), nullable=False)  # "Optimum 30г", "MyProtein"
+    calories_per_100g: Mapped[float] = mapped_column(Float, nullable=False)
+    protein_per_100g: Mapped[float] = mapped_column(Float, nullable=False)
+    fats_per_100g: Mapped[float] = mapped_column(Float, nullable=False)
+    carbs_per_100g: Mapped[float] = mapped_column(Float, nullable=False)
+    product: Mapped["UserProduct"] = relationship(back_populates="variants")
 
 
 class Weight(Base):

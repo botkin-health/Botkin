@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, func, desc
 import logging
 
-from database.models import User, NutritionLog, Weight, SupplementLog, ActivityLog, BloodTest
+from database.models import User, NutritionLog, Weight, SupplementLog, ActivityLog, BloodTest, UserProduct, UserProductVariant, UserProduct, UserProductVariant
 
 logger = logging.getLogger(__name__)
 
@@ -566,3 +566,130 @@ def get_last_activity_date(db: Session, user_id: int) -> Optional[date]:
         ActivityLog.user_id == user_id
     ).order_by(ActivityLog.date.desc()).first()
     return result[0] if result else None
+
+
+# ==================== USER PRODUCTS (мои продукты) ====================
+
+def get_user_products(db: Session, user_id: int) -> List[UserProduct]:
+    """Список продуктов пользователя"""
+    return db.query(UserProduct).filter(UserProduct.user_id == user_id).order_by(UserProduct.name).all()
+
+
+def add_user_product(
+    db: Session,
+    user_id: int,
+    name: str,
+    calories_per_100g: float,
+    protein_per_100g: float,
+    fats_per_100g: float,
+    carbs_per_100g: float,
+    aliases: Optional[List[str]] = None,
+    default_portion_g: Optional[float] = None,
+) -> UserProduct:
+    """Добавить продукт пользователя"""
+    p = UserProduct(
+        user_id=user_id,
+        name=name,
+        aliases=list(aliases) if aliases else None,
+        calories_per_100g=calories_per_100g,
+        protein_per_100g=protein_per_100g,
+        fats_per_100g=fats_per_100g,
+        carbs_per_100g=carbs_per_100g,
+        default_portion_g=default_portion_g,
+    )
+    db.add(p)
+    db.commit()
+    db.refresh(p)
+    return p
+
+
+def add_product_variant(
+    db: Session,
+    product_id: int,
+    name: str,
+    calories_per_100g: float,
+    protein_per_100g: float,
+    fats_per_100g: float,
+    carbs_per_100g: float,
+) -> UserProductVariant:
+    """Добавить вариант продукта (для среднего КБЖУ)"""
+    v = UserProductVariant(
+        product_id=product_id,
+        name=name,
+        calories_per_100g=calories_per_100g,
+        protein_per_100g=protein_per_100g,
+        fats_per_100g=fats_per_100g,
+        carbs_per_100g=carbs_per_100g,
+    )
+    db.add(v)
+    db.commit()
+    db.refresh(v)
+    return v
+
+
+def update_product_average_from_variants(db: Session, product_id: int) -> None:
+    """Пересчитать КБЖУ продукта как среднее по вариантам"""
+    product = db.query(UserProduct).filter(UserProduct.id == product_id).first()
+    if not product:
+        return
+    variants = db.query(UserProductVariant).filter(UserProductVariant.product_id == product_id).all()
+    if not variants:
+        return
+    n = len(variants)
+    product.calories_per_100g = sum(v.calories_per_100g for v in variants) / n
+    product.protein_per_100g = sum(v.protein_per_100g for v in variants) / n
+    product.fats_per_100g = sum(v.fats_per_100g for v in variants) / n
+    product.carbs_per_100g = sum(v.carbs_per_100g for v in variants) / n
+    db.commit()
+
+
+def match_user_product(db: Session, user_id: int, text: str) -> Optional[Dict[str, Any]]:
+    """
+    Найти продукт пользователя по тексту (имя или алиас).
+    Возвращает dict для подстановки веса и КБЖУ: product, weight_g, calories, protein, fats, carbs;
+    или None если не совпадение.
+    """
+    import re
+    text_lower = (text or "").strip().lower()
+    if not text_lower or len(text_lower) < 2:
+        return None
+    products = get_user_products(db, user_id)
+    for p in products:
+        names_to_check = [p.name.lower()]
+        if p.aliases:
+            if isinstance(p.aliases, list):
+                names_to_check.extend([str(a).lower() for a in p.aliases])
+            elif isinstance(p.aliases, dict) and "aliases" in p.aliases:
+                names_to_check.extend([str(a).lower() for a in p.aliases["aliases"]])
+        for alias in names_to_check:
+            if alias and alias in text_lower:
+                # Парсим вес из текста: "30г", "30 г", "2 порции", "200 мл" (мл считаем как г для жидкостей)
+                weight_g = None
+                default_g = p.default_portion_g
+                # N г / N грамм
+                m = re.search(r"(\d+(?:[.,]\d+)?)\s*г(?:рамм)?(?:\s|$|,|\.)", text_lower, re.I)
+                if m:
+                    weight_g = float(m.group(1).replace(",", "."))
+                if weight_g is None:
+                    m = re.search(r"(\d+(?:[.,]\d+)?)\s*мл(?:\s|$|,|\.)", text_lower, re.I)
+                    if m:
+                        weight_g = float(m.group(1).replace(",", "."))
+                if weight_g is None and default_g:
+                    m = re.search(r"(\d+)\s*порц", text_lower, re.I)
+                    if m:
+                        weight_g = int(m.group(1)) * default_g
+                if weight_g is None and default_g:
+                    weight_g = default_g
+                if weight_g is None:
+                    weight_g = 100.0
+                factor = weight_g / 100.0
+                return {
+                    "product": p,
+                    "weight_g": weight_g,
+                    "calories": round(p.calories_per_100g * factor, 1),
+                    "protein": round(p.protein_per_100g * factor, 1),
+                    "fats": round(p.fats_per_100g * factor, 1),
+                    "carbs": round(p.carbs_per_100g * factor, 1),
+                    "name": p.name,
+                }
+    return None
