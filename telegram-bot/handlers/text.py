@@ -362,30 +362,59 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
     if custom_date:
         text = clean_text
     
+    # Сначала проверяем "мои продукты" — без вызова нейросети
+    router_result = None
+    from database import SessionLocal, match_user_product
+    db = SessionLocal()
     try:
-        debug_logger.info("⏳ Calling analyze_message in executor...")
-        
-        # Get runnning loop
-        loop = asyncio.get_running_loop()
-        
-        # Run synchronous analyze_message in a separate thread
-        router_result = await loop.run_in_executor(
-            None, 
-            analyze_message, 
-            text
-        )
-        debug_logger.info(f"✅ analyze_message returned type: {router_result.get('type') if router_result else 'None'}")
-        
-        # ДИАГНОСТИКА: логируем ответ от LLM
-        print("="*80)
-        print("🔍 [ДИАГНОСТИКА] Результат от LLM Router:")
-        import json
-        print(json.dumps(router_result, ensure_ascii=False, indent=2))
-        print("="*80)
-    except Exception as e:
-        debug_logger.error(f"❌ analyze_message FAILED: {e}", exc_info=True)
-        logger.error(f"LLM Router Error: {e}", exc_info=True)
-        router_result = None
+        telegram_id = int(message.from_user.id)
+        matched = match_user_product(db, telegram_id, text)
+        if matched:
+            router_result = {
+                'type': 'food',
+                'data': {
+                    'dish_name': matched['name'],
+                    'meal_type': 'snack',
+                    'items': [{
+                        'name': matched['name'],
+                        'weight': matched['weight_g'],
+                        'quantity': None,
+                        'calories': matched['calories'],
+                        'protein': matched['protein'],
+                        'fats': matched['fats'],
+                        'carbs': matched['carbs'],
+                    }],
+                    'total_nutrition': {
+                        'calories': matched['calories'],
+                        'protein': matched['protein'],
+                        'fats': matched['fats'],
+                        'carbs': matched['carbs'],
+                    }
+                }
+            }
+            debug_logger.info(f"✅ Найден свой продукт: {matched['name']} {matched['weight_g']}г")
+    finally:
+        db.close()
+    
+    if not router_result:
+        try:
+            debug_logger.info("⏳ Calling analyze_message in executor...")
+            loop = asyncio.get_running_loop()
+            router_result = await loop.run_in_executor(
+                None, 
+                analyze_message, 
+                text
+            )
+            debug_logger.info(f"✅ analyze_message returned type: {router_result.get('type') if router_result else 'None'}")
+            print("="*80)
+            print("🔍 [ДИАГНОСТИКА] Результат от LLM Router:")
+            import json
+            print(json.dumps(router_result, ensure_ascii=False, indent=2))
+            print("="*80)
+        except Exception as e:
+            debug_logger.error(f"❌ analyze_message FAILED: {e}", exc_info=True)
+            logger.error(f"LLM Router Error: {e}", exc_info=True)
+            router_result = None
         
     if not router_result:
         # Fallback: Regex for Vitamins
