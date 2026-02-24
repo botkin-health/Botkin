@@ -347,23 +347,38 @@ def analyze_message_gemini(text: str = None, image_paths: List[Union[str, Path]]
     
     print(f"    ✨ Attempting recognition through Gemini 1.5 Flash...")
     
-    try:
-        response = requests.post(url, headers=headers, json=payload, timeout=30)
-        response.raise_for_status()
-        result = response.json()
-        
-        content = result['candidates'][0]['content']['parts'][0]['text']
-        # Clean markdown if present
-        content = content.strip()
-        if content.startswith('```'):
-            content = content.split('\n', 1)[1]
-            if content.endswith('```'):
-                content = content[:-3]
-        
-        return parse_llm_response(json.loads(content))
-    except Exception as e:
-        print(f"    ❌ Gemini Fallback failed: {e}")
-        return None
+    for attempt in range(3):
+        try:
+            response = requests.post(url, headers=headers, json=payload, timeout=30)
+            if response.status_code == 429:
+                wait = (attempt + 1) * 3
+                logger.warning(f"Gemini 429 (rate limit), retry {attempt+1}/3 через {wait} сек")
+                time.sleep(wait)
+                continue
+            response.raise_for_status()
+            result = response.json()
+            
+            content = result['candidates'][0]['content']['parts'][0]['text']
+            # Clean markdown if present
+            content = content.strip()
+            if content.startswith('```'):
+                content = content.split('\n', 1)[1]
+                if content.endswith('```'):
+                    content = content[:-3]
+            
+            return parse_llm_response(json.loads(content))
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 429 and attempt < 2:
+                wait = (attempt + 1) * 3
+                logger.warning(f"Gemini 429 (rate limit), retry {attempt+1}/3 через {wait} сек")
+                time.sleep(wait)
+                continue
+            logger.warning(f"Gemini Fallback failed: {e}")
+            return None
+        except Exception as e:
+            logger.warning(f"Gemini Fallback failed: {e}")
+            return None
+    return None
 
 if __name__ == "__main__":
     # Simple test
