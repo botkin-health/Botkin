@@ -298,6 +298,11 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
                 }
             if menu_data and (menu_data.get("calories") or menu_data.get("protein") is not None):
                 logger.info(f"Распознано через LLM: {menu_data.get('dish_name')}, {menu_data.get('calories')} ккал")
+        else:
+            if router_result is not None:
+                logger.info(f"LLM по фото вернул type={router_result.get('type')}, не еда — идём в fallback")
+            else:
+                logger.warning("LLM по фото вернул None (сеть/лимит/ошибка)")
         # Витамины и весы — не считать едой, обработать сразу
         if router_result and router_result.get("type") == "vitamins":
             data = router_result.get("data", {})
