@@ -298,6 +298,29 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
                 }
             if menu_data and (menu_data.get("calories") or menu_data.get("protein") is not None):
                 logger.info(f"Распознано через LLM: {menu_data.get('dish_name')}, {menu_data.get('calories')} ккал")
+        # Витамины и весы — не считать едой, обработать сразу
+        if router_result and router_result.get("type") == "vitamins":
+            data = router_result.get("data", {})
+            items = data.get("items", [])
+            if items:
+                from core.supplements import save_supplements
+                telegram_user_id = int(message.from_user.id)
+                saved = save_supplements(items, user_id=telegram_user_id)
+                items_list = "\n".join([f"• {item}" for item in items])
+                status = "✅ Записано" if saved else "⚠️ Ошибка записи"
+                await processing_msg.edit_text(f"💊 <b>Витамины:</b>\n{items_list}\n\n{status}", parse_mode="HTML")
+                return
+        if router_result and router_result.get("type") == "weight":
+            data = router_result.get("data", {})
+            w_val = data.get("weight")
+            if w_val is not None:
+                from helpers.db_save import save_weight_to_db
+                telegram_user_id = int(message.from_user.id)
+                if save_weight_to_db({"weight": w_val}, user_id=telegram_user_id):
+                    await processing_msg.edit_text(f"⚖️ <b>Вес:</b> {w_val} кг\n✅ Записано", parse_mode="HTML")
+                else:
+                    await processing_msg.edit_text(f"⚖️ Распознано: {w_val} кг (сохранение не удалось)", parse_mode="HTML")
+                return
     except Exception as e:
         logger.warning(f"LLM по фото не сработал, fallback на parse_menu_photo: {e}")
 
