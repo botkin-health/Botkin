@@ -80,6 +80,12 @@ from database.crud import (
     get_latest_blood_test,
     get_blood_tests_by_period,
     get_all_blood_tests,
+    # User products (мои продукты)
+    get_user_products,
+    add_user_product,
+    add_product_variant,
+    update_product_average_from_variants,
+    match_user_product,
 )
 
 __all__ = [
@@ -113,4 +119,9 @@ __all__ = [
     'get_latest_blood_test',
     'get_blood_tests_by_period',
     'get_all_blood_tests',
+    'get_user_products',
+    'add_user_product',
+    'add_product_variant',
+    'update_product_average_from_variants',
+    'match_user_product',
 ]

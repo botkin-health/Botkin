@@ -265,39 +265,73 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
     photo_paths = remaining_photos
     photo_count = len(photo_paths)
 
-    # ИЗМЕНЕНО: Обрабатываем каждое фото ОТДЕЛЬНО, если это группа
-    all_menu_data = []
-    if photo_count > 1:
-        logger.info(f"📸 Обрабатываю {photo_count} фото еды по отдельности...")
-        for idx, photo_path in enumerate(photo_paths, 1):
-            logger.info(f"  Анализирую фото еды {idx}/{photo_count}: {photo_path.name}")
-            menu_item = parse_menu_photo([photo_path], api_key, description=caption)
-            if menu_item:
-                all_menu_data.append(menu_item)
-                logger.info(f"  ✅ Фото {idx}: распознано '{menu_item.get('dish_name')}'")
+    # Сначала пробуем лучшую модель (LLM) по фото — единый путь для распознавания
+    menu_data = None
+    from core.llm_router import analyze_message
+    try:
+        paths_for_llm = [Path(p) for p in photo_paths] if isinstance(photo_paths[0], str) else photo_paths
+        prompt_text = (caption or "").strip() or "Что на фото? Название продукта или блюда, вес и КБЖУ."
+        import asyncio
+        loop = asyncio.get_running_loop()
+        router_result = await loop.run_in_executor(None, lambda: analyze_message(text=prompt_text, image_paths=paths_for_llm))
+        if router_result and router_result.get("type") == "food" and router_result.get("data"):
+            data = router_result["data"]
+            items = data.get("items") or []
+            total_nutrition = data.get("total_nutrition")
+            if total_nutrition:
+                menu_data = {
+                    "dish_name": data.get("dish_name") or (items[0].get("name") if items else "Блюдо"),
+                    "calories": total_nutrition.get("calories", 0),
+                    "protein": total_nutrition.get("protein", 0),
+                    "fats": total_nutrition.get("fats", 0),
+                    "carbs": total_nutrition.get("carbs", 0),
+                    "weight": items[0].get("weight") if items else None,
+                }
+            elif items:
+                menu_data = {
+                    "dish_name": data.get("dish_name") or items[0].get("name", "Блюдо"),
+                    "calories": sum(i.get("calories", 0) for i in items),
+                    "protein": sum(i.get("protein", 0) for i in items),
+                    "fats": sum(i.get("fats", 0) for i in items),
+                    "carbs": sum(i.get("carbs", 0) for i in items),
+                    "weight": items[0].get("weight") if items else None,
+                }
+            if menu_data and (menu_data.get("calories") or menu_data.get("protein") is not None):
+                logger.info(f"Распознано через LLM: {menu_data.get('dish_name')}, {menu_data.get('calories')} ккал")
+    except Exception as e:
+        logger.warning(f"LLM по фото не сработал, fallback на parse_menu_photo: {e}")
+
+    # Fallback: старое распознавание меню (не удаляем)
+    if not menu_data or not (menu_data.get("calories") or menu_data.get("protein") is not None):
+        all_menu_data = []
+        if photo_count > 1:
+            logger.info(f"📸 Обрабатываю {photo_count} фото еды по отдельности...")
+            for idx, photo_path in enumerate(photo_paths, 1):
+                logger.info(f"  Анализирую фото еды {idx}/{photo_count}: {photo_path.name}")
+                menu_item = parse_menu_photo([photo_path], api_key, description=caption)
+                if menu_item:
+                    all_menu_data.append(menu_item)
+                    logger.info(f"  ✅ Фото {idx}: распознано '{menu_item.get('dish_name')}'")
+                else:
+                    logger.info(f"  ⚠️ Фото {idx}: ничего не распознано")
+            if len(all_menu_data) > 1:
+                menu_data = {
+                    'dish_name': ', '.join([item.get('dish_name', 'Неизвестно') for item in all_menu_data]),
+                    'calories': sum([item.get('calories', 0) for item in all_menu_data]),
+                    'protein': sum([item.get('protein', 0) for item in all_menu_data]),
+                    'fats': sum([item.get('fats', 0) for item in all_menu_data]),
+                    'carbs': sum([item.get('carbs', 0) for item in all_menu_data]),
+                    'weight': None,
+                    'multiple_items': True,
+                    'items': all_menu_data
+                }
+                logger.info(f"✅ Объединено {len(all_menu_data)} блюд: {menu_data['dish_name']}")
+            elif len(all_menu_data) == 1:
+                menu_data = all_menu_data[0]
             else:
-                logger.info(f"  ⚠️ Фото {idx}: ничего не распознано")
-        
-        # Если распознано несколько блюд, объединяем их
-        if len(all_menu_data) > 1:
-            menu_data = {
-                'dish_name': ', '.join([item.get('dish_name', 'Неизвестно') for item in all_menu_data]),
-                'calories': sum([item.get('calories', 0) for item in all_menu_data]),
-                'protein': sum([item.get('protein', 0) for item in all_menu_data]),
-                'fats': sum([item.get('fats', 0) for item in all_menu_data]),
-                'carbs': sum([item.get('carbs', 0) for item in all_menu_data]),
-                'weight': None,
-                'multiple_items': True,
-                'items': all_menu_data
-            }
-            logger.info(f"✅ Объединено {len(all_menu_data)} блюд: {menu_data['dish_name']}")
-        elif len(all_menu_data) == 1:
-            menu_data = all_menu_data[0]
+                menu_data = None
         else:
-            menu_data = None
-    else:
-        # Одно фото - обрабатываем как раньше
-        menu_data = parse_menu_photo(photo_paths, api_key, description=caption)
+            menu_data = parse_menu_photo(photo_paths, api_key, description=caption)
     
     # Логируем результат распознавания меню
     if menu_data:
