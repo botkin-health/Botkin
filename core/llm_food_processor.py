@@ -11,7 +11,8 @@ from typing import Dict, List, Tuple
 from .description_parser import (
     extract_products_from_description,
     normalize_product_name,
-    get_default_unit_weight
+    get_default_unit_weight,
+    is_zero_calorie_drink,
 )
 from .product_search import find_product
 from .nutrition import calculate_nutrition, calculate_meal_totals
@@ -56,13 +57,29 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
         name = item.get('name', 'Unknown')
         weight = item.get('weight')
         
-        # Проверяем стандартный вес (бутылки, банки и т.д.)
-        default_weight = get_default_unit_weight(name)
-        if default_weight > 0:
-            if not weight or weight < default_weight * 0.5:
+        # Приоритет: вес из описания (regex). Не перезаписывать явно указанный пользователем вес.
+        regex_matched = False
+        if description and regex_items_map:
+            n_name = normalize_product_name(name)
+            regex_weight = regex_items_map.get(n_name) or regex_items_map.get(name.lower())
+            if regex_weight is None:
+                name_tokens = set(name.lower().split())
+                for r_name, r_weight in regex_items_map.items():
+                    r_tokens = set(r_name.split())
+                    if len(name_tokens & r_tokens) >= 1 and len(r_name) > 3 and len(name) > 3:
+                        regex_weight = r_weight
+                        break
+            if regex_weight is not None:
+                weight = regex_weight
+                regex_matched = True
+        
+        # Только если пользователь НЕ указал вес — default для бутылок/порций
+        if not regex_matched:
+            default_weight = get_default_unit_weight(name)
+            if default_weight > 0 and (not weight or weight < default_weight * 0.5):
                 weight = default_weight
         
-        # Fallback: пробуем найти вес в regex результатах
+        # Fallback: regex (если не сработал выше)
         if (not weight or weight == 100) and description:
             weight = _try_regex_weight(name, weight, regex_items_map)
         
@@ -90,14 +107,20 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
         elif weight and weight > 0:
             # Рассчитываем по локальной БД
             nutrition = calculate_nutrition(name, weight)
+            cal, prot, fat, carb = nutrition['calories'], nutrition['protein'], nutrition['fats'], nutrition['carbs']
+            if cal == 0 and not is_zero_calorie_drink(name):
+                cal = round(weight * 0.12, 1)
+                prot = round(weight * 0.03, 1)
+                fat = round(weight * 0.06, 1)
+                carb = round(weight * 0.12, 1)
             meal_items.append({
                 'product': name,
                 'weight_g': weight,
                 'weight_source': 'llm',
-                'calories': nutrition['calories'],
-                'protein': nutrition['protein'],
-                'fats': nutrition['fats'],
-                'carbs': nutrition['carbs'],
+                'calories': cal,
+                'protein': prot,
+                'fats': fat,
+                'carbs': carb,
                 'basis': nutrition.get('basis', 'raw'),
                 'source': 'local_db'
             })
@@ -109,8 +132,12 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
     # Check for explicit total_nutrition from LLM (Recipe Cards/Labels)
     total_nutrition = data.get('total_nutrition')
     computed_totals = calculate_meal_totals(meal_items)
+    dish_name = data.get('dish_name', '')
     
     if total_nutrition and (total_nutrition.get('calories') or 0) > 0:
+        if len(meal_items) == 1 and is_zero_calorie_drink(dish_name or (meal_items[0].get('product') if meal_items else '')):
+            # LLM мог вернуть обычную колу — принудительно 0
+            return meal_items, {'calories': 0.0, 'protein': 0.0, 'fats': 0.0, 'carbs': 0.0}
         if len(meal_items) == 1:
             logger.info(f"✅ Using explicit total nutrition from LLM (Recipe/Label): {total_nutrition}")
             return meal_items, {
@@ -232,6 +259,19 @@ def _process_llm_macros(item: Dict, name: str, weight) -> Dict:
         if unit_weight > 0:
             final_weight = unit_weight * qty
             weight_src = 'estimate'
+    
+    # Напитки без калорий: LLM часто путает с обычной колой — принудительно 0
+    if is_zero_calorie_drink(name):
+        return {
+            'product': name,
+            'weight_g': final_weight,
+            'weight_source': weight_src,
+            'calories': 0.0,
+            'protein': 0.0,
+            'fats': 0.0,
+            'carbs': 0.0,
+            'source': 'llm_router_zero_drink',
+        }
             
     return {
         'product': name,

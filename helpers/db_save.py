@@ -2,12 +2,15 @@
 Database save functions - PostgreSQL Version
 
 Заменяет save_meal_to_json и save_weight_measurement
-для работы с PostgreSQL вместо JSON
+для работы с PostgreSQL вместо JSON.
+Время и дата при сохранении — по Москве (UTC+3).
 """
 
 import logging
-from datetime import datetime, time as time_type
+from datetime import datetime, time as time_type, timezone, timedelta
 from typing import Dict, Any, Optional
+
+MSK = timezone(timedelta(hours=3))
 
 from database import (
     SessionLocal,
@@ -40,14 +43,14 @@ def save_meal_to_db(meal_data: dict, meal_name: str = None, user_id: int = 89565
             else:
                 meal_date = custom_date
         else:
-            meal_date = datetime.now().date()
+            meal_date = datetime.now(MSK).date()
         
-        # Определяем время
-        meal_time_str = meal_data.get('meal_time', datetime.now().strftime('%H:%M'))
+        # Определяем время (по Москве)
+        meal_time_str = meal_data.get('meal_time', datetime.now(MSK).strftime('%H:%M'))
         try:
             meal_time = datetime.strptime(meal_time_str, '%H:%M').time()
         except:
-            meal_time = datetime.now().time()
+            meal_time = datetime.now(MSK).time()
         
         # Название приёма пищи
         if not meal_name:

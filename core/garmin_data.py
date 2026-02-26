@@ -111,20 +111,20 @@ def sync_garmin_data(user_id: int, sync_date: Optional[date_type] = None):
     db = SessionLocal()
     try:
         user = get_user_by_telegram_id(db, user_id)
-        email = None
-        password = None
-        
-        # Priority: DB > ENV
-        if user and user.garmin_email and user.garmin_password:
-            email = user.garmin_email
-            password = user.garmin_password
-        else:
-            email = os.getenv('GARMIN_EMAIL')
-            password = os.getenv('GARMIN_PASSWORD')
-            
         if not user:
-             logger.warning(f"User {user_id} not found for syncing")
-             return
+            logger.warning(f"User {user_id} not found for syncing")
+            return
+        
+        # Garmin: только из DB или ENV для основного пользователя (обратная совместимость)
+        primary_id = int(os.getenv("HEALTHVAULT_USER_ID", "895655"))
+        if user.garmin_email and user.garmin_password:
+            email, password = user.garmin_email, user.garmin_password
+        elif user_id == primary_id and os.getenv("GARMIN_EMAIL") and os.getenv("GARMIN_PASSWORD"):
+            email = os.getenv("GARMIN_EMAIL")
+            password = os.getenv("GARMIN_PASSWORD")
+        else:
+            logger.info(f"User {user_id} has no Garmin — skipping sync")
+            return
 
         # 2. Connect to Garmin
         try:
@@ -153,7 +153,9 @@ def sync_garmin_data(user_id: int, sync_date: Optional[date_type] = None):
             logger.info(f"No stats available for {target_date_str}")
             return
             
-        # 4. Save to DB
+        # 4. Save to DB (включая сон, если API вернул sleepingSeconds)
+        sleep_sec = stats.get('sleepingSeconds') or stats.get('measurableAsleepDuration')
+        sleep_hours = round(sleep_sec / 3600.0, 2) if sleep_sec else None
         create_or_update_activity(
             db=db,
             user_id=user.telegram_id,
@@ -163,9 +165,9 @@ def sync_garmin_data(user_id: int, sync_date: Optional[date_type] = None):
             total_calories=stats.get('totalKilocalories'),
             bmr_calories=stats.get('bmrKilocalories'),
             distance_km=(stats.get('totalDistanceMeters') or 0) / 1000.0,
-            # Basic stats often don't have sleep/stress/hrv instantly, 
-            # they require separate calls or sync delay.
-            # We map what's available in 'get_stats' response.
+            sleep_hours=sleep_hours,
+            heart_rate_avg=stats.get('restingHeartRate') or stats.get('minHeartRate'),
+            stress_level=stats.get('averageStressLevel'),
             source='garmin_connect',
             raw_data=stats
         )

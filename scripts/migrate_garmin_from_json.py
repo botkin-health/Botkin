@@ -25,6 +25,64 @@ def parse_date_from_filename(filename: str) -> Optional[datetime]:
         print(f"⚠️  Не удалось распарсить дату из {filename}: {e}")
         return None
 
+def _extract_activity_from_data(data: dict, date_obj):
+    """Из объекта stats или корня: шаги, калории, сон, дистанция."""
+    steps = data.get('totalSteps') or data.get('dailyStepCount')
+    active_cal = data.get('activeKilocalories')
+    total_cal = data.get('totalKilocalories')
+    bmr_cal = data.get('bmrKilocalories') or data.get('wellnessKilocalories')
+    distance_m = data.get('totalDistanceMeters')
+    sleep_sec = data.get('sleepingSeconds') or data.get('measurableAsleepDuration')
+    sleep_hours = round(sleep_sec / 3600.0, 2) if sleep_sec else None
+    return dict(
+        steps=steps, active_calories=active_cal, total_calories=total_cal,
+        bmr_calories=bmr_cal, distance_km=(distance_m / 1000.0) if distance_m else None,
+        sleep_hours=sleep_hours,
+        heart_rate_avg=data.get('restingHeartRate') or data.get('minHeartRate'),
+        stress_level=data.get('averageStressLevel'),
+    )
+
+
+def migrate_daily_summary(user_id: int = 895655):
+    """Мигрирует из data/garmin/daily-summary/*.json (формат: { \"stats\": { ... } })."""
+    db = SessionLocal()
+    summary_dir = Path("data/garmin/daily-summary")
+    if not summary_dir.exists():
+        print(f"  Папка {summary_dir} не найдена")
+        db.close()
+        return 0, 0
+    json_files = sorted(summary_dir.glob("*.json"))
+    if not json_files:
+        db.close()
+        return 0, 0
+    print(f"\n📊 Миграция daily-summary: найдено {len(json_files)} файлов")
+    migrated, errors = 0, 0
+    for json_file in json_files:
+        try:
+            with open(json_file, 'r', encoding='utf-8') as f:
+                raw = json.load(f)
+            data = raw.get('stats') or raw
+            date_obj = parse_date_from_filename(json_file.name)
+            if not date_obj:
+                errors += 1
+                continue
+            kw = _extract_activity_from_data(data, date_obj)
+            create_or_update_activity(
+                db=db, user_id=user_id, date=date_obj.date(),
+                source='json_import_daily_summary', raw_data=raw, **kw
+            )
+            migrated += 1
+            if migrated % 10 == 0:
+                print(f"  ✅ {migrated}/{len(json_files)}")
+                db.commit()
+        except Exception as e:
+            errors += 1
+            print(f"  ❌ {json_file.name}: {e}")
+    db.commit()
+    db.close()
+    return migrated, errors
+
+
 def migrate_daily_stats(user_id: int = 895655):
     """Мигрирует данные из data/garmin/stats/*.json"""
     
@@ -32,63 +90,38 @@ def migrate_daily_stats(user_id: int = 895655):
     stats_dir = Path("data/garmin/stats")
     
     if not stats_dir.exists():
-        print(f"❌ Папка {stats_dir} не найдена")
+        db.close()
         return 0, 0
     
     migrated = 0
     errors = 0
-    
     json_files = sorted(stats_dir.glob("*.json"))
     total_files = len(json_files)
-    
     print(f"\n📊 Миграция stats: найдено {total_files} файлов")
 
-    
     for json_file in json_files:
         try:
             with open(json_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-            
-            # Извлечь дату
             date_obj = parse_date_from_filename(json_file.name)
             if not date_obj:
                 errors += 1
                 continue
-            
-            # Извлечь данные
-            steps = data.get('totalSteps') or data.get('dailyStepCount')
-            active_cal = data.get('activeKilocalories')
-            total_cal = data.get('totalKilocalories')
-            bmr_cal = data.get('bmrKilocalories') or data.get('wellnessKilocalories')
-            distance_m = data.get('totalDistanceMeters')
-            
-            # Сохранить в БД
+            kw = _extract_activity_from_data(data, date_obj)
             create_or_update_activity(
-                db=db,
-                user_id=user_id,
-                date=date_obj.date(),
-                steps=steps,
-                active_calories=active_cal,
-                total_calories=total_cal,
-                bmr_calories=bmr_cal,
-                distance_km=(distance_m / 1000.0) if distance_m else None,
-                source='json_import_stats',
-                raw_data=data
+                db=db, user_id=user_id, date=date_obj.date(),
+                source='json_import_stats', raw_data=data, **kw
             )
-            
             migrated += 1
-            
             if migrated % 10 == 0:
                 print(f"  ✅ {migrated}/{total_files} файлов")
-                db.commit()  # Commit каждые 10 записей
-                
+                db.commit()
         except Exception as e:
             errors += 1
             print(f"  ❌ {json_file.name}: {e}")
     
     db.commit()
     db.close()
-    
     return migrated, errors
 
 def migrate_activities(user_id: int = 895655):
@@ -161,33 +194,26 @@ def main():
     
     user_id = 895655
     
-    # Фаза 1: Мигрировать daily_stats (основные данные)
+    # Фаза 1: daily-summary (шаги, сон, калории) — основной источник локальных JSON
+    migrated_summary, errors_summary = migrate_daily_summary(user_id)
+    # Фаза 2: stats (если есть отдельная папка)
     migrated_stats, errors_stats = migrate_daily_stats(user_id)
-    
-    # Фаза 2: Обновить из activities (опционально)
-    # updated_activities, errors_activities = migrate_activities(user_id)
     
     print("\n" + "="*60)
     print("✅ МИГРАЦИЯ ЗАВЕРШЕНА")
     print("="*60)
-    print(f"Daily Stats: {migrated_stats} мигрировано, {errors_stats} ошибок")
+    print(f"Daily Summary: {migrated_summary} мигрировано, {errors_summary} ошибок")
+    print(f"Daily Stats:   {migrated_stats} мигрировано, {errors_stats} ошибок")
     # print(f"Activities: {updated_activities} обновлено, {errors_activities} ошибок")
     
     # Проверка результата
-    from database import SessionLocal
+    from sqlalchemy import text
     db = SessionLocal()
-    
-    result = db.execute("""
-        SELECT 
-            COUNT(*) as total_days,
-            MIN(date) as first_date,
-            MAX(date) as last_date,
-            AVG(active_calories) as avg_active_cal,
-            AVG(steps) as avg_steps
-        FROM activity_log
-        WHERE user_id = :user_id
-    """, {"user_id": user_id}).fetchone()
-    
+    result = db.execute(text("""
+        SELECT COUNT(*) as total_days, MIN(date) as first_date, MAX(date) as last_date,
+               AVG(active_calories) as avg_active_cal, AVG(steps) as avg_steps
+        FROM activity_log WHERE user_id = :user_id
+    """), {"user_id": user_id}).fetchone()
     db.close()
     
     if result:
