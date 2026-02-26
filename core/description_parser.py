@@ -156,6 +156,24 @@ PRODUCT_ALIASES = {
 }
 
 
+def is_zero_calorie_drink(name: str) -> bool:
+    """
+    Определяет, является ли продукт напитком без калорий (Coca-Cola Zero, диет-кола и т.п.).
+    Используется для принудительной подстановки 0 ккал/0 У при ошибках LLM.
+    """
+    if not name or not isinstance(name, str):
+        return False
+    n = name.lower().strip()
+    markers = (
+        'zero', 'зера', 'зеро',  # coke zero
+        'diet ', 'диет', 'лайт', 'light ',
+        'без сахара', 'sugar-free', 'sugar free', 'no sugar',
+        'безуглеводн', 'zero calorie', '0 ккал',
+        'кола нулевая', 'coca-cola zero', 'pepsi zero',
+    )
+    return any(m in n for m in markers)
+
+
 def _estimate_product_size(product_name: str) -> float:
     """
     Оценивает примерный размер продукта для умного сопоставления весов.

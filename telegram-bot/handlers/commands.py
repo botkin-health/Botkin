@@ -6,7 +6,9 @@
 from aiogram import Router
 from aiogram.types import Message
 from aiogram.filters import Command
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+
+MSK = timezone(timedelta(hours=3))
 
 from core.garmin_data import get_garmin_data_for_date, get_average_stats
 from core.weekly_nutrition import analyze_weekly_nutrition
@@ -61,17 +63,18 @@ async def cmd_help(message: Message):
         "📸 <b>Фото:</b> Фото тарелки. Бот поймет состав и вес.\n"
         "🗣 <b>Голос:</b> 'Завтрак: 2 яйца и хлеб'.\n"
         "📝 <b>Текст:</b> 'Ужин: стейк и салат'.\n"
-        "<i>💡 Называйте прием (Завтрак/Ужин) или учту текущее время. Это для контроля углеводов.</i>\n\n"
+        "<i>💡 Называйте прием (Завтрак/Ужин) или учту текущее время. Это для контроля углеводов.</i>\n"
+        "<i>💡 Уточняйте: 'вареная гречка', 'сухой рис', 'готовая паста' — иначе бот считает как сухой продукт.</i>\n\n"
         "💊 <b>Витамины и Лекарства:</b>\n"
         "📸 <b>Фото:</b> Таблетки на ладони или упаковки.\n"
         "🗣 <b>Голос:</b> 'Выпил утренние', 'Принял нурофен'.\n"
         "📝 <b>Текст:</b> 'Омега и Д3 плюс'.\n\n"
         "⚙️ <b>Команды:</b>\n"
-        "/day — Итоги дня: КБЖУ, спорт, витамины.\n"
+        "/day [дата] — Итоги дня (можно 'вчера' или '26.02').\n"
         "/vitamins — Чек-лист и схема приема.\n"
         "/week — Анализ рациона за неделю.\n"
-        "/setup — Настройка BMR и активных калорий (для тех, кто без Garmin).\n"
-        "/activity <число> — Ввести активные калории за сегодня вручную.\n"
+        "/setup — Настройка BMR и активных ккал (без Garmin).\n"
+        "/activity &lt;число&gt; — Ввести активные калории за сегодня вручную.\n"
         "/help — Эта справка."
     )
 
@@ -97,9 +100,30 @@ async def cmd_day(message: Message, user_id: int):
         from core.garmin_data import sync_missing_garmin_days
         missing_count = sync_missing_garmin_days(user_id=user_id)
         
-        today_date = datetime.now().date()
+        real_today = datetime.now(MSK).date()
+        today_date = real_today
+        
+        # Check if user asked for a specific date
+        text = message.text.lower() if message.text else ""
+        if "вчера" in text or "yesterday" in text:
+            today_date -= timedelta(days=1)
+        else:
+            parts = text.split()
+            if len(parts) > 1:
+                date_str = parts[1]
+                for fmt in ('%d.%m', '%d.%m.%Y', '%Y-%m-%d'):
+                    try:
+                        parsed = datetime.strptime(date_str, fmt).date()
+                        if fmt == '%d.%m':
+                            parsed = parsed.replace(year=today_date.year)
+                        today_date = parsed
+                        break
+                    except ValueError:
+                        pass
+        
         today_str = today_date.strftime('%Y-%m-%d')
         today_formatted = today_date.strftime('%d.%m.%Y')
+        activity_label = "сегодня" if today_date == real_today else today_formatted
         
         # New Service Logic
         from services.nutrition_service import get_nutrition_service
@@ -142,7 +166,7 @@ async def cmd_day(message: Message, user_id: int):
             f"• Жиры: {totals.fats:.0f} / {targets['fats']} г",
             f"• Углеводы: {totals.carbs:.0f} / {targets['carbs']} г",
             "",
-            f"🔥 Активность (сегодня): <b>{active_calories:.0f}</b> ккал",
+            f"🔥 Активность ({activity_label}): <b>{active_calories:.0f}</b> ккал",
             "",
             supplements_text
         ]
@@ -402,7 +426,7 @@ async def cmd_activity(message: Message, user_id: int):
     from database.crud import create_or_update_activity
     db = SessionLocal()
     try:
-        today = datetime.now().date()
+        today = datetime.now(MSK).date()
         create_or_update_activity(db, user_id, today, active_calories=float(cal), source="manual")
         await message.answer(f"✅ Активность сегодня: {cal} ккал сохранена.")
     finally:
@@ -424,7 +448,7 @@ async def cmd_burn(message: Message, user_id: int):
     from database.crud import create_or_update_activity
     db = SessionLocal()
     try:
-        create_or_update_activity(db, user_id, datetime.now().date(), active_calories=float(cal), source="manual")
+        create_or_update_activity(db, user_id, datetime.now(MSK).date(), active_calories=float(cal), source="manual")
         await message.answer(f"✅ Активность сегодня: {cal} ккал сохранена.")
     finally:
         db.close()

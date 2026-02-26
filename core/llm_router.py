@@ -88,6 +88,31 @@ CASE B: Label or card shows TOTAL values for the whole product/portion (e.g. "И
   3. List ingredients in `items` normally.
 
 KEY RULE: Always check if the label says "на 100г" / "per 100g" / "per serving" before deciding which case applies!
+
+SCENARIO 1.2: PACKAGED PRODUCT WRAPPER / LABEL PHOTO (CRITICAL)
+When the photo shows a PACKAGE, WRAPPER, or LABEL of a ready-made product (protein bar, snack, yogurt, cottage cheese, sports nutrition, etc.):
+
+STEP 1 — READ THE PACKAGE TEXT (highest priority):
+  - Extract the BRAND and PRODUCT NAME from the package (e.g., "Bombbar Slim Nuts", "Chobani Greek Yogurt")
+  - Extract the NET WEIGHT ("Net Wt", "Масса нетто", "35g", "55 г") — this is THE portion size
+  - Look for nutrition claims: "30% PROTEIN", "HIGH PROTEIN", "HIGH FIBER", "NO SUGAR ADDED" — these are clues about macros
+
+STEP 2 — USE TEXT DATA OVER VISUAL ASSESSMENT:
+  - DO NOT estimate macros by looking at the product's visual contents (nuts, chocolate, etc.)
+  - If you see nuts/chocolate on the wrapper of a PROTEIN bar, do NOT calculate macros as if it were a regular nut bar
+  - TRUST the package label values. If not visible, use YOUR KNOWLEDGE of the specific brand/product.
+
+STEP 3 — FOR PROTEIN PRODUCTS specifically:
+  - If the label says "30% PROTEIN" on a 35g bar → protein ≈ 35 * 0.30 = ~10.5g
+  - Protein bars (Bombbar, QuestBar, RxBar, Fit Kit, Chocofitness, etc.) have HIGH protein and LOW fat
+  - A typical 35-40g protein bar: ~110-140 kcal, protein ~9-12g, fats ~2-5g, carbs ~8-15g
+  - NOT like a regular nut/chocolate bar: ~200+ kcal, protein ~3-5g, fats ~15-20g
+
+EXAMPLES of known brands (use if macros not visible):
+  - Bombbar Slim (35g): 116 kcal, Б:10г, Ж:3г, У:4г
+  - Bombbar Pro (60g): 240 kcal, Б:20г, Ж:9г, У:20г
+  - Fit Kit Chocolate Bar (50g): 173 kcal, Б:14г, Ж:5г, У:18г
+
 CRITICAL FOR FOOD:
 - Use USER provided weights if present (e.g. "100g carrot" -> weight: 100).
 - If macros are provided in text (e.g. "Fat: 0.4g"), USE THEM exact. DO NOT interpret "0.4" as a percentage multiplier!
