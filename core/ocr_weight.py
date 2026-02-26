@@ -51,7 +51,10 @@ def parse_weight_screenshot(file_paths: list[Path], api_key: Optional[str], desc
             
             data = _parse_json_response(response.text)
             if data and data.get('is_body_metrics') is True and 'weight' in data:
-                return data
+                w = data.get('weight')
+                if isinstance(w, (int, float)) and 25 <= float(w) <= 300:
+                    return data
+                logger.info(f"Gemini OCR: вес вне диапазона 25–300 кг (получено {w}), не считаем весами")
                 
         except Exception as e:
             logger.error(f"Gemini OCR failed: {e}")
@@ -110,7 +113,11 @@ def parse_weight_screenshot(file_paths: list[Path], api_key: Optional[str], desc
                 # Map keys to our standard schema
                 mapped_data = _map_keys_to_standard(raw_data)
                 if mapped_data and 'weight' in mapped_data:
-                    return mapped_data
+                    w = mapped_data.get('weight')
+                    if isinstance(w, (int, float)) and 25 <= float(w) <= 300:
+                        return mapped_data
+                    logger.info(f"OpenAI OCR: вес вне диапазона 25–300 кг (получено {w}), не считаем весами")
+            return None
 
         except Exception as e:
             logger.error(f"OpenAI OCR failed: {e}")

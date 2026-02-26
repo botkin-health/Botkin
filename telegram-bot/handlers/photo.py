@@ -9,7 +9,8 @@ from aiogram import Bot
 from aiogram.filters.callback_data import CallbackData
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.exceptions import TelegramBadRequest
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+MSK = timezone(timedelta(hours=3))
 from pathlib import Path
 import os
 import asyncio
@@ -267,6 +268,7 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
 
     # Сначала пробуем лучшую модель (LLM) по фото — единый путь для распознавания
     menu_data = None
+    router_result = None
     from core.llm_router import analyze_message
     try:
         paths_for_llm = [Path(p) for p in photo_paths] if isinstance(photo_paths[0], str) else photo_paths
@@ -365,6 +367,27 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
     if menu_data:
         logger.info(f"Распознано меню/еда: {menu_data.get('dish_name')}, КБЖУ: {menu_data.get('calories')} ккал")
         
+        # Если LLM вернул 0 ккал для не-напитка (например салат) — пересчитываем через БД/оценку
+        from core.description_parser import is_zero_calorie_drink
+        dish_name = menu_data.get('dish_name') or ''
+        if (
+            (menu_data.get('calories') or 0) == 0 and (menu_data.get('protein') or 0) == 0
+            and not is_zero_calorie_drink(dish_name)
+            and router_result and router_result.get('type') == 'food'
+        ):
+            from core.nutrition import process_llm_food_data
+            meal_items, meal_totals = process_llm_food_data(router_result, caption or "")
+            if meal_items and (meal_totals.get('calories') or 0) > 0:
+                menu_data = {
+                    'dish_name': dish_name or (meal_items[0].get('product') if meal_items else 'Блюдо'),
+                    'calories': meal_totals.get('calories', 0),
+                    'protein': meal_totals.get('protein', 0),
+                    'fats': meal_totals.get('fats', 0),
+                    'carbs': meal_totals.get('carbs', 0),
+                    'weight': meal_items[0].get('weight_g') if meal_items else menu_data.get('weight'),
+                }
+                logger.info(f"Пересчитаны КБЖУ (LLM вернул 0): {menu_data.get('dish_name')}, {menu_data.get('calories')} ккал")
+        
         # --- ЛОГИКА ДОБАВОК ---
         if menu_data.get('is_supplement'):
             dish_name = menu_data.get('dish_name', '')
@@ -395,8 +418,9 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
     else:
         logger.info("Меню/еда не распознано")
     
-    if menu_data and menu_data.get('calories', 0) > 0:
-        # Это меню или еда с распознанными КБЖУ
+    has_nutrition = menu_data and (menu_data.get("calories") is not None or menu_data.get("protein") is not None)
+    if has_nutrition:
+        # Это меню или еда с распознанными КБЖУ (в т.ч. 0 ккал — напитки типа Cola Zero)
         logger.info(f"Распознано: {menu_data.get('dish_name')}")
         
         # Получаем caption из состояния или сообщения
@@ -473,7 +497,7 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
                     'description': f"Фото: {p_name}",
                     'meal_items': meal_items,
                     'meal_totals': meal_totals,
-                    'meal_time': datetime.now().strftime('%H:%M'),
+                    'meal_time': datetime.now(MSK).strftime('%H:%M'),
                     'meal_name': p_name,
                     'photo_paths': [str(p) for p in photo_paths]
                 }
@@ -629,7 +653,7 @@ async def save_photo(message: Message, file_id: str) -> Path:
         file = await message.bot.get_file(file_id)
         
         # Создаем директорию для медиа
-        date_str = datetime.now().strftime('%Y-%m-%d')
+        date_str = datetime.now(MSK).strftime('%Y-%m-%d')
         media_dir = Path(__file__).parent.parent.parent / 'data' / 'media' / 'nutrition' / date_str
         media_dir.mkdir(parents=True, exist_ok=True)
         
@@ -650,7 +674,7 @@ async def save_photo(message: Message, file_id: str) -> Path:
         file = await message.bot.get_file(file_id)
         
         # Создаем директорию для медиа
-        date_str = datetime.now().strftime('%Y-%m-%d')
+        date_str = datetime.now(MSK).strftime('%Y-%m-%d')
         media_dir = Path(__file__).parent.parent.parent / 'data' / 'media' / 'nutrition' / date_str
         media_dir.mkdir(parents=True, exist_ok=True)
         
@@ -671,7 +695,7 @@ async def save_document_as_image(message: Message, file_id: str, file_name: str 
         file = await message.bot.get_file(file_id)
         
         # Создаем директорию для медиа
-        date_str = datetime.now().strftime('%Y-%m-%d')
+        date_str = datetime.now(MSK).strftime('%Y-%m-%d')
         media_dir = Path(__file__).parent.parent.parent / 'data' / 'media' / 'nutrition' / date_str
         media_dir.mkdir(parents=True, exist_ok=True)
         
@@ -757,10 +781,9 @@ async def handle_description(message: Message, description: str = None, processi
     from core.llm_router import analyze_message
     from core.nutrition import process_llm_food_data
     
-    # ИСПРАВЛЕНИЕ: Если menu_data уже распознаны (parse_menu_photo успешно извлек КБЖУ),
-    # используем их напрямую вместо повторного анализа через LLM Router,
-    # так как Router НЕ извлекает КБЖУ из изображений
-    if menu_data and menu_data.get('calories', 0) > 0:
+    # ИСПРАВЛЕНИЕ: Если menu_data уже распознаны (parse_menu_photo или LLM извлек КБЖУ),
+    # используем их напрямую. Учитываем и 0 ккал (напитки типа Cola Zero).
+    if menu_data and (menu_data.get("calories") is not None or menu_data.get("protein") is not None):
         logger.info(f"✅ Используем ранее распознанные КБЖУ из меню: {menu_data}")
         
         # Формируем результат в формате, ожидаемом дальше в коде
@@ -858,7 +881,7 @@ async def handle_description(message: Message, description: str = None, processi
     # Если название так себе, пробуем определить по времени
     if not meal_name or meal_name in ['breakfast', 'lunch', 'dinner']:
          from handlers.text import extract_meal_name
-         meal_time = datetime.now().strftime('%H:%M')
+         meal_time = datetime.now(MSK).strftime('%H:%M')
          meal_name_ru = extract_meal_name(full_description, meal_time)
          if meal_name_ru: meal_name = meal_name_ru
 
@@ -868,7 +891,7 @@ async def handle_description(message: Message, description: str = None, processi
         'meal_items': meal_items,
         'meal_totals': meal_totals,
         'portion_multiplier': 1.0, # Deprecated
-        'meal_time': datetime.now().strftime('%H:%M'),
+        'meal_time': datetime.now(MSK).strftime('%H:%M'),
         'meal_name': meal_name,
     })
     
@@ -904,7 +927,7 @@ async def handle_description(message: Message, description: str = None, processi
 
 
 async def handle_menu_photo(message: Message, menu_data: dict, photo_path: Path, processing_message: Message = None):
-    """Обработка распознанного меню кафе с КБЖУ"""
+    """Обработка распознанной по фото еды/продукта с КБЖУ"""
     
     user_id = str(message.from_user.id)
     
@@ -916,7 +939,7 @@ async def handle_menu_photo(message: Message, menu_data: dict, photo_path: Path,
     
     # Формируем ответ
     response = (
-        f"🍽️ <b>Распознано меню кафе!</b>\n\n"
+        f"🍽️ <b>Распознано по фото</b>\n\n"
         f"<b>{dish_name}</b>\n\n"
         f"📊 КБЖУ:\n"
         f"• Калории: {calories:.0f} ккал\n"
@@ -960,7 +983,7 @@ async def handle_menu_photo(message: Message, menu_data: dict, photo_path: Path,
                 'carbs': carbs,
             },
             'photo_path': str(photo_path),
-            'meal_time': datetime.now().strftime('%H:%M'),
+            'meal_time': datetime.now(MSK).strftime('%H:%M'),
             'menu_ocr': True,  # Флаг, что это меню
         }
     )
@@ -981,7 +1004,7 @@ def format_meal_response(meal_items: list, meal_totals: dict, portion_multiplier
     if date:
         try:
             date_obj = datetime.strptime(date, '%Y-%m-%d')
-            today_str = datetime.now().strftime('%Y-%m-%d')
+            today_str = datetime.now(MSK).strftime('%Y-%m-%d')
             if date != today_str:
                 lines.append(f"📅 <b>{date_obj.strftime('%d.%m.%Y')}</b>")
         except ValueError:
@@ -1068,7 +1091,7 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
             if not meal_name or meal_name == "Приём пищи":
                 # Если не найдено, пробуем извлечь из описания
                 description = user_state.data.get('description', '')
-                meal_time = user_state.data.get('meal_time', datetime.now().strftime('%H:%M'))
+                meal_time = user_state.data.get('meal_time', datetime.now(MSK).strftime('%H:%M'))
                 from handlers.text import extract_meal_name
                 meal_name = extract_meal_name(description, meal_time)
                 logger.info(f"Извлечено название приёма пищи при сохранении: '{meal_name}' из '{description[:50]}...'")

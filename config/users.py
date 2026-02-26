@@ -7,9 +7,8 @@ and authorization logic.
 
 # Whitelist of allowed Telegram IDs
 ALLOWED_USERS = {
-    895655,  # Alex Lyskovsky
-    # TODO: Add wife's Telegram ID here after getting it from @userinfobot
-    # Example: 123456789,
+    895655,   # Alex Lyskovsky
+    485132,   # Nika Selezneva
 }
 
 
