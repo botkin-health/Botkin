@@ -505,3 +505,51 @@ class TestFoodProcessorIntegration:
         # Для 1 продукта с explicit total — берём из total_nutrition
         assert totals["calories"] == 130.0
         assert totals["protein"] == 25.0
+
+    def test_pipeline_label_per_100g_with_user_weight(self):
+        """
+        РЕГРЕССИЯ: Этикетка индейки «на 100г», пользователь написал «150 грамм».
+        LLM должен умножить: 169 ккал/100г × 1.5 = 253.5 ккал.
+        Баг: раньше LLM возвращал 169 ккал как итог, игнорируя вес.
+        """
+        # Симулируем корректный ответ LLM после фикса промпта:
+        # LLM видит «на 100г: 169 ккал», пользователь написал «150 грамм»
+        # → LLM должен умножить и вернуть 253.5 ккал для 150г
+        raw = {
+            "type": "food",
+            "data": {
+                "dish_name": "Консервы из мяса птицы «Индейка томлёная в собственном соку»",
+                "meal_type": "lunch",
+                "items": [
+                    {
+                        "name": "Индейка томлёная в собственном соку",
+                        "weight": 150,       # пользователь указал 150г
+                        "calories": 253.5,   # 169 * 1.5 — LLM умножил
+                        "protein": 27.75,    # 18.5 * 1.5
+                        "fats": 15.75,       # 10.5 * 1.5
+                        "carbs": 0.0
+                    }
+                ],
+                "total_nutrition": {
+                    "calories": 253.5,
+                    "protein": 27.75,
+                    "fats": 15.75,
+                    "carbs": 0.0
+                }
+            }
+        }
+        validated = parse_llm_response(raw)
+        meal_items, totals = process_llm_food_data(validated)
+
+        assert len(meal_items) == 1
+        assert meal_items[0]["weight_g"] == 150.0
+
+        # Главная проверка: НЕ 169 (per-100g), а 253.5 (для 150г)
+        assert totals["calories"] > 200, (
+            f"Ожидалось ~253 ккал для 150г, получено {totals['calories']}. "
+            "Возможно LLM вернул per-100g значение вместо итога для 150г."
+        )
+        assert abs(totals["calories"] - 253.5) < 5, (
+            f"Ожидалось 253.5 ккал, получено {totals['calories']}"
+        )
+        assert totals["protein"] > 20  # 27.75г белка для 150г индейки

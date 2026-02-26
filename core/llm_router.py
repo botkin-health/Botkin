@@ -73,17 +73,28 @@ IMPORTANT: Return "name" in RUSSIAN language (e.g. "Морковь", not "Carrot
 }
 
 SCENARIO 1.1: RECIPE CARDS / LABELS (CRITICAL)
-- If image has EXPLICIT TOTALS (e.g. "668 kcal", "B: 47"):
+TWO CASES — read carefully:
+
+CASE A: Label shows values "per 100g" / "на 100г" / "в 100г":
+  - This is PER-100G data, NOT the total for the portion!
+  - If the user specified weight (e.g. caption "150 грамм" or "150g"), MULTIPLY per-100g values by (user_weight / 100).
+  - Set item weight to the user-specified weight.
+  - Example: label says "169 kcal per 100g", user says "150g" → total = 169 * 1.5 = 253.5 kcal.
+  - If NO user weight specified, assume 100g as default portion.
+
+CASE B: Label or card shows TOTAL values for the whole product/portion (e.g. "Итого: 668 ккал", "Energy: 250 kcal" without "per 100g"):
   1. Extract EXACT values into `total_nutrition`.
   2. TRUST these totals 100%.
   3. List ingredients in `items` normally.
+
+KEY RULE: Always check if the label says "на 100г" / "per 100g" / "per serving" before deciding which case applies!
 CRITICAL FOR FOOD:
 - Use USER provided weights if present (e.g. "100g carrot" -> weight: 100).
 - If macros are provided in text (e.g. "Fat: 0.4g"), USE THEM exact. DO NOT interpret "0.4" as a percentage multiplier!
 - If text says "raw carrot 100g", item name is "raw carrot", weight is 100.
 - Do NOT leave weight and calories as null/0 for well-known dishes. ALWAYS estimate standard portion weight and macros.
 - If user lists dishes without weight (e.g. "lentil soup, salad, kebab"), use standard portion sizes from the database below.
-- NEVER return 0 calories for real food items. Estimate using your knowledge of typical nutritional values.
+- NEVER return 0 calories for real food items EXCEPT zero-calorie drinks (Coca-Cola Zero, diet soda, sugar-free drinks, plain water, black coffee/tea). For those return calories: 0 and correct carbs.
 
 STANDARD PORTIONS DATABASE (use when exact weight not provided):
 
