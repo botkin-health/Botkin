@@ -158,8 +158,8 @@ def extract_meal_name(text: str, meal_time: str = None) -> str:
         except (ValueError, IndexError):
             pass
     
-    # Если время не указано, используем текущее время
-    current_hour = datetime.now().hour
+    # Если время не указано, используем текущее время (Москва)
+    current_hour = datetime.now(MSK).hour
     if 5 <= current_hour < 11:
         return "Завтрак"
     elif 11 <= current_hour < 15:
@@ -217,16 +217,11 @@ def extract_date_from_text(text: str) -> tuple[str, str]:
         try:
             # Предполагаем текущий год. Если месяц больше текущего - значит прошлый год?
             # Нет, просто текущий год для простоты, или умная логика
-            current_year = datetime.now().year
+            current_year = datetime.now(MSK).year
             # Если дата в будущем (например, сегодня 01.02, а ввели 29.01) - это ок
-            # Если сегодня 01.01, а ввели 31.12 - это прошлый год
-            
-            # Простая логика: используем текущий год
-            target_date = datetime(current_year, month, day)
-            
-            # Если полученная дата в будущем (более чем на 1 день), то скорее всего имели в виду прошлый год
-            if target_date > datetime.now() + timedelta(days=1):
-                target_date = datetime(current_year - 1, month, day)
+            target_date = datetime(current_year, month, day, tzinfo=MSK)
+            if target_date > datetime.now(MSK) + timedelta(days=1):
+                target_date = datetime(current_year - 1, month, day, tzinfo=MSK)
                 
             date_str = target_date.strftime('%Y-%m-%d')
             clean_text = text[date_match.end():].strip()
@@ -257,12 +252,10 @@ def extract_date_from_text(text: str) -> tuple[str, str]:
         
         if month > 0:
             try:
-                current_year = datetime.now().year
-                target_date = datetime(current_year, month, day)
-                
-                # Коррекция года
-                if target_date > datetime.now() + timedelta(days=1):
-                    target_date = datetime(current_year - 1, month, day)
+                current_year = datetime.now(MSK).year
+                target_date = datetime(current_year, month, day, tzinfo=MSK)
+                if target_date > datetime.now(MSK) + timedelta(days=1):
+                    target_date = datetime(current_year - 1, month, day, tzinfo=MSK)
                 
                 date_str = target_date.strftime('%Y-%m-%d')
                 clean_text = text[text_date_match.end():].strip()
@@ -370,6 +363,10 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
         telegram_id = int(message.from_user.id)
         matched = match_user_product(db, telegram_id, text)
         if matched:
+            # Напитки без калорий: по названию продукта или по тексту ("coca-cola zero") — принудительно 0
+            from core.description_parser import is_zero_calorie_drink
+            if is_zero_calorie_drink(matched['name']) or is_zero_calorie_drink(text):
+                matched = {**matched, 'calories': 0, 'protein': 0, 'fats': 0, 'carbs': 0}
             router_result = {
                 'type': 'food',
                 'data': {
@@ -531,7 +528,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
 
             meal_name = data.get('dish_name') or data.get('meal_type')
             if not meal_name:
-                 meal_name = extract_meal_name(text, datetime.now().strftime('%H:%M'))
+                 meal_name = extract_meal_name(text, datetime.now(MSK).strftime('%H:%M'))
             
             # Создаем состояние confirmation
             from services.state import UserState
@@ -542,7 +539,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                     'description': text,
                     'meal_items': meal_items,
                     'meal_totals': meal_totals,
-                    'meal_time': datetime.now().strftime('%H:%M'),
+                    'meal_time': datetime.now(MSK).strftime('%H:%M'),
                     'meal_name': meal_name,
                     'date': custom_date
                 }
