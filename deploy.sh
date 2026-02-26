@@ -16,6 +16,7 @@ echo ""
 # Parse command line arguments
 REBUILD_MODE="normal"  # Options: normal, force, skip
 NO_CACHE=""
+SKIP_LLM_TESTS=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -28,9 +29,13 @@ while [[ $# -gt 0 ]]; do
             REBUILD_MODE="skip"
             shift
             ;;
+        --skip-llm-tests)
+            SKIP_LLM_TESTS=true
+            shift
+            ;;
         *)
             echo "Unknown option: $1"
-            echo "Usage: $0 [--force-rebuild|--skip-rebuild]"
+            echo "Usage: $0 [--force-rebuild|--skip-rebuild|--skip-llm-tests]"
             exit 1
             ;;
     esac
@@ -132,5 +137,47 @@ echo "📊 Monitor logs: ssh ${SERVER_USER}@${SERVER_IP} 'docker logs -f healthv
 echo "🔧 Check status: ssh ${SERVER_USER}@${SERVER_IP} 'docker-compose ps'"
 echo ""
 
+# 5. LLM Prompt E2E Tests (проверяем что промпт работает корректно после изменений)
+if [ "$SKIP_LLM_TESTS" = true ]; then
+    echo "⏭️  Step 5/5: LLM prompt tests skipped (--skip-llm-tests)"
+else
+    echo "🧪 Step 5/5: Running LLM prompt E2E tests..."
+    echo "   (Проверяем что GPT отвечает корректно — займёт ~30-60 секунд)"
+    echo ""
 
+    # Ждём пока контейнер полностью поднимется (healthcheck)
+    for i in {1..12}; do
+        STATUS=$(sshpass -p "$SERVER_PASSWORD" ssh ${SERVER_USER}@${SERVER_IP} \
+            "docker inspect --format='{{.State.Health.Status}}' healthvault_bot 2>/dev/null || echo 'unknown'")
+        if [ "$STATUS" = "healthy" ]; then
+            break
+        fi
+        echo "   ⏳ Ждём healthcheck... ($i/12)"
+        sleep 5
+    done
 
+    # Запускаем тесты внутри боевого контейнера
+    LLM_TEST_OUTPUT=$(sshpass -p "$SERVER_PASSWORD" ssh ${SERVER_USER}@${SERVER_IP} \
+        "docker exec healthvault_bot python /app/scripts/test_llm_prompt.py 2>&1")
+    LLM_TEST_EXIT=$?
+
+    echo "$LLM_TEST_OUTPUT"
+    echo ""
+
+    if [ $LLM_TEST_EXIT -eq 0 ]; then
+        echo "✅ LLM prompt tests PASSED — промпт работает корректно"
+    else
+        echo "❌ LLM prompt tests FAILED — промпт может работать некорректно!"
+        echo ""
+        echo "   Возможные причины:"
+        echo "   1. Изменение промпта сломало существующее поведение → откатить изменения"
+        echo "   2. OpenAI API временно недоступен / нет баланса → повторить через пару минут"
+        echo "   3. Новый тест-кейс некорректно написан → проверить scripts/test_llm_prompt.py"
+        echo ""
+        echo "   Повторить тесты: ssh ${SERVER_USER}@${SERVER_IP} 'docker exec healthvault_bot python /app/scripts/test_llm_prompt.py'"
+        echo ""
+        echo "   ⚠️  Деплой завершён, бот работает. Тесты — предупреждение, не блокировка."
+    fi
+fi
+
+echo ""
