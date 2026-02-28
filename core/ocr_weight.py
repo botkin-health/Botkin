@@ -130,9 +130,10 @@ def _get_prompt():
     return (
         "This is an OCR task for identifying body composition metrics from health apps (Zepp Life, Mi Fit, Apple Health). "
         "Extract: weight (kg), bmi, body_fat (%), muscle (kg or %), water (%), visceral_fat (index), bone_mass (kg), protein (%). "
+        "Also extract the measurement DATE and TIME if visible (e.g. '27 February 10:16') and format it STRICTLY as 'YYYY-MM-DD HH:MM' (assume year 2026 if not specified). "
         "CRITICAL RULE: Distinguish 'Body Fat' (usually 15-40%) from 'Visceral Fat' (usually integer 1-20). "
         "If you see a value like '14' labeled 'Visceral Fat', put it in 'visceral_fat', NOT 'body_fat'. "
-        "Return JSON: {\"is_body_metrics\": true, \"weight\": 80.4, \"body_fat\": 28.5, \"visceral_fat\": 14, ...}. "
+        "Return JSON: {\"is_body_metrics\": true, \"weight\": 80.4, \"body_fat\": 28.5, \"visceral_fat\": 14, \"date\": \"2026-02-27 10:16\", ...}. "
         "If not body metrics (e.g. food, menu), set \"is_body_metrics\": false."
     )
 
