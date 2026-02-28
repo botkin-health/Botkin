@@ -79,6 +79,11 @@ DEFAULT_UNIT_WEIGHTS = {
     # Сладости
     'конфета': 15,
     
+    # Спортивное питание
+    'батончик bombbar': 40,   # Bombbar протеиновый батончик, 1 шт = 40г
+    'батончик бомббар': 40,
+    'bombbar': 40,
+    
     # Порции (приблизительные)
     'порция': 200,  # средняя порция
     'тарелка': 250, # тарелка супа/каши
@@ -563,6 +568,12 @@ def extract_products_from_description(description: str) -> List[Dict[str, any]]:
         (r'(\d+)\s*(?:[а-яё]+\s+)?(?:голубц[а-я]*|голубец)', 200, 'голубцы'),
         (r'(\d+)\s*(?:[а-яё]+\s+)?(?:котлет[а-я]*)', 80, 'котлета'),
         (r'(\d+)\s*(?:[а-яё]+\s+)?(?:сосиск[а-я]*)', 50, 'сосиска'),
+        
+        # Bombbar протеиновые батончики: "2 батончика Bombbar", "два батончика бомббар"
+        # Паттерн: (число) батончик(а/ов) bomb(b)ar / бомб(б)ар
+        (r'(\d+(?:[.,]\d+)?)\s*(?:протеинов[а-я]*\s+)?батончик[а-яё]*\s+(?:bombbar|бомббар|бомбар|bomb\s*bar)', 40, 'батончик bombbar'),
+        # И обратный порядок: "bombbar батончик"
+        (r'(\d+(?:[.,]\d+)?)\s*(?:bombbar|бомббар|бомбар|bomb\s*bar)\s+(?:протеинов[а-я]*\s+)?батончик[а-яё]*', 40, 'батончик bombbar'),
     ]
     
     for pattern, weight_per_unit, product_name in quantity_patterns:
@@ -570,10 +581,10 @@ def extract_products_from_description(description: str) -> List[Dict[str, any]]:
             count = 1  # По умолчанию 1
             if match.groups():
                 count_str = match.group(1)
-                # Извлекаем число из "2-х" или "2"
-                count_match = re.search(r'(\d+)', count_str)
+                # Извлекаем число из "2-х" или "2" или "0.5" (для текстовых "пол/половина")
+                count_match = re.search(r'(\d+(?:[.,]\d+)?)', count_str)
                 if count_match:
-                    count = int(count_match.group(1))
+                    count = float(count_match.group(1).replace(',', '.'))
             
             total_weight = weight_per_unit * count
             normalized = normalize_product_name(product_name)
@@ -584,6 +595,37 @@ def extract_products_from_description(description: str) -> List[Dict[str, any]]:
                     'source': 'quantity_estimate'
                 })
                 added_products.add(normalized)
+    
+    # Специальная обработка Bombbar без числа
+    bombbar_re = r'(?:bombbar|бомббар|бомбар|bomb\s*bar)'
+    
+    # "половина батончика Bombbar", "полбатончика Bombbar", "пол батончика bombbar"
+    half_bombbar_pattern = (
+        r'(?:половин[а-я]*|пол)[\s\-]?батончик[а-яё]*\s+' + bombbar_re + r'|'
+        r'(?:половин[а-я]*|пол)[\s\-]?' + bombbar_re + r'\s+батончик[а-яё]*|'
+        r'батончик[а-яё]*\s+' + bombbar_re + r'\s+(?:половин[а-я]*)|'
+        r'' + bombbar_re + r'[\s\-]?(?:половин[а-я]*|полбатончик[а-яё]*)'
+    )
+    if re.search(half_bombbar_pattern, description_lower) and 'батончик bombbar' not in added_products:
+        products.append({
+            'name': 'батончик bombbar',
+            'weight': 20.0,
+            'source': 'quantity_estimate'
+        })
+        added_products.add('батончик bombbar')
+    
+    # "батончик Bombbar" или "Bombbar батончик" без числа (1 шт = 40г)
+    single_bombbar_pattern = (
+        r'(?<!\d\s)(?<!\d)батончик[а-яё]*\s+' + bombbar_re + r'|'
+        r'' + bombbar_re + r'\s+(?:протеинов[а-я]*\s+)?батончик[а-яё]*'
+    )
+    if re.search(single_bombbar_pattern, description_lower) and 'батончик bombbar' not in added_products:
+        products.append({
+            'name': 'батончик bombbar',
+            'weight': 40.0,
+            'source': 'quantity_estimate'
+        })
+        added_products.add('батончик bombbar')
     
     # Порции без веса: "чайная ложка масла", "кусок хлеба"
     portion_patterns = [
