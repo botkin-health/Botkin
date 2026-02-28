@@ -323,8 +323,11 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
             if w_val is not None:
                 from helpers.db_save import save_weight_to_db
                 telegram_user_id = int(message.from_user.id)
-                if save_weight_to_db({"weight": w_val}, user_id=telegram_user_id):
-                    await processing_msg.edit_text(f"⚖️ <b>Вес:</b> {w_val} кг\n✅ Записано", parse_mode="HTML")
+                # Передаём весь dict data чтобы сохранилась дата из LLM/OCR ответа
+                weight_data_to_save = {**data, 'source': 'llm_photo'}
+                if save_weight_to_db(weight_data_to_save, user_id=telegram_user_id):
+                    date_label = data.get('date') or 'сегодня'
+                    await processing_msg.edit_text(f"⚖️ <b>Вес:</b> {w_val} кг\n📅 Дата: {date_label}\n✅ Записано", parse_mode="HTML")
                 else:
                     await processing_msg.edit_text(f"⚖️ Распознано: {w_val} кг (сохранение не удалось)", parse_mode="HTML")
                 return
