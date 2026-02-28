@@ -425,10 +425,14 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             'д3': 'Витамин D3',
             'd3': 'Витамин D3',
             'витамин д': 'Витамин D3',
+            # Plant Sterols — через Е (стерол) И (стирол) и латиницей
             'стирол': 'Plant Sterols',
+            'стиролы': 'Plant Sterols',
             'стерол': 'Plant Sterols',
             'стеролы': 'Plant Sterols',
             'растительные стеролы': 'Plant Sterols',
+            'растительные стиролы': 'Plant Sterols',
+            'plant sterol': 'Plant Sterols',
             'sterol': 'Plant Sterols',
             'sterols': 'Plant Sterols',
             'магний': 'Магний',
@@ -471,6 +475,46 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
 
         elif msg_type == 'vitamins':
             items = data.get('items', [])
+            
+            # Нормализуем имена витаминов перед сохранением
+            _NORMALIZE = {
+                'стирол': 'Plant Sterols', 'стиролы': 'Plant Sterols',
+                'стерол': 'Plant Sterols', 'стеролы': 'Plant Sterols',
+                'растительные стеролы': 'Plant Sterols',
+                'растительные стиролы': 'Plant Sterols',
+                'plant sterol': 'Plant Sterols', 'sterols': 'Plant Sterols',
+                'омега': 'Омега 3-6-9', 'омега-3': 'Омега 3-6-9', 'omega': 'Омега 3-6-9',
+                'ѓ3': 'Витамин D3', 'd3': 'Витамин D3',
+                'витамин д': 'Витамин D3', 'витамин d': 'Витамин D3',
+                'псилиум': 'Псиллиум', 'psyllium': 'Псиллиум',
+            }
+            
+            # Определяем: писал ли пользователь «оба стирола» или «обема стиролы»
+            text_lower_v = text.lower()
+            both_sterols = any(kw in text_lower_v for kw in [
+                'оба стир', 'оба стер', 'обема стир', 'обема стер',
+                'обоих стир', 'обоих стер', 'both sterol',
+            ])
+            
+            normalized = []
+            has_plain_sterols = False
+            for item in items:
+                key = item.strip().lower()
+                canonical = _NORMALIZE.get(key, item)
+                if canonical == 'Plant Sterols':
+                    has_plain_sterols = True
+                elif canonical not in normalized:
+                    normalized.append(canonical)
+            
+            # Plant Sterols: если «оба» — разворачиваем в утро + вечер; если просто один — только Plant Sterols
+            if has_plain_sterols:
+                if both_sterols:
+                    normalized.append('Plant Sterols (Утро)')
+                    normalized.append('Plant Sterols (Вечер)')
+                else:
+                    normalized.append('Plant Sterols')
+            
+            items = normalized
             
             # Сохраняем реально
             from core.supplements import save_supplements
