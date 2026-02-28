@@ -182,3 +182,99 @@ class TestWeightExtraction:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+
+class TestBombbar:
+    """Тесты для батончиков Bombbar (протеиновые батончики ассорти, 40г/шт)
+
+    Средние КБЖУ по 5 вкусам ассорти (на батончик 40г):
+      Калории: 144.4 ккал | Белки: 10г | Жиры: 6.66г | Углеводы: 3.74г
+    """
+
+    def test_bombbar_found_in_db(self):
+        """Продукт 'батончик bombbar' находится в products.json с правильными данными"""
+        from core.product_search import find_product
+        product = find_product('батончик bombbar')
+
+        assert product is not None
+        assert product.get('calories_per_100g', 0) > 300    # ~361 ккал/100г
+        assert product.get('protein_per_100g', 0) >= 24     # ~25г/100г
+        assert product.get('weight_g') == 40                  # 1 батончик = 40г
+
+    def test_bombbar_aliases(self):
+        """Все варианты написания Bombbar находят продукт в БД"""
+        from core.product_search import find_product
+        aliases = [
+            'bombbar',
+            'бомббар',
+            'батончик бомббар',
+            'bombbar протеиновый батончик',
+            'протеиновый батончик bombbar',
+            'батончик bombbar протеиновый',
+        ]
+        for alias in aliases:
+            result = find_product(alias)
+            assert result is not None, f"Alias не найден: {alias!r}"
+            assert result.get('calories_per_100g', 0) > 300, f"Неверные калории для: {alias!r}"
+
+    def test_bombbar_single(self):
+        """'батончик Bombbar' (без числа) -> weight=40г"""
+        products = extract_products_from_description('батончик Bombbar')
+        weights = [p.get('weight', 0) for p in products]
+        assert any(w == 40.0 for w in weights), f"Ожидали 40г, получили: {weights}"
+
+    def test_bombbar_reverse_order(self):
+        """'Bombbar батончик' -> weight=40г"""
+        products = extract_products_from_description('Bombbar батончик')
+        weights = [p.get('weight', 0) for p in products]
+        assert any(w == 40.0 for w in weights), f"Ожидали 40г, получили: {weights}"
+
+    def test_bombbar_with_adjective(self):
+        """'Bombbar протеиновый батончик' -> weight=40г"""
+        products = extract_products_from_description('Bombbar протеиновый батончик')
+        weights = [p.get('weight', 0) for p in products]
+        assert any(w == 40.0 for w in weights), f"Ожидали 40г, получили: {weights}"
+
+    def test_bombbar_two(self):
+        """'2 батончика Bombbar' -> weight=80г"""
+        products = extract_products_from_description('2 батончика Bombbar')
+        weights = [p.get('weight', 0) for p in products]
+        assert any(w == 80.0 for w in weights), f"Ожидали 80г, получили: {weights}"
+
+    def test_bombbar_two_text(self):
+        """'два батончика Bombbar' -> weight=80г (текстовое числительное)"""
+        products = extract_products_from_description('два батончика Bombbar')
+        weights = [p.get('weight', 0) for p in products]
+        assert any(w == 80.0 for w in weights), f"Ожидали 80г, получили: {weights}"
+
+    def test_bombbar_half(self):
+        """'половина батончика Bombbar' -> weight=20г"""
+        products = extract_products_from_description('половина батончика Bombbar')
+        weights = [p.get('weight', 0) for p in products]
+        assert any(w == 20.0 for w in weights), f"Ожидали 20г, получили: {weights}"
+
+    def test_bombbar_pol_prefix(self):
+        """'полбатончика Bombbar' -> weight=20г"""
+        products = extract_products_from_description('полбатончика Bombbar')
+        weights = [p.get('weight', 0) for p in products]
+        assert any(w == 20.0 for w in weights), f"Ожидали 20г, получили: {weights}"
+
+    def test_bombbar_cyrillic(self):
+        """'батончик бомббар' (кириллица) -> weight=40г"""
+        products = extract_products_from_description('батончик бомббар')
+        weights = [p.get('weight', 0) for p in products]
+        assert any(w == 40.0 for w in weights), f"Ожидали 40г, получили: {weights}"
+
+    def test_bombbar_nutrition_one(self):
+        """1 батончик (40г) = ~144 ккал, ~10г белка"""
+        result = calculate_nutrition('батончик bombbar', 40.0)
+
+        assert 134 <= result['calories'] <= 155, f"Ожидали ~144 ккал, получили: {result['calories']}"
+        assert 9.0 <= result['protein'] <= 11.0, f"Ожидали ~10г белка, получили: {result['protein']}"
+        assert 5.5 <= result['fats'] <= 7.8, f"Ожидали ~6.7г жира, получили: {result['fats']}"
+
+    def test_bombbar_nutrition_half(self):
+        """Половина батончика (20г) = ~72 ккал"""
+        result = calculate_nutrition('батончик bombbar', 20.0)
+
+        assert 67 <= result['calories'] <= 78, f"Ожидали ~72 ккал, получили: {result['calories']}"
