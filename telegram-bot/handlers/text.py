@@ -394,6 +394,42 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
         db.close()
     
     if not router_result:
+        # Предварительная проверка экей витаминов ДО вызова LLM — если все слова входят в словарь, не зовём LLM
+        _SUPPLEMENT_KEYWORDS = {
+            'стирол': 'Plant Sterols', 'стиролы': 'Plant Sterols', 'стирола': 'Plant Sterols',
+            'стерол': 'Plant Sterols', 'стеролы': 'Plant Sterols', 'стерола': 'Plant Sterols',
+            'растительные стеролы': 'Plant Sterols',
+            'растительные стиролы': 'Plant Sterols',
+            'plant sterols': 'Plant Sterols', 'plant sterol': 'Plant Sterols',
+            'sterols': 'Plant Sterols', 'sterol': 'Plant Sterols',
+            'омега': 'Омега 3-6-9', 'омегу': 'Омега 3-6-9',
+            'omega': 'Омега 3-6-9', 'омега-3': 'Омега 3-6-9',
+            'ѓ3': 'Витамин D3', 'витамин д': 'Витамин D3',
+            'витамин d': 'Витамин D3', 'd3': 'Витамин D3',
+            'псиллиум': 'Псиллиум', 'псилиум': 'Псиллиум', 'psyllium': 'Псиллиум',
+            'магний': 'Магний', 'магне': 'Магний', 'magnesium': 'Магний',
+            'цинк': 'Цинк', 'zinc': 'Цинк',
+            'ашваганд': 'Ашвагандха',
+            'коллаген': 'Коллаген',
+            'витамины': None,  # общее слово — только в комбинации с другими
+        }
+        text_lower_pre = text.lower().strip()
+        # Разбиваем на слова и ищем совпадения с ключами (по целым словам)
+        words = text_lower_pre.split()
+        pre_found = {}
+        for kw, canonical in _SUPPLEMENT_KEYWORDS.items():
+            if canonical is None:
+                continue
+            # Проверяем через contains для многословных ключей (растительные стеролы)
+            if kw in text_lower_pre and canonical not in pre_found.values():
+                pre_found[kw] = canonical
+        # Применяем pre-check только если хотя бы один супплемент найден и часть слов = ключевые
+        if pre_found and len(text.split()) <= 6:  # Короткое сообщение с витаминами
+            unique_supplements = list(dict.fromkeys(pre_found.values()))
+            router_result = {'type': 'vitamins', 'data': {'items': unique_supplements}}
+            debug_logger.info(f"✅ Supplement pre-check found: {unique_supplements}")
+
+    if not router_result:
         try:
             debug_logger.info("⏳ Calling analyze_message in executor...")
             loop = asyncio.get_running_loop()
