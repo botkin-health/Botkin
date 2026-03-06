@@ -13,6 +13,10 @@ APPLE_HEALTH_BP = os.path.join(DATA_DIR, "apple_health_blood_pressure.json")
 GARMIN_DAILY = os.path.join(DATA_DIR, "garmin/daily-summary")
 GARMIN_SLEEP = os.path.join(DATA_DIR, "garmin/sleep")
 GARMIN_STRESS = os.path.join(DATA_DIR, "garmin/stress")
+GARMIN_HRV = os.path.join(DATA_DIR, "garmin/hrv")
+GARMIN_BB = os.path.join(DATA_DIR, "garmin/body-battery")
+NETATMO_LOG = os.path.join(DATA_DIR, "environment/netatmo_history.json")
+SCREENTIME_LOG = os.path.join(DATA_DIR, "activities/screentime_summary.json")
 NUTRITION_LOG = os.path.join(DATA_DIR, "nutrition/nutrition_log.json")
 WEIGHTS_DIR = os.path.join(DATA_DIR, "weights")
 OUTPUT_DIR = os.path.join(DATA_DIR, "analysis")
@@ -57,33 +61,16 @@ def load_body_composition():
                 entries = [data]
                 
             for entry in entries:
-                date_str = entry.get('date')
+                date_str = entry.get('date') or entry.get('measured_at')
                 if not date_str: continue
                 # Handle "2026-01-14 21:10" format
                 if len(date_str) > 10:
                     date_str = date_str[:10]
                 
-                # Calculate fat % if missing: 100 - muscle - water - bone? Not always accurate but better than nothing
-                # Actually smart scales usually provide it. Let's check keys.
-                # In the sample: weight, water, muscle, bone_mass. 
-                # Formula: Body Fat = 100 - Muscle% - Water% - Bone% ? NO. 
-                # Muscle is usually KG or %. Sample says "muscle": 54.61 (which is likely KG given weight 80).
-                # Water: 50.9 (likely %). 
-                # If muscle is KG: Muscle% = (54.61 / 80) * 100 = 68.26%.
-                # Water + Muscle overlaps.
-                # Let's rely on explicit 'fat' or 'body_fat' if available. 
-                # Detailed analysis in part1 said "Процент жира: 28%". 
-                # Where did that come from?
-                # Maybe calculated as 100 - (Muscle% + Water% ...)? No.
-                # Let's look for 'fat' key. If not found, use placeholder or try to infer.
-                # Wait, the part1 analysis file explicitly mentioned: "Процент жира: 28.6%". 
-                # If the file I read (2026-01-14.json) doesn't have it, maybe others do or I missed it.
-                # Let's add available fields.
-                
                 records.append({
                     'date': date_str,
                     'visceral_fat': entry.get('visceral_fat'),
-                    'muscle_mass': entry.get('muscle'),
+                    'muscle_mass': entry.get('muscle') or entry.get('muscle_mass'),
                     'water_percent': entry.get('water'),
                     'bone_mass': entry.get('bone_mass'),
                     # Try to find fat
@@ -195,6 +182,87 @@ def load_garmin_stress():
         except: pass
     return pd.DataFrame(records)
 
+def load_garmin_hrv():
+    records = []
+    if not os.path.exists(GARMIN_HRV): return pd.DataFrame()
+    for filename in os.listdir(GARMIN_HRV):
+        if not filename.endswith('.json'): continue
+        try:
+            with open(os.path.join(GARMIN_HRV, filename), 'r') as f:
+                data = json.load(f)
+            summary = data.get('hrvSummary', {})
+            date = summary.get('calendarDate')
+            if not date: continue
+            records.append({
+                'date': date,
+                'hrv_last_night': summary.get('lastNightAvg')
+            })
+        except: pass
+    return pd.DataFrame(records)
+
+def load_garmin_bb():
+    records = []
+    if not os.path.exists(GARMIN_BB): return pd.DataFrame()
+    for filename in os.listdir(GARMIN_BB):
+        if not filename.endswith('.json'): continue
+        try:
+            with open(os.path.join(GARMIN_BB, filename), 'r') as f:
+                data = json.load(f)
+            if isinstance(data, list) and len(data) > 0:
+                data = data[0]
+            date = data.get('date')
+            if not date: continue
+            records.append({
+                'date': date,
+                'bb_charged': data.get('charged'),
+                'bb_drained': data.get('drained')
+            })
+        except: pass
+    return pd.DataFrame(records)
+
+def load_netatmo():
+    records = []
+    if not os.path.exists(NETATMO_LOG): return pd.DataFrame()
+    try:
+        with open(NETATMO_LOG, 'r') as f:
+            data = json.load(f)
+        daily_data = {}
+        target_station = "Большевик"
+        if target_station in data:
+            for ts_str, values in data[target_station].items():
+                if len(values) >= 4:
+                    dt = datetime.fromtimestamp(int(ts_str)).strftime('%Y-%m-%d')
+                    if dt not in daily_data:
+                        daily_data[dt] = {'temp': [], 'co2': [], 'noise': []}
+                    daily_data[dt]['temp'].append(values[0])
+                    daily_data[dt]['co2'].append(values[1])
+                    daily_data[dt]['noise'].append(values[3])   
+            for dt, vals in daily_data.items():
+                records.append({
+                    'date': dt,
+                    'netatmo_temp': sum(vals['temp'])/len(vals['temp']),
+                    'netatmo_co2': sum(vals['co2'])/len(vals['co2']),
+                    'netatmo_noise': sum(vals['noise'])/len(vals['noise'])
+                })
+    except: pass
+    return pd.DataFrame(records)
+
+def load_screentime():
+    records = []
+    if not os.path.exists(SCREENTIME_LOG): return pd.DataFrame()
+    try:
+        with open(SCREENTIME_LOG, 'r') as f:
+            data = json.load(f)
+        for dt, item in data.items():
+            records.append({
+                'date': dt,
+                'st_total_hours': item.get('total_hours'),
+                'st_pickups': item.get('pickups'),
+                'st_prebed': item.get('prebed_hours')
+            })
+    except: pass
+    return pd.DataFrame(records)
+
 def load_nutrition():
     data_map = {} # date -> {calories, protein, fats, carbs}
     
@@ -286,6 +354,37 @@ def load_nutrition():
     for d, v in remote_map.items():
         data_map[d] = v
 
+    # Add alcohol flag
+    alcohol_keywords = ["вино", "пиво", "ром\b", "виски", "водка", "негрони", "сидр", "коньяк", "джин", "текила"]
+    
+    # Needs to process text for alcohol, but since we already aggregated by date and lost the raw text in data_map, 
+    # we need to re-parse or add the check inside the remote_date loop.
+    # Let's patch the remote loop above, but also apply it retroactively here if we re-read.
+    # Actually, let's just initialize it to 0 then update it below correctly.
+    for d in data_map:
+        if 'alcohol_flag' not in data_map[d]:
+            data_map[d]['alcohol_flag'] = 0
+            
+    # Quick pass over remote data again to catch alcohol words
+    try:
+        if isinstance(remote_data, list):
+            for row in remote_data:
+                d = None
+                items_str = ""
+                if isinstance(row, list) and len(row) >= 4:
+                    d = row[0]
+                    items_str = str(row[2]).lower()
+                elif isinstance(row, dict):
+                    d = row.get('date')
+                    items_str = str(row.get('items', '')).lower() + " " + str(row.get('meal_name', '')).lower()
+                
+                if d and d in data_map:
+                    for kw in alcohol_keywords:
+                        if kw in items_str:
+                            data_map[d]['alcohol_flag'] = 1
+                            break
+    except: pass
+
     records = []
     for d, v in data_map.items():
         records.append({
@@ -293,7 +392,8 @@ def load_nutrition():
             'nutrition_cals': v['nutrition_cals'],
             'protein_g': v['protein_g'],
             'fats_g': v['fats_g'],
-            'carbs_g': v['carbs_g']
+            'carbs_g': v['carbs_g'],
+            'alcohol_flag': v.get('alcohol_flag', 0)
         })
     return pd.DataFrame(records)
 
@@ -319,13 +419,17 @@ def main():
     df_daily = load_garmin_daily()
     df_sleep = load_garmin_sleep()
     df_stress = load_garmin_stress()
+    df_hrv = load_garmin_hrv()
+    df_bb = load_garmin_bb()
+    df_netatmo = load_netatmo()
+    df_screentime = load_screentime()
     df_nutrition = load_nutrition()
     
-    print(f"Загружено: Вес {len(df_weight)}, Состав тела {len(df_comp)}, Давление {len(df_bp)}, Garmin {len(df_daily)}, Сон {len(df_sleep)}, Стресс {len(df_stress)}, Питание {len(df_nutrition)}")
+    print(f"Загружено: Вес {len(df_weight)}, Состав {len(df_comp)}, АД {len(df_bp)}, Garmin {len(df_daily)}, Сон {len(df_sleep)}, Стресс {len(df_stress)}, HRV {len(df_hrv)}, Netatmo {len(df_netatmo)}, Экраны {len(df_screentime)}")
 
     # Merge all
     print("Объединение данных...")
-    dfs = [df_weight, df_comp, df_bp, df_daily, df_sleep, df_stress, df_nutrition]
+    dfs = [df_weight, df_comp, df_bp, df_daily, df_sleep, df_stress, df_hrv, df_bb, df_netatmo, df_screentime, df_nutrition]
     df_final = None
     
     for i, df in enumerate(dfs):
@@ -375,10 +479,21 @@ def main():
         'sleep_hours': 'Сон (часы)',
         'sleep_score': 'Качество сна',
         'avg_stress': 'Стресс (средний)',
+        'hrv_last_night': 'ВСР (Ночная)',
+        'bb_charged': 'Заряд Body Battery',
+        'netatmo_co2': 'CO2 (Спальня)',
+        'netatmo_noise': 'Шум (Спальня)',
+        'st_total_hours': 'Экранное время',
+        'st_pickups': 'Отвлечения телефона',
+        'alcohol_flag': 'Алкоголь (день)',
         'systolic': 'Давление (верхнее)',
         'diastolic': 'Давление (нижнее)',
         'calorie_deficit': 'Дефицит калорий',
-        'resting_hr': 'Пульс в покое'
+        'resting_hr': 'Пульс в покое',
+        'fat_percent': 'Процент жира',
+        'water_percent': 'Процент воды',
+        'muscle_mass': 'Мышечная масса',
+        'visceral_fat': 'Висцеральный жир'
     }
     
     cols_of_interest = list(cols_map.keys())

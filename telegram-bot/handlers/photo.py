@@ -39,120 +39,6 @@ router = Router()
 
 from handlers.callbacks import MealConfirmationCallback, WeightConfirmationCallback
 
-# Блокировки и задачи для синхронизации обработки media group
-# Ключ: (user_id, media_group_id), Значение: asyncio.Lock / asyncio.Task
-_media_group_locks = {}
-_media_group_tasks = {}
-
-
-async def process_image_message(message: Message, photo_path: Path, photo_file_id: str = None):
-    """
-    Общая функция для обработки изображений (как photo, так и document)
-    """
-    import logging
-    logger = logging.getLogger(__name__)
-    
-    user_id = str(message.from_user.id)
-    user_state = state_manager.get_state(user_id)
-    
-    # Если file_id не передан, получаем из document
-    if not photo_file_id and message.document:
-        photo_file_id = message.document.file_id
-    
-    # Проверяем, есть ли медиа-группа (несколько фото)
-    media_group_id = message.media_group_id
-    
-    if media_group_id:
-        # Используем блокировку для синхронизации доступа к состоянию
-        lock_key = (user_id, media_group_id)
-        
-        # Получаем или создаём блокировку для этой группы
-        if lock_key not in _media_group_locks:
-            _media_group_locks[lock_key] = asyncio.Lock()
-        
-        lock = _media_group_locks[lock_key]
-        
-        async with lock:
-            # Обновляем состояние после получения блокировки
-            user_state = state_manager.get_state(user_id)
-            is_new_group = user_state is None or user_state.data.get('media_group_id') != media_group_id
-            
-            if is_new_group:
-                # Начинаем новую группу
-                user_state = UserState(
-                    user_id=user_id,
-                    state='waiting_description',
-                    data={
-                        'media_group_id': media_group_id,
-                        'photo_file_ids': [photo_file_id],
-                        'photo_paths': [str(photo_path)],
-                        'caption': message.caption or '',
-                        'answered': False,
-                    }
-                )
-                state_manager.set_state(user_id, user_state)
-            else:
-                # Добавляем фото к существующей группе
-                # Проверяем дубликаты (иногда Telegram шлет дубли)
-                if str(photo_path) not in user_state.data['photo_paths']:
-                    user_state.data['photo_file_ids'].append(photo_file_id)
-                    user_state.data['photo_paths'].append(str(photo_path))
-                
-                # Обновляем caption, если он пришел в этом сообщении
-                if message.caption:
-                    user_state.data['caption'] = message.caption
-                state_manager.set_state(user_id, user_state)
-        
-        # Debounce: отменяем предыдущую задачу и запускаем новую
-        task_key = (user_id, media_group_id)
-        if task_key in _media_group_tasks:
-            _media_group_tasks[task_key].cancel()
-            
-        # Запускаем отложенную обработку (ждем 2 секунды, чтобы собрать все фото)
-        _media_group_tasks[task_key] = asyncio.create_task(
-            process_media_group_delayed(message, media_group_id, user_id)
-        )
-            
-    else:
-        # Одно фото - обрабатываем сразу
-        await process_photos_list(message, [photo_path], None)
-
-
-async def process_media_group_delayed(message: Message, media_group_id: str, user_id: str):
-    """Отложенная обработка группы фото"""
-    try:
-        await asyncio.sleep(2.0)  # Ждем загрузки всех фото
-        
-        # Удаляем задачу из списка
-        task_key = (user_id, media_group_id)
-        if task_key in _media_group_tasks:
-            del _media_group_tasks[task_key]
-            
-        # Получаем актуальное состояние
-        user_state = state_manager.get_state(user_id)
-        if not user_state or user_state.data.get('media_group_id') != media_group_id:
-            return
-            
-        if user_state.data.get('answered', False):
-            return
-            
-        # Получаем все пути к фото
-        photo_paths = [Path(p) for p in user_state.data.get('photo_paths', [])]
-        
-        if not photo_paths:
-            return
-            
-        # Обрабатываем список фото
-        await process_photos_list(message, photo_paths, media_group_id)
-        
-    except asyncio.CancelledError:
-        # Задача была отменена (пришло новое фото), это нормально
-        pass
-    except Exception as e:
-        import logging
-        logging.getLogger(__name__).error(f"Ошибка в process_media_group_delayed: {e}")
-
-
 from typing import List
 
 async def process_photos_list(message: Message, photo_paths: List[Path], media_group_id: str = None):
@@ -585,68 +471,93 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
 
 
 @router.message(F.photo)
-async def handle_photo_message(message: Message, bot: Bot, user_id: int):
+async def handle_photo_message(message: Message, bot: Bot, user_id: int, album: list = None):
     """Обработка фото с описанием блюда"""
     
     import logging
     logger = logging.getLogger(__name__)
-    logger.info(f"📸 Получено фото от пользователя {message.from_user.id}")
     
-    # Получаем фото
-    photo = message.photo[-1]  # Берем фото наибольшего размера
-    photo_file_id = photo.file_id
+    messages_to_process = album if album else [message]
+    logger.info(f"📸 Получено {len(messages_to_process)} фото от пользователя {message.from_user.id}")
     
-    # Сохраняем фото
-    photo_path = await save_photo(message, photo_file_id)
+    photo_paths = []
     
-    if not photo_path:
+    for msg in messages_to_process:
+        # Получаем фото
+        photo = msg.photo[-1]  # Берем фото наибольшего размера
+        photo_file_id = photo.file_id
+        
+        # Сохраняем фото
+        photo_path = await save_photo(msg, photo_file_id)
+        if photo_path:
+            photo_paths.append(photo_path)
+            
+    if not photo_paths:
         await message.answer("❌ Ошибка при сохранении фото")
         return
+        
+    # Ищем caption в сообщениях альбома, используем самый первый найденный, или пустую строку
+    caption = next((msg.caption for msg in messages_to_process if msg.caption), "")
     
-    # Обрабатываем изображение
-    await process_image_message(message, photo_path, photo_file_id)
+    # Подменяем message.caption для downstream логики
+    message_with_caption = message
+    if caption and not message.caption:
+        # Берем сообщение в котором был настоящий caption
+        message_with_caption = next((msg for msg in messages_to_process if msg.caption), message)
+        
+    await process_photos_list(message_with_caption, photo_paths, message.media_group_id)
 
 
 @router.message(F.document)
-async def handle_document_image(message: Message):
+async def handle_document_image(message: Message, album: list = None):
     """Обработка документов с изображениями (например, при перетаскивании из приложения 'Фото' macOS)"""
     
     import logging
     logger = logging.getLogger(__name__)
     
-    # Проверяем, является ли документ изображением
-    if not message.document:
+    messages_to_process = album if album else [message]
+    logger.info(f"📸 Получено {len(messages_to_process)} документов-изображений от пользователя {message.from_user.id}")
+    
+    photo_paths = []
+    
+    for msg in messages_to_process:
+        # Проверяем, является ли документ изображением
+        if not msg.document:
+            continue
+        
+        # Проверяем MIME-тип или расширение файла
+        mime_type = msg.document.mime_type or ''
+        file_name = msg.document.file_name or ''
+        
+        # Список поддерживаемых типов изображений
+        image_mime_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif']
+        image_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif']
+        
+        is_image = (
+            mime_type.lower() in image_mime_types or
+            any(file_name.lower().endswith(ext) for ext in image_extensions)
+        )
+        
+        if not is_image:
+            continue
+        
+        # Сохраняем документ как изображение
+        photo_file_id = msg.document.file_id
+        photo_path = await save_document_as_image(msg, photo_file_id, file_name)
+        if photo_path:
+            photo_paths.append(photo_path)
+            
+    if not photo_paths:
+        # Либо это не изображения, либо ошибка сохранения
         return
-    
-    # Проверяем MIME-тип или расширение файла
-    mime_type = message.document.mime_type or ''
-    file_name = message.document.file_name or ''
-    
-    # Список поддерживаемых типов изображений
-    image_mime_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif']
-    image_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif']
-    
-    is_image = (
-        mime_type.lower() in image_mime_types or
-        any(file_name.lower().endswith(ext) for ext in image_extensions)
-    )
-    
-    if not is_image:
-        # Это не изображение - пропускаем
-        return
-    
-    logger.info(f"📸 Получен документ-изображение от пользователя {message.from_user.id}: {file_name} ({mime_type})")
-    
-    # Сохраняем документ как изображение
-    photo_file_id = message.document.file_id
-    photo_path = await save_document_as_image(message, photo_file_id, file_name)
-    
-    if not photo_path:
-        await message.answer("❌ Ошибка при сохранении изображения")
-        return
-    
-    # Обрабатываем изображение так же, как обычное фото
-    await process_image_message(message, photo_path, photo_file_id)
+        
+    # Ищем caption в сообщениях альбома
+    caption = next((msg.caption for msg in messages_to_process if msg.caption), "")
+    message_with_caption = message
+    if caption and not message.caption:
+        message_with_caption = next((msg for msg in messages_to_process if msg.caption), message)
+        
+    await process_photos_list(message_with_caption, photo_paths, message.media_group_id)
 
 
 async def save_photo(message: Message, file_id: str) -> Path:
@@ -786,7 +697,14 @@ async def handle_description(message: Message, description: str = None, processi
     
     # ИСПРАВЛЕНИЕ: Если menu_data уже распознаны (parse_menu_photo или LLM извлек КБЖУ),
     # используем их напрямую. Учитываем и 0 ккал (напитки типа Cola Zero).
+    # НО только если это ОДНО фото. Если это медиагруппа (альбом), ВСЕГДА 
+    # анализируем все фото вместе через LLM Router, чтобы не терять блюда.
+    use_menu_data = False
     if menu_data and (menu_data.get("calories") is not None or menu_data.get("protein") is not None):
+        if len(photo_paths) <= 1:
+            use_menu_data = True
+            
+    if use_menu_data:
         logger.info(f"✅ Используем ранее распознанные КБЖУ из меню: {menu_data}")
         
         # Формируем результат в формате, ожидаемом дальше в коде
@@ -860,6 +778,35 @@ async def handle_description(message: Message, description: str = None, processi
              w_val = data.get('weight')
              await processing_message.edit_text(f"⚖️ <b>Вес:</b> {w_val} кг\n✅ Записано", parse_mode='HTML')
              # Тут надо бы сохранить, но пока просто ответим, т.к. этот флоу редок при вводе описания
+             state_manager.clear_state(user_id)
+             return
+
+        elif router_result and router_result.get('type') == 'body_measurements':
+             # Обработка замеров тела
+             data = router_result.get('data', {})
+             from helpers.db_save import save_body_measurement_to_db
+             telegram_user_id = int(message.from_user.id)
+             saved = save_body_measurement_to_db(data, user_id=telegram_user_id)
+             
+             # Формируем ответ
+             m_parts = []
+             if data.get('waist_cm'): m_parts.append(f"Талия: {data['waist_cm']} см")
+             if data.get('neck_cm'): m_parts.append(f"Шея: {data['neck_cm']} см")
+             if data.get('hips_cm'): m_parts.append(f"Бедра: {data['hips_cm']} см")
+             if data.get('chest_cm'): m_parts.append(f"Грудь: {data['chest_cm']} см")
+             if data.get('thigh_cm'): m_parts.append(f"Бедро: {data['thigh_cm']} см")
+             if data.get('biceps_cm'): m_parts.append(f"Бицепс: {data['biceps_cm']} см")
+             
+             m_list = "\n".join([f"• {p}" for p in m_parts])
+             status_text = "✅ <b>Записано</b>" if saved else "⚠️ <b>Ошибка записи</b>"
+             
+             response = (
+                 f"📏 <b>Замеры тела:</b>\n"
+                 f"{m_list}\n\n"
+                 f"{status_text}"
+             )
+             
+             await processing_message.edit_text(response, parse_mode='HTML')
              state_manager.clear_state(user_id)
              return
 
@@ -1114,15 +1061,20 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
         if save_meal_to_db(user_state.data, meal_name, user_id=telegram_user_id):
             logger.info("[AFTER SAVE] save_meal_to_db returned True")
             await callback.answer("✅ Сохранено!", show_alert=False)
+
+            totals = user_state.data.get('meal_totals', {})
+            meal_kcal = totals.get('calories', 0)
+
+            from core.caloric_budget import format_budget_line
+            budget = format_budget_line(telegram_user_id)
+
             await safe_edit_text(
                 callback.message,
-                f"✅ <b>Сохранено!</b>\n\n"
-                f"🍽️ <b>{meal_name}</b>\n"
-                f"📊 КБЖУ:\n"
-                f"• Калории: {user_state.data.get('meal_totals', {}).get('calories', 0):.0f} ккал\n"
-                f"• Белки: {user_state.data.get('meal_totals', {}).get('protein', 0):.0f} г\n"
-                f"• Жиры: {user_state.data.get('meal_totals', {}).get('fats', 0):.0f} г\n"
-                f"• Углеводы: {user_state.data.get('meal_totals', {}).get('carbs', 0):.0f} г",
+                f"✅ <b>{meal_name}</b> · {meal_kcal:.0f} ккал\n"
+                f"Б {totals.get('protein', 0):.0f}г · "
+                f"Ж {totals.get('fats', 0):.0f}г · "
+                f"У {totals.get('carbs', 0):.0f}г"
+                f"{budget}",
                 parse_mode='HTML'
             )
         else:

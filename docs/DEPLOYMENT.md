@@ -26,8 +26,8 @@
         │
         │ rsync (загружает файлы)
         ▼
-Сервер 146.103.111.109
-/root/healthvault/  ◄─── Файлы на диске
+Сервер 116.203.213.137
+/opt/healthvault/  ◄─── Файлы на диске
         │
         │ docker-compose build (встраивает код в образ)
         ▼
@@ -38,7 +38,7 @@ healthvault-bot  ◄─── Код встроен при сборке
         ▼
 Запущенный контейнер
 healthvault_bot  ◄─── Использует код ИЗ ОБРАЗА,
-                      НЕ из /root/healthvault/!
+                      НЕ из /opt/healthvault/!
 
 ⚠️ Поэтому rsync + restart НЕ обновляет код!
    Нужен docker-compose build!
@@ -48,7 +48,7 @@ healthvault_bot  ◄─── Использует код ИЗ ОБРАЗА,
 
 ```bash
 # Загрузить файлы
-rsync -avz core/ root@146.103.111.109:/root/healthvault/core/
+rsync -avz core/ root@116.203.213.137:/opt/healthvault/core/
 
 # Перезапустить контейнер
 docker restart healthvault_bot
@@ -63,23 +63,23 @@ docker restart healthvault_bot
 ```bash
 # 1. Загрузить все изменения
 rsync -avz --exclude 'venv' --exclude '__pycache__' \
-    /local/healthvault/ root@146.103.111.109:/root/healthvault/
+    /local/healthvault/ root@116.203.213.137:/opt/healthvault/
 
 # 2. Пересобрать Docker образ с нуля
-ssh root@146.103.111.109 'cd /root/healthvault && docker-compose build --no-cache bot'
+ssh root@116.203.213.137 'cd /opt/healthvault && docker-compose build --no-cache bot'
 
 # 3. Пересоздать контейнеры с новым образом
-ssh root@146.103.111.109 'cd /root/healthvault && docker-compose up -d'
+ssh root@116.203.213.137 'cd /opt/healthvault && docker-compose up -d'
 
 # 4. Проверить
-ssh root@146.103.111.109 'docker logs --tail 30 healthvault_bot'
+ssh root@116.203.213.137 'docker logs --tail 30 healthvault_bot'
 ```
 
 ### Вариант 2: Быстрая пересборка (быстрее, использует кэш)
 
 ```bash
 # То же самое, но без --no-cache
-ssh root@146.103.111.109 'cd /root/healthvault && docker-compose build bot && docker-compose up -d'
+ssh root@116.203.213.137 'cd /opt/healthvault && docker-compose build bot && docker-compose up -d'
 ```
 
 ## Автоматизированный скрипт развёртывания
@@ -90,8 +90,8 @@ ssh root@146.103.111.109 'cd /root/healthvault && docker-compose build bot && do
 #!/bin/bash
 set -e
 
-SERVER="root@146.103.111.109"
-REMOTE_PATH="/root/healthvault"
+SERVER="root@116.203.213.137"
+REMOTE_PATH="/opt/healthvault"
 SERVER_PASSWORD="SERVER_PASSWORD_REDACTED"
 
 echo "🚀 Развёртывание HealthVault на продакшн..."
@@ -136,7 +136,7 @@ chmod +x deploy.sh
 ### Проверить дату кода в работающем контейнере
 
 ```bash
-ssh root@146.103.111.109 'docker exec healthvault_bot ls -la /app/telegram-bot/handlers/photo.py'
+ssh root@116.203.213.137 'docker exec healthvault_bot ls -la /app/telegram-bot/handlers/photo.py'
 ```
 
 Смотрите на дату файла - она должна совпадать с вашими недавними изменениями!
@@ -145,13 +145,13 @@ ssh root@146.103.111.109 'docker exec healthvault_bot ls -la /app/telegram-bot/h
 
 ```bash
 # Последние 50 строк
-ssh root@146.103.111.109 'docker logs --tail 50 healthvault_bot'
+ssh root@116.203.213.137 'docker logs --tail 50 healthvault_bot'
 
 # Следить в реальном времени
-ssh root@146.103.111.109 'docker logs -f healthvault_bot'
+ssh root@116.203.213.137 'docker logs -f healthvault_bot'
 
 # Поиск ошибок
-ssh root@146.103.111.109 'docker logs healthvault_bot 2>&1 | grep ERROR'
+ssh root@116.203.213.137 'docker logs healthvault_bot 2>&1 | grep ERROR'
 ```
 
 ### Частые проблемы

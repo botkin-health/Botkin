@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, func, desc
 import logging
 
-from database.models import User, NutritionLog, Weight, SupplementLog, ActivityLog, BloodTest, UserProduct, UserProductVariant, UserProduct, UserProductVariant
+from database.models import User, NutritionLog, Weight, SupplementLog, ActivityLog, BloodTest, UserProduct, UserProductVariant, BodyMeasurement
 
 logger = logging.getLogger(__name__)
 
@@ -693,3 +693,33 @@ def match_user_product(db: Session, user_id: int, text: str) -> Optional[Dict[st
                     "name": p.name,
                 }
     return None
+
+
+def create_body_measurement(
+    db: Session,
+    user_id: int,
+    date: date,
+    waist_cm: Optional[float] = None,
+    neck_cm: Optional[float] = None,
+    hips_cm: Optional[float] = None,
+    chest_cm: Optional[float] = None,
+    thigh_cm: Optional[float] = None,
+    biceps_cm: Optional[float] = None,
+    notes: Optional[str] = None
+) -> BodyMeasurement:
+    """Create a new body measurement entry"""
+    measurement = BodyMeasurement(
+        user_id=user_id,
+        date=date,
+        waist_cm=waist_cm,
+        neck_cm=neck_cm,
+        hips_cm=hips_cm,
+        chest_cm=chest_cm,
+        thigh_cm=thigh_cm,
+        biceps_cm=biceps_cm,
+        notes=notes
+    )
+    db.add(measurement)
+    db.commit()
+    db.refresh(measurement)
+    return measurement

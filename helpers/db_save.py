@@ -16,7 +16,8 @@ from database import (
     SessionLocal,
     create_nutrition_log,
     create_weight,
-    create_supplement_log
+    create_supplement_log,
+    create_body_measurement
 )
 
 logger = logging.getLogger(__name__)
@@ -224,3 +225,91 @@ def save_supplements_to_db(items: list, user_id: int = 895655, date_str: Optiona
     except Exception as e:
         logger.error(f"Error saving supplements to DB: {e}", exc_info=True)
         return False
+
+
+def save_body_measurement_to_db(data: Dict[str, Any], user_id: int = 895655) -> bool:
+    """
+    Сохраняет замеры тела в PostgreSQL и JSON
+    """
+    try:
+        # 1. Сначала сохраняем в JSON (как исторически сложилось)
+        save_body_measurement_to_json(data)
+        
+        # 2. Сохраняем в PostgreSQL
+        date_input = data.get('date')
+        if not date_input:
+            measurement_date = datetime.now(MSK).date()
+        else:
+            try:
+                measurement_date = datetime.strptime(str(date_input), '%Y-%m-%d').date()
+            except:
+                measurement_date = datetime.now(MSK).date()
+
+        db = SessionLocal()
+        try:
+            create_body_measurement(
+                db,
+                user_id=user_id,
+                date=measurement_date,
+                waist_cm=data.get('waist_cm'),
+                neck_cm=data.get('neck_cm'),
+                hips_cm=data.get('hips_cm'),
+                chest_cm=data.get('chest_cm'),
+                thigh_cm=data.get('thigh_cm'),
+                biceps_cm=data.get('biceps_cm'),
+                notes=data.get('notes')
+            )
+            logger.info(f"Body measurement saved to DB for {measurement_date}")
+            return True
+        finally:
+            db.close()
+    except Exception as e:
+        logger.error(f"Error saving body measurement: {e}", exc_info=True)
+        return False
+
+
+def save_body_measurement_to_json(data: Dict[str, Any]):
+    """Сохраняет замеры в data/weights/body_measurements.json"""
+    import json
+    import os
+    file_path = "data/weights/body_measurements.json"
+    
+    # Схемы полей
+    field_map = {
+        "waist_cm": "waist_navel_cm",
+        "neck_cm": "neck_adams_apple_cm",
+        "hips_cm": "hips_buttocks_cm",
+        "chest_cm": "chest_nipples_cm",
+        "thigh_cm": "thigh_mid_cm",
+        "biceps_cm": "bicep_mid_cm"
+    }
+    
+    # Новая запись
+    entry = {"date": data.get("date") or datetime.now().strftime("%Y-%m-%d")}
+    for llm_key, json_key in field_map.items():
+        if data.get(llm_key) is not None:
+            entry[json_key] = data[llm_key]
+    if data.get("notes"):
+        entry["notes"] = data["notes"]
+
+    # Загружаем
+    if os.path.exists(file_path):
+        with open(file_path, 'r', encoding='utf-8') as f:
+            try:
+                content = json.load(f)
+            except:
+                content = {"entries": []}
+    else:
+        content = {"entries": []}
+        
+    if "entries" not in content:
+        content["entries"] = []
+        
+    # Предотвращаем дубли по дате
+    content["entries"] = [e for e in content["entries"] if e.get("date") != entry["date"]]
+    content["entries"].insert(0, entry)
+    
+    # Сохраняем
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    with open(file_path, 'w', encoding='utf-8') as f:
+        json.dump(content, f, indent=2, ensure_ascii=False)

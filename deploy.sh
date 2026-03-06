@@ -2,9 +2,9 @@
 set -e  # Exit on error
 
 # Настройки сервера
-SERVER_IP="146.103.111.109"
+SERVER_IP="116.203.213.137"
 SERVER_USER="root"
-SERVER_PATH="/root/healthvault"
+SERVER_PATH="/opt/healthvault"
 SERVER_PASSWORD="SERVER_PASSWORD_REDACTED"
 
 echo "==================================="

@@ -174,9 +174,15 @@ def save_to_healthvault(data, base_path):
         print(f"📊 Последнее давление: {latest_bp['systolic']}/{latest_bp['diastolic']} ({latest_bp['date']} {latest_bp['time']})")
 
 if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser(description='Импорт данных из Apple Health Export')
+    parser.add_argument('--export_xml', type=str, required=True, help='Путь к XML файлу экспорта')
+    parser.add_argument('--healthvault_path', type=str, default='/Users/alexlyskovsky/HealthVault', help='Путь к директории HealthVault')
+    args = parser.parse_args()
+    
     # Пути
-    export_xml = '/Users/alexlyskovsky/Downloads/apple_health_export/apple_health_export/export.xml'
-    healthvault_path = '/Users/alexlyskovsky/HealthVault'
+    export_xml = args.export_xml
+    healthvault_path = args.healthvault_path
     
     # Парсим данные
     data = parse_apple_health_export(export_xml)
