@@ -1,3 +1,16 @@
+# AI CONTEXT INSTRUCTOR
+**CRITICAL:** Before answering architecture, workflow, database, or data source questions, and BEFORE starting any implementation, YOU MUST READ the files strictly inside `docs/ai_context/`.
+Specifically:
+- `docs/ai_context/01_architecture.md` (for how components interact)
+- `docs/ai_context/02_data_sources.md` (for where we parse data from)
+- `docs/ai_context/03_database_schema.md` (for database entities)
+- `docs/ai_context/04_workflows.md` (for SOPs on how to add/edit features)
+- `docs/ai_context/AI_CHANGELOG.md` (to understand what previous AI agents just did)
+
+When you finish a complex task, ALWAYS log it into `docs/ai_context/AI_CHANGELOG.md` so the next AI agent knows what you did.
+
+# GENERAL RULES
+
 Always speak Russian.
 Create all documents (plans, tasks, reports, artifacts) in Russian.
 Main language of the user: Russian.

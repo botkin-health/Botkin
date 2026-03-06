@@ -38,8 +38,9 @@ CLASSIFICATION CATEGORIES:
 1. "food": Meal descriptions, photos of food/menus, cooking ingredients (EXCLUDING clear supplements like Psyllium/Vitamins unless used as baking ingredient).
 2. "weight": Photos of weight scales, text like "80.5 kg", body composition screens.
 3. "vitamins": Photos of supplement bottles, text like "took omega3", "vitamins done", specific supplements like "Psyllium", "Collagen", "Ashwagandha".
-4. "medical": Lab results, doctor notes (if clearly medical).
-5. "other": General chat, questions not related to logging, or unclear inputs.
+4. "body_measurements": Records of body size in cm like "waist 101, neck 42.5", "талия 101 см".
+5. "medical": Lab results, doctor notes (if clearly medical).
+6. "other": General chat, questions not related to logging, or unclear inputs.
 
 OUTPUT FORMAT:
 Return ONLY valid JSON. Structure depends on category.
@@ -55,9 +56,9 @@ IMPORTANT: Return "name" in RUSSIAN language (e.g. "Морковь", not "Carrot
     "items": [
       {
         "name": "Ingredient name",
-        "weight": number (grams) OR null if unknown,
+        "weight": number (TOTAL weight in grams for ALL pieces combined, e.g. if 3 pieces of 50g, return 150) OR null if unknown,
         "quantity": "count/volume string" (e.g. "1 cup", "2 slices"),
-        "calories": number (approx, if standard),
+        "calories": number (TOTAL calories for the TOTAL weight),
         "protein": number,
         "fats": number,
         "carbs": number
@@ -213,6 +214,7 @@ CRITICAL RULES FOR ACCURACY:
 5. NEVER leave weight as null if portion type is known (spoons, pieces, slices)
 6. For dishes without explicit weight (soup, salad, kebab etc) - ALWAYS use standard portion from database above
 7. NEVER return calories: 0 for a real food item. Estimate based on your nutritional knowledge
+8. MULTIPLE PHOTOS / DISHES (CRITICAL!): If receiving multiple photos or seeing multiple distinct dishes (e.g. salad + fish steak), you MUST list them as SEPARATE items in the array. Estimate the correct weight for EACH dish independently. Do NOT merge them into one item or under-estimate the total weight.
 
 SCENARIO 2: WEIGHT
 Extract weight and body composition.
@@ -238,7 +240,23 @@ IMPORTANT: Return "items" in RUSSIAN language (e.g. "Витамин С", "Маг
   }
 }
 
-SCENARIO 4: OTHER
+SCENARIO 4: BODY MEASUREMENTS
+Extract measurements in cm.
+{
+  "type": "body_measurements",
+  "data": {
+    "date": "YYYY-MM-DD" (if visible/stated, otherwise null),
+    "waist_cm": number or null,
+    "neck_cm": number or null,
+    "hips_cm": number or null,
+    "chest_cm": number or null,
+    "thigh_cm": number or null,
+    "biceps_cm": number or null,
+    "notes": "string"
+  }
+}
+
+SCENARIO 5: OTHER
 {
   "type": "other",
   "data": {

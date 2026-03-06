@@ -55,6 +55,7 @@ class User(Base):
     supplements: Mapped[List["SupplementLog"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     activities: Mapped[List["ActivityLog"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     blood_tests: Mapped[List["BloodTest"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    body_measurements: Mapped[List["BodyMeasurement"]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
 
 
@@ -197,3 +198,25 @@ class BloodTest(Base):
     
     # Relationship
     user: Mapped["User"] = relationship(back_populates="blood_tests")
+
+
+class BodyMeasurement(Base):
+    __tablename__ = "body_measurements"
+    __table_args__ = (
+        Index('idx_measurements_user_date', 'user_id', 'date'),
+    )
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey('users.telegram_id', ondelete='CASCADE'))
+    date: Mapped[datetime.date] = mapped_column(Date, nullable=False)
+    waist_cm: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    neck_cm: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    hips_cm: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    chest_cm: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    thigh_cm: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    biceps_cm: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    
+    # Relationship
+    user: Mapped["User"] = relationship(back_populates="body_measurements")

@@ -1,5 +1,5 @@
 #!/bin/bash
-SERVER_IP="146.103.111.109"
+SERVER_IP="116.203.213.137"
 SERVER_USER="root"
 
 echo "🔍 Connecting to $SERVER_IP..."

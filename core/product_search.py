@@ -120,42 +120,59 @@ def find_product(name: str) -> Optional[Dict]:
         # Проверяем частичное совпадение с алиасами (через токены)
         import re
         query_tokens = set(re.findall(r'\w+', name_lower))
-        
+        stop_words = {'с', 'из', 'в', 'на', 'и', 'со'}
+        query_significant = query_tokens - stop_words
+
         for alias in aliases:
             alias_lower = alias.lower()
             alias_tokens = set(re.findall(r'\w+', alias_lower))
-            
-            # То же самое: токены алиаса должны быть подмножеством токенов запроса
+            alias_significant = alias_tokens - stop_words
+
+            # Токены алиаса должны быть подмножеством токенов запроса.
             # "сыр" -> {"сыр"}. "сырая морковь" -> {"сырая", "морковь"}. Diff -> No match.
             if alias_tokens and alias_tokens.issubset(query_tokens):
-                 return product_data
-                 
-            # Или наоборот (уточнение)
+                # Защита от ложных срабатываний: не матчить короткий алиас ("черри")
+                # с длинным составным блюдом ("салат с креветками, помидорами черри, ...").
+                # Логика аналогична guard в секции частичного совпадения по имени продукта.
+                if len(query_significant) > len(alias_significant) + 1:
+                    continue
+                return product_data
+
+            # Или наоборот (уточнение: query короче alias)
             if query_tokens and query_tokens.issubset(alias_tokens):
-                 return product_data
+                return product_data
     
-    # Частичное совпадение по названию продукта
     # Частичное совпадение по названию продукта
     import re
     query_tokens = set(re.findall(r'\w+', name_lower))
+    # Фильтруем стоп-слова для более точного матча
+    stop_words = {'с', 'из', 'в', 'на', 'и', 'со'}
+    query_significant_tokens = query_tokens - stop_words
     query_digits = set(re.findall(r'\d+', name_lower))
 
     for product_name, product_data in db.items():
         product_lower = product_name.lower()
         product_tokens = set(re.findall(r'\w+', product_lower))
+        product_significant_tokens = product_tokens - stop_words
         
         # 1. Если продукт содержится в запросе (query="кефир 4%", product="кефир")
-        # Вместо naive "if product in query", используем токены: все токены продукта должны быть в запросе
-        # "сыр" -> {"сыр"}. "сырая морковь" -> {"сырая", "морковь"}. Подмножество? НЕТ.
-        if product_tokens.issubset(query_tokens):
-             # Проверяем цифры
+        if product_tokens and product_tokens.issubset(query_tokens):
              product_digits = set(re.findall(r'\d+', product_lower))
-             if not query_digits.issubset(product_digits):
+             if product_digits and not query_digits.issubset(product_digits):
                  continue
+                 
+             # ЗАЩИТА ОТ ЛОЖНЫХ СРАБАТЫВАНИЙ:
+             # Не даем короткому базовому продукту (например, "салат", "сыр") 
+             # матчиться с длинным многосоставным блюдом ("салат с креветками и лососем")
+             # Исключение: точные совпадения, которые мы уже прошли, или явное указание жирности/веса.
+             if len(query_significant_tokens) > len(product_significant_tokens) + 1:
+                 # Если в запросе на 2+ значимых слова больше, чем в продукте БД - это другое блюдо
+                 continue
+                 
              return product_data
              
         # 2. Если запрос содержится в продукте (query="кефир", product="кефир 3.2%")
-        if query_tokens.issubset(product_tokens):
+        if query_tokens and query_tokens.issubset(product_tokens):
              return product_data
     
     return None

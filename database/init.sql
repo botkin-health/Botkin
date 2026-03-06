@@ -92,3 +92,18 @@ CREATE TABLE IF NOT EXISTS blood_tests (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_blood_tests_user_date ON blood_tests(user_id, test_date);
+
+CREATE TABLE IF NOT EXISTS body_measurements (
+    id SERIAL PRIMARY KEY,
+    user_id BIGINT REFERENCES users(telegram_id) ON DELETE CASCADE,
+    date DATE NOT NULL,
+    waist_cm FLOAT,
+    neck_cm FLOAT,
+    hips_cm FLOAT,
+    chest_cm FLOAT,
+    thigh_cm FLOAT,
+    biceps_cm FLOAT,
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_measurements_user_date ON body_measurements(user_id, date);

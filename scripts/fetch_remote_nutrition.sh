@@ -1,7 +1,7 @@
 #!/bin/bash
-SERVER="root@146.103.111.109"
+SERVER="root@116.203.213.137"
 PASS="SERVER_PASSWORD_REDACTED"
-DIR="/root/healthvault"
+DIR="/opt/healthvault"
 
 echo "Using sshpass to fetch data from $SERVER..."
 

@@ -1,7 +1,7 @@
 #!/bin/bash
-SERVER_IP="146.103.111.109"
+SERVER_IP="116.203.213.137"
 SERVER_USER="root"
-SERVER_PATH="/root/healthvault"
+SERVER_PATH="/opt/healthvault"
 
 echo "🚀 Starting Bot on Server $SERVER_IP..."
 echo "Command: docker-compose up -d --build"

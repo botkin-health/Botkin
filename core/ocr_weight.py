@@ -142,11 +142,11 @@ def _map_keys_to_standard(data: Dict[str, Any]) -> Dict[str, Any]:
     mapping = {
         'weight': ['weight', 'вес', 'вес тела'],
         'bmi': ['bmi', 'имт', 'индекс массы тела'],
-        'body_fat': ['body fat', 'bodyfat', 'fat', 'телесный жир', 'жир', 'процент жира'],
-        'muscle': ['muscle', 'muscles', 'muscle mass', 'мышцы', 'мышечная масса', 'процент мышц'],
+        'visceral_fat': ['visceral fat', 'visceral_fat', 'visceral', 'висцеральный жир', 'уровень висцерального жира'],
+        'body_fat': ['body fat', 'body_fat', 'bodyfat', 'fat', 'телесный жир', 'жир', 'процент жира'],
+        'muscle_mass': ['muscle mass', 'muscle_mass', 'muscle', 'muscles', 'мышцы', 'мышечная масса', 'процент мышц'],
         'water': ['water', 'body water', 'вода', 'процент воды', 'вода в организме'],
-        'visceral_fat': ['visceral fat', 'visceral', 'висцеральный жир', 'уровень висцерального жира'],
-        'bone_mass': ['bone mass', 'bone', 'костная масса', 'кости'],
+        'bone_mass': ['bone mass', 'bone_mass', 'bone', 'костная масса', 'кости'],
         'bmr': ['bmr', 'basal metabolism', 'basal metabolic rate', 'основной обмен', 'калории', 'metabolism'],
         'protein': ['protein', 'белок', 'процент белка'],
         'date': ['date', 'time', 'дата', 'время'],
@@ -156,30 +156,39 @@ def _map_keys_to_standard(data: Dict[str, Any]) -> Dict[str, Any]:
     for k, v in data.items():
         k_lower = k.lower().strip()
         found = False
+        std_key_found = None
+        
+        # 1. Exact match
         for std_key, aliases in mapping.items():
-            if k_lower in aliases or any(alias in k_lower for alias in aliases):
-                # Clean value (remove units)
-                val = v
-                
-                # Skip numeric cleaning for date
-                if std_key == 'date':
-                    result[std_key] = str(val)
-                elif isinstance(val, str):
-                    # Extract number for metrics
-                    import re
-                    match = re.search(r'[\d\.]+', val)
-                    if match:
-                        try:
-                            val = float(match.group())
-                        except ValueError:
-                            pass
-                    result[std_key] = val
-                else:
-                    result[std_key] = val
-                    
+            if k_lower == std_key or k_lower in aliases or k_lower.replace('_', ' ') in aliases:
+                std_key_found = std_key
                 found = True
                 break
+                
+        # 2. Substring match
         if not found:
+            for std_key, aliases in mapping.items():
+                if any(alias in k_lower for alias in aliases):
+                    std_key_found = std_key
+                    found = True
+                    break
+        
+        if found:
+            val = v
+            if std_key_found == 'date':
+                result[std_key_found] = str(val)
+            elif isinstance(val, str):
+                import re
+                match = re.search(r'[\d\.]+', val)
+                if match:
+                    try:
+                        val = float(match.group())
+                    except ValueError:
+                        pass
+                result[std_key_found] = val
+            else:
+                result[std_key_found] = val
+        else:
             result[k] = v # Keep unknown keys too
             
     return result
