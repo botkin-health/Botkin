@@ -154,32 +154,74 @@ async def cmd_day(message: Message, user_id: int):
             if weight.measured_at.date() == today_date:
                 weight_text = f"⚖️ Вес: <b>{weight.weight} кг</b>"
         
-        tdee = targets.get('avg_tdee', 0)
-        tdee_hint = f" (тратишь ~{tdee} ккал/день)" if tdee else ""
-        # Response Construction
+        # --- Energy balance (14-day averages → consistent with target calculation) ---
+        from database.crud import get_average_activity_stats
+        from core.caloric_budget import make_macro_bar
+        avg_stats = get_average_activity_stats(db, user_id, days=14)
+        avg_bmr    = round(avg_stats.get('bmr_calories',    0)) if avg_stats else 0
+        avg_active = round(avg_stats.get('active_calories', 0)) if avg_stats else 0
+        avg_total  = round(avg_stats.get('total_calories',  0)) if avg_stats else 0
+        today_active_r = round(active_calories)
+        target_cal = targets['calories']
+
+        if avg_total > 1500:
+            # Show 14-day averages — target_cal = avg_total × 0.85, so math is consistent
+            energy_line = f"⚡️ ~{avg_bmr} 😴 + ~{avg_active} 🏃 = ~{avg_total} ккал (14д. ср.)"
+            # Show today's live active if it meaningfully differs from the average
+            if abs(today_active_r - avg_active) > 50:
+                energy_line += f"\n   сегодня активно: {today_active_r} ккал"
+        else:
+            energy_line = f"🏃 Активность ({activity_label}): <b>{today_active_r}</b> ккал"
+
+        # --- Calorie bar ---
+        cal_bar, cal_pct = make_macro_bar(totals.calories, target_cal)
+        cal_remaining = target_cal - round(totals.calories)
+        if cal_remaining < 0:
+            cal_icon, cal_tail = "🔴", f"перебор +{abs(cal_remaining)}"
+        elif cal_pct >= 80:
+            cal_icon, cal_tail = "⚠️", f"ост. {cal_remaining}"
+        else:
+            cal_icon, cal_tail = "📊", f"ост. {cal_remaining}"
+
+        # --- Macro bars ---
+        p_bar, p_pct = make_macro_bar(totals.protein, targets['protein'], invert=True)
+        f_bar, f_pct = make_macro_bar(totals.fats,    targets['fats'])
+        c_bar, c_pct = make_macro_bar(totals.carbs,   targets['carbs'])
+
+        # --- Fiber (optional, norm 30g) ---
+        fiber_val = getattr(totals, 'fiber', 0) or 0
+        fiber_line = ""
+        if fiber_val > 0:
+            fib_bar, fib_pct = make_macro_bar(fiber_val, 30, invert=True)
+            fiber_line = f"🌿 {fib_bar} {fib_pct}%  {fiber_val:.0f}/30г"
+
+        # --- Response Construction ---
         response_parts = [
             f"📅 <b>Итоги дня {today_formatted}</b>",
             "",
-            "🥦 <b>Питание:</b>",
-            f"• Калории: <b>{totals.calories:.0f}</b> / {targets['calories']} ккал{tdee_hint}",
-            f"• Белки: <b>{totals.protein:.0f}</b> / {targets['protein']} г",
-            f"• Жиры: {totals.fats:.0f} / {targets['fats']} г",
-            f"• Углеводы: {totals.carbs:.0f} / {targets['carbs']} г",
+            energy_line,
+            f"🎯 Цель −15%: <b>{target_cal}</b> ккал",
             "",
-            f"🔥 Активность ({activity_label}): <b>{active_calories:.0f}</b> ккал",
+            f"{cal_icon} {cal_bar} {cal_pct}%",
+            f"{round(totals.calories):.0f} / {target_cal} ккал · {cal_tail}",
             "",
-            supplements_text
+            f"Б {p_bar} {p_pct}%  {totals.protein:.0f}/{targets['protein']}г",
+            f"Ж {f_bar} {f_pct}%  {totals.fats:.0f}/{targets['fats']}г",
+            f"У {c_bar} {c_pct}%  {totals.carbs:.0f}/{targets['carbs']}г",
         ]
-        
-        # Add weight if available
+        if fiber_line:
+            response_parts.append(fiber_line)
+
+        # Weight and supplements
+        response_parts.append("")
         if weight_text:
-            response_parts.insert(-1, weight_text)
-            response_parts.insert(-1, "")
-        
+            response_parts.append(weight_text)
+        response_parts.append(supplements_text)
+
         # Feasibility Warning
         feasibility_warning = check_feasibility(remaining['calories'], remaining['protein'])
         if feasibility_warning:
-             response_parts.append(f"\n⚠️ <i>{feasibility_warning}</i>")
+            response_parts.append(f"\n⚠️ <i>{feasibility_warning}</i>")
 
         # Delete waiting message and send result
         await status_msg.delete()

@@ -17,6 +17,7 @@
 
 ## 🛠 Технический долг
 
+- [ ] **Баг с медиагруппами (photo albums)**: При отправке нескольких фотографий разом (альбом) бот их не склеивает через `MediaGroupMiddleware` (гонка состояний или `update` не содержит `media_group_id` сразу). Фотки обрабатываются по одной, из-за чего LLM-Router не видит весь объем и недосчитывает граммовки. Временно отправляем фото по одной.
 - [ ] **Круговой импорт** `core/nutrition.py` ↔ `core/llm_food_processor.py`: `nutrition.py` импортирует `process_llm_food_data` на строке ~389 для re-export. Это circular dependency — при прямом импорте `llm_food_processor` (например, в тестах в изоляции) падает с `ImportError`. Временный workaround в тестах: `import core.nutrition` перед `from core.llm_food_processor import ...`. Правильный фикс: убрать re-export из `nutrition.py`, или перенести shared-функции в третий модуль.
 - [ ] **Реорганизация `scripts/`**: 49 файлов в плоском списке. Разбить на `scripts/migrations/`, `scripts/backfill/`, `scripts/analysis/`, `scripts/archive/` (мёртвые скрипты). Не удалять — архивировать.
 - [ ] **Реорганизация `core/`**: 20+ модулей в одной папке. Сгруппировать в подпакеты: `core/routing/`, `core/food/`, `core/health/`, `core/integrations/`. Сделать только если навигация реально мешает.
@@ -57,10 +58,10 @@
 **Запуск вручную:**
 ```bash
 # Все тесты на сервере:
-ssh root@146.103.111.109 'docker exec healthvault_bot python /app/scripts/test_llm_prompt.py'
+ssh root@116.203.213.137 'docker exec healthvault_bot python /app/scripts/test_llm_prompt.py'
 
 # Только регрессионные:
-ssh root@146.103.111.109 'docker exec healthvault_bot python /app/scripts/test_llm_prompt.py --tags regression'
+ssh root@116.203.213.137 'docker exec healthvault_bot python /app/scripts/test_llm_prompt.py --tags regression'
 
 # Деплой без LLM тестов (если API временно недоступен):
 ./deploy.sh --skip-llm-tests

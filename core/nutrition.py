@@ -580,6 +580,13 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
         # ORIGINAL LOGIC
         has_macros = item.get('calories') is not None and item.get('calories') > 0
         
+        # Защита от галлюцинаций LLM (максимум ~900 ккал/100г для чистого жира)
+        if has_macros and weight and weight > 0:
+            cal_per_100g = (item['calories'] / weight) * 100
+            if cal_per_100g > 1000:
+                logger.warning(f"⚠️ LLM сгаллюцинировал макросы для '{name}'! {item['calories']} ккал на {weight}г ({cal_per_100g} ккал/100г). Игнорируем.")
+                has_macros = False
+        
         if has_macros:
             # Если вес не указан, но есть калории - пробуем оценить вес по названию (для отображения)
             final_weight = weight

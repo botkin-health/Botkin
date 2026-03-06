@@ -576,6 +576,34 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             await processing_msg.edit_text(f"⚖️ <b>Вес:</b> {w_val} кг\n✅ Записано (Simulated)", parse_mode='HTML')
             return
             
+        elif msg_type == 'body_measurements':
+             # Обработка замеров тела
+             data = router_result.get('data', {})
+             from helpers.db_save import save_body_measurement_to_db
+             telegram_user_id = int(message.from_user.id)
+             saved = save_body_measurement_to_db(data, user_id=telegram_user_id)
+             
+             # Формируем ответ
+             m_parts = []
+             if data.get('waist_cm'): m_parts.append(f"Талия: {data['waist_cm']} см")
+             if data.get('neck_cm'): m_parts.append(f"Шея: {data['neck_cm']} см")
+             if data.get('hips_cm'): m_parts.append(f"Бедра: {data['hips_cm']} см")
+             if data.get('chest_cm'): m_parts.append(f"Грудь: {data['chest_cm']} см")
+             if data.get('thigh_cm'): m_parts.append(f"Бедро: {data['thigh_cm']} см")
+             if data.get('biceps_cm'): m_parts.append(f"Бицепс: {data['biceps_cm']} см")
+             
+             m_list = "\n".join([f"• {p}" for p in m_parts])
+             status_text = "✅ <b>Записано</b>" if saved else "⚠️ <b>Ошибка записи</b>"
+             
+             response = (
+                 f"📏 <b>Замеры тела:</b>\n"
+                 f"{m_list}\n\n"
+                 f"{status_text}"
+             )
+             
+             await processing_msg.edit_text(response, parse_mode='HTML')
+             return
+
         elif msg_type == 'food':
             # ЕДА
             # process_llm_food_data is synchronous and might block loop (requests to OpenAI)
