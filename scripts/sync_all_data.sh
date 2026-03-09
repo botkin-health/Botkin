@@ -1,7 +1,9 @@
 #!/bin/bash
 # Синхронизация всех источников данных HealthVault в локальную файловую систему
-# ИИ-Агенты (Cursor, Claude, Antigravity) ОБЯЗАНЫ запускать этот скрипт первым делом, 
+# ИИ-Агенты (Cursor, Claude, Antigravity) ОБЯЗАНЫ запускать этот скрипт первым делом,
 # чтобы получить свежий 100% срез по питанию, сну, шагам, весам и климату из всех источников.
+#
+# Альтернатива: скилл /sync (автоматически вызывает этот скрипт + показывает таблицу актуальности).
 
 echo "================================================="
 echo "🔄 HealthVault: Master Data Sync"
@@ -32,17 +34,43 @@ sshpass -e rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
 # Уборка за собой
 sshpass -e ssh -o StrictHostKeyChecking=no root@116.203.213.137 "rm -rf /opt/healthvault/tmp_data /tmp/sync_remote_db_tmp.py && docker exec healthvault_bot rm -rf /tmp/data /tmp/sync_remote_db.py"
 
-echo "2/4 🏃 Загрузка свежего сна, стресса и тренировок из Garmin Connect..."
+echo "1.8/4 ⚖️  Синхронизация умных весов (Zepp Life / Xiaomi SmartScale)..."
+SCALECONNECT_DIR="$(pwd)/tools/scaleconnect"
+if [ -f "$SCALECONNECT_DIR/scaleconnect" ]; then
+    (cd "$SCALECONNECT_DIR" && ./scaleconnect -c scaleconnect.yaml 2>&1) \
+        && echo "   ✅ Zepp: CSV обновлён → data/zepp_export_latest.csv" \
+        || echo "   ⚠️  Zepp: ошибка выгрузки (токен устарел? Нужен re-auth)"
+    python3 scripts/import_zepp_csv.py
+else
+    echo "   ⏭  Zepp: tools/scaleconnect/scaleconnect не найден, пропускаем"
+fi
+
+echo "2/4 🏃 Загрузка свежего сна, стресса, HRV, Body Battery и тренировок из Garmin Connect..."
 python3 scripts/garmin/download_garmin_data.py
+echo "2.5/4 🏋️  Агрегация тренировок в workouts_log.json..."
+python3 scripts/parse_workouts.py
 
 echo "3/4 🌬 Загрузка данных климата в спальне из Netatmo..."
 python3 scripts/import_netatmo.py
 
-echo "4/4 📱 Загрузка экранного времени из базы макоси..."
+echo "4/4 📱 Загрузка экранного времени (iPhone, Mac, Chrome)..."
 # Требует Full Disk Access у терминала!
-python3 scripts/import_screentime.py
+python3 scripts/import_activitywatch.py
+python3 scripts/import_mac_screentime.py
+python3 scripts/import_chrome_history.py
+
+echo "5/4 🍎 Apple Health (шаги, ходьба, АД, вес, пульс)..."
+# Необязательный шаг — требует ручного экспорта Apple Health (Health → Профиль → Экспорт данных)
+# Ищет export.xml в ~/Downloads/apple_health_export*/
+if python3 scripts/import_apple_health.py 2>/dev/null; then
+    echo "   ✅ Apple Health обновлён"
+else
+    echo "   ⏭  Пропущен — нет export.xml в ~/Downloads/apple_health_export*/"
+    echo "      Чтобы обновить: iPhone → Health → Профиль → Экспорт данных → разархивировать zip"
+fi
 
 echo "================================================="
 echo "✅ Все данные успешно скачаны и обновлены!"
-echo "➡️  Они лежат в папках data/nutrition, data/garmin, data/activities, data/weights, data/environment."
+echo "➡️  Данные в папках: data/nutrition, data/garmin, data/activities, data/weights, data/environment."
+echo "➡️  Запусти скилл /sync для просмотра таблицы актуальности."
 echo "================================================="

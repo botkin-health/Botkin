@@ -17,17 +17,46 @@
 
 ## 2. Таблица `nutrition_log`
 Хранит логи приемов пищи (ручной ввод, парсинг чека/фото).
-- `id`: Integer (Primary Key)
-- `user_id`: Integer (Foreign Key -> users.id)
-- `date`: Date (Дата приема пищи)
-- `time`: Time (Опциональное время)
-- `meal_type`: String (Завтрак, Обед, Ужин, Перекус, Напиток)
-- `food_name`: String (Что съедено)
-- `weight_g`: Float (Вес в граммах)
-- `calories`: Float
-- `protein`, `fat`, `carbs`: Float
-- `source`: String (Источник: \`manual\`, \`llm_photo\`, \`llm_text\`)
-- `raw_text`: String (Оригинальное описание пользователя)
+
+> [!WARNING]
+> **КБЖУ не в отдельных колонках!** Значения хранятся в JSONB поле `totals`.
+> Правильный доступ: `(totals->>'calories')::numeric` — НЕ `calories` напрямую.
+> Схема была изменена в процессе разработки; старые файлы документации неактуальны.
+
+Реальная схема (верифицировано `\d nutrition_log`, 2026-03-10):
+- `id`: Integer (Primary Key, автоинкремент)
+- `user_id`: BigInteger (Foreign Key → `users.telegram_id` — **НЕ** `users.id`!)
+- `date`: Date (NOT NULL — дата приёма пищи)
+- `meal_time`: Time (опционально — время приёма)
+- `meal_name`: String(255) (опционально — название блюда/приёма)
+- `items`: JSONB (NOT NULL — список продуктов с детальным КБЖУ каждого)
+- `totals`: JSONB (NOT NULL — суммарное КБЖУ за один приём пищи)
+- `photo_paths`: Text[] (пути к фото, если парсинг из фото)
+- `created_at`: TimestampTZ (автоматически — время создания записи)
+
+**Структура поля `totals`:**
+```json
+{"calories": 450.0, "protein": 32.5, "fat": 18.0, "carbs": 41.0}
+```
+
+**Правильный SQL для суммирования по дням:**
+```sql
+SELECT
+  date,
+  COUNT(*) AS meal_entries,
+  ROUND(SUM((totals->>'calories')::numeric), 0) AS kcal,
+  ROUND(SUM((totals->>'protein')::numeric), 1) AS protein,
+  ROUND(SUM((totals->>'fat')::numeric), 1)     AS fat,
+  ROUND(SUM((totals->>'carbs')::numeric), 1)   AS carbs
+FROM nutrition_log
+WHERE user_id = 895655
+  AND date >= '2026-01-06'
+GROUP BY date
+ORDER BY date;
+```
+
+**Уникальный индекс**: `(user_id, date, meal_time, meal_name)` — защита от дублей.
+**Покрытие**: 63/63 дней с 2026-01-06 по 2026-03-09 (Alex, user_id=895655).
 
 ## 3. Таблица `weights`
 История взвешиваний (в том числе с умных весов).

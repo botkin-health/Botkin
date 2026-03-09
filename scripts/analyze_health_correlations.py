@@ -146,13 +146,17 @@ def load_garmin_sleep():
             date = sleep_dto.get('calendarDate')
             if not date: continue
             
+            avg_resp = sleep_dto.get('averageRespirationValue')
             records.append({
                 'date': date,
                 'sleep_hours': sleep_dto.get('sleepTimeSeconds', 0) / 3600,
                 'sleep_score': sleep_dto.get('sleepScores', {}).get('overall', {}).get('value'),
                 'deep_sleep_hours': sleep_dto.get('deepSleepSeconds', 0) / 3600,
                 'rem_sleep_hours': sleep_dto.get('remSleepSeconds', 0) / 3600,
-                'awake_sleep_hours': sleep_dto.get('awakeSleepSeconds', 0) / 3600
+                'awake_sleep_hours': sleep_dto.get('awakeSleepSeconds', 0) / 3600,
+                'avg_respiration': avg_resp if avg_resp and avg_resp > 0 else None,
+                'avg_sleep_hr': sleep_dto.get('avgHeartRate'),
+                'sleep_stress': sleep_dto.get('avgSleepStress'),
             })
         except: pass
     return pd.DataFrame(records)
@@ -425,7 +429,7 @@ def main():
     df_screentime = load_screentime()
     df_nutrition = load_nutrition()
     
-    print(f"Загружено: Вес {len(df_weight)}, Состав {len(df_comp)}, АД {len(df_bp)}, Garmin {len(df_daily)}, Сон {len(df_sleep)}, Стресс {len(df_stress)}, HRV {len(df_hrv)}, Netatmo {len(df_netatmo)}, Экраны {len(df_screentime)}")
+    print(f"Загружено: Вес {len(df_weight)}, Состав {len(df_comp)}, АД {len(df_bp)}, Garmin {len(df_daily)}, Сон {len(df_sleep)} (дыхание включено), Стресс {len(df_stress)}, HRV {len(df_hrv)}, Netatmo {len(df_netatmo)}, Экраны {len(df_screentime)}")
 
     # Merge all
     print("Объединение данных...")
@@ -478,6 +482,9 @@ def main():
         'steps': 'Шаги',
         'sleep_hours': 'Сон (часы)',
         'sleep_score': 'Качество сна',
+        'avg_respiration': 'Дыхание во сне (вд/мин)',
+        'avg_sleep_hr': 'ЧСС во сне',
+        'sleep_stress': 'Стресс во сне',
         'avg_stress': 'Стресс (средний)',
         'hrv_last_night': 'ВСР (Ночная)',
         'bb_charged': 'Заряд Body Battery',

@@ -42,11 +42,17 @@ def fetch_homecoach_data():
         homecoach = lnetatmo.HomeCoach(authorization)
         data = []
         
+        # Stations to skip (old/inactive devices)
+        SKIP_STATIONS = {'Гнездышко'}
+
         # Fetch Current Data
         print("🔄 Извлечение текущих метрик Netatmo...")
         for station_data in homecoach.rawData:
             # Skip stations that are unreachable or have no recent dashboard data
             if not station_data.get('reachable', False) or 'dashboard_data' not in station_data:
+                continue
+            if station_data.get('station_name') in SKIP_STATIONS:
+                print(f"⏭️  Пропускаю станцию {station_data.get('station_name')} (в списке исключений)")
                 continue
                 
             dashboard = station_data.get('dashboard_data', {})
@@ -72,6 +78,9 @@ def fetch_homecoach_data():
             device_id = station_data.get('_id')
             device_name = station_data.get('station_name', 'Unknown')
             if not device_id:
+                continue
+            if device_name in SKIP_STATIONS:
+                print(f"⏭️  Пропускаю историю станции {device_name} (в списке исключений)")
                 continue
                 
             url = "https://api.netatmo.com/api/getmeasure"

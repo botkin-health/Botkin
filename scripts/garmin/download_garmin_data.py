@@ -50,20 +50,15 @@ def download_activities(client, start_date, end_date):
             activity_id = activity.get('activityId')
             if not activity_id:
                 continue
-                
+
             # Сохраняем краткую информацию
-            date_str = activity.get('startTimeLocal', '').split('T')[0] if activity.get('startTimeLocal') else 'unknown'
-            filename = f"{date_str}_{activity_id}.json"
+            # Нормализуем дату: startTimeLocal может быть "2026-03-09 19:07:41" или "2026-03-09T19:07:41"
+            start_raw = activity.get('startTimeLocal', '')
+            date_str = start_raw[:10] if start_raw else 'unknown'
+            time_str = start_raw[11:16].replace(':', '') if len(start_raw) > 10 else '0000'
+            filename = f"{date_str}_{time_str}_{activity_id}.json"
             save_json(activity, activities_dir / filename)
-            
-            # Загружаем детальную информацию об активности
-            try:
-                details = client.get_activity(activity_id)
-                details_filename = f"{date_str}_{activity_id}_details.json"
-                save_json(details, activities_dir / details_filename)
-                print(f"   ✅ {activity.get('activityName', 'Activity')} - {date_str}")
-            except Exception as e:
-                print(f"   ⚠️  Ошибка загрузки деталей активности {activity_id}: {e}")
+            print(f"   ✅ {activity.get('activityName', 'Activity')} ({activity.get('activityType', {}).get('typeKey', '?')}) - {date_str} {start_raw[11:16]}")
         
         return len(activities)
     except Exception as e:
