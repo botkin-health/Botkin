@@ -14258,6 +14258,48 @@
       "bpm": 53,
       "type": "resting",
       "source": "Connect"
+    },
+    {
+      "date": "2026-03-10",
+      "time": "00:00:00",
+      "bpm": 52,
+      "type": "resting",
+      "source": "Connect"
+    },
+    {
+      "date": "2026-03-11",
+      "time": "00:00:00",
+      "bpm": 50,
+      "type": "resting",
+      "source": "Connect"
+    },
+    {
+      "date": "2026-03-12",
+      "time": "00:00:00",
+      "bpm": 49,
+      "type": "resting",
+      "source": "Connect"
+    },
+    {
+      "date": "2026-03-13",
+      "time": "00:00:00",
+      "bpm": 50,
+      "type": "resting",
+      "source": "Connect"
+    },
+    {
+      "date": "2026-03-14",
+      "time": "00:00:00",
+      "bpm": 51,
+      "type": "resting",
+      "source": "Connect"
+    },
+    {
+      "date": "2026-03-15",
+      "time": "00:00:00",
+      "bpm": 48,
+      "type": "resting",
+      "source": "Connect"
     }
   ]
 }

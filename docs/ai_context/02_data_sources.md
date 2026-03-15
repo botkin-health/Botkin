@@ -83,7 +83,12 @@ GROUP BY date ORDER BY date;\""
 > [!IMPORTANT]
 > **ЕДИНАЯ ТОЧКА ВХОДА:** Чтобы гарантировать 100% актуальность всех потоков данных при начале аналитической сессии, **используй скилл `/sync`** или запусти мастер-скрипт вручную:
 > `bash scripts/sync_all_data.sh`
-> Скрипт: (1) синхронизирует БД с удалённого сервера (питание, добавки, вес), (2) скачивает свежие данные Гармина, (3) обновляет Netatmo климат, (4) обновляет экранное время iPhone/Mac/Chrome.
+> Скрипт: (1) синхронизирует БД с удалённого сервера (питание, добавки, вес), (2) скачивает свежие данные Гармина, (3) обновляет Netatmo климат, (4) обновляет экранное время iPhone/Mac/Chrome, (5) обновляет погоду.
+>
+> **⚠️ НЕ АВТОМАТИЗИРОВАННЫЕ ШАГИ (требуют ручного действия):**
+> 1. **Apple Health** (вес, АД, пульс, шаги, ходьба): iPhone → Здоровье → Профиль → Экспортировать данные → AirDrop на Mac → разархивировать → `python3 scripts/import_apple_health.py`
+> 2. **iPhone Screen Time актуальный**: если нужны данные за сегодня — запустить вручную `~/.local/bin/aw-import-screentime events import --device D2727389-2B2E-4E31-88FE-7BF0E925C580 && python3 scripts/import_activitywatch.py`
+> 3. **Zepp состав тела**: `python3 scripts/import_zepp_api.py` (через CN3 → Hetzner). Если токен истёк → `--reauth`.
 
 > [!NOTE]
 > **Данные Гармина — два слоя:**
@@ -198,13 +203,59 @@ GROUP BY date ORDER BY date;\""
 
 ## 9. ⚖️ Вес и Состав тела
 * **Данные**: Вес, процент жира, мышечная масса, % воды, висцеральный жир, ИМТ, масса костей.
-* **Канал**: PostgreSQL `weights` на сервере Hetzner. 670 записей всего, 63 с 6 января. Источник: скриншоты приложения Zepp Life → OCR в Telegram-боте.
-* **Дополнительно**: `data/apple_health_weight_daily.json` — 563 дня ежедневных средних значений веса (только вес, без состава).
-* **Актуальность**: **9 марта 2026** ✅.
-* 💡 **Статус**: ✅
+* **Каналы**:
+  - **PostgreSQL `weights`** — вес + состав тела (Zepp). 670 записей. Источник: Telegram-бот OCR или scaleconnect.
+  - **`data/zepp_export_latest.csv`** — прямой CSV с Zepp API (`scripts/import_zepp_api.py` через CN3 → Hetzner). ✅ Работает.
+  - **`data/apple_health_weight_daily.json`** — только вес, без состава. 569 дней. Синхронизируется через Apple Health → ручной экспорт. Актуально до **15 марта 2026** ✅.
+* **Актуальность**: Вес ✅ (Apple Health до сегодня). Состав тела (жир%, мышцы) ⚠️ — последний раз 9 марта.
+* 💡 **Статус**: ✅ Zepp состав тела — работает через `import_zepp_api.py` (CN3 → Hetzner)
 * 🛠 **Как обновить**:
-  - *Состав (Zepp):* Скинуть скриншот Zepp в Telegram-бот → OCR → `weights` таблица.
-  - *Вес (Apple Health):* Экспорт Apple Health → `workflows/apple-health-import.md`.
+  - *Вес:* Экспорт Apple Health → `python3 scripts/import_apple_health.py`. Zepp → iPhone → Apple Health автоматически.
+  - *Состав тела:* `python3 scripts/import_zepp_api.py` (автоматически, в /sync). Если токен истёк → `--reauth`.
+  - *Починить scaleconnect*: нужна переаутентификация через Google OAuth. Аккаунт: lyskovsky@gmail.com.
+
+## 9b. ⚖️ Умные весы Zepp — полная интеграция (ВОССТАНОВЛЕНА 15.03.2026)
+
+### Архитектура
+* **Устройство**: Mi Body Composition Scale 2 → Zepp Life (iPhone) → Zepp Cloud
+* **Сервер данных**: `api-mifit-cn3.zepp.com` (Китай, IP 1.14.224.102)
+* **ВАЖНО**: CN3 сервер НЕ доступен напрямую из-за VPN (Россия/Европа/Италия). Запросы идут через **Hetzner SSH-прокси** (116.203.213.137, Германия).
+* **Скрипт**: `scripts/import_zepp_api.py` — полноценная замена scaleconnect
+* **Данные**: вес, BMI, % жира, вода, кости, мышцы, метаболический возраст, висцеральный жир, базовый метаболизм, score тела, протеин
+
+### Аутентификация (OAuth через браузер)
+Токен живёт ~5-7 дней. Когда истекает — нужна ручная переавторизация:
+1. Открыть в браузере: `https://account.xiaomi.com/oauth2/authorize?skip_confirm=false&client_id=2882303761517383915&pt=0&scope=1+6000+16001+20000&redirect_uri=https%3A%2F%2Fhm.xiaomi.com%2Fwatch.do&_locale=en_US&response_type=code`
+2. Залогиниться Xiaomi аккаунтом (lyskovsky@gmail.com)
+3. Скопировать URL после редиректа (hm.xiaomi.com/watch.do?code=XXX)
+4. `python3 scripts/import_zepp_api.py --reauth` → вставить URL
+5. Код обменивается на `app_token` через `account.huami.com/v2/client/login`
+6. Токен кэшируется в `tools/scaleconnect/scaleconnect.json`
+
+### Почему scaleconnect v0.4.1 сломался
+1. Токен истёк (~5 дней жизни)
+2. `account.xiaomi.com/pass/serviceLogin` стал возвращать HTML вместо JSON (антибот-защита Xiaomi)
+3. scaleconnect не умеет OAuth через браузер → упал с `Get "": unsupported protocol scheme ""`
+
+### API запросы (через Hetzner)
+```bash
+# Получить записи веса за последние 30 дней
+sshpass -p 'PASSWORD' ssh root@116.203.213.137 \
+  "curl -sS -H 'apptoken: TOKEN' -H 'userid: USER_ID' \
+  'https://api-mifit-cn3.zepp.com/users/USER_ID/members/-1/weightRecords?from_date=YYYY-MM-DD&to_date=YYYY-MM-DD'"
+```
+
+### Использование
+```bash
+# Обычный синк (при /sync):
+python3 scripts/import_zepp_api.py
+
+# Полный бэкфил за год:
+python3 scripts/import_zepp_api.py --days 365
+
+# Переавторизация (когда токен истёк):
+python3 scripts/import_zepp_api.py --reauth
+```
 
 ---
 

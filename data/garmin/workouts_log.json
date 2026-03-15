@@ -1,22 +1,22 @@
 {
-  "generated_at": "2026-03-09T23:03:50.529968",
-  "total_workouts": 55,
-  "workouts_since_jan6": 28,
+  "generated_at": "2026-03-15T21:38:22.719124",
+  "total_workouts": 105,
+  "workouts_since_jan6": 57,
   "date_range": {
     "first": "2025-01-05",
-    "last": "2026-03-09"
+    "last": "2026-03-14"
   },
   "stats_since_jan6": {
     "by_type": {
-      "ВИИТ": 17,
-      "Бег": 4,
-      "Йога": 6,
-      "Ходьба": 1
+      "ВИИТ": 34,
+      "Бег": 8,
+      "Ходьба": 2,
+      "Йога": 13
     },
-    "evening_workouts": 22,
-    "heavy_workouts_load_150plus": 5,
-    "avg_training_load": 88,
-    "avg_active_kcal": 299
+    "evening_workouts": 44,
+    "heavy_workouts_load_150plus": 10,
+    "avg_training_load": 87,
+    "avg_active_kcal": 295
   },
   "workouts": [
     {
@@ -265,6 +265,76 @@
       }
     },
     {
+      "date": "2025-04-02",
+      "time": "08:49",
+      "start_hour": 8,
+      "activity_id": 18706481583,
+      "activity_name": "Valencia - База",
+      "type": "running",
+      "type_label": "Бег",
+      "duration_min": 39.1,
+      "calories_total": 433,
+      "calories_active": 379,
+      "training_load": 85,
+      "intensity": "moderate",
+      "avg_hr": 141.0,
+      "max_hr": 151.0,
+      "hr_zones": {
+        "z1_min": 2.4,
+        "z2_min": 28.7,
+        "z3_min": 7.3,
+        "z4_min": 0.0,
+        "z5_min": 0.0
+      },
+      "vigorous_min": 35,
+      "moderate_min": 2,
+      "aerobic_te": 3.5,
+      "anaerobic_te": 0,
+      "te_label": "AEROBIC_BASE",
+      "body_battery_drain": -11,
+      "water_ml": 564,
+      "evening_workout": false,
+      "raw_messages": {
+        "aerobic": "IMPROVING_AEROBIC_ENDURANCE_9",
+        "anaerobic": "NO_ANAEROBIC_BENEFIT_0"
+      }
+    },
+    {
+      "date": "2025-04-09",
+      "time": "10:28",
+      "start_hour": 10,
+      "activity_id": 18775303598,
+      "activity_name": "Barcelona - База",
+      "type": "running",
+      "type_label": "Бег",
+      "duration_min": 30.0,
+      "calories_total": 345,
+      "calories_active": 303,
+      "training_load": 89,
+      "intensity": "moderate",
+      "avg_hr": 151.0,
+      "max_hr": 162.0,
+      "hr_zones": {
+        "z1_min": 0.8,
+        "z2_min": 1.6,
+        "z3_min": 22.5,
+        "z4_min": 4.7,
+        "z5_min": 0.0
+      },
+      "vigorous_min": 28,
+      "moderate_min": 1,
+      "aerobic_te": 3.5,
+      "anaerobic_te": 0,
+      "te_label": "TEMPO",
+      "body_battery_drain": -8,
+      "water_ml": 500,
+      "evening_workout": false,
+      "raw_messages": {
+        "aerobic": "IMPACTING_TEMPO_22",
+        "anaerobic": "NO_ANAEROBIC_BENEFIT_0"
+      }
+    },
+    {
       "date": "2025-04-09",
       "time": "10:28",
       "start_hour": 10,
@@ -328,6 +398,76 @@
       "te_label": "AEROBIC_BASE",
       "body_battery_drain": -8,
       "water_ml": 381,
+      "evening_workout": false,
+      "raw_messages": {
+        "aerobic": "IMPROVING_AEROBIC_BASE_8",
+        "anaerobic": "NO_ANAEROBIC_BENEFIT_0"
+      }
+    },
+    {
+      "date": "2025-04-20",
+      "time": "11:04",
+      "start_hour": 11,
+      "activity_id": 18879773984,
+      "activity_name": "Moscow - База",
+      "type": "running",
+      "type_label": "Бег",
+      "duration_min": 23.7,
+      "calories_total": 248,
+      "calories_active": 215,
+      "training_load": 53,
+      "intensity": "light",
+      "avg_hr": 137.0,
+      "max_hr": 146.0,
+      "hr_zones": {
+        "z1_min": 2.6,
+        "z2_min": 17.5,
+        "z3_min": 3.0,
+        "z4_min": 0.0,
+        "z5_min": 0.0
+      },
+      "vigorous_min": 21,
+      "moderate_min": 2,
+      "aerobic_te": 3.0,
+      "anaerobic_te": 0,
+      "te_label": "AEROBIC_BASE",
+      "body_battery_drain": -8,
+      "water_ml": 381,
+      "evening_workout": false,
+      "raw_messages": {
+        "aerobic": "IMPROVING_AEROBIC_BASE_8",
+        "anaerobic": "NO_ANAEROBIC_BENEFIT_0"
+      }
+    },
+    {
+      "date": "2025-05-05",
+      "time": "17:57",
+      "start_hour": 17,
+      "activity_id": 19032988808,
+      "activity_name": "Moscow - База",
+      "type": "running",
+      "type_label": "Бег",
+      "duration_min": 44.7,
+      "calories_total": 465,
+      "calories_active": 403,
+      "training_load": 80,
+      "intensity": "moderate",
+      "avg_hr": 132.0,
+      "max_hr": 150.0,
+      "hr_zones": {
+        "z1_min": 26.9,
+        "z2_min": 14.8,
+        "z3_min": 2.3,
+        "z4_min": 0.0,
+        "z5_min": 0.0
+      },
+      "vigorous_min": 39,
+      "moderate_min": 5,
+      "aerobic_te": 3.4,
+      "anaerobic_te": 0,
+      "te_label": "AEROBIC_BASE",
+      "body_battery_drain": -9,
+      "water_ml": 577,
       "evening_workout": false,
       "raw_messages": {
         "aerobic": "IMPROVING_AEROBIC_BASE_8",
@@ -405,6 +545,76 @@
       }
     },
     {
+      "date": "2025-05-21",
+      "time": "09:08",
+      "start_hour": 9,
+      "activity_id": 19189814846,
+      "activity_name": "Lisbon - База",
+      "type": "running",
+      "type_label": "Бег",
+      "duration_min": 15.7,
+      "calories_total": 155,
+      "calories_active": 133,
+      "training_load": 32,
+      "intensity": "light",
+      "avg_hr": 131.0,
+      "max_hr": 150.0,
+      "hr_zones": {
+        "z1_min": 7.8,
+        "z2_min": 6.2,
+        "z3_min": 1.0,
+        "z4_min": 0.0,
+        "z5_min": 0.0
+      },
+      "vigorous_min": 12,
+      "moderate_min": 3,
+      "aerobic_te": 2.4,
+      "anaerobic_te": 0,
+      "te_label": "RECOVERY",
+      "body_battery_drain": -4,
+      "water_ml": 235,
+      "evening_workout": false,
+      "raw_messages": {
+        "aerobic": "MINOR_AEROBIC_BENEFIT_0",
+        "anaerobic": "NO_ANAEROBIC_BENEFIT_0"
+      }
+    },
+    {
+      "date": "2025-06-10",
+      "time": "11:47",
+      "start_hour": 11,
+      "activity_id": 19388003506,
+      "activity_name": "Walking",
+      "type": "walking",
+      "type_label": "Ходьба",
+      "duration_min": 159.8,
+      "calories_total": 893,
+      "calories_active": 673,
+      "training_load": 56,
+      "intensity": "light",
+      "avg_hr": 117.0,
+      "max_hr": 163.0,
+      "hr_zones": {
+        "z1_min": 88.3,
+        "z2_min": 18.5,
+        "z3_min": 1.5,
+        "z4_min": 0.3,
+        "z5_min": 0.0
+      },
+      "vigorous_min": 23,
+      "moderate_min": 75,
+      "aerobic_te": 2.5,
+      "anaerobic_te": 2.0,
+      "te_label": "AEROBIC_BASE",
+      "body_battery_drain": -6,
+      "water_ml": 1578,
+      "evening_workout": false,
+      "raw_messages": {
+        "aerobic": "MAINTAINING_AEROBIC_BASE_7",
+        "anaerobic": "MAINTAINING_ANAEROBIC_BASE_1"
+      }
+    },
+    {
       "date": "2025-06-10",
       "time": "11:47",
       "start_hour": 11,
@@ -471,6 +681,76 @@
       "evening_workout": false,
       "raw_messages": {
         "aerobic": "HIGHLY_IMPROVING_AEROBIC_ENDURANCE_10",
+        "anaerobic": "NO_ANAEROBIC_BENEFIT_0"
+      }
+    },
+    {
+      "date": "2025-07-13",
+      "time": "09:07",
+      "start_hour": 9,
+      "activity_id": 19716294277,
+      "activity_name": "Moscow - База",
+      "type": "running",
+      "type_label": "Бег",
+      "duration_min": 45.1,
+      "calories_total": 465,
+      "calories_active": 403,
+      "training_load": 124,
+      "intensity": "moderate",
+      "avg_hr": 140.0,
+      "max_hr": 149.0,
+      "hr_zones": {
+        "z1_min": 2.0,
+        "z2_min": 42.3,
+        "z3_min": 0.2,
+        "z4_min": 0.0,
+        "z5_min": 0.0
+      },
+      "vigorous_min": 43,
+      "moderate_min": 1,
+      "aerobic_te": 4.0,
+      "anaerobic_te": 0.2,
+      "te_label": "AEROBIC_BASE",
+      "body_battery_drain": -15,
+      "water_ml": 738,
+      "evening_workout": false,
+      "raw_messages": {
+        "aerobic": "HIGHLY_IMPROVING_AEROBIC_ENDURANCE_10",
+        "anaerobic": "NO_ANAEROBIC_BENEFIT_0"
+      }
+    },
+    {
+      "date": "2025-07-28",
+      "time": "22:59",
+      "start_hour": 22,
+      "activity_id": 19877944412,
+      "activity_name": "Moscow - База",
+      "type": "running",
+      "type_label": "Бег",
+      "duration_min": 40.0,
+      "calories_total": 393,
+      "calories_active": 338,
+      "training_load": 62,
+      "intensity": "light",
+      "avg_hr": 140.0,
+      "max_hr": 153.0,
+      "hr_zones": {
+        "z1_min": 3.1,
+        "z2_min": 32.6,
+        "z3_min": 3.5,
+        "z4_min": 0.0,
+        "z5_min": 0.0
+      },
+      "vigorous_min": 36,
+      "moderate_min": 3,
+      "aerobic_te": 3.1,
+      "anaerobic_te": 0,
+      "te_label": "AEROBIC_BASE",
+      "body_battery_drain": -5,
+      "water_ml": 605,
+      "evening_workout": true,
+      "raw_messages": {
+        "aerobic": "IMPROVING_AEROBIC_BASE_8",
         "anaerobic": "NO_ANAEROBIC_BENEFIT_0"
       }
     },
@@ -545,6 +825,41 @@
       }
     },
     {
+      "date": "2025-08-02",
+      "time": "19:42",
+      "start_hour": 19,
+      "activity_id": 19928628730,
+      "activity_name": "База",
+      "type": "running",
+      "type_label": "Бег",
+      "duration_min": 14.4,
+      "calories_total": 163,
+      "calories_active": 143,
+      "training_load": 50,
+      "intensity": "light",
+      "avg_hr": 143.0,
+      "max_hr": 153.0,
+      "hr_zones": {
+        "z1_min": 1.3,
+        "z2_min": 9.0,
+        "z3_min": 3.9,
+        "z4_min": 0.0,
+        "z5_min": 0.0
+      },
+      "vigorous_min": 13,
+      "moderate_min": 1,
+      "aerobic_te": 2.9,
+      "anaerobic_te": 0,
+      "te_label": "AEROBIC_BASE",
+      "body_battery_drain": -4,
+      "water_ml": 231,
+      "evening_workout": true,
+      "raw_messages": {
+        "aerobic": "MAINTAINING_AEROBIC_FITNESS_1",
+        "anaerobic": "NO_ANAEROBIC_BENEFIT_0"
+      }
+    },
+    {
       "date": "2025-08-19",
       "time": "20:27",
       "start_hour": 20,
@@ -576,6 +891,76 @@
       "evening_workout": true,
       "raw_messages": {
         "aerobic": "IMPROVING_AEROBIC_BASE_8",
+        "anaerobic": "NO_ANAEROBIC_BENEFIT_0"
+      }
+    },
+    {
+      "date": "2025-08-19",
+      "time": "20:27",
+      "start_hour": 20,
+      "activity_id": 20112150668,
+      "activity_name": "Moscow - База",
+      "type": "running",
+      "type_label": "Бег",
+      "duration_min": 37.4,
+      "calories_total": 366,
+      "calories_active": 314,
+      "training_load": 56,
+      "intensity": "light",
+      "avg_hr": 131.0,
+      "max_hr": 151.0,
+      "hr_zones": {
+        "z1_min": 24.9,
+        "z2_min": 9.6,
+        "z3_min": 2.2,
+        "z4_min": 0.0,
+        "z5_min": 0.0
+      },
+      "vigorous_min": 33,
+      "moderate_min": 4,
+      "aerobic_te": 3.0,
+      "anaerobic_te": 0,
+      "te_label": "AEROBIC_BASE",
+      "body_battery_drain": -8,
+      "water_ml": 519,
+      "evening_workout": true,
+      "raw_messages": {
+        "aerobic": "IMPROVING_AEROBIC_BASE_8",
+        "anaerobic": "NO_ANAEROBIC_BENEFIT_0"
+      }
+    },
+    {
+      "date": "2025-09-10",
+      "time": "08:07",
+      "start_hour": 8,
+      "activity_id": 20338286913,
+      "activity_name": "Moscow - База",
+      "type": "running",
+      "type_label": "Бег",
+      "duration_min": 13.8,
+      "calories_total": 148,
+      "calories_active": 129,
+      "training_load": 39,
+      "intensity": "light",
+      "avg_hr": 131.0,
+      "max_hr": 139.0,
+      "hr_zones": {
+        "z1_min": 7.7,
+        "z2_min": 5.6,
+        "z3_min": 0.0,
+        "z4_min": 0.0,
+        "z5_min": 0.0
+      },
+      "vigorous_min": 12,
+      "moderate_min": 1,
+      "aerobic_te": 2.5,
+      "anaerobic_te": 0.1,
+      "te_label": "AEROBIC_BASE",
+      "body_battery_drain": -5,
+      "water_ml": 208,
+      "evening_workout": false,
+      "raw_messages": {
+        "aerobic": "MAINTAINING_AEROBIC_FITNESS_1",
         "anaerobic": "NO_ANAEROBIC_BENEFIT_0"
       }
     },
@@ -650,6 +1035,41 @@
       }
     },
     {
+      "date": "2025-09-11",
+      "time": "19:37",
+      "start_hour": 19,
+      "activity_id": 20354931093,
+      "activity_name": "Moscow - Интенсивная трен",
+      "type": "running",
+      "type_label": "Бег",
+      "duration_min": 40.7,
+      "calories_total": 404,
+      "calories_active": 348,
+      "training_load": 61,
+      "intensity": "light",
+      "avg_hr": 138.0,
+      "max_hr": 146.0,
+      "hr_zones": {
+        "z1_min": 5.4,
+        "z2_min": 34.6,
+        "z3_min": 0.0,
+        "z4_min": 0.0,
+        "z5_min": 0.0
+      },
+      "vigorous_min": 36,
+      "moderate_min": 5,
+      "aerobic_te": 3.1,
+      "anaerobic_te": 0,
+      "te_label": "AEROBIC_BASE",
+      "body_battery_drain": -8,
+      "water_ml": 566,
+      "evening_workout": true,
+      "raw_messages": {
+        "aerobic": "IMPROVING_AEROBIC_BASE_8",
+        "anaerobic": "NO_ANAEROBIC_BENEFIT_0"
+      }
+    },
+    {
       "date": "2025-10-27",
       "time": "19:04",
       "start_hour": 19,
@@ -682,6 +1102,76 @@
       "raw_messages": {
         "aerobic": "MAINTAINING_AEROBIC_BASE_7",
         "anaerobic": "MAINTAINING_FAST_FORCE_PRODUCTION_6"
+      }
+    },
+    {
+      "date": "2025-10-27",
+      "time": "19:04",
+      "start_hour": 19,
+      "activity_id": 20813259399,
+      "activity_name": "ВИИТ",
+      "type": "hiit",
+      "type_label": "ВИИТ",
+      "duration_min": 60.0,
+      "calories_total": 446,
+      "calories_active": 363,
+      "training_load": 87,
+      "intensity": "moderate",
+      "avg_hr": 123.0,
+      "max_hr": 175.0,
+      "hr_zones": {
+        "z1_min": 36.2,
+        "z2_min": 9.3,
+        "z3_min": 2.5,
+        "z4_min": 1.4,
+        "z5_min": 0.8
+      },
+      "vigorous_min": 26,
+      "moderate_min": 26,
+      "aerobic_te": 2.9,
+      "anaerobic_te": 2.5,
+      "te_label": "SPEED",
+      "body_battery_drain": -9,
+      "water_ml": 592,
+      "evening_workout": true,
+      "raw_messages": {
+        "aerobic": "MAINTAINING_AEROBIC_BASE_7",
+        "anaerobic": "MAINTAINING_FAST_FORCE_PRODUCTION_6"
+      }
+    },
+    {
+      "date": "2025-10-29",
+      "time": "19:04",
+      "start_hour": 19,
+      "activity_id": 20833124937,
+      "activity_name": "ВИИТ",
+      "type": "hiit",
+      "type_label": "ВИИТ",
+      "duration_min": 64.4,
+      "calories_total": 594,
+      "calories_active": 505,
+      "training_load": 415,
+      "intensity": "heavy",
+      "avg_hr": 144.0,
+      "max_hr": 202.0,
+      "hr_zones": {
+        "z1_min": 23.2,
+        "z2_min": 12.9,
+        "z3_min": 9.5,
+        "z4_min": 4.7,
+        "z5_min": 11.8
+      },
+      "vigorous_min": 39,
+      "moderate_min": 13,
+      "aerobic_te": 4.1,
+      "anaerobic_te": 5.0,
+      "te_label": "ANAEROBIC_CAPACITY",
+      "body_battery_drain": -15,
+      "water_ml": 751,
+      "evening_workout": true,
+      "raw_messages": {
+        "aerobic": "HIGHLY_IMPROVING_AEROBIC_FITNESS_3",
+        "anaerobic": "OVERREACHING_4"
       }
     },
     {
@@ -755,6 +1245,41 @@
       }
     },
     {
+      "date": "2025-11-16",
+      "time": "18:34",
+      "start_hour": 18,
+      "activity_id": 21008226499,
+      "activity_name": "Moscow - База",
+      "type": "running",
+      "type_label": "Бег",
+      "duration_min": 16.4,
+      "calories_total": 192,
+      "calories_active": 169,
+      "training_load": 77,
+      "intensity": "light",
+      "avg_hr": 146.0,
+      "max_hr": 155.0,
+      "hr_zones": {
+        "z1_min": 0.6,
+        "z2_min": 6.5,
+        "z3_min": 8.7,
+        "z4_min": 0.0,
+        "z5_min": 0.0
+      },
+      "vigorous_min": 14,
+      "moderate_min": 1,
+      "aerobic_te": 3.1,
+      "anaerobic_te": 1.7,
+      "te_label": "TEMPO",
+      "body_battery_drain": -5,
+      "water_ml": 197,
+      "evening_workout": true,
+      "raw_messages": {
+        "aerobic": "IMPROVING_AEROBIC_FITNESS_2",
+        "anaerobic": "MINOR_ANAEROBIC_BENEFIT_15"
+      }
+    },
+    {
       "date": "2025-11-23",
       "time": "12:30",
       "start_hour": 12,
@@ -787,6 +1312,76 @@
       "raw_messages": {
         "aerobic": "IMPROVING_LACTATE_THRESHOLD_12",
         "anaerobic": "NO_ANAEROBIC_BENEFIT_0"
+      }
+    },
+    {
+      "date": "2025-11-23",
+      "time": "12:30",
+      "start_hour": 12,
+      "activity_id": 21067176582,
+      "activity_name": "Moscow - База",
+      "type": "running",
+      "type_label": "Бег",
+      "duration_min": 47.4,
+      "calories_total": 551,
+      "calories_active": 486,
+      "training_load": 93,
+      "intensity": "moderate",
+      "avg_hr": 160.0,
+      "max_hr": 172.0,
+      "hr_zones": {
+        "z1_min": 0.5,
+        "z2_min": 0.5,
+        "z3_min": 12.0,
+        "z4_min": 9.4,
+        "z5_min": 5.8
+      },
+      "vigorous_min": 27,
+      "moderate_min": 20,
+      "aerobic_te": 3.5,
+      "anaerobic_te": 0.2,
+      "te_label": "LACTATE_THRESHOLD",
+      "body_battery_drain": -12,
+      "water_ml": 500,
+      "evening_workout": false,
+      "raw_messages": {
+        "aerobic": "IMPROVING_LACTATE_THRESHOLD_12",
+        "anaerobic": "NO_ANAEROBIC_BENEFIT_0"
+      }
+    },
+    {
+      "date": "2025-12-12",
+      "time": "19:04",
+      "start_hour": 19,
+      "activity_id": 21239465439,
+      "activity_name": "ВИИТ",
+      "type": "hiit",
+      "type_label": "ВИИТ",
+      "duration_min": 68.6,
+      "calories_total": 537,
+      "calories_active": 442,
+      "training_load": 104,
+      "intensity": "moderate",
+      "avg_hr": 126.0,
+      "max_hr": 169.0,
+      "hr_zones": {
+        "z1_min": 32.1,
+        "z2_min": 15.2,
+        "z3_min": 5.6,
+        "z4_min": 0.8,
+        "z5_min": 0.0
+      },
+      "vigorous_min": 32,
+      "moderate_min": 23,
+      "aerobic_te": 3.0,
+      "anaerobic_te": 2.9,
+      "te_label": "AEROBIC_BASE",
+      "body_battery_drain": -10,
+      "water_ml": 816,
+      "evening_workout": true,
+      "raw_messages": {
+        "aerobic": "IMPROVING_AEROBIC_BASE_8",
+        "anaerobic": "MAINTAINING_ANAEROBIC_BASE_1"
       }
     },
     {
@@ -860,6 +1455,41 @@
       }
     },
     {
+      "date": "2025-12-15",
+      "time": "19:12",
+      "start_hour": 19,
+      "activity_id": 21264753855,
+      "activity_name": "ВИИТ",
+      "type": "hiit",
+      "type_label": "ВИИТ",
+      "duration_min": 54.3,
+      "calories_total": 395,
+      "calories_active": 320,
+      "training_load": 147,
+      "intensity": "moderate",
+      "avg_hr": 121.0,
+      "max_hr": 180.0,
+      "hr_zones": {
+        "z1_min": 13.5,
+        "z2_min": 7.2,
+        "z3_min": 5.8,
+        "z4_min": 1.9,
+        "z5_min": 1.7
+      },
+      "vigorous_min": 21,
+      "moderate_min": 23,
+      "aerobic_te": 3.3,
+      "anaerobic_te": 3.3,
+      "te_label": "SPEED",
+      "body_battery_drain": -8,
+      "water_ml": 524,
+      "evening_workout": true,
+      "raw_messages": {
+        "aerobic": "IMPROVING_AEROBIC_FITNESS_2",
+        "anaerobic": "IMPROVING_ANAEROBIC_CAPACITY_AND_SPEED_12"
+      }
+    },
+    {
       "date": "2025-12-26",
       "time": "19:03",
       "start_hour": 19,
@@ -892,6 +1522,76 @@
       "raw_messages": {
         "aerobic": "MAINTAINING_AEROBIC_BASE_7",
         "anaerobic": "MAINTAINING_ANAEROBIC_BASE_1"
+      }
+    },
+    {
+      "date": "2025-12-26",
+      "time": "19:03",
+      "start_hour": 19,
+      "activity_id": 21357321000,
+      "activity_name": "ВИИТ",
+      "type": "hiit",
+      "type_label": "ВИИТ",
+      "duration_min": 71.6,
+      "calories_total": 476,
+      "calories_active": 377,
+      "training_load": 86,
+      "intensity": "moderate",
+      "avg_hr": 124.0,
+      "max_hr": 175.0,
+      "hr_zones": {
+        "z1_min": 47.3,
+        "z2_min": 7.7,
+        "z3_min": 2.5,
+        "z4_min": 1.2,
+        "z5_min": 0.9
+      },
+      "vigorous_min": 17,
+      "moderate_min": 41,
+      "aerobic_te": 2.9,
+      "anaerobic_te": 2.5,
+      "te_label": "AEROBIC_BASE",
+      "body_battery_drain": -31,
+      "water_ml": 712,
+      "evening_workout": true,
+      "raw_messages": {
+        "aerobic": "MAINTAINING_AEROBIC_BASE_7",
+        "anaerobic": "MAINTAINING_ANAEROBIC_BASE_1"
+      }
+    },
+    {
+      "date": "2025-12-29",
+      "time": "19:09",
+      "start_hour": 19,
+      "activity_id": 21386062851,
+      "activity_name": "ВИИТ",
+      "type": "hiit",
+      "type_label": "ВИИТ",
+      "duration_min": 49.3,
+      "calories_total": 463,
+      "calories_active": 395,
+      "training_load": 140,
+      "intensity": "moderate",
+      "avg_hr": 141.0,
+      "max_hr": 175.0,
+      "hr_zones": {
+        "z1_min": 20.0,
+        "z2_min": 15.2,
+        "z3_min": 11.7,
+        "z4_min": 1.2,
+        "z5_min": 0.8
+      },
+      "vigorous_min": 30,
+      "moderate_min": 18,
+      "aerobic_te": 3.5,
+      "anaerobic_te": 2.9,
+      "te_label": "AEROBIC_BASE",
+      "body_battery_drain": -7,
+      "water_ml": 554,
+      "evening_workout": true,
+      "raw_messages": {
+        "aerobic": "IMPROVING_AEROBIC_ENDURANCE_9",
+        "anaerobic": "MAINTAINING_ANAEROBIC_POWER_7"
       }
     },
     {
@@ -965,6 +1665,41 @@
       }
     },
     {
+      "date": "2026-01-05",
+      "time": "19:06",
+      "start_hour": 19,
+      "activity_id": 21452169026,
+      "activity_name": "ВИИТ",
+      "type": "hiit",
+      "type_label": "ВИИТ",
+      "duration_min": 48.2,
+      "calories_total": 428,
+      "calories_active": 361,
+      "training_load": 108,
+      "intensity": "moderate",
+      "avg_hr": 135.0,
+      "max_hr": 177.0,
+      "hr_zones": {
+        "z1_min": 24.1,
+        "z2_min": 12.8,
+        "z3_min": 6.3,
+        "z4_min": 0.9,
+        "z5_min": 1.2
+      },
+      "vigorous_min": 28,
+      "moderate_min": 15,
+      "aerobic_te": 3.1,
+      "anaerobic_te": 2.8,
+      "te_label": "SPEED",
+      "body_battery_drain": -6,
+      "water_ml": 518,
+      "evening_workout": true,
+      "raw_messages": {
+        "aerobic": "IMPROVING_AEROBIC_BASE_8",
+        "anaerobic": "MAINTAINING_FAST_FORCE_PRODUCTION_6"
+      }
+    },
+    {
       "date": "2026-01-07",
       "time": "19:04",
       "start_hour": 19,
@@ -997,6 +1732,76 @@
       "raw_messages": {
         "aerobic": "IMPROVING_AEROBIC_FITNESS_2",
         "anaerobic": "IMPROVING_ANAEROBIC_BASE_2"
+      }
+    },
+    {
+      "date": "2026-01-07",
+      "time": "19:04",
+      "start_hour": 19,
+      "activity_id": 21473510743,
+      "activity_name": "ВИИТ",
+      "type": "hiit",
+      "type_label": "ВИИТ",
+      "duration_min": 55.1,
+      "calories_total": 455,
+      "calories_active": 379,
+      "training_load": 117,
+      "intensity": "moderate",
+      "avg_hr": 132.0,
+      "max_hr": 180.0,
+      "hr_zones": {
+        "z1_min": 32.3,
+        "z2_min": 10.7,
+        "z3_min": 6.0,
+        "z4_min": 1.6,
+        "z5_min": 1.1
+      },
+      "vigorous_min": 23,
+      "moderate_min": 29,
+      "aerobic_te": 3.1,
+      "anaerobic_te": 3.0,
+      "te_label": "ANAEROBIC_CAPACITY",
+      "body_battery_drain": -8,
+      "water_ml": 577,
+      "evening_workout": true,
+      "raw_messages": {
+        "aerobic": "IMPROVING_AEROBIC_FITNESS_2",
+        "anaerobic": "IMPROVING_ANAEROBIC_BASE_2"
+      }
+    },
+    {
+      "date": "2026-01-10",
+      "time": "17:01",
+      "start_hour": 17,
+      "activity_id": 21502962464,
+      "activity_name": "ВИИТ",
+      "type": "hiit",
+      "type_label": "ВИИТ",
+      "duration_min": 70.8,
+      "calories_total": 581,
+      "calories_active": 483,
+      "training_load": 104,
+      "intensity": "moderate",
+      "avg_hr": 132.0,
+      "max_hr": 168.0,
+      "hr_zones": {
+        "z1_min": 47.0,
+        "z2_min": 16.9,
+        "z3_min": 5.5,
+        "z4_min": 0.3,
+        "z5_min": 0.0
+      },
+      "vigorous_min": 35,
+      "moderate_min": 33,
+      "aerobic_te": 3.2,
+      "anaerobic_te": 2.5,
+      "te_label": "AEROBIC_BASE",
+      "body_battery_drain": -11,
+      "water_ml": 753,
+      "evening_workout": false,
+      "raw_messages": {
+        "aerobic": "IMPROVING_AEROBIC_BASE_8",
+        "anaerobic": "MAINTAINING_ANAEROBIC_BASE_1"
       }
     },
     {
@@ -1070,6 +1875,41 @@
       }
     },
     {
+      "date": "2026-01-13",
+      "time": "18:59",
+      "start_hour": 18,
+      "activity_id": 21534897372,
+      "activity_name": "База",
+      "type": "running",
+      "type_label": "Бег",
+      "duration_min": 37.0,
+      "calories_total": 412,
+      "calories_active": 361,
+      "training_load": 97,
+      "intensity": "moderate",
+      "avg_hr": 146.0,
+      "max_hr": 164.0,
+      "hr_zones": {
+        "z1_min": 3.9,
+        "z2_min": 22.4,
+        "z3_min": 9.8,
+        "z4_min": 0.2,
+        "z5_min": 0.0
+      },
+      "vigorous_min": 34,
+      "moderate_min": 2,
+      "aerobic_te": 3.6,
+      "anaerobic_te": 0.3,
+      "te_label": "TEMPO",
+      "body_battery_drain": -10,
+      "water_ml": 309,
+      "evening_workout": true,
+      "raw_messages": {
+        "aerobic": "IMPROVING_AEROBIC_FITNESS_2",
+        "anaerobic": "NO_ANAEROBIC_BENEFIT_0"
+      }
+    },
+    {
       "date": "2026-01-14",
       "time": "19:02",
       "start_hour": 19,
@@ -1102,6 +1942,76 @@
       "raw_messages": {
         "aerobic": "MAINTAINING_AEROBIC_FITNESS_1",
         "anaerobic": "IMPROVING_ANAEROBIC_CAPACITY_AND_SPEED_12"
+      }
+    },
+    {
+      "date": "2026-01-14",
+      "time": "19:02",
+      "start_hour": 19,
+      "activity_id": 21546449797,
+      "activity_name": "ВИИТ",
+      "type": "hiit",
+      "type_label": "ВИИТ",
+      "duration_min": 60.4,
+      "calories_total": 460,
+      "calories_active": 377,
+      "training_load": 127,
+      "intensity": "moderate",
+      "avg_hr": 125.0,
+      "max_hr": 177.0,
+      "hr_zones": {
+        "z1_min": 28.2,
+        "z2_min": 13.6,
+        "z3_min": 3.0,
+        "z4_min": 0.3,
+        "z5_min": 0.4
+      },
+      "vigorous_min": 28,
+      "moderate_min": 18,
+      "aerobic_te": 2.8,
+      "anaerobic_te": 3.4,
+      "te_label": "SPEED",
+      "body_battery_drain": -9,
+      "water_ml": 634,
+      "evening_workout": true,
+      "raw_messages": {
+        "aerobic": "MAINTAINING_AEROBIC_FITNESS_1",
+        "anaerobic": "IMPROVING_ANAEROBIC_CAPACITY_AND_SPEED_12"
+      }
+    },
+    {
+      "date": "2026-01-16",
+      "time": "18:00",
+      "start_hour": 18,
+      "activity_id": 21566791146,
+      "activity_name": "ВИИТ",
+      "type": "hiit",
+      "type_label": "ВИИТ",
+      "duration_min": 52.8,
+      "calories_total": 306,
+      "calories_active": 233,
+      "training_load": 166,
+      "intensity": "heavy",
+      "avg_hr": 120.0,
+      "max_hr": 198.0,
+      "hr_zones": {
+        "z1_min": 16.1,
+        "z2_min": 3.4,
+        "z3_min": 2.6,
+        "z4_min": 1.5,
+        "z5_min": 4.6
+      },
+      "vigorous_min": 11,
+      "moderate_min": 12,
+      "aerobic_te": 3.2,
+      "anaerobic_te": 3.7,
+      "te_label": "ANAEROBIC_CAPACITY",
+      "body_battery_drain": -6,
+      "water_ml": 504,
+      "evening_workout": true,
+      "raw_messages": {
+        "aerobic": "IMPROVING_AEROBIC_FITNESS_2",
+        "anaerobic": "IMPROVING_ANAEROBIC_BASE_2"
       }
     },
     {
@@ -1175,6 +2085,41 @@
       }
     },
     {
+      "date": "2026-01-19",
+      "time": "19:08",
+      "start_hour": 19,
+      "activity_id": 21598787603,
+      "activity_name": "ВИИТ",
+      "type": "hiit",
+      "type_label": "ВИИТ",
+      "duration_min": 56.4,
+      "calories_total": 475,
+      "calories_active": 397,
+      "training_load": 108,
+      "intensity": "moderate",
+      "avg_hr": 131.0,
+      "max_hr": 175.0,
+      "hr_zones": {
+        "z1_min": 28.3,
+        "z2_min": 13.4,
+        "z3_min": 5.4,
+        "z4_min": 1.7,
+        "z5_min": 0.5
+      },
+      "vigorous_min": 30,
+      "moderate_min": 22,
+      "aerobic_te": 2.9,
+      "anaerobic_te": 2.7,
+      "te_label": "AEROBIC_BASE",
+      "body_battery_drain": -9,
+      "water_ml": 590,
+      "evening_workout": true,
+      "raw_messages": {
+        "aerobic": "MAINTAINING_AEROBIC_BASE_7",
+        "anaerobic": "MAINTAINING_ANAEROBIC_BASE_1"
+      }
+    },
+    {
       "date": "2026-01-21",
       "time": "19:14",
       "start_hour": 19,
@@ -1207,6 +2152,76 @@
       "raw_messages": {
         "aerobic": "IMPROVING_AEROBIC_FITNESS_2",
         "anaerobic": "IMPROVING_ANAEROBIC_CAPACITY_AND_POWER_8"
+      }
+    },
+    {
+      "date": "2026-01-21",
+      "time": "19:14",
+      "start_hour": 19,
+      "activity_id": 21620862124,
+      "activity_name": "ВИИТ",
+      "type": "hiit",
+      "type_label": "ВИИТ",
+      "duration_min": 48.2,
+      "calories_total": 397,
+      "calories_active": 331,
+      "training_load": 151,
+      "intensity": "heavy",
+      "avg_hr": 129.0,
+      "max_hr": 204.0,
+      "hr_zones": {
+        "z1_min": 24.2,
+        "z2_min": 5.8,
+        "z3_min": 4.7,
+        "z4_min": 1.0,
+        "z5_min": 3.5
+      },
+      "vigorous_min": 16,
+      "moderate_min": 29,
+      "aerobic_te": 3.1,
+      "anaerobic_te": 3.2,
+      "te_label": "ANAEROBIC_CAPACITY",
+      "body_battery_drain": -8,
+      "water_ml": 495,
+      "evening_workout": true,
+      "raw_messages": {
+        "aerobic": "IMPROVING_AEROBIC_FITNESS_2",
+        "anaerobic": "IMPROVING_ANAEROBIC_CAPACITY_AND_POWER_8"
+      }
+    },
+    {
+      "date": "2026-01-24",
+      "time": "18:26",
+      "start_hour": 18,
+      "activity_id": 21651854822,
+      "activity_name": "Moscow Walking",
+      "type": "walking",
+      "type_label": "Ходьба",
+      "duration_min": 48.1,
+      "calories_total": 319,
+      "calories_active": 253,
+      "training_load": 25,
+      "intensity": "light",
+      "avg_hr": 109.0,
+      "max_hr": 131.0,
+      "hr_zones": {
+        "z1_min": 23.3,
+        "z2_min": 0.0,
+        "z3_min": 0.0,
+        "z4_min": 0.0,
+        "z5_min": 0.0
+      },
+      "vigorous_min": 7,
+      "moderate_min": 39,
+      "aerobic_te": 2.0,
+      "anaerobic_te": 0.3,
+      "te_label": "RECOVERY",
+      "body_battery_drain": -5,
+      "water_ml": 396,
+      "evening_workout": true,
+      "raw_messages": {
+        "aerobic": "MINOR_AEROBIC_BENEFIT_0",
+        "anaerobic": "NO_ANAEROBIC_BENEFIT_0"
       }
     },
     {
@@ -1276,6 +2291,111 @@
       "evening_workout": true,
       "raw_messages": {
         "aerobic": "MINOR_AEROBIC_BENEFIT_0",
+        "anaerobic": "NO_ANAEROBIC_BENEFIT_0"
+      }
+    },
+    {
+      "date": "2026-01-24",
+      "time": "12:00",
+      "start_hour": 12,
+      "activity_id": 21648459335,
+      "activity_name": "МФР",
+      "type": "yoga",
+      "type_label": "Йога",
+      "duration_min": 60.0,
+      "calories_total": 200,
+      "calories_active": 120,
+      "training_load": 0,
+      "intensity": "light",
+      "avg_hr": null,
+      "max_hr": null,
+      "hr_zones": {
+        "z1_min": 0.0,
+        "z2_min": 0.0,
+        "z3_min": 0.0,
+        "z4_min": 0.0,
+        "z5_min": 0.0
+      },
+      "vigorous_min": 0,
+      "moderate_min": 0,
+      "aerobic_te": 0,
+      "anaerobic_te": 0,
+      "te_label": "",
+      "body_battery_drain": null,
+      "water_ml": 0,
+      "evening_workout": false,
+      "raw_messages": {
+        "aerobic": "",
+        "anaerobic": ""
+      }
+    },
+    {
+      "date": "2026-01-26",
+      "time": "18:02",
+      "start_hour": 18,
+      "activity_id": 21671685565,
+      "activity_name": "ВИИТ",
+      "type": "hiit",
+      "type_label": "ВИИТ",
+      "duration_min": 60.5,
+      "calories_total": 441,
+      "calories_active": 358,
+      "training_load": 152,
+      "intensity": "heavy",
+      "avg_hr": 124.0,
+      "max_hr": 184.0,
+      "hr_zones": {
+        "z1_min": 19.2,
+        "z2_min": 5.5,
+        "z3_min": 8.0,
+        "z4_min": 2.7,
+        "z5_min": 2.2
+      },
+      "vigorous_min": 22,
+      "moderate_min": 21,
+      "aerobic_te": 3.0,
+      "anaerobic_te": 3.3,
+      "te_label": "SPEED",
+      "body_battery_drain": -8,
+      "water_ml": 600,
+      "evening_workout": true,
+      "raw_messages": {
+        "aerobic": "IMPROVING_AEROBIC_FITNESS_2",
+        "anaerobic": "IMPROVING_ANAEROBIC_CAPACITY_AND_SPEED_12"
+      }
+    },
+    {
+      "date": "2026-01-26",
+      "time": "19:02",
+      "start_hour": 19,
+      "activity_id": 21671686461,
+      "activity_name": "Yoga",
+      "type": "yoga",
+      "type_label": "Йога",
+      "duration_min": 45.7,
+      "calories_total": 184,
+      "calories_active": 121,
+      "training_load": 18,
+      "intensity": "light",
+      "avg_hr": 95.0,
+      "max_hr": 195.0,
+      "hr_zones": {
+        "z1_min": 4.8,
+        "z2_min": 0.9,
+        "z3_min": 0.1,
+        "z4_min": 0.0,
+        "z5_min": 0.1
+      },
+      "vigorous_min": 3,
+      "moderate_min": 11,
+      "aerobic_te": 0.8,
+      "anaerobic_te": 0.8,
+      "te_label": "UNKNOWN",
+      "body_battery_drain": -4,
+      "water_ml": 429,
+      "evening_workout": true,
+      "raw_messages": {
+        "aerobic": "RECOVERY_5",
         "anaerobic": "NO_ANAEROBIC_BENEFIT_0"
       }
     },
@@ -1385,6 +2505,41 @@
       }
     },
     {
+      "date": "2026-01-31",
+      "time": "12:04",
+      "start_hour": 12,
+      "activity_id": 21717999761,
+      "activity_name": "Yoga",
+      "type": "yoga",
+      "type_label": "Йога",
+      "duration_min": 61.9,
+      "calories_total": 192,
+      "calories_active": 107,
+      "training_load": 3,
+      "intensity": "light",
+      "avg_hr": 86.0,
+      "max_hr": 117.0,
+      "hr_zones": {
+        "z1_min": 0.3,
+        "z2_min": 0.0,
+        "z3_min": 0.0,
+        "z4_min": 0.0,
+        "z5_min": 0.0
+      },
+      "vigorous_min": 0,
+      "moderate_min": 7,
+      "aerobic_te": 0.2,
+      "anaerobic_te": 0,
+      "te_label": "UNKNOWN",
+      "body_battery_drain": -10,
+      "water_ml": 551,
+      "evening_workout": false,
+      "raw_messages": {
+        "aerobic": "NO_AEROBIC_BENEFIT_18",
+        "anaerobic": "NO_ANAEROBIC_BENEFIT_0"
+      }
+    },
+    {
       "date": "2026-02-02",
       "time": "07:58",
       "start_hour": 7,
@@ -1417,6 +2572,76 @@
       "raw_messages": {
         "aerobic": "MINOR_AEROBIC_BENEFIT_0",
         "anaerobic": "NO_ANAEROBIC_BENEFIT_0"
+      }
+    },
+    {
+      "date": "2026-02-02",
+      "time": "07:58",
+      "start_hour": 7,
+      "activity_id": 21736826231,
+      "activity_name": "База",
+      "type": "running",
+      "type_label": "Бег",
+      "duration_min": 7.2,
+      "calories_total": 75,
+      "calories_active": 65,
+      "training_load": 20,
+      "intensity": "light",
+      "avg_hr": 135.0,
+      "max_hr": 151.0,
+      "hr_zones": {
+        "z1_min": 2.1,
+        "z2_min": 4.5,
+        "z3_min": 0.0,
+        "z4_min": 0.0,
+        "z5_min": 0.0
+      },
+      "vigorous_min": 4,
+      "moderate_min": 2,
+      "aerobic_te": 2.0,
+      "anaerobic_te": 0,
+      "te_label": "RECOVERY",
+      "body_battery_drain": -2,
+      "water_ml": 96,
+      "evening_workout": false,
+      "raw_messages": {
+        "aerobic": "MINOR_AEROBIC_BENEFIT_0",
+        "anaerobic": "NO_ANAEROBIC_BENEFIT_0"
+      }
+    },
+    {
+      "date": "2026-02-04",
+      "time": "19:02",
+      "start_hour": 19,
+      "activity_id": 21763853418,
+      "activity_name": "ВИИТ",
+      "type": "hiit",
+      "type_label": "ВИИТ",
+      "duration_min": 55.1,
+      "calories_total": 494,
+      "calories_active": 418,
+      "training_load": 127,
+      "intensity": "moderate",
+      "avg_hr": 134.0,
+      "max_hr": 180.0,
+      "hr_zones": {
+        "z1_min": 18.8,
+        "z2_min": 15.7,
+        "z3_min": 7.0,
+        "z4_min": 3.1,
+        "z5_min": 1.2
+      },
+      "vigorous_min": 36,
+      "moderate_min": 10,
+      "aerobic_te": 3.1,
+      "anaerobic_te": 2.8,
+      "te_label": "TEMPO",
+      "body_battery_drain": -8,
+      "water_ml": 644,
+      "evening_workout": true,
+      "raw_messages": {
+        "aerobic": "IMPROVING_AEROBIC_FITNESS_2",
+        "anaerobic": "MAINTAINING_ANAEROBIC_POWER_7"
       }
     },
     {
@@ -1490,6 +2715,41 @@
       }
     },
     {
+      "date": "2026-02-06",
+      "time": "19:09",
+      "start_hour": 19,
+      "activity_id": 21784570693,
+      "activity_name": "ВИИТ",
+      "type": "hiit",
+      "type_label": "ВИИТ",
+      "duration_min": 65.2,
+      "calories_total": 578,
+      "calories_active": 488,
+      "training_load": 287,
+      "intensity": "heavy",
+      "avg_hr": 142.0,
+      "max_hr": 193.0,
+      "hr_zones": {
+        "z1_min": 23.7,
+        "z2_min": 18.2,
+        "z3_min": 12.8,
+        "z4_min": 3.6,
+        "z5_min": 4.4
+      },
+      "vigorous_min": 40,
+      "moderate_min": 14,
+      "aerobic_te": 3.5,
+      "anaerobic_te": 4.3,
+      "te_label": "ANAEROBIC_CAPACITY",
+      "body_battery_drain": -10,
+      "water_ml": 775,
+      "evening_workout": true,
+      "raw_messages": {
+        "aerobic": "IMPROVING_AEROBIC_FITNESS_2",
+        "anaerobic": "HIGHLY_IMPROVING_ANAEROBIC_CAPACITY_AND_POWER_3"
+      }
+    },
+    {
       "date": "2026-02-07",
       "time": "12:20",
       "start_hour": 12,
@@ -1522,6 +2782,76 @@
       "raw_messages": {
         "aerobic": "NO_AEROBIC_BENEFIT_18",
         "anaerobic": "NO_ANAEROBIC_BENEFIT_0"
+      }
+    },
+    {
+      "date": "2026-02-07",
+      "time": "12:20",
+      "start_hour": 12,
+      "activity_id": 21790539947,
+      "activity_name": "Yoga",
+      "type": "yoga",
+      "type_label": "Йога",
+      "duration_min": 53.2,
+      "calories_total": 179,
+      "calories_active": 106,
+      "training_load": 3,
+      "intensity": "light",
+      "avg_hr": 89.0,
+      "max_hr": 116.0,
+      "hr_zones": {
+        "z1_min": 0.2,
+        "z2_min": 0.0,
+        "z3_min": 0.0,
+        "z4_min": 0.0,
+        "z5_min": 0.0
+      },
+      "vigorous_min": 0,
+      "moderate_min": 6,
+      "aerobic_te": 0.2,
+      "anaerobic_te": 0,
+      "te_label": "UNKNOWN",
+      "body_battery_drain": -8,
+      "water_ml": 505,
+      "evening_workout": false,
+      "raw_messages": {
+        "aerobic": "NO_AEROBIC_BENEFIT_18",
+        "anaerobic": "NO_ANAEROBIC_BENEFIT_0"
+      }
+    },
+    {
+      "date": "2026-02-11",
+      "time": "19:03",
+      "start_hour": 19,
+      "activity_id": 21836878159,
+      "activity_name": "ВИИТ",
+      "type": "hiit",
+      "type_label": "ВИИТ",
+      "duration_min": 60.2,
+      "calories_total": 433,
+      "calories_active": 350,
+      "training_load": 77,
+      "intensity": "light",
+      "avg_hr": 122.0,
+      "max_hr": 167.0,
+      "hr_zones": {
+        "z1_min": 33.7,
+        "z2_min": 8.9,
+        "z3_min": 2.2,
+        "z4_min": 0.2,
+        "z5_min": 0.0
+      },
+      "vigorous_min": 18,
+      "moderate_min": 34,
+      "aerobic_te": 2.4,
+      "anaerobic_te": 2.5,
+      "te_label": "SPEED",
+      "body_battery_drain": -5,
+      "water_ml": 624,
+      "evening_workout": true,
+      "raw_messages": {
+        "aerobic": "MAINTAINING_AEROBIC_BASE_7",
+        "anaerobic": "MAINTAINING_FAST_FORCE_PRODUCTION_6"
       }
     },
     {
@@ -1596,6 +2926,76 @@
     },
     {
       "date": "2026-02-16",
+      "time": "18:02",
+      "start_hour": 18,
+      "activity_id": 21886557505,
+      "activity_name": "ВИИТ",
+      "type": "hiit",
+      "type_label": "ВИИТ",
+      "duration_min": 64.2,
+      "calories_total": 512,
+      "calories_active": 424,
+      "training_load": 126,
+      "intensity": "moderate",
+      "avg_hr": 132.0,
+      "max_hr": 178.0,
+      "hr_zones": {
+        "z1_min": 30.6,
+        "z2_min": 17.3,
+        "z3_min": 8.0,
+        "z4_min": 1.8,
+        "z5_min": 0.8
+      },
+      "vigorous_min": 30,
+      "moderate_min": 22,
+      "aerobic_te": 3.3,
+      "anaerobic_te": 3.0,
+      "te_label": "SPEED",
+      "body_battery_drain": -9,
+      "water_ml": 691,
+      "evening_workout": true,
+      "raw_messages": {
+        "aerobic": "IMPROVING_AEROBIC_FITNESS_2",
+        "anaerobic": "IMPROVING_ANAEROBIC_CAPACITY_AND_SPEED_12"
+      }
+    },
+    {
+      "date": "2026-02-16",
+      "time": "19:14",
+      "start_hour": 19,
+      "activity_id": 21887310497,
+      "activity_name": "Yoga",
+      "type": "yoga",
+      "type_label": "Йога",
+      "duration_min": 60.5,
+      "calories_total": 243,
+      "calories_active": 160,
+      "training_load": 4,
+      "intensity": "light",
+      "avg_hr": 96.0,
+      "max_hr": 118.0,
+      "hr_zones": {
+        "z1_min": 3.3,
+        "z2_min": 0.0,
+        "z3_min": 0.0,
+        "z4_min": 0.0,
+        "z5_min": 0.0
+      },
+      "vigorous_min": 0,
+      "moderate_min": 24,
+      "aerobic_te": 0.4,
+      "anaerobic_te": 0,
+      "te_label": "UNKNOWN",
+      "body_battery_drain": -5,
+      "water_ml": 614,
+      "evening_workout": true,
+      "raw_messages": {
+        "aerobic": "NO_AEROBIC_BENEFIT_18",
+        "anaerobic": "NO_ANAEROBIC_BENEFIT_0"
+      }
+    },
+    {
+      "date": "2026-02-16",
       "time": "19:14",
       "start_hour": 19,
       "activity_id": 21887310497,
@@ -1665,6 +3065,41 @@
       }
     },
     {
+      "date": "2026-02-20",
+      "time": "20:01",
+      "start_hour": 20,
+      "activity_id": 21930320857,
+      "activity_name": "ВИИТ",
+      "type": "hiit",
+      "type_label": "ВИИТ",
+      "duration_min": 66.7,
+      "calories_total": 524,
+      "calories_active": 432,
+      "training_load": 209,
+      "intensity": "heavy",
+      "avg_hr": 132.0,
+      "max_hr": 195.0,
+      "hr_zones": {
+        "z1_min": 38.3,
+        "z2_min": 16.6,
+        "z3_min": 4.3,
+        "z4_min": 0.7,
+        "z5_min": 2.4
+      },
+      "vigorous_min": 25,
+      "moderate_min": 37,
+      "aerobic_te": 3.4,
+      "anaerobic_te": 4.1,
+      "te_label": "ANAEROBIC_CAPACITY",
+      "body_battery_drain": -9,
+      "water_ml": 703,
+      "evening_workout": true,
+      "raw_messages": {
+        "aerobic": "IMPROVING_AEROBIC_FITNESS_2",
+        "anaerobic": "HIGHLY_IMPROVING_ANAEROBIC_CAPACITY_AND_POWER_3"
+      }
+    },
+    {
       "date": "2026-02-21",
       "time": "12:36",
       "start_hour": 12,
@@ -1696,6 +3131,76 @@
       "evening_workout": false,
       "raw_messages": {
         "aerobic": "NO_AEROBIC_BENEFIT_18",
+        "anaerobic": "NO_ANAEROBIC_BENEFIT_0"
+      }
+    },
+    {
+      "date": "2026-02-21",
+      "time": "12:36",
+      "start_hour": 12,
+      "activity_id": 21935658640,
+      "activity_name": "Yoga",
+      "type": "yoga",
+      "type_label": "Йога",
+      "duration_min": 35.2,
+      "calories_total": 109,
+      "calories_active": 60,
+      "training_load": 2,
+      "intensity": "light",
+      "avg_hr": 84.0,
+      "max_hr": 116.0,
+      "hr_zones": {
+        "z1_min": 0.2,
+        "z2_min": 0.0,
+        "z3_min": 0.0,
+        "z4_min": 0.0,
+        "z5_min": 0.0
+      },
+      "vigorous_min": 0,
+      "moderate_min": 3,
+      "aerobic_te": 0.2,
+      "anaerobic_te": 0,
+      "te_label": "UNKNOWN",
+      "body_battery_drain": -5,
+      "water_ml": 313,
+      "evening_workout": false,
+      "raw_messages": {
+        "aerobic": "NO_AEROBIC_BENEFIT_18",
+        "anaerobic": "NO_ANAEROBIC_BENEFIT_0"
+      }
+    },
+    {
+      "date": "2026-02-22",
+      "time": "22:08",
+      "start_hour": 22,
+      "activity_id": 21952603479,
+      "activity_name": "Running",
+      "type": "running",
+      "type_label": "Бег",
+      "duration_min": 20.0,
+      "calories_total": 204,
+      "calories_active": 176,
+      "training_load": 40,
+      "intensity": "light",
+      "avg_hr": 135.0,
+      "max_hr": 145.0,
+      "hr_zones": {
+        "z1_min": 8.0,
+        "z2_min": 11.3,
+        "z3_min": 0.0,
+        "z4_min": 0.0,
+        "z5_min": 0.0
+      },
+      "vigorous_min": 17,
+      "moderate_min": 2,
+      "aerobic_te": 2.5,
+      "anaerobic_te": 0,
+      "te_label": "AEROBIC_BASE",
+      "body_battery_drain": -3,
+      "water_ml": 245,
+      "evening_workout": true,
+      "raw_messages": {
+        "aerobic": "MAINTAINING_AEROBIC_FITNESS_1",
         "anaerobic": "NO_ANAEROBIC_BENEFIT_0"
       }
     },
@@ -1770,6 +3275,41 @@
       }
     },
     {
+      "date": "2026-02-23",
+      "time": "19:06",
+      "start_hour": 19,
+      "activity_id": 21960412949,
+      "activity_name": "ВИИТ",
+      "type": "hiit",
+      "type_label": "ВИИТ",
+      "duration_min": 50.1,
+      "calories_total": 439,
+      "calories_active": 370,
+      "training_load": 82,
+      "intensity": "moderate",
+      "avg_hr": 132.0,
+      "max_hr": 166.0,
+      "hr_zones": {
+        "z1_min": 24.3,
+        "z2_min": 15.0,
+        "z3_min": 5.1,
+        "z4_min": 0.7,
+        "z5_min": 0.0
+      },
+      "vigorous_min": 27,
+      "moderate_min": 21,
+      "aerobic_te": 2.8,
+      "anaerobic_te": 2.1,
+      "te_label": "SPEED",
+      "body_battery_drain": -8,
+      "water_ml": 538,
+      "evening_workout": true,
+      "raw_messages": {
+        "aerobic": "MAINTAINING_AEROBIC_BASE_7",
+        "anaerobic": "MAINTAINING_FAST_FORCE_PRODUCTION_6"
+      }
+    },
+    {
       "date": "2026-02-28",
       "time": "20:06",
       "start_hour": 20,
@@ -1802,6 +3342,76 @@
       "raw_messages": {
         "aerobic": "IMPROVING_AEROBIC_BASE_8",
         "anaerobic": "NO_ANAEROBIC_BENEFIT_0"
+      }
+    },
+    {
+      "date": "2026-02-28",
+      "time": "20:06",
+      "start_hour": 20,
+      "activity_id": 22016983314,
+      "activity_name": "Moscow - База",
+      "type": "running",
+      "type_label": "Бег",
+      "duration_min": 33.6,
+      "calories_total": 346,
+      "calories_active": 300,
+      "training_load": 71,
+      "intensity": "light",
+      "avg_hr": 135.0,
+      "max_hr": 157.0,
+      "hr_zones": {
+        "z1_min": 17.7,
+        "z2_min": 13.6,
+        "z3_min": 1.6,
+        "z4_min": 0.0,
+        "z5_min": 0.0
+      },
+      "vigorous_min": 29,
+      "moderate_min": 3,
+      "aerobic_te": 3.0,
+      "anaerobic_te": 0.7,
+      "te_label": "AEROBIC_BASE",
+      "body_battery_drain": -6,
+      "water_ml": 357,
+      "evening_workout": true,
+      "raw_messages": {
+        "aerobic": "IMPROVING_AEROBIC_BASE_8",
+        "anaerobic": "NO_ANAEROBIC_BENEFIT_0"
+      }
+    },
+    {
+      "date": "2026-03-02",
+      "time": "20:04",
+      "start_hour": 20,
+      "activity_id": 22038214904,
+      "activity_name": "ВИИТ",
+      "type": "hiit",
+      "type_label": "ВИИТ",
+      "duration_min": 60.1,
+      "calories_total": 515,
+      "calories_active": 432,
+      "training_load": 93,
+      "intensity": "moderate",
+      "avg_hr": 131.0,
+      "max_hr": 166.0,
+      "hr_zones": {
+        "z1_min": 34.6,
+        "z2_min": 16.0,
+        "z3_min": 6.0,
+        "z4_min": 0.1,
+        "z5_min": 0.0
+      },
+      "vigorous_min": 30,
+      "moderate_min": 26,
+      "aerobic_te": 2.9,
+      "anaerobic_te": 2.3,
+      "te_label": "SPEED",
+      "body_battery_drain": -8,
+      "water_ml": 707,
+      "evening_workout": true,
+      "raw_messages": {
+        "aerobic": "MAINTAINING_AEROBIC_BASE_7",
+        "anaerobic": "MAINTAINING_FAST_FORCE_PRODUCTION_6"
       }
     },
     {
@@ -1875,6 +3485,76 @@
       }
     },
     {
+      "date": "2026-03-04",
+      "time": "20:10",
+      "start_hour": 20,
+      "activity_id": 22061737865,
+      "activity_name": "ВИИТ",
+      "type": "hiit",
+      "type_label": "ВИИТ",
+      "duration_min": 55.1,
+      "calories_total": 424,
+      "calories_active": 348,
+      "training_load": 86,
+      "intensity": "moderate",
+      "avg_hr": 124.0,
+      "max_hr": 166.0,
+      "hr_zones": {
+        "z1_min": 31.1,
+        "z2_min": 10.5,
+        "z3_min": 1.5,
+        "z4_min": 0.4,
+        "z5_min": 0.0
+      },
+      "vigorous_min": 25,
+      "moderate_min": 19,
+      "aerobic_te": 2.5,
+      "anaerobic_te": 2.6,
+      "te_label": "ANAEROBIC_CAPACITY",
+      "body_battery_drain": -7,
+      "water_ml": 599,
+      "evening_workout": true,
+      "raw_messages": {
+        "aerobic": "MAINTAINING_AEROBIC_BASE_7",
+        "anaerobic": "MAINTAINING_ANAEROBIC_BASE_1"
+      }
+    },
+    {
+      "date": "2026-03-06",
+      "time": "19:04",
+      "start_hour": 19,
+      "activity_id": 22083136283,
+      "activity_name": "ВИИТ",
+      "type": "hiit",
+      "type_label": "ВИИТ",
+      "duration_min": 56.2,
+      "calories_total": 382,
+      "calories_active": 304,
+      "training_load": 55,
+      "intensity": "light",
+      "avg_hr": 118.0,
+      "max_hr": 164.0,
+      "hr_zones": {
+        "z1_min": 25.1,
+        "z2_min": 9.4,
+        "z3_min": 1.3,
+        "z4_min": 0.0,
+        "z5_min": 0.0
+      },
+      "vigorous_min": 15,
+      "moderate_min": 29,
+      "aerobic_te": 2.3,
+      "anaerobic_te": 1.9,
+      "te_label": "AEROBIC_BASE",
+      "body_battery_drain": -5,
+      "water_ml": 572,
+      "evening_workout": true,
+      "raw_messages": {
+        "aerobic": "MAINTAINING_AEROBIC_BASE_7",
+        "anaerobic": "MINOR_ANAEROBIC_BENEFIT_15"
+      }
+    },
+    {
       "date": "2026-03-06",
       "time": "19:04",
       "start_hour": 19,
@@ -1942,6 +3622,76 @@
       "raw_messages": {
         "aerobic": "IMPROVING_AEROBIC_BASE_8",
         "anaerobic": "MAINTAINING_FAST_FORCE_PRODUCTION_6"
+      }
+    },
+    {
+      "date": "2026-03-09",
+      "time": "19:07",
+      "start_hour": 19,
+      "activity_id": 22116444783,
+      "activity_name": "ВИИТ",
+      "type": "hiit",
+      "type_label": "ВИИТ",
+      "duration_min": 52.4,
+      "calories_total": 486,
+      "calories_active": 414,
+      "training_load": 121,
+      "intensity": "moderate",
+      "avg_hr": 136.0,
+      "max_hr": 180.0,
+      "hr_zones": {
+        "z1_min": 20.8,
+        "z2_min": 15.4,
+        "z3_min": 9.0,
+        "z4_min": 1.8,
+        "z5_min": 1.6
+      },
+      "vigorous_min": 33,
+      "moderate_min": 16,
+      "aerobic_te": 3.1,
+      "anaerobic_te": 2.6,
+      "te_label": "SPEED",
+      "body_battery_drain": -8,
+      "water_ml": 570,
+      "evening_workout": true,
+      "raw_messages": {
+        "aerobic": "IMPROVING_AEROBIC_BASE_8",
+        "anaerobic": "MAINTAINING_FAST_FORCE_PRODUCTION_6"
+      }
+    },
+    {
+      "date": "2026-03-14",
+      "time": "12:09",
+      "start_hour": 12,
+      "activity_id": 22167886516,
+      "activity_name": "Yoga",
+      "type": "yoga",
+      "type_label": "Йога",
+      "duration_min": 53.3,
+      "calories_total": 149,
+      "calories_active": 76,
+      "training_load": 2,
+      "intensity": "light",
+      "avg_hr": 81.0,
+      "max_hr": 109.0,
+      "hr_zones": {
+        "z1_min": 0.0,
+        "z2_min": 0.0,
+        "z3_min": 0.0,
+        "z4_min": 0.0,
+        "z5_min": 0.0
+      },
+      "vigorous_min": 0,
+      "moderate_min": 1,
+      "aerobic_te": 0.1,
+      "anaerobic_te": 0,
+      "te_label": "UNKNOWN",
+      "body_battery_drain": -9,
+      "water_ml": 455,
+      "evening_workout": false,
+      "raw_messages": {
+        "aerobic": "NO_AEROBIC_BENEFIT_18",
+        "anaerobic": "NO_ANAEROBIC_BENEFIT_0"
       }
     }
   ]

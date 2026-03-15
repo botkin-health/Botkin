@@ -955,101 +955,116 @@
     ]
   },
   "2026-02-15": {
-    "total_minutes": 304.6,
+    "total_minutes": 517.9,
     "apps": [
       {
         "app_id": "ph.telegra.Telegraph",
         "name": "Telegram Messenger",
-        "minutes": 100.5
+        "minutes": 200.0
       },
       {
         "app_id": "com.atebits.Tweetie2",
         "name": "X",
-        "minutes": 82.4
+        "minutes": 87.1
       },
       {
         "app_id": "com.apple.mobilenotes",
         "name": "Notes",
-        "minutes": 38.3
+        "minutes": 76.6
       },
       {
         "app_id": "com.facebook.Facebook",
         "name": "Facebook",
-        "minutes": 22.5
+        "minutes": 35.4
       },
       {
         "app_id": "com.felixrum.supertribes",
         "name": "The Battle of Polytopia",
-        "minutes": 13.3
+        "minutes": 26.7
       },
       {
         "app_id": "ru.yandex.traffic",
         "name": "Yandex Maps & Navigator",
-        "minutes": 10.5
+        "minutes": 21.1
       },
       {
         "app_id": "com.apple.camera",
         "name": "Camera",
-        "minutes": 5.7
+        "minutes": 11.4
       },
       {
         "app_id": "com.google.chrome.ios",
         "name": "Google Chrome",
-        "minutes": 4.5
-      },
-      {
-        "app_id": "io.meduza.meduzax",
-        "name": "Meduza - новости",
-        "minutes": 4.4
+        "minutes": 9.0
       },
       {
         "app_id": "com.transferwise.Transferwise",
         "name": "Wise - Global Money",
-        "minutes": 4.2
+        "minutes": 8.5
+      },
+      {
+        "app_id": "io.meduza.meduzax",
+        "name": "Meduza - новости",
+        "minutes": 6.9
       },
       {
         "app_id": "com.readdle.smartemail",
         "name": "Spark AI Email & Calendar",
-        "minutes": 3.1
+        "minutes": 6.3
       },
       {
         "app_id": "com.burbn.instagram",
         "name": "Instagram",
-        "minutes": 3.0
+        "minutes": 6.0
       },
       {
         "app_id": "com.garmin.connect.mobile",
         "name": "Garmin Connect™",
-        "minutes": 2.9
+        "minutes": 5.3
       },
       {
         "app_id": "com.openai.chat",
         "name": "ChatGPT",
-        "minutes": 1.8
+        "minutes": 3.7
       },
       {
         "app_id": "com.omronhealthcare.omronconnect",
         "name": "OMRON connect US/CAN/EMEA",
-        "minutes": 1.8
+        "minutes": 3.6
       },
       {
         "app_id": "ru.yandex.ytaxi",
         "name": "Yandex Go: Taxi Food Market",
-        "minutes": 1.1
+        "minutes": 2.2
       },
       {
         "app_id": "com.alfoto.app",
         "name": "com.alfoto.app",
-        "minutes": 0.8
+        "minutes": 1.6
       },
       {
         "app_id": "HM.wristband",
         "name": "Zepp Life (Formerly MiFit)",
-        "minutes": 0.8
+        "minutes": 1.6
       },
       {
         "app_id": "ru.litres.app",
         "name": "Litres: Books and audiobooks",
+        "minutes": 1.1
+      },
+      {
+        "app_id": "com.apple.MobileSMS",
+        "name": "Messages",
+        "minutes": 0.8
+      },
+      {
+        "app_id": "com.netatmo.homecoach",
+        "name": "Healthy Home Coach",
+        "minutes": 0.6
+      },
+      {
+        "app_id": "com.apple.weather",
+        "name": "Weather",
         "minutes": 0.6
       },
       {
@@ -1058,44 +1073,29 @@
         "minutes": 0.5
       },
       {
-        "app_id": "com.netatmo.homecoach",
-        "name": "Healthy Home Coach",
-        "minutes": 0.4
-      },
-      {
-        "app_id": "com.apple.MobileSMS",
-        "name": "Messages",
-        "minutes": 0.4
-      },
-      {
-        "app_id": "com.apple.weather",
-        "name": "Weather",
-        "minutes": 0.3
-      },
-      {
         "app_id": "com.apple.ClockAngel",
         "name": "com.apple.ClockAngel",
-        "minutes": 0.2
+        "minutes": 0.4
       },
       {
         "app_id": "com.apple.mobileslideshow",
         "name": "Photos",
-        "minutes": 0.2
+        "minutes": 0.4
       },
       {
         "app_id": "com.google.meetings",
         "name": "com.google.meetings",
-        "minutes": 0.1
+        "minutes": 0.2
       },
       {
         "app_id": "com.apple.ContinuityCaptureShieldUI",
         "name": "com.apple.ContinuityCaptureShieldUI",
-        "minutes": 0.1
+        "minutes": 0.2
       },
       {
         "app_id": "com.apple.springboard.home-screen-open-folder",
         "name": "com.apple.springboard.home-screen-open-folder",
-        "minutes": 0.0
+        "minutes": 0.1
       },
       {
         "app_id": "com.liguangming.Shadowrocket",
@@ -1105,137 +1105,137 @@
     ]
   },
   "2026-02-16": {
-    "total_minutes": 140.0,
+    "total_minutes": 280.1,
     "apps": [
       {
         "app_id": "com.atebits.Tweetie2",
         "name": "X",
-        "minutes": 44.5
+        "minutes": 89.0
       },
       {
         "app_id": "ph.telegra.Telegraph",
         "name": "Telegram Messenger",
-        "minutes": 42.1
+        "minutes": 84.2
       },
       {
         "app_id": "com.facebook.Facebook",
         "name": "Facebook",
-        "minutes": 20.0
+        "minutes": 40.1
       },
       {
         "app_id": "com.felixrum.supertribes",
         "name": "The Battle of Polytopia",
-        "minutes": 10.1
+        "minutes": 20.2
       },
       {
         "app_id": "com.omronhealthcare.omronconnect",
         "name": "OMRON connect US/CAN/EMEA",
-        "minutes": 3.0
+        "minutes": 6.0
       },
       {
         "app_id": "io.meduza.meduzax",
         "name": "Meduza - новости",
-        "minutes": 2.7
+        "minutes": 5.3
       },
       {
         "app_id": "com.minsvyaz.gosuslugi",
         "name": "Госуслуги",
-        "minutes": 2.5
+        "minutes": 4.9
       },
       {
         "app_id": "com.alfoto.app",
         "name": "com.alfoto.app",
-        "minutes": 2.1
+        "minutes": 4.2
       },
       {
         "app_id": "com.facebook.Messenger",
         "name": "Messenger",
-        "minutes": 1.7
+        "minutes": 3.4
       },
       {
         "app_id": "com.easycatch.sounder",
         "name": "com.easycatch.sounder",
-        "minutes": 1.7
+        "minutes": 3.3
       },
       {
         "app_id": "com.openai.chat",
         "name": "ChatGPT",
-        "minutes": 1.5
+        "minutes": 2.9
       },
       {
         "app_id": "ru.fns.lkfl",
         "name": "Налоги ФЛ",
-        "minutes": 1.3
+        "minutes": 2.5
       },
       {
         "app_id": "com.netatmo.homecoach",
         "name": "Healthy Home Coach",
-        "minutes": 1.2
+        "minutes": 2.4
       },
       {
         "app_id": "com.readdle.smartemail",
         "name": "Spark AI Email & Calendar",
-        "minutes": 1.0
+        "minutes": 1.9
       },
       {
         "app_id": "HM.wristband",
         "name": "Zepp Life (Formerly MiFit)",
-        "minutes": 0.7
+        "minutes": 1.5
       },
       {
         "app_id": "com.garmin.connect.mobile",
         "name": "Garmin Connect™",
-        "minutes": 0.7
+        "minutes": 1.4
       },
       {
         "app_id": "ru.yandex.traffic",
         "name": "Yandex Maps & Navigator",
-        "minutes": 0.7
+        "minutes": 1.3
       },
       {
         "app_id": "ru.litres.app",
         "name": "Litres: Books and audiobooks",
-        "minutes": 0.6
+        "minutes": 1.1
       },
       {
         "app_id": "ru.yandex.ytaxi",
         "name": "Yandex Go: Taxi Food Market",
-        "minutes": 0.5
+        "minutes": 1.0
       },
       {
         "app_id": "com.liguangming.Shadowrocket",
         "name": "Shadowrocket",
-        "minutes": 0.3
+        "minutes": 0.6
       },
       {
         "app_id": "com.apple.mobiletimer",
         "name": "Clock",
-        "minutes": 0.3
+        "minutes": 0.6
       },
       {
         "app_id": "com.apple.MobileSMS",
         "name": "Messages",
-        "minutes": 0.3
+        "minutes": 0.5
       },
       {
         "app_id": "com.apple.mobilenotes",
         "name": "Notes",
-        "minutes": 0.2
+        "minutes": 0.4
       },
       {
         "app_id": "com.apple.ScreenshotServicesService",
         "name": "com.apple.ScreenshotServicesService",
-        "minutes": 0.2
+        "minutes": 0.3
       },
       {
         "app_id": "com.google.Authenticator",
         "name": "Google Authenticator",
-        "minutes": 0.1
+        "minutes": 0.3
       },
       {
         "app_id": "com.transferwise.Transferwise",
         "name": "Wise - Global Money",
-        "minutes": 0.1
+        "minutes": 0.2
       },
       {
         "app_id": "com.flexibits.fantastical2.iphone",
@@ -1245,12 +1245,12 @@
       {
         "app_id": "com.apple.control-center",
         "name": "com.apple.control-center",
-        "minutes": 0.0
+        "minutes": 0.1
       },
       {
         "app_id": "com.apple.camera",
         "name": "Camera",
-        "minutes": 0.0
+        "minutes": 0.1
       },
       {
         "app_id": "com.apple.springboard.home-screen-open-folder",
@@ -1265,182 +1265,182 @@
     ]
   },
   "2026-02-17": {
-    "total_minutes": 351.0,
+    "total_minutes": 702.0,
     "apps": [
       {
         "app_id": "com.atebits.Tweetie2",
         "name": "X",
-        "minutes": 101.8
+        "minutes": 203.6
       },
       {
         "app_id": "ph.telegra.Telegraph",
         "name": "Telegram Messenger",
-        "minutes": 89.0
+        "minutes": 177.9
       },
       {
         "app_id": "com.apple.springboard.today-view",
         "name": "com.apple.springboard.today-view",
-        "minutes": 39.0
+        "minutes": 77.9
       },
       {
         "app_id": "com.felixrum.supertribes",
         "name": "The Battle of Polytopia",
-        "minutes": 29.9
+        "minutes": 59.7
       },
       {
         "app_id": "com.facebook.Facebook",
         "name": "Facebook",
-        "minutes": 15.5
+        "minutes": 30.9
       },
       {
         "app_id": "com.google.chrome.ios",
         "name": "Google Chrome",
-        "minutes": 13.7
+        "minutes": 27.4
       },
       {
         "app_id": "com.google.gemini",
         "name": "Google Gemini",
-        "minutes": 10.4
+        "minutes": 20.9
       },
       {
         "app_id": "io.meduza.meduzax",
         "name": "Meduza - новости",
-        "minutes": 6.5
+        "minutes": 13.1
       },
       {
         "app_id": "ru.yandex.traffic",
         "name": "Yandex Maps & Navigator",
-        "minutes": 6.2
+        "minutes": 12.4
       },
       {
         "app_id": "ru.doublegis.grymmobile",
         "name": "ru.doublegis.grymmobile",
-        "minutes": 6.0
+        "minutes": 12.0
       },
       {
         "app_id": "ru.yandex.ytaxi",
         "name": "Yandex Go: Taxi Food Market",
-        "minutes": 5.6
+        "minutes": 11.3
       },
       {
         "app_id": "com.burbn.instagram",
         "name": "Instagram",
-        "minutes": 3.4
+        "minutes": 6.8
       },
       {
         "app_id": "com.flexibits.fantastical2.iphone",
         "name": "Fantastical Calendar",
-        "minutes": 3.3
+        "minutes": 6.7
       },
       {
         "app_id": "com.garmin.connect.mobile",
         "name": "Garmin Connect™",
-        "minutes": 3.1
+        "minutes": 6.3
       },
       {
         "app_id": "com.apple.InCallService",
         "name": "com.apple.InCallService",
-        "minutes": 2.6
+        "minutes": 5.3
       },
       {
         "app_id": "com.omronhealthcare.omronconnect",
         "name": "OMRON connect US/CAN/EMEA",
-        "minutes": 2.3
+        "minutes": 4.6
       },
       {
         "app_id": "com.google.Translate",
         "name": "Google Translate",
-        "minutes": 1.8
+        "minutes": 3.5
       },
       {
         "app_id": "com.stimulapps.upass",
         "name": "Мой Пропуск",
-        "minutes": 1.3
+        "minutes": 2.7
       },
       {
         "app_id": "ru.fns.lkfl",
         "name": "Налоги ФЛ",
-        "minutes": 1.3
+        "minutes": 2.6
       },
       {
         "app_id": "com.apple.Preferences",
         "name": "com.apple.Preferences",
-        "minutes": 1.3
+        "minutes": 2.5
       },
       {
         "app_id": "com.alfoto.app",
         "name": "com.alfoto.app",
-        "minutes": 1.2
+        "minutes": 2.4
       },
       {
         "app_id": "com.lexwarelabs.goodmorning",
         "name": "Sleep Cycle - Tracker & Sounds",
-        "minutes": 0.9
+        "minutes": 1.8
       },
       {
         "app_id": "com.easycatch.sounder",
         "name": "com.easycatch.sounder",
-        "minutes": 0.7
+        "minutes": 1.5
       },
       {
         "app_id": "com.readdle.smartemail",
         "name": "Spark AI Email & Calendar",
-        "minutes": 0.6
+        "minutes": 1.2
       },
       {
         "app_id": "com.netatmo.homecoach",
         "name": "Healthy Home Coach",
-        "minutes": 0.6
+        "minutes": 1.2
       },
       {
         "app_id": "com.apple.mobilephone",
         "name": "Phone",
-        "minutes": 0.6
+        "minutes": 1.1
       },
       {
         "app_id": "HM.wristband",
         "name": "Zepp Life (Formerly MiFit)",
-        "minutes": 0.5
+        "minutes": 1.0
       },
       {
         "app_id": "com.apple.HeadphoneProxService",
         "name": "com.apple.HeadphoneProxService",
-        "minutes": 0.5
+        "minutes": 0.9
       },
       {
         "app_id": "com.apple.MobileSMS",
         "name": "Messages",
-        "minutes": 0.3
+        "minutes": 0.7
       },
       {
         "app_id": "com.apple.PosterBoard",
         "name": "com.apple.PosterBoard",
-        "minutes": 0.2
+        "minutes": 0.5
       },
       {
         "app_id": "com.openai.chat",
         "name": "ChatGPT",
-        "minutes": 0.2
+        "minutes": 0.4
       },
       {
         "app_id": "com.liguangming.Shadowrocket",
         "name": "Shadowrocket",
-        "minutes": 0.2
+        "minutes": 0.3
       },
       {
         "app_id": "com.apple.camera",
         "name": "Camera",
-        "minutes": 0.1
+        "minutes": 0.2
       },
       {
         "app_id": "com.google.Sheets",
         "name": "Google Sheets",
-        "minutes": 0.1
+        "minutes": 0.2
       },
       {
         "app_id": "com.apple.PassbookUIService",
         "name": "com.apple.PassbookUIService",
-        "minutes": 0.1
+        "minutes": 0.2
       },
       {
         "app_id": "com.apple.control-center",
@@ -1455,197 +1455,197 @@
     ]
   },
   "2026-02-18": {
-    "total_minutes": 167.6,
+    "total_minutes": 335.3,
     "apps": [
       {
         "app_id": "ph.telegra.Telegraph",
         "name": "Telegram Messenger",
-        "minutes": 69.1
+        "minutes": 138.2
       },
       {
         "app_id": "com.felixrum.supertribes",
         "name": "The Battle of Polytopia",
-        "minutes": 35.8
+        "minutes": 71.5
       },
       {
         "app_id": "com.atebits.Tweetie2",
         "name": "X",
-        "minutes": 12.6
+        "minutes": 25.3
       },
       {
         "app_id": "com.facebook.Facebook",
         "name": "Facebook",
-        "minutes": 7.8
+        "minutes": 15.6
       },
       {
         "app_id": "com.stimulapps.upass",
         "name": "Мой Пропуск",
-        "minutes": 5.2
+        "minutes": 10.3
       },
       {
         "app_id": "com.readdle.smartemail",
         "name": "Spark AI Email & Calendar",
-        "minutes": 4.8
+        "minutes": 9.5
       },
       {
         "app_id": "com.alfoto.app",
         "name": "com.alfoto.app",
-        "minutes": 3.3
+        "minutes": 6.6
       },
       {
         "app_id": "ru.yandex.traffic",
         "name": "Yandex Maps & Navigator",
-        "minutes": 3.2
+        "minutes": 6.4
       },
       {
         "app_id": "com.garmin.connect.mobile",
         "name": "Garmin Connect™",
-        "minutes": 2.7
+        "minutes": 5.5
       },
       {
         "app_id": "ru.yandex.ytaxi",
         "name": "Yandex Go: Taxi Food Market",
-        "minutes": 2.6
+        "minutes": 5.1
       },
       {
         "app_id": "app.ab.banking",
         "name": "АБ24",
-        "minutes": 2.2
+        "minutes": 4.5
       },
       {
         "app_id": "io.meduza.meduzax",
         "name": "Meduza - новости",
-        "minutes": 2.2
+        "minutes": 4.4
       },
       {
         "app_id": "com.apple.InCallService",
         "name": "com.apple.InCallService",
-        "minutes": 1.6
+        "minutes": 3.3
       },
       {
         "app_id": "com.minsvyaz.gosuslugi",
         "name": "Госуслуги",
-        "minutes": 1.6
+        "minutes": 3.1
       },
       {
         "app_id": "com.omronhealthcare.omronconnect",
         "name": "OMRON connect US/CAN/EMEA",
-        "minutes": 1.2
+        "minutes": 2.4
       },
       {
         "app_id": "com.apple.VoiceMemos",
         "name": "Voice Memos",
-        "minutes": 1.0
+        "minutes": 2.1
       },
       {
         "app_id": "com.easycatch.sounder",
         "name": "com.easycatch.sounder",
-        "minutes": 1.0
+        "minutes": 1.9
       },
       {
         "app_id": "HM.wristband",
         "name": "Zepp Life (Formerly MiFit)",
-        "minutes": 1.0
+        "minutes": 1.9
       },
       {
         "app_id": "ru.litres.app",
         "name": "Litres: Books and audiobooks",
-        "minutes": 0.9
+        "minutes": 1.8
       },
       {
         "app_id": "com.openai.chat",
         "name": "ChatGPT",
-        "minutes": 0.8
+        "minutes": 1.6
       },
       {
         "app_id": "com.apple.camera",
         "name": "Camera",
-        "minutes": 0.8
+        "minutes": 1.6
       },
       {
         "app_id": "com.apple.Keynote",
         "name": "Keynote: Design Presentations",
-        "minutes": 0.7
+        "minutes": 1.4
       },
       {
         "app_id": "com.transferwise.Transferwise",
         "name": "Wise - Global Money",
-        "minutes": 0.6
+        "minutes": 1.2
       },
       {
         "app_id": "com.1password.1password",
         "name": "1Password: Password Manager",
-        "minutes": 0.6
+        "minutes": 1.1
       },
       {
         "app_id": "ru.fns.lkfl",
         "name": "Налоги ФЛ",
-        "minutes": 0.5
+        "minutes": 1.1
       },
       {
         "app_id": "com.todoist.ios",
         "name": "Todoist: To Do List & Calendar",
-        "minutes": 0.5
+        "minutes": 1.0
       },
       {
         "app_id": "com.liguangming.Shadowrocket",
         "name": "Shadowrocket",
-        "minutes": 0.5
+        "minutes": 1.0
       },
       {
         "app_id": "com.apple.mobiletimer",
         "name": "Clock",
-        "minutes": 0.5
+        "minutes": 1.0
       },
       {
         "app_id": "com.google.gemini",
         "name": "Google Gemini",
-        "minutes": 0.4
+        "minutes": 0.9
       },
       {
         "app_id": "com.facebook.Messenger",
         "name": "Messenger",
-        "minutes": 0.4
+        "minutes": 0.7
       },
       {
         "app_id": "com.flexibits.fantastical2.iphone",
         "name": "Fantastical Calendar",
-        "minutes": 0.3
+        "minutes": 0.6
       },
       {
         "app_id": "com.apple.MobileSMS",
         "name": "Messages",
-        "minutes": 0.3
+        "minutes": 0.5
       },
       {
         "app_id": "com.netatmo.homecoach",
         "name": "Healthy Home Coach",
-        "minutes": 0.2
+        "minutes": 0.5
       },
       {
         "app_id": "ru.mts.mymts",
         "name": "Мой МТС",
-        "minutes": 0.2
+        "minutes": 0.4
       },
       {
         "app_id": "com.apple.calculator",
         "name": "Calculator",
-        "minutes": 0.1
+        "minutes": 0.3
       },
       {
         "app_id": "com.apple.mobilephone",
         "name": "Phone",
-        "minutes": 0.1
+        "minutes": 0.3
       },
       {
         "app_id": "com.linkedin.LinkedIn",
         "name": "LinkedIn: Community & Network",
-        "minutes": 0.1
+        "minutes": 0.2
       },
       {
         "app_id": "com.apple.AuthenticationServicesUI",
         "name": "com.apple.AuthenticationServicesUI",
-        "minutes": 0.1
+        "minutes": 0.2
       },
       {
         "app_id": "com.google.chrome.ios",
@@ -1665,7 +1665,7 @@
       {
         "app_id": "com.apple.LocalAuthenticationUIService",
         "name": "com.apple.LocalAuthenticationUIService",
-        "minutes": 0.0
+        "minutes": 0.1
       },
       {
         "app_id": "com.apple.springboard.today-view",
@@ -1680,137 +1680,137 @@
     ]
   },
   "2026-02-19": {
-    "total_minutes": 297.4,
+    "total_minutes": 594.8,
     "apps": [
       {
         "app_id": "com.atebits.Tweetie2",
         "name": "X",
-        "minutes": 105.8
+        "minutes": 211.6
       },
       {
         "app_id": "com.google.chrome.ios",
         "name": "Google Chrome",
-        "minutes": 75.9
+        "minutes": 151.9
       },
       {
         "app_id": "ph.telegra.Telegraph",
         "name": "Telegram Messenger",
-        "minutes": 43.3
+        "minutes": 86.6
       },
       {
         "app_id": "ru.yandex.traffic",
         "name": "Yandex Maps & Navigator",
-        "minutes": 13.4
+        "minutes": 26.8
       },
       {
         "app_id": "com.felixrum.supertribes",
         "name": "The Battle of Polytopia",
-        "minutes": 12.4
+        "minutes": 24.9
       },
       {
         "app_id": "com.facebook.Facebook",
         "name": "Facebook",
-        "minutes": 10.3
+        "minutes": 20.5
       },
       {
         "app_id": "ru.litres.app",
         "name": "Litres: Books and audiobooks",
-        "minutes": 7.9
+        "minutes": 15.8
       },
       {
         "app_id": "io.meduza.meduzax",
         "name": "Meduza - новости",
-        "minutes": 7.8
+        "minutes": 15.6
       },
       {
         "app_id": "com.burbn.instagram",
         "name": "Instagram",
-        "minutes": 4.8
+        "minutes": 9.5
       },
       {
         "app_id": "com.garmin.connect.mobile",
         "name": "Garmin Connect™",
-        "minutes": 3.4
+        "minutes": 6.8
       },
       {
         "app_id": "com.apple.camera",
         "name": "Camera",
-        "minutes": 2.3
+        "minutes": 4.6
       },
       {
         "app_id": "com.openai.chat",
         "name": "ChatGPT",
-        "minutes": 1.7
+        "minutes": 3.4
       },
       {
         "app_id": "com.readdle.smartemail",
         "name": "Spark AI Email & Calendar",
-        "minutes": 1.7
+        "minutes": 3.3
       },
       {
         "app_id": "com.alfoto.app",
         "name": "com.alfoto.app",
-        "minutes": 1.2
+        "minutes": 2.3
       },
       {
         "app_id": "ru.fns.lkfl",
         "name": "Налоги ФЛ",
-        "minutes": 1.1
+        "minutes": 2.2
       },
       {
         "app_id": "com.apple.MobileSMS",
         "name": "Messages",
-        "minutes": 1.0
+        "minutes": 2.0
       },
       {
         "app_id": "com.netatmo.homecoach",
         "name": "Healthy Home Coach",
-        "minutes": 0.8
+        "minutes": 1.6
       },
       {
         "app_id": "com.liguangming.Shadowrocket",
         "name": "Shadowrocket",
-        "minutes": 0.4
+        "minutes": 0.9
       },
       {
         "app_id": "ru.mts.mymts",
         "name": "Мой МТС",
-        "minutes": 0.4
+        "minutes": 0.7
       },
       {
         "app_id": "com.apple.InCallService",
         "name": "com.apple.InCallService",
-        "minutes": 0.4
+        "minutes": 0.7
       },
       {
         "app_id": "com.apple.mobiletimer",
         "name": "Clock",
-        "minutes": 0.3
+        "minutes": 0.7
       },
       {
         "app_id": "com.todoist.ios",
         "name": "Todoist: To Do List & Calendar",
-        "minutes": 0.3
+        "minutes": 0.6
       },
       {
         "app_id": "HM.wristband",
         "name": "Zepp Life (Formerly MiFit)",
-        "minutes": 0.3
+        "minutes": 0.6
       },
       {
         "app_id": "com.flexibits.fantastical2.iphone",
         "name": "Fantastical Calendar",
-        "minutes": 0.3
+        "minutes": 0.6
       },
       {
         "app_id": "com.apple.ScreenshotServicesService",
         "name": "com.apple.ScreenshotServicesService",
-        "minutes": 0.2
+        "minutes": 0.4
       },
       {
         "app_id": "com.apple.control-center",
         "name": "com.apple.control-center",
-        "minutes": 0.0
+        "minutes": 0.1
       },
       {
         "app_id": "com.apple.springboard.home-screen-open-folder",
@@ -1825,142 +1825,142 @@
     ]
   },
   "2026-02-20": {
-    "total_minutes": 250.0,
+    "total_minutes": 500.0,
     "apps": [
       {
         "app_id": "ru.yandex.traffic",
         "name": "Yandex Maps & Navigator",
-        "minutes": 77.8
+        "minutes": 155.7
       },
       {
         "app_id": "ph.telegra.Telegraph",
         "name": "Telegram Messenger",
-        "minutes": 58.7
+        "minutes": 117.3
       },
       {
         "app_id": "com.felixrum.supertribes",
         "name": "The Battle of Polytopia",
-        "minutes": 33.1
+        "minutes": 66.2
       },
       {
         "app_id": "com.facebook.Facebook",
         "name": "Facebook",
-        "minutes": 29.0
+        "minutes": 58.0
       },
       {
         "app_id": "com.atebits.Tweetie2",
         "name": "X",
-        "minutes": 15.1
+        "minutes": 30.3
       },
       {
         "app_id": "com.alfoto.app",
         "name": "com.alfoto.app",
-        "minutes": 5.2
+        "minutes": 10.3
       },
       {
         "app_id": "io.meduza.meduzax",
         "name": "Meduza - новости",
-        "minutes": 4.7
+        "minutes": 9.4
       },
       {
         "app_id": "com.readdle.smartemail",
         "name": "Spark AI Email & Calendar",
-        "minutes": 3.6
+        "minutes": 7.2
       },
       {
         "app_id": "ru.yandex.ytaxi",
         "name": "Yandex Go: Taxi Food Market",
-        "minutes": 3.3
+        "minutes": 6.6
       },
       {
         "app_id": "com.google.chrome.ios",
         "name": "Google Chrome",
-        "minutes": 3.0
+        "minutes": 6.1
       },
       {
         "app_id": "com.omronhealthcare.omronconnect",
         "name": "OMRON connect US/CAN/EMEA",
-        "minutes": 2.6
+        "minutes": 5.2
       },
       {
         "app_id": "com.garmin.connect.mobile",
         "name": "Garmin Connect™",
-        "minutes": 2.1
+        "minutes": 4.2
       },
       {
         "app_id": "com.transferwise.Transferwise",
         "name": "Wise - Global Money",
-        "minutes": 1.7
+        "minutes": 3.3
       },
       {
         "app_id": "com.easycatch.sounder",
         "name": "com.easycatch.sounder",
-        "minutes": 1.6
+        "minutes": 3.1
       },
       {
         "app_id": "com.stimulapps.upass",
         "name": "Мой Пропуск",
-        "minutes": 1.1
+        "minutes": 2.3
       },
       {
         "app_id": "com.liguangming.Shadowrocket",
         "name": "Shadowrocket",
-        "minutes": 1.1
+        "minutes": 2.3
       },
       {
         "app_id": "ru.yandex.mobile.music",
         "name": "ru.yandex.mobile.music",
-        "minutes": 1.1
+        "minutes": 2.1
       },
       {
         "app_id": "com.apple.MobileSMS",
         "name": "Messages",
-        "minutes": 0.9
+        "minutes": 1.7
       },
       {
         "app_id": "HM.wristband",
         "name": "Zepp Life (Formerly MiFit)",
-        "minutes": 0.8
+        "minutes": 1.6
       },
       {
         "app_id": "com.apple.mobiletimer",
         "name": "Clock",
-        "minutes": 0.7
+        "minutes": 1.4
       },
       {
         "app_id": "com.apple.InCallService",
         "name": "com.apple.InCallService",
-        "minutes": 0.7
+        "minutes": 1.4
       },
       {
         "app_id": "com.flexibits.fantastical2.iphone",
         "name": "Fantastical Calendar",
-        "minutes": 0.6
+        "minutes": 1.1
       },
       {
         "app_id": "com.google.Sheets",
         "name": "Google Sheets",
-        "minutes": 0.5
+        "minutes": 1.0
       },
       {
         "app_id": "com.netatmo.homecoach",
         "name": "Healthy Home Coach",
-        "minutes": 0.4
+        "minutes": 0.9
       },
       {
         "app_id": "com.apple.mobilephone",
         "name": "Phone",
-        "minutes": 0.1
+        "minutes": 0.3
       },
       {
         "app_id": "com.apple.camera",
         "name": "Camera",
-        "minutes": 0.1
+        "minutes": 0.3
       },
       {
         "app_id": "com.apple.weather",
         "name": "Weather",
-        "minutes": 0.1
+        "minutes": 0.2
       },
       {
         "app_id": "com.apple.control-center",
@@ -1980,7 +1980,7 @@
       {
         "app_id": "com.apple.springboard.home-screen-open-folder",
         "name": "com.apple.springboard.home-screen-open-folder",
-        "minutes": 0.0
+        "minutes": 0.1
       },
       {
         "app_id": "ru.doublegis.grymmobile",
@@ -1995,157 +1995,157 @@
     ]
   },
   "2026-02-21": {
-    "total_minutes": 325.3,
+    "total_minutes": 650.6,
     "apps": [
       {
         "app_id": "com.atebits.Tweetie2",
         "name": "X",
-        "minutes": 161.7
+        "minutes": 323.4
       },
       {
         "app_id": "ph.telegra.Telegraph",
         "name": "Telegram Messenger",
-        "minutes": 83.4
+        "minutes": 166.9
       },
       {
         "app_id": "com.felixrum.supertribes",
         "name": "The Battle of Polytopia",
-        "minutes": 16.4
+        "minutes": 32.8
       },
       {
         "app_id": "com.anthropic.claude",
         "name": "Claude by Anthropic",
-        "minutes": 9.5
+        "minutes": 19.1
       },
       {
         "app_id": "com.openai.chat",
         "name": "ChatGPT",
-        "minutes": 8.3
+        "minutes": 16.6
       },
       {
         "app_id": "io.meduza.meduzax",
         "name": "Meduza - новости",
-        "minutes": 6.5
+        "minutes": 13.0
       },
       {
         "app_id": "com.google.chrome.ios",
         "name": "Google Chrome",
-        "minutes": 6.3
+        "minutes": 12.6
       },
       {
         "app_id": "com.burbn.instagram",
         "name": "Instagram",
-        "minutes": 4.5
+        "minutes": 8.9
       },
       {
         "app_id": "com.alfoto.app",
         "name": "com.alfoto.app",
-        "minutes": 3.8
+        "minutes": 7.6
       },
       {
         "app_id": "com.apple.mobileslideshow",
         "name": "Photos",
-        "minutes": 3.3
+        "minutes": 6.6
       },
       {
         "app_id": "ru.yandex.ytaxi",
         "name": "Yandex Go: Taxi Food Market",
-        "minutes": 3.0
+        "minutes": 6.0
       },
       {
         "app_id": "com.garmin.connect.mobile",
         "name": "Garmin Connect™",
-        "minutes": 2.9
+        "minutes": 5.9
       },
       {
         "app_id": "ru.yandex.mobile.music",
         "name": "ru.yandex.mobile.music",
-        "minutes": 2.4
+        "minutes": 4.8
       },
       {
         "app_id": "com.apple.InCallService",
         "name": "com.apple.InCallService",
-        "minutes": 2.3
+        "minutes": 4.7
       },
       {
         "app_id": "com.apple.ScreenshotServicesService",
         "name": "com.apple.ScreenshotServicesService",
-        "minutes": 1.7
+        "minutes": 3.4
       },
       {
         "app_id": "com.apple.AppStore",
         "name": "com.apple.AppStore",
-        "minutes": 1.1
+        "minutes": 2.3
       },
       {
         "app_id": "com.apple.mobilephone",
         "name": "Phone",
-        "minutes": 1.0
+        "minutes": 2.1
       },
       {
         "app_id": "com.easycatch.sounder",
         "name": "com.easycatch.sounder",
-        "minutes": 0.9
+        "minutes": 1.7
       },
       {
         "app_id": "com.apple.mobiletimer",
         "name": "Clock",
-        "minutes": 0.8
+        "minutes": 1.7
       },
       {
         "app_id": "HM.wristband",
         "name": "Zepp Life (Formerly MiFit)",
-        "minutes": 0.8
+        "minutes": 1.7
       },
       {
         "app_id": "app.ab.banking",
         "name": "АБ24",
-        "minutes": 0.8
+        "minutes": 1.6
       },
       {
         "app_id": "com.readdle.smartemail",
         "name": "Spark AI Email & Calendar",
-        "minutes": 0.7
+        "minutes": 1.5
       },
       {
         "app_id": "com.apple.mobilenotes",
         "name": "Notes",
-        "minutes": 0.7
+        "minutes": 1.4
       },
       {
         "app_id": "com.netatmo.homecoach",
         "name": "Healthy Home Coach",
-        "minutes": 0.6
+        "minutes": 1.1
       },
       {
         "app_id": "com.facebook.Facebook",
         "name": "Facebook",
-        "minutes": 0.4
+        "minutes": 0.8
       },
       {
         "app_id": "com.liguangming.Shadowrocket",
         "name": "Shadowrocket",
-        "minutes": 0.3
+        "minutes": 0.7
       },
       {
         "app_id": "com.apple.MobileSMS",
         "name": "Messages",
-        "minutes": 0.3
+        "minutes": 0.6
       },
       {
         "app_id": "com.apple.Preferences",
         "name": "com.apple.Preferences",
-        "minutes": 0.2
+        "minutes": 0.4
       },
       {
         "app_id": "net.whatsapp.WhatsApp",
         "name": "WhatsApp Messenger",
-        "minutes": 0.2
+        "minutes": 0.3
       },
       {
         "app_id": "com.apple.PassbookUIService",
         "name": "com.apple.PassbookUIService",
-        "minutes": 0.1
+        "minutes": 0.2
       },
       {
         "app_id": "com.apple.springboard.home-screen-open-folder",
@@ -2160,7 +2160,7 @@
       {
         "app_id": "com.transferwise.Transferwise",
         "name": "Wise - Global Money",
-        "minutes": 0.0
+        "minutes": 0.1
       },
       {
         "app_id": "com.apple.control-center",
@@ -2180,282 +2180,282 @@
     ]
   },
   "2026-02-22": {
-    "total_minutes": 296.5,
+    "total_minutes": 593.1,
     "apps": [
       {
         "app_id": "ph.telegra.Telegraph",
         "name": "Telegram Messenger",
-        "minutes": 58.1
+        "minutes": 116.3
       },
       {
         "app_id": "com.facebook.Facebook",
         "name": "Facebook",
-        "minutes": 55.0
+        "minutes": 109.9
       },
       {
         "app_id": "com.atebits.Tweetie2",
         "name": "X",
-        "minutes": 44.6
+        "minutes": 89.1
       },
       {
         "app_id": "com.burbn.instagram",
         "name": "Instagram",
-        "minutes": 42.5
+        "minutes": 85.0
       },
       {
         "app_id": "com.anthropic.claude",
         "name": "Claude by Anthropic",
-        "minutes": 18.5
+        "minutes": 37.0
       },
       {
         "app_id": "ru.yandex.ytaxi",
         "name": "Yandex Go: Taxi Food Market",
-        "minutes": 13.5
+        "minutes": 27.0
       },
       {
         "app_id": "com.openai.chat",
         "name": "ChatGPT",
-        "minutes": 12.5
+        "minutes": 25.0
       },
       {
         "app_id": "com.felixrum.supertribes",
         "name": "The Battle of Polytopia",
-        "minutes": 11.9
+        "minutes": 23.8
       },
       {
         "app_id": "com.alfoto.app",
         "name": "com.alfoto.app",
-        "minutes": 11.6
+        "minutes": 23.1
       },
       {
         "app_id": "net.whatsapp.WhatsApp",
         "name": "WhatsApp Messenger",
-        "minutes": 5.2
+        "minutes": 10.5
       },
       {
         "app_id": "com.easycatch.sounder",
         "name": "com.easycatch.sounder",
-        "minutes": 4.4
+        "minutes": 8.8
       },
       {
         "app_id": "com.google.chrome.ios",
         "name": "Google Chrome",
-        "minutes": 3.3
+        "minutes": 6.6
       },
       {
         "app_id": "com.garmin.connect.mobile",
         "name": "Garmin Connect™",
-        "minutes": 3.1
+        "minutes": 6.2
       },
       {
         "app_id": "com.netatmo.homecoach",
         "name": "Healthy Home Coach",
-        "minutes": 2.4
+        "minutes": 4.9
       },
       {
         "app_id": "ru.litres.app",
         "name": "Litres: Books and audiobooks",
-        "minutes": 2.0
+        "minutes": 3.9
       },
       {
         "app_id": "com.omronhealthcare.omronconnect",
         "name": "OMRON connect US/CAN/EMEA",
-        "minutes": 1.2
+        "minutes": 2.4
       },
       {
         "app_id": "com.lexwarelabs.goodmorning",
         "name": "Sleep Cycle - Tracker & Sounds",
-        "minutes": 1.2
+        "minutes": 2.3
       },
       {
         "app_id": "com.apple.ScreenshotServicesService",
         "name": "com.apple.ScreenshotServicesService",
-        "minutes": 1.1
+        "minutes": 2.2
       },
       {
         "app_id": "com.google.Drive",
         "name": "Google Drive",
-        "minutes": 1.0
+        "minutes": 2.0
       },
       {
         "app_id": "notion.id",
         "name": "Notion: Notes, Tasks, AI",
-        "minutes": 0.9
+        "minutes": 1.9
       },
       {
         "app_id": "HM.wristband",
         "name": "Zepp Life (Formerly MiFit)",
-        "minutes": 0.5
+        "minutes": 1.1
       },
       {
         "app_id": "com.todoist.ios",
         "name": "Todoist: To Do List & Calendar",
-        "minutes": 0.5
+        "minutes": 1.0
       },
       {
         "app_id": "com.apple.InCallService",
         "name": "com.apple.InCallService",
-        "minutes": 0.2
+        "minutes": 0.4
       },
       {
         "app_id": "com.apple.mobilephone",
         "name": "Phone",
-        "minutes": 0.2
+        "minutes": 0.4
       },
       {
         "app_id": "com.apple.control-center",
         "name": "com.apple.control-center",
-        "minutes": 0.2
+        "minutes": 0.4
       },
       {
         "app_id": "com.apple.MobileSMS",
         "name": "Messages",
-        "minutes": 0.2
+        "minutes": 0.4
       },
       {
         "app_id": "ru.kinopoisk",
         "name": "Кинопоиск: фильмы и сериалы",
-        "minutes": 0.2
+        "minutes": 0.3
       },
       {
         "app_id": "com.apple.springboard.home-screen-open-folder",
         "name": "com.apple.springboard.home-screen-open-folder",
-        "minutes": 0.1
+        "minutes": 0.3
       },
       {
         "app_id": "io.meduza.meduzax",
         "name": "Meduza - новости",
-        "minutes": 0.1
+        "minutes": 0.3
       },
       {
         "app_id": "com.apple.weather",
         "name": "Weather",
-        "minutes": 0.1
+        "minutes": 0.2
       },
       {
         "app_id": "com.google.Translate",
         "name": "Google Translate",
-        "minutes": 0.1
+        "minutes": 0.2
       },
       {
         "app_id": "com.apple.mobileslideshow",
         "name": "Photos",
-        "minutes": 0.1
+        "minutes": 0.2
       }
     ]
   },
   "2026-02-23": {
-    "total_minutes": 332.5,
+    "total_minutes": 665.0,
     "apps": [
       {
         "app_id": "com.google.chrome.ios",
         "name": "Google Chrome",
-        "minutes": 56.9
+        "minutes": 113.7
       },
       {
         "app_id": "com.atebits.Tweetie2",
         "name": "X",
-        "minutes": 51.8
+        "minutes": 103.6
       },
       {
         "app_id": "ph.telegra.Telegraph",
         "name": "Telegram Messenger",
-        "minutes": 48.7
+        "minutes": 97.4
       },
       {
         "app_id": "com.felixrum.supertribes",
         "name": "The Battle of Polytopia",
-        "minutes": 40.9
+        "minutes": 81.8
       },
       {
         "app_id": "com.anthropic.claude",
         "name": "Claude by Anthropic",
-        "minutes": 39.2
+        "minutes": 78.3
       },
       {
         "app_id": "com.facebook.Facebook",
         "name": "Facebook",
-        "minutes": 31.3
+        "minutes": 62.7
       },
       {
         "app_id": "com.openai.chat",
         "name": "ChatGPT",
-        "minutes": 28.1
+        "minutes": 56.3
       },
       {
         "app_id": "com.apple.camera",
         "name": "Camera",
-        "minutes": 6.4
+        "minutes": 12.7
       },
       {
         "app_id": "ru.kinopoisk",
         "name": "Кинопоиск: фильмы и сериалы",
-        "minutes": 5.6
+        "minutes": 11.3
       },
       {
         "app_id": "com.apple.mobiletimer",
         "name": "Clock",
-        "minutes": 5.1
+        "minutes": 10.2
       },
       {
         "app_id": "io.meduza.meduzax",
         "name": "Meduza - новости",
-        "minutes": 4.9
+        "minutes": 9.7
       },
       {
         "app_id": "com.omronhealthcare.omronconnect",
         "name": "OMRON connect US/CAN/EMEA",
-        "minutes": 4.4
+        "minutes": 8.7
       },
       {
         "app_id": "com.garmin.connect.mobile",
         "name": "Garmin Connect™",
-        "minutes": 4.2
+        "minutes": 8.4
       },
       {
         "app_id": "com.netatmo.homecoach",
         "name": "Healthy Home Coach",
-        "minutes": 1.4
+        "minutes": 2.7
       },
       {
         "app_id": "net.whatsapp.WhatsApp",
         "name": "WhatsApp Messenger",
-        "minutes": 1.1
+        "minutes": 2.2
       },
       {
         "app_id": "com.readdle.smartemail",
         "name": "Spark AI Email & Calendar",
-        "minutes": 0.9
+        "minutes": 1.7
       },
       {
         "app_id": "HM.wristband",
         "name": "Zepp Life (Formerly MiFit)",
-        "minutes": 0.6
+        "minutes": 1.2
       },
       {
         "app_id": "ru.yandex.ytaxi",
         "name": "Yandex Go: Taxi Food Market",
-        "minutes": 0.2
+        "minutes": 0.5
       },
       {
         "app_id": "com.apple.ScreenshotServicesService",
         "name": "com.apple.ScreenshotServicesService",
-        "minutes": 0.2
+        "minutes": 0.4
       },
       {
         "app_id": "com.liguangming.Shadowrocket",
         "name": "Shadowrocket",
-        "minutes": 0.2
+        "minutes": 0.4
       },
       {
         "app_id": "com.apple.MobileSMS",
         "name": "Messages",
-        "minutes": 0.2
+        "minutes": 0.3
       },
       {
         "app_id": "com.apple.weather",
         "name": "Weather",
-        "minutes": 0.1
+        "minutes": 0.2
       },
       {
         "app_id": "com.minsvyaz.gosuslugi",
@@ -2470,217 +2470,217 @@
       {
         "app_id": "com.apple.CTNotifyUIService",
         "name": "com.apple.CTNotifyUIService",
-        "minutes": 0.0
+        "minutes": 0.1
       },
       {
         "app_id": "com.apple.springboard.today-view",
         "name": "com.apple.springboard.today-view",
-        "minutes": 0.0
+        "minutes": 0.1
       }
     ]
   },
   "2026-02-24": {
-    "total_minutes": 136.7,
+    "total_minutes": 273.4,
     "apps": [
       {
         "app_id": "ph.telegra.Telegraph",
         "name": "Telegram Messenger",
-        "minutes": 37.5
+        "minutes": 74.9
       },
       {
         "app_id": "com.atebits.Tweetie2",
         "name": "X",
-        "minutes": 14.9
+        "minutes": 29.8
       },
       {
         "app_id": "com.anthropic.claude",
         "name": "Claude by Anthropic",
-        "minutes": 14.1
+        "minutes": 28.2
       },
       {
         "app_id": "com.felixrum.supertribes",
         "name": "The Battle of Polytopia",
-        "minutes": 10.0
+        "minutes": 20.0
       },
       {
         "app_id": "com.burbn.instagram",
         "name": "Instagram",
-        "minutes": 8.9
+        "minutes": 17.8
       },
       {
         "app_id": "ru.yandex.traffic",
         "name": "Yandex Maps & Navigator",
-        "minutes": 7.8
+        "minutes": 15.5
       },
       {
         "app_id": "ru.mosmetro",
         "name": "ru.mosmetro",
-        "minutes": 5.5
+        "minutes": 11.1
       },
       {
         "app_id": "ru.yandex.ytaxi",
         "name": "Yandex Go: Taxi Food Market",
-        "minutes": 3.5
+        "minutes": 7.0
       },
       {
         "app_id": "com.openai.chat",
         "name": "ChatGPT",
-        "minutes": 3.0
+        "minutes": 5.9
       },
       {
         "app_id": "com.omronhealthcare.omronconnect",
         "name": "OMRON connect US/CAN/EMEA",
-        "minutes": 2.9
+        "minutes": 5.8
       },
       {
         "app_id": "io.meduza.meduzax",
         "name": "Meduza - новости",
-        "minutes": 2.9
+        "minutes": 5.7
       },
       {
         "app_id": "com.garmin.connect.mobile",
         "name": "Garmin Connect™",
-        "minutes": 2.4
+        "minutes": 4.7
       },
       {
         "app_id": "com.apple.MobileSMS",
         "name": "Messages",
-        "minutes": 2.0
+        "minutes": 4.0
       },
       {
         "app_id": "com.mosgorpass.socialsys",
         "name": "Moscow Transport",
-        "minutes": 1.8
+        "minutes": 3.6
       },
       {
         "app_id": "com.minsvyaz.gosuslugi",
         "name": "Госуслуги",
-        "minutes": 1.8
+        "minutes": 3.5
       },
       {
         "app_id": "com.stimulapps.upass",
         "name": "Мой Пропуск",
-        "minutes": 1.7
+        "minutes": 3.4
       },
       {
         "app_id": "com.facebook.Facebook",
         "name": "Facebook",
-        "minutes": 1.7
+        "minutes": 3.3
       },
       {
         "app_id": "com.netatmo.homecoach",
         "name": "Healthy Home Coach",
-        "minutes": 1.3
+        "minutes": 2.7
       },
       {
         "app_id": "com.easycatch.sounder",
         "name": "com.easycatch.sounder",
-        "minutes": 1.3
+        "minutes": 2.7
       },
       {
         "app_id": "com.google.chrome.ios",
         "name": "Google Chrome",
-        "minutes": 1.3
+        "minutes": 2.5
       },
       {
         "app_id": "app.ab.banking",
         "name": "АБ24",
-        "minutes": 1.2
+        "minutes": 2.5
       },
       {
         "app_id": "com.liguangming.Shadowrocket",
         "name": "Shadowrocket",
-        "minutes": 1.0
+        "minutes": 1.9
       },
       {
         "app_id": "com.readdle.smartemail",
         "name": "Spark AI Email & Calendar",
-        "minutes": 0.9
+        "minutes": 1.8
       },
       {
         "app_id": "com.apple.InCallService",
         "name": "com.apple.InCallService",
-        "minutes": 0.8
+        "minutes": 1.6
       },
       {
         "app_id": "com.apple.mobilephone",
         "name": "Phone",
-        "minutes": 0.8
+        "minutes": 1.6
       },
       {
         "app_id": "com.apple.mobilenotes",
         "name": "Notes",
-        "minutes": 0.8
+        "minutes": 1.5
       },
       {
         "app_id": "com.apple.control-center",
         "name": "com.apple.control-center",
-        "minutes": 0.8
+        "minutes": 1.5
       },
       {
         "app_id": "com.apple.mobiletimer",
         "name": "Clock",
-        "minutes": 0.8
+        "minutes": 1.5
       },
       {
         "app_id": "com.apple.ScreenshotServicesService",
         "name": "com.apple.ScreenshotServicesService",
-        "minutes": 0.7
+        "minutes": 1.5
       },
       {
         "app_id": "HM.wristband",
         "name": "Zepp Life (Formerly MiFit)",
-        "minutes": 0.7
+        "minutes": 1.4
       },
       {
         "app_id": "com.flexibits.fantastical2.iphone",
         "name": "Fantastical Calendar",
-        "minutes": 0.4
+        "minutes": 0.8
       },
       {
         "app_id": "com.apple.camera",
         "name": "Camera",
-        "minutes": 0.4
+        "minutes": 0.8
       },
       {
         "app_id": "com.apple.springboard.home-screen-open-folder",
         "name": "com.apple.springboard.home-screen-open-folder",
-        "minutes": 0.3
+        "minutes": 0.6
       },
       {
         "app_id": "ru.yandex.mobile.music",
         "name": "ru.yandex.mobile.music",
-        "minutes": 0.3
+        "minutes": 0.5
       },
       {
         "app_id": "com.apple.calculator",
         "name": "Calculator",
-        "minutes": 0.2
+        "minutes": 0.4
       },
       {
         "app_id": "com.alfoto.app",
         "name": "com.alfoto.app",
-        "minutes": 0.2
+        "minutes": 0.4
       },
       {
         "app_id": "com.apple.ClockAngel",
         "name": "com.apple.ClockAngel",
-        "minutes": 0.2
+        "minutes": 0.4
       },
       {
         "app_id": "net.whatsapp.WhatsApp",
         "name": "WhatsApp Messenger",
-        "minutes": 0.1
+        "minutes": 0.2
       },
       {
         "app_id": "com.apple.ContinuityCaptureShieldUI",
         "name": "com.apple.ContinuityCaptureShieldUI",
-        "minutes": 0.1
+        "minutes": 0.2
       },
       {
         "app_id": "com.apple.LocalAuthenticationUIService",
         "name": "com.apple.LocalAuthenticationUIService",
-        "minutes": 0.0
+        "minutes": 0.1
       },
       {
         "app_id": "com.apple.springboard.today-view",
@@ -2690,167 +2690,167 @@
     ]
   },
   "2026-02-25": {
-    "total_minutes": 261.2,
+    "total_minutes": 522.4,
     "apps": [
       {
         "app_id": "ph.telegra.Telegraph",
         "name": "Telegram Messenger",
-        "minutes": 107.6
+        "minutes": 215.2
       },
       {
         "app_id": "com.felixrum.supertribes",
         "name": "The Battle of Polytopia",
-        "minutes": 73.4
+        "minutes": 146.8
       },
       {
         "app_id": "com.facebook.Facebook",
         "name": "Facebook",
-        "minutes": 21.3
+        "minutes": 42.5
       },
       {
         "app_id": "com.atebits.Tweetie2",
         "name": "X",
-        "minutes": 13.6
+        "minutes": 27.2
       },
       {
         "app_id": "ru.yandex.traffic",
         "name": "Yandex Maps & Navigator",
-        "minutes": 6.3
+        "minutes": 12.5
       },
       {
         "app_id": "com.apple.InCallService",
         "name": "com.apple.InCallService",
-        "minutes": 5.9
+        "minutes": 11.8
       },
       {
         "app_id": "io.meduza.meduzax",
         "name": "Meduza - новости",
-        "minutes": 5.2
+        "minutes": 10.4
       },
       {
         "app_id": "com.burbn.instagram",
         "name": "Instagram",
-        "minutes": 4.5
+        "minutes": 9.1
       },
       {
         "app_id": "ru.yandex.mobile.music",
         "name": "ru.yandex.mobile.music",
-        "minutes": 3.7
+        "minutes": 7.4
       },
       {
         "app_id": "ru.yandex.ytaxi",
         "name": "Yandex Go: Taxi Food Market",
-        "minutes": 2.7
+        "minutes": 5.4
       },
       {
         "app_id": "com.readdle.smartemail",
         "name": "Spark AI Email & Calendar",
-        "minutes": 2.5
+        "minutes": 5.0
       },
       {
         "app_id": "com.garmin.connect.mobile",
         "name": "Garmin Connect™",
-        "minutes": 2.4
+        "minutes": 4.7
       },
       {
         "app_id": "com.alfoto.app",
         "name": "com.alfoto.app",
-        "minutes": 1.7
+        "minutes": 3.5
       },
       {
         "app_id": "com.apple.mobilenotes",
         "name": "Notes",
-        "minutes": 1.3
+        "minutes": 2.5
       },
       {
         "app_id": "com.apple.Preferences",
         "name": "com.apple.Preferences",
-        "minutes": 1.1
+        "minutes": 2.2
       },
       {
         "app_id": "com.stimulapps.upass",
         "name": "Мой Пропуск",
-        "minutes": 1.0
+        "minutes": 2.1
       },
       {
         "app_id": "ru.litres.app",
         "name": "Litres: Books and audiobooks",
-        "minutes": 0.9
+        "minutes": 1.8
       },
       {
         "app_id": "com.apple.MobileSMS",
         "name": "Messages",
-        "minutes": 0.6
+        "minutes": 1.3
       },
       {
         "app_id": "com.apple.mobilephone",
         "name": "Phone",
-        "minutes": 0.6
+        "minutes": 1.2
       },
       {
         "app_id": "com.apple.springboard.home-screen-open-folder",
         "name": "com.apple.springboard.home-screen-open-folder",
-        "minutes": 0.6
+        "minutes": 1.2
       },
       {
         "app_id": "com.google.chrome.ios",
         "name": "Google Chrome",
-        "minutes": 0.6
+        "minutes": 1.2
       },
       {
         "app_id": "com.apple.control-center",
         "name": "com.apple.control-center",
-        "minutes": 0.5
+        "minutes": 1.1
       },
       {
         "app_id": "HM.wristband",
         "name": "Zepp Life (Formerly MiFit)",
-        "minutes": 0.5
+        "minutes": 0.9
       },
       {
         "app_id": "com.google.Docs",
         "name": "Google Docs",
-        "minutes": 0.5
+        "minutes": 0.9
       },
       {
         "app_id": "com.apple.camera",
         "name": "Camera",
-        "minutes": 0.4
+        "minutes": 0.8
       },
       {
         "app_id": "com.apple.ScreenshotServicesService",
         "name": "com.apple.ScreenshotServicesService",
-        "minutes": 0.4
+        "minutes": 0.7
       },
       {
         "app_id": "com.apple.mobiletimer",
         "name": "Clock",
-        "minutes": 0.3
+        "minutes": 0.6
       },
       {
         "app_id": "app.ab.banking",
         "name": "АБ24",
-        "minutes": 0.3
+        "minutes": 0.6
       },
       {
         "app_id": "com.netatmo.homecoach",
         "name": "Healthy Home Coach",
-        "minutes": 0.2
+        "minutes": 0.5
       },
       {
         "app_id": "com.todoist.ios",
         "name": "Todoist: To Do List & Calendar",
-        "minutes": 0.2
+        "minutes": 0.5
       },
       {
         "app_id": "com.flexibits.fantastical2.iphone",
         "name": "Fantastical Calendar",
-        "minutes": 0.1
+        "minutes": 0.2
       },
       {
         "app_id": "com.linkedin.LinkedIn",
         "name": "LinkedIn: Community & Network",
-        "minutes": 0.1
+        "minutes": 0.2
       },
       {
         "app_id": "com.liguangming.Shadowrocket",
@@ -2865,12 +2865,12 @@
       {
         "app_id": "com.apple.LocalAuthenticationUIService",
         "name": "com.apple.LocalAuthenticationUIService",
-        "minutes": 0.0
+        "minutes": 0.1
       },
       {
         "app_id": "com.mosgorpass.socialsys",
         "name": "Moscow Transport",
-        "minutes": 0.0
+        "minutes": 0.1
       },
       {
         "app_id": "com.openai.chat",
@@ -2885,167 +2885,167 @@
     ]
   },
   "2026-02-26": {
-    "total_minutes": 319.5,
+    "total_minutes": 639.1,
     "apps": [
       {
         "app_id": "ph.telegra.Telegraph",
         "name": "Telegram Messenger",
-        "minutes": 85.9
+        "minutes": 171.8
       },
       {
         "app_id": "com.atebits.Tweetie2",
         "name": "X",
-        "minutes": 53.6
+        "minutes": 107.2
       },
       {
         "app_id": "ru.yandex.traffic",
         "name": "Yandex Maps & Navigator",
-        "minutes": 43.5
+        "minutes": 87.0
       },
       {
         "app_id": "com.felixrum.supertribes",
         "name": "The Battle of Polytopia",
-        "minutes": 39.3
+        "minutes": 78.5
       },
       {
         "app_id": "com.facebook.Facebook",
         "name": "Facebook",
-        "minutes": 21.6
+        "minutes": 43.1
       },
       {
         "app_id": "ru.yandex.ytaxi",
         "name": "Yandex Go: Taxi Food Market",
-        "minutes": 19.7
+        "minutes": 39.4
       },
       {
         "app_id": "com.anthropic.claude",
         "name": "Claude by Anthropic",
-        "minutes": 10.1
+        "minutes": 20.2
       },
       {
         "app_id": "com.alfoto.app",
         "name": "com.alfoto.app",
-        "minutes": 6.4
+        "minutes": 12.7
       },
       {
         "app_id": "com.apple.InCallService",
         "name": "com.apple.InCallService",
-        "minutes": 5.6
+        "minutes": 11.2
       },
       {
         "app_id": "com.apple.camera",
         "name": "Camera",
-        "minutes": 5.4
+        "minutes": 10.8
       },
       {
         "app_id": "com.omronhealthcare.omronconnect",
         "name": "OMRON connect US/CAN/EMEA",
-        "minutes": 5.1
+        "minutes": 10.2
       },
       {
         "app_id": "com.apple.mobilenotes",
         "name": "Notes",
-        "minutes": 5.1
+        "minutes": 10.1
       },
       {
         "app_id": "com.netatmo.homecoach",
         "name": "Healthy Home Coach",
-        "minutes": 2.4
+        "minutes": 4.7
       },
       {
         "app_id": "ru.mosmetro",
         "name": "ru.mosmetro",
-        "minutes": 2.2
+        "minutes": 4.5
       },
       {
         "app_id": "com.stimulapps.upass",
         "name": "Мой Пропуск",
-        "minutes": 2.2
+        "minutes": 4.3
       },
       {
         "app_id": "ru.litres.app",
         "name": "Litres: Books and audiobooks",
-        "minutes": 1.8
+        "minutes": 3.6
       },
       {
         "app_id": "com.garmin.connect.mobile",
         "name": "Garmin Connect™",
-        "minutes": 1.6
+        "minutes": 3.3
       },
       {
         "app_id": "com.easycatch.sounder",
         "name": "com.easycatch.sounder",
-        "minutes": 1.5
+        "minutes": 3.0
       },
       {
         "app_id": "com.google.Docs",
         "name": "Google Docs",
-        "minutes": 1.3
+        "minutes": 2.7
       },
       {
         "app_id": "io.meduza.meduzax",
         "name": "Meduza - новости",
-        "minutes": 1.0
+        "minutes": 2.1
       },
       {
         "app_id": "HM.wristband",
         "name": "Zepp Life (Formerly MiFit)",
-        "minutes": 0.8
+        "minutes": 1.7
       },
       {
         "app_id": "com.apple.DocumentsApp",
         "name": "Files",
-        "minutes": 0.7
+        "minutes": 1.4
       },
       {
         "app_id": "com.apple.MobileSMS",
         "name": "Messages",
-        "minutes": 0.6
+        "minutes": 1.1
       },
       {
         "app_id": "com.readdle.smartemail",
         "name": "Spark AI Email & Calendar",
-        "minutes": 0.5
+        "minutes": 1.1
       },
       {
         "app_id": "com.apple.mobiletimer",
         "name": "Clock",
-        "minutes": 0.3
+        "minutes": 0.5
       },
       {
         "app_id": "com.liguangming.Shadowrocket",
         "name": "Shadowrocket",
-        "minutes": 0.3
+        "minutes": 0.5
       },
       {
         "app_id": "com.flexibits.fantastical2.iphone",
         "name": "Fantastical Calendar",
-        "minutes": 0.2
+        "minutes": 0.4
       },
       {
         "app_id": "com.apple.mobilephone",
         "name": "Phone",
-        "minutes": 0.2
+        "minutes": 0.4
       },
       {
         "app_id": "net.whatsapp.WhatsApp",
         "name": "WhatsApp Messenger",
-        "minutes": 0.2
+        "minutes": 0.4
       },
       {
         "app_id": "com.google.chrome.ios",
         "name": "Google Chrome",
-        "minutes": 0.2
+        "minutes": 0.4
       },
       {
         "app_id": "com.apple.springboard.home-screen-open-folder",
         "name": "com.apple.springboard.home-screen-open-folder",
-        "minutes": 0.2
+        "minutes": 0.3
       },
       {
         "app_id": "com.apple.ScreenshotServicesService",
         "name": "com.apple.ScreenshotServicesService",
-        "minutes": 0.1
+        "minutes": 0.3
       },
       {
         "app_id": "com.apple.control-center",
@@ -3055,177 +3055,177 @@
     ]
   },
   "2026-02-27": {
-    "total_minutes": 205.1,
+    "total_minutes": 410.1,
     "apps": [
       {
         "app_id": "ph.telegra.Telegraph",
         "name": "Telegram Messenger",
-        "minutes": 119.5
+        "minutes": 239.0
       },
       {
         "app_id": "com.atebits.Tweetie2",
         "name": "X",
-        "minutes": 29.6
+        "minutes": 59.1
       },
       {
         "app_id": "ru.yandex.ytaxi",
         "name": "Yandex Go: Taxi Food Market",
-        "minutes": 9.4
+        "minutes": 18.8
       },
       {
         "app_id": "com.openai.chat",
         "name": "ChatGPT",
-        "minutes": 7.9
+        "minutes": 15.9
       },
       {
         "app_id": "ru.yandex.traffic",
         "name": "Yandex Maps & Navigator",
-        "minutes": 6.1
+        "minutes": 12.2
       },
       {
         "app_id": "com.apple.MobileSMS",
         "name": "Messages",
-        "minutes": 6.0
+        "minutes": 12.0
       },
       {
         "app_id": "com.apple.Preferences",
         "name": "com.apple.Preferences",
-        "minutes": 2.6
+        "minutes": 5.2
       },
       {
         "app_id": "com.facebook.Facebook",
         "name": "Facebook",
-        "minutes": 2.6
+        "minutes": 5.2
       },
       {
         "app_id": "com.anthropic.claude",
         "name": "Claude by Anthropic",
-        "minutes": 2.6
+        "minutes": 5.2
       },
       {
         "app_id": "com.flexibits.fantastical2.iphone",
         "name": "Fantastical Calendar",
-        "minutes": 2.1
+        "minutes": 4.3
       },
       {
         "app_id": "com.burbn.instagram",
         "name": "Instagram",
-        "minutes": 2.0
+        "minutes": 4.1
       },
       {
         "app_id": "com.google.Translate",
         "name": "Google Translate",
-        "minutes": 1.9
+        "minutes": 3.7
       },
       {
         "app_id": "com.readdle.smartemail",
         "name": "Spark AI Email & Calendar",
-        "minutes": 1.5
+        "minutes": 3.0
       },
       {
         "app_id": "com.transferwise.Transferwise",
         "name": "Wise - Global Money",
-        "minutes": 1.2
+        "minutes": 2.3
       },
       {
         "app_id": "com.google.chrome.ios",
         "name": "Google Chrome",
-        "minutes": 1.1
+        "minutes": 2.3
       },
       {
         "app_id": "HM.wristband",
         "name": "Zepp Life (Formerly MiFit)",
-        "minutes": 1.1
+        "minutes": 2.1
       },
       {
         "app_id": "io.meduza.meduzax",
         "name": "Meduza - новости",
-        "minutes": 1.0
+        "minutes": 1.9
       },
       {
         "app_id": "com.stimulapps.upass",
         "name": "Мой Пропуск",
-        "minutes": 0.9
+        "minutes": 1.8
       },
       {
         "app_id": "com.apple.InCallService",
         "name": "com.apple.InCallService",
-        "minutes": 0.8
+        "minutes": 1.5
       },
       {
         "app_id": "com.garmin.connect.mobile",
         "name": "Garmin Connect™",
-        "minutes": 0.6
+        "minutes": 1.3
       },
       {
         "app_id": "ru.litres.app",
         "name": "Litres: Books and audiobooks",
-        "minutes": 0.6
+        "minutes": 1.2
       },
       {
         "app_id": "com.google.Slides",
         "name": "Google Slides",
-        "minutes": 0.6
+        "minutes": 1.2
       },
       {
         "app_id": "com.apple.mobilephone",
         "name": "Phone",
-        "minutes": 0.6
+        "minutes": 1.2
       },
       {
         "app_id": "com.apple.camera",
         "name": "Camera",
-        "minutes": 0.5
+        "minutes": 1.0
       },
       {
         "app_id": "com.google.Docs",
         "name": "Google Docs",
-        "minutes": 0.4
+        "minutes": 0.9
       },
       {
         "app_id": "com.netatmo.homecoach",
         "name": "Healthy Home Coach",
-        "minutes": 0.4
+        "minutes": 0.8
       },
       {
         "app_id": "com.apple.ScreenshotServicesService",
         "name": "com.apple.ScreenshotServicesService",
-        "minutes": 0.3
+        "minutes": 0.6
       },
       {
         "app_id": "com.redotpay",
         "name": "RedotPay: Crypto Card & Pay",
-        "minutes": 0.3
+        "minutes": 0.5
       },
       {
         "app_id": "com.apple.mobiletimer",
         "name": "Clock",
-        "minutes": 0.3
+        "minutes": 0.5
       },
       {
         "app_id": "net.whatsapp.WhatsApp",
         "name": "WhatsApp Messenger",
-        "minutes": 0.2
+        "minutes": 0.4
       },
       {
         "app_id": "com.apple.mobileslideshow",
         "name": "Photos",
-        "minutes": 0.1
+        "minutes": 0.3
       },
       {
         "app_id": "com.alfoto.app",
         "name": "com.alfoto.app",
-        "minutes": 0.1
+        "minutes": 0.3
       },
       {
         "app_id": "com.apple.mobilenotes",
         "name": "Notes",
-        "minutes": 0.1
+        "minutes": 0.2
       },
       {
         "app_id": "com.liguangming.Shadowrocket",
         "name": "Shadowrocket",
-        "minutes": 0.0
+        "minutes": 0.1
       },
       {
         "app_id": "com.apple.springboard.today-view",
@@ -3235,152 +3235,152 @@
     ]
   },
   "2026-02-28": {
-    "total_minutes": 227.8,
+    "total_minutes": 455.7,
     "apps": [
       {
         "app_id": "com.atebits.Tweetie2",
         "name": "X",
-        "minutes": 55.3
+        "minutes": 110.6
       },
       {
         "app_id": "com.apple.mobiletimer",
         "name": "Clock",
-        "minutes": 35.0
+        "minutes": 69.9
       },
       {
         "app_id": "com.felixrum.supertribes",
         "name": "The Battle of Polytopia",
-        "minutes": 27.3
+        "minutes": 54.7
       },
       {
         "app_id": "ph.telegra.Telegraph",
         "name": "Telegram Messenger",
-        "minutes": 21.1
+        "minutes": 42.1
       },
       {
         "app_id": "com.anthropic.claude",
         "name": "Claude by Anthropic",
-        "minutes": 15.7
+        "minutes": 31.5
       },
       {
         "app_id": "ru.kinopoisk",
         "name": "Кинопоиск: фильмы и сериалы",
-        "minutes": 11.7
+        "minutes": 23.3
       },
       {
         "app_id": "com.apple.InCallService",
         "name": "com.apple.InCallService",
-        "minutes": 10.2
+        "minutes": 20.4
       },
       {
         "app_id": "ru.yandex.ytaxi",
         "name": "Yandex Go: Taxi Food Market",
-        "minutes": 10.0
+        "minutes": 20.1
       },
       {
         "app_id": "com.facebook.Facebook",
         "name": "Facebook",
-        "minutes": 6.4
+        "minutes": 12.7
       },
       {
         "app_id": "com.google.chrome.ios",
         "name": "Google Chrome",
-        "minutes": 5.4
+        "minutes": 10.8
       },
       {
         "app_id": "com.apple.mobileslideshow",
         "name": "Photos",
-        "minutes": 4.7
+        "minutes": 9.5
       },
       {
         "app_id": "com.burbn.instagram",
         "name": "Instagram",
-        "minutes": 4.0
+        "minutes": 8.0
       },
       {
         "app_id": "io.meduza.meduzax",
         "name": "Meduza - новости",
-        "minutes": 3.9
+        "minutes": 7.7
       },
       {
         "app_id": "com.transferwise.Transferwise",
         "name": "Wise - Global Money",
-        "minutes": 2.5
+        "minutes": 5.1
       },
       {
         "app_id": "com.omronhealthcare.omronconnect",
         "name": "OMRON connect US/CAN/EMEA",
-        "minutes": 2.3
+        "minutes": 4.6
       },
       {
         "app_id": "com.apple.mobilephone",
         "name": "Phone",
-        "minutes": 1.8
+        "minutes": 3.6
       },
       {
         "app_id": "com.google.Maps",
         "name": "Google Maps",
-        "minutes": 1.6
+        "minutes": 3.2
       },
       {
         "app_id": "com.garmin.connect.mobile",
         "name": "Garmin Connect™",
-        "minutes": 1.6
+        "minutes": 3.2
       },
       {
         "app_id": "com.alfoto.app",
         "name": "com.alfoto.app",
-        "minutes": 1.5
+        "minutes": 2.9
       },
       {
         "app_id": "HM.wristband",
         "name": "Zepp Life (Formerly MiFit)",
-        "minutes": 1.3
+        "minutes": 2.6
       },
       {
         "app_id": "com.apple.Health",
         "name": "Apple Health",
-        "minutes": 1.2
+        "minutes": 2.5
       },
       {
         "app_id": "com.liguangming.Shadowrocket",
         "name": "Shadowrocket",
-        "minutes": 0.8
+        "minutes": 1.6
       },
       {
         "app_id": "com.todoist.ios",
         "name": "Todoist: To Do List & Calendar",
-        "minutes": 0.5
+        "minutes": 1.0
       },
       {
         "app_id": "com.apple.weather",
         "name": "Weather",
-        "minutes": 0.5
+        "minutes": 1.0
       },
       {
         "app_id": "com.apple.camera",
         "name": "Camera",
-        "minutes": 0.5
+        "minutes": 0.9
       },
       {
         "app_id": "com.apple.MobileSMS",
         "name": "Messages",
-        "minutes": 0.5
+        "minutes": 0.9
       },
       {
         "app_id": "com.netatmo.homecoach",
         "name": "Healthy Home Coach",
-        "minutes": 0.3
+        "minutes": 0.5
       },
       {
         "app_id": "ru.litres.app",
         "name": "Litres: Books and audiobooks",
-        "minutes": 0.2
+        "minutes": 0.3
       },
       {
         "app_id": "com.apple.springboard.home-screen-open-folder",
         "name": "com.apple.springboard.home-screen-open-folder",
-        "minutes": 0.1
+        "minutes": 0.2
       },
       {
         "app_id": "net.whatsapp.WhatsApp",
@@ -3390,152 +3390,152 @@
       {
         "app_id": "com.openai.chat",
         "name": "ChatGPT",
-        "minutes": 0.0
+        "minutes": 0.1
       }
     ]
   },
   "2026-03-01": {
-    "total_minutes": 246.3,
+    "total_minutes": 492.7,
     "apps": [
       {
         "app_id": "com.atebits.Tweetie2",
         "name": "X",
-        "minutes": 95.4
+        "minutes": 190.8
       },
       {
         "app_id": "ph.telegra.Telegraph",
         "name": "Telegram Messenger",
-        "minutes": 34.7
+        "minutes": 69.3
       },
       {
         "app_id": "com.anthropic.claude",
         "name": "Claude by Anthropic",
-        "minutes": 30.7
+        "minutes": 61.4
       },
       {
         "app_id": "ru.yandex.traffic",
         "name": "Yandex Maps & Navigator",
-        "minutes": 28.8
+        "minutes": 57.7
       },
       {
         "app_id": "com.felixrum.supertribes",
         "name": "The Battle of Polytopia",
-        "minutes": 18.2
+        "minutes": 36.5
       },
       {
         "app_id": "ru.kinopoisk",
         "name": "Кинопоиск: фильмы и сериалы",
-        "minutes": 5.3
+        "minutes": 10.6
       },
       {
         "app_id": "com.netatmo.homecoach",
         "name": "Healthy Home Coach",
-        "minutes": 4.1
+        "minutes": 8.1
       },
       {
         "app_id": "com.google.chrome.ios",
         "name": "Google Chrome",
-        "minutes": 3.7
+        "minutes": 7.4
       },
       {
         "app_id": "com.google.gemini",
         "name": "Google Gemini",
-        "minutes": 3.3
+        "minutes": 6.6
       },
       {
         "app_id": "io.meduza.meduzax",
         "name": "Meduza - новости",
-        "minutes": 3.1
+        "minutes": 6.2
       },
       {
         "app_id": "com.omronhealthcare.omronconnect",
         "name": "OMRON connect US/CAN/EMEA",
-        "minutes": 2.7
+        "minutes": 5.4
       },
       {
         "app_id": "ru.yandex.ytaxi",
         "name": "Yandex Go: Taxi Food Market",
-        "minutes": 2.4
+        "minutes": 4.7
       },
       {
         "app_id": "com.apple.Health",
         "name": "Apple Health",
-        "minutes": 1.8
+        "minutes": 3.6
       },
       {
         "app_id": "com.apple.camera",
         "name": "Camera",
-        "minutes": 1.8
+        "minutes": 3.5
       },
       {
         "app_id": "com.readdle.smartemail",
         "name": "Spark AI Email & Calendar",
-        "minutes": 1.3
+        "minutes": 2.6
       },
       {
         "app_id": "com.openai.chat",
         "name": "ChatGPT",
-        "minutes": 1.3
+        "minutes": 2.5
       },
       {
         "app_id": "com.apple.AppStore",
         "name": "com.apple.AppStore",
-        "minutes": 1.2
+        "minutes": 2.4
       },
       {
         "app_id": "HM.wristband",
         "name": "Zepp Life (Formerly MiFit)",
-        "minutes": 0.9
+        "minutes": 1.8
       },
       {
         "app_id": "com.apple.Home",
         "name": "Home",
-        "minutes": 0.9
+        "minutes": 1.7
       },
       {
         "app_id": "com.garmin.connect.mobile",
         "name": "Garmin Connect™",
-        "minutes": 0.8
+        "minutes": 1.6
       },
       {
         "app_id": "com.apple.ScreenshotServicesService",
         "name": "com.apple.ScreenshotServicesService",
-        "minutes": 0.8
+        "minutes": 1.5
       },
       {
         "app_id": "com.lexwarelabs.goodmorning",
         "name": "Sleep Cycle - Tracker & Sounds",
-        "minutes": 0.7
+        "minutes": 1.4
       },
       {
         "app_id": "com.google.Sheets",
         "name": "Google Sheets",
-        "minutes": 0.7
+        "minutes": 1.3
       },
       {
         "app_id": "com.apple.springboard.home-screen-open-folder",
         "name": "com.apple.springboard.home-screen-open-folder",
-        "minutes": 0.5
+        "minutes": 1.1
       },
       {
         "app_id": "com.facebook.Facebook",
         "name": "Facebook",
-        "minutes": 0.5
+        "minutes": 0.9
       },
       {
         "app_id": "com.apple.MobileSMS",
         "name": "Messages",
-        "minutes": 0.5
+        "minutes": 0.9
       },
       {
         "app_id": "com.apple.mobilenotes",
         "name": "Notes",
-        "minutes": 0.2
+        "minutes": 0.4
       },
       {
         "app_id": "com.apple.mobileslideshow",
         "name": "Photos",
-        "minutes": 0.1
+        "minutes": 0.2
       },
       {
         "app_id": "com.liguangming.Shadowrocket",
@@ -3550,177 +3550,177 @@
     ]
   },
   "2026-03-02": {
-    "total_minutes": 145.8,
+    "total_minutes": 291.6,
     "apps": [
       {
         "app_id": "ph.telegra.Telegraph",
         "name": "Telegram Messenger",
-        "minutes": 53.1
+        "minutes": 106.1
       },
       {
         "app_id": "com.atebits.Tweetie2",
         "name": "X",
-        "minutes": 17.7
+        "minutes": 35.4
       },
       {
         "app_id": "com.apple.InCallService",
         "name": "com.apple.InCallService",
-        "minutes": 16.7
+        "minutes": 33.4
       },
       {
         "app_id": "com.felixrum.supertribes",
         "name": "The Battle of Polytopia",
-        "minutes": 9.6
+        "minutes": 19.2
       },
       {
         "app_id": "com.facebook.Facebook",
         "name": "Facebook",
-        "minutes": 7.0
+        "minutes": 14.0
       },
       {
         "app_id": "ru.yandex.ytaxi",
         "name": "Yandex Go: Taxi Food Market",
-        "minutes": 6.0
+        "minutes": 12.0
       },
       {
         "app_id": "com.transferwise.Transferwise",
         "name": "Wise - Global Money",
-        "minutes": 5.8
+        "minutes": 11.7
       },
       {
         "app_id": "ru.yandex.traffic",
         "name": "Yandex Maps & Navigator",
-        "minutes": 4.4
+        "minutes": 8.9
       },
       {
         "app_id": "io.meduza.meduzax",
         "name": "Meduza - новости",
-        "minutes": 3.4
+        "minutes": 6.7
       },
       {
         "app_id": "com.alfoto.app",
         "name": "com.alfoto.app",
-        "minutes": 3.1
+        "minutes": 6.2
       },
       {
         "app_id": "app.ab.banking",
         "name": "АБ24",
-        "minutes": 3.0
+        "minutes": 6.1
       },
       {
         "app_id": "net.whatsapp.WhatsApp",
         "name": "WhatsApp Messenger",
-        "minutes": 2.6
+        "minutes": 5.3
       },
       {
         "app_id": "com.readdle.smartemail",
         "name": "Spark AI Email & Calendar",
-        "minutes": 1.8
+        "minutes": 3.6
       },
       {
         "app_id": "ru.litres.app",
         "name": "Litres: Books and audiobooks",
-        "minutes": 1.6
+        "minutes": 3.2
       },
       {
         "app_id": "com.omronhealthcare.omronconnect",
         "name": "OMRON connect US/CAN/EMEA",
-        "minutes": 1.5
+        "minutes": 3.0
       },
       {
         "app_id": "com.apple.ScreenshotServicesService",
         "name": "com.apple.ScreenshotServicesService",
-        "minutes": 1.0
+        "minutes": 2.0
       },
       {
         "app_id": "com.stimulapps.upass",
         "name": "Мой Пропуск",
-        "minutes": 0.8
+        "minutes": 1.6
       },
       {
         "app_id": "com.apple.calculator",
         "name": "Calculator",
-        "minutes": 0.7
+        "minutes": 1.4
       },
       {
         "app_id": "HM.wristband",
         "name": "Zepp Life (Formerly MiFit)",
-        "minutes": 0.7
+        "minutes": 1.4
       },
       {
         "app_id": "com.strava.stravaride",
         "name": "Strava: Run, Bike, Walk",
-        "minutes": 0.7
+        "minutes": 1.4
       },
       {
         "app_id": "com.apple.control-center",
         "name": "com.apple.control-center",
-        "minutes": 0.7
+        "minutes": 1.4
       },
       {
         "app_id": "com.garmin.connect.mobile",
         "name": "Garmin Connect™",
-        "minutes": 0.6
+        "minutes": 1.3
       },
       {
         "app_id": "com.abnamro.nl.bankieren",
         "name": "ABN AMRO",
-        "minutes": 0.5
+        "minutes": 0.9
       },
       {
         "app_id": "com.apple.mobileslideshow",
         "name": "Photos",
-        "minutes": 0.4
+        "minutes": 0.9
       },
       {
         "app_id": "com.apple.camera",
         "name": "Camera",
-        "minutes": 0.4
+        "minutes": 0.8
       },
       {
         "app_id": "com.netatmo.homecoach",
         "name": "Healthy Home Coach",
-        "minutes": 0.4
+        "minutes": 0.7
       },
       {
         "app_id": "hossin.asaadi.V2Box",
         "name": "V2Box - V2ray Client",
-        "minutes": 0.3
+        "minutes": 0.6
       },
       {
         "app_id": "com.burbn.instagram",
         "name": "Instagram",
-        "minutes": 0.3
+        "minutes": 0.6
       },
       {
         "app_id": "com.apple.mobiletimer",
         "name": "Clock",
-        "minutes": 0.2
+        "minutes": 0.5
       },
       {
         "app_id": "com.apple.springboard.home-screen-open-folder",
         "name": "com.apple.springboard.home-screen-open-folder",
-        "minutes": 0.1
+        "minutes": 0.3
       },
       {
         "app_id": "com.apple.MobileSMS",
         "name": "Messages",
-        "minutes": 0.1
+        "minutes": 0.3
       },
       {
         "app_id": "ru.yandex.mobile.kluch",
         "name": "Yandex ID (ex-Key)",
-        "minutes": 0.1
+        "minutes": 0.2
       },
       {
         "app_id": "com.apple.ClockAngel",
         "name": "com.apple.ClockAngel",
-        "minutes": 0.1
+        "minutes": 0.2
       },
       {
         "app_id": "com.apple.ContinuityCaptureShieldUI",
         "name": "com.apple.ContinuityCaptureShieldUI",
-        "minutes": 0.1
+        "minutes": 0.2
       },
       {
         "app_id": "com.liguangming.Shadowrocket",
@@ -3735,162 +3735,162 @@
     ]
   },
   "2026-03-03": {
-    "total_minutes": 293.2,
+    "total_minutes": 586.4,
     "apps": [
       {
         "app_id": "com.atebits.Tweetie2",
         "name": "X",
-        "minutes": 120.2
+        "minutes": 240.5
       },
       {
         "app_id": "ph.telegra.Telegraph",
         "name": "Telegram Messenger",
-        "minutes": 82.7
+        "minutes": 165.4
       },
       {
         "app_id": "com.facebook.Facebook",
         "name": "Facebook",
-        "minutes": 14.7
+        "minutes": 29.3
       },
       {
         "app_id": "com.anthropic.claude",
         "name": "Claude by Anthropic",
-        "minutes": 14.2
+        "minutes": 28.4
       },
       {
         "app_id": "ru.yandex.traffic",
         "name": "Yandex Maps & Navigator",
-        "minutes": 8.5
+        "minutes": 16.9
       },
       {
         "app_id": "com.apple.InCallService",
         "name": "com.apple.InCallService",
-        "minutes": 7.6
+        "minutes": 15.2
       },
       {
         "app_id": "com.felixrum.supertribes",
         "name": "The Battle of Polytopia",
-        "minutes": 7.1
+        "minutes": 14.1
       },
       {
         "app_id": "io.meduza.meduzax",
         "name": "Meduza - новости",
-        "minutes": 5.7
+        "minutes": 11.4
       },
       {
         "app_id": "com.apple.camera",
         "name": "Camera",
-        "minutes": 5.3
+        "minutes": 10.5
       },
       {
         "app_id": "com.stimulapps.upass",
         "name": "Мой Пропуск",
-        "minutes": 4.3
+        "minutes": 8.7
       },
       {
         "app_id": "ru.doublegis.grymmobile",
         "name": "ru.doublegis.grymmobile",
-        "minutes": 2.8
+        "minutes": 5.5
       },
       {
         "app_id": "com.google.Slides",
         "name": "Google Slides",
-        "minutes": 2.6
+        "minutes": 5.2
       },
       {
         "app_id": "ru.kinopoisk",
         "name": "Кинопоиск: фильмы и сериалы",
-        "minutes": 2.5
+        "minutes": 5.0
       },
       {
         "app_id": "com.omronhealthcare.omronconnect",
         "name": "OMRON connect US/CAN/EMEA",
-        "minutes": 2.5
+        "minutes": 5.0
       },
       {
         "app_id": "com.minsvyaz.gosuslugi",
         "name": "Госуслуги",
-        "minutes": 1.9
+        "minutes": 3.8
       },
       {
         "app_id": "ru.yandex.ytaxi",
         "name": "Yandex Go: Taxi Food Market",
-        "minutes": 1.8
+        "minutes": 3.6
       },
       {
         "app_id": "com.alfoto.app",
         "name": "com.alfoto.app",
-        "minutes": 1.3
+        "minutes": 2.6
       },
       {
         "app_id": "com.garmin.connect.mobile",
         "name": "Garmin Connect™",
-        "minutes": 1.2
+        "minutes": 2.4
       },
       {
         "app_id": "com.bdgt.online",
         "name": "com.bdgt.online",
-        "minutes": 1.1
+        "minutes": 2.1
       },
       {
         "app_id": "com.apple.MobileSMS",
         "name": "Messages",
-        "minutes": 1.0
+        "minutes": 2.0
       },
       {
         "app_id": "com.google.ios.youtube",
         "name": "YouTube",
-        "minutes": 1.0
+        "minutes": 2.0
       },
       {
         "app_id": "com.readdle.smartemail",
         "name": "Spark AI Email & Calendar",
-        "minutes": 0.7
+        "minutes": 1.5
       },
       {
         "app_id": "com.google.chrome.ios",
         "name": "Google Chrome",
-        "minutes": 0.6
+        "minutes": 1.2
       },
       {
         "app_id": "HM.wristband",
         "name": "Zepp Life (Formerly MiFit)",
-        "minutes": 0.5
+        "minutes": 1.1
       },
       {
         "app_id": "com.apple.mobilenotes",
         "name": "Notes",
-        "minutes": 0.3
+        "minutes": 0.6
       },
       {
         "app_id": "app.ab.banking",
         "name": "АБ24",
-        "minutes": 0.3
+        "minutes": 0.6
       },
       {
         "app_id": "com.flexibits.fantastical2.iphone",
         "name": "Fantastical Calendar",
-        "minutes": 0.2
+        "minutes": 0.4
       },
       {
         "app_id": "com.easycatch.sounder",
         "name": "com.easycatch.sounder",
-        "minutes": 0.2
+        "minutes": 0.4
       },
       {
         "app_id": "com.liguangming.Shadowrocket",
         "name": "Shadowrocket",
-        "minutes": 0.2
+        "minutes": 0.3
       },
       {
         "app_id": "com.netatmo.homecoach",
         "name": "Healthy Home Coach",
-        "minutes": 0.1
+        "minutes": 0.3
       },
       {
         "app_id": "com.apple.control-center",
         "name": "com.apple.control-center",
-        "minutes": 0.1
+        "minutes": 0.2
       },
       {
         "app_id": "com.apple.LocalAuthenticationUIService",
@@ -3905,167 +3905,167 @@
     ]
   },
   "2026-03-04": {
-    "total_minutes": 177.5,
+    "total_minutes": 355.0,
     "apps": [
       {
         "app_id": "ph.telegra.Telegraph",
         "name": "Telegram Messenger",
-        "minutes": 86.1
+        "minutes": 172.3
       },
       {
         "app_id": "com.facebook.Facebook",
         "name": "Facebook",
-        "minutes": 20.1
+        "minutes": 40.2
       },
       {
         "app_id": "com.felixrum.supertribes",
         "name": "The Battle of Polytopia",
-        "minutes": 18.3
+        "minutes": 36.5
       },
       {
         "app_id": "ru.yandex.traffic",
         "name": "Yandex Maps & Navigator",
-        "minutes": 16.9
+        "minutes": 33.7
       },
       {
         "app_id": "com.apple.calculator",
         "name": "Calculator",
-        "minutes": 5.7
+        "minutes": 11.3
       },
       {
         "app_id": "ru.litres.app",
         "name": "Litres: Books and audiobooks",
-        "minutes": 4.4
+        "minutes": 8.9
       },
       {
         "app_id": "com.alfoto.app",
         "name": "com.alfoto.app",
-        "minutes": 3.1
+        "minutes": 6.2
       },
       {
         "app_id": "com.atebits.Tweetie2",
         "name": "X",
-        "minutes": 2.4
+        "minutes": 4.9
       },
       {
         "app_id": "com.garmin.connect.mobile",
         "name": "Garmin Connect™",
-        "minutes": 2.2
+        "minutes": 4.4
       },
       {
         "app_id": "app.ab.banking",
         "name": "АБ24",
-        "minutes": 2.2
+        "minutes": 4.3
       },
       {
         "app_id": "com.readdle.smartemail",
         "name": "Spark AI Email & Calendar",
-        "minutes": 2.1
+        "minutes": 4.2
       },
       {
         "app_id": "net.whatsapp.WhatsApp",
         "name": "WhatsApp Messenger",
-        "minutes": 1.9
+        "minutes": 3.8
       },
       {
         "app_id": "io.meduza.meduzax",
         "name": "Meduza - новости",
-        "minutes": 1.3
+        "minutes": 2.6
       },
       {
         "app_id": "com.anthropic.claude",
         "name": "Claude by Anthropic",
-        "minutes": 1.2
+        "minutes": 2.5
       },
       {
         "app_id": "com.flexibits.fantastical2.iphone",
         "name": "Fantastical Calendar",
-        "minutes": 1.0
+        "minutes": 2.1
       },
       {
         "app_id": "ru.yandex.ytaxi",
         "name": "Yandex Go: Taxi Food Market",
-        "minutes": 1.0
+        "minutes": 2.0
       },
       {
         "app_id": "com.omronhealthcare.omronconnect",
         "name": "OMRON connect US/CAN/EMEA",
-        "minutes": 1.0
+        "minutes": 2.0
       },
       {
         "app_id": "com.todoist.ios",
         "name": "Todoist: To Do List & Calendar",
-        "minutes": 0.9
+        "minutes": 1.7
       },
       {
         "app_id": "com.apple.InCallService",
         "name": "com.apple.InCallService",
-        "minutes": 0.8
+        "minutes": 1.6
       },
       {
         "app_id": "com.apple.mobiletimer",
         "name": "Clock",
-        "minutes": 0.7
+        "minutes": 1.3
       },
       {
         "app_id": "com.google.chrome.ios",
         "name": "Google Chrome",
-        "minutes": 0.7
+        "minutes": 1.3
       },
       {
         "app_id": "com.stimulapps.upass",
         "name": "Мой Пропуск",
-        "minutes": 0.6
+        "minutes": 1.2
       },
       {
         "app_id": "com.apple.ContinuityCaptureShieldUI",
         "name": "com.apple.ContinuityCaptureShieldUI",
-        "minutes": 0.6
+        "minutes": 1.1
       },
       {
         "app_id": "HM.wristband",
         "name": "Zepp Life (Formerly MiFit)",
-        "minutes": 0.5
+        "minutes": 1.0
       },
       {
         "app_id": "com.apple.camera",
         "name": "Camera",
-        "minutes": 0.4
+        "minutes": 0.8
       },
       {
         "app_id": "com.apple.MobileSMS",
         "name": "Messages",
-        "minutes": 0.4
+        "minutes": 0.7
       },
       {
         "app_id": "com.netatmo.homecoach",
         "name": "Healthy Home Coach",
-        "minutes": 0.3
+        "minutes": 0.5
       },
       {
         "app_id": "com.easycatch.sounder",
         "name": "com.easycatch.sounder",
-        "minutes": 0.3
+        "minutes": 0.5
       },
       {
         "app_id": "com.apple.mobilenotes",
         "name": "Notes",
-        "minutes": 0.2
+        "minutes": 0.4
       },
       {
         "app_id": "com.transferwise.Transferwise",
         "name": "Wise - Global Money",
-        "minutes": 0.2
+        "minutes": 0.4
       },
       {
         "app_id": "com.google.Translate",
         "name": "Google Translate",
-        "minutes": 0.2
+        "minutes": 0.4
       },
       {
         "app_id": "com.apple.ScreenshotServicesService",
         "name": "com.apple.ScreenshotServicesService",
-        "minutes": 0.0
+        "minutes": 0.1
       },
       {
         "app_id": "com.apple.springboard.home-screen-open-folder",
@@ -4075,182 +4075,182 @@
     ]
   },
   "2026-03-05": {
-    "total_minutes": 185.6,
+    "total_minutes": 371.1,
     "apps": [
       {
         "app_id": "ph.telegra.Telegraph",
         "name": "Telegram Messenger",
-        "minutes": 49.5
+        "minutes": 98.9
       },
       {
         "app_id": "com.felixrum.supertribes",
         "name": "The Battle of Polytopia",
-        "minutes": 44.2
+        "minutes": 88.5
       },
       {
         "app_id": "com.atebits.Tweetie2",
         "name": "X",
-        "minutes": 23.7
+        "minutes": 47.3
       },
       {
         "app_id": "com.facebook.Facebook",
         "name": "Facebook",
-        "minutes": 12.9
+        "minutes": 25.8
       },
       {
         "app_id": "ru.yandex.ytaxi",
         "name": "Yandex Go: Taxi Food Market",
-        "minutes": 9.8
+        "minutes": 19.5
       },
       {
         "app_id": "com.burbn.instagram",
         "name": "Instagram",
-        "minutes": 8.9
+        "minutes": 17.7
       },
       {
         "app_id": "ru.yandex.traffic",
         "name": "Yandex Maps & Navigator",
-        "minutes": 7.3
+        "minutes": 14.6
       },
       {
         "app_id": "com.openai.chat",
         "name": "ChatGPT",
-        "minutes": 6.5
+        "minutes": 12.9
       },
       {
         "app_id": "com.alfoto.app",
         "name": "com.alfoto.app",
-        "minutes": 2.4
+        "minutes": 4.9
       },
       {
         "app_id": "com.flexibits.fantastical2.iphone",
         "name": "Fantastical Calendar",
-        "minutes": 2.2
+        "minutes": 4.4
       },
       {
         "app_id": "com.stimulapps.upass",
         "name": "Мой Пропуск",
-        "minutes": 2.1
+        "minutes": 4.3
       },
       {
         "app_id": "com.readdle.smartemail",
         "name": "Spark AI Email & Calendar",
-        "minutes": 2.0
+        "minutes": 4.0
       },
       {
         "app_id": "com.apple.mobilephone",
         "name": "Phone",
-        "minutes": 1.6
+        "minutes": 3.3
       },
       {
         "app_id": "io.meduza.meduzax",
         "name": "Meduza - новости",
-        "minutes": 1.5
+        "minutes": 2.9
       },
       {
         "app_id": "com.apple.AppStore",
         "name": "com.apple.AppStore",
-        "minutes": 1.4
+        "minutes": 2.7
       },
       {
         "app_id": "com.apple.InCallService",
         "name": "com.apple.InCallService",
-        "minutes": 1.2
+        "minutes": 2.4
       },
       {
         "app_id": "com.anthropic.claude",
         "name": "Claude by Anthropic",
-        "minutes": 1.0
+        "minutes": 1.9
       },
       {
         "app_id": "com.omronhealthcare.omronconnect",
         "name": "OMRON connect US/CAN/EMEA",
-        "minutes": 0.9
+        "minutes": 1.9
       },
       {
         "app_id": "app.ab.banking",
         "name": "АБ24",
-        "minutes": 0.9
+        "minutes": 1.8
       },
       {
         "app_id": "com.garmin.connect.mobile",
         "name": "Garmin Connect™",
-        "minutes": 0.9
+        "minutes": 1.7
       },
       {
         "app_id": "com.apple.MobileSMS",
         "name": "Messages",
-        "minutes": 0.9
+        "minutes": 1.7
       },
       {
         "app_id": "com.google.Sheets",
         "name": "Google Sheets",
-        "minutes": 0.9
+        "minutes": 1.7
       },
       {
         "app_id": "com.apple.mobileslideshow",
         "name": "Photos",
-        "minutes": 0.6
+        "minutes": 1.2
       },
       {
         "app_id": "com.google.chrome.ios",
         "name": "Google Chrome",
-        "minutes": 0.5
+        "minutes": 0.9
       },
       {
         "app_id": "com.apple.camera",
         "name": "Camera",
-        "minutes": 0.3
+        "minutes": 0.7
       },
       {
         "app_id": "com.apple.ClockAngel",
         "name": "com.apple.ClockAngel",
-        "minutes": 0.3
+        "minutes": 0.7
       },
       {
         "app_id": "com.netatmo.homecoach",
         "name": "Healthy Home Coach",
-        "minutes": 0.3
+        "minutes": 0.6
       },
       {
         "app_id": "HM.wristband",
         "name": "Zepp Life (Formerly MiFit)",
-        "minutes": 0.3
+        "minutes": 0.6
       },
       {
         "app_id": "com.liguangming.Shadowrocket",
         "name": "Shadowrocket",
-        "minutes": 0.2
+        "minutes": 0.4
       },
       {
         "app_id": "com.apple.mobilenotes",
         "name": "Notes",
-        "minutes": 0.1
+        "minutes": 0.3
       },
       {
         "app_id": "com.apple.mobiletimer",
         "name": "Clock",
-        "minutes": 0.1
+        "minutes": 0.3
       },
       {
         "app_id": "com.apple.springboard.home-screen-open-folder",
         "name": "com.apple.springboard.home-screen-open-folder",
-        "minutes": 0.1
+        "minutes": 0.2
       },
       {
         "app_id": "com.apple.LocalAuthenticationUIService",
         "name": "com.apple.LocalAuthenticationUIService",
-        "minutes": 0.0
+        "minutes": 0.1
       },
       {
         "app_id": "com.apple.control-center",
         "name": "com.apple.control-center",
-        "minutes": 0.0
+        "minutes": 0.1
       },
       {
         "app_id": "com.apple.Preferences",
         "name": "com.apple.Preferences",
-        "minutes": 0.0
+        "minutes": 0.1
       },
       {
         "app_id": "com.apple.springboard.today-view",
@@ -4260,142 +4260,142 @@
     ]
   },
   "2026-03-06": {
-    "total_minutes": 165.5,
+    "total_minutes": 330.9,
     "apps": [
       {
         "app_id": "ph.telegra.Telegraph",
         "name": "Telegram Messenger",
-        "minutes": 118.4
+        "minutes": 236.9
       },
       {
         "app_id": "com.bitrixsoft.cpmobile",
         "name": "Bitrix24",
-        "minutes": 6.8
+        "minutes": 13.5
       },
       {
         "app_id": "com.anthropic.claude",
         "name": "Claude by Anthropic",
-        "minutes": 5.5
+        "minutes": 10.9
       },
       {
         "app_id": "com.apple.InCallService",
         "name": "com.apple.InCallService",
-        "minutes": 4.1
+        "minutes": 8.3
       },
       {
         "app_id": "ru.yandex.traffic",
         "name": "Yandex Maps & Navigator",
-        "minutes": 3.8
+        "minutes": 7.5
       },
       {
         "app_id": "com.alfoto.app",
         "name": "com.alfoto.app",
-        "minutes": 3.3
+        "minutes": 6.6
       },
       {
         "app_id": "com.openai.chat",
         "name": "ChatGPT",
-        "minutes": 2.3
+        "minutes": 4.5
       },
       {
         "app_id": "com.apple.Preferences",
         "name": "com.apple.Preferences",
-        "minutes": 2.2
+        "minutes": 4.5
       },
       {
         "app_id": "com.apple.ScreenshotServicesService",
         "name": "com.apple.ScreenshotServicesService",
-        "minutes": 2.1
+        "minutes": 4.3
       },
       {
         "app_id": "com.omronhealthcare.omronconnect",
         "name": "OMRON connect US/CAN/EMEA",
-        "minutes": 2.0
+        "minutes": 4.1
       },
       {
         "app_id": "ai.perplexity.app",
         "name": "Perplexity - AI Search & Chat",
-        "minutes": 1.8
+        "minutes": 3.7
       },
       {
         "app_id": "com.google.chrome.ios",
         "name": "Google Chrome",
-        "minutes": 1.8
+        "minutes": 3.6
       },
       {
         "app_id": "com.readdle.smartemail",
         "name": "Spark AI Email & Calendar",
-        "minutes": 1.8
+        "minutes": 3.5
       },
       {
         "app_id": "app.ab.banking",
         "name": "АБ24",
-        "minutes": 1.6
+        "minutes": 3.1
       },
       {
         "app_id": "com.apple.mobilenotes",
         "name": "Notes",
-        "minutes": 1.4
+        "minutes": 2.8
       },
       {
         "app_id": "com.garmin.connect.mobile",
         "name": "Garmin Connect™",
-        "minutes": 1.4
+        "minutes": 2.8
       },
       {
         "app_id": "com.easycatch.sounder",
         "name": "com.easycatch.sounder",
-        "minutes": 1.1
+        "minutes": 2.2
       },
       {
         "app_id": "com.apple.AppStore",
         "name": "com.apple.AppStore",
-        "minutes": 0.9
+        "minutes": 1.9
       },
       {
         "app_id": "com.liguangming.Shadowrocket",
         "name": "Shadowrocket",
-        "minutes": 0.9
+        "minutes": 1.7
       },
       {
         "app_id": "com.apple.MobileSMS",
         "name": "Messages",
-        "minutes": 0.5
+        "minutes": 0.9
       },
       {
         "app_id": "com.stimulapps.upass",
         "name": "Мой Пропуск",
-        "minutes": 0.4
+        "minutes": 0.8
       },
       {
         "app_id": "ru.yandex.ytaxi",
         "name": "Yandex Go: Taxi Food Market",
-        "minutes": 0.3
+        "minutes": 0.7
       },
       {
         "app_id": "com.apple.springboard.today-view",
         "name": "com.apple.springboard.today-view",
-        "minutes": 0.3
+        "minutes": 0.7
       },
       {
         "app_id": "com.apple.mobiletimer",
         "name": "Clock",
-        "minutes": 0.3
+        "minutes": 0.5
       },
       {
         "app_id": "com.apple.mobilephone",
         "name": "Phone",
-        "minutes": 0.1
+        "minutes": 0.3
       },
       {
         "app_id": "com.apple.control-center",
         "name": "com.apple.control-center",
-        "minutes": 0.1
+        "minutes": 0.2
       },
       {
         "app_id": "com.apple.camera",
         "name": "Camera",
-        "minutes": 0.1
+        "minutes": 0.2
       },
       {
         "app_id": "com.netatmo.homecoach",
@@ -4415,152 +4415,152 @@
     ]
   },
   "2026-03-07": {
-    "total_minutes": 196.9,
+    "total_minutes": 393.9,
     "apps": [
       {
         "app_id": "ph.telegra.Telegraph",
         "name": "Telegram Messenger",
-        "minutes": 75.5
+        "minutes": 151.0
       },
       {
         "app_id": "ru.yandex.traffic",
         "name": "Yandex Maps & Navigator",
-        "minutes": 26.4
+        "minutes": 52.9
       },
       {
         "app_id": "com.openai.chat",
         "name": "ChatGPT",
-        "minutes": 24.5
+        "minutes": 48.9
       },
       {
         "app_id": "com.anthropic.claude",
         "name": "Claude by Anthropic",
-        "minutes": 11.9
+        "minutes": 23.7
       },
       {
         "app_id": "com.felixrum.supertribes",
         "name": "The Battle of Polytopia",
-        "minutes": 10.3
+        "minutes": 20.6
       },
       {
         "app_id": "io.meduza.meduzax",
         "name": "Meduza - новости",
-        "minutes": 9.4
+        "minutes": 18.8
       },
       {
         "app_id": "com.facebook.Facebook",
         "name": "Facebook",
-        "minutes": 8.2
+        "minutes": 16.4
       },
       {
         "app_id": "com.apple.camera",
         "name": "Camera",
-        "minutes": 7.1
+        "minutes": 14.2
       },
       {
         "app_id": "com.abnamro.nl.bankieren",
         "name": "ABN AMRO",
-        "minutes": 6.0
+        "minutes": 12.1
       },
       {
         "app_id": "ru.yandex.ytaxi",
         "name": "Yandex Go: Taxi Food Market",
-        "minutes": 4.3
+        "minutes": 8.5
       },
       {
         "app_id": "com.apple.control-center",
         "name": "com.apple.control-center",
-        "minutes": 3.7
+        "minutes": 7.3
       },
       {
         "app_id": "com.google.chrome.ios",
         "name": "Google Chrome",
-        "minutes": 1.8
+        "minutes": 3.5
       },
       {
         "app_id": "com.netatmo.homecoach",
         "name": "Healthy Home Coach",
-        "minutes": 1.5
+        "minutes": 2.9
       },
       {
         "app_id": "com.garmin.connect.mobile",
         "name": "Garmin Connect™",
-        "minutes": 1.3
+        "minutes": 2.6
       },
       {
         "app_id": "com.apple.mobileslideshow",
         "name": "Photos",
-        "minutes": 0.9
+        "minutes": 1.8
       },
       {
         "app_id": "com.apple.ScreenshotServicesService",
         "name": "com.apple.ScreenshotServicesService",
-        "minutes": 0.7
+        "minutes": 1.4
       },
       {
         "app_id": "com.atebits.Tweetie2",
         "name": "X",
-        "minutes": 0.6
+        "minutes": 1.2
       },
       {
         "app_id": "com.apple.InCallService",
         "name": "com.apple.InCallService",
-        "minutes": 0.6
+        "minutes": 1.2
       },
       {
         "app_id": "com.apple.mobilephone",
         "name": "Phone",
-        "minutes": 0.4
+        "minutes": 0.9
       },
       {
         "app_id": "com.apple.Preferences",
         "name": "com.apple.Preferences",
-        "minutes": 0.4
+        "minutes": 0.7
       },
       {
         "app_id": "com.alfoto.app",
         "name": "com.alfoto.app",
-        "minutes": 0.3
+        "minutes": 0.7
       },
       {
         "app_id": "com.apple.mobiletimer",
         "name": "Clock",
-        "minutes": 0.2
+        "minutes": 0.4
       },
       {
         "app_id": "com.apple.MobileSMS",
         "name": "Messages",
-        "minutes": 0.2
+        "minutes": 0.4
       },
       {
         "app_id": "com.easycatch.sounder",
         "name": "com.easycatch.sounder",
-        "minutes": 0.2
+        "minutes": 0.4
       },
       {
         "app_id": "com.apple.ClockAngel",
         "name": "com.apple.ClockAngel",
-        "minutes": 0.2
+        "minutes": 0.4
       },
       {
         "app_id": "com.todoist.ios",
         "name": "Todoist: To Do List & Calendar",
-        "minutes": 0.2
+        "minutes": 0.3
       },
       {
         "app_id": "com.apple.mobilenotes",
         "name": "Notes",
-        "minutes": 0.1
+        "minutes": 0.3
       },
       {
         "app_id": "app.ab.banking",
         "name": "АБ24",
-        "minutes": 0.1
+        "minutes": 0.2
       },
       {
         "app_id": "com.apple.springboard.home-screen-open-folder",
         "name": "com.apple.springboard.home-screen-open-folder",
-        "minutes": 0.0
+        "minutes": 0.1
       },
       {
         "app_id": "com.apple.springboard.today-view",
@@ -4570,92 +4570,852 @@
     ]
   },
   "2026-03-08": {
-    "total_minutes": 380.2,
+    "total_minutes": 760.4,
     "apps": [
       {
         "app_id": "com.burbn.instagram",
         "name": "Instagram",
-        "minutes": 137.1
+        "minutes": 274.3
       },
       {
         "app_id": "com.google.chrome.ios",
         "name": "Google Chrome",
-        "minutes": 121.6
+        "minutes": 243.2
       },
       {
         "app_id": "com.atebits.Tweetie2",
         "name": "X",
-        "minutes": 44.6
+        "minutes": 89.2
       },
       {
         "app_id": "ph.telegra.Telegraph",
         "name": "Telegram Messenger",
-        "minutes": 18.0
+        "minutes": 35.9
       },
       {
         "app_id": "com.apple.mobiletimer",
         "name": "Clock",
-        "minutes": 17.3
+        "minutes": 34.5
       },
       {
         "app_id": "com.felixrum.supertribes",
         "name": "The Battle of Polytopia",
-        "minutes": 10.5
+        "minutes": 21.0
       },
       {
         "app_id": "ru.yandex.mobile.music",
         "name": "ru.yandex.mobile.music",
-        "minutes": 8.3
+        "minutes": 16.6
       },
       {
         "app_id": "io.meduza.meduzax",
         "name": "Meduza - новости",
-        "minutes": 4.0
+        "minutes": 8.0
       },
       {
         "app_id": "com.omronhealthcare.omronconnect",
         "name": "OMRON connect US/CAN/EMEA",
-        "minutes": 2.5
+        "minutes": 5.0
       },
       {
         "app_id": "com.alfoto.app",
         "name": "com.alfoto.app",
-        "minutes": 2.5
+        "minutes": 4.9
       },
       {
         "app_id": "app.ab.banking",
         "name": "АБ24",
-        "minutes": 2.4
+        "minutes": 4.7
       },
       {
         "app_id": "com.apple.mobileslideshow",
         "name": "Photos",
-        "minutes": 1.8
+        "minutes": 3.7
       },
       {
         "app_id": "com.apple.InCallService",
         "name": "com.apple.InCallService",
-        "minutes": 1.6
+        "minutes": 3.2
       },
       {
         "app_id": "ru.yandex.traffic",
         "name": "Yandex Maps & Navigator",
-        "minutes": 1.1
+        "minutes": 2.2
       },
       {
         "app_id": "com.garmin.connect.mobile",
         "name": "Garmin Connect™",
-        "minutes": 1.0
+        "minutes": 1.9
       },
       {
         "app_id": "com.apple.control-center",
         "name": "com.apple.control-center",
-        "minutes": 0.8
+        "minutes": 1.5
       },
       {
         "app_id": "HM.wristband",
         "name": "Zepp Life (Formerly MiFit)",
+        "minutes": 1.5
+      },
+      {
+        "app_id": "com.1password.1password",
+        "name": "1Password: Password Manager",
+        "minutes": 1.4
+      },
+      {
+        "app_id": "com.apple.camera",
+        "name": "Camera",
+        "minutes": 1.4
+      },
+      {
+        "app_id": "com.netatmo.homecoach",
+        "name": "Healthy Home Coach",
+        "minutes": 1.1
+      },
+      {
+        "app_id": "com.apple.Preferences",
+        "name": "com.apple.Preferences",
+        "minutes": 1.0
+      },
+      {
+        "app_id": "ru.yandex.ytaxi",
+        "name": "Yandex Go: Taxi Food Market",
         "minutes": 0.7
+      },
+      {
+        "app_id": "com.flexibits.fantastical2.iphone",
+        "name": "Fantastical Calendar",
+        "minutes": 0.6
+      },
+      {
+        "app_id": "com.apple.MobileSMS",
+        "name": "Messages",
+        "minutes": 0.6
+      },
+      {
+        "app_id": "com.apple.mobilephone",
+        "name": "Phone",
+        "minutes": 0.5
+      },
+      {
+        "app_id": "com.readdle.smartemail",
+        "name": "Spark AI Email & Calendar",
+        "minutes": 0.5
+      },
+      {
+        "app_id": "net.whatsapp.WhatsApp",
+        "name": "WhatsApp Messenger",
+        "minutes": 0.4
+      },
+      {
+        "app_id": "com.apple.springboard.today-view",
+        "name": "com.apple.springboard.today-view",
+        "minutes": 0.4
+      },
+      {
+        "app_id": "com.google.Translate",
+        "name": "Google Translate",
+        "minutes": 0.3
+      },
+      {
+        "app_id": "com.apple.mobilenotes",
+        "name": "Notes",
+        "minutes": 0.2
+      },
+      {
+        "app_id": "com.apple.springboard.home-screen-open-folder",
+        "name": "com.apple.springboard.home-screen-open-folder",
+        "minutes": 0.1
+      }
+    ]
+  },
+  "2026-03-09": {
+    "total_minutes": 614.7,
+    "apps": [
+      {
+        "app_id": "com.google.chrome.ios",
+        "name": "Google Chrome",
+        "minutes": 188.4
+      },
+      {
+        "app_id": "com.atebits.Tweetie2",
+        "name": "X",
+        "minutes": 146.9
+      },
+      {
+        "app_id": "ph.telegra.Telegraph",
+        "name": "Telegram Messenger",
+        "minutes": 79.5
+      },
+      {
+        "app_id": "com.felixrum.supertribes",
+        "name": "The Battle of Polytopia",
+        "minutes": 50.7
+      },
+      {
+        "app_id": "com.betteryes.clearspace",
+        "name": "ClearSpace: Reduce Screen Time",
+        "minutes": 42.9
+      },
+      {
+        "app_id": "ru.yandex.ytaxi",
+        "name": "Yandex Go: Taxi Food Market",
+        "minutes": 31.2
+      },
+      {
+        "app_id": "io.meduza.meduzax",
+        "name": "Meduza - новости",
+        "minutes": 10.3
+      },
+      {
+        "app_id": "com.garmin.connect.mobile",
+        "name": "Garmin Connect™",
+        "minutes": 6.6
+      },
+      {
+        "app_id": "com.stimulapps.upass",
+        "name": "Мой Пропуск",
+        "minutes": 6.2
+      },
+      {
+        "app_id": "com.apple.Preferences",
+        "name": "com.apple.Preferences",
+        "minutes": 5.7
+      },
+      {
+        "app_id": "com.omronhealthcare.omronconnect",
+        "name": "OMRON connect US/CAN/EMEA",
+        "minutes": 5.4
+      },
+      {
+        "app_id": "com.apple.Health",
+        "name": "Apple Health",
+        "minutes": 4.6
+      },
+      {
+        "app_id": "com.apple.ScreenshotServicesService",
+        "name": "com.apple.ScreenshotServicesService",
+        "minutes": 3.6
+      },
+      {
+        "app_id": "ru.litres.app",
+        "name": "Litres: Books and audiobooks",
+        "minutes": 3.5
+      },
+      {
+        "app_id": "com.alfoto.app",
+        "name": "com.alfoto.app",
+        "minutes": 3.5
+      },
+      {
+        "app_id": "com.netatmo.homecoach",
+        "name": "Healthy Home Coach",
+        "minutes": 3.5
+      },
+      {
+        "app_id": "com.apple.AppStore",
+        "name": "com.apple.AppStore",
+        "minutes": 2.9
+      },
+      {
+        "app_id": "com.anthropic.claude",
+        "name": "Claude by Anthropic",
+        "minutes": 2.7
+      },
+      {
+        "app_id": "ru.yandex.traffic",
+        "name": "Yandex Maps & Navigator",
+        "minutes": 2.4
+      },
+      {
+        "app_id": "com.apple.InCallService",
+        "name": "com.apple.InCallService",
+        "minutes": 2.4
+      },
+      {
+        "app_id": "com.readdle.smartemail",
+        "name": "Spark AI Email & Calendar",
+        "minutes": 2.3
+      },
+      {
+        "app_id": "com.flexibits.fantastical2.iphone",
+        "name": "Fantastical Calendar",
+        "minutes": 1.8
+      },
+      {
+        "app_id": "com.openai.chat",
+        "name": "ChatGPT",
+        "minutes": 1.5
+      },
+      {
+        "app_id": "com.apple.ContinuityCaptureShieldUI",
+        "name": "com.apple.ContinuityCaptureShieldUI",
+        "minutes": 1.1
+      },
+      {
+        "app_id": "com.bitrixsoft.cpmobile",
+        "name": "Bitrix24",
+        "minutes": 1.0
+      },
+      {
+        "app_id": "HM.wristband",
+        "name": "Zepp Life (Formerly MiFit)",
+        "minutes": 0.6
+      },
+      {
+        "app_id": "com.apple.MobileSMS",
+        "name": "Messages",
+        "minutes": 0.6
+      },
+      {
+        "app_id": "com.google.GoogleMobile",
+        "name": "Google",
+        "minutes": 0.5
+      },
+      {
+        "app_id": "ru.mts.mymts",
+        "name": "Мой МТС",
+        "minutes": 0.4
+      },
+      {
+        "app_id": "com.liguangming.Shadowrocket",
+        "name": "Shadowrocket",
+        "minutes": 0.4
+      },
+      {
+        "app_id": "com.google.Translate",
+        "name": "Google Translate",
+        "minutes": 0.4
+      },
+      {
+        "app_id": "com.apple.ClockAngel",
+        "name": "com.apple.ClockAngel",
+        "minutes": 0.3
+      },
+      {
+        "app_id": "com.apple.FCAuthenticationUI",
+        "name": "com.apple.FCAuthenticationUI",
+        "minutes": 0.2
+      },
+      {
+        "app_id": "com.apple.WebSheet",
+        "name": "com.apple.WebSheet",
+        "minutes": 0.2
+      },
+      {
+        "app_id": "com.apple.PassbookUIService",
+        "name": "com.apple.PassbookUIService",
+        "minutes": 0.1
+      },
+      {
+        "app_id": "com.facebook.Facebook",
+        "name": "Facebook",
+        "minutes": 0.1
+      },
+      {
+        "app_id": "com.apple.LocalAuthenticationUIService",
+        "name": "com.apple.LocalAuthenticationUIService",
+        "minutes": 0.1
+      },
+      {
+        "app_id": "com.apple.springboard.home-screen-open-folder",
+        "name": "com.apple.springboard.home-screen-open-folder",
+        "minutes": 0.1
+      }
+    ]
+  },
+  "2026-03-10": {
+    "total_minutes": 181.0,
+    "apps": [
+      {
+        "app_id": "ph.telegra.Telegraph",
+        "name": "Telegram Messenger",
+        "minutes": 66.5
+      },
+      {
+        "app_id": "com.atebits.Tweetie2",
+        "name": "X",
+        "minutes": 32.9
+      },
+      {
+        "app_id": "com.felixrum.supertribes",
+        "name": "The Battle of Polytopia",
+        "minutes": 20.5
+      },
+      {
+        "app_id": "HM.wristband",
+        "name": "Zepp Life (Formerly MiFit)",
+        "minutes": 11.3
+      },
+      {
+        "app_id": "ru.yandex.traffic",
+        "name": "Yandex Maps & Navigator",
+        "minutes": 11.2
+      },
+      {
+        "app_id": "ru.litres.app",
+        "name": "Litres: Books and audiobooks",
+        "minutes": 4.6
+      },
+      {
+        "app_id": "com.facebook.Facebook",
+        "name": "Facebook",
+        "minutes": 3.7
+      },
+      {
+        "app_id": "ru.yandex.ytaxi",
+        "name": "Yandex Go: Taxi Food Market",
+        "minutes": 3.5
+      },
+      {
+        "app_id": "com.apple.InCallService",
+        "name": "com.apple.InCallService",
+        "minutes": 3.4
+      },
+      {
+        "app_id": "com.garmin.connect.mobile",
+        "name": "Garmin Connect™",
+        "minutes": 2.9
+      },
+      {
+        "app_id": "com.bitrixsoft.cpmobile",
+        "name": "Bitrix24",
+        "minutes": 2.6
+      },
+      {
+        "app_id": "com.apple.mobileslideshow",
+        "name": "Photos",
+        "minutes": 2.6
+      },
+      {
+        "app_id": "com.openai.chat",
+        "name": "ChatGPT",
+        "minutes": 2.0
+      },
+      {
+        "app_id": "app.ab.banking",
+        "name": "АБ24",
+        "minutes": 2.0
+      },
+      {
+        "app_id": "com.apple.mobilenotes",
+        "name": "Notes",
+        "minutes": 1.8
+      },
+      {
+        "app_id": "com.google.chrome.ios",
+        "name": "Google Chrome",
+        "minutes": 1.5
+      },
+      {
+        "app_id": "com.apple.MobileSMS",
+        "name": "Messages",
+        "minutes": 1.1
+      },
+      {
+        "app_id": "com.stimulapps.upass",
+        "name": "Мой Пропуск",
+        "minutes": 1.1
+      },
+      {
+        "app_id": "com.alfoto.app",
+        "name": "com.alfoto.app",
+        "minutes": 1.1
+      },
+      {
+        "app_id": "com.apple.WebSheet",
+        "name": "com.apple.WebSheet",
+        "minutes": 0.8
+      },
+      {
+        "app_id": "com.apple.Health",
+        "name": "Apple Health",
+        "minutes": 0.7
+      },
+      {
+        "app_id": "com.apple.ScreenshotServicesService",
+        "name": "com.apple.ScreenshotServicesService",
+        "minutes": 0.6
+      },
+      {
+        "app_id": "com.burbn.instagram",
+        "name": "Instagram",
+        "minutes": 0.5
+      },
+      {
+        "app_id": "com.apple.Preferences",
+        "name": "com.apple.Preferences",
+        "minutes": 0.5
+      },
+      {
+        "app_id": "com.apple.mobilephone",
+        "name": "Phone",
+        "minutes": 0.4
+      },
+      {
+        "app_id": "com.apple.mobiletimer",
+        "name": "Clock",
+        "minutes": 0.3
+      },
+      {
+        "app_id": "com.readdle.smartemail",
+        "name": "Spark AI Email & Calendar",
+        "minutes": 0.2
+      },
+      {
+        "app_id": "io.meduza.meduzax",
+        "name": "Meduza - новости",
+        "minutes": 0.2
+      },
+      {
+        "app_id": "net.whatsapp.WhatsApp",
+        "name": "WhatsApp Messenger",
+        "minutes": 0.1
+      },
+      {
+        "app_id": "com.netatmo.homecoach",
+        "name": "Healthy Home Coach",
+        "minutes": 0.1
+      },
+      {
+        "app_id": "com.apple.AuthKitUIService",
+        "name": "com.apple.AuthKitUIService",
+        "minutes": 0.1
+      },
+      {
+        "app_id": "com.apple.springboard.home-screen-open-folder",
+        "name": "com.apple.springboard.home-screen-open-folder",
+        "minutes": 0.1
+      },
+      {
+        "app_id": "com.apple.LocalAuthenticationUIService",
+        "name": "com.apple.LocalAuthenticationUIService",
+        "minutes": 0.1
+      },
+      {
+        "app_id": "com.apple.camera",
+        "name": "Camera",
+        "minutes": 0.0
+      },
+      {
+        "app_id": "ai.perplexity.app",
+        "name": "Perplexity - AI Search & Chat",
+        "minutes": 0.0
+      },
+      {
+        "app_id": "com.apple.control-center",
+        "name": "com.apple.control-center",
+        "minutes": 0.0
+      },
+      {
+        "app_id": "com.apple.springboard.today-view",
+        "name": "com.apple.springboard.today-view",
+        "minutes": 0.0
+      }
+    ]
+  },
+  "2026-03-11": {
+    "total_minutes": 167.5,
+    "apps": [
+      {
+        "app_id": "ph.telegra.Telegraph",
+        "name": "Telegram Messenger",
+        "minutes": 65.8
+      },
+      {
+        "app_id": "com.felixrum.supertribes",
+        "name": "The Battle of Polytopia",
+        "minutes": 25.6
+      },
+      {
+        "app_id": "ru.yandex.traffic",
+        "name": "Yandex Maps & Navigator",
+        "minutes": 11.9
+      },
+      {
+        "app_id": "com.atebits.Tweetie2",
+        "name": "X",
+        "minutes": 10.2
+      },
+      {
+        "app_id": "ru.litres.app",
+        "name": "Litres: Books and audiobooks",
+        "minutes": 7.5
+      },
+      {
+        "app_id": "com.facebook.Facebook",
+        "name": "Facebook",
+        "minutes": 7.1
+      },
+      {
+        "app_id": "ru.doublegis.grymmobile",
+        "name": "ru.doublegis.grymmobile",
+        "minutes": 6.0
+      },
+      {
+        "app_id": "com.garmin.connect.mobile",
+        "name": "Garmin Connect™",
+        "minutes": 3.2
+      },
+      {
+        "app_id": "io.meduza.meduzax",
+        "name": "Meduza - новости",
+        "minutes": 3.1
+      },
+      {
+        "app_id": "com.apple.MobileSMS",
+        "name": "Messages",
+        "minutes": 2.8
+      },
+      {
+        "app_id": "app.ab.banking",
+        "name": "АБ24",
+        "minutes": 2.3
+      },
+      {
+        "app_id": "com.apple.Preferences",
+        "name": "com.apple.Preferences",
+        "minutes": 2.2
+      },
+      {
+        "app_id": "com.todoist.ios",
+        "name": "Todoist: To Do List & Calendar",
+        "minutes": 2.0
+      },
+      {
+        "app_id": "com.apple.InCallService",
+        "name": "com.apple.InCallService",
+        "minutes": 1.7
+      },
+      {
+        "app_id": "com.readdle.smartemail",
+        "name": "Spark AI Email & Calendar",
+        "minutes": 1.7
+      },
+      {
+        "app_id": "HM.wristband",
+        "name": "Zepp Life (Formerly MiFit)",
+        "minutes": 1.7
+      },
+      {
+        "app_id": "com.alfoto.app",
+        "name": "com.alfoto.app",
+        "minutes": 1.4
+      },
+      {
+        "app_id": "com.apple.mobilenotes",
+        "name": "Notes",
+        "minutes": 1.3
+      },
+      {
+        "app_id": "com.google.Maps",
+        "name": "Google Maps",
+        "minutes": 1.2
+      },
+      {
+        "app_id": "com.omronhealthcare.omronconnect",
+        "name": "OMRON connect US/CAN/EMEA",
+        "minutes": 1.2
+      },
+      {
+        "app_id": "ru.yandex.mobile.music",
+        "name": "ru.yandex.mobile.music",
+        "minutes": 1.2
+      },
+      {
+        "app_id": "com.netatmo.homecoach",
+        "name": "Healthy Home Coach",
+        "minutes": 1.1
+      },
+      {
+        "app_id": "ru.yandex.ytaxi",
+        "name": "Yandex Go: Taxi Food Market",
+        "minutes": 0.8
+      },
+      {
+        "app_id": "com.google.chrome.ios",
+        "name": "Google Chrome",
+        "minutes": 0.6
+      },
+      {
+        "app_id": "com.apple.control-center",
+        "name": "com.apple.control-center",
+        "minutes": 0.6
+      },
+      {
+        "app_id": "com.apple.mobiletimer",
+        "name": "Clock",
+        "minutes": 0.5
+      },
+      {
+        "app_id": "com.apple.mobilephone",
+        "name": "Phone",
+        "minutes": 0.5
+      },
+      {
+        "app_id": "com.apple.mobileslideshow",
+        "name": "Photos",
+        "minutes": 0.4
+      },
+      {
+        "app_id": "com.bitrixsoft.cpmobile",
+        "name": "Bitrix24",
+        "minutes": 0.4
+      },
+      {
+        "app_id": "net.whatsapp.WhatsApp",
+        "name": "WhatsApp Messenger",
+        "minutes": 0.3
+      },
+      {
+        "app_id": "com.apple.WebSheet",
+        "name": "com.apple.WebSheet",
+        "minutes": 0.2
+      },
+      {
+        "app_id": "com.stimulapps.upass",
+        "name": "Мой Пропуск",
+        "minutes": 0.2
+      },
+      {
+        "app_id": "com.apple.camera",
+        "name": "Camera",
+        "minutes": 0.2
+      },
+      {
+        "app_id": "com.flexibits.fantastical2.iphone",
+        "name": "Fantastical Calendar",
+        "minutes": 0.1
+      },
+      {
+        "app_id": "com.apple.springboard.home-screen-open-folder",
+        "name": "com.apple.springboard.home-screen-open-folder",
+        "minutes": 0.1
+      },
+      {
+        "app_id": "com.openai.chat",
+        "name": "ChatGPT",
+        "minutes": 0.0
+      },
+      {
+        "app_id": "com.apple.PosterBoard",
+        "name": "com.apple.PosterBoard",
+        "minutes": 0.0
+      },
+      {
+        "app_id": "com.apple.springboard.today-view",
+        "name": "com.apple.springboard.today-view",
+        "minutes": 0.0
+      }
+    ]
+  },
+  "2026-03-12": {
+    "total_minutes": 193.1,
+    "apps": [
+      {
+        "app_id": "ph.telegra.Telegraph",
+        "name": "Telegram Messenger",
+        "minutes": 53.4
+      },
+      {
+        "app_id": "com.burbn.instagram",
+        "name": "Instagram",
+        "minutes": 37.4
+      },
+      {
+        "app_id": "com.felixrum.supertribes",
+        "name": "The Battle of Polytopia",
+        "minutes": 23.9
+      },
+      {
+        "app_id": "com.anthropic.claude",
+        "name": "Claude by Anthropic",
+        "minutes": 13.1
+      },
+      {
+        "app_id": "com.facebook.Facebook",
+        "name": "Facebook",
+        "minutes": 8.9
+      },
+      {
+        "app_id": "com.apple.InCallService",
+        "name": "com.apple.InCallService",
+        "minutes": 8.5
+      },
+      {
+        "app_id": "ru.yandex.traffic",
+        "name": "Yandex Maps & Navigator",
+        "minutes": 8.3
+      },
+      {
+        "app_id": "com.google.chrome.ios",
+        "name": "Google Chrome",
+        "minutes": 6.3
+      },
+      {
+        "app_id": "com.bitrixsoft.cpmobile",
+        "name": "Bitrix24",
+        "minutes": 5.3
+      },
+      {
+        "app_id": "com.apple.Preferences",
+        "name": "com.apple.Preferences",
+        "minutes": 3.6
+      },
+      {
+        "app_id": "com.apple.MobileSMS",
+        "name": "Messages",
+        "minutes": 3.1
+      },
+      {
+        "app_id": "com.readdle.smartemail",
+        "name": "Spark AI Email & Calendar",
+        "minutes": 3.0
+      },
+      {
+        "app_id": "com.flexibits.fantastical2.iphone",
+        "name": "Fantastical Calendar",
+        "minutes": 2.3
+      },
+      {
+        "app_id": "app.ab.banking",
+        "name": "АБ24",
+        "minutes": 2.2
+      },
+      {
+        "app_id": "com.apple.mobilephone",
+        "name": "Phone",
+        "minutes": 1.8
+      },
+      {
+        "app_id": "com.garmin.connect.mobile",
+        "name": "Garmin Connect™",
+        "minutes": 1.7
+      },
+      {
+        "app_id": "com.omronhealthcare.omronconnect",
+        "name": "OMRON connect US/CAN/EMEA",
+        "minutes": 1.5
+      },
+      {
+        "app_id": "com.netatmo.homecoach",
+        "name": "Healthy Home Coach",
+        "minutes": 1.3
+      },
+      {
+        "app_id": "ru.litres.app",
+        "name": "Litres: Books and audiobooks",
+        "minutes": 1.3
+      },
+      {
+        "app_id": "com.alfoto.app",
+        "name": "com.alfoto.app",
+        "minutes": 1.1
+      },
+      {
+        "app_id": "com.apple.mobileslideshow",
+        "name": "Photos",
+        "minutes": 0.9
       },
       {
         "app_id": "com.1password.1password",
@@ -4663,213 +5423,288 @@
         "minutes": 0.7
       },
       {
-        "app_id": "com.apple.camera",
-        "name": "Camera",
+        "app_id": "com.apple.PassbookUIService",
+        "name": "com.apple.PassbookUIService",
         "minutes": 0.7
       },
       {
-        "app_id": "com.netatmo.homecoach",
-        "name": "Healthy Home Coach",
+        "app_id": "com.apple.camera",
+        "name": "Camera",
+        "minutes": 0.6
+      },
+      {
+        "app_id": "io.meduza.meduzax",
+        "name": "Meduza - новости",
         "minutes": 0.5
       },
       {
-        "app_id": "com.apple.Preferences",
-        "name": "com.apple.Preferences",
+        "app_id": "HM.wristband",
+        "name": "Zepp Life (Formerly MiFit)",
         "minutes": 0.5
+      },
+      {
+        "app_id": "com.liguangming.Shadowrocket",
+        "name": "Shadowrocket",
+        "minutes": 0.3
       },
       {
         "app_id": "ru.yandex.ytaxi",
         "name": "Yandex Go: Taxi Food Market",
-        "minutes": 0.4
-      },
-      {
-        "app_id": "com.flexibits.fantastical2.iphone",
-        "name": "Fantastical Calendar",
-        "minutes": 0.3
-      },
-      {
-        "app_id": "com.apple.MobileSMS",
-        "name": "Messages",
-        "minutes": 0.3
-      },
-      {
-        "app_id": "com.apple.mobilephone",
-        "name": "Phone",
-        "minutes": 0.3
-      },
-      {
-        "app_id": "com.readdle.smartemail",
-        "name": "Spark AI Email & Calendar",
         "minutes": 0.2
+      },
+      {
+        "app_id": "com.apple.AuthKitUIService",
+        "name": "com.apple.AuthKitUIService",
+        "minutes": 0.1
+      },
+      {
+        "app_id": "ru.central-ppk.Timetable",
+        "name": "ru.central-ppk.Timetable",
+        "minutes": 0.1
+      },
+      {
+        "app_id": "com.apple.LocalAuthenticationUIService",
+        "name": "com.apple.LocalAuthenticationUIService",
+        "minutes": 0.1
+      },
+      {
+        "app_id": "com.apple.CTNotifyUIService",
+        "name": "com.apple.CTNotifyUIService",
+        "minutes": 0.1
+      },
+      {
+        "app_id": "ai.perplexity.app",
+        "name": "Perplexity - AI Search & Chat",
+        "minutes": 0.1
       },
       {
         "app_id": "net.whatsapp.WhatsApp",
         "name": "WhatsApp Messenger",
-        "minutes": 0.2
-      },
-      {
-        "app_id": "com.apple.springboard.today-view",
-        "name": "com.apple.springboard.today-view",
-        "minutes": 0.2
-      },
-      {
-        "app_id": "com.google.Translate",
-        "name": "Google Translate",
-        "minutes": 0.1
-      },
-      {
-        "app_id": "com.apple.mobilenotes",
-        "name": "Notes",
         "minutes": 0.1
       },
       {
         "app_id": "com.apple.springboard.home-screen-open-folder",
         "name": "com.apple.springboard.home-screen-open-folder",
         "minutes": 0.0
+      },
+      {
+        "app_id": "com.apple.control-center",
+        "name": "com.apple.control-center",
+        "minutes": 0.0
+      },
+      {
+        "app_id": "com.apple.springboard.today-view",
+        "name": "com.apple.springboard.today-view",
+        "minutes": 0.0
       }
     ]
   },
-  "2026-03-09": {
-    "total_minutes": 304.2,
+  "2026-03-13": {
+    "total_minutes": 264.3,
     "apps": [
-      {
-        "app_id": "com.google.chrome.ios",
-        "name": "Google Chrome",
-        "minutes": 94.2
-      },
-      {
-        "app_id": "com.atebits.Tweetie2",
-        "name": "X",
-        "minutes": 72.7
-      },
       {
         "app_id": "ph.telegra.Telegraph",
         "name": "Telegram Messenger",
-        "minutes": 39.2
+        "minutes": 72.0
+      },
+      {
+        "app_id": "com.liguangming.Shadowrocket",
+        "name": "Shadowrocket",
+        "minutes": 30.2
+      },
+      {
+        "app_id": "com.google.chrome.ios",
+        "name": "Google Chrome",
+        "minutes": 22.9
       },
       {
         "app_id": "com.felixrum.supertribes",
         "name": "The Battle of Polytopia",
-        "minutes": 25.4
-      },
-      {
-        "app_id": "com.betteryes.clearspace",
-        "name": "ClearSpace: Reduce Screen Time",
-        "minutes": 21.5
-      },
-      {
-        "app_id": "ru.yandex.ytaxi",
-        "name": "Yandex Go: Taxi Food Market",
-        "minutes": 15.6
+        "minutes": 20.6
       },
       {
         "app_id": "io.meduza.meduzax",
         "name": "Meduza - новости",
-        "minutes": 4.5
-      },
-      {
-        "app_id": "com.stimulapps.upass",
-        "name": "Мой Пропуск",
-        "minutes": 3.1
-      },
-      {
-        "app_id": "com.garmin.connect.mobile",
-        "name": "Garmin Connect™",
-        "minutes": 3.1
-      },
-      {
-        "app_id": "com.apple.Preferences",
-        "name": "com.apple.Preferences",
-        "minutes": 2.8
-      },
-      {
-        "app_id": "com.omronhealthcare.omronconnect",
-        "name": "OMRON connect US/CAN/EMEA",
-        "minutes": 2.7
+        "minutes": 12.4
       },
       {
         "app_id": "com.apple.ScreenshotServicesService",
         "name": "com.apple.ScreenshotServicesService",
-        "minutes": 1.8
-      },
-      {
-        "app_id": "ru.litres.app",
-        "name": "Litres: Books and audiobooks",
-        "minutes": 1.8
+        "minutes": 11.5
       },
       {
         "app_id": "com.alfoto.app",
         "name": "com.alfoto.app",
-        "minutes": 1.7
-      },
-      {
-        "app_id": "com.netatmo.homecoach",
-        "name": "Healthy Home Coach",
-        "minutes": 1.6
-      },
-      {
-        "app_id": "com.apple.Health",
-        "name": "Apple Health",
-        "minutes": 1.5
-      },
-      {
-        "app_id": "com.apple.AppStore",
-        "name": "com.apple.AppStore",
-        "minutes": 1.4
+        "minutes": 8.8
       },
       {
         "app_id": "com.anthropic.claude",
         "name": "Claude by Anthropic",
-        "minutes": 1.3
+        "minutes": 7.3
       },
       {
-        "app_id": "ru.yandex.traffic",
-        "name": "Yandex Maps & Navigator",
-        "minutes": 1.2
+        "app_id": "ru.kinopoisk",
+        "name": "Кинопоиск: фильмы и сериалы",
+        "minutes": 6.6
       },
       {
         "app_id": "com.apple.InCallService",
         "name": "com.apple.InCallService",
-        "minutes": 1.2
+        "minutes": 6.1
       },
       {
         "app_id": "com.readdle.smartemail",
         "name": "Spark AI Email & Calendar",
+        "minutes": 6.1
+      },
+      {
+        "app_id": "ru.yandex.traffic",
+        "name": "Yandex Maps & Navigator",
+        "minutes": 5.2
+      },
+      {
+        "app_id": "ru.yandex.ytaxi",
+        "name": "Yandex Go: Taxi Food Market",
+        "minutes": 4.9
+      },
+      {
+        "app_id": "com.abnamro.nl.bankieren",
+        "name": "ABN AMRO",
+        "minutes": 4.6
+      },
+      {
+        "app_id": "com.apple.Preferences",
+        "name": "com.apple.Preferences",
+        "minutes": 4.0
+      },
+      {
+        "app_id": "com.apple.mobileslideshow",
+        "name": "Photos",
+        "minutes": 3.9
+      },
+      {
+        "app_id": "com.burbn.instagram",
+        "name": "Instagram",
+        "minutes": 3.7
+      },
+      {
+        "app_id": "com.garmin.connect.mobile",
+        "name": "Garmin Connect™",
+        "minutes": 3.5
+      },
+      {
+        "app_id": "app.ab.banking",
+        "name": "АБ24",
+        "minutes": 3.5
+      },
+      {
+        "app_id": "com.apple.AppStore",
+        "name": "com.apple.AppStore",
+        "minutes": 3.3
+      },
+      {
+        "app_id": "ru.litres.app",
+        "name": "Litres: Books and audiobooks",
+        "minutes": 3.3
+      },
+      {
+        "app_id": "com.apple.mobilesafari",
+        "name": "Safari",
+        "minutes": 2.5
+      },
+      {
+        "app_id": "com.effect.streisand",
+        "name": "Streisand",
+        "minutes": 2.2
+      },
+      {
+        "app_id": "net.whatsapp.WhatsApp",
+        "name": "WhatsApp Messenger",
+        "minutes": 2.0
+      },
+      {
+        "app_id": "com.apple.mobilenotes",
+        "name": "Notes",
+        "minutes": 1.9
+      },
+      {
+        "app_id": "com.omronhealthcare.omronconnect",
+        "name": "OMRON connect US/CAN/EMEA",
+        "minutes": 1.5
+      },
+      {
+        "app_id": "hossin.asaadi.V2Box",
+        "name": "V2Box - V2ray Client",
         "minutes": 1.2
+      },
+      {
+        "app_id": "com.easycatch.sounder",
+        "name": "com.easycatch.sounder",
+        "minutes": 0.9
       },
       {
         "app_id": "com.flexibits.fantastical2.iphone",
         "name": "Fantastical Calendar",
-        "minutes": 0.9
-      },
-      {
-        "app_id": "com.openai.chat",
-        "name": "ChatGPT",
         "minutes": 0.8
       },
       {
-        "app_id": "com.apple.ContinuityCaptureShieldUI",
-        "name": "com.apple.ContinuityCaptureShieldUI",
+        "app_id": "com.google.Slides",
+        "name": "Google Slides",
         "minutes": 0.6
       },
       {
-        "app_id": "com.bitrixsoft.cpmobile",
-        "name": "Bitrix24",
-        "minutes": 0.5
+        "app_id": "ru.mosmetro",
+        "name": "ru.mosmetro",
+        "minutes": 0.6
       },
       {
         "app_id": "HM.wristband",
         "name": "Zepp Life (Formerly MiFit)",
-        "minutes": 0.3
+        "minutes": 0.6
+      },
+      {
+        "app_id": "com.apple.mobilephone",
+        "name": "Phone",
+        "minutes": 0.6
+      },
+      {
+        "app_id": "com.stimulapps.upass",
+        "name": "Мой Пропуск",
+        "minutes": 0.6
+      },
+      {
+        "app_id": "ru.fns.lkfl",
+        "name": "Налоги ФЛ",
+        "minutes": 0.6
+      },
+      {
+        "app_id": "com.minsvyaz.gosuslugi",
+        "name": "Госуслуги",
+        "minutes": 0.5
       },
       {
         "app_id": "com.apple.MobileSMS",
         "name": "Messages",
+        "minutes": 0.5
+      },
+      {
+        "app_id": "com.apple.springboard.home-screen-open-folder",
+        "name": "com.apple.springboard.home-screen-open-folder",
+        "minutes": 0.4
+      },
+      {
+        "app_id": "com.apple.mobiletimer",
+        "name": "Clock",
         "minutes": 0.3
       },
       {
-        "app_id": "com.google.GoogleMobile",
-        "name": "Google",
+        "app_id": "com.apple.HeadphoneProxService",
+        "name": "com.apple.HeadphoneProxService",
+        "minutes": 0.2
+      },
+      {
+        "app_id": "com.apple.ClockAngel",
+        "name": "com.apple.ClockAngel",
         "minutes": 0.2
       },
       {
@@ -4878,8 +5713,398 @@
         "minutes": 0.2
       },
       {
+        "app_id": "com.google.GoogleMobile",
+        "name": "Google",
+        "minutes": 0.2
+      },
+      {
+        "app_id": "com.netatmo.homecoach",
+        "name": "Healthy Home Coach",
+        "minutes": 0.1
+      },
+      {
+        "app_id": "com.todoist.ios",
+        "name": "Todoist: To Do List & Calendar",
+        "minutes": 0.1
+      },
+      {
+        "app_id": "com.apple.camera",
+        "name": "Camera",
+        "minutes": 0.1
+      },
+      {
+        "app_id": "com.apple.LocalAuthenticationUIService",
+        "name": "com.apple.LocalAuthenticationUIService",
+        "minutes": 0.1
+      },
+      {
+        "app_id": "com.apple.control-center",
+        "name": "com.apple.control-center",
+        "minutes": 0.1
+      },
+      {
+        "app_id": "com.apple.PassbookUIService",
+        "name": "com.apple.PassbookUIService",
+        "minutes": 0.1
+      },
+      {
+        "app_id": "ru.yandex.mobile",
+        "name": "Yandex with Alice AI",
+        "minutes": 0.0
+      },
+      {
+        "app_id": "com.linguee.DeepLMobileTranslator",
+        "name": "DeepL Translate",
+        "minutes": 0.0
+      },
+      {
+        "app_id": "com.apple.springboard.today-view",
+        "name": "com.apple.springboard.today-view",
+        "minutes": 0.0
+      }
+    ]
+  },
+  "2026-03-14": {
+    "total_minutes": 339.6,
+    "apps": [
+      {
+        "app_id": "com.atebits.Tweetie2",
+        "name": "X",
+        "minutes": 106.5
+      },
+      {
+        "app_id": "ph.telegra.Telegraph",
+        "name": "Telegram Messenger",
+        "minutes": 36.1
+      },
+      {
+        "app_id": "com.felixrum.supertribes",
+        "name": "The Battle of Polytopia",
+        "minutes": 31.6
+      },
+      {
+        "app_id": "com.anthropic.claude",
+        "name": "Claude by Anthropic",
+        "minutes": 29.5
+      },
+      {
+        "app_id": "ru.kinopoisk",
+        "name": "Кинопоиск: фильмы и сериалы",
+        "minutes": 23.8
+      },
+      {
+        "app_id": "com.google.chrome.ios",
+        "name": "Google Chrome",
+        "minutes": 17.9
+      },
+      {
+        "app_id": "com.apple.camera",
+        "name": "Camera",
+        "minutes": 15.9
+      },
+      {
         "app_id": "com.liguangming.Shadowrocket",
         "name": "Shadowrocket",
+        "minutes": 15.6
+      },
+      {
+        "app_id": "ru.yandex.traffic",
+        "name": "Yandex Maps & Navigator",
+        "minutes": 9.7
+      },
+      {
+        "app_id": "com.burbn.instagram",
+        "name": "Instagram",
+        "minutes": 8.4
+      },
+      {
+        "app_id": "com.apple.InCallService",
+        "name": "com.apple.InCallService",
+        "minutes": 7.8
+      },
+      {
+        "app_id": "com.apple.ScreenshotServicesService",
+        "name": "com.apple.ScreenshotServicesService",
+        "minutes": 6.5
+      },
+      {
+        "app_id": "com.readdle.smartemail",
+        "name": "Spark AI Email & Calendar",
+        "minutes": 3.0
+      },
+      {
+        "app_id": "com.garmin.connect.mobile",
+        "name": "Garmin Connect™",
+        "minutes": 2.9
+      },
+      {
+        "app_id": "com.1password.1password",
+        "name": "1Password: Password Manager",
+        "minutes": 2.8
+      },
+      {
+        "app_id": "com.omronhealthcare.omronconnect",
+        "name": "OMRON connect US/CAN/EMEA",
+        "minutes": 2.7
+      },
+      {
+        "app_id": "io.meduza.meduzax",
+        "name": "Meduza - новости",
+        "minutes": 2.7
+      },
+      {
+        "app_id": "com.apple.Preferences",
+        "name": "com.apple.Preferences",
+        "minutes": 2.2
+      },
+      {
+        "app_id": "HM.wristband",
+        "name": "Zepp Life (Formerly MiFit)",
+        "minutes": 2.2
+      },
+      {
+        "app_id": "com.alfoto.app",
+        "name": "com.alfoto.app",
+        "minutes": 1.9
+      },
+      {
+        "app_id": "ru.yandex.ytaxi",
+        "name": "Yandex Go: Taxi Food Market",
+        "minutes": 1.6
+      },
+      {
+        "app_id": "com.google.ios.youtube",
+        "name": "YouTube",
+        "minutes": 1.5
+      },
+      {
+        "app_id": "com.abnamro.nl.bankieren",
+        "name": "ABN AMRO",
+        "minutes": 1.3
+      },
+      {
+        "app_id": "com.todoist.ios",
+        "name": "Todoist: To Do List & Calendar",
+        "minutes": 1.0
+      },
+      {
+        "app_id": "com.apple.mobilephone",
+        "name": "Phone",
+        "minutes": 0.8
+      },
+      {
+        "app_id": "com.apple.control-center",
+        "name": "com.apple.control-center",
+        "minutes": 0.7
+      },
+      {
+        "app_id": "com.easycatch.sounder",
+        "name": "com.easycatch.sounder",
+        "minutes": 0.6
+      },
+      {
+        "app_id": "ru.litres.app",
+        "name": "Litres: Books and audiobooks",
+        "minutes": 0.5
+      },
+      {
+        "app_id": "com.apple.mobileslideshow",
+        "name": "Photos",
+        "minutes": 0.3
+      },
+      {
+        "app_id": "com.apple.LocalAuthenticationUIService",
+        "name": "com.apple.LocalAuthenticationUIService",
+        "minutes": 0.3
+      },
+      {
+        "app_id": "com.netatmo.homecoach",
+        "name": "Healthy Home Coach",
+        "minutes": 0.3
+      },
+      {
+        "app_id": "com.facebook.Facebook",
+        "name": "Facebook",
+        "minutes": 0.2
+      },
+      {
+        "app_id": "com.apple.mobiletimer",
+        "name": "Clock",
+        "minutes": 0.2
+      },
+      {
+        "app_id": "com.apple.MobileSMS",
+        "name": "Messages",
+        "minutes": 0.1
+      },
+      {
+        "app_id": "com.apple.ClockAngel",
+        "name": "com.apple.ClockAngel",
+        "minutes": 0.1
+      },
+      {
+        "app_id": "com.bitrixsoft.cpmobile",
+        "name": "Bitrix24",
+        "minutes": 0.1
+      },
+      {
+        "app_id": "com.apple.springboard.today-view",
+        "name": "com.apple.springboard.today-view",
+        "minutes": 0.1
+      },
+      {
+        "app_id": "com.apple.springboard.home-screen-open-folder",
+        "name": "com.apple.springboard.home-screen-open-folder",
+        "minutes": 0.1
+      },
+      {
+        "app_id": "com.flexibits.fantastical2.iphone",
+        "name": "Fantastical Calendar",
+        "minutes": 0.0
+      },
+      {
+        "app_id": "com.apple.mobilenotes",
+        "name": "Notes",
+        "minutes": 0.0
+      }
+    ]
+  },
+  "2026-03-15": {
+    "total_minutes": 99.6,
+    "apps": [
+      {
+        "app_id": "com.atebits.Tweetie2",
+        "name": "X",
+        "minutes": 31.3
+      },
+      {
+        "app_id": "com.burbn.instagram",
+        "name": "Instagram",
+        "minutes": 14.4
+      },
+      {
+        "app_id": "com.omronhealthcare.omronconnect",
+        "name": "OMRON connect US/CAN/EMEA",
+        "minutes": 13.1
+      },
+      {
+        "app_id": "com.apple.AppStore",
+        "name": "com.apple.AppStore",
+        "minutes": 8.5
+      },
+      {
+        "app_id": "com.anthropic.claude",
+        "name": "Claude by Anthropic",
+        "minutes": 6.2
+      },
+      {
+        "app_id": "ph.telegra.Telegraph",
+        "name": "Telegram Messenger",
+        "minutes": 6.1
+      },
+      {
+        "app_id": "com.apple.Preferences",
+        "name": "com.apple.Preferences",
+        "minutes": 3.1
+      },
+      {
+        "app_id": "com.google.chrome.ios",
+        "name": "Google Chrome",
+        "minutes": 2.2
+      },
+      {
+        "app_id": "com.abnamro.nl.bankieren",
+        "name": "ABN AMRO",
+        "minutes": 2.2
+      },
+      {
+        "app_id": "HM.wristband",
+        "name": "Zepp Life (Formerly MiFit)",
+        "minutes": 1.7
+      },
+      {
+        "app_id": "com.apple.mobilenotes",
+        "name": "Notes",
+        "minutes": 1.7
+      },
+      {
+        "app_id": "com.liguangming.Shadowrocket",
+        "name": "Shadowrocket",
+        "minutes": 1.3
+      },
+      {
+        "app_id": "com.garmin.connect.mobile",
+        "name": "Garmin Connect™",
+        "minutes": 1.2
+      },
+      {
+        "app_id": "com.facebook.Facebook",
+        "name": "Facebook",
+        "minutes": 1.0
+      },
+      {
+        "app_id": "com.apple.mobileslideshow",
+        "name": "Photos",
+        "minutes": 0.7
+      },
+      {
+        "app_id": "com.netatmo.homecoach",
+        "name": "Healthy Home Coach",
+        "minutes": 0.7
+      },
+      {
+        "app_id": "com.1password.1password",
+        "name": "1Password: Password Manager",
+        "minutes": 0.5
+      },
+      {
+        "app_id": "com.easycatch.sounder",
+        "name": "com.easycatch.sounder",
+        "minutes": 0.5
+      },
+      {
+        "app_id": "com.apple.mobiletimer",
+        "name": "Clock",
+        "minutes": 0.5
+      },
+      {
+        "app_id": "io.meduza.meduzax",
+        "name": "Meduza - новости",
+        "minutes": 0.4
+      },
+      {
+        "app_id": "com.google.ios.youtube",
+        "name": "YouTube",
+        "minutes": 0.4
+      },
+      {
+        "app_id": "com.google.Docs",
+        "name": "Google Docs",
+        "minutes": 0.3
+      },
+      {
+        "app_id": "com.effect.streisand",
+        "name": "Streisand",
+        "minutes": 0.3
+      },
+      {
+        "app_id": "com.apple.InCallService",
+        "name": "com.apple.InCallService",
+        "minutes": 0.2
+      },
+      {
+        "app_id": "com.apple.mobilephone",
+        "name": "Phone",
+        "minutes": 0.2
+      },
+      {
+        "app_id": "com.apple.LocalAuthenticationUIService",
+        "name": "com.apple.LocalAuthenticationUIService",
+        "minutes": 0.2
+      },
+      {
+        "app_id": "com.apple.ScreenshotServicesService",
+        "name": "com.apple.ScreenshotServicesService",
         "minutes": 0.2
       },
       {
@@ -4891,31 +6116,6 @@
         "app_id": "com.apple.ClockAngel",
         "name": "com.apple.ClockAngel",
         "minutes": 0.1
-      },
-      {
-        "app_id": "com.apple.FCAuthenticationUI",
-        "name": "com.apple.FCAuthenticationUI",
-        "minutes": 0.1
-      },
-      {
-        "app_id": "com.apple.WebSheet",
-        "name": "com.apple.WebSheet",
-        "minutes": 0.1
-      },
-      {
-        "app_id": "com.apple.PassbookUIService",
-        "name": "com.apple.PassbookUIService",
-        "minutes": 0.1
-      },
-      {
-        "app_id": "com.facebook.Facebook",
-        "name": "Facebook",
-        "minutes": 0.0
-      },
-      {
-        "app_id": "com.apple.LocalAuthenticationUIService",
-        "name": "com.apple.LocalAuthenticationUIService",
-        "minutes": 0.0
       },
       {
         "app_id": "com.apple.springboard.home-screen-open-folder",

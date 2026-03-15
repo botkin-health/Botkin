@@ -2814,6 +2814,36 @@
       "date": "2026-03-09",
       "weight_kg": 79.05,
       "measurements_count": 1
+    },
+    {
+      "date": "2026-03-10",
+      "weight_kg": 78.8,
+      "measurements_count": 1
+    },
+    {
+      "date": "2026-03-11",
+      "weight_kg": 78.8,
+      "measurements_count": 1
+    },
+    {
+      "date": "2026-03-12",
+      "weight_kg": 78.75,
+      "measurements_count": 2
+    },
+    {
+      "date": "2026-03-13",
+      "weight_kg": 79.4,
+      "measurements_count": 1
+    },
+    {
+      "date": "2026-03-14",
+      "weight_kg": 78.28,
+      "measurements_count": 2
+    },
+    {
+      "date": "2026-03-15",
+      "weight_kg": 78.2,
+      "measurements_count": 2
     }
   ]
 }

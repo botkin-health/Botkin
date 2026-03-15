@@ -35,15 +35,10 @@ sshpass -e rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
 sshpass -e ssh -o StrictHostKeyChecking=no root@116.203.213.137 "rm -rf /opt/healthvault/tmp_data /tmp/sync_remote_db_tmp.py && docker exec healthvault_bot rm -rf /tmp/data /tmp/sync_remote_db.py"
 
 echo "1.8/4 ⚖️  Синхронизация умных весов (Zepp Life / Xiaomi SmartScale)..."
-SCALECONNECT_DIR="$(pwd)/tools/scaleconnect"
-if [ -f "$SCALECONNECT_DIR/scaleconnect" ]; then
-    (cd "$SCALECONNECT_DIR" && ./scaleconnect -c scaleconnect.yaml 2>&1) \
-        && echo "   ✅ Zepp: CSV обновлён → data/zepp_export_latest.csv" \
-        || echo "   ⚠️  Zepp: ошибка выгрузки (токен устарел? Нужен re-auth)"
-    python3 scripts/import_zepp_csv.py
-else
-    echo "   ⏭  Zepp: tools/scaleconnect/scaleconnect не найден, пропускаем"
-fi
+# scaleconnect v0.4.1 устарел — использует zepp.com API которое сломано (Xiaomi anti-bot)
+# Новый скрипт import_zepp_api.py работает напрямую через api-mifit.zepp.com
+python3 scripts/import_zepp_api.py 2>&1 || echo "   ⚠️  Zepp API: нужен свежий токен (см. scripts/import_zepp_api.py --help)"
+python3 scripts/import_zepp_csv.py 2>/dev/null || true
 
 echo "2/4 🏃 Загрузка свежего сна, стресса, HRV, Body Battery и тренировок из Garmin Connect..."
 python3 scripts/garmin/download_garmin_data.py

@@ -13841,6 +13841,41 @@
       "step_length_cm": 68.68,
       "double_support_pct": 26.83,
       "asymmetry_pct": 0.0
+    },
+    {
+      "date": "2026-03-10",
+      "speed_km_h": 4.56,
+      "step_length_cm": 69.05,
+      "double_support_pct": 28.81,
+      "asymmetry_pct": 0.0
+    },
+    {
+      "date": "2026-03-11",
+      "speed_km_h": 5.07,
+      "step_length_cm": 74.3,
+      "double_support_pct": 26.9,
+      "asymmetry_pct": 0.24
+    },
+    {
+      "date": "2026-03-12",
+      "speed_km_h": 4.34,
+      "step_length_cm": 66.41,
+      "double_support_pct": 28.26,
+      "asymmetry_pct": 6.64
+    },
+    {
+      "date": "2026-03-13",
+      "speed_km_h": 4.64,
+      "step_length_cm": 70.22,
+      "double_support_pct": 28.18,
+      "asymmetry_pct": 0.53
+    },
+    {
+      "date": "2026-03-14",
+      "speed_km_h": 4.74,
+      "step_length_cm": 71.14,
+      "double_support_pct": 27.97,
+      "asymmetry_pct": 0.28
     }
   ]
 }
