@@ -156,7 +156,7 @@ async def cmd_day(message: Message, user_id: int):
         
         # --- Energy balance (14-day averages → consistent with target calculation) ---
         from database.crud import get_average_activity_stats
-        from core.caloric_budget import make_macro_bar
+        from core.caloric_budget import make_macro_bar, make_block_bar
         avg_stats = get_average_activity_stats(db, user_id, days=14)
         avg_bmr    = round(avg_stats.get('bmr_calories',    0)) if avg_stats else 0
         avg_active = round(avg_stats.get('active_calories', 0)) if avg_stats else 0
@@ -164,50 +164,51 @@ async def cmd_day(message: Message, user_id: int):
         today_active_r = round(active_calories)
         target_cal = targets['calories']
 
+        deficit_pct = round((1 - 0.85) * 100)  # 15%
         if avg_total > 1500:
-            # Show 14-day averages — target_cal = avg_total × 0.85, so math is consistent
-            energy_line = f"⚡️ ~{avg_bmr} 😴 + ~{avg_active} 🏃 = ~{avg_total} ккал (14д. ср.)"
-            # Show today's live active if it meaningfully differs from the average
-            if abs(today_active_r - avg_active) > 50:
-                energy_line += f"\n   сегодня активно: {today_active_r} ккал"
+            active_line = f"🏃 {today_active_r} ккал сегодня · {avg_active} в среднем"
+            energy_line = (
+                f"💤 {avg_bmr} ккал — базовый расход\n"
+                f"{active_line}\n"
+                f"🎯 {target_cal} ккал — цель (дефицит −{deficit_pct}%)"
+            )
         else:
-            energy_line = f"🏃 Активность ({activity_label}): <b>{today_active_r}</b> ккал"
+            energy_line = (
+                f"🏃 {today_active_r} ккал — активность сегодня\n"
+                f"🎯 {target_cal} ккал — цель (дефицит −{deficit_pct}%)"
+            )
 
         # --- Calorie bar ---
-        cal_bar, cal_pct = make_macro_bar(totals.calories, target_cal)
+        cal_bar, cal_pct = make_block_bar(totals.calories, target_cal)
         cal_remaining = target_cal - round(totals.calories)
         if cal_remaining < 0:
-            cal_icon, cal_tail = "🔴", f"перебор +{abs(cal_remaining)}"
-        elif cal_pct >= 80:
-            cal_icon, cal_tail = "⚠️", f"ост. {cal_remaining}"
+            cal_tail = f"перебор +{abs(cal_remaining)}"
         else:
-            cal_icon, cal_tail = "📊", f"ост. {cal_remaining}"
+            cal_tail = f"ост. {cal_remaining}"
 
         # --- Macro bars ---
-        p_bar, p_pct = make_macro_bar(totals.protein, targets['protein'], invert=True)
-        f_bar, f_pct = make_macro_bar(totals.fats,    targets['fats'])
-        c_bar, c_pct = make_macro_bar(totals.carbs,   targets['carbs'])
+        p_bar, p_pct = make_block_bar(totals.protein, targets['protein'], invert=True)
+        f_bar, f_pct = make_block_bar(totals.fats,    targets['fats'])
+        c_bar, c_pct = make_block_bar(totals.carbs,   targets['carbs'])
 
         # --- Fiber (optional, norm 30g) ---
         fiber_val = getattr(totals, 'fiber', 0) or 0
         fiber_line = ""
         if fiber_val > 0:
-            fib_bar, fib_pct = make_macro_bar(fiber_val, 30, invert=True)
-            fiber_line = f"🌿 {fib_bar} {fib_pct}%  {fiber_val:.0f}/30г"
+            fib_bar, fib_pct = make_block_bar(fiber_val, 30, invert=True)
+            fiber_line = f"🌿 {fib_bar} {fib_pct}% · {fiber_val:.0f}/30г"
 
         # --- Response Construction ---
         response_parts = [
             f"📅 <b>Итоги дня {today_formatted}</b>",
             "",
             energy_line,
-            f"🎯 Цель −15%: <b>{target_cal}</b> ккал",
             "",
-            f"{cal_icon} {cal_bar} {cal_pct}%",
-            f"{round(totals.calories):.0f} / {target_cal} ккал · {cal_tail}",
+            f"{cal_bar} {round(totals.calories):.0f} / {target_cal} ккал · {cal_tail}",
             "",
-            f"Б {p_bar} {p_pct}%  {totals.protein:.0f}/{targets['protein']}г",
-            f"Ж {f_bar} {f_pct}%  {totals.fats:.0f}/{targets['fats']}г",
-            f"У {c_bar} {c_pct}%  {totals.carbs:.0f}/{targets['carbs']}г",
+            f"Б {p_bar} {totals.protein:.0f}/{targets['protein']}г",
+            f"Ж {f_bar} {totals.fats:.0f}/{targets['fats']}г",
+            f"У {c_bar} {totals.carbs:.0f}/{targets['carbs']}г",
         ]
         if fiber_line:
             response_parts.append(fiber_line)

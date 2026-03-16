@@ -577,7 +577,7 @@ async def save_photo(message: Message, file_id: str) -> Path:
         
         return photo_path
     except Exception as e:
-        print(f"Ошибка при сохранении фото: {e}")
+        logger.exception("Ошибка при сохранении фото")
         return None
 
 
@@ -598,7 +598,7 @@ async def save_photo(message: Message, file_id: str) -> Path:
         
         return photo_path
     except Exception as e:
-        print(f"Ошибка при сохранении фото: {e}")
+        logger.exception("Ошибка при сохранении фото")
         return None
 
 

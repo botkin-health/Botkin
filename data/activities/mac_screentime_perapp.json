@@ -1,212 +1,4 @@
 {
-  "2026-03-06": {
-    "total_minutes": 281.6,
-    "source": "knowledgec",
-    "apps": [
-      {
-        "app_id": "com.anthropic.claudefordesktop",
-        "name": "Claude",
-        "minutes": 94.5
-      },
-      {
-        "app_id": "ru.keepcoder.Telegram",
-        "name": "Telegram",
-        "minutes": 90.6
-      },
-      {
-        "app_id": "com.google.Chrome",
-        "name": "Google Chrome",
-        "minutes": 43.4
-      },
-      {
-        "app_id": "ru.bitrix.bitrix24desktop",
-        "name": "Bitrix24",
-        "minutes": 26.9
-      },
-      {
-        "app_id": "com.readdle.SparkDesktop.appstore",
-        "name": "Spark Mail",
-        "minutes": 10.2
-      },
-      {
-        "app_id": "com.microsoft.Word",
-        "name": "Word",
-        "minutes": 4.4
-      },
-      {
-        "app_id": "com.apple.finder",
-        "name": "Finder",
-        "minutes": 3.8
-      },
-      {
-        "app_id": "com.microsoft.Excel",
-        "name": "Excel",
-        "minutes": 2.4
-      },
-      {
-        "app_id": "com.apple.Notes",
-        "name": "Notes",
-        "minutes": 2.2
-      },
-      {
-        "app_id": "dev.warp.Warp-Stable",
-        "name": "Warp",
-        "minutes": 1.4
-      },
-      {
-        "app_id": "com.apple.Safari",
-        "name": "Safari",
-        "minutes": 1.2
-      },
-      {
-        "app_id": "com.apple.Preview",
-        "name": "Preview",
-        "minutes": 0.3
-      },
-      {
-        "app_id": "net.whatsapp.WhatsApp",
-        "name": "WhatsApp",
-        "minutes": 0.1
-      },
-      {
-        "app_id": "dev.yiguo.FoXray",
-        "name": "Foxray",
-        "minutes": 0.1
-      }
-    ]
-  },
-  "2026-03-07": {
-    "total_minutes": 599.9,
-    "source": "knowledgec",
-    "apps": [
-      {
-        "app_id": "com.google.Chrome",
-        "name": "Google Chrome",
-        "minutes": 190.4
-      },
-      {
-        "app_id": "ru.keepcoder.Telegram",
-        "name": "Telegram",
-        "minutes": 149.5
-      },
-      {
-        "app_id": "com.microsoft.Excel",
-        "name": "Excel",
-        "minutes": 107.1
-      },
-      {
-        "app_id": "com.microsoft.Powerpoint",
-        "name": "PowerPoint",
-        "minutes": 77.6
-      },
-      {
-        "app_id": "com.anthropic.claudefordesktop",
-        "name": "Claude",
-        "minutes": 42.7
-      },
-      {
-        "app_id": "net.whatsapp.WhatsApp",
-        "name": "WhatsApp",
-        "minutes": 10.7
-      },
-      {
-        "app_id": "com.readdle.SparkDesktop.appstore",
-        "name": "Spark Mail",
-        "minutes": 7.5
-      },
-      {
-        "app_id": "com.apple.finder",
-        "name": "Finder",
-        "minutes": 6.8
-      },
-      {
-        "app_id": "com.apple.Notes",
-        "name": "Notes",
-        "minutes": 4.7
-      },
-      {
-        "app_id": "com.apple.Preview",
-        "name": "Preview",
-        "minutes": 2.5
-      },
-      {
-        "app_id": "com.flexibits.fantastical2.mac",
-        "name": "Fantastical",
-        "minutes": 0.3
-      },
-      {
-        "app_id": "ru.bitrix.bitrix24desktop",
-        "name": "Bitrix24",
-        "minutes": 0.1
-      },
-      {
-        "app_id": "dev.yiguo.FoXray",
-        "name": "Foxray",
-        "minutes": 0.0
-      }
-    ]
-  },
-  "2026-03-08": {
-    "total_minutes": 313.1,
-    "source": "knowledgec",
-    "apps": [
-      {
-        "app_id": "com.microsoft.Powerpoint",
-        "name": "PowerPoint",
-        "minutes": 114.5
-      },
-      {
-        "app_id": "com.anthropic.claudefordesktop",
-        "name": "Claude",
-        "minutes": 92.5
-      },
-      {
-        "app_id": "com.google.Chrome",
-        "name": "Google Chrome",
-        "minutes": 67.0
-      },
-      {
-        "app_id": "ru.keepcoder.Telegram",
-        "name": "Telegram",
-        "minutes": 24.5
-      },
-      {
-        "app_id": "net.whatsapp.WhatsApp",
-        "name": "WhatsApp",
-        "minutes": 8.9
-      },
-      {
-        "app_id": "com.readdle.SparkDesktop.appstore",
-        "name": "Spark Mail",
-        "minutes": 2.6
-      },
-      {
-        "app_id": "com.apple.finder",
-        "name": "Finder",
-        "minutes": 2.5
-      },
-      {
-        "app_id": "com.apple.Notes",
-        "name": "Notes",
-        "minutes": 0.4
-      },
-      {
-        "app_id": "com.microsoft.Excel",
-        "name": "Excel",
-        "minutes": 0.2
-      },
-      {
-        "app_id": "com.apple.systempreferences",
-        "name": "System Preferences",
-        "minutes": 0.1
-      },
-      {
-        "app_id": "com.apple.Preview",
-        "name": "Preview",
-        "minutes": 0.0
-      }
-    ]
-  },
   "2026-03-09": {
     "total_minutes": 149.9,
     "source": "activitywatch",
@@ -884,7 +676,7 @@
     ]
   },
   "2026-03-15": {
-    "total_minutes": 1285.2,
+    "total_minutes": 1443.5,
     "source": "activitywatch",
     "apps": [
       {
@@ -895,22 +687,22 @@
       {
         "app_id": "Claude",
         "name": "Claude",
-        "minutes": 292.5
+        "minutes": 333.3
       },
       {
         "app_id": "Google Chrome",
         "name": "Google Chrome",
-        "minutes": 131.3
+        "minutes": 235.9
       },
       {
         "app_id": "Telegram",
         "name": "Telegram",
-        "minutes": 37.7
+        "minutes": 39.8
       },
       {
         "app_id": "Finder",
         "name": "Finder",
-        "minutes": 27.2
+        "minutes": 30.1
       },
       {
         "app_id": "CleanMyMac",
@@ -920,12 +712,17 @@
       {
         "app_id": "Spark Desktop",
         "name": "Spark Desktop",
-        "minutes": 13.4
+        "minutes": 13.9
       },
       {
         "app_id": "Google Drive",
         "name": "Google Drive",
-        "minutes": 6.2
+        "minutes": 6.3
+      },
+      {
+        "app_id": "Заметки",
+        "name": "Заметки",
+        "minutes": 6.3
       },
       {
         "app_id": "V2BOX",
@@ -936,11 +733,6 @@
         "app_id": "Cursor",
         "name": "Cursor",
         "minutes": 5.7
-      },
-      {
-        "app_id": "Заметки",
-        "name": "Заметки",
-        "minutes": 5.6
       },
       {
         "app_id": "Hiddify",
@@ -956,6 +748,11 @@
         "app_id": "1Password",
         "name": "1Password",
         "minutes": 4.3
+      },
+      {
+        "app_id": "Safari",
+        "name": "Safari",
+        "minutes": 3.9
       },
       {
         "app_id": "Системные настройки",
@@ -978,9 +775,24 @@
         "minutes": 1.2
       },
       {
+        "app_id": "Microsoft Word",
+        "name": "Microsoft Word",
+        "minutes": 1.1
+      },
+      {
+        "app_id": "Exodus",
+        "name": "Exodus",
+        "minutes": 1.1
+      },
+      {
         "app_id": "Outline",
         "name": "Outline",
         "minutes": 0.9
+      },
+      {
+        "app_id": "Просмотр",
+        "name": "Просмотр",
+        "minutes": 0.7
       },
       {
         "app_id": "CoreServicesUIAgent",
@@ -990,11 +802,6 @@
       {
         "app_id": "UserNotificationCenter",
         "name": "UserNotificationCenter",
-        "minutes": 0.4
-      },
-      {
-        "app_id": "Просмотр",
-        "name": "Просмотр",
         "minutes": 0.4
       },
       {
@@ -1020,6 +827,77 @@
       {
         "app_id": "Fantastical",
         "name": "Fantastical",
+        "minutes": 0.1
+      }
+    ]
+  },
+  "2026-03-16": {
+    "total_minutes": 463.4,
+    "source": "activitywatch",
+    "apps": [
+      {
+        "app_id": "loginwindow",
+        "name": "loginwindow",
+        "minutes": 338.9
+      },
+      {
+        "app_id": "Claude",
+        "name": "Claude",
+        "minutes": 70.0
+      },
+      {
+        "app_id": "Google Chrome",
+        "name": "Google Chrome",
+        "minutes": 22.8
+      },
+      {
+        "app_id": "Finder",
+        "name": "Finder",
+        "minutes": 8.5
+      },
+      {
+        "app_id": "Warp",
+        "name": "Warp",
+        "minutes": 8.1
+      },
+      {
+        "app_id": "Telegram",
+        "name": "Telegram",
+        "minutes": 5.2
+      },
+      {
+        "app_id": "Canon IJ Scan Utility Lite",
+        "name": "Canon IJ Scan Utility Lite",
+        "minutes": 3.4
+      },
+      {
+        "app_id": "Spark Desktop",
+        "name": "Spark Desktop",
+        "minutes": 2.6
+      },
+      {
+        "app_id": "Просмотр",
+        "name": "Просмотр",
+        "minutes": 2.2
+      },
+      {
+        "app_id": "Fantastical",
+        "name": "Fantastical",
+        "minutes": 1.0
+      },
+      {
+        "app_id": "Заметки",
+        "name": "Заметки",
+        "minutes": 0.4
+      },
+      {
+        "app_id": "V2BOX",
+        "name": "V2BOX",
+        "minutes": 0.1
+      },
+      {
+        "app_id": "Safari",
+        "name": "Safari",
         "minutes": 0.1
       }
     ]

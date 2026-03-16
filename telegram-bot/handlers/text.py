@@ -439,11 +439,6 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                 text
             )
             debug_logger.info(f"✅ analyze_message returned type: {router_result.get('type') if router_result else 'None'}")
-            print("="*80)
-            print("🔍 [ДИАГНОСТИКА] Результат от LLM Router:")
-            import json
-            print(json.dumps(router_result, ensure_ascii=False, indent=2))
-            print("="*80)
         except Exception as e:
             debug_logger.error(f"❌ analyze_message FAILED: {e}", exc_info=True)
             logger.error(f"LLM Router Error: {e}", exc_info=True)
@@ -620,15 +615,6 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                 text
             )
             debug_logger.info(f"✅ process_llm_food_data finished in executor. Items: {len(meal_items)}")
-            
-            # ДИАГНОСТИКА: логируем результат обработки
-            print("\n" + "="*80)
-            print("🔍 [ДИАГНОСТИКА] Результат после process_llm_food_data:")
-            print(f"Количество элементов: {len(meal_items)}")
-            for i, item in enumerate(meal_items, 1):
-                print(f"  {i}. {item.get('product')}: {item.get('weight_g')}г → {item.get('calories')} ккал")
-            print(f"\nИтого: {meal_totals.get('calories')} ккал (Б:{meal_totals.get('protein')} Ж:{meal_totals.get('fats')} У:{meal_totals.get('carbs')})")
-            print("="*80 + "\n")
             
             if not meal_items:
                  await processing_msg.edit_text("❌ Вроде еда, но продуктов не нашел.")
