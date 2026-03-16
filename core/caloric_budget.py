@@ -88,6 +88,25 @@ def make_macro_bar(consumed: float, target: float, invert: bool = False) -> tupl
     return sq * filled + "⬜" * (10 - filled), pct
 
 
+def make_block_bar(consumed: float, target: float, invert: bool = False) -> tuple:
+    """
+    Returns (bar_string, pct) — emoji progress bar, 10 squares, no hybrid chars.
+
+    invert=False — over target is bad (calories, fat, carbs)
+    invert=True  — under target is bad (protein, fiber)
+    """
+    pct = round(consumed / target * 100) if target else 0
+    filled = min(10, round(pct / 10))
+
+    if invert:
+        sq = "🟩" if pct >= 70 else ("🟧" if pct >= 50 else "🟥")
+    else:
+        sq = "🟥" if pct > 100 else ("🟧" if pct >= 80 else "🟩")
+
+    bar = sq * filled + "⬜" * (10 - filled)
+    return bar, pct
+
+
 def format_budget_line(user_id: int, for_date: Optional[date_type] = None) -> str:
     """
     Returns a compact one-block string for appending to a Telegram message.

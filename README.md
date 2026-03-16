@@ -8,6 +8,8 @@
 
 - **[NutriLogBot](https://github.com/Lyskovsky/NutriLogBot)** — телеграм-бот для учёта питания (совместная разработка). HealthVault берёт из него данные о питании и витаминах.
 
+**Бот в этом репо:** код бота «HealthVault Tracker» — в `telegram-bot/`; пишет в ту же PostgreSQL (`nutrition_log`, `supplements_log`, `weights`). Распознавание еды: LLM (фото/текст) → приоритет веса из текста над стандартной порцией, время по Москве (MSK), напитки 0 ккал (Cola Zero и т.п.).
+
 ---
 
 ## Основные файлы
