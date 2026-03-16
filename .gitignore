@@ -10,6 +10,9 @@ data/backup/
 !.env.example
 !.env.production.example
 
+# API Keys / Secrets
+.openai_api_key
+
 # Python
 __pycache__/
 *.py[cod]
