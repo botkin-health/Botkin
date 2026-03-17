@@ -136,12 +136,20 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
     
     if total_nutrition and (total_nutrition.get('calories') or 0) > 0:
         if len(meal_items) == 1 and is_zero_calorie_drink(dish_name or (meal_items[0].get('product') if meal_items else '')):
-            # LLM мог вернуть обычную колу — принудительно 0
             return meal_items, {'calories': 0.0, 'protein': 0.0, 'fats': 0.0, 'carbs': 0.0}
         if len(meal_items) == 1:
+            # Консистентность: не подставлять total_nutrition, если он сильно расходится с суммой по позициям
+            # (иначе строка "45г — 14 ккал" и "Итого: 150 ккал" как в баге с фасолью)
+            comp_cal = computed_totals.get('calories') or 0
+            tn_cal = float(total_nutrition.get('calories', 0))
+            if comp_cal > 0 and abs(tn_cal - comp_cal) / comp_cal > 0.4:
+                logger.info(
+                    f"⚠️ total_nutrition from LLM ({tn_cal} kcal) inconsistent with computed ({comp_cal} kcal), using computed"
+                )
+                return meal_items, computed_totals
             logger.info(f"✅ Using explicit total nutrition from LLM (Recipe/Label): {total_nutrition}")
             return meal_items, {
-                'calories': float(total_nutrition.get('calories', 0)),
+                'calories': tn_cal,
                 'protein': float(total_nutrition.get('protein', 0)),
                 'fats': float(total_nutrition.get('fats', 0)),
                 'carbs': float(total_nutrition.get('carbs', 0))

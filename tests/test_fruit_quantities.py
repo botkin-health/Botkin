@@ -38,3 +38,25 @@ def test_fruit_quantity_estimation():
     assert cherry['weight'] is not None, "Cherry tomatoes weight is None"
     # 6 * 15g = 90g
     assert cherry['weight'] == 90
+
+
+def test_half_fruit_regression():
+    """
+    Regression (Ника): «половина груши и половина банана» не должна давать 700г/600г.
+    Должно быть ~70г груши, ~60г банана. Проверяем полный пайплайн (parser без LLM).
+    """
+    from unittest.mock import patch
+
+    description = "половина груши и половина банана"
+    with patch("core.chatgpt_vision.get_openai_api_key", return_value=None):
+        products = parse_meal_description(description)
+
+    product_map = {p["name"]: p for p in products}
+    pear = product_map.get("груша")
+    banana = product_map.get("банан")
+    assert pear is not None and banana is not None, "Оба продукта должны быть распознаны"
+
+    assert 50 <= pear["weight"] <= 90, f"Половина груши ~70г, получено {pear['weight']}"
+    assert pear["weight"] < 200, "Регрессия: половина груши не 700г"
+    assert 40 <= banana["weight"] <= 80, f"Половина банана ~60г, получено {banana['weight']}"
+    assert banana["weight"] < 200, "Регрессия: половина банана не 600г"
