@@ -553,3 +553,37 @@ class TestFoodProcessorIntegration:
             f"Ожидалось 253.5 ккал, получено {totals['calories']}"
         )
         assert totals["protein"] > 20  # 27.75г белка для 150г индейки
+
+    def test_single_item_totals_consistent_with_computed(self):
+        """
+        Регрессия (Ника): «3 ст.л. фасоли» — в карточке 45г 14 ккал, Итого 150 ккал.
+        total_nutrition от LLM не должен подменять итог, если сильно расходится с суммой по позициям.
+        """
+        from unittest.mock import patch
+        raw = {
+            "type": "food",
+            "data": {
+                "dish_name": "Фасоль",
+                "meal_type": "lunch",
+                "items": [
+                    {
+                        "name": "Фасоль",
+                        "weight": 45,
+                        "calories": 14,
+                        "protein": 0,
+                        "fats": 0,
+                        "carbs": 3
+                    }
+                ],
+                "total_nutrition": {"calories": 150, "protein": 10, "fats": 0, "carbs": 27}
+            }
+        }
+        validated = parse_llm_response(raw)
+        with patch("core.llm_food_processor.find_product", return_value=None):
+            meal_items, totals = process_llm_food_data(validated)
+        assert len(meal_items) == 1
+        assert meal_items[0]["calories"] == 14
+        # Итого = сумма по позициям (14), не total_nutrition (150)
+        assert totals["calories"] == 14.0
+        assert totals["protein"] == 0.0
+        assert totals["carbs"] == 3.0

@@ -95,3 +95,26 @@ def test_parser_quantity_logic():
     assert item['name'] == "яйцо"
     assert item['weight'] == 3 * 55 # 165
 
+
+def test_half_fruit_parsing_regression():
+    """
+    Regression: «половина груши и половина банана» раньше давала 700г и 600г
+    (regex матчил "5" из "0.5" как количество). Должно быть ~70г и ~60г.
+    """
+    desc = "половина груши и половина банана"
+    products = extract_products_from_description(desc)
+    
+    by_name = {p["name"]: p for p in products}
+    assert "груша" in by_name, "Груша должна быть в результате"
+    assert "банан" in by_name, "Банан должен быть в результате"
+    
+    # Половина груши: 140г * 0.5 = 70г (не 700!)
+    pear = by_name["груша"]
+    assert 50 <= pear["weight"] <= 90, f"Половина груши ~70г, получено {pear['weight']}"
+    assert pear["weight"] < 200, "Баг: половина груши не должна быть >200г"
+    
+    # Половина банана: 120г * 0.5 = 60г (не 600!)
+    banana = by_name["банан"]
+    assert 40 <= banana["weight"] <= 80, f"Половина банана ~60г, получено {banana['weight']}"
+    assert banana["weight"] < 200, "Баг: половина банана не должна быть >200г"
+
