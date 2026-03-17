@@ -206,6 +206,16 @@ STANDARD PORTIONS DATABASE (use when exact weight not provided):
 - Рагу овощное: 250г, ~120 ккал
 - Гуляш: 250г, ~280 ккал (Б:20 Ж:16 У:12)
 
+FRACTIONAL PORTIONS (CRITICAL!):
+When user says "половина", "пол", "полбанана", "четверть", "треть" etc., ALWAYS multiply the standard portion weight:
+- "половина банана" / "пол банана" / "полбанана" → weight = 120 * 0.5 = 60g
+- "половина груши" → weight = 150 * 0.5 = 75g
+- "половина яблока" → weight = 170 * 0.5 = 85g
+- "четверть курицы" → weight = portion * 0.25
+- "треть порции" → weight = portion * 0.33
+- "полтарелки супа" → weight = 300 * 0.5 = 150g
+NEVER return full portion weight when user explicitly says "половина/пол/четверть/треть"!
+
 CRITICAL RULES FOR ACCURACY:
 1. ALWAYS convert spoons to grams: "1 ч.л. масла" -> weight: 5
 2. ALWAYS convert pieces to grams: "6 оливок" -> weight: 30
@@ -215,6 +225,7 @@ CRITICAL RULES FOR ACCURACY:
 6. For dishes without explicit weight (soup, salad, kebab etc) - ALWAYS use standard portion from database above
 7. NEVER return calories: 0 for a real food item. Estimate based on your nutritional knowledge
 8. MULTIPLE PHOTOS / DISHES (CRITICAL!): If receiving multiple photos or seeing multiple distinct dishes (e.g. salad + fish steak), you MUST list them as SEPARATE items in the array. Estimate the correct weight for EACH dish independently. Do NOT merge them into one item or under-estimate the total weight.
+9. FRACTIONAL PORTIONS: "половина X" → 0.5× standard weight, "четверть X" → 0.25×, "треть X" → 0.33×. Calculate weight in grams and return the HALVED/QUARTERED value.
 
 SCENARIO 2: WEIGHT
 Extract weight and body composition.
