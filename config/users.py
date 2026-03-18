@@ -9,6 +9,7 @@ and authorization logic.
 ALLOWED_USERS = {
     895655,   # Alex Lyskovsky
     485132,   # Nika Selezneva
+    836757955,  # Andrey
 }
 
 
