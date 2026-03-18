@@ -83,7 +83,7 @@ else
     fi
     
     sshpass -p "$SERVER_PASSWORD" ssh ${SERVER_USER}@${SERVER_IP} \
-        "cd ${SERVER_PATH} && docker-compose build $NO_CACHE bot"
+        "cd ${SERVER_PATH} && (command -v docker-compose >/dev/null 2>&1 && docker-compose build $NO_CACHE bot || docker compose build $NO_CACHE bot)"
     
     echo "✅ Docker image rebuilt successfully"
 fi
@@ -92,7 +92,7 @@ echo ""
 # 3. Restart containers with new image
 echo "♻️  Step 3/4: Restarting containers..."
 sshpass -p "$SERVER_PASSWORD" ssh ${SERVER_USER}@${SERVER_IP} \
-    "cd ${SERVER_PATH} && docker-compose up -d"
+    "cd ${SERVER_PATH} && (command -v docker-compose >/dev/null 2>&1 && docker-compose up -d || docker compose up -d)"
 
 echo "✅ Containers restarted"
 echo ""
@@ -105,7 +105,7 @@ sleep 3
 echo ""
 echo "Container status:"
 sshpass -p "$SERVER_PASSWORD" ssh ${SERVER_USER}@${SERVER_IP} \
-    "cd ${SERVER_PATH} && docker-compose ps"
+    "cd ${SERVER_PATH} && (command -v docker-compose >/dev/null 2>&1 && docker-compose ps || docker compose ps)"
 
 echo ""
 echo "Recent logs:"
