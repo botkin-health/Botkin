@@ -48,11 +48,10 @@ python3 scripts/parse_workouts.py
 echo "3/4 🌬 Загрузка данных климата в спальне из Netatmo..."
 python3 scripts/import_netatmo.py
 
-echo "4/4 📱 Загрузка экранного времени (iPhone, Mac, Chrome)..."
+echo "4/4 📱 Загрузка экранного времени (iPhone, Mac)..."
 # Требует Full Disk Access у терминала!
 python3 scripts/import_activitywatch.py
 python3 scripts/import_mac_screentime.py
-python3 scripts/import_chrome_history.py
 
 echo "5/4 🍎 Apple Health (шаги, ходьба, АД, вес, пульс)..."
 # Необязательный шаг — требует ручного экспорта Apple Health (Health → Профиль → Экспорт данных)
