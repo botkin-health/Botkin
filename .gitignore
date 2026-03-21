@@ -1,6 +1,7 @@
 # Data
 data/apple-health/
 data/backup/
+data/cache/
 *.xml
 *.sql
 !database/init.sql
@@ -65,3 +66,6 @@ CREDENTIALS.md
 !README.md
 !KNOWLEDGE_BASE.md
 !HEALTH.md
+
+# macOS
+**/.DS_Store

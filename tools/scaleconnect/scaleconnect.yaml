@@ -1,3 +1,0 @@
-sync_zepp:
-  from: zepp/xiaomi lyskovsky@gmail.com Chipsoft8444
-  to: csv /Users/alexlyskovsky/HealthVault/data/zepp_export_latest.csv

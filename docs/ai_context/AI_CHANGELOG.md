@@ -9,6 +9,12 @@
 
 ## 2026
 
+- **[2026-03-21]** Итоговый PDF анализов CMD (DFF39243844) сохранён как `blood_cmd_2026-03-19_comprehensive.pdf`, knowledge_base.json обновлён с инсулином 8.1 и HOMA 1.7 - *Claude Code*
+- **[2026-03-21]** Импортирован свежий экспорт Apple Health (738 MB, данные по 21.03.2026): 1037 замеров веса, 156 АД, 4075 дней шагов, 2049 пульс покоя, 1999 дней ходьбы - *Claude Code*
+- **[2026-03-21]** Рефакторинг проекта: удалены `tools/scaleconnect/` (9 MB, заменён OAuth2 API), `database/repository.py` (deprecated), стейл-файлы в `data/analysis/`, bot-логи, кэш. Удалены дублирующие доки `ARCHITECTURE.md`, `ONBOARDING.md`, `QUICK_START.md`, `README_DATA_ANALYSIS.md`. SQL миграции перемещены в архив - *Claude Code*
+- **[2026-03-21]** Обновлён HEALTH.md: актуальные данные марта 2026 (вес 77.7, АД 122/78, все анализы CMD), убраны @@TODO@@ маркеры, таблица замеров тела - *Claude Code*
+- **[2026-03-21]** Создан CLAUDE.md — контекст для Claude Code с навигацией по проекту, источниками данных, skills и правилами - *Claude Code*
+
 - **[2026-03-01]** Создана модульная база знаний `docs/ai_context/` для улучшения контекста ИИ - *Antigravity*
 - **[2026-03-01]** Добавлен скрипт `import_screentime.py` для парсинга `knowledgeC.db` MacOS. Успешно извлечено 1000 событий, для работы скрипта выдан Full Disk Access - *Antigravity*
 - **[2026-03-01]** Настроена интеграция с Netatmo (`scripts/import_netatmo.py`), осуществляется переход на Refresh Token авторизацию - *Antigravity*
