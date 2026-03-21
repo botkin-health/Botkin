@@ -186,8 +186,8 @@
   "atpActivity": false,
   "autoCalcCalories": false,
   "favorite": false,
-  "pr": false,
   "purposeful": false,
-  "parent": false,
-  "manualActivity": false
+  "manualActivity": false,
+  "pr": false,
+  "parent": false
 }

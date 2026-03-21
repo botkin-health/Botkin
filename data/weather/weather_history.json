@@ -1193,6 +1193,22 @@
       "precipitation_mm": 0.0,
       "weather_code": 3,
       "weather": "Пасмурно"
+    },
+    {
+      "date": "2026-03-21",
+      "city": "Москва",
+      "lat": 55.7816,
+      "lon": 37.5706,
+      "temp_max": 8.5,
+      "temp_min": -2.6,
+      "temp_mean": 2.6,
+      "pressure_mmhg": 766.9,
+      "humidity_pct": 68,
+      "sunshine_hours": 10.1,
+      "uv_index_max": 2.95,
+      "precipitation_mm": 0.0,
+      "weather_code": 45,
+      "weather": "Туман"
     }
   ]
 }

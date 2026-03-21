@@ -8,8 +8,8 @@
     "typeKey": "yoga",
     "parentTypeId": 29,
     "isHidden": false,
-    "trimmable": false,
-    "restricted": false
+    "restricted": false,
+    "trimmable": false
   },
   "eventType": {
     "typeId": 9,
@@ -125,10 +125,10 @@
   "decoDive": false,
   "elevationCorrected": false,
   "atpActivity": false,
-  "purposeful": false,
-  "manualActivity": false,
-  "pr": false,
-  "parent": false,
   "autoCalcCalories": false,
-  "favorite": false
+  "favorite": false,
+  "pr": false,
+  "purposeful": false,
+  "parent": false,
+  "manualActivity": false
 }

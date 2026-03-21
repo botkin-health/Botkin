@@ -9,6 +9,9 @@
 
 ## 2026
 
+- **[2026-03-21]** Создан скилл `/refresh` — умная актуализация потоков: проверяет что устарело, запускает автоматические скрипты, говорит что сделать вручную (Apple Health, замеры тела). Исправлено: давление через Apple Health от Omron (не ручной ввод). iPhone Screen Time починен: `aw-import-screentime` + `import_activitywatch.py` — данные до 21.03. Добавки и питание: `fetch_remote_nutrition.sh` тянет с сервера. SOP обновлён в памяти Claude с детальными инструкциями по каждому потоку - *Claude Code*
+- **[2026-03-21]** Создан скилл `/dashboard` — табличка полноты 18 потоков данных здоровья с эмодзи. Удалён `import_chrome_history.py` из sync (дублировал Screen Time), данные `chrome_history.json` удалены, RescueTime добавлен в todo.md как замена - *Claude Code*
+- **[2026-03-21]** Рефакторинг хранения OAuth-токенов: единое место `data/cache/tokens.json` (в .gitignore). Удалена воссозданная `tools/scaleconnect/`, путь в `import_zepp_api.py` обновлён, CLAUDE.md дополнен таблицей секретов - *Claude Code*
 - **[2026-03-21]** Итоговый PDF анализов CMD (DFF39243844) сохранён как `blood_cmd_2026-03-19_comprehensive.pdf`, knowledge_base.json обновлён с инсулином 8.1 и HOMA 1.7 - *Claude Code*
 - **[2026-03-21]** Импортирован свежий экспорт Apple Health (738 MB, данные по 21.03.2026): 1037 замеров веса, 156 АД, 4075 дней шагов, 2049 пульс покоя, 1999 дней ходьбы - *Claude Code*
 - **[2026-03-21]** Рефакторинг проекта: удалены `tools/scaleconnect/` (9 MB, заменён OAuth2 API), `database/repository.py` (deprecated), стейл-файлы в `data/analysis/`, bot-логи, кэш. Удалены дублирующие доки `ARCHITECTURE.md`, `ONBOARDING.md`, `QUICK_START.md`, `README_DATA_ANALYSIS.md`. SQL миграции перемещены в архив - *Claude Code*

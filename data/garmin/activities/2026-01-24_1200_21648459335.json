@@ -95,8 +95,8 @@
   "atpActivity": false,
   "autoCalcCalories": true,
   "favorite": false,
-  "pr": false,
   "purposeful": false,
-  "parent": false,
-  "manualActivity": true
+  "manualActivity": true,
+  "pr": false,
+  "parent": false
 }
