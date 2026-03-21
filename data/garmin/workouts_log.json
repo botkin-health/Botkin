@@ -1,22 +1,22 @@
 {
-  "generated_at": "2026-03-15T21:38:22.719124",
-  "total_workouts": 105,
-  "workouts_since_jan6": 57,
+  "generated_at": "2026-03-20T01:18:06.779420",
+  "total_workouts": 106,
+  "workouts_since_jan6": 58,
   "date_range": {
     "first": "2025-01-05",
-    "last": "2026-03-14"
+    "last": "2026-03-16"
   },
   "stats_since_jan6": {
     "by_type": {
-      "ВИИТ": 34,
+      "ВИИТ": 35,
       "Бег": 8,
       "Ходьба": 2,
       "Йога": 13
     },
-    "evening_workouts": 44,
+    "evening_workouts": 45,
     "heavy_workouts_load_150plus": 10,
-    "avg_training_load": 87,
-    "avg_active_kcal": 295
+    "avg_training_load": 86,
+    "avg_active_kcal": 296
   },
   "workouts": [
     {
@@ -3692,6 +3692,41 @@
       "raw_messages": {
         "aerobic": "NO_AEROBIC_BENEFIT_18",
         "anaerobic": "NO_ANAEROBIC_BENEFIT_0"
+      }
+    },
+    {
+      "date": "2026-03-16",
+      "time": "19:11",
+      "start_hour": 19,
+      "activity_id": 22193819881,
+      "activity_name": "ВИИТ",
+      "type": "hiit",
+      "type_label": "ВИИТ",
+      "duration_min": 60.0,
+      "calories_total": 436,
+      "calories_active": 353,
+      "training_load": 68,
+      "intensity": "light",
+      "avg_hr": 121.0,
+      "max_hr": 169.0,
+      "hr_zones": {
+        "z1_min": 35.8,
+        "z2_min": 6.4,
+        "z3_min": 1.7,
+        "z4_min": 0.3,
+        "z5_min": 0.0
+      },
+      "vigorous_min": 22,
+      "moderate_min": 30,
+      "aerobic_te": 2.3,
+      "anaerobic_te": 2.3,
+      "te_label": "SPEED",
+      "body_battery_drain": -5,
+      "water_ml": 689,
+      "evening_workout": true,
+      "raw_messages": {
+        "aerobic": "MAINTAINING_AEROBIC_BASE_7",
+        "anaerobic": "MAINTAINING_FAST_FORCE_PRODUCTION_6"
       }
     }
   ]

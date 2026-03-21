@@ -3,6 +3,18 @@
   "created_date": "2026-01-08",
   "entries": [
     {
+      "date": "2026-03-21",
+      "waist_above_navel_cm": 99.0,
+      "waist_navel_cm": 100.0,
+      "chest_nipples_cm": 106.0,
+      "neck_adams_apple_cm": 42.0,
+      "bicep_mid_cm": 33.0,
+      "hips_buttocks_cm": 100.0,
+      "calf_cm": 37.0,
+      "thigh_mid_cm": 53.0,
+      "notes": "Талия выше пупка: 99. Живот по пупку: 100. Грудь: 106. Шея: 42. Бицепс напряжённый: 33. Ягодицы: 100. Бедро: 53. Икра: 37."
+    },
+    {
       "date": "2026-03-14",
       "waist_above_navel_cm": 97.0,
       "waist_navel_cm": 99.0,

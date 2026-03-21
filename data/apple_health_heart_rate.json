@@ -14300,6 +14300,48 @@
       "bpm": 48,
       "type": "resting",
       "source": "Connect"
+    },
+    {
+      "date": "2026-03-16",
+      "time": "00:00:00",
+      "bpm": 50,
+      "type": "resting",
+      "source": "Connect"
+    },
+    {
+      "date": "2026-03-17",
+      "time": "00:00:00",
+      "bpm": 50,
+      "type": "resting",
+      "source": "Connect"
+    },
+    {
+      "date": "2026-03-18",
+      "time": "00:00:00",
+      "bpm": 48,
+      "type": "resting",
+      "source": "Connect"
+    },
+    {
+      "date": "2026-03-19",
+      "time": "00:00:00",
+      "bpm": 53,
+      "type": "resting",
+      "source": "Connect"
+    },
+    {
+      "date": "2026-03-20",
+      "time": "00:00:00",
+      "bpm": 53,
+      "type": "resting",
+      "source": "Connect"
+    },
+    {
+      "date": "2026-03-21",
+      "time": "00:00:00",
+      "bpm": 52,
+      "type": "resting",
+      "source": "Connect"
     }
   ]
 }

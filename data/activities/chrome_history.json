@@ -1,294 +1,4 @@
 {
-  "2025-12-18": {
-    "total_visits": 115,
-    "domains": [
-      {
-        "domain": "google.com",
-        "category": "other",
-        "visits": 79,
-        "minutes_est": 38.2
-      },
-      {
-        "domain": "support.apple.com",
-        "category": "other",
-        "visits": 3,
-        "minutes_est": 10.2
-      },
-      {
-        "domain": "x.com",
-        "category": "social_media",
-        "visits": 5,
-        "minutes_est": 8.7
-      },
-      {
-        "domain": "sp.yandex.ru",
-        "category": "other",
-        "visits": 2,
-        "minutes_est": 3.3
-      },
-      {
-        "domain": "yandex.ru",
-        "category": "other",
-        "visits": 8,
-        "minutes_est": 2.7
-      },
-      {
-        "domain": "vecherka.tj",
-        "category": "other",
-        "visits": 1,
-        "minutes_est": 1.3
-      },
-      {
-        "domain": "pointcontinentrtb.com",
-        "category": "other",
-        "visits": 1,
-        "minutes_est": 1.0
-      },
-      {
-        "domain": "apple.co",
-        "category": "other",
-        "visits": 1,
-        "minutes_est": 1.0
-      },
-      {
-        "domain": "images.google.com",
-        "category": "other",
-        "visits": 2,
-        "minutes_est": 1.0
-      },
-      {
-        "domain": "polytopia.io",
-        "category": "other",
-        "visits": 1,
-        "minutes_est": 0.9
-      },
-      {
-        "domain": "ero.goloe.me",
-        "category": "other",
-        "visits": 1,
-        "minutes_est": 0.8
-      },
-      {
-        "domain": "threads.com",
-        "category": "other",
-        "visits": 4,
-        "minutes_est": 0.6
-      },
-      {
-        "domain": "instagram.com",
-        "category": "social_media",
-        "visits": 1,
-        "minutes_est": 0.4
-      },
-      {
-        "domain": "pornokran.cc",
-        "category": "other",
-        "visits": 2,
-        "minutes_est": 0.2
-      },
-      {
-        "domain": "amazon.it",
-        "category": "other",
-        "visits": 1,
-        "minutes_est": 0.1
-      },
-      {
-        "domain": "mysecretcase.com",
-        "category": "other",
-        "visits": 1,
-        "minutes_est": 0.1
-      },
-      {
-        "domain": "fam.tg",
-        "category": "other",
-        "visits": 1,
-        "minutes_est": 0.0
-      },
-      {
-        "domain": "yndx.auth.yandex.cloud",
-        "category": "other",
-        "visits": 1,
-        "minutes_est": 0.0
-      }
-    ],
-    "categories": {
-      "other": {
-        "visits": 109,
-        "minutes_est": 61.4
-      },
-      "social_media": {
-        "visits": 6,
-        "minutes_est": 9.1
-      }
-    },
-    "hourly": {
-      "02": {
-        "visits": 85,
-        "minutes_est": 42.3,
-        "top_domain": "google.com",
-        "top_category": "other"
-      },
-      "14": {
-        "visits": 13,
-        "minutes_est": 9.3,
-        "top_domain": "support.apple.com",
-        "top_category": "other"
-      },
-      "17": {
-        "visits": 1,
-        "minutes_est": 5.0,
-        "top_domain": "support.apple.com",
-        "top_category": "other"
-      },
-      "18": {
-        "visits": 6,
-        "minutes_est": 6.0,
-        "top_domain": "google.com",
-        "top_category": "other"
-      },
-      "22": {
-        "visits": 10,
-        "minutes_est": 7.9,
-        "top_domain": "google.com",
-        "top_category": "other"
-      }
-    },
-    "pre_sleep_22_00": {
-      "total_visits": 10,
-      "categories": {
-        "other": 10
-      }
-    },
-    "context_switches_per_hour": 1.8
-  },
-  "2025-12-19": {
-    "total_visits": 15,
-    "domains": [
-      {
-        "domain": "compras.moventis.es",
-        "category": "other",
-        "visits": 9,
-        "minutes_est": 7.3
-      },
-      {
-        "domain": "google.com",
-        "category": "other",
-        "visits": 5,
-        "minutes_est": 6.0
-      },
-      {
-        "domain": "anywayanyday.business",
-        "category": "other",
-        "visits": 1,
-        "minutes_est": 5.0
-      }
-    ],
-    "categories": {
-      "other": {
-        "visits": 15,
-        "minutes_est": 18.3
-      }
-    },
-    "hourly": {
-      "12": {
-        "visits": 9,
-        "minutes_est": 6.2,
-        "top_domain": "compras.moventis.es",
-        "top_category": "other"
-      },
-      "16": {
-        "visits": 4,
-        "minutes_est": 2.1,
-        "top_domain": "compras.moventis.es",
-        "top_category": "other"
-      },
-      "22": {
-        "visits": 2,
-        "minutes_est": 10.0,
-        "top_domain": "google.com",
-        "top_category": "other"
-      }
-    },
-    "pre_sleep_22_00": {
-      "total_visits": 2,
-      "categories": {
-        "other": 2
-      }
-    },
-    "context_switches_per_hour": 0.3
-  },
-  "2025-12-20": {
-    "total_visits": 10,
-    "domains": [
-      {
-        "domain": "google.com",
-        "category": "other",
-        "visits": 4,
-        "minutes_est": 14.2
-      },
-      {
-        "domain": "videoidentificacio.idcat.cat",
-        "category": "other",
-        "visits": 2,
-        "minutes_est": 10.0
-      },
-      {
-        "domain": "api-videoidentificacio.idcat.cat",
-        "category": "other",
-        "visits": 1,
-        "minutes_est": 1.0
-      },
-      {
-        "domain": "anywayanyday.business",
-        "category": "other",
-        "visits": 1,
-        "minutes_est": 0.4
-      },
-      {
-        "domain": "idcat.aoc.cat",
-        "category": "other",
-        "visits": 1,
-        "minutes_est": 0.1
-      },
-      {
-        "domain": "formularis.aoc.cat",
-        "category": "other",
-        "visits": 1,
-        "minutes_est": 0.1
-      }
-    ],
-    "categories": {
-      "other": {
-        "visits": 10,
-        "minutes_est": 25.7
-      }
-    },
-    "hourly": {
-      "14": {
-        "visits": 4,
-        "minutes_est": 9.6,
-        "top_domain": "google.com",
-        "top_category": "other"
-      },
-      "15": {
-        "visits": 3,
-        "minutes_est": 5.1,
-        "top_domain": "google.com",
-        "top_category": "other"
-      },
-      "16": {
-        "visits": 3,
-        "minutes_est": 11.0,
-        "top_domain": "videoidentificacio.idcat.cat",
-        "top_category": "other"
-      }
-    },
-    "pre_sleep_22_00": {
-      "total_visits": 0,
-      "categories": {}
-    },
-    "context_switches_per_hour": 4.7
-  },
   "2025-12-21": {
     "total_visits": 189,
     "domains": [
@@ -22396,6 +22106,12 @@
         "minutes_est": 5.0
       },
       {
+        "domain": "sso.godaddy.com",
+        "category": "other",
+        "visits": 1,
+        "minutes_est": 5.0
+      },
+      {
         "domain": "cipr.ru",
         "category": "other",
         "visits": 1,
@@ -22570,12 +22286,6 @@
         "minutes_est": 0.0
       },
       {
-        "domain": "sso.godaddy.com",
-        "category": "other",
-        "visits": 1,
-        "minutes_est": 0.0
-      },
-      {
         "domain": "sso.passport.yandex.ru",
         "category": "other",
         "visits": 1,
@@ -22589,7 +22299,7 @@
       },
       "other": {
         "visits": 185,
-        "minutes_est": 221.2
+        "minutes_est": 226.2
       },
       "ai_tools": {
         "visits": 50,
@@ -22659,7 +22369,7 @@
       },
       "12": {
         "visits": 29,
-        "minutes_est": 46.0,
+        "minutes_est": 51.0,
         "top_domain": "docs.google.com",
         "top_category": "work_productivity"
       },
@@ -22730,7 +22440,7 @@
         "domain": "docs.google.com",
         "category": "work_productivity",
         "visits": 296,
-        "minutes_est": 149.7
+        "minutes_est": 154.6
       },
       {
         "domain": "google.com",
@@ -22950,7 +22660,7 @@
       },
       "work_productivity": {
         "visits": 321,
-        "minutes_est": 178.6
+        "minutes_est": 183.5
       },
       "communication": {
         "visits": 19,
@@ -23028,7 +22738,7 @@
       },
       "15": {
         "visits": 116,
-        "minutes_est": 46.3,
+        "minutes_est": 51.3,
         "top_domain": "docs.google.com",
         "top_category": "work_productivity"
       },
@@ -23087,7 +22797,7 @@
         "domain": "docs.google.com",
         "category": "work_productivity",
         "visits": 238,
-        "minutes_est": 138.5
+        "minutes_est": 143.3
       },
       {
         "domain": "moscow.orangegate.cc",
@@ -23327,7 +23037,7 @@
     "categories": {
       "work_productivity": {
         "visits": 258,
-        "minutes_est": 160.2
+        "minutes_est": 165.1
       },
       "other": {
         "visits": 125,
@@ -23443,7 +23153,7 @@
       },
       "23": {
         "visits": 45,
-        "minutes_est": 42.3,
+        "minutes_est": 47.2,
         "top_domain": "docs.google.com",
         "top_category": "work_productivity"
       }
@@ -23461,31 +23171,121 @@
     "context_switches_per_hour": 4.2
   },
   "2026-03-18": {
-    "total_visits": 250,
+    "total_visits": 575,
     "domains": [
       {
-        "domain": "lk.gosuslugi.ru",
+        "domain": "moscow.orangegate.cc",
         "category": "other",
-        "visits": 89,
-        "minutes_est": 47.4
+        "visits": 29,
+        "minutes_est": 84.3
       },
       {
         "domain": "web.alfabank.ru",
         "category": "finance_crypto",
-        "visits": 55,
-        "minutes_est": 45.0
+        "visits": 73,
+        "minutes_est": 71.4
+      },
+      {
+        "domain": "lk.gosuslugi.ru",
+        "category": "other",
+        "visits": 89,
+        "minutes_est": 50.2
+      },
+      {
+        "domain": "claude.ai",
+        "category": "ai_tools",
+        "visits": 52,
+        "minutes_est": 37.9
       },
       {
         "domain": "private.auth.alfabank.ru",
         "category": "finance_crypto",
-        "visits": 16,
-        "minutes_est": 23.2
+        "visits": 20,
+        "minutes_est": 29.3
       },
       {
-        "domain": "moscow.orangegate.cc",
+        "domain": "accounts.google.com",
         "category": "other",
-        "visits": 7,
-        "minutes_est": 17.6
+        "visits": 43,
+        "minutes_est": 28.1
+      },
+      {
+        "domain": "youtube.com",
+        "category": "entertainment",
+        "visits": 21,
+        "minutes_est": 26.2
+      },
+      {
+        "domain": "google.com",
+        "category": "other",
+        "visits": 23,
+        "minutes_est": 20.7
+      },
+      {
+        "domain": "telemost.yandex.ru",
+        "category": "communication",
+        "visits": 5,
+        "minutes_est": 20.0
+      },
+      {
+        "domain": "docs.google.com",
+        "category": "work_productivity",
+        "visits": 18,
+        "minutes_est": 18.3
+      },
+      {
+        "domain": "granola.ai",
+        "category": "other",
+        "visits": 6,
+        "minutes_est": 18.0
+      },
+      {
+        "domain": "gba.bitrix24.ru",
+        "category": "work_productivity",
+        "visits": 21,
+        "minutes_est": 15.9
+      },
+      {
+        "domain": "my.telegram.org",
+        "category": "other",
+        "visits": 9,
+        "minutes_est": 11.8
+      },
+      {
+        "domain": "daotech.bitrix24.ru",
+        "category": "work_productivity",
+        "visits": 8,
+        "minutes_est": 11.2
+      },
+      {
+        "domain": "alfabank.ru",
+        "category": "finance_crypto",
+        "visits": 17,
+        "minutes_est": 11.1
+      },
+      {
+        "domain": "rt.pornhub.com",
+        "category": "other",
+        "visits": 10,
+        "minutes_est": 10.8
+      },
+      {
+        "domain": "mcp-auth.granola.ai",
+        "category": "other",
+        "visits": 15,
+        "minutes_est": 10.1
+      },
+      {
+        "domain": "mcp.granola.ai",
+        "category": "other",
+        "visits": 2,
+        "minutes_est": 10.0
+      },
+      {
+        "domain": "auth.granola.ai",
+        "category": "other",
+        "visits": 9,
+        "minutes_est": 9.0
       },
       {
         "domain": "gosuslugi.ru",
@@ -23494,22 +23294,16 @@
         "minutes_est": 7.6
       },
       {
-        "domain": "alfabank.ru",
-        "category": "finance_crypto",
-        "visits": 12,
-        "minutes_est": 7.5
-      },
-      {
-        "domain": "claude.ai",
-        "category": "ai_tools",
-        "visits": 14,
-        "minutes_est": 7.0
-      },
-      {
         "domain": "chatgpt.com",
         "category": "ai_tools",
         "visits": 6,
         "minutes_est": 6.7
+      },
+      {
+        "domain": "as1.trueconf.rt.ru",
+        "category": "other",
+        "visits": 7,
+        "minutes_est": 5.5
       },
       {
         "domain": "blob:https://web.alfabank.ru/e9069159-68da-42fa-ba",
@@ -23518,22 +23312,88 @@
         "minutes_est": 5.0
       },
       {
-        "domain": "google.com",
+        "domain": "app.sparkmailapp.com",
         "category": "other",
-        "visits": 8,
+        "visits": 1,
         "minutes_est": 5.0
+      },
+      {
+        "domain": "kinopoisk.ru",
+        "category": "entertainment",
+        "visits": 2,
+        "minutes_est": 4.3
+      },
+      {
+        "domain": "api.granola.ai",
+        "category": "other",
+        "visits": 4,
+        "minutes_est": 4.0
+      },
+      {
+        "domain": "gcal.mcp.claude.com",
+        "category": "other",
+        "visits": 3,
+        "minutes_est": 3.0
       },
       {
         "domain": "service.nalog.ru",
         "category": "other",
-        "visits": 6,
+        "visits": 8,
         "minutes_est": 2.8
+      },
+      {
+        "domain": "billing.stripe.com",
+        "category": "other",
+        "visits": 3,
+        "minutes_est": 2.7
+      },
+      {
+        "domain": "saccade.media",
+        "category": "other",
+        "visits": 2,
+        "minutes_est": 2.5
+      },
+      {
+        "domain": "drive.google.com",
+        "category": "work_productivity",
+        "visits": 3,
+        "minutes_est": 2.5
       },
       {
         "domain": "esia.gosuslugi.ru",
         "category": "other",
         "visits": 5,
         "minutes_est": 2.5
+      },
+      {
+        "domain": "account.apple.com",
+        "category": "other",
+        "visits": 7,
+        "minutes_est": 2.1
+      },
+      {
+        "domain": "yandex.ru",
+        "category": "other",
+        "visits": 2,
+        "minutes_est": 2.0
+      },
+      {
+        "domain": "yandex.eu",
+        "category": "other",
+        "visits": 2,
+        "minutes_est": 2.0
+      },
+      {
+        "domain": "api.workos.com",
+        "category": "other",
+        "visits": 2,
+        "minutes_est": 2.0
+      },
+      {
+        "domain": "yandex.com",
+        "category": "social_media",
+        "visits": 4,
+        "minutes_est": 1.9
       },
       {
         "domain": "voskhod.vc",
@@ -23555,6 +23415,36 @@
       },
       {
         "domain": "oldlkfl.nalog.ru",
+        "category": "other",
+        "visits": 1,
+        "minutes_est": 1.0
+      },
+      {
+        "domain": "pornhub.com",
+        "category": "other",
+        "visits": 1,
+        "minutes_est": 1.0
+      },
+      {
+        "domain": "58.email.stripe.com",
+        "category": "other",
+        "visits": 1,
+        "minutes_est": 1.0
+      },
+      {
+        "domain": "apple.co",
+        "category": "other",
+        "visits": 1,
+        "minutes_est": 1.0
+      },
+      {
+        "domain": "apps.apple.com",
+        "category": "other",
+        "visits": 1,
+        "minutes_est": 1.0
+      },
+      {
+        "domain": "help.granola.ai",
         "category": "other",
         "visits": 1,
         "minutes_est": 1.0
@@ -23590,6 +23480,12 @@
         "minutes_est": 0.5
       },
       {
+        "domain": "checkout.stripe.com",
+        "category": "other",
+        "visits": 2,
+        "minutes_est": 0.5
+      },
+      {
         "domain": "natchamp.org",
         "category": "other",
         "visits": 1,
@@ -23602,28 +23498,64 @@
         "minutes_est": 0.4
       },
       {
+        "domain": "telegram.org",
+        "category": "other",
+        "visits": 2,
+        "minutes_est": 0.3
+      },
+      {
         "domain": "telegram.me",
         "category": "other",
         "visits": 1,
         "minutes_est": 0.2
+      },
+      {
+        "domain": "docs.granola.ai",
+        "category": "other",
+        "visits": 1,
+        "minutes_est": 0.0
+      },
+      {
+        "domain": "sso.passport.yandex.ru",
+        "category": "other",
+        "visits": 1,
+        "minutes_est": 0.0
+      },
+      {
+        "domain": "sso.kinopoisk.ru",
+        "category": "entertainment",
+        "visits": 1,
+        "minutes_est": 0.0
       }
     ],
     "categories": {
       "other": {
-        "visits": 139,
-        "minutes_est": 89.2
+        "visits": 316,
+        "minutes_est": 309.1
       },
       "finance_crypto": {
-        "visits": 85,
-        "minutes_est": 82.1
+        "visits": 112,
+        "minutes_est": 118.1
+      },
+      "work_productivity": {
+        "visits": 50,
+        "minutes_est": 47.9
       },
       "ai_tools": {
-        "visits": 20,
-        "minutes_est": 13.7
+        "visits": 58,
+        "minutes_est": 44.6
+      },
+      "entertainment": {
+        "visits": 24,
+        "minutes_est": 30.5
+      },
+      "communication": {
+        "visits": 5,
+        "minutes_est": 20.0
       },
       "social_media": {
-        "visits": 6,
-        "minutes_est": 2.1
+        "visits": 10,
+        "minutes_est": 4.1
       }
     },
     "hourly": {
@@ -23634,22 +23566,994 @@
         "top_category": "finance_crypto"
       },
       "01": {
-        "visits": 133,
-        "minutes_est": 78.5,
+        "visits": 134,
+        "minutes_est": 85.5,
         "top_domain": "lk.gosuslugi.ru",
         "top_category": "other"
       },
       "02": {
         "visits": 42,
-        "minutes_est": 27.3,
-        "top_domain": "private.auth.alfabank.ru",
+        "minutes_est": 35.1,
+        "top_domain": "claude.ai",
+        "top_category": "ai_tools"
+      },
+      "09": {
+        "visits": 24,
+        "minutes_est": 29.7,
+        "top_domain": "rt.pornhub.com",
+        "top_category": "other"
+      },
+      "10": {
+        "visits": 49,
+        "minutes_est": 64.7,
+        "top_domain": "web.alfabank.ru",
         "top_category": "finance_crypto"
+      },
+      "11": {
+        "visits": 25,
+        "minutes_est": 36.6,
+        "top_domain": "moscow.orangegate.cc",
+        "top_category": "other"
+      },
+      "12": {
+        "visits": 7,
+        "minutes_est": 15.1,
+        "top_domain": "claude.ai",
+        "top_category": "ai_tools"
+      },
+      "13": {
+        "visits": 1,
+        "minutes_est": 5.0,
+        "top_domain": "telemost.yandex.ru",
+        "top_category": "communication"
+      },
+      "17": {
+        "visits": 40,
+        "minutes_est": 37.6,
+        "top_domain": "gba.bitrix24.ru",
+        "top_category": "work_productivity"
+      },
+      "18": {
+        "visits": 14,
+        "minutes_est": 19.1,
+        "top_domain": "docs.google.com",
+        "top_category": "work_productivity"
+      },
+      "19": {
+        "visits": 2,
+        "minutes_est": 5.0,
+        "top_domain": "telemost.yandex.ru",
+        "top_category": "communication"
+      },
+      "22": {
+        "visits": 26,
+        "minutes_est": 41.3,
+        "top_domain": "youtube.com",
+        "top_category": "entertainment"
+      },
+      "23": {
+        "visits": 136,
+        "minutes_est": 118.3,
+        "top_domain": "accounts.google.com",
+        "top_category": "other"
+      }
+    },
+    "pre_sleep_22_00": {
+      "total_visits": 162,
+      "categories": {
+        "other": 104,
+        "ai_tools": 32,
+        "entertainment": 21,
+        "work_productivity": 5
+      }
+    },
+    "context_switches_per_hour": 8.0
+  },
+  "2026-03-19": {
+    "total_visits": 317,
+    "domains": [
+      {
+        "domain": "docs.google.com",
+        "category": "work_productivity",
+        "visits": 59,
+        "minutes_est": 63.3
+      },
+      {
+        "domain": "miro.com",
+        "category": "work_productivity",
+        "visits": 66,
+        "minutes_est": 45.0
+      },
+      {
+        "domain": "claude.ai",
+        "category": "ai_tools",
+        "visits": 12,
+        "minutes_est": 27.1
+      },
+      {
+        "domain": "google.com",
+        "category": "other",
+        "visits": 39,
+        "minutes_est": 17.8
+      },
+      {
+        "domain": "drive.google.com",
+        "category": "work_productivity",
+        "visits": 5,
+        "minutes_est": 15.1
+      },
+      {
+        "domain": "web.alfabank.ru",
+        "category": "finance_crypto",
+        "visits": 9,
+        "minutes_est": 13.2
+      },
+      {
+        "domain": "ktstech.ktalk.ru",
+        "category": "other",
+        "visits": 8,
+        "minutes_est": 12.0
+      },
+      {
+        "domain": "telemost.yandex.ru",
+        "category": "communication",
+        "visits": 3,
+        "minutes_est": 10.9
+      },
+      {
+        "domain": "m.youtube.com",
+        "category": "entertainment",
+        "visits": 6,
+        "minutes_est": 8.4
+      },
+      {
+        "domain": "cabinet.kontur.ru",
+        "category": "other",
+        "visits": 11,
+        "minutes_est": 7.0
+      },
+      {
+        "domain": "prom-robo.ru",
+        "category": "other",
+        "visits": 5,
+        "minutes_est": 6.8
+      },
+      {
+        "domain": "app.ktalk.ru",
+        "category": "other",
+        "visits": 11,
+        "minutes_est": 6.6
+      },
+      {
+        "domain": "identity.kontur.ru",
+        "category": "other",
+        "visits": 6,
+        "minutes_est": 6.0
+      },
+      {
+        "domain": "kts.tech",
+        "category": "other",
+        "visits": 2,
+        "minutes_est": 5.8
+      },
+      {
+        "domain": "daotech-demo-main.ktsdev.ru",
+        "category": "other",
+        "visits": 15,
+        "minutes_est": 5.3
+      },
+      {
+        "domain": "disk.yandex.ru",
+        "category": "other",
+        "visits": 2,
+        "minutes_est": 5.1
+      },
+      {
+        "domain": "mail.yandex.ru",
+        "category": "communication",
+        "visits": 16,
+        "minutes_est": 3.4
+      },
+      {
+        "domain": "tracker.yandex.ru",
+        "category": "other",
+        "visits": 5,
+        "minutes_est": 3.2
+      },
+      {
+        "domain": "auth.kontur.ru",
+        "category": "other",
+        "visits": 3,
+        "minutes_est": 2.4
+      },
+      {
+        "domain": "private.auth.alfabank.ru",
+        "category": "finance_crypto",
+        "visits": 4,
+        "minutes_est": 2.2
+      },
+      {
+        "domain": "auth-gateway.kontur.ru",
+        "category": "other",
+        "visits": 2,
+        "minutes_est": 2.0
+      },
+      {
+        "domain": "googleadservices.com",
+        "category": "other",
+        "visits": 2,
+        "minutes_est": 2.0
+      },
+      {
+        "domain": "youtube.com",
+        "category": "entertainment",
+        "visits": 2,
+        "minutes_est": 1.9
+      },
+      {
+        "domain": "passport.yandex.ru",
+        "category": "other",
+        "visits": 4,
+        "minutes_est": 1.2
+      },
+      {
+        "domain": "artlist.io",
+        "category": "other",
+        "visits": 2,
+        "minutes_est": 1.1
+      },
+      {
+        "domain": "auth.cloud.yandex.ru",
+        "category": "other",
+        "visits": 1,
+        "minutes_est": 1.0
+      },
+      {
+        "domain": "books.yandex.ru",
+        "category": "other",
+        "visits": 2,
+        "minutes_est": 0.9
+      },
+      {
+        "domain": "meet.google.com",
+        "category": "communication",
+        "visits": 2,
+        "minutes_est": 0.8
+      },
+      {
+        "domain": "market.yandex.ru",
+        "category": "shopping",
+        "visits": 5,
+        "minutes_est": 0.7
+      },
+      {
+        "domain": "kontur.ru",
+        "category": "other",
+        "visits": 1,
+        "minutes_est": 0.5
+      },
+      {
+        "domain": "ya.ru",
+        "category": "other",
+        "visits": 3,
+        "minutes_est": 0.3
+      },
+      {
+        "domain": "alfabank.ru",
+        "category": "finance_crypto",
+        "visits": 2,
+        "minutes_est": 0.2
+      },
+      {
+        "domain": "id.kts.studio",
+        "category": "other",
+        "visits": 1,
+        "minutes_est": 0.1
+      },
+      {
+        "domain": "sso.ya.ru",
+        "category": "other",
+        "visits": 1,
+        "minutes_est": 0.0
+      }
+    ],
+    "categories": {
+      "work_productivity": {
+        "visits": 130,
+        "minutes_est": 123.4
+      },
+      "other": {
+        "visits": 126,
+        "minutes_est": 87.2
+      },
+      "ai_tools": {
+        "visits": 12,
+        "minutes_est": 27.1
+      },
+      "finance_crypto": {
+        "visits": 15,
+        "minutes_est": 15.6
+      },
+      "communication": {
+        "visits": 21,
+        "minutes_est": 15.1
+      },
+      "entertainment": {
+        "visits": 8,
+        "minutes_est": 10.4
+      },
+      "shopping": {
+        "visits": 5,
+        "minutes_est": 0.7
+      }
+    },
+    "hourly": {
+      "00": {
+        "visits": 13,
+        "minutes_est": 17.5,
+        "top_domain": "m.youtube.com",
+        "top_category": "entertainment"
+      },
+      "10": {
+        "visits": 3,
+        "minutes_est": 6.8,
+        "top_domain": "ktstech.ktalk.ru",
+        "top_category": "other"
+      },
+      "11": {
+        "visits": 88,
+        "minutes_est": 83.2,
+        "top_domain": "docs.google.com",
+        "top_category": "work_productivity"
+      },
+      "12": {
+        "visits": 28,
+        "minutes_est": 48.3,
+        "top_domain": "miro.com",
+        "top_category": "work_productivity"
+      },
+      "13": {
+        "visits": 73,
+        "minutes_est": 25.7,
+        "top_domain": "miro.com",
+        "top_category": "work_productivity"
+      },
+      "14": {
+        "visits": 7,
+        "minutes_est": 11.3,
+        "top_domain": "prom-robo.ru",
+        "top_category": "other"
+      },
+      "15": {
+        "visits": 32,
+        "minutes_est": 20.6,
+        "top_domain": "docs.google.com",
+        "top_category": "work_productivity"
+      },
+      "16": {
+        "visits": 5,
+        "minutes_est": 12.0,
+        "top_domain": "docs.google.com",
+        "top_category": "work_productivity"
+      },
+      "17": {
+        "visits": 1,
+        "minutes_est": 5.0,
+        "top_domain": "telemost.yandex.ru",
+        "top_category": "communication"
+      },
+      "18": {
+        "visits": 49,
+        "minutes_est": 37.4,
+        "top_domain": "web.alfabank.ru",
+        "top_category": "finance_crypto"
+      },
+      "21": {
+        "visits": 1,
+        "minutes_est": 5.0,
+        "top_domain": "google.com",
+        "top_category": "other"
+      },
+      "23": {
+        "visits": 17,
+        "minutes_est": 6.8,
+        "top_domain": "googleadservices.com",
+        "top_category": "other"
+      }
+    },
+    "pre_sleep_22_00": {
+      "total_visits": 17,
+      "categories": {
+        "other": 16,
+        "entertainment": 1
+      }
+    },
+    "context_switches_per_hour": 3.5
+  },
+  "2026-03-20": {
+    "total_visits": 542,
+    "domains": [
+      {
+        "domain": "docs.google.com",
+        "category": "work_productivity",
+        "visits": 77,
+        "minutes_est": 121.5
+      },
+      {
+        "domain": "daotech.bitrix24.ru",
+        "category": "work_productivity",
+        "visits": 71,
+        "minutes_est": 102.6
+      },
+      {
+        "domain": "vibecode.bitrix24.tech",
+        "category": "work_productivity",
+        "visits": 52,
+        "minutes_est": 59.9
+      },
+      {
+        "domain": "youtube.com",
+        "category": "entertainment",
+        "visits": 57,
+        "minutes_est": 51.3
+      },
+      {
+        "domain": "google.com",
+        "category": "other",
+        "visits": 59,
+        "minutes_est": 38.3
+      },
+      {
+        "domain": "moscow.orangegate.cc",
+        "category": "other",
+        "visits": 13,
+        "minutes_est": 32.2
+      },
+      {
+        "domain": "miro.com",
+        "category": "work_productivity",
+        "visits": 17,
+        "minutes_est": 24.8
+      },
+      {
+        "domain": "drive.google.com",
+        "category": "work_productivity",
+        "visits": 12,
+        "minutes_est": 21.9
+      },
+      {
+        "domain": "lavka.yandex.ru",
+        "category": "shopping",
+        "visits": 41,
+        "minutes_est": 14.6
+      },
+      {
+        "domain": "meet.google.com",
+        "category": "communication",
+        "visits": 7,
+        "minutes_est": 14.4
+      },
+      {
+        "domain": "claude.ai",
+        "category": "ai_tools",
+        "visits": 9,
+        "minutes_est": 11.8
+      },
+      {
+        "domain": "telemost.yandex.ru",
+        "category": "communication",
+        "visits": 4,
+        "minutes_est": 11.3
+      },
+      {
+        "domain": "httpbin.org",
+        "category": "other",
+        "visits": 5,
+        "minutes_est": 10.1
+      },
+      {
+        "domain": "chatgpt.com",
+        "category": "ai_tools",
+        "visits": 6,
+        "minutes_est": 9.7
+      },
+      {
+        "domain": "instagram.com",
+        "category": "social_media",
+        "visits": 8,
+        "minutes_est": 9.5
+      },
+      {
+        "domain": "cmd-online.ru",
+        "category": "other",
+        "visits": 5,
+        "minutes_est": 7.0
+      },
+      {
+        "domain": "us05web.zoom.us",
+        "category": "communication",
+        "visits": 5,
+        "minutes_est": 6.3
+      },
+      {
+        "domain": "app.holst.so",
+        "category": "other",
+        "visits": 3,
+        "minutes_est": 6.1
+      },
+      {
+        "domain": "t.me",
+        "category": "other",
+        "visits": 2,
+        "minutes_est": 5.9
+      },
+      {
+        "domain": "webhook.site",
+        "category": "other",
+        "visits": 4,
+        "minutes_est": 5.5
+      },
+      {
+        "domain": "disk.yandex.ru",
+        "category": "other",
+        "visits": 2,
+        "minutes_est": 5.0
+      },
+      {
+        "domain": "sso.godaddy.com",
+        "category": "other",
+        "visits": 1,
+        "minutes_est": 5.0
+      },
+      {
+        "domain": "prom-robo.ru",
+        "category": "other",
+        "visits": 1,
+        "minutes_est": 5.0
+      },
+      {
+        "domain": "metobr-expo.ru",
+        "category": "other",
+        "visits": 1,
+        "minutes_est": 5.0
+      },
+      {
+        "domain": "kts.tech",
+        "category": "other",
+        "visits": 1,
+        "minutes_est": 5.0
+      },
+      {
+        "domain": "app.ganttpro.com",
+        "category": "other",
+        "visits": 1,
+        "minutes_est": 5.0
+      },
+      {
+        "domain": "robotunion.ru",
+        "category": "other",
+        "visits": 1,
+        "minutes_est": 5.0
+      },
+      {
+        "domain": "dw.com",
+        "category": "other",
+        "visits": 1,
+        "minutes_est": 5.0
+      },
+      {
+        "domain": "qlever.ru",
+        "category": "other",
+        "visits": 1,
+        "minutes_est": 5.0
+      },
+      {
+        "domain": "juicychat.ai",
+        "category": "other",
+        "visits": 6,
+        "minutes_est": 4.9
+      },
+      {
+        "domain": "dzen.ru",
+        "category": "other",
+        "visits": 6,
+        "minutes_est": 4.3
+      },
+      {
+        "domain": "takopi.dev",
+        "category": "other",
+        "visits": 25,
+        "minutes_est": 4.3
+      },
+      {
+        "domain": "auth2.bitrix24.net",
+        "category": "work_productivity",
+        "visits": 4,
+        "minutes_est": 2.6
+      },
+      {
+        "domain": "private.auth.alfabank.ru",
+        "category": "finance_crypto",
+        "visits": 4,
+        "minutes_est": 2.1
+      },
+      {
+        "domain": "getnekobox.com",
+        "category": "social_media",
+        "visits": 1,
+        "minutes_est": 1.8
+      },
+      {
+        "domain": "github.com",
+        "category": "work_productivity",
+        "visits": 3,
+        "minutes_est": 1.6
+      },
+      {
+        "domain": "web.alfabank.ru",
+        "category": "finance_crypto",
+        "visits": 2,
+        "minutes_est": 1.1
+      },
+      {
+        "domain": "passport.yandex.ru",
+        "category": "other",
+        "visits": 1,
+        "minutes_est": 1.0
+      },
+      {
+        "domain": "plus.yandex.ru",
+        "category": "other",
+        "visits": 1,
+        "minutes_est": 1.0
+      },
+      {
+        "domain": "login.vk.com",
+        "category": "social_media",
+        "visits": 1,
+        "minutes_est": 1.0
+      },
+      {
+        "domain": "sp.yandex.ru",
+        "category": "other",
+        "visits": 9,
+        "minutes_est": 0.7
+      },
+      {
+        "domain": "daotech-demo-main.ktsdev.ru",
+        "category": "other",
+        "visits": 3,
+        "minutes_est": 0.7
+      },
+      {
+        "domain": "cipr.ru",
+        "category": "other",
+        "visits": 2,
+        "minutes_est": 0.5
+      },
+      {
+        "domain": "app-time.ru",
+        "category": "other",
+        "visits": 1,
+        "minutes_est": 0.3
+      },
+      {
+        "domain": "appublicas.occident.com",
+        "category": "other",
+        "visits": 1,
+        "minutes_est": 0.1
+      },
+      {
+        "domain": "books.yandex.ru",
+        "category": "other",
+        "visits": 1,
+        "minutes_est": 0.1
+      },
+      {
+        "domain": "sso.dzen.ru",
+        "category": "other",
+        "visits": 1,
+        "minutes_est": 0.0
+      },
+      {
+        "domain": "reddit.com",
+        "category": "social_media",
+        "visits": 1,
+        "minutes_est": 0.0
+      },
+      {
+        "domain": "cyberus.com",
+        "category": "other",
+        "visits": 1,
+        "minutes_est": 0.0
+      },
+      {
+        "domain": "sso.passport.yandex.ru",
+        "category": "other",
+        "visits": 1,
+        "minutes_est": 0.0
+      }
+    ],
+    "categories": {
+      "work_productivity": {
+        "visits": 236,
+        "minutes_est": 334.9
+      },
+      "other": {
+        "visits": 160,
+        "minutes_est": 168.0
+      },
+      "entertainment": {
+        "visits": 57,
+        "minutes_est": 51.3
+      },
+      "communication": {
+        "visits": 16,
+        "minutes_est": 32.0
+      },
+      "ai_tools": {
+        "visits": 15,
+        "minutes_est": 21.5
+      },
+      "shopping": {
+        "visits": 41,
+        "minutes_est": 14.6
+      },
+      "social_media": {
+        "visits": 11,
+        "minutes_est": 12.4
+      },
+      "finance_crypto": {
+        "visits": 6,
+        "minutes_est": 3.1
+      }
+    },
+    "hourly": {
+      "00": {
+        "visits": 61,
+        "minutes_est": 56.3,
+        "top_domain": "youtube.com",
+        "top_category": "entertainment"
+      },
+      "01": {
+        "visits": 40,
+        "minutes_est": 64.9,
+        "top_domain": "docs.google.com",
+        "top_category": "work_productivity"
+      },
+      "08": {
+        "visits": 3,
+        "minutes_est": 5.4,
+        "top_domain": "chatgpt.com",
+        "top_category": "ai_tools"
+      },
+      "09": {
+        "visits": 18,
+        "minutes_est": 37.7,
+        "top_domain": "docs.google.com",
+        "top_category": "work_productivity"
+      },
+      "10": {
+        "visits": 12,
+        "minutes_est": 31.9,
+        "top_domain": "docs.google.com",
+        "top_category": "work_productivity"
+      },
+      "11": {
+        "visits": 39,
+        "minutes_est": 28.0,
+        "top_domain": "google.com",
+        "top_category": "other"
+      },
+      "12": {
+        "visits": 11,
+        "minutes_est": 28.8,
+        "top_domain": "moscow.orangegate.cc",
+        "top_category": "other"
+      },
+      "13": {
+        "visits": 19,
+        "minutes_est": 16.5,
+        "top_domain": "google.com",
+        "top_category": "other"
+      },
+      "14": {
+        "visits": 5,
+        "minutes_est": 5.3,
+        "top_domain": "miro.com",
+        "top_category": "work_productivity"
+      },
+      "15": {
+        "visits": 4,
+        "minutes_est": 5.4,
+        "top_domain": "google.com",
+        "top_category": "other"
+      },
+      "16": {
+        "visits": 49,
+        "minutes_est": 11.3,
+        "top_domain": "lavka.yandex.ru",
+        "top_category": "shopping"
+      },
+      "17": {
+        "visits": 76,
+        "minutes_est": 95.4,
+        "top_domain": "docs.google.com",
+        "top_category": "work_productivity"
+      },
+      "18": {
+        "visits": 56,
+        "minutes_est": 89.5,
+        "top_domain": "daotech.bitrix24.ru",
+        "top_category": "work_productivity"
+      },
+      "19": {
+        "visits": 2,
+        "minutes_est": 6.0,
+        "top_domain": "meet.google.com",
+        "top_category": "communication"
+      },
+      "20": {
+        "visits": 43,
+        "minutes_est": 60.3,
+        "top_domain": "daotech.bitrix24.ru",
+        "top_category": "work_productivity"
+      },
+      "21": {
+        "visits": 13,
+        "minutes_est": 15.5,
+        "top_domain": "docs.google.com",
+        "top_category": "work_productivity"
+      },
+      "22": {
+        "visits": 88,
+        "minutes_est": 79.5,
+        "top_domain": "vibecode.bitrix24.tech",
+        "top_category": "work_productivity"
+      },
+      "23": {
+        "visits": 3,
+        "minutes_est": 0.1,
+        "top_domain": "vibecode.bitrix24.tech",
+        "top_category": "work_productivity"
+      }
+    },
+    "pre_sleep_22_00": {
+      "total_visits": 91,
+      "categories": {
+        "work_productivity": 60,
+        "other": 30,
+        "social_media": 1
+      }
+    },
+    "context_switches_per_hour": 6.9
+  },
+  "2026-03-21": {
+    "total_visits": 96,
+    "domains": [
+      {
+        "domain": "tbank.ru",
+        "category": "other",
+        "visits": 42,
+        "minutes_est": 76.4
+      },
+      {
+        "domain": "web.alfabank.ru",
+        "category": "finance_crypto",
+        "visits": 17,
+        "minutes_est": 29.0
+      },
+      {
+        "domain": "private.auth.alfabank.ru",
+        "category": "finance_crypto",
+        "visits": 12,
+        "minutes_est": 14.6
+      },
+      {
+        "domain": "cdn.tbank.ru",
+        "category": "other",
+        "visits": 1,
+        "minutes_est": 5.0
+      },
+      {
+        "domain": "id.tbank.ru",
+        "category": "other",
+        "visits": 8,
+        "minutes_est": 4.9
+      },
+      {
+        "domain": "ifarm.fi",
+        "category": "other",
+        "visits": 9,
+        "minutes_est": 3.8
+      },
+      {
+        "domain": "chatgpt.com",
+        "category": "ai_tools",
+        "visits": 3,
+        "minutes_est": 1.8
+      },
+      {
+        "domain": "id.tinkoff.ru",
+        "category": "finance_crypto",
+        "visits": 1,
+        "minutes_est": 1.0
+      },
+      {
+        "domain": "alfabank.ru",
+        "category": "finance_crypto",
+        "visits": 2,
+        "minutes_est": 0.1
+      },
+      {
+        "domain": "unsubscribe.resend.com",
+        "category": "other",
+        "visits": 1,
+        "minutes_est": 0.1
+      }
+    ],
+    "categories": {
+      "other": {
+        "visits": 61,
+        "minutes_est": 90.2
+      },
+      "finance_crypto": {
+        "visits": 32,
+        "minutes_est": 44.7
+      },
+      "ai_tools": {
+        "visits": 3,
+        "minutes_est": 1.8
+      }
+    },
+    "hourly": {
+      "00": {
+        "visits": 50,
+        "minutes_est": 59.3,
+        "top_domain": "web.alfabank.ru",
+        "top_category": "finance_crypto"
+      },
+      "01": {
+        "visits": 28,
+        "minutes_est": 45.2,
+        "top_domain": "tbank.ru",
+        "top_category": "other"
+      },
+      "02": {
+        "visits": 3,
+        "minutes_est": 6.0,
+        "top_domain": "tbank.ru",
+        "top_category": "other"
+      },
+      "04": {
+        "visits": 3,
+        "minutes_est": 6.1,
+        "top_domain": "tbank.ru",
+        "top_category": "other"
+      },
+      "05": {
+        "visits": 3,
+        "minutes_est": 6.0,
+        "top_domain": "tbank.ru",
+        "top_category": "other"
+      },
+      "06": {
+        "visits": 3,
+        "minutes_est": 6.0,
+        "top_domain": "tbank.ru",
+        "top_category": "other"
+      },
+      "07": {
+        "visits": 6,
+        "minutes_est": 8.1,
+        "top_domain": "tbank.ru",
+        "top_category": "other"
       }
     },
     "pre_sleep_22_00": {
       "total_visits": 0,
       "categories": {}
     },
-    "context_switches_per_hour": 28.3
+    "context_switches_per_hour": 3.6
   }
 }

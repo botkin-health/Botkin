@@ -63,11 +63,11 @@
     "created_at": "2026-01-12T06:00:00+00:00"
   },
   {
-    "id": 161,
+    "id": 159,
     "user_id": 895655,
     "date": "2026-01-12",
     "time": "09:30:00",
-    "supplement_name": "Plant Sterols (Утро)",
+    "supplement_name": "Витамин D3",
     "dosage": null,
     "created_at": "2026-01-12T06:30:00+00:00"
   },
@@ -81,11 +81,11 @@
     "created_at": "2026-01-12T06:30:00+00:00"
   },
   {
-    "id": 159,
+    "id": 161,
     "user_id": 895655,
     "date": "2026-01-12",
     "time": "09:30:00",
-    "supplement_name": "Витамин D3",
+    "supplement_name": "Plant Sterols (Утро)",
     "dosage": null,
     "created_at": "2026-01-12T06:30:00+00:00"
   },
@@ -126,20 +126,20 @@
     "created_at": "2026-01-13T06:30:00+00:00"
   },
   {
-    "id": 167,
-    "user_id": 895655,
-    "date": "2026-01-13",
-    "time": "09:30:00",
-    "supplement_name": "Plant Sterols (Утро)",
-    "dosage": null,
-    "created_at": "2026-01-13T06:30:00+00:00"
-  },
-  {
     "id": 166,
     "user_id": 895655,
     "date": "2026-01-13",
     "time": "09:30:00",
     "supplement_name": "Омега 3-6-9",
+    "dosage": null,
+    "created_at": "2026-01-13T06:30:00+00:00"
+  },
+  {
+    "id": 167,
+    "user_id": 895655,
+    "date": "2026-01-13",
+    "time": "09:30:00",
+    "supplement_name": "Plant Sterols (Утро)",
     "dosage": null,
     "created_at": "2026-01-13T06:30:00+00:00"
   },
@@ -180,15 +180,6 @@
     "created_at": "2026-01-14T06:30:00+00:00"
   },
   {
-    "id": 173,
-    "user_id": 895655,
-    "date": "2026-01-14",
-    "time": "09:30:00",
-    "supplement_name": "Plant Sterols (Утро)",
-    "dosage": null,
-    "created_at": "2026-01-14T06:30:00+00:00"
-  },
-  {
     "id": 172,
     "user_id": 895655,
     "date": "2026-01-14",
@@ -198,11 +189,20 @@
     "created_at": "2026-01-14T06:30:00+00:00"
   },
   {
-    "id": 176,
+    "id": 173,
+    "user_id": 895655,
+    "date": "2026-01-14",
+    "time": "09:30:00",
+    "supplement_name": "Plant Sterols (Утро)",
+    "dosage": null,
+    "created_at": "2026-01-14T06:30:00+00:00"
+  },
+  {
+    "id": 174,
     "user_id": 895655,
     "date": "2026-01-14",
     "time": "22:00:00",
-    "supplement_name": "Цинк",
+    "supplement_name": "Plant Sterols (Вечер)",
     "dosage": null,
     "created_at": "2026-01-14T19:00:00+00:00"
   },
@@ -216,22 +216,13 @@
     "created_at": "2026-01-14T19:00:00+00:00"
   },
   {
-    "id": 174,
+    "id": 176,
     "user_id": 895655,
     "date": "2026-01-14",
     "time": "22:00:00",
-    "supplement_name": "Plant Sterols (Вечер)",
+    "supplement_name": "Цинк",
     "dosage": null,
     "created_at": "2026-01-14T19:00:00+00:00"
-  },
-  {
-    "id": 177,
-    "user_id": 895655,
-    "date": "2026-01-15",
-    "time": "09:30:00",
-    "supplement_name": "Витамин D3",
-    "dosage": null,
-    "created_at": "2026-01-15T06:30:00+00:00"
   },
   {
     "id": 179,
@@ -252,13 +243,13 @@
     "created_at": "2026-01-15T06:30:00+00:00"
   },
   {
-    "id": 182,
+    "id": 177,
     "user_id": 895655,
     "date": "2026-01-15",
-    "time": "22:00:00",
-    "supplement_name": "Цинк",
+    "time": "09:30:00",
+    "supplement_name": "Витамин D3",
     "dosage": null,
-    "created_at": "2026-01-15T19:00:00+00:00"
+    "created_at": "2026-01-15T06:30:00+00:00"
   },
   {
     "id": 180,
@@ -279,6 +270,15 @@
     "created_at": "2026-01-15T19:00:00+00:00"
   },
   {
+    "id": 182,
+    "user_id": 895655,
+    "date": "2026-01-15",
+    "time": "22:00:00",
+    "supplement_name": "Цинк",
+    "dosage": null,
+    "created_at": "2026-01-15T19:00:00+00:00"
+  },
+  {
     "id": 183,
     "user_id": 895655,
     "date": "2026-01-16",
@@ -286,15 +286,6 @@
     "supplement_name": "Псиллиум",
     "dosage": null,
     "created_at": "2026-01-16T06:00:00+00:00"
-  },
-  {
-    "id": 185,
-    "user_id": 895655,
-    "date": "2026-01-16",
-    "time": "09:30:00",
-    "supplement_name": "Plant Sterols (Утро)",
-    "dosage": null,
-    "created_at": "2026-01-16T06:30:00+00:00"
   },
   {
     "id": 184,
@@ -306,13 +297,13 @@
     "created_at": "2026-01-16T06:30:00+00:00"
   },
   {
-    "id": 188,
+    "id": 185,
     "user_id": 895655,
-    "date": "2026-01-17",
+    "date": "2026-01-16",
     "time": "09:30:00",
     "supplement_name": "Plant Sterols (Утро)",
     "dosage": null,
-    "created_at": "2026-01-17T06:30:00+00:00"
+    "created_at": "2026-01-16T06:30:00+00:00"
   },
   {
     "id": 186,
@@ -333,11 +324,20 @@
     "created_at": "2026-01-17T06:30:00+00:00"
   },
   {
-    "id": 191,
+    "id": 188,
+    "user_id": 895655,
+    "date": "2026-01-17",
+    "time": "09:30:00",
+    "supplement_name": "Plant Sterols (Утро)",
+    "dosage": null,
+    "created_at": "2026-01-17T06:30:00+00:00"
+  },
+  {
+    "id": 189,
     "user_id": 895655,
     "date": "2026-01-17",
     "time": "22:00:00",
-    "supplement_name": "Цинк",
+    "supplement_name": "Plant Sterols (Вечер)",
     "dosage": null,
     "created_at": "2026-01-17T19:00:00+00:00"
   },
@@ -351,11 +351,11 @@
     "created_at": "2026-01-17T19:00:00+00:00"
   },
   {
-    "id": 189,
+    "id": 191,
     "user_id": 895655,
     "date": "2026-01-17",
     "time": "22:00:00",
-    "supplement_name": "Plant Sterols (Вечер)",
+    "supplement_name": "Цинк",
     "dosage": null,
     "created_at": "2026-01-17T19:00:00+00:00"
   },
@@ -369,11 +369,11 @@
     "created_at": "2026-01-18T06:00:00+00:00"
   },
   {
-    "id": 195,
+    "id": 193,
     "user_id": 895655,
     "date": "2026-01-18",
     "time": "09:30:00",
-    "supplement_name": "Plant Sterols (Утро)",
+    "supplement_name": "Витамин D3",
     "dosage": null,
     "created_at": "2026-01-18T06:30:00+00:00"
   },
@@ -387,22 +387,13 @@
     "created_at": "2026-01-18T06:30:00+00:00"
   },
   {
-    "id": 193,
+    "id": 195,
     "user_id": 895655,
     "date": "2026-01-18",
     "time": "09:30:00",
-    "supplement_name": "Витамин D3",
+    "supplement_name": "Plant Sterols (Утро)",
     "dosage": null,
     "created_at": "2026-01-18T06:30:00+00:00"
-  },
-  {
-    "id": 197,
-    "user_id": 895655,
-    "date": "2026-01-18",
-    "time": "22:00:00",
-    "supplement_name": "Магний",
-    "dosage": null,
-    "created_at": "2026-01-18T19:00:00+00:00"
   },
   {
     "id": 196,
@@ -410,6 +401,15 @@
     "date": "2026-01-18",
     "time": "22:00:00",
     "supplement_name": "Plant Sterols (Вечер)",
+    "dosage": null,
+    "created_at": "2026-01-18T19:00:00+00:00"
+  },
+  {
+    "id": 197,
+    "user_id": 895655,
+    "date": "2026-01-18",
+    "time": "22:00:00",
+    "supplement_name": "Магний",
     "dosage": null,
     "created_at": "2026-01-18T19:00:00+00:00"
   },
@@ -432,20 +432,20 @@
     "created_at": "2026-01-19T06:00:00+00:00"
   },
   {
-    "id": 201,
-    "user_id": 895655,
-    "date": "2026-01-19",
-    "time": "09:30:00",
-    "supplement_name": "Омега 3-6-9",
-    "dosage": null,
-    "created_at": "2026-01-19T06:30:00+00:00"
-  },
-  {
     "id": 200,
     "user_id": 895655,
     "date": "2026-01-19",
     "time": "09:30:00",
     "supplement_name": "Витамин D3",
+    "dosage": null,
+    "created_at": "2026-01-19T06:30:00+00:00"
+  },
+  {
+    "id": 201,
+    "user_id": 895655,
+    "date": "2026-01-19",
+    "time": "09:30:00",
+    "supplement_name": "Омега 3-6-9",
     "dosage": null,
     "created_at": "2026-01-19T06:30:00+00:00"
   },
@@ -459,11 +459,11 @@
     "created_at": "2026-01-19T06:30:00+00:00"
   },
   {
-    "id": 205,
+    "id": 203,
     "user_id": 895655,
     "date": "2026-01-20",
     "time": "09:30:00",
-    "supplement_name": "Plant Sterols (Утро)",
+    "supplement_name": "Витамин D3",
     "dosage": null,
     "created_at": "2026-01-20T06:30:00+00:00"
   },
@@ -477,11 +477,11 @@
     "created_at": "2026-01-20T06:30:00+00:00"
   },
   {
-    "id": 203,
+    "id": 205,
     "user_id": 895655,
     "date": "2026-01-20",
     "time": "09:30:00",
-    "supplement_name": "Витамин D3",
+    "supplement_name": "Plant Sterols (Утро)",
     "dosage": null,
     "created_at": "2026-01-20T06:30:00+00:00"
   },
@@ -495,20 +495,20 @@
     "created_at": "2026-01-21T06:00:00+00:00"
   },
   {
-    "id": 209,
-    "user_id": 895655,
-    "date": "2026-01-21",
-    "time": "09:30:00",
-    "supplement_name": "Plant Sterols (Утро)",
-    "dosage": null,
-    "created_at": "2026-01-21T06:30:00+00:00"
-  },
-  {
     "id": 208,
     "user_id": 895655,
     "date": "2026-01-21",
     "time": "09:30:00",
     "supplement_name": "Омега 3-6-9",
+    "dosage": null,
+    "created_at": "2026-01-21T06:30:00+00:00"
+  },
+  {
+    "id": 209,
+    "user_id": 895655,
+    "date": "2026-01-21",
+    "time": "09:30:00",
+    "supplement_name": "Plant Sterols (Утро)",
     "dosage": null,
     "created_at": "2026-01-21T06:30:00+00:00"
   },
@@ -520,6 +520,15 @@
     "supplement_name": "Витамин D3",
     "dosage": null,
     "created_at": "2026-01-21T06:30:00+00:00"
+  },
+  {
+    "id": 212,
+    "user_id": 895655,
+    "date": "2026-01-21",
+    "time": "22:00:00",
+    "supplement_name": "Цинк",
+    "dosage": null,
+    "created_at": "2026-01-21T19:00:00+00:00"
   },
   {
     "id": 211,
@@ -540,20 +549,11 @@
     "created_at": "2026-01-21T19:00:00+00:00"
   },
   {
-    "id": 212,
-    "user_id": 895655,
-    "date": "2026-01-21",
-    "time": "22:00:00",
-    "supplement_name": "Цинк",
-    "dosage": null,
-    "created_at": "2026-01-21T19:00:00+00:00"
-  },
-  {
-    "id": 215,
+    "id": 214,
     "user_id": 895655,
     "date": "2026-01-22",
     "time": "09:30:00",
-    "supplement_name": "Plant Sterols (Утро)",
+    "supplement_name": "Омега 3-6-9",
     "dosage": null,
     "created_at": "2026-01-22T06:30:00+00:00"
   },
@@ -567,11 +567,11 @@
     "created_at": "2026-01-22T06:30:00+00:00"
   },
   {
-    "id": 214,
+    "id": 215,
     "user_id": 895655,
     "date": "2026-01-22",
     "time": "09:30:00",
-    "supplement_name": "Омега 3-6-9",
+    "supplement_name": "Plant Sterols (Утро)",
     "dosage": null,
     "created_at": "2026-01-22T06:30:00+00:00"
   },
@@ -603,11 +603,11 @@
     "created_at": "2026-01-22T19:00:00+00:00"
   },
   {
-    "id": 219,
+    "id": 221,
     "user_id": 895655,
     "date": "2026-01-23",
     "time": "09:30:00",
-    "supplement_name": "Витамин D3",
+    "supplement_name": "Plant Sterols (Утро)",
     "dosage": null,
     "created_at": "2026-01-23T06:30:00+00:00"
   },
@@ -621,22 +621,13 @@
     "created_at": "2026-01-23T06:30:00+00:00"
   },
   {
-    "id": 221,
+    "id": 219,
     "user_id": 895655,
     "date": "2026-01-23",
     "time": "09:30:00",
-    "supplement_name": "Plant Sterols (Утро)",
+    "supplement_name": "Витамин D3",
     "dosage": null,
     "created_at": "2026-01-23T06:30:00+00:00"
-  },
-  {
-    "id": 222,
-    "user_id": 895655,
-    "date": "2026-01-23",
-    "time": "22:00:00",
-    "supplement_name": "Plant Sterols (Вечер)",
-    "dosage": null,
-    "created_at": "2026-01-23T19:00:00+00:00"
   },
   {
     "id": 223,
@@ -657,6 +648,24 @@
     "created_at": "2026-01-23T19:00:00+00:00"
   },
   {
+    "id": 222,
+    "user_id": 895655,
+    "date": "2026-01-23",
+    "time": "22:00:00",
+    "supplement_name": "Plant Sterols (Вечер)",
+    "dosage": null,
+    "created_at": "2026-01-23T19:00:00+00:00"
+  },
+  {
+    "id": 23,
+    "user_id": 895655,
+    "date": "2026-01-24",
+    "time": "00:48:00",
+    "supplement_name": "Псилиум",
+    "dosage": null,
+    "created_at": "2026-01-28T21:26:32.137876+00:00"
+  },
+  {
     "id": 1,
     "user_id": 895655,
     "date": "2026-01-24",
@@ -673,24 +682,6 @@
     "supplement_name": "Псиллиум",
     "dosage": null,
     "created_at": "2026-01-23T21:48:00+00:00"
-  },
-  {
-    "id": 23,
-    "user_id": 895655,
-    "date": "2026-01-24",
-    "time": "00:48:00",
-    "supplement_name": "Псилиум",
-    "dosage": null,
-    "created_at": "2026-01-28T21:26:32.137876+00:00"
-  },
-  {
-    "id": 227,
-    "user_id": 895655,
-    "date": "2026-01-24",
-    "time": "09:30:00",
-    "supplement_name": "Омега 3-6-9",
-    "dosage": null,
-    "created_at": "2026-01-24T06:30:00+00:00"
   },
   {
     "id": 228,
@@ -711,31 +702,40 @@
     "created_at": "2026-01-24T06:30:00+00:00"
   },
   {
-    "id": 4,
+    "id": 227,
     "user_id": 895655,
-    "date": "2026-01-25",
-    "time": "12:09:00",
-    "supplement_name": "Омега-3",
+    "date": "2026-01-24",
+    "time": "09:30:00",
+    "supplement_name": "Омега 3-6-9",
     "dosage": null,
-    "created_at": "2026-01-28T21:25:27.775350+00:00"
+    "created_at": "2026-01-24T06:30:00+00:00"
   },
   {
-    "id": 3,
+    "id": 231,
     "user_id": 895655,
     "date": "2026-01-25",
     "time": "12:09:00",
-    "supplement_name": "Стеролы",
+    "supplement_name": "Омега 3-6-9",
     "dosage": null,
-    "created_at": "2026-01-28T21:25:27.775350+00:00"
+    "created_at": "2026-01-25T09:09:00+00:00"
   },
   {
-    "id": 2,
+    "id": 229,
     "user_id": 895655,
     "date": "2026-01-25",
     "time": "12:09:00",
-    "supplement_name": "Витамин D",
+    "supplement_name": "Витамин D3",
     "dosage": null,
-    "created_at": "2026-01-28T21:25:27.775350+00:00"
+    "created_at": "2026-01-25T09:09:00+00:00"
+  },
+  {
+    "id": 230,
+    "user_id": 895655,
+    "date": "2026-01-25",
+    "time": "12:09:00",
+    "supplement_name": "Plant Sterols (Утро)",
+    "dosage": null,
+    "created_at": "2026-01-25T09:09:00+00:00"
   },
   {
     "id": 26,
@@ -765,47 +765,29 @@
     "created_at": "2026-01-28T21:26:32.137876+00:00"
   },
   {
-    "id": 229,
+    "id": 3,
     "user_id": 895655,
     "date": "2026-01-25",
     "time": "12:09:00",
-    "supplement_name": "Витамин D3",
-    "dosage": null,
-    "created_at": "2026-01-25T09:09:00+00:00"
-  },
-  {
-    "id": 230,
-    "user_id": 895655,
-    "date": "2026-01-25",
-    "time": "12:09:00",
-    "supplement_name": "Plant Sterols (Утро)",
-    "dosage": null,
-    "created_at": "2026-01-25T09:09:00+00:00"
-  },
-  {
-    "id": 231,
-    "user_id": 895655,
-    "date": "2026-01-25",
-    "time": "12:09:00",
-    "supplement_name": "Омега 3-6-9",
-    "dosage": null,
-    "created_at": "2026-01-25T09:09:00+00:00"
-  },
-  {
-    "id": 6,
-    "user_id": 895655,
-    "date": "2026-01-26",
-    "time": "08:58:00",
     "supplement_name": "Стеролы",
     "dosage": null,
     "created_at": "2026-01-28T21:25:27.775350+00:00"
   },
   {
-    "id": 5,
+    "id": 2,
     "user_id": 895655,
-    "date": "2026-01-26",
-    "time": "08:58:00",
+    "date": "2026-01-25",
+    "time": "12:09:00",
     "supplement_name": "Витамин D",
+    "dosage": null,
+    "created_at": "2026-01-28T21:25:27.775350+00:00"
+  },
+  {
+    "id": 4,
+    "user_id": 895655,
+    "date": "2026-01-25",
+    "time": "12:09:00",
+    "supplement_name": "Омега-3",
     "dosage": null,
     "created_at": "2026-01-28T21:25:27.775350+00:00"
   },
@@ -817,15 +799,6 @@
     "supplement_name": "Омега-3",
     "dosage": null,
     "created_at": "2026-01-28T21:25:27.775350+00:00"
-  },
-  {
-    "id": 232,
-    "user_id": 895655,
-    "date": "2026-01-26",
-    "time": "08:58:00",
-    "supplement_name": "Витамин D3",
-    "dosage": null,
-    "created_at": "2026-01-26T05:58:00+00:00"
   },
   {
     "id": 233,
@@ -846,11 +819,29 @@
     "created_at": "2026-01-26T05:58:00+00:00"
   },
   {
-    "id": 27,
+    "id": 232,
+    "user_id": 895655,
+    "date": "2026-01-26",
+    "time": "08:58:00",
+    "supplement_name": "Витамин D3",
+    "dosage": null,
+    "created_at": "2026-01-26T05:58:00+00:00"
+  },
+  {
+    "id": 5,
     "user_id": 895655,
     "date": "2026-01-26",
     "time": "08:58:00",
     "supplement_name": "Витамин D",
+    "dosage": null,
+    "created_at": "2026-01-28T21:25:27.775350+00:00"
+  },
+  {
+    "id": 29,
+    "user_id": 895655,
+    "date": "2026-01-26",
+    "time": "08:58:00",
+    "supplement_name": "Омега-3",
     "dosage": null,
     "created_at": "2026-01-28T21:26:32.137876+00:00"
   },
@@ -864,56 +855,20 @@
     "created_at": "2026-01-28T21:26:32.137876+00:00"
   },
   {
-    "id": 29,
+    "id": 27,
     "user_id": 895655,
     "date": "2026-01-26",
     "time": "08:58:00",
-    "supplement_name": "Омега-3",
+    "supplement_name": "Витамин D",
     "dosage": null,
     "created_at": "2026-01-28T21:26:32.137876+00:00"
   },
   {
-    "id": 237,
+    "id": 6,
     "user_id": 895655,
     "date": "2026-01-26",
-    "time": "23:36:00",
-    "supplement_name": "Магний",
-    "dosage": null,
-    "created_at": "2026-01-26T20:36:00+00:00"
-  },
-  {
-    "id": 8,
-    "user_id": 895655,
-    "date": "2026-01-26",
-    "time": "23:36:00",
-    "supplement_name": "Омега",
-    "dosage": null,
-    "created_at": "2026-01-28T21:25:27.775350+00:00"
-  },
-  {
-    "id": 9,
-    "user_id": 895655,
-    "date": "2026-01-26",
-    "time": "23:36:00",
-    "supplement_name": "Стиролы",
-    "dosage": null,
-    "created_at": "2026-01-28T21:25:27.775350+00:00"
-  },
-  {
-    "id": 10,
-    "user_id": 895655,
-    "date": "2026-01-26",
-    "time": "23:36:00",
-    "supplement_name": "Магний",
-    "dosage": null,
-    "created_at": "2026-01-28T21:25:27.775350+00:00"
-  },
-  {
-    "id": 11,
-    "user_id": 895655,
-    "date": "2026-01-26",
-    "time": "23:36:00",
-    "supplement_name": "Цинк",
+    "time": "08:58:00",
+    "supplement_name": "Стеролы",
     "dosage": null,
     "created_at": "2026-01-28T21:25:27.775350+00:00"
   },
@@ -923,33 +878,6 @@
     "date": "2026-01-26",
     "time": "23:36:00",
     "supplement_name": "Омега",
-    "dosage": null,
-    "created_at": "2026-01-28T21:26:32.137876+00:00"
-  },
-  {
-    "id": 31,
-    "user_id": 895655,
-    "date": "2026-01-26",
-    "time": "23:36:00",
-    "supplement_name": "Стиролы",
-    "dosage": null,
-    "created_at": "2026-01-28T21:26:32.137876+00:00"
-  },
-  {
-    "id": 32,
-    "user_id": 895655,
-    "date": "2026-01-26",
-    "time": "23:36:00",
-    "supplement_name": "Магний",
-    "dosage": null,
-    "created_at": "2026-01-28T21:26:32.137876+00:00"
-  },
-  {
-    "id": 33,
-    "user_id": 895655,
-    "date": "2026-01-26",
-    "time": "23:36:00",
-    "supplement_name": "Цинк",
     "dosage": null,
     "created_at": "2026-01-28T21:26:32.137876+00:00"
   },
@@ -972,6 +900,15 @@
     "created_at": "2026-01-26T20:36:00+00:00"
   },
   {
+    "id": 237,
+    "user_id": 895655,
+    "date": "2026-01-26",
+    "time": "23:36:00",
+    "supplement_name": "Магний",
+    "dosage": null,
+    "created_at": "2026-01-26T20:36:00+00:00"
+  },
+  {
     "id": 238,
     "user_id": 895655,
     "date": "2026-01-26",
@@ -981,29 +918,65 @@
     "created_at": "2026-01-26T20:36:00+00:00"
   },
   {
-    "id": 34,
+    "id": 33,
     "user_id": 895655,
     "date": "2026-01-26",
-    "time": "23:42:00",
+    "time": "23:36:00",
+    "supplement_name": "Цинк",
+    "dosage": null,
+    "created_at": "2026-01-28T21:26:32.137876+00:00"
+  },
+  {
+    "id": 32,
+    "user_id": 895655,
+    "date": "2026-01-26",
+    "time": "23:36:00",
+    "supplement_name": "Магний",
+    "dosage": null,
+    "created_at": "2026-01-28T21:26:32.137876+00:00"
+  },
+  {
+    "id": 31,
+    "user_id": 895655,
+    "date": "2026-01-26",
+    "time": "23:36:00",
     "supplement_name": "Стиролы",
     "dosage": null,
     "created_at": "2026-01-28T21:26:32.137876+00:00"
   },
   {
-    "id": 35,
+    "id": 11,
     "user_id": 895655,
     "date": "2026-01-26",
-    "time": "23:42:00",
-    "supplement_name": "Псилиум",
+    "time": "23:36:00",
+    "supplement_name": "Цинк",
     "dosage": null,
-    "created_at": "2026-01-28T21:26:32.137876+00:00"
+    "created_at": "2026-01-28T21:25:27.775350+00:00"
   },
   {
-    "id": 12,
+    "id": 10,
     "user_id": 895655,
     "date": "2026-01-26",
-    "time": "23:42:00",
+    "time": "23:36:00",
+    "supplement_name": "Магний",
+    "dosage": null,
+    "created_at": "2026-01-28T21:25:27.775350+00:00"
+  },
+  {
+    "id": 9,
+    "user_id": 895655,
+    "date": "2026-01-26",
+    "time": "23:36:00",
     "supplement_name": "Стиролы",
+    "dosage": null,
+    "created_at": "2026-01-28T21:25:27.775350+00:00"
+  },
+  {
+    "id": 8,
+    "user_id": 895655,
+    "date": "2026-01-26",
+    "time": "23:36:00",
+    "supplement_name": "Омега",
     "dosage": null,
     "created_at": "2026-01-28T21:25:27.775350+00:00"
   },
@@ -1017,11 +990,29 @@
     "created_at": "2026-01-28T21:25:27.775350+00:00"
   },
   {
-    "id": 38,
+    "id": 12,
     "user_id": 895655,
     "date": "2026-01-26",
-    "time": "23:45:00",
-    "supplement_name": "Стеролы",
+    "time": "23:42:00",
+    "supplement_name": "Стиролы",
+    "dosage": null,
+    "created_at": "2026-01-28T21:25:27.775350+00:00"
+  },
+  {
+    "id": 35,
+    "user_id": 895655,
+    "date": "2026-01-26",
+    "time": "23:42:00",
+    "supplement_name": "Псилиум",
+    "dosage": null,
+    "created_at": "2026-01-28T21:26:32.137876+00:00"
+  },
+  {
+    "id": 34,
+    "user_id": 895655,
+    "date": "2026-01-26",
+    "time": "23:42:00",
+    "supplement_name": "Стиролы",
     "dosage": null,
     "created_at": "2026-01-28T21:26:32.137876+00:00"
   },
@@ -1035,25 +1026,7 @@
     "created_at": "2026-01-26T20:45:00+00:00"
   },
   {
-    "id": 37,
-    "user_id": 895655,
-    "date": "2026-01-26",
-    "time": "23:45:00",
-    "supplement_name": "Псиллиум",
-    "dosage": null,
-    "created_at": "2026-01-28T21:26:32.137876+00:00"
-  },
-  {
-    "id": 36,
-    "user_id": 895655,
-    "date": "2026-01-26",
-    "time": "23:45:00",
-    "supplement_name": "Стеролы",
-    "dosage": null,
-    "created_at": "2026-01-28T21:26:32.137876+00:00"
-  },
-  {
-    "id": 16,
+    "id": 14,
     "user_id": 895655,
     "date": "2026-01-26",
     "time": "23:45:00",
@@ -1071,7 +1044,7 @@
     "created_at": "2026-01-28T21:25:27.775350+00:00"
   },
   {
-    "id": 14,
+    "id": 16,
     "user_id": 895655,
     "date": "2026-01-26",
     "time": "23:45:00",
@@ -1080,56 +1053,29 @@
     "created_at": "2026-01-28T21:25:27.775350+00:00"
   },
   {
-    "id": 18,
+    "id": 36,
     "user_id": 895655,
-    "date": "2026-01-27",
-    "time": "21:18:00",
-    "supplement_name": "Омега 3-6-9",
-    "dosage": null,
-    "created_at": "2026-01-28T21:25:27.775350+00:00"
-  },
-  {
-    "id": 17,
-    "user_id": 895655,
-    "date": "2026-01-27",
-    "time": "21:18:00",
-    "supplement_name": "Витамин D3",
-    "dosage": null,
-    "created_at": "2026-01-28T21:25:27.775350+00:00"
-  },
-  {
-    "id": 242,
-    "user_id": 895655,
-    "date": "2026-01-27",
-    "time": "21:18:00",
-    "supplement_name": "Plant Sterols (Утро)",
-    "dosage": null,
-    "created_at": "2026-01-27T18:18:00+00:00"
-  },
-  {
-    "id": 41,
-    "user_id": 895655,
-    "date": "2026-01-27",
-    "time": "21:18:00",
-    "supplement_name": "Растительные стеролы",
+    "date": "2026-01-26",
+    "time": "23:45:00",
+    "supplement_name": "Стеролы",
     "dosage": null,
     "created_at": "2026-01-28T21:26:32.137876+00:00"
   },
   {
-    "id": 40,
+    "id": 37,
     "user_id": 895655,
-    "date": "2026-01-27",
-    "time": "21:18:00",
-    "supplement_name": "Омега 3-6-9",
+    "date": "2026-01-26",
+    "time": "23:45:00",
+    "supplement_name": "Псиллиум",
     "dosage": null,
     "created_at": "2026-01-28T21:26:32.137876+00:00"
   },
   {
-    "id": 39,
+    "id": 38,
     "user_id": 895655,
-    "date": "2026-01-27",
-    "time": "21:18:00",
-    "supplement_name": "Витамин D3",
+    "date": "2026-01-26",
+    "time": "23:45:00",
+    "supplement_name": "Стеролы",
     "dosage": null,
     "created_at": "2026-01-28T21:26:32.137876+00:00"
   },
@@ -1143,11 +1089,47 @@
     "created_at": "2026-01-27T18:18:00+00:00"
   },
   {
-    "id": 241,
+    "id": 17,
+    "user_id": 895655,
+    "date": "2026-01-27",
+    "time": "21:18:00",
+    "supplement_name": "Витамин D3",
+    "dosage": null,
+    "created_at": "2026-01-28T21:25:27.775350+00:00"
+  },
+  {
+    "id": 39,
+    "user_id": 895655,
+    "date": "2026-01-27",
+    "time": "21:18:00",
+    "supplement_name": "Витамин D3",
+    "dosage": null,
+    "created_at": "2026-01-28T21:26:32.137876+00:00"
+  },
+  {
+    "id": 40,
     "user_id": 895655,
     "date": "2026-01-27",
     "time": "21:18:00",
     "supplement_name": "Омега 3-6-9",
+    "dosage": null,
+    "created_at": "2026-01-28T21:26:32.137876+00:00"
+  },
+  {
+    "id": 41,
+    "user_id": 895655,
+    "date": "2026-01-27",
+    "time": "21:18:00",
+    "supplement_name": "Растительные стеролы",
+    "dosage": null,
+    "created_at": "2026-01-28T21:26:32.137876+00:00"
+  },
+  {
+    "id": 242,
+    "user_id": 895655,
+    "date": "2026-01-27",
+    "time": "21:18:00",
+    "supplement_name": "Plant Sterols (Утро)",
     "dosage": null,
     "created_at": "2026-01-27T18:18:00+00:00"
   },
@@ -1161,47 +1143,29 @@
     "created_at": "2026-01-28T21:25:27.775350+00:00"
   },
   {
+    "id": 18,
+    "user_id": 895655,
+    "date": "2026-01-27",
+    "time": "21:18:00",
+    "supplement_name": "Омега 3-6-9",
+    "dosage": null,
+    "created_at": "2026-01-28T21:25:27.775350+00:00"
+  },
+  {
+    "id": 241,
+    "user_id": 895655,
+    "date": "2026-01-27",
+    "time": "21:18:00",
+    "supplement_name": "Омега 3-6-9",
+    "dosage": null,
+    "created_at": "2026-01-27T18:18:00+00:00"
+  },
+  {
     "id": 243,
     "user_id": 895655,
     "date": "2026-01-27",
     "time": "22:50:00",
     "supplement_name": "Plant Sterols (Вечер)",
-    "dosage": null,
-    "created_at": "2026-01-27T19:50:00+00:00"
-  },
-  {
-    "id": 43,
-    "user_id": 895655,
-    "date": "2026-01-27",
-    "time": "22:50:00",
-    "supplement_name": "Магний",
-    "dosage": null,
-    "created_at": "2026-01-28T21:26:32.137876+00:00"
-  },
-  {
-    "id": 42,
-    "user_id": 895655,
-    "date": "2026-01-27",
-    "time": "22:50:00",
-    "supplement_name": "Стеролы",
-    "dosage": null,
-    "created_at": "2026-01-28T21:26:32.137876+00:00"
-  },
-  {
-    "id": 21,
-    "user_id": 895655,
-    "date": "2026-01-27",
-    "time": "22:50:00",
-    "supplement_name": "Магний",
-    "dosage": null,
-    "created_at": "2026-01-28T21:25:27.775350+00:00"
-  },
-  {
-    "id": 244,
-    "user_id": 895655,
-    "date": "2026-01-27",
-    "time": "22:50:00",
-    "supplement_name": "Магний",
     "dosage": null,
     "created_at": "2026-01-27T19:50:00+00:00"
   },
@@ -1213,6 +1177,42 @@
     "supplement_name": "Стеролы",
     "dosage": null,
     "created_at": "2026-01-28T21:25:27.775350+00:00"
+  },
+  {
+    "id": 21,
+    "user_id": 895655,
+    "date": "2026-01-27",
+    "time": "22:50:00",
+    "supplement_name": "Магний",
+    "dosage": null,
+    "created_at": "2026-01-28T21:25:27.775350+00:00"
+  },
+  {
+    "id": 42,
+    "user_id": 895655,
+    "date": "2026-01-27",
+    "time": "22:50:00",
+    "supplement_name": "Стеролы",
+    "dosage": null,
+    "created_at": "2026-01-28T21:26:32.137876+00:00"
+  },
+  {
+    "id": 43,
+    "user_id": 895655,
+    "date": "2026-01-27",
+    "time": "22:50:00",
+    "supplement_name": "Магний",
+    "dosage": null,
+    "created_at": "2026-01-28T21:26:32.137876+00:00"
+  },
+  {
+    "id": 244,
+    "user_id": 895655,
+    "date": "2026-01-27",
+    "time": "22:50:00",
+    "supplement_name": "Магний",
+    "dosage": null,
+    "created_at": "2026-01-27T19:50:00+00:00"
   },
   {
     "id": 44,
@@ -1296,20 +1296,20 @@
     "created_at": "2026-01-31T08:34:00+00:00"
   },
   {
-    "id": 51,
-    "user_id": 895655,
-    "date": "2026-01-31",
-    "time": "23:57:00",
-    "supplement_name": "Plant Sterols (Вечер)",
-    "dosage": null,
-    "created_at": "2026-01-31T20:57:00+00:00"
-  },
-  {
     "id": 52,
     "user_id": 895655,
     "date": "2026-01-31",
     "time": "23:57:00",
     "supplement_name": "Магний",
+    "dosage": null,
+    "created_at": "2026-01-31T20:57:00+00:00"
+  },
+  {
+    "id": 51,
+    "user_id": 895655,
+    "date": "2026-01-31",
+    "time": "23:57:00",
+    "supplement_name": "Plant Sterols (Вечер)",
     "dosage": null,
     "created_at": "2026-01-31T20:57:00+00:00"
   },
@@ -1377,6 +1377,15 @@
     "created_at": "2026-02-02T05:14:07.319610+00:00"
   },
   {
+    "id": 251,
+    "user_id": 895655,
+    "date": "2026-02-02",
+    "time": "16:35:00",
+    "supplement_name": "Стиролы",
+    "dosage": null,
+    "created_at": "2026-02-04T19:24:57.212757+00:00"
+  },
+  {
     "id": 249,
     "user_id": 895655,
     "date": "2026-02-02",
@@ -1391,15 +1400,6 @@
     "date": "2026-02-02",
     "time": "16:35:00",
     "supplement_name": "Омега",
-    "dosage": null,
-    "created_at": "2026-02-04T19:24:57.212757+00:00"
-  },
-  {
-    "id": 251,
-    "user_id": 895655,
-    "date": "2026-02-02",
-    "time": "16:35:00",
-    "supplement_name": "Стиролы",
     "dosage": null,
     "created_at": "2026-02-04T19:24:57.212757+00:00"
   },
@@ -1575,15 +1575,6 @@
     "created_at": "2026-02-08T08:59:12.278113+00:00"
   },
   {
-    "id": 271,
-    "user_id": 895655,
-    "date": "2026-02-08",
-    "time": "16:59:33.343768",
-    "supplement_name": "Витамин D3",
-    "dosage": null,
-    "created_at": "2026-02-08T13:59:33.349469+00:00"
-  },
-  {
     "id": 272,
     "user_id": 895655,
     "date": "2026-02-08",
@@ -1591,6 +1582,15 @@
     "supplement_name": "Омега 3-6-9",
     "dosage": null,
     "created_at": "2026-02-08T13:59:33.361634+00:00"
+  },
+  {
+    "id": 271,
+    "user_id": 895655,
+    "date": "2026-02-08",
+    "time": "16:59:33.343768",
+    "supplement_name": "Витамин D3",
+    "dosage": null,
+    "created_at": "2026-02-08T13:59:33.349469+00:00"
   },
   {
     "id": 273,
@@ -1971,15 +1971,6 @@
     "created_at": "2026-02-20T18:44:02.880005+00:00"
   },
   {
-    "id": 315,
-    "user_id": 895655,
-    "date": "2026-02-20",
-    "time": "21:44:02.878353",
-    "supplement_name": "Витамин D",
-    "dosage": null,
-    "created_at": "2026-02-20T18:44:02.897813+00:00"
-  },
-  {
     "id": 316,
     "user_id": 895655,
     "date": "2026-02-20",
@@ -1987,6 +1978,15 @@
     "supplement_name": "Стиролы",
     "dosage": null,
     "created_at": "2026-02-20T18:44:02.909171+00:00"
+  },
+  {
+    "id": 315,
+    "user_id": 895655,
+    "date": "2026-02-20",
+    "time": "21:44:02.878353",
+    "supplement_name": "Витамин D",
+    "dosage": null,
+    "created_at": "2026-02-20T18:44:02.897813+00:00"
   },
   {
     "id": 317,
@@ -2043,15 +2043,6 @@
     "created_at": "2026-02-23T20:31:06.917943+00:00"
   },
   {
-    "id": 323,
-    "user_id": 895655,
-    "date": "2026-02-24",
-    "time": "10:35:55.305858",
-    "supplement_name": "Витамин D",
-    "dosage": null,
-    "created_at": "2026-02-24T07:35:55.307532+00:00"
-  },
-  {
     "id": 324,
     "user_id": 895655,
     "date": "2026-02-24",
@@ -2059,6 +2050,15 @@
     "supplement_name": "Омега-3",
     "dosage": null,
     "created_at": "2026-02-24T07:35:55.311934+00:00"
+  },
+  {
+    "id": 323,
+    "user_id": 895655,
+    "date": "2026-02-24",
+    "time": "10:35:55.305858",
+    "supplement_name": "Витамин D",
+    "dosage": null,
+    "created_at": "2026-02-24T07:35:55.307532+00:00"
   },
   {
     "id": 325,
@@ -2079,15 +2079,6 @@
     "created_at": "2026-02-24T20:42:41.947433+00:00"
   },
   {
-    "id": 329,
-    "user_id": 895655,
-    "date": "2026-02-25",
-    "time": "00:05:16.868181",
-    "supplement_name": "Стеролы",
-    "dosage": null,
-    "created_at": "2026-02-25T21:05:16.884617+00:00"
-  },
-  {
     "id": 327,
     "user_id": 895655,
     "date": "2026-02-25",
@@ -2106,6 +2097,15 @@
     "created_at": "2026-02-25T21:05:16.880390+00:00"
   },
   {
+    "id": 329,
+    "user_id": 895655,
+    "date": "2026-02-25",
+    "time": "00:05:16.868181",
+    "supplement_name": "Стеролы",
+    "dosage": null,
+    "created_at": "2026-02-25T21:05:16.884617+00:00"
+  },
+  {
     "id": 330,
     "user_id": 895655,
     "date": "2026-02-25",
@@ -2113,15 +2113,6 @@
     "supplement_name": "Магний",
     "dosage": null,
     "created_at": "2026-02-25T21:05:16.888679+00:00"
-  },
-  {
-    "id": 338,
-    "user_id": 895655,
-    "date": "2026-02-26",
-    "time": "02:04:20.147094",
-    "supplement_name": "Стиролы",
-    "dosage": null,
-    "created_at": "2026-02-26T23:04:20.163503+00:00"
   },
   {
     "id": 335,
@@ -2133,13 +2124,13 @@
     "created_at": "2026-02-26T23:04:20.149612+00:00"
   },
   {
-    "id": 336,
+    "id": 338,
     "user_id": 895655,
     "date": "2026-02-26",
     "time": "02:04:20.147094",
-    "supplement_name": "Витамин Д",
+    "supplement_name": "Стиролы",
     "dosage": null,
-    "created_at": "2026-02-26T23:04:20.156828+00:00"
+    "created_at": "2026-02-26T23:04:20.163503+00:00"
   },
   {
     "id": 337,
@@ -2149,6 +2140,24 @@
     "supplement_name": "Омега",
     "dosage": null,
     "created_at": "2026-02-26T23:04:20.160438+00:00"
+  },
+  {
+    "id": 336,
+    "user_id": 895655,
+    "date": "2026-02-26",
+    "time": "02:04:20.147094",
+    "supplement_name": "Витамин Д",
+    "dosage": null,
+    "created_at": "2026-02-26T23:04:20.156828+00:00"
+  },
+  {
+    "id": 333,
+    "user_id": 895655,
+    "date": "2026-02-26",
+    "time": "09:34:23.757280",
+    "supplement_name": "Омега",
+    "dosage": null,
+    "created_at": "2026-02-26T06:34:23.767648+00:00"
   },
   {
     "id": 331,
@@ -2169,15 +2178,6 @@
     "created_at": "2026-02-26T06:34:23.763804+00:00"
   },
   {
-    "id": 333,
-    "user_id": 895655,
-    "date": "2026-02-26",
-    "time": "09:34:23.757280",
-    "supplement_name": "Омега",
-    "dosage": null,
-    "created_at": "2026-02-26T06:34:23.767648+00:00"
-  },
-  {
     "id": 334,
     "user_id": 895655,
     "date": "2026-02-26",
@@ -2196,15 +2196,6 @@
     "created_at": "2026-02-28T07:22:15.950718+00:00"
   },
   {
-    "id": 341,
-    "user_id": 895655,
-    "date": "2026-02-28",
-    "time": "14:42:24.309681",
-    "supplement_name": "Омега-3",
-    "dosage": null,
-    "created_at": "2026-02-28T11:42:24.320447+00:00"
-  },
-  {
     "id": 340,
     "user_id": 895655,
     "date": "2026-02-28",
@@ -2212,6 +2203,15 @@
     "supplement_name": "Витамин Д",
     "dosage": null,
     "created_at": "2026-02-28T11:42:24.312984+00:00"
+  },
+  {
+    "id": 341,
+    "user_id": 895655,
+    "date": "2026-02-28",
+    "time": "14:42:24.309681",
+    "supplement_name": "Омега-3",
+    "dosage": null,
+    "created_at": "2026-02-28T11:42:24.320447+00:00"
   },
   {
     "id": 342,
@@ -2304,6 +2304,15 @@
     "created_at": "2026-03-08T09:23:08.892587+00:00"
   },
   {
+    "id": 354,
+    "user_id": 895655,
+    "date": "2026-03-08",
+    "time": "16:03:04.518902",
+    "supplement_name": "Plant Sterols",
+    "dosage": null,
+    "created_at": "2026-03-08T13:03:04.537723+00:00"
+  },
+  {
     "id": 352,
     "user_id": 895655,
     "date": "2026-03-08",
@@ -2322,15 +2331,6 @@
     "created_at": "2026-03-08T13:03:04.531060+00:00"
   },
   {
-    "id": 354,
-    "user_id": 895655,
-    "date": "2026-03-08",
-    "time": "16:03:04.518902",
-    "supplement_name": "Plant Sterols",
-    "dosage": null,
-    "created_at": "2026-03-08T13:03:04.537723+00:00"
-  },
-  {
     "id": 355,
     "user_id": 895655,
     "date": "2026-03-09",
@@ -2340,15 +2340,6 @@
     "created_at": "2026-03-09T08:40:48.542423+00:00"
   },
   {
-    "id": 356,
-    "user_id": 895655,
-    "date": "2026-03-09",
-    "time": "18:40:01.648245",
-    "supplement_name": "Омега 3-6-9",
-    "dosage": null,
-    "created_at": "2026-03-09T15:40:01.651303+00:00"
-  },
-  {
     "id": 357,
     "user_id": 895655,
     "date": "2026-03-09",
@@ -2356,6 +2347,15 @@
     "supplement_name": "Витамин D3",
     "dosage": null,
     "created_at": "2026-03-09T15:40:01.656277+00:00"
+  },
+  {
+    "id": 356,
+    "user_id": 895655,
+    "date": "2026-03-09",
+    "time": "18:40:01.648245",
+    "supplement_name": "Омега 3-6-9",
+    "dosage": null,
+    "created_at": "2026-03-09T15:40:01.651303+00:00"
   },
   {
     "id": 358,
@@ -2412,13 +2412,13 @@
     "created_at": "2026-03-11T20:44:58.914516+00:00"
   },
   {
-    "id": 366,
+    "id": 364,
     "user_id": 895655,
     "date": "2026-03-11",
     "time": "23:44:58.912553",
-    "supplement_name": "Plant Sterols",
+    "supplement_name": "Витамин D3",
     "dosage": null,
-    "created_at": "2026-03-11T20:44:58.937098+00:00"
+    "created_at": "2026-03-11T20:44:58.923960+00:00"
   },
   {
     "id": 365,
@@ -2430,31 +2430,13 @@
     "created_at": "2026-03-11T20:44:58.931247+00:00"
   },
   {
-    "id": 364,
+    "id": 366,
     "user_id": 895655,
     "date": "2026-03-11",
     "time": "23:44:58.912553",
-    "supplement_name": "Витамин D3",
-    "dosage": null,
-    "created_at": "2026-03-11T20:44:58.923960+00:00"
-  },
-  {
-    "id": 371,
-    "user_id": 895655,
-    "date": "2026-03-12",
-    "time": "00:15:33.246379",
     "supplement_name": "Plant Sterols",
     "dosage": null,
-    "created_at": "2026-03-12T21:15:33.270921+00:00"
-  },
-  {
-    "id": 368,
-    "user_id": 895655,
-    "date": "2026-03-12",
-    "time": "00:15:33.246379",
-    "supplement_name": "Омега 3-6-9",
-    "dosage": null,
-    "created_at": "2026-03-12T21:15:33.251074+00:00"
+    "created_at": "2026-03-11T20:44:58.937098+00:00"
   },
   {
     "id": 370,
@@ -2475,6 +2457,24 @@
     "created_at": "2026-03-12T21:15:33.258919+00:00"
   },
   {
+    "id": 371,
+    "user_id": 895655,
+    "date": "2026-03-12",
+    "time": "00:15:33.246379",
+    "supplement_name": "Plant Sterols",
+    "dosage": null,
+    "created_at": "2026-03-12T21:15:33.270921+00:00"
+  },
+  {
+    "id": 368,
+    "user_id": 895655,
+    "date": "2026-03-12",
+    "time": "00:15:33.246379",
+    "supplement_name": "Омега 3-6-9",
+    "dosage": null,
+    "created_at": "2026-03-12T21:15:33.251074+00:00"
+  },
+  {
     "id": 367,
     "user_id": 895655,
     "date": "2026-03-12",
@@ -2482,15 +2482,6 @@
     "supplement_name": "Псиллиум",
     "dosage": null,
     "created_at": "2026-03-12T08:41:14.779842+00:00"
-  },
-  {
-    "id": 374,
-    "user_id": 895655,
-    "date": "2026-03-13",
-    "time": "13:39:21.401515",
-    "supplement_name": "Plant Sterols",
-    "dosage": null,
-    "created_at": "2026-03-13T10:39:21.422171+00:00"
   },
   {
     "id": 372,
@@ -2511,31 +2502,13 @@
     "created_at": "2026-03-13T10:39:21.415368+00:00"
   },
   {
-    "id": 377,
+    "id": 374,
     "user_id": 895655,
     "date": "2026-03-13",
-    "time": "23:59:07.955327",
-    "supplement_name": "Магний",
-    "dosage": null,
-    "created_at": "2026-03-14T20:59:07.971383+00:00"
-  },
-  {
-    "id": 376,
-    "user_id": 895655,
-    "date": "2026-03-13",
-    "time": "23:59:07.955327",
-    "supplement_name": "Витамин D3",
-    "dosage": null,
-    "created_at": "2026-03-14T20:59:07.963385+00:00"
-  },
-  {
-    "id": 378,
-    "user_id": 895655,
-    "date": "2026-03-13",
-    "time": "23:59:07.955327",
+    "time": "13:39:21.401515",
     "supplement_name": "Plant Sterols",
     "dosage": null,
-    "created_at": "2026-03-14T20:59:07.978369+00:00"
+    "created_at": "2026-03-13T10:39:21.422171+00:00"
   },
   {
     "id": 375,
@@ -2547,6 +2520,42 @@
     "created_at": "2026-03-14T20:59:07.957108+00:00"
   },
   {
+    "id": 377,
+    "user_id": 895655,
+    "date": "2026-03-13",
+    "time": "23:59:07.955327",
+    "supplement_name": "Магний",
+    "dosage": null,
+    "created_at": "2026-03-14T20:59:07.971383+00:00"
+  },
+  {
+    "id": 378,
+    "user_id": 895655,
+    "date": "2026-03-13",
+    "time": "23:59:07.955327",
+    "supplement_name": "Plant Sterols",
+    "dosage": null,
+    "created_at": "2026-03-14T20:59:07.978369+00:00"
+  },
+  {
+    "id": 376,
+    "user_id": 895655,
+    "date": "2026-03-13",
+    "time": "23:59:07.955327",
+    "supplement_name": "Витамин D3",
+    "dosage": null,
+    "created_at": "2026-03-14T20:59:07.963385+00:00"
+  },
+  {
+    "id": 381,
+    "user_id": 895655,
+    "date": "2026-03-15",
+    "time": "14:51:14.867587",
+    "supplement_name": "Псиллиум",
+    "dosage": null,
+    "created_at": "2026-03-15T11:51:14.886985+00:00"
+  },
+  {
     "id": 379,
     "user_id": 895655,
     "date": "2026-03-15",
@@ -2554,15 +2563,6 @@
     "supplement_name": "Омега 3-6-9",
     "dosage": null,
     "created_at": "2026-03-15T11:51:14.871223+00:00"
-  },
-  {
-    "id": 382,
-    "user_id": 895655,
-    "date": "2026-03-15",
-    "time": "14:51:14.867587",
-    "supplement_name": "Plant Sterols",
-    "dosage": null,
-    "created_at": "2026-03-15T11:51:14.892854+00:00"
   },
   {
     "id": 380,
@@ -2574,12 +2574,120 @@
     "created_at": "2026-03-15T11:51:14.879870+00:00"
   },
   {
-    "id": 381,
+    "id": 382,
     "user_id": 895655,
     "date": "2026-03-15",
     "time": "14:51:14.867587",
+    "supplement_name": "Plant Sterols",
+    "dosage": null,
+    "created_at": "2026-03-15T11:51:14.892854+00:00"
+  },
+  {
+    "id": 384,
+    "user_id": 895655,
+    "date": "2026-03-16",
+    "time": "10:12:32.195575",
+    "supplement_name": "Витамин D3",
+    "dosage": null,
+    "created_at": "2026-03-16T07:12:32.204554+00:00"
+  },
+  {
+    "id": 383,
+    "user_id": 895655,
+    "date": "2026-03-16",
+    "time": "10:12:32.195575",
+    "supplement_name": "Омега 3-6-9",
+    "dosage": null,
+    "created_at": "2026-03-16T07:12:32.197745+00:00"
+  },
+  {
+    "id": 386,
+    "user_id": 895655,
+    "date": "2026-03-16",
+    "time": "10:12:32.195575",
+    "supplement_name": "Plant Sterols",
+    "dosage": null,
+    "created_at": "2026-03-16T07:12:32.219718+00:00"
+  },
+  {
+    "id": 385,
+    "user_id": 895655,
+    "date": "2026-03-16",
+    "time": "10:12:32.195575",
     "supplement_name": "Псиллиум",
     "dosage": null,
-    "created_at": "2026-03-15T11:51:14.886985+00:00"
+    "created_at": "2026-03-16T07:12:32.212373+00:00"
+  },
+  {
+    "id": 389,
+    "user_id": 895655,
+    "date": "2026-03-17",
+    "time": "23:57:21.955600",
+    "supplement_name": "Магний",
+    "dosage": null,
+    "created_at": "2026-03-17T20:57:21.985235+00:00"
+  },
+  {
+    "id": 387,
+    "user_id": 895655,
+    "date": "2026-03-17",
+    "time": "23:57:21.955600",
+    "supplement_name": "Омега 3-6-9",
+    "dosage": null,
+    "created_at": "2026-03-17T20:57:21.967825+00:00"
+  },
+  {
+    "id": 388,
+    "user_id": 895655,
+    "date": "2026-03-17",
+    "time": "23:57:21.955600",
+    "supplement_name": "Витамин D3",
+    "dosage": null,
+    "created_at": "2026-03-17T20:57:21.978939+00:00"
+  },
+  {
+    "id": 390,
+    "user_id": 895655,
+    "date": "2026-03-17",
+    "time": "23:57:21.955600",
+    "supplement_name": "Plant Sterols",
+    "dosage": null,
+    "created_at": "2026-03-17T20:57:21.990744+00:00"
+  },
+  {
+    "id": 391,
+    "user_id": 895655,
+    "date": "2026-03-18",
+    "time": "23:06:37.969715",
+    "supplement_name": "Омега 3-6-9",
+    "dosage": null,
+    "created_at": "2026-03-18T20:06:37.972646+00:00"
+  },
+  {
+    "id": 392,
+    "user_id": 895655,
+    "date": "2026-03-18",
+    "time": "23:06:37.969715",
+    "supplement_name": "Витамин D3",
+    "dosage": null,
+    "created_at": "2026-03-18T20:06:37.979091+00:00"
+  },
+  {
+    "id": 393,
+    "user_id": 895655,
+    "date": "2026-03-18",
+    "time": "23:06:37.969715",
+    "supplement_name": "Магний",
+    "dosage": null,
+    "created_at": "2026-03-18T20:06:37.987729+00:00"
+  },
+  {
+    "id": 394,
+    "user_id": 895655,
+    "date": "2026-03-18",
+    "time": "23:06:37.969715",
+    "supplement_name": "Plant Sterols",
+    "dosage": null,
+    "created_at": "2026-03-18T20:06:37.994467+00:00"
   }
 ]
