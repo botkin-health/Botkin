@@ -10,7 +10,7 @@
 АУТЕНТИФИКАЦИЯ:
   1. Xiaomi OAuth2 через браузер → получаем code
   2. Code обменивается на app_token через account.huami.com
-  3. Токен кэшируется в tools/scaleconnect/scaleconnect.json
+  3. Токен кэшируется в data/cache/tokens.json (единое хранилище OAuth-токенов)
   4. Токен живёт ~5-7 дней, потом требуется повторная авторизация
 
 Использование:
@@ -36,7 +36,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 BASE = Path(__file__).parent.parent
-TOKEN_CACHE = BASE / "tools/scaleconnect/scaleconnect.json"
+TOKEN_CACHE = BASE / "data/cache/tokens.json"
 CSV_OUT = BASE / "data/zepp_export_latest.csv"
 
 # CN3 сервер Zepp (данные весов) — доступен только через Hetzner
