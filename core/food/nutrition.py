@@ -520,62 +520,66 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
                 except ValueError:
                     pass
 
-        db_product = find_product(norm_name)
-        if not db_product:
-            # Пробуем без нормализации или lowercase
-            db_product = find_product(name)
-            
-        if db_product:
-            logger.info(f"✅ Product found in DB (overriding LLM): {name}")
-            
-            # Определяем вес
-            final_weight = weight
-            weight_src = 'llm'
-            
-            if not final_weight:
-                # Если вес не указан, берем дефолтный вес из базы (если есть) или оцениваем
-                final_weight = db_product.get('weight_g')
-                if final_weight:
-                   weight_src = 'db_default'
-                else:
-                   # Оценка веса
-                   from .description_parser import get_default_unit_weight
-                   try:
-                       qty = float(item.get('quantity', 1))
-                   except (ValueError, TypeError):
-                       qty = 1.0
-                   if not qty or qty <= 0: qty = 1.0
-                   
-                   unit_weight = get_default_unit_weight(name)
-                   if unit_weight > 0:
-                       final_weight = unit_weight * qty
-                       weight_src = 'estimate'
-            
-            # Если веса все еще нет, ставим 100г для расчета (но помечаем?)
-            # Нет, если веса нет, мы не можем добавить продукт корректно в лог с весом.
-            # Но мы можем добавить его с весом 0 или None?
-            if not final_weight:
-                 logger.warning(f"Product {name} found in DB but no weight determined. Using 100g default.")
-                 final_weight = 100.0
-                 weight_src = 'default_100g'
+        # Приоритет КБЖУ (исправлено 22.03.2026):
+        # 1. LLM вернул калории > 0 → пользователь указал КБЖУ явно → НЕ ТРОГАТЬ
+        # 2. LLM НЕ вернул калории → искать в локальной БД (Bombbar, любимые продукты)
+        # 3. Нет ни LLM, ни БД → оценка по весу
+        #
+        # Раньше БД всегда перезаписывала LLM — это ломало случай когда пользователь
+        # вводил "Кускус 59г: 200 ккал" и получал 66 ккал из справочника.
 
-            # Рассчитываем макросы на основе веса и данных БД
-            # Данные в БД хранятся на 100г
-            multiplier = final_weight / 100.0
-            
-            meal_items.append({
-                'product': db_product.get('name', name), # Используем имя из БД (оно может быть красивее)
-                'weight_g': final_weight,
-                'weight_source': weight_src,
-                'calories': round(db_product.get('calories_per_100g', 0) * multiplier, 1),
-                'protein': round(db_product.get('protein_per_100g', 0) * multiplier, 1),
-                'fats': round(db_product.get('fats_per_100g', 0) * multiplier, 1),
-                'carbs': round(db_product.get('carbs_per_100g', 0) * multiplier, 1),
-                'source': 'local_db_priority', # Mark as DB source
-                'note': db_product.get('note')
-            })
-            # Skip checking LLM macros if DB found
-            continue
+        llm_has_calories = item.get('calories') is not None and item.get('calories') > 0
+
+        if not llm_has_calories:
+            # LLM не дал калорий → ищем в БД (случай "Bombbar" или "батончик протеиновый")
+            db_product = find_product(norm_name)
+            if not db_product:
+                db_product = find_product(name)
+
+            if db_product:
+                logger.info(f"✅ Product found in DB (LLM had no calories): {name}")
+
+                final_weight = weight
+                weight_src = 'llm'
+
+                if not final_weight:
+                    final_weight = db_product.get('weight_g')
+                    if final_weight:
+                       weight_src = 'db_default'
+                    else:
+                       from .description_parser import get_default_unit_weight
+                       try:
+                           qty = float(item.get('quantity', 1))
+                       except (ValueError, TypeError):
+                           qty = 1.0
+                       if not qty or qty <= 0: qty = 1.0
+
+                       unit_weight = get_default_unit_weight(name)
+                       if unit_weight > 0:
+                           final_weight = unit_weight * qty
+                           weight_src = 'estimate'
+
+                if not final_weight:
+                     logger.warning(f"Product {name} found in DB but no weight. Using 100g default.")
+                     final_weight = 100.0
+                     weight_src = 'default_100g'
+
+                multiplier = final_weight / 100.0
+
+                meal_items.append({
+                    'product': db_product.get('name', name),
+                    'weight_g': final_weight,
+                    'weight_source': weight_src,
+                    'calories': round(db_product.get('calories_per_100g', 0) * multiplier, 1),
+                    'protein': round(db_product.get('protein_per_100g', 0) * multiplier, 1),
+                    'fats': round(db_product.get('fats_per_100g', 0) * multiplier, 1),
+                    'carbs': round(db_product.get('carbs_per_100g', 0) * multiplier, 1),
+                    'source': 'local_db',
+                    'note': db_product.get('note')
+                })
+                continue
+        else:
+            logger.info(f"📋 LLM provided calories for '{name}': {item.get('calories')} kcal — using as-is (user input priority)")
         
         # ORIGINAL LOGIC
         has_macros = item.get('calories') is not None and item.get('calories') > 0
