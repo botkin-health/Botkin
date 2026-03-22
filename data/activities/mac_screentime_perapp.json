@@ -1477,33 +1477,58 @@
     ]
   },
   "2026-03-21": {
-    "total_minutes": 477.9,
+    "total_minutes": 1412.8,
     "source": "activitywatch",
     "apps": [
       {
         "app_id": "loginwindow",
         "name": "loginwindow",
-        "minutes": 409.5
+        "minutes": 681.3
       },
       {
         "app_id": "Claude",
         "name": "Claude",
-        "minutes": 37.6
-      },
-      {
-        "app_id": "Spark Desktop",
-        "name": "Spark Desktop",
-        "minutes": 19.7
+        "minutes": 315.0
       },
       {
         "app_id": "Google Chrome",
         "name": "Google Chrome",
-        "minutes": 6.1
+        "minutes": 261.8
       },
       {
         "app_id": "Telegram",
         "name": "Telegram",
-        "minutes": 2.8
+        "minutes": 89.2
+      },
+      {
+        "app_id": "Spark Desktop",
+        "name": "Spark Desktop",
+        "minutes": 23.2
+      },
+      {
+        "app_id": "Системные настройки",
+        "name": "Системные настройки",
+        "minutes": 20.4
+      },
+      {
+        "app_id": "UserNotificationCenter",
+        "name": "UserNotificationCenter",
+        "minutes": 4.7
+      },
+      {
+        "app_id": "Cursor",
+        "name": "Cursor",
+        "minutes": 4.1
+      },
+      {
+        "app_id": "QuickTime Player",
+        "name": "QuickTime Player",
+        "minutes": 3.0
+      },
+      {
+        "app_id": "Finder",
+        "name": "Finder",
+        "minutes": 2.2
       },
       {
         "app_id": "Granola",
@@ -1511,24 +1536,110 @@
         "minutes": 1.9
       },
       {
+        "app_id": "Советы",
+        "name": "Советы",
+        "minutes": 1.6
+      },
+      {
+        "app_id": "Bitrix24",
+        "name": "Bitrix24",
+        "minutes": 1.0
+      },
+      {
+        "app_id": "Заметки",
+        "name": "Заметки",
+        "minutes": 1.0
+      },
+      {
+        "app_id": "Fantastical",
+        "name": "Fantastical",
+        "minutes": 0.8
+      },
+      {
+        "app_id": "‎WhatsApp",
+        "name": "‎WhatsApp",
+        "minutes": 0.4
+      },
+      {
+        "app_id": "Утилита архивирования",
+        "name": "Утилита архивирования",
+        "minutes": 0.3
+      },
+      {
+        "app_id": "1Password",
+        "name": "1Password",
+        "minutes": 0.3
+      },
+      {
+        "app_id": "TextEdit",
+        "name": "TextEdit",
+        "minutes": 0.3
+      },
+      {
         "app_id": "Microsoft Word",
         "name": "Microsoft Word",
         "minutes": 0.2
       },
       {
-        "app_id": "Bitrix24",
-        "name": "Bitrix24",
+        "app_id": "Просмотр",
+        "name": "Просмотр",
         "minutes": 0.1
       },
       {
-        "app_id": "Finder",
-        "name": "Finder",
+        "app_id": "Информация о системе",
+        "name": "Информация о системе",
         "minutes": 0.0
       },
       {
         "app_id": "Microsoft PowerPoint",
         "name": "Microsoft PowerPoint",
         "minutes": 0.0
+      },
+      {
+        "app_id": "Shadowrocket",
+        "name": "Shadowrocket",
+        "minutes": 0.0
+      },
+      {
+        "app_id": "coreautha",
+        "name": "coreautha",
+        "minutes": 0.0
+      }
+    ]
+  },
+  "2026-03-22": {
+    "total_minutes": 475.1,
+    "source": "activitywatch",
+    "apps": [
+      {
+        "app_id": "loginwindow",
+        "name": "loginwindow",
+        "minutes": 436.4
+      },
+      {
+        "app_id": "Claude",
+        "name": "Claude",
+        "minutes": 33.1
+      },
+      {
+        "app_id": "Google Chrome",
+        "name": "Google Chrome",
+        "minutes": 3.4
+      },
+      {
+        "app_id": "Telegram",
+        "name": "Telegram",
+        "minutes": 1.2
+      },
+      {
+        "app_id": "Spark Desktop",
+        "name": "Spark Desktop",
+        "minutes": 0.8
+      },
+      {
+        "app_id": "Системные настройки",
+        "name": "Системные настройки",
+        "minutes": 0.2
       }
     ]
   }
