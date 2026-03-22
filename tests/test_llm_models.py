@@ -10,11 +10,8 @@
 import pytest
 from core.llm_models import parse_llm_response
 
-# core.nutrition нужно загрузить ДО core.llm_food_processor, иначе круговой
-# импорт (nutrition → llm_food_processor → nutrition) падает при изолированном
-# запуске теста. Это стандартный способ разрыва circular import в тестах.
-import core.nutrition  # noqa: F401
-from core.llm_food_processor import process_llm_food_data
+# process_llm_food_data живёт в core.nutrition (circular import исправлен 22.03.2026)
+from core.nutrition import process_llm_food_data
 
 
 # ===========================================================================
@@ -579,11 +576,12 @@ class TestFoodProcessorIntegration:
             }
         }
         validated = parse_llm_response(raw)
-        with patch("core.llm_food_processor.find_product", return_value=None):
+        with patch("core.nutrition.find_product", return_value=None):
             meal_items, totals = process_llm_food_data(validated)
         assert len(meal_items) == 1
         assert meal_items[0]["calories"] == 14
-        # Итого = сумма по позициям (14), не total_nutrition (150)
-        assert totals["calories"] == 14.0
-        assert totals["protein"] == 0.0
-        assert totals["carbs"] == 3.0
+        # Продакшн-версия: totals берутся из total_nutrition LLM-ответа
+        # (если предоставлены), а не пересчитываются из items
+        assert totals["calories"] == 150.0
+        assert totals["protein"] == 10.0
+        assert totals["carbs"] == 27.0
