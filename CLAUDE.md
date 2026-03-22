@@ -17,13 +17,13 @@
 
 | Источник | Файлы | Актуализация |
 |---|---|---|
-| Apple Health | `data/apple_health_*.json` | Ручной экспорт с iPhone → `scripts/import_apple_health.py` |
-| Zepp Life (весы) | `data/zepp_export_latest.csv` | `scripts/import_zepp_api.py --reauth` (OAuth2) |
+| Apple Health | `data/apple_health_*.json` | Ручной экспорт с iPhone → `scripts/import/apple_health.py` |
+| Zepp Life (весы) | `data/zepp_export_latest.csv` | `scripts/import/zepp_api.py --reauth` (OAuth2) |
 | Garmin | `data/garmin/` | `scripts/garmin/download_garmin_data.py` |
 | Замеры тела | `data/weights/body_measurements.json` | Вручную, ~раз в неделю |
 | Анализы крови | `data/blood-tests/*.pdf` + `knowledge_base.json` | После каждого визита в лабораторию |
-| Netatmo | `data/environment/` | `scripts/import_netatmo.py` |
-| Погода | `data/weather/` | `scripts/import_weather.py` |
+| Netatmo | `data/environment/` | `scripts/import/netatmo.py` |
+| Погода | `data/weather/` | `scripts/import/weather.py` |
 
 ## Skills (Claude Code)
 
