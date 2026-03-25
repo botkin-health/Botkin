@@ -277,6 +277,33 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
                 }
                 logger.info(f"Пересчитаны КБЖУ (LLM вернул 0): {menu_data.get('dish_name')}, {menu_data.get('calories')} ккал")
         
+        # --- ЛОГИКА РЕЦЕПТУРНОЙ КАРТОЧКИ (Elementaree и т.п.) ---
+        if menu_data.get('is_recipe_card'):
+            dish_name = menu_data.get('dish_name', 'Блюдо по рецепту')
+            servings = menu_data.get('servings', 2)
+            cal = menu_data.get('calories', 0)
+            prot = menu_data.get('protein', 0)
+            fat = menu_data.get('fats', 0)
+            carb = menu_data.get('carbs', 0)
+            weight_g = menu_data.get('weight_grams', 0)
+            source = menu_data.get('source', 'recipe_card')
+
+            logger.info(f"📋 Рецептурная карточка: {dish_name}, {cal} ккал/порция, на {servings}")
+
+            # КБЖУ уже на 1 порцию — GPT разделил
+            # Перезаписываем menu_data чтобы дальнейшая логика использовала эти значения
+            menu_data = {
+                'dish_name': f"{dish_name} (1/{servings} рецепта)",
+                'calories': cal,
+                'protein': prot,
+                'fats': fat,
+                'carbs': carb,
+                'weight': weight_g,
+                'source': source,
+                'is_recipe_card': True,
+            }
+            # Не return — пусть дальше идёт стандартная логика сохранения
+
         # --- ЛОГИКА ДОБАВОК ---
         if menu_data.get('is_supplement'):
             dish_name = menu_data.get('dish_name', '')
