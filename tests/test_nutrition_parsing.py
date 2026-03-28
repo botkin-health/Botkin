@@ -114,12 +114,47 @@ class TestEdgeCases:
 
 class TestMealContext:
     """Тесты контекстных сценариев"""
-    
+
+    def test_americano_low_calories(self):
+        """
+        Регрессия 2026-03-27: Американо с молоком был записан как 325 ккал / 200г
+        (GPT перепутал с латте/капучино). Реальный американо 200мл + молоко 50г = ~40 ккал.
+
+        Американо — это эспрессо + вода, практически нет жиров и белка.
+        Проверяем что calculate_nutrition не выдаёт kcal как у молочного кофе.
+        """
+        result = calculate_nutrition("американо", 200.0)
+
+        # Американо 200мл: ~5-10 ккал, 0 жиров, 0 белка
+        assert result['calories'] < 50, (
+            f"Американо 200мл не может быть {result['calories']} ккал — "
+            f"это похоже на латте! Ожидали < 50 ккал."
+        )
+        assert result['fats'] < 2, (
+            f"Американо 200мл: жиров {result['fats']}г, ожидали < 2г"
+        )
+        assert result['protein'] < 3, (
+            f"Американо 200мл: белка {result['protein']}г, ожидали < 3г"
+        )
+
+    def test_coffee_not_latte(self):
+        """
+        Калории чёрного кофе (эспрессо, американо) принципиально ниже латте.
+        Пропорция должна быть примерно в 10x.
+        """
+        americano = calculate_nutrition("американо", 200.0)
+        latte = calculate_nutrition("латте", 200.0)
+
+        assert americano['calories'] < latte['calories'] / 3, (
+            f"Американо ({americano['calories']} ккал) не может быть сравним с латте "
+            f"({latte['calories']} ккал) — это значит GPT путает эти напитки."
+        )
+
     def test_drink_item(self):
         """Напитки: латте"""
         desc = "Латте на кокосовом, средний"
         products = extract_products_from_description(desc)
-        
+
         # Парсер может не понять напиток без веса - это OK
         # Проверяем что функция работает
         assert isinstance(products, list)
