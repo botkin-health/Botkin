@@ -32,10 +32,16 @@ import csv
 import argparse
 import subprocess
 import sys
+import os
+import hashlib
 from datetime import datetime, timedelta
 from pathlib import Path
+from dotenv import load_dotenv
 
-BASE = Path(__file__).parent.parent
+_BASE = Path(__file__).resolve().parent.parent.parent  # HealthVault root
+load_dotenv(_BASE / '.env')
+
+BASE = Path(__file__).resolve().parent.parent.parent  # HealthVault root
 TOKEN_CACHE = BASE / "data/cache/tokens.json"
 CSV_OUT = BASE / "data/zepp_export_latest.csv"
 
@@ -56,6 +62,10 @@ XIAOMI_OAUTH_URL = (
 )
 
 CACHE_KEY = "zepp/xiaomi:lyskovsky@gmail.com"
+
+# Xiaomi account credentials (для auto-login без браузера)
+ZEPP_EMAIL = os.environ.get("ZEPP_EMAIL", "")
+ZEPP_PASSWORD = os.environ.get("ZEPP_PASSWORD", "")
 
 
 def load_token() -> tuple[str, str]:
@@ -78,8 +88,42 @@ def save_token(user_id: str, app_token: str):
     TOKEN_CACHE.write_text(json.dumps(cache, indent=2))
 
 
+def exchange_code(code: str) -> tuple[str, str]:
+    """Exchange OAuth code for app_token + user_id. Reusable by CLI and Claude."""
+    r = requests.post(
+        "https://account.huami.com/v2/client/login",
+        data={
+            "app_name": "com.xiaomi.hm.health",
+            "app_version": "4.6.0",
+            "code": code,
+            "country_code": "US",
+            "device_id": "02:00:00:00:00:00",
+            "device_model": "iPhone14,2",
+            "grant_type": "request_token",
+            "third_name": "mi-watch",
+        },
+        headers={
+            "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+            "User-Agent": "MiFit/4.6.0 (iPhone; iOS 14.0.1; Scale/2)",
+        },
+        timeout=15,
+    )
+
+    data = r.json()
+    if "token_info" not in data:
+        raise Exception(f"Ошибка OAuth exchange: {json.dumps(data)[:200]}")
+
+    ti = data["token_info"]
+    user_id = str(ti["user_id"])
+    app_token = ti["app_token"]
+
+    save_token(user_id, app_token)
+    print(f"   ✅ Токен получен! user_id={user_id}")
+    return user_id, app_token
+
+
 def do_reauth() -> tuple[str, str]:
-    """Interactive OAuth flow: open browser → user logs in → paste redirect URL."""
+    """Browser OAuth flow — открой URL, залогинься, вставь redirect."""
     print(f"\n   Открой эту ссылку в браузере и залогинься:\n")
     print(f"   {XIAOMI_OAUTH_URL}\n")
     print(f"   После логина скопируй URL из адресной строки (будет hm.xiaomi.com/watch.do?code=...)")
@@ -212,27 +256,47 @@ def merge_and_save(new_rows: list[dict]) -> list[dict]:
 def main():
     parser = argparse.ArgumentParser(description="Zepp Smart Scale API import")
     parser.add_argument("--reauth", action="store_true", help="Обновить токен через браузер OAuth")
+    parser.add_argument("--code", type=str, help="OAuth code напрямую (без interactive input)")
     parser.add_argument("--days", type=int, default=30, help="Дней истории (default: 30)")
     args = parser.parse_args()
 
     print("⚖️  Zepp Smart Scale — импорт через API (CN3 → Hetzner proxy)...")
 
     try:
-        if args.reauth:
+        if args.code:
+            # Claude или скрипт передал code напрямую
+            code = args.code
+            if "code=" in code:
+                code = code.split("code=")[1].split("&")[0]
+            user_id, app_token = exchange_code(code)
+        elif args.reauth:
             user_id, app_token = do_reauth()
         else:
-            user_id, app_token = load_token()
+            try:
+                user_id, app_token = load_token()
+            except FileNotFoundError:
+                print("   ⚠️  Токен не найден")
+                print(f"   Нужна авторизация. Открой:\n   {XIAOMI_OAUTH_URL}")
+                print(f"   Затем запусти: python3 scripts/import/zepp_api.py --code 'REDIRECT_URL'")
+                return
 
         print(f"   Аккаунт: user_id={user_id}")
 
         end = datetime.now().strftime("%Y-%m-%d")
         start = (datetime.now() - timedelta(days=args.days)).strftime("%Y-%m-%d")
 
-        items = fetch_via_hetzner(user_id, app_token, start, end)
+        try:
+            items = fetch_via_hetzner(user_id, app_token, start, end)
+        except PermissionError:
+            print("   ⚠️  Токен устарел!")
+            print(f"   Нужна авторизация. Открой:\n   {XIAOMI_OAUTH_URL}")
+            print(f"   Затем запусти: python3 scripts/import/zepp_api.py --code 'REDIRECT_URL'")
+            return
+
         print(f"   Получено {len(items)} записей от CN3 API")
 
         if not items:
-            print("   ⚠️  Нет новых записей (возможно токен устарел → --reauth)")
+            print("   ⚠️  Нет новых записей")
             return
 
         new_rows = items_to_csv_rows(items)
@@ -244,10 +308,6 @@ def main():
             last = recent[-1]
             print(f"   Последняя: {last['Date']} — {last['Weight']}кг, жир {last['BodyFat']}%, висцер {last['VisceralFat']}")
 
-    except PermissionError as e:
-        print(f"   ❌ {e}")
-    except FileNotFoundError as e:
-        print(f"   ❌ {e}")
     except Exception as e:
         print(f"   ❌ Ошибка: {e}")
 

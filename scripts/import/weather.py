@@ -16,7 +16,8 @@ import sys
 import requests
 from datetime import date, timedelta
 
-WEATHER_DIR = os.path.join(os.path.dirname(__file__), "../data/weather")
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+WEATHER_DIR = os.path.join(PROJECT_ROOT, "data/weather")
 HISTORY_FILE = os.path.join(WEATHER_DIR, "weather_history.json")
 
 DEFAULT_LAT = 55.7816
@@ -85,12 +86,55 @@ def get_current_location():
 
 
 def fetch_weather_range(lat, lon, start_date, end_date):
-    """Fetch daily weather from Open-Meteo for a date range."""
-    r = requests.get("https://api.open-meteo.com/v1/forecast", params={
+    """Fetch daily weather from Open-Meteo.
+    Uses archive API for past dates, forecast API for today/future.
+    Merges results if range spans both."""
+    daily_params = ["temperature_2m_max", "temperature_2m_min", "temperature_2m_mean",
+                    "precipitation_sum", "sunshine_duration", "uv_index_max", "weathercode"]
+    hourly_params = ["pressure_msl", "relativehumidity_2m"]
+    today = date.today()
+
+    # If entire range is in the past (before today), use archive API
+    if end_date < today:
+        url = "https://archive-api.open-meteo.com/v1/archive"
+    # If range starts in the past but includes today, fetch archive + forecast separately
+    elif start_date < today:
+        # Archive for past days
+        archive_r = requests.get("https://archive-api.open-meteo.com/v1/archive", params={
+            "latitude": lat, "longitude": lon,
+            "daily": daily_params, "hourly": hourly_params,
+            "timezone": "Europe/Moscow",
+            "start_date": start_date.isoformat(),
+            "end_date": (today - timedelta(days=1)).isoformat(),
+        }, timeout=15)
+        archive_r.raise_for_status()
+        archive_data = archive_r.json()
+
+        # Forecast for today
+        forecast_r = requests.get("https://api.open-meteo.com/v1/forecast", params={
+            "latitude": lat, "longitude": lon,
+            "daily": daily_params, "hourly": hourly_params,
+            "timezone": "Europe/Moscow",
+            "start_date": today.isoformat(),
+            "end_date": end_date.isoformat(),
+        }, timeout=15)
+        forecast_r.raise_for_status()
+        forecast_data = forecast_r.json()
+
+        # Merge daily and hourly arrays
+        for key in archive_data.get("daily", {}):
+            if key in forecast_data.get("daily", {}) and isinstance(archive_data["daily"][key], list):
+                archive_data["daily"][key].extend(forecast_data["daily"][key])
+        for key in archive_data.get("hourly", {}):
+            if key in forecast_data.get("hourly", {}) and isinstance(archive_data["hourly"][key], list):
+                archive_data["hourly"][key].extend(forecast_data["hourly"][key])
+        return archive_data
+    else:
+        url = "https://api.open-meteo.com/v1/forecast"
+
+    r = requests.get(url, params={
         "latitude": lat, "longitude": lon,
-        "daily": ["temperature_2m_max", "temperature_2m_min", "temperature_2m_mean",
-                  "precipitation_sum", "sunshine_duration", "uv_index_max", "weathercode"],
-        "hourly": ["pressure_msl", "relativehumidity_2m"],
+        "daily": daily_params, "hourly": hourly_params,
         "timezone": "Europe/Moscow",
         "start_date": start_date.isoformat(),
         "end_date": end_date.isoformat(),
@@ -208,21 +252,13 @@ def backfill():
 
 
 def update_since_last():
-    """Fetch all missing days from last recorded date to today. Smart default."""
+    """Fetch all missing days from start of tracking to today."""
     history = load_history()
     existing = {e["date"] for e in history["entries"]}
     today = date.today()
+    start = date(2026, 1, 6)
 
-    if existing:
-        last_recorded = date.fromisoformat(max(existing))
-        start = last_recorded + timedelta(days=1)
-    else:
-        start = date(2026, 1, 6)
-
-    if start > today:
-        print(f"  Погода актуальна (последняя запись: {max(existing)})")
-        return
-
+    # Find ALL missing days in the full range, not just after max(existing)
     missing = []
     current = start
     while current <= today:

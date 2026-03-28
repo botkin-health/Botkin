@@ -1,12 +1,17 @@
-#!/usr/bin/env python3
+#!/opt/homebrew/bin/python3.13
 """
 Скрипт для загрузки данных из Garmin Connect
-Загружает все доступные данные за указанный период
+Загружает все доступные данные за указанный период.
+
+Использует garth для хранения OAuth-сессии (~1 год без повторного логина).
+При HTTP 429 (rate limit) — exponential backoff с паузой до 10 минут.
+Между запросами — пауза 1 сек для предотвращения rate limiting.
 """
 
 import os
 import sys
 import json
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from dotenv import load_dotenv
@@ -16,26 +21,84 @@ load_dotenv(Path(__file__).parent.parent.parent / '.env')
 
 try:
     from garminconnect import Garmin
+    import garth
 except ImportError:
     print("❌ Библиотека garminconnect не установлена")
-    print("Установите: pip install garminconnect python-dotenv")
+    print("Установите: pip install garminconnect garth python-dotenv")
     sys.exit(1)
 
 # Настройки
 BASE_DIR = Path(__file__).parent.parent.parent
 DATA_DIR = BASE_DIR / "data" / "garmin"
+GARTH_HOME = BASE_DIR / "data" / "cache" / "garth_tokens"
 EMAIL = os.getenv('GARMIN_EMAIL')
 PASSWORD = os.getenv('GARMIN_PASSWORD')
+
+# Rate limiting
+REQUEST_DELAY = 1.0        # секунд между запросами
+MAX_RETRIES = 3            # максимум попыток при 429
+BACKOFF_BASE = 300         # 5 минут базовая пауза при 429
 
 def ensure_dirs():
     """Создает необходимые директории"""
     for subdir in ['activities', 'daily-summary', 'sleep', 'metrics', 'body-battery', 'stress', 'hrv']:
         (DATA_DIR / subdir).mkdir(parents=True, exist_ok=True)
+    GARTH_HOME.mkdir(parents=True, exist_ok=True)
 
 def save_json(data, filepath):
     """Сохраняет данные в JSON файл"""
     with open(filepath, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2, default=str)
+
+def api_call(func, *args, **kwargs):
+    """Обёртка для API-вызовов с retry при 429 и паузой между запросами."""
+    for attempt in range(MAX_RETRIES):
+        try:
+            time.sleep(REQUEST_DELAY)
+            return func(*args, **kwargs)
+        except Exception as e:
+            err_str = str(e).lower()
+            if '429' in err_str or 'too many requests' in err_str:
+                wait = BACKOFF_BASE * (attempt + 1)
+                print(f"   ⏳ Rate limit (429), жду {wait // 60} мин... (попытка {attempt+1}/{MAX_RETRIES})")
+                time.sleep(wait)
+            else:
+                raise
+    raise Exception(f"Garmin API: {MAX_RETRIES} попыток исчерпано (429)")
+
+def login_garmin():
+    """Логин через garth с кэшированной сессией (~1 год)."""
+    token_dir = str(GARTH_HOME)
+
+    # Попробуем загрузить сохранённую сессию
+    try:
+        garth.resume(token_dir)
+        client = Garmin()
+        client.login(token_dir)
+        print("✅ Garmin: загружена сохранённая сессия (garth)")
+        return client
+    except Exception:
+        pass
+
+    # Свежий логин с retry при 429
+    if not EMAIL or not PASSWORD:
+        print("❌ Ошибка: GARMIN_EMAIL и GARMIN_PASSWORD должны быть в .env файле")
+        sys.exit(1)
+
+    print(f"🔐 Garmin: логин...")
+    try:
+        client = Garmin(EMAIL, PASSWORD)
+        client.login()
+        client.garth.dump(token_dir)
+        print("✅ Garmin: логин успешен, сессия сохранена в", token_dir)
+        return client
+    except Exception as e:
+        if '429' in str(e):
+            print(f"❌ Garmin: rate limit (429) — IP заблокирован Garmin, нужно подождать ~24 часа.")
+            print(f"   Данные Garmin остались на прежней дате. Остальные источники продолжат работу.")
+        else:
+            print(f"❌ Garmin: ошибка входа — {type(e).__name__}: {e}")
+        sys.exit(1)
 
 def download_activities(client, start_date, end_date):
     """Загружает все активности за период"""
@@ -43,7 +106,7 @@ def download_activities(client, start_date, end_date):
     activities_dir = DATA_DIR / "activities"
     
     try:
-        activities = client.get_activities_by_date(start_date, end_date)
+        activities = api_call(client.get_activities_by_date, start_date, end_date)
         print(f"   Найдено активностей: {len(activities)}")
         
         for activity in activities:
@@ -91,21 +154,21 @@ def download_daily_summary(client, start_date, end_date):
             
             # Статистика за день
             try:
-                stats = client.get_stats(date_str)
+                stats = api_call(client.get_stats, date_str)
                 summary['stats'] = stats
             except:
                 pass
-            
+
             # Шаги
             try:
-                steps = client.get_steps_data(date_str)
+                steps = api_call(client.get_steps_data, date_str)
                 summary['steps'] = steps
             except:
                 pass
-            
+
             # Дневные шаги (альтернативный метод)
             try:
-                daily_steps = client.get_daily_steps(date_str)
+                daily_steps = api_call(client.get_daily_steps, date_str)
                 summary['daily_steps'] = daily_steps
             except:
                 pass
@@ -143,7 +206,7 @@ def download_sleep(client, start_date, end_date):
             continue
         
         try:
-            sleep_data = client.get_sleep_data(date_str)
+            sleep_data = api_call(client.get_sleep_data, date_str)
             save_json(sleep_data, filepath)
             count += 1
             print(f"   ✅ {date_str}")
@@ -174,7 +237,7 @@ def download_body_battery(client, start_date, end_date):
             continue
         
         try:
-            bb_data = client.get_body_battery(date_str)
+            bb_data = api_call(client.get_body_battery, date_str)
             save_json(bb_data, filepath)
             count += 1
             print(f"   ✅ {date_str}")
@@ -205,7 +268,7 @@ def download_stress(client, start_date, end_date):
             continue
         
         try:
-            stress_data = client.get_stress_data(date_str)
+            stress_data = api_call(client.get_stress_data, date_str)
             save_json(stress_data, filepath)
             count += 1
             print(f"   ✅ {date_str}")
@@ -236,7 +299,7 @@ def download_hrv(client, start_date, end_date):
             continue
         
         try:
-            hrv_data = client.get_hrv_data(date_str)
+            hrv_data = api_call(client.get_hrv_data, date_str)
             save_json(hrv_data, filepath)
             count += 1
             print(f"   ✅ {date_str}")
@@ -248,25 +311,12 @@ def download_hrv(client, start_date, end_date):
     return count
 
 def main():
-    if not EMAIL or not PASSWORD:
-        print("❌ Ошибка: GARMIN_EMAIL и GARMIN_PASSWORD должны быть в .env файле")
-        sys.exit(1)
-    
     ensure_dirs()
-    
-    # Подключение к Garmin Connect
-    print("🔐 Подключение к Garmin Connect...")
-    try:
-        client = Garmin(EMAIL, PASSWORD)
-        client.login()
-        print("✅ Успешный вход в Garmin Connect")
-    except Exception as e:
-        print(f"❌ Ошибка входа: {e}")
-        sys.exit(1)
-    
+    client = login_garmin()
+
     # Получаем информацию о пользователе
     try:
-        user_profile = client.get_user_profile()
+        user_profile = api_call(client.get_user_profile)
         print(f"👤 Пользователь: {user_profile.get('displayName', 'Unknown')}")
     except:
         pass
