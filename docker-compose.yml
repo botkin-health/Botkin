@@ -34,6 +34,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    ports:
+      - "8081:8081"
     volumes:
       - ./logs:/app/logs
       - ./data:/app/data
