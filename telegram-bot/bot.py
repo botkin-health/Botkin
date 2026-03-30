@@ -249,9 +249,23 @@ async def main():
     except Exception as e:
         logger.error(f"❌ Не удалось установить команды: {e}")
     
-    # Start polling
+    # Start polling + Apple Health webhook (параллельно)
     try:
-        await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+        from webhook.apple_health import start_webhook_server
+        webhook_enabled = True
+    except ImportError:
+        webhook_enabled = False
+        logger.warning("⚠️ Apple Health webhook не загружен (webhook/apple_health.py не найден)")
+
+    try:
+        if webhook_enabled:
+            logger.info("🌐 Запуск Apple Health webhook на порту 8080...")
+            await asyncio.gather(
+                dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types()),
+                start_webhook_server(),
+            )
+        else:
+            await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
     except Exception as e:
         error_msg = f"❌ ⚠️ 🚨 HealthVault Tracker НЕ ЗАПУЩЕН!\n\n"
         error_msg += f"Ошибка при запуске: {e}\n"
