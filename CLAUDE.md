@@ -23,17 +23,41 @@
 | `todo.md` | Техдолг и роадмап проекта (без личных целей здоровья — они в HEALTH.md) |
 | `docs/ai_context/` | Контекст для AI: архитектура, источники данных, схема БД, потоки |
 
-## Данные здоровья
+## Данные здоровья — источники и пайплайн
 
-| Источник | Файлы | Актуализация |
+### Автоматические (скрипты тянут сами)
+
+| Метрика | Источник | Файл/таблица | Скрипт |
+|---|---|---|---|
+| Шаги, дистанция | Garmin API | `data/garmin/daily-summary/YYYY-MM-DD.json` → `stats.totalSteps`, `totalDistanceMeters` | `scripts/garmin/download_garmin_data.py` |
+| Пульс покоя, min/max HR | Garmin API | `data/garmin/daily-summary/` → `stats.restingHeartRate` | то же |
+| Сон, стресс, HRV, Body Battery | Garmin API | `data/garmin/{sleep,stress,hrv,body-battery}/` | то же |
+| Тренировки | Garmin API | `data/garmin/activities/` | то же |
+| Вес, жир, висцеральный жир | Zepp API (CN3) | `data/zepp_export_latest.csv` | `scripts/import/zepp_api.py` (токен ~7 дней, reauth через `--code URL`) |
+| Воздух дома | Netatmo API | `data/environment/netatmo_history.json` | `scripts/import/netatmo.py` |
+| Погода | Open-Meteo | `data/weather/weather_history.json` | `scripts/import/weather.py` |
+| Питание, добавки | PostgreSQL (сервер) | таблицы `nutrition_log`, `supplements_log` | `scripts/fetch_remote_nutrition.sh` |
+| iPhone Screen Time | ActivityWatch + Biome | `data/activities/iphone_screentime_perapp.json` | `aw-import-screentime` + `scripts/import/activitywatch.py` |
+| Mac Screen Time | ActivityWatch | `data/activities/mac_screentime_perapp.json` | `scripts/import/mac_screentime.py` |
+
+### Только через Apple Health Shortcut (ежедневная автоматизация на iPhone)
+
+**Эти метрики недоступны через Garmin/Zepp API — только iPhone/Omron → Apple Health → Shortcuts webhook:**
+
+| Метрика | Источник устройства | Куда пишется |
 |---|---|---|
-| Apple Health | `data/apple_health_*.json` | Ручной экспорт с iPhone → `scripts/import/apple_health.py` |
-| Zepp Life (весы) | `data/zepp_export_latest.csv` | `scripts/import/zepp_api.py --reauth` (OAuth2) |
-| Garmin | `data/garmin/` | `scripts/garmin/download_garmin_data.py` |
-| Замеры тела | `data/weights/body_measurements.json` | Вручную, ~раз в неделю |
-| Анализы крови | `data/blood-tests/*.pdf` + `knowledge_base.json` | После каждого визита в лабораторию |
-| Netatmo | `data/environment/` | `scripts/import/netatmo.py` |
-| Погода | `data/weather/` | `scripts/import/weather.py` |
+| Давление (систолическое, диастолическое) | Omron → Apple Health | PostgreSQL: `activity_log.raw_data` |
+| Походка: скорость, длина шага, асимметрия, двойная опора | iPhone motion sensors → Apple Health | PostgreSQL: `activity_log.raw_data` |
+
+**Shortcut:** `HealthVault_Daily` на iPhone (запускать вручную или по автоматизации)
+**Webhook:** `POST https://health.orangegate.cc/apple_health` (Bearer token в `.env`)
+**Чтение в дашборде:** SSH → PostgreSQL → `SELECT raw_data FROM activity_log WHERE user_id=895655`
+
+### НЕ используется (устаревшие пути)
+- `data/apple_health_heart_rate.json` → заменено на Garmin daily-summary
+- `data/apple_health_steps_daily.json` → заменено на Garmin daily-summary
+- `data/apple_health_weight*.json` → заменено на Zepp CSV
+- Ручной экспорт Apple Health XML → больше не нужен
 
 ## Skills (Claude Code)
 

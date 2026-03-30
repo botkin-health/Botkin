@@ -8,8 +8,8 @@
     "typeKey": "hiit",
     "parentTypeId": 29,
     "isHidden": false,
-    "restricted": false,
-    "trimmable": false
+    "trimmable": false,
+    "restricted": false
   },
   "eventType": {
     "typeId": 9,
@@ -127,13 +127,13 @@
   "endTimeGMT": "2026-01-10 15:12:41",
   "qualifyingDive": false,
   "activityUUID": "ca388da2-a7de-4d3e-ada6-9fde94c651b4",
+  "parent": false,
   "decoDive": false,
-  "elevationCorrected": false,
-  "atpActivity": false,
-  "autoCalcCalories": false,
-  "favorite": false,
   "purposeful": false,
   "manualActivity": false,
+  "autoCalcCalories": false,
+  "favorite": false,
   "pr": false,
-  "parent": false
+  "elevationCorrected": false,
+  "atpActivity": false
 }

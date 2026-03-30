@@ -1,11 +1,11 @@
 [
   {
     "device_name": "Большевик",
-    "temperature_c": 20.8,
-    "humidity_percent": 29,
-    "co2_ppm": 531,
-    "noise_db": 42,
-    "health_idx": 1,
-    "timestamp": 1774559925
+    "temperature_c": 22.1,
+    "humidity_percent": 33,
+    "co2_ppm": 713,
+    "noise_db": 39,
+    "health_idx": 0,
+    "timestamp": 1774856333
   }
 ]

@@ -8,8 +8,8 @@
     "typeKey": "yoga",
     "parentTypeId": 29,
     "isHidden": false,
-    "restricted": false,
-    "trimmable": false
+    "trimmable": false,
+    "restricted": false
   },
   "eventType": {
     "typeId": 9,
@@ -122,13 +122,13 @@
   "endTimeGMT": "2026-01-26 16:48:34",
   "qualifyingDive": false,
   "activityUUID": "a8a33fdc-22e5-45d6-befd-768ed0ad46fd",
+  "parent": false,
   "decoDive": false,
-  "elevationCorrected": false,
-  "atpActivity": false,
-  "autoCalcCalories": false,
-  "favorite": false,
   "purposeful": false,
   "manualActivity": false,
+  "autoCalcCalories": false,
+  "favorite": false,
   "pr": false,
-  "parent": false
+  "elevationCorrected": false,
+  "atpActivity": false
 }
