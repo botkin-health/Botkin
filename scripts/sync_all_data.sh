@@ -13,26 +13,26 @@ cd "$(dirname "$0")/.." || exit 1
 
 echo "1/4 📥 Синхронизация БД с удаленного сервера (Nutrition, Weights, Activity, Supplements)..."
 export SSHPASS="SERVER_PASSWORD_REDACTED"
-sshpass -e scp -o StrictHostKeyChecking=no scripts/util/sync_remote_db.py root@116.203.213.137:/tmp/sync_remote_db_tmp.py
-sshpass -e ssh -o StrictHostKeyChecking=no root@116.203.213.137 "docker cp /tmp/sync_remote_db_tmp.py healthvault_bot:/tmp/sync_remote_db.py"
-sshpass -e ssh -o StrictHostKeyChecking=no root@116.203.213.137 "docker exec healthvault_bot bash -c 'cd /tmp && python sync_remote_db.py'"
-sshpass -e ssh -o StrictHostKeyChecking=no root@116.203.213.137 "docker cp healthvault_bot:/tmp/data /opt/healthvault/tmp_data"
+/opt/homebrew/bin/sshpass -e scp -o StrictHostKeyChecking=no scripts/util/sync_remote_db.py root@116.203.213.137:/tmp/sync_remote_db_tmp.py
+/opt/homebrew/bin/sshpass -e ssh -o StrictHostKeyChecking=no root@116.203.213.137 "docker cp /tmp/sync_remote_db_tmp.py healthvault_bot:/tmp/sync_remote_db.py"
+/opt/homebrew/bin/sshpass -e ssh -o StrictHostKeyChecking=no root@116.203.213.137 "docker exec healthvault_bot bash -c 'cd /tmp && python sync_remote_db.py'"
+/opt/homebrew/bin/sshpass -e ssh -o StrictHostKeyChecking=no root@116.203.213.137 "docker cp healthvault_bot:/tmp/data /opt/healthvault/tmp_data"
 
 echo "1.5/4 📸 Скачивание сгенерированных дампов БД и новых фотографий весов/еды..."
 # Синхронизируем выгруженные логи из tmp_data и медиа из рабочей data
-sshpass -e rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
+/opt/homebrew/bin/sshpass -e rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
     root@116.203.213.137:/opt/healthvault/tmp_data/nutrition/ ./data/nutrition/ || true
-sshpass -e rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
+/opt/homebrew/bin/sshpass -e rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
     root@116.203.213.137:/opt/healthvault/tmp_data/supplements/ ./data/supplements/ || true
-sshpass -e rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
+/opt/homebrew/bin/sshpass -e rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
     root@116.203.213.137:/opt/healthvault/tmp_data/weights/ ./data/weights/ || true
-sshpass -e rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
+/opt/homebrew/bin/sshpass -e rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
     root@116.203.213.137:/opt/healthvault/tmp_data/activities/activities_remote.json ./data/activities/ || true
-sshpass -e rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
+/opt/homebrew/bin/sshpass -e rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
     root@116.203.213.137:/opt/healthvault/data/media/ ./data/media/ || true
 
 # Уборка за собой
-sshpass -e ssh -o StrictHostKeyChecking=no root@116.203.213.137 "rm -rf /opt/healthvault/tmp_data /tmp/sync_remote_db_tmp.py && docker exec healthvault_bot rm -rf /tmp/data /tmp/sync_remote_db.py"
+/opt/homebrew/bin/sshpass -e ssh -o StrictHostKeyChecking=no root@116.203.213.137 "rm -rf /opt/healthvault/tmp_data /tmp/sync_remote_db_tmp.py && docker exec healthvault_bot rm -rf /tmp/data /tmp/sync_remote_db.py"
 
 echo "1.8/4 ⚖️  Синхронизация умных весов (Zepp Life / Xiaomi SmartScale)..."
 # scaleconnect v0.4.1 устарел — использует zepp.com API которое сломано (Xiaomi anti-bot)
@@ -43,6 +43,8 @@ $PY scripts/import/zepp_csv.py 2>/dev/null || true
 
 echo "2/4 🏃 Загрузка свежего сна, стресса, HRV, Body Battery и тренировок из Garmin Connect..."
 $PY scripts/garmin/download_garmin_data.py || echo "   ⚠️  Garmin пропущен (см. выше)"
+echo "2.3/4 📤 Пуш Garmin daily-summary → activity_log на сервере..."
+bash scripts/push_garmin_to_db.sh
 echo "2.5/4 🏋️  Агрегация тренировок в workouts_log.json..."
 $PY scripts/util/parse_workouts.py
 

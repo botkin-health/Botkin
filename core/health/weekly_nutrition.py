@@ -287,7 +287,7 @@ def generate_weekly_recommendations(totals: Dict, categories: Dict, dates_analyz
     if fiber_avg < 25:
         recommendations.append(
             f"🥬 Клетчатка: {fiber_avg:.0f}г/день (норма 30+). "
-            "Увеличьте овощи, бобовые, цельные крупы в рационе"
+            "Увеличьте овощи, бобовые, крупы, псиллиум"
         )
     
     # E) Алкоголь

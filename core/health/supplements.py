@@ -114,14 +114,14 @@ class SupplementService:
             ],
             "🌅 УТРО (с завтраком)": [
                 "Витамин D3",
-                "Омега 3-6-9",
+                "Омега 3",
                 "Plant Sterols (Утро)",
                 "Метилфолат"
             ],
             "🌙 ВЕЧЕР (с ужином)": [
                 "Plant Sterols (Вечер)",
                 "Магний",
-                "Цинк"
+                "Креатин"
             ]
         }
         
@@ -137,9 +137,11 @@ class SupplementService:
             "псилиум": "псиллиум",
             "псиллиум": "псиллиум",
             "psyllium": "псиллиум",
-            "омега": "омега 3-6-9",
-            "омега-3": "омега 3-6-9",
-            "omega": "омега 3-6-9",
+            "омега": "омега 3",
+            "омега-3": "омега 3",
+            "омега 3-6-9": "омега 3",
+            "omega": "омега 3",
+            "omega-3": "омега 3",
             "д3": "витамин d3",
             "d3": "витамин d3",
             "витамин д": "витамин d3",
@@ -149,16 +151,24 @@ class SupplementService:
             "metafolin": "метилфолат",
             "methylfolate": "метилфолат",
             "5-mthf": "метилфолат",
+            "креатин": "креатин",
+            "creatine": "креатин",
+            "creatine monohydrate": "креатин",
+            "kreatin": "креатин",
+            "кретин": "креатин",
+            "моногидрат": "креатин",
         }
     
-    def get_detailed_schedule(self) -> str:
+    def get_detailed_schedule(self, for_date: Optional[str] = None) -> str:
         """
         Returns a formatted schedule string with checkboxes for taken items
-        
+
+        Args:
+            for_date: Date string YYYY-MM-DD (if None — today MSK)
         Returns:
             Formatted schedule with ✅/⬜ checkboxes
         """
-        taken_today = get_today_supplements(user_id=self.user_id)
+        taken_today = get_today_supplements(user_id=self.user_id, date_str=for_date)
         taken_names = {item['name'].lower() for item in taken_today}
         
         def is_taken(req_name: str) -> bool:
@@ -202,14 +212,16 @@ class SupplementService:
             
         return "\n".join(lines)
     
-    def get_brief_status(self) -> str:
+    def get_brief_status(self, for_date: Optional[str] = None) -> str:
         """
         Short status for /day command
-        
+
+        Args:
+            for_date: Date string YYYY-MM-DD (if None — today MSK)
         Returns:
             Brief status string with taken supplements
         """
-        taken_today = get_today_supplements(user_id=self.user_id)
+        taken_today = get_today_supplements(user_id=self.user_id, date_str=for_date)
         if not taken_today:
             return "💊 Витамины: ❌ Не принимались"
         
