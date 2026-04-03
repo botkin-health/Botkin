@@ -78,7 +78,7 @@ def main():
 
     result = subprocess.run(
         [
-            "sshpass", "-e", "ssh", "-o", "StrictHostKeyChecking=no",
+            "/opt/homebrew/bin/sshpass", "-e", "ssh", "-o", "StrictHostKeyChecking=no",
             "root@116.203.213.137",
             "docker exec -i healthvault_postgres psql -U healthvault -d healthvault",
         ],

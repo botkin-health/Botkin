@@ -1,0 +1,79 @@
+[
+  {
+    "date": "2026-04-03",
+    "charged": 62,
+    "drained": 72,
+    "startTimestampGMT": "2026-04-02T21:00:00.0",
+    "endTimestampGMT": "2026-04-03T20:26:00.0",
+    "startTimestampLocal": "2026-04-03T00:00:00.0",
+    "endTimestampLocal": "2026-04-03T23:26:00.0",
+    "bodyBatteryValuesArray": [
+      [
+        1775168640000,
+        15
+      ],
+      [
+        1775190060000,
+        74
+      ],
+      [
+        1775194020000,
+        76
+      ],
+      [
+        1775219760000,
+        36
+      ],
+      [
+        1775220120000,
+        36
+      ],
+      [
+        1775247120000,
+        7
+      ]
+    ],
+    "bodyBatteryValueDescriptorDTOList": [
+      {
+        "bodyBatteryValueDescriptorIndex": 0,
+        "bodyBatteryValueDescriptorKey": "timestamp"
+      },
+      {
+        "bodyBatteryValueDescriptorIndex": 1,
+        "bodyBatteryValueDescriptorKey": "bodyBatteryLevel"
+      }
+    ],
+    "bodyBatteryDynamicFeedbackEvent": {
+      "eventTimestampGmt": "2026-04-03T18:52:10.0",
+      "bodyBatteryLevel": "LOW",
+      "feedbackShortType": "SLEEP_PREPARATION_STRESSFUL_AND_INTENSIVE_EXERCISE",
+      "feedbackLongType": "SLEEP_PREPARATION_STRESSFUL_AND_INTENSIVE_EXERCISE_AND_BB_LOW"
+    },
+    "bodyBatteryActivityEvent": [
+      {
+        "eventType": "SLEEP",
+        "eventStartTimeGmt": "2026-04-02T23:06:49.0",
+        "timezoneOffset": 10800000,
+        "durationInMilliseconds": 23160000,
+        "bodyBatteryImpact": 59,
+        "feedbackType": "NONE",
+        "shortFeedback": "NONE"
+      },
+      {
+        "eventType": "ACTIVITY",
+        "eventStartTimeGmt": "2026-04-03T16:07:02.0",
+        "timezoneOffset": 10800000,
+        "durationInMilliseconds": 4740000,
+        "bodyBatteryImpact": -6,
+        "feedbackType": "EXERCISE_TRAINING_EFFECT_3",
+        "shortFeedback": "IMPROVING_ANAEROBIC_FITNESS"
+      }
+    ],
+    "endOfDayBodyBatteryDynamicFeedbackEvent": {
+      "eventTimestampGmt": "2026-04-02T23:56:10.0",
+      "bodyBatteryLevel": "HIGH",
+      "feedbackShortType": "SLEEP_TIME_PASSED_BALANCED_AND_INACTIVE",
+      "feedbackLongType": "SLEEP_TIME_PASSED_BALANCED_AND_INACTIVE"
+    }
+  }
+]

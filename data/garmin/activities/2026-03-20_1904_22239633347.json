@@ -115,6 +115,7 @@
     }
   ],
   "hasSplits": false,
+  "hasIntensityIntervals": false,
   "moderateIntensityMinutes": 16,
   "vigorousIntensityMinutes": 22,
   "differenceBodyBattery": -4,
@@ -127,13 +128,13 @@
   "endTimeGMT": "2026-03-20 16:47:37",
   "qualifyingDive": false,
   "activityUUID": "56a1b635-5170-4328-b9e1-3b7bfb08e879",
-  "autoCalcCalories": false,
-  "favorite": false,
   "pr": false,
+  "favorite": false,
   "purposeful": false,
-  "parent": false,
+  "manualActivity": false,
+  "autoCalcCalories": false,
   "decoDive": false,
   "elevationCorrected": false,
   "atpActivity": false,
-  "manualActivity": false
+  "parent": false
 }

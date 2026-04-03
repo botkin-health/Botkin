@@ -51,7 +51,7 @@ XLIM = (START - timedelta(days=1), GOAL_DATE + timedelta(days=5))
 NUTRITION_CACHE = BASE / "data/nutrition/nutrition_log_remote.json"
 
 # SSH-параметры для прямого запроса к PostgreSQL
-_SSH = ["sshpass", "-p", "W749a#j%37z8_138UBYA", "ssh", "-o", "StrictHostKeyChecking=no",
+_SSH = ["/opt/homebrew/bin/sshpass", "-p", "W749a#j%37z8_138UBYA", "ssh", "-o", "StrictHostKeyChecking=no",
         "root@116.203.213.137"]
 
 # Ключевые слова для определения алкоголя в записях питания

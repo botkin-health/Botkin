@@ -8,8 +8,8 @@
     "typeKey": "walking",
     "parentTypeId": 17,
     "isHidden": false,
-    "trimmable": true,
-    "restricted": false
+    "restricted": false,
+    "trimmable": true
   },
   "eventType": {
     "typeId": 9,
@@ -118,13 +118,13 @@
   "endTimeGMT": "2026-01-24 16:14:26",
   "qualifyingDive": false,
   "activityUUID": "2d8e934b-e8e9-4033-a59e-397cef728658",
+  "pr": false,
+  "favorite": false,
+  "purposeful": false,
   "parent": false,
   "decoDive": false,
-  "purposeful": false,
   "manualActivity": false,
   "autoCalcCalories": false,
-  "favorite": false,
-  "pr": false,
   "elevationCorrected": false,
   "atpActivity": false
 }

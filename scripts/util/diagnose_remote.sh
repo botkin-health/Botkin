@@ -4,4 +4,4 @@ PASS="W749a#j%37z8_138UBYA"
 DIR="/opt/healthvault"
 
 echo "Checking remote containers..."
-sshpass -p "$PASS" ssh -o StrictHostKeyChecking=no $SERVER "cd $DIR && docker-compose ps && echo '---' && docker ps"
+/opt/homebrew/bin/sshpass -p "$PASS" ssh -o StrictHostKeyChecking=no $SERVER "cd $DIR && docker-compose ps && echo '---' && docker ps"

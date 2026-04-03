@@ -59,6 +59,7 @@ echo ""
 
 # 1. Upload code to server
 echo "📤 Step 1/4: Uploading code to server..."
+export PATH="/opt/homebrew/bin:$PATH"
 sshpass -p "$SERVER_PASSWORD" rsync -avz \
     --exclude 'venv' \
     --exclude '__pycache__' \

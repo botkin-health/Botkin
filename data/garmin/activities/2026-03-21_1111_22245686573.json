@@ -110,6 +110,7 @@
   "anaerobicTrainingEffectMessage": "MINOR_ANAEROBIC_BENEFIT_15",
   "splitSummaries": [],
   "hasSplits": false,
+  "hasIntensityIntervals": false,
   "moderateIntensityMinutes": 32,
   "vigorousIntensityMinutes": 3,
   "differenceBodyBattery": -8,
@@ -122,13 +123,13 @@
   "endTimeGMT": "2026-03-21 09:26:14",
   "qualifyingDive": false,
   "activityUUID": "628317af-0fef-4dd8-95aa-7004bde4a428",
-  "autoCalcCalories": false,
-  "favorite": false,
   "pr": false,
+  "favorite": false,
   "purposeful": false,
-  "parent": false,
+  "manualActivity": false,
+  "autoCalcCalories": false,
   "decoDive": false,
   "elevationCorrected": false,
   "atpActivity": false,
-  "manualActivity": false
+  "parent": false
 }

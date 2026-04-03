@@ -568,7 +568,7 @@
     },
     {
       "date": "2020-12-08",
-      "speed_km_h": 4.9,
+      "speed_km_h": 4.91,
       "step_length_cm": 70.75,
       "double_support_pct": 27.1,
       "asymmetry_pct": 0.0
@@ -966,7 +966,7 @@
       "date": "2021-02-03",
       "speed_km_h": 4.5,
       "step_length_cm": 70.72,
-      "double_support_pct": 28.53,
+      "double_support_pct": 28.54,
       "asymmetry_pct": 0.06
     },
     {
@@ -1761,7 +1761,7 @@
       "date": "2021-05-28",
       "speed_km_h": 4.21,
       "step_length_cm": 69.45,
-      "double_support_pct": 29.5,
+      "double_support_pct": 29.51,
       "asymmetry_pct": 3.47
     },
     {
@@ -2152,7 +2152,7 @@
     },
     {
       "date": "2021-07-24",
-      "speed_km_h": 4.45,
+      "speed_km_h": 4.46,
       "step_length_cm": 66.88,
       "double_support_pct": 28.58,
       "asymmetry_pct": 0.5
@@ -2419,7 +2419,7 @@
       "date": "2021-08-31",
       "speed_km_h": 4.31,
       "step_length_cm": 66.48,
-      "double_support_pct": 28.98,
+      "double_support_pct": 28.97,
       "asymmetry_pct": 1.5
     },
     {
@@ -3376,7 +3376,7 @@
       "date": "2022-01-18",
       "speed_km_h": 4.46,
       "step_length_cm": 66.2,
-      "double_support_pct": 29.08,
+      "double_support_pct": 29.07,
       "asymmetry_pct": 0.0
     },
     {
@@ -3418,7 +3418,7 @@
       "date": "2022-01-24",
       "speed_km_h": 4.53,
       "step_length_cm": 68.19,
-      "double_support_pct": 28.42,
+      "double_support_pct": 28.43,
       "asymmetry_pct": 0.0
     },
     {
@@ -4135,7 +4135,7 @@
       "date": "2022-05-09",
       "speed_km_h": 4.49,
       "step_length_cm": 68.31,
-      "double_support_pct": 29.33,
+      "double_support_pct": 29.32,
       "asymmetry_pct": 1.18
     },
     {
@@ -4415,7 +4415,7 @@
       "date": "2022-06-18",
       "speed_km_h": 4.81,
       "step_length_cm": 70.03,
-      "double_support_pct": 28.6,
+      "double_support_pct": 28.61,
       "asymmetry_pct": 1.73
     },
     {
@@ -6220,7 +6220,7 @@
       "date": "2023-03-05",
       "speed_km_h": 5.02,
       "step_length_cm": 72.75,
-      "double_support_pct": 27.57,
+      "double_support_pct": 27.58,
       "asymmetry_pct": 0.0
     },
     {
@@ -6281,7 +6281,7 @@
     },
     {
       "date": "2023-03-14",
-      "speed_km_h": 4.82,
+      "speed_km_h": 4.81,
       "step_length_cm": 71.15,
       "double_support_pct": 27.78,
       "asymmetry_pct": 0.11
@@ -6449,7 +6449,7 @@
     },
     {
       "date": "2023-04-07",
-      "speed_km_h": 3.74,
+      "speed_km_h": 3.73,
       "step_length_cm": 63.19,
       "double_support_pct": 29.18,
       "asymmetry_pct": 0.0
@@ -6927,7 +6927,7 @@
       "date": "2023-06-15",
       "speed_km_h": 4.24,
       "step_length_cm": 70.18,
-      "double_support_pct": 28.97,
+      "double_support_pct": 28.98,
       "asymmetry_pct": 3.37
     },
     {
@@ -6939,7 +6939,7 @@
     },
     {
       "date": "2023-06-17",
-      "speed_km_h": 4.27,
+      "speed_km_h": 4.28,
       "step_length_cm": 66.83,
       "double_support_pct": 29.01,
       "asymmetry_pct": 3.36
@@ -7032,7 +7032,7 @@
       "date": "2023-06-30",
       "speed_km_h": 4.17,
       "step_length_cm": 64.18,
-      "double_support_pct": 29.22,
+      "double_support_pct": 29.23,
       "asymmetry_pct": 2.47
     },
     {
@@ -7044,7 +7044,7 @@
     },
     {
       "date": "2023-07-02",
-      "speed_km_h": 4.24,
+      "speed_km_h": 4.25,
       "step_length_cm": 65.15,
       "double_support_pct": 28.65,
       "asymmetry_pct": 7.06
@@ -8243,7 +8243,7 @@
       "date": "2023-12-21",
       "speed_km_h": 4.4,
       "step_length_cm": 70.35,
-      "double_support_pct": 28.65,
+      "double_support_pct": 28.64,
       "asymmetry_pct": 12.31
     },
     {
@@ -8297,7 +8297,7 @@
     },
     {
       "date": "2023-12-29",
-      "speed_km_h": 4.84,
+      "speed_km_h": 4.83,
       "step_length_cm": 71.58,
       "double_support_pct": 27.74,
       "asymmetry_pct": 0.33
@@ -8683,7 +8683,7 @@
       "date": "2024-02-22",
       "speed_km_h": 4.76,
       "step_length_cm": 70.43,
-      "double_support_pct": 27.25,
+      "double_support_pct": 27.26,
       "asymmetry_pct": 4.44
     },
     {
@@ -8738,7 +8738,7 @@
       "date": "2024-03-01",
       "speed_km_h": 4.63,
       "step_length_cm": 69.6,
-      "double_support_pct": 28.42,
+      "double_support_pct": 28.43,
       "asymmetry_pct": 0.0
     },
     {
@@ -8939,7 +8939,7 @@
       "date": "2024-03-31",
       "speed_km_h": 3.6,
       "step_length_cm": 63.94,
-      "double_support_pct": 30.67,
+      "double_support_pct": 30.68,
       "asymmetry_pct": 12.78
     },
     {
@@ -10191,7 +10191,7 @@
     },
     {
       "date": "2024-09-28",
-      "speed_km_h": 4.62,
+      "speed_km_h": 4.61,
       "step_length_cm": 70.97,
       "double_support_pct": 28.72,
       "asymmetry_pct": 1.75
@@ -10275,7 +10275,7 @@
       "date": "2024-10-10",
       "speed_km_h": 3.65,
       "step_length_cm": 51.33,
-      "double_support_pct": 30.83,
+      "double_support_pct": 30.82,
       "asymmetry_pct": 0.0
     },
     {
@@ -10890,7 +10890,7 @@
       "date": "2025-01-07",
       "speed_km_h": 4.06,
       "step_length_cm": 69.06,
-      "double_support_pct": 29.58,
+      "double_support_pct": 29.57,
       "asymmetry_pct": 1.33
     },
     {
@@ -10967,7 +10967,7 @@
       "date": "2025-01-18",
       "speed_km_h": 4.84,
       "step_length_cm": 66.3,
-      "double_support_pct": 28.4,
+      "double_support_pct": 28.41,
       "asymmetry_pct": 0.0
     },
     {
@@ -11079,7 +11079,7 @@
       "date": "2025-02-03",
       "speed_km_h": 4.85,
       "step_length_cm": 71.0,
-      "double_support_pct": 28.22,
+      "double_support_pct": 28.23,
       "asymmetry_pct": 0.04
     },
     {
@@ -11378,7 +11378,7 @@
       "date": "2025-03-19",
       "speed_km_h": 4.53,
       "step_length_cm": 64.25,
-      "double_support_pct": 28.67
+      "double_support_pct": 28.68
     },
     {
       "date": "2025-03-20",
@@ -12012,7 +12012,7 @@
       "date": "2025-06-18",
       "speed_km_h": 3.91,
       "step_length_cm": 65.82,
-      "double_support_pct": 29.98,
+      "double_support_pct": 29.97,
       "asymmetry_pct": 7.89
     },
     {
@@ -12306,7 +12306,7 @@
       "date": "2025-07-31",
       "speed_km_h": 4.56,
       "step_length_cm": 69.08,
-      "double_support_pct": 28.82,
+      "double_support_pct": 28.83,
       "asymmetry_pct": 0.86
     },
     {
@@ -12453,7 +12453,7 @@
       "date": "2025-08-21",
       "speed_km_h": 4.07,
       "step_length_cm": 62.48,
-      "double_support_pct": 29.77,
+      "double_support_pct": 29.76,
       "asymmetry_pct": 1.7
     },
     {
@@ -12955,7 +12955,7 @@
       "date": "2025-11-01",
       "speed_km_h": 4.03,
       "step_length_cm": 63.26,
-      "double_support_pct": 29.98,
+      "double_support_pct": 29.97,
       "asymmetry_pct": 1.0
     },
     {
@@ -13797,7 +13797,7 @@
       "date": "2026-03-03",
       "speed_km_h": 4.59,
       "step_length_cm": 68.22,
-      "double_support_pct": 28.53,
+      "double_support_pct": 28.52,
       "asymmetry_pct": 0.7
     },
     {

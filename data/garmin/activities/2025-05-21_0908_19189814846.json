@@ -195,13 +195,13 @@
   "endTimeGMT": "2025-05-21 08:24:11",
   "qualifyingDive": false,
   "activityUUID": "1a7d7e68-db88-4691-8b7a-0b30d932cf56",
+  "pr": false,
+  "favorite": false,
+  "purposeful": false,
+  "manualActivity": false,
   "autoCalcCalories": false,
+  "decoDive": false,
   "elevationCorrected": false,
   "atpActivity": false,
-  "favorite": false,
-  "pr": false,
-  "parent": false,
-  "decoDive": false,
-  "purposeful": false,
-  "manualActivity": false
+  "parent": false
 }

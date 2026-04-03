@@ -13,7 +13,8 @@ google-generativeai>=0.3.0
 
 # Data Processing (Scripts)
 xmltodict>=0.13.0
-garminconnect>=0.2.0
+garminconnect==0.2.38
+garth>=0.4.47
 huami-token>=0.5.0
 bleak>=0.20.0
 bleparser>=1.0.0

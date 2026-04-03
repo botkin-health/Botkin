@@ -176,7 +176,7 @@ def fetch_via_hetzner(user_id: str, app_token: str, start: str, end: str) -> lis
     url = f"{ZEPP_CN3_API}/users/{user_id}/members/-1/weightRecords?from_date={start}&to_date={end}"
 
     cmd = [
-        "sshpass", "-p", HETZNER_PASS,
+        "/opt/homebrew/bin/sshpass", "-p", HETZNER_PASS,
         "ssh", "-o", "StrictHostKeyChecking=no", HETZNER_HOST,
         f"curl -sS --max-time 30 "
         f"-H 'apptoken: {app_token}' "
