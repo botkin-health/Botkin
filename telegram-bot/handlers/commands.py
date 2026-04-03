@@ -10,7 +10,7 @@ from datetime import datetime, timezone, timedelta
 
 MSK = timezone(timedelta(hours=3))
 
-from core.garmin_data import get_garmin_data_for_date, get_average_stats
+from core.garmin_data import get_garmin_data_for_date, get_average_stats, sync_today_garmin
 from core.weekly_nutrition import analyze_weekly_nutrition
 from core.nutrition_targets import calculate_targets, check_feasibility
 # NOTE: SupplementService imported per-request to support multi-user
@@ -84,22 +84,14 @@ async def cmd_day(message: Message, user_id: int):
     """Показывает итоги дня"""
     import logging
     import asyncio
-    from core.garmin_data import sync_garmin_data, get_average_stats
-    
     logger = logging.getLogger(__name__)
     logger.info(f"📊 /day user={message.from_user.id} ({message.from_user.first_name})")
-    
-    status_msg = await message.answer("🔄 Синхронизирую данные Garmin...")
-    
+
     db = None
     try:
         from database import SessionLocal
         db = SessionLocal()
 
-        # Умная синхронизация - только недостающие дни
-        from core.garmin_data import sync_missing_garmin_days
-        missing_count = sync_missing_garmin_days(user_id=user_id)
-        
         real_today = datetime.now(MSK).date()
         today_date = real_today
         
@@ -134,16 +126,20 @@ async def cmd_day(message: Message, user_id: int):
         targets = stats['targets']
         remaining = stats['remaining']
         
-        # Garmin Data (Actual for TODAY)
-        garmin_data = get_garmin_data_for_date(today_str, user_id=user_id)
-        active_calories = 0.0
-        if garmin_data:
-            active_calories = garmin_data.get('activeKilocalories', 0.0) or 0.0
+        # Garmin Data — для сегодня синхронизируем через API (с 15-мин кешем),
+        # для исторических дат читаем только из БД
+        garmin_error = False
+        if today_date == real_today:
+            active_calories, garmin_status = sync_today_garmin(user_id, today_date)
+            garmin_error = (garmin_status == 'error')
+        else:
+            garmin_data = get_garmin_data_for_date(today_str, user_id=user_id)
+            active_calories = garmin_data.get('activeKilocalories', 0.0) or 0.0 if garmin_data else 0.0
         
         # Supplements Status - create per-user instance
         from core.supplements import SupplementService
         user_supplement_service = SupplementService(user_id=user_id)
-        supplements_text = user_supplement_service.get_brief_status()
+        supplements_text = user_supplement_service.get_brief_status(for_date=today_str)
         
         # Apple Health - latest weight
         from database.crud import get_latest_weight
@@ -166,7 +162,10 @@ async def cmd_day(message: Message, user_id: int):
 
         deficit_pct = round((1 - 0.85) * 100)  # 15%
         if avg_total > 1500:
-            active_line = f"🏃 {today_active_r} ккал сегодня · {avg_active} в среднем"
+            if garmin_error:
+                active_line = f"🏃 ⚠️ Garmin недоступен · {avg_active} в среднем"
+            else:
+                active_line = f"🏃 {today_active_r} ккал сегодня · {avg_active} в среднем"
             energy_line = (
                 f"💤 {avg_bmr} ккал — базовый расход\n"
                 f"{active_line}\n"
@@ -224,14 +223,12 @@ async def cmd_day(message: Message, user_id: int):
         if feasibility_warning:
             response_parts.append(f"\n⚠️ <i>{feasibility_warning}</i>")
 
-        # Delete waiting message and send result
-        await status_msg.delete()
         await message.answer("\n".join(response_parts))
-        
+
     except Exception as e:
         logger.error(f"Error in /day: {e}", exc_info=True)
         import html
-        await status_msg.edit_text(f"❌ Ошибка при получении статистики: {html.escape(str(e))}")
+        await message.answer(f"❌ Ошибка при получении статистики: {html.escape(str(e))}")
     finally:
         if db:
             db.close()

@@ -146,7 +146,16 @@ def format_budget_line(user_id: int, for_date: Optional[date_type] = None) -> st
 
     bar = sq_fill * filled + "⬜" * (10 - filled)
     hint = "" if b["has_garmin"] else " (≈ среднее)"
+    from datetime import timedelta
+    today = date_type.today()
+    yesterday = today - timedelta(days=1)
+    if for_date is None or for_date == today:
+        day_label = "Сегодня"
+    elif for_date == yesterday:
+        day_label = "Вчера"
+    else:
+        day_label = for_date.strftime("%d.%m")
     return (
         f"\n{icon} {bar} {pct}%\n"
-        f"Сегодня: {consumed} / {target} ккал · {tail}{hint}"
+        f"{day_label}: {consumed} / {target} ккал · {tail}{hint}"
     )

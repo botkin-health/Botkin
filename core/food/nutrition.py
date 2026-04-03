@@ -6,9 +6,30 @@
 import os
 import json
 import logging
+import re
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import time
+
+# Паттерн для определения алкогольных напитков в названиях продуктов
+_ALCOHOL_RE = re.compile(
+    r'\b(вин[оаеуи]|шампанское|шампанского|шампанским|виски|whisky|whiskey|'
+    r'ром|джин|gin|водк[аиу]|голилк|просекко|prosecco|пив[оаеу]|пива|'
+    r'beer|коньяк|коньяка|текил|ликер|ликёр|бренди|brandy|портвейн|саке|sake|'
+    r'рислинг|chardonnay|мерло|каберне|совиньон|просекко|игристое|'
+    r'бокал\s+\w+\s+вин|бокал\s+вин)\b',
+    re.IGNORECASE
+)
+_NON_ALCOHOL_RE = re.compile(r'0[,.]0\s*%?|безалкогол|non.?alcohol', re.IGNORECASE)
+
+
+def detect_alcohol(meal_items: List[Dict]) -> bool:
+    """Возвращает True если хотя бы один продукт является алкоголем."""
+    for item in meal_items:
+        name = str(item.get('product') or item.get('name') or '')
+        if _ALCOHOL_RE.search(name) and not _NON_ALCOHOL_RE.search(name):
+            return True
+    return False
 
 try:
     import requests
@@ -371,7 +392,7 @@ def process_meal_description(
     
     # Рассчитываем общие КБЖУ
     meal_totals = calculate_meal_totals(meal_items)
-    
+
     # Если найдены явные итоги - заменяем общие значения
     if using_manual_totals and explicit_totals:
         if 'calories' in explicit_totals:
@@ -382,7 +403,8 @@ def process_meal_description(
             meal_totals['fats'] = explicit_totals['fats']
         if 'carbs' in explicit_totals:
             meal_totals['carbs'] = explicit_totals['carbs']
-            
+
+    meal_totals['has_alcohol'] = detect_alcohol(meal_items)
     return meal_items, meal_totals
 
 
@@ -760,7 +782,7 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
     first_product = meal_items[0].get('product', '') if meal_items else ''
     if total_nutrition and (total_nutrition.get('calories') or 0) > 0:
         if len(meal_items) == 1 and is_zero_calorie_drink(dish_name or first_product):
-            return meal_items, {'calories': 0.0, 'protein': 0.0, 'fats': 0.0, 'carbs': 0.0}
+            return meal_items, {'calories': 0.0, 'protein': 0.0, 'fats': 0.0, 'carbs': 0.0, 'has_alcohol': False}
         if len(meal_items) == 1:
             # Один продукт с явной этикеткой - используем total_nutrition
             logger.info(f"✅ Using explicit total nutrition from LLM (Recipe/Label): {total_nutrition}")
@@ -768,7 +790,8 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
                 'calories': float(total_nutrition.get('calories', 0)),
                 'protein': float(total_nutrition.get('protein', 0)),
                 'fats': float(total_nutrition.get('fats', 0)),
-                'carbs': float(total_nutrition.get('carbs', 0))
+                'carbs': float(total_nutrition.get('carbs', 0)),
+                'has_alcohol': detect_alcohol(meal_items),
             }
         else:
             # Список блюд - игнорируем total_nutrition, используем вычисленную сумму

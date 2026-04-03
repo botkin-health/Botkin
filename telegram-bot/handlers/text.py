@@ -183,28 +183,29 @@ def extract_date_from_text(text: str) -> tuple[str, str]:
         
     text_lower = text.lower().strip()
     
-    # Ключевые слова для "вчера"
-    yesterday_keywords = ['вчера', 'yesterday']
-    
+    # Ключевые слова для "вчера" / "позавчера"
+    relative_keywords = [
+        ('позавчера', 2), ('day before yesterday', 2),
+        ('вчера', 1), ('yesterday', 1),
+    ]
+
     # Проверяем начало строки
-    # Например: "Вчера ужин: ..." или "Вчера: ..."
-    # 1. Проверка "вчера" / "yesterday"
-    for kw in yesterday_keywords:
+    # Например: "Вчера ужин: ..." или "Позавчера: ..."
+    # 1. Проверка "вчера" / "позавчера" / "yesterday"
+    for kw, days_ago in relative_keywords:
         if text_lower.startswith(kw):
             # Проверяем, что идет после ключевого слова
             after_kw = text_lower[len(kw):]
-            
-            # Если текст закончился - это просто "вчера"
+
+            target_date = datetime.now(MSK) - timedelta(days=days_ago)
+            date_str = target_date.strftime('%Y-%m-%d')
+
+            # Если текст закончился - это просто "вчера" / "позавчера"
             if not after_kw:
-                yesterday = datetime.now(MSK) - timedelta(days=1)
-                date_str = yesterday.strftime('%Y-%m-%d')
                 return date_str, ''
-                
+
             # Если после ключевого слова идет разделитель
             if after_kw[0] in [':', ',', '-', ' ', '\n']:
-                yesterday = datetime.now(MSK) - timedelta(days=1)
-                date_str = yesterday.strftime('%Y-%m-%d')
-                
                 clean_text = text[len(kw):].strip()
                 clean_text = re.sub(r'^[:,\-\s]+', '', clean_text).strip()
                 return date_str, clean_text
@@ -402,13 +403,15 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             'растительные стиролы': 'Plant Sterols',
             'plant sterols': 'Plant Sterols', 'plant sterol': 'Plant Sterols',
             'sterols': 'Plant Sterols', 'sterol': 'Plant Sterols',
-            'омега': 'Омега 3-6-9', 'омегу': 'Омега 3-6-9',
-            'omega': 'Омега 3-6-9', 'омега-3': 'Омега 3-6-9',
+            'омега': 'Омега 3', 'омегу': 'Омега 3',
+            'omega': 'Омега 3', 'омега-3': 'Омега 3', 'омега 3-6-9': 'Омега 3',
             'ѓ3': 'Витамин D3', 'витамин д': 'Витамин D3',
             'витамин d': 'Витамин D3', 'd3': 'Витамин D3',
             'псиллиум': 'Псиллиум', 'псилиум': 'Псиллиум', 'psyllium': 'Псиллиум',
             'магний': 'Магний', 'магне': 'Магний', 'magnesium': 'Магний',
             'цинк': 'Цинк', 'zinc': 'Цинк',
+            'креатин': 'Креатин', 'creatine': 'Креатин', 'kreatin': 'Креатин',
+            'кретин': 'Креатин', 'моногидрат': 'Креатин',
             'ашваганд': 'Ашвагандха',
             'коллаген': 'Коллаген',
             'витамины': None,  # общее слово — только в комбинации с другими
@@ -514,10 +517,12 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                 'растительные стеролы': 'Plant Sterols',
                 'растительные стиролы': 'Plant Sterols',
                 'plant sterol': 'Plant Sterols', 'sterols': 'Plant Sterols',
-                'омега': 'Омега 3-6-9', 'омега-3': 'Омега 3-6-9', 'omega': 'Омега 3-6-9',
+                'омега': 'Омега 3', 'омега-3': 'Омега 3', 'omega': 'Омега 3', 'омега 3-6-9': 'Омега 3',
                 'ѓ3': 'Витамин D3', 'd3': 'Витамин D3',
                 'витамин д': 'Витамин D3', 'витамин d': 'Витамин D3',
                 'псилиум': 'Псиллиум', 'psyllium': 'Псиллиум',
+                'creatine': 'Креатин', 'kreatin': 'Креатин', 'кретин': 'Креатин',
+                'моногидрат': 'Креатин', 'creatine monohydrate': 'Креатин',
             }
             
             # Определяем: писал ли пользователь «оба стирола» или «обема стиролы»
@@ -564,6 +569,99 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             )
             
             await processing_msg.edit_text(response, parse_mode='HTML')
+            return
+
+        elif msg_type == 'mixed':
+            # Смешанное сообщение: еда (протеин с граммами) + добавки (креатин, магний и т.п.)
+            food_data = data.get('food', {})
+            supplement_items = data.get('supplements', [])
+
+            # 1. Сохраняем добавки (нормализация — та же что в vitamins)
+            _NORMALIZE_MX = {
+                'стирол': 'Plant Sterols', 'стиролы': 'Plant Sterols',
+                'стерол': 'Plant Sterols', 'стеролы': 'Plant Sterols',
+                'растительные стеролы': 'Plant Sterols',
+                'растительные стиролы': 'Plant Sterols',
+                'plant sterol': 'Plant Sterols', 'sterols': 'Plant Sterols',
+                'омега': 'Омега 3', 'омега-3': 'Омега 3', 'omega': 'Омега 3',
+                'ѓ3': 'Витамин D3', 'd3': 'Витамин D3',
+                'витамин д': 'Витамин D3', 'витамин d': 'Витамин D3',
+                'псилиум': 'Псиллиум', 'psyllium': 'Псиллиум',
+                'creatine': 'Креатин', 'kreatin': 'Креатин', 'кретин': 'Креатин',
+                'monohydrate': 'Креатин', 'creatine monohydrate': 'Креатин',
+                'magnesium': 'Магний',
+            }
+            normalized_supp = []
+            for item in supplement_items:
+                key = item.strip().lower()
+                canonical = _NORMALIZE_MX.get(key, item)
+                if canonical not in normalized_supp:
+                    normalized_supp.append(canonical)
+
+            from core.supplements import save_supplements
+            telegram_user_id = int(message.from_user.id)
+            supp_saved = save_supplements(normalized_supp, user_id=telegram_user_id, date_str=custom_date) if normalized_supp else True
+
+            # 2. Обрабатываем еду через стандартный food pipeline
+            if food_data and food_data.get('items'):
+                food_router_result = {'type': 'food', 'data': food_data}
+                meal_items, meal_totals = await loop.run_in_executor(
+                    None, process_llm_food_data, food_router_result, text
+                )
+            else:
+                meal_items, meal_totals = [], {}
+
+            # 3. Ответ: добавки сразу, еда — через confirmation
+            if not meal_items:
+                # Еда не распозналась — показываем только добавки
+                supp_list = "\n".join([f"• {html.escape(str(s))}" for s in normalized_supp])
+                await processing_msg.edit_text(
+                    f"💊 <b>Добавки записаны:</b>\n{supp_list}\n\n"
+                    f"⚠️ Еду не удалось распознать, введи отдельно.",
+                    parse_mode='HTML'
+                )
+                return
+
+            # Еда распозналась — создаём confirmation state и добавляем добавки в данные
+            meal_name = food_data.get('dish_name') or food_data.get('meal_type') or 'Приём пищи'
+            from services.state import UserState
+            new_state = UserState(
+                user_id=user_id,
+                state='waiting_confirmation',
+                data={
+                    'description': text,
+                    'meal_items': meal_items,
+                    'meal_totals': meal_totals,
+                    'meal_time': datetime.now(MSK).strftime('%H:%M'),
+                    'meal_name': meal_name,
+                    'date': custom_date,
+                }
+            )
+            state_manager.set_state(user_id, new_state)
+
+            # Показываем добавки + еду с кнопками подтверждения
+            supp_list = "\n".join([f"• {html.escape(str(s))}" for s in normalized_supp])
+            supp_status = "✅" if supp_saved else "⚠️"
+            response = f"💊 {supp_status} <b>Добавки:</b>\n{supp_list}\n\n"
+            response += f"🍽️ <b>{html.escape(str(meal_name))}</b>\n"
+            for item in meal_items:
+                w_str = f"{item['weight_g']}г" if item.get('weight_g') else "?"
+                cal = item.get('calories', 0)
+                p = int(item.get('protein', 0))
+                f_val = int(item.get('fats', 0))
+                c = int(item.get('carbs', 0))
+                response += f"• {html.escape(str(item['product']))} ({w_str}) — {int(cal)} ккал (Б:{p} Ж:{f_val} У:{c})\n"
+            response += f"\n📊 <b>Итого: {int(meal_totals['calories'])} ккал</b>\n"
+            response += f"Б: {int(meal_totals['protein'])} | Ж: {int(meal_totals['fats'])} | У: {int(meal_totals['carbs'])}"
+
+            from handlers.callbacks import MealConfirmationCallback
+            from aiogram.utils.keyboard import InlineKeyboardBuilder
+            builder = InlineKeyboardBuilder()
+            builder.button(text="✅ Записать", callback_data=MealConfirmationCallback(action="confirm", user_id=user_id).pack())
+            builder.button(text="❌ Отмена", callback_data=MealConfirmationCallback(action="cancel", user_id=user_id).pack())
+            builder.adjust(2)
+
+            await processing_msg.edit_text(response, parse_mode='HTML', reply_markup=builder.as_markup())
             return
 
         elif msg_type == 'weight':

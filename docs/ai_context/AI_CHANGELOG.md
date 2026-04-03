@@ -9,6 +9,12 @@
 
 ## 2026
 
+- **[2026-04-02]** Клетчатка в боте: добавлено поле `fiber` в промпт LLM (`core/llm/router.py`) — GPT теперь оценивает граммы клетчатки для каждого продукта. Агрегация в `crud.py` и отображение в `/day` (`🌿`) и `/week` уже были готовы. — *Claude Code*
+
+- **[2026-04-02]** Garmin auth — финальное решение: бот больше не логинится паролем никогда. `sync_today_garmin()` использует только garth-токены из `/app/data/garth/895655/`. Токены автоматически копируются на сервер при каждом `/sync` через `push_garmin_to_db.sh`. При ошибке `/day` показывает `⚠️ Garmin недоступен` вместо 0. Полное руководство: `docs/ai_context/GARMIN_AUTH_GUIDE.md`. — *Claude Code*
+
+- **[2026-04-01]** Починён активные калории в боте (показывал 0): (1) Убран вызов `sync_missing_garmin_days` из `commands.py` — бот больше не дёргает Garmin API напрямую, только читает из `activity_log`. (2) Создан `scripts/push_garmin_to_db.sh` — пушит локальные `data/garmin/daily-summary/YYYY-MM-DD.json` на сервер через SSH psql upsert. Добавлен в `sync_all_data.sh` шаг 2.3. (3) Починен баг float→int: `4.0` → `4` через `int()` в python3. (4) Добавлен `export PATH=/opt/homebrew/bin:$PATH` в `deploy.sh` для sshpass. Деплой выполнен. — *Claude Code*
+
 - **[2026-03-30]** Исправлен `scripts/analysis/progress_chart.py`: калории и алкоголь теперь всегда читаются из PostgreSQL через SSH (NutriLogBot → Hetzner VPS). Убран хардкод дат алкоголя и мёртвые пути (`/tmp/hv_nutrition_daily.csv`, `data/nutrition/*.json` per-day). Локальный кэш `nutrition_log_remote.json` используется только как fallback при недоступности SSH (известная проблема: `json_agg` двойной эскейп кавычек в именах блюд). Источники задокументированы в docstring скрипта. — *Claude Code*
 - **[2026-03-30]** Архитектурный рефакторинг источников данных: убрана зависимость от Apple Health для HR и шагов. Дашборд переключён на прямое чтение из `data/garmin/daily-summary/*.json` (`stats.restingHeartRate`, `stats.totalSteps`). Apple Health теперь используется только для давления (Omron) и походки (gait) — метрик без альтернативного источника. Обновлены: `CLAUDE.md` (полная таблица источников "что откуда"), `~/.claude/skills/dashboard/SKILL.md` (4 потока переработаны). Давление и походка читаются из PostgreSQL через SSH. — *Claude Code*
 - **[2026-03-30]** Добавлен Метилфолат (Solgar Folate 400 мкг, Metafolin) в бот: `core/health/supplements.py` (блок утро, синонимы: фолат/folate/metafolin/5-mthf/methylfolate), `HEALTH.md` (перенесён из «к покупке» в «ежедневно утром»). Деплой выполнен. — *Claude Code*
