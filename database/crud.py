@@ -469,35 +469,40 @@ def get_activities_by_period(
 def get_average_activity_stats(db: Session, user_id: int, days: int = 14) -> Dict:
     import logging
     _log = logging.getLogger(__name__)
-    """Get average activity stats for the last N days"""
+    """Get average activity stats for the last N days.
+
+    Filters out incomplete Garmin syncs (partial days with total < 1500 kcal)
+    to prevent the rolling average from being dragged down by garbage data.
+    """
     end_date = datetime.now().date()
     start_date = end_date - timedelta(days=days)
-    
+
     activities = get_activities_by_period(db, user_id, start_date, end_date)
-    
+
     if not activities:
         _log.info(f"[avg_activity] user_id={user_id} дней={days}: нет записей в activity_log")
         return {}
-    
-    # Полные записи (Garmin) или ручные с оценкой total = BMR + active
-    DEFAULT_BMR_ESTIMATE = 1400  # для ручных записей без BMR
-    totals_for_avg = []
-    for a in activities:
-        if a.total_calories and a.total_calories > 1200:
-            totals_for_avg.append(a.total_calories)
-        elif (a.active_calories or 0) > 0:
-            bmr = a.bmr_calories or DEFAULT_BMR_ESTIMATE
-            totals_for_avg.append(bmr + (a.active_calories or 0))
-    valid_activities = [a for a in activities if (a.total_calories and a.total_calories > 1200) or ((a.active_calories or 0) > 0)]
-    
+
+    # Only include days with plausible total calories (full Garmin sync).
+    # Partial syncs (watch charging, early sync) produce total < 1500 — skip them.
+    MIN_TOTAL_CALORIES = 1500
+    valid_activities = [a for a in activities
+                        if a.total_calories and a.total_calories >= MIN_TOTAL_CALORIES]
+
+    skipped = len(activities) - len(valid_activities)
+    if skipped:
+        skipped_dates = [str(a.date) for a in activities
+                         if not a.total_calories or a.total_calories < MIN_TOTAL_CALORIES]
+        _log.info(f"[avg_activity] filtered out {skipped} incomplete days: {skipped_dates}")
+
     if not valid_activities:
-        _log.info(f"[avg_activity] user_id={user_id} дней={days}: нет валидных активностей")
+        _log.info(f"[avg_activity] user_id={user_id} дней={days}: нет полных дней")
         return {}
-    
+
     result = {
         'active_calories': sum(a.active_calories or 0 for a in valid_activities) / len(valid_activities),
-        'total_calories': sum(totals_for_avg) / len(totals_for_avg) if totals_for_avg else 0,
-        'bmr_calories': sum(a.bmr_calories or DEFAULT_BMR_ESTIMATE for a in valid_activities) / len(valid_activities),
+        'total_calories': sum(a.total_calories for a in valid_activities) / len(valid_activities),
+        'bmr_calories': sum(a.bmr_calories or 0 for a in valid_activities) / len(valid_activities),
         'steps': sum(a.steps or 0 for a in valid_activities) / len(valid_activities),
         'count': len(valid_activities)
     }

@@ -61,14 +61,17 @@ IMPORTANT: Return "name" in RUSSIAN language (e.g. "Морковь", not "Carrot
         "calories": number (TOTAL calories for the TOTAL weight),
         "protein": number,
         "fats": number,
-        "carbs": number
+        "carbs": number,
+        "fiber": number (dietary fiber in grams; estimate from food type — vegetables/legumes/whole grains are high, meat/dairy/refined foods are near 0)
       }
     ],
     "total_nutrition": {
       "calories": number,
       "protein": number,
       "fats": number,
-      "carbs": number
+      "carbs": number,
+      "fiber": number,
+      "has_alcohol": true or false (true if ANY item is an alcoholic drink; false for 0.0% / non-alcoholic)
     }
   }
 }
@@ -272,6 +275,35 @@ SCENARIO 5: OTHER
   "type": "other",
   "data": {
     "reply": "Brief helpful reply or clarity question"
+  }
+}
+
+SCENARIO 6: MIXED (food WITH supplements in one message)
+Use this when the message contains BOTH caloric food (with weight/macros) AND supplements.
+KEY RULE: Whey protein / сывороточный протеин WITH a weight (e.g. "30г протеина") is FOOD, not a supplement.
+Other items like Creatine, Magnesium, Plant Sterols, Vitamins = supplements.
+Example: "30г сывороточного протеина, креатин, магний" → mixed (protein=food, creatine+magnesium=supplements)
+{
+  "type": "mixed",
+  "data": {
+    "food": {
+      "dish_name": "Протеиновый шейк",
+      "meal_type": "snack",
+      "items": [
+        {
+          "name": "Сывороточный протеин",
+          "weight": 30,
+          "quantity": "30г",
+          "calories": 120,
+          "protein": 24,
+          "fats": 1,
+          "carbs": 3,
+          "fiber": 0
+        }
+      ],
+      "total_nutrition": {"calories": 120, "protein": 24, "fats": 1, "carbs": 3, "fiber": 0}
+    },
+    "supplements": ["Креатин", "Магний", "Plant Sterols"]
   }
 }
 """

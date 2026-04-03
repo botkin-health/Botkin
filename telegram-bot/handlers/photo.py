@@ -1093,7 +1093,10 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
             meal_kcal = totals.get('calories', 0)
 
             from core.caloric_budget import format_budget_line
-            budget = format_budget_line(telegram_user_id)
+            from datetime import date as date_type
+            meal_date_str = user_state.data.get('date')
+            meal_date = date_type.fromisoformat(meal_date_str) if meal_date_str else None
+            budget = format_budget_line(telegram_user_id, for_date=meal_date)
 
             await safe_edit_text(
                 callback.message,

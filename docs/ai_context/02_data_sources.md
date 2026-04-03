@@ -92,7 +92,10 @@ GROUP BY date ORDER BY date;\""
 
 > [!NOTE]
 > **Данные Гармина — два слоя:**
-> - **PostgreSQL `activity_log`** — шаги, калории, ЧСС, стресс, часы сна. Обновляется автоматически при отправке `/day` в Telegram-бот.
+> - **PostgreSQL `activity_log`** — шаги, калории, ЧСС, стресс, часы сна.
+>   - **Сегодняшние данные**: обновляются автоматически при каждом `/day` в боте — бот вызывает Garmin API в реальном времени. Кеш 15 минут (повторный `/day` берёт из БД без нового запроса к Garmin). Garth-токены сохраняются в `/app/data/garth/{user_id}/` — повторный логин по паролю не нужен.
+>   - **Исторические данные**: пушатся с Mac через `scripts/push_garmin_to_db.sh` при запуске `/sync`.
+>   - При ошибке Garmin API в `/day` показывается `⚠️ Garmin недоступен` вместо 0.
 > - **Локальные JSON файлы** (`data/garmin/`) — фазы сна, HRV, Body Battery, детали тренировок. Обновляются скриптом `download_garmin_data.py` (запускается через `sync_all_data.sh`).
 > ⚠️ `activity_log.hrv` всегда NULL — HRV доступен только из JSON. Таблицы `sleep_records` и `workouts` в PostgreSQL пустые.
 
