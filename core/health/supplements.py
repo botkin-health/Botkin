@@ -19,6 +19,25 @@ from database import (
 
 logger = logging.getLogger(__name__)
 
+# Default supplement schedule — used for new users and migration
+DEFAULT_SUPPLEMENTS = [
+    {"name": "Псиллиум",      "slot": "morning_before"},
+    {"name": "Витамин D3",    "slot": "morning_with"},
+    {"name": "Омега 3",       "slot": "morning_with"},
+    {"name": "Plant Sterols", "slot": "morning_with"},
+    {"name": "Метилфолат",    "slot": "morning_with"},
+    {"name": "Plant Sterols", "slot": "evening"},
+    {"name": "Магний",        "slot": "evening"},
+    {"name": "Креатин",       "slot": "evening"},
+]
+
+# Maps internal slot names → display labels
+_SLOT_LABELS = {
+    "morning_before": "☀️ УТРО (до еды)",
+    "morning_with":   "🌅 УТРО (с завтраком)",
+    "evening":        "🌙 ВЕЧЕР (с ужином)",
+}
+
 
 def save_supplements(items: List[str], user_id: int, date_str: Optional[str] = None) -> bool:
     """
@@ -106,24 +125,9 @@ class SupplementService:
             user_id: Telegram ID of the user
         """
         self.user_id = user_id
-        
-        # Schedule defined in HEALTH.md
-        self.schedule = {
-            "☀️ УТРО (до еды)": [
-                "Псиллиум"
-            ],
-            "🌅 УТРО (с завтраком)": [
-                "Витамин D3",
-                "Омега 3",
-                "Plant Sterols (Утро)",
-                "Метилфолат"
-            ],
-            "🌙 ВЕЧЕР (с ужином)": [
-                "Plant Sterols (Вечер)",
-                "Магний",
-                "Креатин"
-            ]
-        }
+
+        # Load schedule from user_settings DB (or migrate defaults for new users)
+        self.schedule = self._load_schedule()
         
         # Synonyms map for flexible matching
         self.synonyms = {
@@ -146,6 +150,7 @@ class SupplementService:
             "d3": "витамин d3",
             "витамин д": "витамин d3",
             "фолат": "метилфолат",
+            "метилофолат": "метилфолат",
             "фолиевая": "метилфолат",
             "folate": "метилфолат",
             "metafolin": "метилфолат",
@@ -159,6 +164,34 @@ class SupplementService:
             "моногидрат": "креатин",
         }
     
+    def _load_schedule(self) -> dict:
+        """Load supplement schedule from user_settings.
+
+        If no settings exist, saves DEFAULT_SUPPLEMENTS and returns them.
+        Returns dict: {"☀️ УТРО (до еды)": [...], "🌅 УТРО (с завтраком)": [...], "🌙 ВЕЧЕР (с ужином)": [...]}
+        """
+        from database.crud import get_user_settings, upsert_user_settings
+
+        db = SessionLocal()
+        try:
+            settings = get_user_settings(db, self.user_id)
+            if settings is None or not settings.supplements:
+                upsert_user_settings(db, self.user_id, supplements=DEFAULT_SUPPLEMENTS)
+                raw = DEFAULT_SUPPLEMENTS
+            else:
+                raw = settings.supplements
+        finally:
+            db.close()
+
+        result = {label: [] for label in _SLOT_LABELS.values()}
+        for item in raw:
+            slot = item.get("slot", "morning_with")
+            name = item.get("name", "")
+            label = _SLOT_LABELS.get(slot)
+            if label and name:
+                result[label].append(name)
+        return result
+
     def get_detailed_schedule(self, for_date: Optional[str] = None) -> str:
         """
         Returns a formatted schedule string with checkboxes for taken items
