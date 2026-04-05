@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Настройки NutriLogBot</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+           background: var(--tg-theme-bg-color, #fff);
+           color: var(--tg-theme-text-color, #222);
+           padding: 16px; max-width: 480px; margin: 0 auto; }
+    h1 { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
+    .subtitle { font-size: 13px; color: #888; margin-bottom: 20px; }
+    .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .tile { background: #f0f7ff; border-radius: 14px; padding: 18px 14px;
+            text-align: center; cursor: pointer; border: none; width: 100%;
+            transition: opacity .15s; }
+    .tile:active { opacity: .7; }
+    .tile .icon { font-size: 28px; margin-bottom: 8px; }
+    .tile .name { font-weight: 600; font-size: 13px; }
+    .tile .desc { font-size: 11px; color: #888; margin-top: 3px; }
+    .tile.green { background: #f0fff4; }
+    .tile.orange { background: #fff8f0; }
+    .tile.purple { background: #faf0ff; }
+
+    .section { display: none; }
+    .section.active { display: block; }
+
+    .back-btn { background: none; border: none; color: #2a7ae2; font-size: 15px;
+                cursor: pointer; padding: 0 0 16px 0; display: flex; align-items: center; gap: 4px; }
+    .section-title { font-size: 16px; font-weight: 600; margin-bottom: 20px; }
+
+    .field-group { margin-bottom: 20px; }
+    .field-label { font-size: 11px; color: #888; text-transform: uppercase;
+                   letter-spacing: .5px; margin-bottom: 6px; }
+    .field-row { display: flex; gap: 8px; align-items: center; }
+    input[type=number], input[type=date], input[type=time], input[type=text] {
+      border: 1px solid #ddd; border-radius: 8px; padding: 8px 12px;
+      font-size: 14px; outline: none; }
+    input:focus { border-color: #2a7ae2; }
+    .unit { color: #888; font-size: 13px; white-space: nowrap; }
+    .hint { font-size: 11px; color: #aaa; margin-top: 4px; }
+
+    .calc-btn { background: #f0f7ff; border: 1px solid #b3d4f5; border-radius: 8px;
+                padding: 6px 10px; font-size: 12px; color: #2a7ae2; cursor: pointer;
+                white-space: nowrap; }
+    .calc-panel { background: #f8f9fa; border-radius: 10px; padding: 12px;
+                  margin-top: 8px; display: none; }
+    .calc-panel.open { display: block; }
+    .calc-panel .field-row { margin-bottom: 8px; }
+
+    .toggle-row { display: flex; justify-content: space-between; align-items: center;
+                  padding: 12px 0; border-bottom: 1px solid #f0f0f0; }
+    .toggle-info .name { font-size: 13px; font-weight: 500; }
+    .toggle-info .desc { font-size: 11px; color: #aaa; margin-top: 2px; }
+    .toggle { position: relative; width: 40px; height: 22px; flex-shrink: 0; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; inset: 0; background: #ccc; border-radius: 11px;
+              cursor: pointer; transition: .2s; }
+    .slider:before { content: ''; position: absolute; width: 18px; height: 18px;
+                     background: #fff; border-radius: 9px; top: 2px; left: 2px; transition: .2s; }
+    input:checked + .slider { background: #34c759; }
+    input:checked + .slider:before { transform: translateX(18px); }
+    input:disabled + .slider { opacity: .4; cursor: not-allowed; }
+
+    .slot-group { margin-bottom: 16px; }
+    .slot-title { font-size: 12px; color: #888; margin-bottom: 6px; font-weight: 500; }
+    .supp-list { background: #f8f9fa; border-radius: 10px; overflow: hidden; }
+    .supp-item { display: flex; justify-content: space-between; align-items: center;
+                 padding: 10px 12px; border-bottom: 1px solid #eee; font-size: 13px; }
+    .supp-item:last-child { border-bottom: none; }
+    .del-btn { background: none; border: none; color: #ccc; font-size: 18px;
+               cursor: pointer; line-height: 1; padding: 0 4px; }
+    .del-btn:hover { color: #e74c3c; }
+    .add-panel { margin-top: 10px; display: none; }
+    .add-panel.open { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .add-panel input { flex: 1; min-width: 120px; }
+    .add-panel select { border: 1px solid #ddd; border-radius: 8px; padding: 8px 10px;
+                        font-size: 13px; background: #fff; }
+    .add-open-btn { width: 100%; background: #f0fff4; border: 1px dashed #6bcf8a;
+                    border-radius: 10px; padding: 10px; font-size: 13px;
+                    color: #1a7a3a; cursor: pointer; margin-top: 8px; }
+    .add-confirm-btn { background: #2a7ae2; color: #fff; border: none; border-radius: 8px;
+                       padding: 8px 14px; font-size: 13px; cursor: pointer; }
+
+    .save-btn { width: 100%; background: #2a7ae2; color: #fff; border: none;
+                border-radius: 12px; padding: 14px; font-size: 15px; font-weight: 600;
+                cursor: pointer; margin-top: 24px; }
+    .save-btn:active { opacity: .85; }
+    .saved-toast { text-align: center; color: #34c759; font-size: 13px; margin-top: 8px;
+                   display: none; }
+
+    .help-block { margin-bottom: 20px; }
+    .help-block h3 { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+    .help-block p, .help-block li { font-size: 13px; color: #555; line-height: 1.7; }
+    .help-block ul { list-style: none; padding: 0; }
+    .help-block ul li { display: flex; gap: 8px; margin-bottom: 6px; }
+    .help-block ul li .emoji { flex-shrink: 0; }
+    code { background: #f0f0f0; border-radius: 4px; padding: 1px 6px;
+           font-size: 12px; font-family: monospace; }
+    .cmd-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .cmd-table td { padding: 5px 0; border-bottom: 1px solid #f5f5f5; }
+    .cmd-table td:first-child { color: #2a7ae2; font-family: monospace; width: 90px; }
+    .disabled-notice { font-size: 11px; color: #aaa; margin-top: 3px; }
+  </style>
+</head>
+<body>
+
+<!-- HOME -->
+<div id="home" class="section active">
+  <h1>⚙️ Настройки</h1>
+  <p class="subtitle" id="user-name">NutriLogBot</p>
+  <div class="tiles">
+    <button class="tile" onclick="go('nutrition')">
+      <div class="icon">🥗</div>
+      <div class="name">Питание</div>
+      <div class="desc">BMR · цель · шкала</div>
+    </button>
+    <button class="tile green" onclick="go('supplements')">
+      <div class="icon">💊</div>
+      <div class="name">Добавки</div>
+      <div class="desc" id="supp-count">загрузка...</div>
+    </button>
+    <button class="tile orange" onclick="go('notifications')">
+      <div class="icon">🔔</div>
+      <div class="name">Уведомления</div>
+      <div class="desc" id="notif-status">Выкл</div>
+    </button>
+    <button class="tile purple" onclick="go('help')">
+      <div class="icon">📖</div>
+      <div class="name">Справка</div>
+      <div class="desc">Как пользоваться</div>
+    </button>
+  </div>
+</div>
+
+<!-- NUTRITION -->
+<div id="nutrition" class="section">
+  <button class="back-btn" onclick="go('home')">← Назад</button>
+  <div class="section-title">🥗 Питание</div>
+
+  <div class="field-group">
+    <div class="field-label">Базовый обмен (BMR)</div>
+    <div class="field-row">
+      <input type="number" id="bmr-input" placeholder="1950" min="800" max="4000" style="width:110px">
+      <span class="unit">ккал/день</span>
+      <button class="calc-btn" onclick="toggleCalc()">🧮 Рассчитать</button>
+    </div>
+    <div class="hint" id="bmr-hint">Оставьте пустым — будет использоваться Garmin</div>
+    <div class="calc-panel" id="calc-panel">
+      <div class="field-label">Рассчитать по параметрам (Миффлин)</div>
+      <div class="field-row"><input type="number" id="calc-height" placeholder="Рост, см" style="width:110px"><span class="unit">см</span></div>
+      <div style="height:6px"></div>
+      <div class="field-row"><input type="number" id="calc-weight" placeholder="Вес, кг" style="width:110px"><span class="unit">кг</span></div>
+      <div style="height:6px"></div>
+      <div class="field-row"><input type="number" id="calc-age" placeholder="Возраст" style="width:110px"><span class="unit">лет</span></div>
+      <div style="height:8px"></div>
+      <button class="calc-btn" onclick="calcBMR()">Рассчитать →</button>
+    </div>
+  </div>
+
+  <div class="field-group">
+    <div class="field-label">Цель по весу</div>
+    <div class="field-row">
+      <input type="number" id="target-weight" placeholder="75" step="0.1" style="width:90px">
+      <span class="unit">кг до</span>
+      <input type="date" id="target-date" style="width:150px">
+    </div>
+  </div>
+
+  <div class="field-group">
+    <div class="field-label">Отображение</div>
+    <div class="toggle-row">
+      <div class="toggle-info">
+        <div class="name">Шкала калорий в /day</div>
+        <div class="desc">Полоска 🟩🟥 с процентами</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="show-bar" checked>
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <button class="save-btn" onclick="saveNutrition()">Сохранить</button>
+  <div class="saved-toast" id="nutrition-toast">✅ Сохранено</div>
+</div>
+
+<!-- SUPPLEMENTS -->
+<div id="supplements" class="section">
+  <button class="back-btn" onclick="go('home')">← Назад</button>
+  <div class="section-title">💊 Добавки</div>
+  <div id="supp-slots"></div>
+  <button class="add-open-btn" onclick="toggleAddPanel()">+ Добавить добавку</button>
+  <div class="add-panel" id="add-panel">
+    <input type="text" id="new-supp-name" placeholder="Название добавки" style="flex:1;min-width:120px">
+    <select id="new-supp-slot">
+      <option value="morning_before">☀️ Утро (до еды)</option>
+      <option value="morning_with" selected>🌅 Утро (с завтраком)</option>
+      <option value="evening">🌙 Вечер</option>
+    </select>
+    <button class="add-confirm-btn" onclick="addSupplement()">Добавить</button>
+  </div>
+  <button class="save-btn" onclick="saveSupplements()">Сохранить</button>
+  <div class="saved-toast" id="supp-toast">✅ Сохранено</div>
+</div>
+
+<!-- NOTIFICATIONS -->
+<div id="notifications" class="section">
+  <button class="back-btn" onclick="go('home')">← Назад</button>
+  <div class="section-title">🔔 Уведомления</div>
+
+  <div class="toggle-row">
+    <div class="toggle-info">
+      <div class="name">Напоминание о добавках</div>
+      <div class="desc">Бот напишет в указанное время</div>
+    </div>
+    <label class="toggle">
+      <input type="checkbox" id="reminders-toggle" onchange="toggleReminderTime()">
+      <span class="slider"></span>
+    </label>
+  </div>
+  <div id="reminder-time-row" style="padding:10px 0;display:none">
+    <div class="field-row">
+      <span class="unit">Время:</span>
+      <input type="time" id="reminder-time" value="08:00" style="width:100px">
+    </div>
+  </div>
+
+  <div class="toggle-row" style="margin-top:12px;opacity:.5">
+    <div class="toggle-info">
+      <div class="name">Утренний брифинг</div>
+      <div class="desc">Сон, HRV, план дня</div>
+      <div class="disabled-notice">🔜 Скоро</div>
+    </div>
+    <label class="toggle">
+      <input type="checkbox" disabled>
+      <span class="slider"></span>
+    </label>
+  </div>
+
+  <button class="save-btn" onclick="saveNotifications()">Сохранить</button>
+  <div class="saved-toast" id="notif-toast">✅ Сохранено</div>
+</div>
+
+<!-- HELP -->
+<div id="help" class="section">
+  <button class="back-btn" onclick="go('home')">← Назад</button>
+  <div class="section-title">📖 Справка</div>
+
+  <div class="help-block">
+    <h3>🍽 Как логировать еду</h3>
+    <ul>
+      <li><span class="emoji">✍️</span><span>Текст: <code>гречка 150г, курица 200г</code></span></li>
+      <li><span class="emoji">📸</span><span>Фото тарелки — бот распознает блюдо и оценит КБЖУ</span></li>
+      <li><span class="emoji">📦</span><span>Фото упаковки — бот считает с этикетки, укажите количество</span></li>
+      <li><span class="emoji">🎤</span><span>Голосовое сообщение — транскрибируется автоматически</span></li>
+    </ul>
+  </div>
+
+  <div class="help-block">
+    <h3>💊 Как отметить добавки</h3>
+    <p>Напишите названия в чат: <code>Витамин Д, Омега, Метилфолат</code><br>
+    Список добавок настраивается в разделе Добавки.</p>
+  </div>
+
+  <div class="help-block">
+    <h3>📊 Команды бота</h3>
+    <table class="cmd-table">
+      <tr><td>/day</td><td>Итог дня — калории, белок, добавки</td></tr>
+      <tr><td>/week</td><td>Сводка за 7 дней</td></tr>
+      <tr><td>/vitamins</td><td>Чеклист добавок на сегодня</td></tr>
+      <tr><td>/settings</td><td>Открыть эти настройки</td></tr>
+    </table>
+  </div>
+
+  <div class="help-block">
+    <h3>⚖️ Как считается лимит калорий</h3>
+    <p>Средний расход за 14 дней по Garmin × 0.85 (дефицит 15%).<br>
+    Нет Garmin — используется BMR из раздела Питание.</p>
+  </div>
+</div>
+
+<script>
+const tg = window.Telegram.WebApp;
+tg.ready();
+tg.expand();
+
+let settings = {};
+const API = '/api/settings';
+const SLOTS = {
+  morning_before: '☀️ Утро (до еды)',
+  morning_with:   '🌅 Утро (с завтраком)',
+  evening:        '🌙 Вечер'
+};
+
+// ── Navigation ──────────────────────────────────────────────────────────────
+function go(section) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById(section).classList.add('active');
+}
+
+// ── Load settings ───────────────────────────────────────────────────────────
+async function load() {
+  try {
+    const res = await fetch(API, {
+      headers: { Authorization: 'tma ' + tg.initData }
+    });
+    settings = await res.json();
+    populate();
+  } catch(e) {
+    console.error('Failed to load settings', e);
+  }
+}
+
+function populate() {
+  // Nutrition
+  if (settings.bmr_override) document.getElementById('bmr-input').value = settings.bmr_override;
+  if (settings.target_weight_kg) document.getElementById('target-weight').value = settings.target_weight_kg;
+  if (settings.target_weight_date) document.getElementById('target-date').value = settings.target_weight_date;
+  document.getElementById('show-bar').checked = settings.show_calorie_budget_bar !== false;
+
+  // Supplements
+  renderSupplements();
+
+  // Notifications
+  document.getElementById('reminders-toggle').checked = !!settings.supplement_reminders_enabled;
+  if (settings.supplement_reminder_time)
+    document.getElementById('reminder-time').value = settings.supplement_reminder_time;
+  toggleReminderTime();
+
+  // Home tile summaries
+  const supps = (settings.supplements || []);
+  document.getElementById('supp-count').textContent = supps.length + ' активных';
+  document.getElementById('notif-status').textContent =
+    settings.supplement_reminders_enabled ? ('Вкл · ' + (settings.supplement_reminder_time || '08:00')) : 'Выкл';
+
+  // Username
+  if (tg.initDataUnsafe && tg.initDataUnsafe.user)
+    document.getElementById('user-name').textContent = tg.initDataUnsafe.user.first_name || '';
+}
+
+// ── Supplement rendering ─────────────────────────────────────────────────────
+function renderSupplements() {
+  const supps = settings.supplements || [];
+  const container = document.getElementById('supp-slots');
+  container.innerHTML = '';
+
+  for (const [slot, label] of Object.entries(SLOTS)) {
+    const items = supps.filter(s => s.slot === slot);
+    const div = document.createElement('div');
+    div.className = 'slot-group';
+    div.innerHTML = `<div class="slot-title">${label}</div>
+      <div class="supp-list" id="slot-${slot}">
+        ${items.length === 0 ? '<div class="supp-item" style="color:#aaa;font-size:12px">— пусто —</div>' :
+          items.map(s => `
+            <div class="supp-item">
+              <span>${s.name}</span>
+              <button class="del-btn" onclick="deleteSupplement('${slot}','${s.name.replace(/'/g, "\\'")}')">✕</button>
+            </div>`).join('')}
+      </div>`;
+    container.appendChild(div);
+  }
+}
+
+function deleteSupplement(slot, name) {
+  settings.supplements = (settings.supplements || []).filter(
+    s => !(s.slot === slot && s.name === name)
+  );
+  renderSupplements();
+}
+
+function toggleAddPanel() {
+  const p = document.getElementById('add-panel');
+  p.classList.toggle('open');
+  if (p.classList.contains('open')) document.getElementById('new-supp-name').focus();
+}
+
+function addSupplement() {
+  const name = document.getElementById('new-supp-name').value.trim();
+  const slot = document.getElementById('new-supp-slot').value;
+  if (!name) return;
+  settings.supplements = settings.supplements || [];
+  settings.supplements.push({ name, slot });
+  document.getElementById('new-supp-name').value = '';
+  document.getElementById('add-panel').classList.remove('open');
+  renderSupplements();
+}
+
+// ── BMR calculator ──────────────────────────────────────────────────────────
+function toggleCalc() {
+  document.getElementById('calc-panel').classList.toggle('open');
+}
+
+function calcBMR() {
+  const h = parseFloat(document.getElementById('calc-height').value);
+  const w = parseFloat(document.getElementById('calc-weight').value);
+  const a = parseFloat(document.getElementById('calc-age').value);
+  if (!h || !w || !a) { alert('Введите рост, вес и возраст'); return; }
+  // Mifflin-St Jeor for male (BMR only, no activity multiplier)
+  const bmr = Math.round(10 * w + 6.25 * h - 5 * a + 5);
+  document.getElementById('bmr-input').value = bmr;
+  document.getElementById('calc-panel').classList.remove('open');
+}
+
+// ── Reminder time toggle ────────────────────────────────────────────────────
+function toggleReminderTime() {
+  const enabled = document.getElementById('reminders-toggle').checked;
+  document.getElementById('reminder-time-row').style.display = enabled ? 'block' : 'none';
+}
+
+// ── Save helpers ─────────────────────────────────────────────────────────────
+async function post(data) {
+  const res = await fetch(API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'tma ' + tg.initData },
+    body: JSON.stringify({ ...settings, ...data })
+  });
+  return res.json();
+}
+
+function showToast(id) {
+  const t = document.getElementById(id);
+  t.style.display = 'block';
+  setTimeout(() => { t.style.display = 'none'; }, 2000);
+}
+
+async function saveNutrition() {
+  const bmr = parseInt(document.getElementById('bmr-input').value) || null;
+  const tw  = parseFloat(document.getElementById('target-weight').value) || null;
+  const td  = document.getElementById('target-date').value || null;
+  const bar = document.getElementById('show-bar').checked;
+  await post({ bmr_override: bmr, target_weight_kg: tw, target_weight_date: td, show_calorie_budget_bar: bar });
+  Object.assign(settings, { bmr_override: bmr, target_weight_kg: tw, target_weight_date: td, show_calorie_budget_bar: bar });
+  showToast('nutrition-toast');
+}
+
+async function saveSupplements() {
+  await post({ supplements: settings.supplements });
+  document.getElementById('supp-count').textContent = (settings.supplements || []).length + ' активных';
+  showToast('supp-toast');
+}
+
+async function saveNotifications() {
+  const enabled = document.getElementById('reminders-toggle').checked;
+  const time    = document.getElementById('reminder-time').value;
+  await post({ supplement_reminders_enabled: enabled, supplement_reminder_time: time });
+  Object.assign(settings, { supplement_reminders_enabled: enabled, supplement_reminder_time: time });
+  document.getElementById('notif-status').textContent = enabled ? ('Вкл · ' + time) : 'Выкл';
+  showToast('notif-toast');
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+load();
+</script>
+</body>
+</html>
