@@ -56,6 +56,7 @@ class User(Base):
     activities: Mapped[List["ActivityLog"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     blood_tests: Mapped[List["BloodTest"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     body_measurements: Mapped[List["BodyMeasurement"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    settings: Mapped[Optional["UserSettings"]] = relationship(back_populates="user", uselist=False, cascade="all, delete-orphan")
 
 
 
@@ -220,3 +221,20 @@ class BodyMeasurement(Base):
     
     # Relationship
     user: Mapped["User"] = relationship(back_populates="body_measurements")
+
+
+class UserSettings(Base):
+    __tablename__ = "user_settings"
+
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey('users.telegram_id', ondelete='CASCADE'), primary_key=True)
+    show_calorie_budget_bar: Mapped[bool] = mapped_column(Boolean, default=True, server_default='true')
+    bmr_override: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    target_weight_kg: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    target_weight_date: Mapped[Optional[datetime.date]] = mapped_column(Date, nullable=True)
+    supplement_reminders_enabled: Mapped[bool] = mapped_column(Boolean, default=False, server_default='false')
+    supplement_reminder_time: Mapped[datetime.time] = mapped_column(Time, server_default='08:00:00')
+    supplements: Mapped[list] = mapped_column(JSON, default=list, server_default='[]')
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    user: Mapped["User"] = relationship(back_populates="settings")
