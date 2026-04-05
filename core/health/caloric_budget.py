@@ -107,7 +107,7 @@ def make_block_bar(consumed: float, target: float, invert: bool = False) -> tupl
     return bar, pct
 
 
-def format_budget_line(user_id: int, for_date: Optional[date_type] = None) -> str:
+def format_budget_line(user_id: int, for_date: Optional[date_type] = None, show_bar: bool = True) -> str:
     """
     Returns a compact one-block string for appending to a Telegram message.
 
@@ -144,7 +144,6 @@ def format_budget_line(user_id: int, for_date: Optional[date_type] = None) -> st
         sq_fill = "🟩"
         tail = f"осталось {remaining} ккал"
 
-    bar = sq_fill * filled + "⬜" * (10 - filled)
     hint = "" if b["has_garmin"] else " (≈ среднее)"
     from datetime import timedelta
     today = date_type.today()
@@ -155,7 +154,11 @@ def format_budget_line(user_id: int, for_date: Optional[date_type] = None) -> st
         day_label = "Вчера"
     else:
         day_label = for_date.strftime("%d.%m")
-    return (
-        f"\n{icon} {bar} {pct}%\n"
-        f"{day_label}: {consumed} / {target} ккал · {tail}{hint}"
-    )
+    if show_bar:
+        bar = sq_fill * filled + "⬜" * (10 - filled)
+        return (
+            f"\n{icon} {bar} {pct}%\n"
+            f"{day_label}: {consumed} / {target} ккал · {tail}{hint}"
+        )
+    else:
+        return f"\n{icon} {day_label}: {consumed} / {target} ккал · {tail}{hint}"

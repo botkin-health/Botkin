@@ -90,7 +90,10 @@ async def cmd_day(message: Message, user_id: int):
     db = None
     try:
         from database import SessionLocal
+        from database.crud import get_user_settings
         db = SessionLocal()
+        _us = get_user_settings(db, user_id)
+        show_bar = _us.show_calorie_budget_bar if _us else True
 
         real_today = datetime.now(MSK).date()
         today_date = real_today
@@ -184,6 +187,10 @@ async def cmd_day(message: Message, user_id: int):
             cal_tail = f"перебор +{abs(cal_remaining)}"
         else:
             cal_tail = f"ост. {cal_remaining}"
+        if show_bar:
+            cal_line = f"{cal_bar} {round(totals.calories):.0f} / {target_cal} ккал · {cal_tail}"
+        else:
+            cal_line = f"{round(totals.calories):.0f} / {target_cal} ккал · {cal_tail}"
 
         # --- Macro bars ---
         p_bar, p_pct = make_block_bar(totals.protein, targets['protein'], invert=True)
@@ -203,7 +210,7 @@ async def cmd_day(message: Message, user_id: int):
             "",
             energy_line,
             "",
-            f"{cal_bar} {round(totals.calories):.0f} / {target_cal} ккал · {cal_tail}",
+            cal_line,
             "",
             f"Б {p_bar} {totals.protein:.0f}/{targets['protein']}г",
             f"Ж {f_bar} {totals.fats:.0f}/{targets['fats']}г",
