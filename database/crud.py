@@ -728,3 +728,33 @@ def create_body_measurement(
     db.commit()
     db.refresh(measurement)
     return measurement
+
+
+# ==================== USER SETTINGS ====================
+
+def get_user_settings(db: Session, user_id: int) -> Optional["UserSettings"]:
+    """Get settings for a user. Returns None if no settings saved yet."""
+    from database.models import UserSettings
+    return db.query(UserSettings).filter(UserSettings.user_id == user_id).first()
+
+
+def upsert_user_settings(db: Session, user_id: int, **kwargs) -> "UserSettings":
+    """Create or update user settings. Pass fields as kwargs.
+
+    Example:
+        upsert_user_settings(db, user_id=895655, show_calorie_budget_bar=False)
+    """
+    from database.models import UserSettings
+
+    settings = get_user_settings(db, user_id)
+    if settings is None:
+        settings = UserSettings(user_id=user_id, **kwargs)
+        db.add(settings)
+    else:
+        for key, value in kwargs.items():
+            setattr(settings, key, value)
+        settings.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(settings)
+    return settings
+
