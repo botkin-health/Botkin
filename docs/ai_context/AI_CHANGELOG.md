@@ -9,6 +9,10 @@
 
 ## 2026
 
+- **[2026-04-05]** Telegram Mini App — панель настроек NutriLogBot v1. Новая таблица `user_settings` (PostgreSQL). CRUD `get_user_settings`/`upsert_user_settings` (`database/crud.py`). `SupplementService` теперь читает расписание добавок из БД вместо хардкода — при первом запуске мигрирует дефолтный список (`core/health/supplements.py`). Параметр `show_bar: bool` в `format_budget_line()` (`core/health/caloric_budget.py`) — Ника может скрыть шкалу калорий. API endpoint `GET/POST /api/settings` с HMAC-SHA256 авторизацией Telegram WebApp (`telegram-bot/webhook/apple_health.py`). SPA `telegram-bot/webapp/index.html` (4 раздела: Питание, Добавки, Уведомления, Справка). StaticFiles смонтирован на `/webapp/`. Задеплоено: `https://health.orangegate.cc/webapp/`. BotFather Menu Button — ручной шаг (URL: `https://health.orangegate.cc/webapp/`). — *Claude Code*
+
+- **[2026-04-05]** Исправлен баг: Метилфолат не записывался при написании "Метилофолат" (опечатка с лишней 'о'). Добавлены синонимы в `_SUPPLEMENT_KEYWORDS` (`telegram-bot/handlers/text.py`) и `self.synonyms` (`core/health/supplements.py`). Добавлены пропущенные записи за Apr 4 и Apr 5 напрямую в БД. — *Claude Code*
+
 - **[2026-04-02]** Клетчатка в боте: добавлено поле `fiber` в промпт LLM (`core/llm/router.py`) — GPT теперь оценивает граммы клетчатки для каждого продукта. Агрегация в `crud.py` и отображение в `/day` (`🌿`) и `/week` уже были готовы. — *Claude Code*
 
 - **[2026-04-02]** Garmin auth — финальное решение: бот больше не логинится паролем никогда. `sync_today_garmin()` использует только garth-токены из `/app/data/garth/895655/`. Токены автоматически копируются на сервер при каждом `/sync` через `push_garmin_to_db.sh`. При ошибке `/day` показывает `⚠️ Garmin недоступен` вместо 0. Полное руководство: `docs/ai_context/GARMIN_AUTH_GUIDE.md`. — *Claude Code*
