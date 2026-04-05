@@ -1094,9 +1094,17 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
 
             from core.caloric_budget import format_budget_line
             from datetime import date as date_type
+            from database import SessionLocal as _SessionLocal
+            from database.crud import get_user_settings as _get_user_settings
             meal_date_str = user_state.data.get('date')
             meal_date = date_type.fromisoformat(meal_date_str) if meal_date_str else None
-            budget = format_budget_line(telegram_user_id, for_date=meal_date)
+            _db = _SessionLocal()
+            try:
+                _settings = _get_user_settings(_db, telegram_user_id)
+                _show_bar = _settings.show_calorie_budget_bar if _settings else True
+            finally:
+                _db.close()
+            budget = format_budget_line(telegram_user_id, for_date=meal_date, show_bar=_show_bar)
 
             await safe_edit_text(
                 callback.message,
