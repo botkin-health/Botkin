@@ -35,3 +35,4 @@ alembic>=1.12.0
 # API (Apple Health Integration)
 fastapi>=0.104.0
 uvicorn[standard]>=0.24.0
+aiofiles
