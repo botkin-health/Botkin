@@ -8,9 +8,13 @@ Auth: Bearer token (APPLE_HEALTH_TOKEN из .env)
 """
 
 import os
+import hmac
+import hashlib
+import json
+import urllib.parse
 import logging
 from datetime import date, datetime
-from typing import Optional
+from typing import Optional, List
 
 from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.responses import JSONResponse
@@ -22,7 +26,41 @@ logger = logging.getLogger(__name__)
 app = FastAPI(title="HealthVault Apple Health Webhook", docs_url=None, redoc_url=None)
 
 APPLE_HEALTH_TOKEN = os.getenv("APPLE_HEALTH_TOKEN", "")
+BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 PRIMARY_USER_ID = int(os.getenv("TELEGRAM_USER_ID", "895655"))
+
+
+# ── Telegram WebApp Auth ──────────────────────────────────────────────────────
+
+def verify_telegram_init_data(init_data_str: str) -> dict:
+    """Validate Telegram WebApp initData HMAC and return user dict."""
+    if not init_data_str:
+        raise ValueError("Empty initData")
+
+    params = dict(urllib.parse.parse_qsl(init_data_str, keep_blank_values=True))
+    received_hash = params.pop("hash", None)
+    if not received_hash:
+        raise ValueError("No hash in initData")
+
+    data_check_string = "\n".join(f"{k}={v}" for k, v in sorted(params.items()))
+    secret_key = hmac.new(b"WebAppData", BOT_TOKEN.encode(), hashlib.sha256).digest()
+    computed = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
+
+    if not hmac.compare_digest(computed, received_hash):
+        raise ValueError("initData HMAC mismatch")
+
+    return json.loads(params.get("user", "{}"))
+
+
+def get_tg_user(authorization: str = Header(...)) -> dict:
+    """FastAPI dependency: validates TMA token, returns Telegram user dict."""
+    if not authorization.startswith("tma "):
+        raise HTTPException(status_code=401, detail="Expected 'tma <initData>'")
+    init_data = authorization.removeprefix("tma ").strip()
+    try:
+        return verify_telegram_init_data(init_data)
+    except ValueError as e:
+        raise HTTPException(status_code=403, detail=str(e))
 
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
@@ -192,6 +230,123 @@ async def receive_apple_health(
 
 
 # ── Standalone run (для локального тестирования) ──────────────────────────────
+
+# ── Settings API ─────────────────────────────────────────────────────────────
+
+class SupplementItem(BaseModel):
+    name: str
+    slot: str  # morning_before | morning_with | evening
+
+
+class UserSettingsSchema(BaseModel):
+    show_calorie_budget_bar: bool = True
+    bmr_override: Optional[int] = None
+    target_weight_kg: Optional[float] = None
+    target_weight_date: Optional[str] = None  # YYYY-MM-DD string
+    supplement_reminders_enabled: bool = False
+    supplement_reminder_time: str = "08:00"   # HH:MM string
+    supplements: List[SupplementItem] = []
+
+
+@app.get("/api/settings")
+async def get_settings(tg_user: dict = Depends(get_tg_user)):
+    """Return current settings for authenticated Telegram user."""
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
+    from database import SessionLocal
+    from database.crud import get_user_settings
+    from core.health.supplements import DEFAULT_SUPPLEMENTS
+
+    user_id = tg_user.get("id")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="No user id in initData")
+
+    db = SessionLocal()
+    try:
+        s = get_user_settings(db, user_id)
+        if s is None:
+            return {
+                "show_calorie_budget_bar": True,
+                "bmr_override": None,
+                "target_weight_kg": None,
+                "target_weight_date": None,
+                "supplement_reminders_enabled": False,
+                "supplement_reminder_time": "08:00",
+                "supplements": DEFAULT_SUPPLEMENTS,
+            }
+        return {
+            "show_calorie_budget_bar": s.show_calorie_budget_bar,
+            "bmr_override": s.bmr_override,
+            "target_weight_kg": s.target_weight_kg,
+            "target_weight_date": s.target_weight_date.isoformat() if s.target_weight_date else None,
+            "supplement_reminders_enabled": s.supplement_reminders_enabled,
+            "supplement_reminder_time": s.supplement_reminder_time.strftime("%H:%M") if s.supplement_reminder_time else "08:00",
+            "supplements": s.supplements or [],
+        }
+    finally:
+        db.close()
+
+
+@app.post("/api/settings")
+async def save_settings(payload: UserSettingsSchema, tg_user: dict = Depends(get_tg_user)):
+    """Save settings for authenticated Telegram user."""
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
+    from database import SessionLocal
+    from database.crud import upsert_user_settings
+    from datetime import date as date_cls, time as time_cls
+
+    user_id = tg_user.get("id")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="No user id in initData")
+
+    twd = None
+    if payload.target_weight_date:
+        try:
+            twd = date_cls.fromisoformat(payload.target_weight_date)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid target_weight_date format, use YYYY-MM-DD")
+
+    try:
+        h, m = payload.supplement_reminder_time.split(":")
+        reminder_time = time_cls(int(h), int(m))
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid supplement_reminder_time, use HH:MM")
+
+    supplements_list = [s.model_dump() for s in payload.supplements]
+
+    db = SessionLocal()
+    try:
+        upsert_user_settings(
+            db,
+            user_id=user_id,
+            show_calorie_budget_bar=payload.show_calorie_budget_bar,
+            bmr_override=payload.bmr_override,
+            target_weight_kg=payload.target_weight_kg,
+            target_weight_date=twd,
+            supplement_reminders_enabled=payload.supplement_reminders_enabled,
+            supplement_reminder_time=reminder_time,
+            supplements=supplements_list,
+        )
+    finally:
+        db.close()
+
+    return {"status": "ok"}
+
+
+# ── Static webapp ─────────────────────────────────────────────────────────────
+
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path as _Path
+
+_webapp_dir = _Path(__file__).parent.parent / "webapp"
+if _webapp_dir.exists():
+    app.mount("/webapp", StaticFiles(directory=str(_webapp_dir), html=True), name="webapp")
+
 
 def start_webhook_server(host: str = "0.0.0.0", port: int = 8081):
     """Запускается из bot.py через asyncio.gather."""
