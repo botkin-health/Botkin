@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(title="HealthVault Apple Health Webhook", docs_url=None, redoc_url=None)
 
 APPLE_HEALTH_TOKEN = os.getenv("APPLE_HEALTH_TOKEN", "")
-BOT_TOKEN = os.getenv("BOT_TOKEN", "")
+BOT_TOKEN = os.getenv("BOT_TOKEN") or os.getenv("TELEGRAM_BOT_TOKEN", "")
 PRIMARY_USER_ID = int(os.getenv("TELEGRAM_USER_ID", "895655"))
 
 
