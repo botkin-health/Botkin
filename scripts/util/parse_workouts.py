@@ -39,6 +39,7 @@ HR_ZONE_NAMES = {
     5: "Z5 максимум (> 90%)",
 }
 
+
 def parse_activity(filepath: Path):
     """Парсит один summary файл активности."""
     try:
@@ -123,38 +124,32 @@ def parse_activity(filepath: Path):
         "activity_name": data.get("activityName", type_label),
         "type": type_key,
         "type_label": type_label,
-
         # Нагрузка
         "duration_min": duration_min,
         "calories_total": round(calories),
         "calories_active": round(active_calories),
         "training_load": training_load,
         "intensity": intensity,
-
         # ЧСС
         "avg_hr": avg_hr,
         "max_hr": max_hr,
         "hr_zones": hr_zones,
         "vigorous_min": vigorous_min,
         "moderate_min": moderate_min,
-
         # Тренировочный эффект
         "aerobic_te": aerobic_te,
         "anaerobic_te": anaerobic_te,
         "te_label": te_label,
-
         # Восстановление
         "body_battery_drain": bb_drain,
         "water_ml": water_ml,
-
         # Контекст для корреляций
         "evening_workout": evening_workout,  # True если начало после 18:00
-
         # Метаданные
         "raw_messages": {
             "aerobic": aerobic_msg,
             "anaerobic": anaerobic_msg,
-        }
+        },
     }
 
 
@@ -210,16 +205,20 @@ def main():
             "avg_training_load": avg_load,
             "avg_active_kcal": avg_kcal,
         },
-        "workouts": workouts
+        "workouts": workouts,
     }
 
     OUTPUT_FILE.write_text(json.dumps(output, ensure_ascii=False, indent=2))
 
     print(f"\n✅ Сохранено: {OUTPUT_FILE}")
-    print(f"\n📊 Статистика с 6 января 2026:")
+    print("\n📊 Статистика с 6 января 2026:")
     print(f"   Всего тренировок:       {len(from_jan6)}")
     print(f"   По типам:               {by_type}")
-    print(f"   Вечерние (после 18:00): {len(evening)} ({round(len(evening)/len(from_jan6)*100)}%)" if from_jan6 else "")
+    print(
+        f"   Вечерние (после 18:00): {len(evening)} ({round(len(evening) / len(from_jan6) * 100)}%)"
+        if from_jan6
+        else ""
+    )
     print(f"   Тяжёлые (load ≥ 150):   {len(heavy)}")
     print(f"   Средний Training Load:  {avg_load}")
     print(f"   Средний расход ккал:    {avg_kcal}")
@@ -230,7 +229,9 @@ def main():
         eve = "🌙" if w["evening_workout"] else ""
         heavy_flag = "🔥" if w["intensity"] == "heavy" else ""
         bb = w["body_battery_drain"] or "-"
-        print(f"{w['date']:<12} {w['type_label']:<12} {w['duration_min']:<5} {w['calories_active']:<6} {w['training_load']:<6} {w['intensity']:<10} {str(bb):<5} {eve}{heavy_flag}")
+        print(
+            f"{w['date']:<12} {w['type_label']:<12} {w['duration_min']:<5} {w['calories_active']:<6} {w['training_load']:<6} {w['intensity']:<10} {str(bb):<5} {eve}{heavy_flag}"
+        )
 
 
 if __name__ == "__main__":

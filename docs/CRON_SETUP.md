@@ -31,7 +31,7 @@ crontab -l | grep healthvault
 ### Schedule Explained
 - `0 */12 * * *` = Every 12 hours at minute 0 (00:00 and 12:00)
 - Backups saved to: `/Users/alexlyskovsky/HealthVault/backup/`
-- Logs saved to: `/Users/alexlyskovsky/HealthVault/logs/cron_backup.log` 
+- Logs saved to: `/Users/alexlyskovsky/HealthVault/logs/cron_backup.log`
 - Retention: 7 days (older backups auto-deleted)
 
 ### Manual Testing

@@ -26,7 +26,7 @@ YOUR_TELEGRAM_ID = 895655  # Alex Lyskovsky
 def migrate_user():
     """Создаёт пользователя-администратора"""
     print("\n=== 1. Creating Admin User ===")
-    
+
     db = SessionLocal()
     try:
         # Проверяем, существует ли уже
@@ -34,7 +34,7 @@ def migrate_user():
         if existing:
             print(f"✅ User {YOUR_TELEGRAM_ID} already exists. Skipping.")
             return existing
-        
+
         user = User(
             telegram_id=YOUR_TELEGRAM_ID,
             first_name="Alex",
@@ -54,29 +54,29 @@ def migrate_user():
 def migrate_nutrition_log():
     """Мигрирует данные питания из nutrition_log.json"""
     print("\n=== 2. Migrating Nutrition Log ===")
-    
+
     nutrition_file = DATA_DIR / "nutrition" / "nutrition_log.json"
     if not nutrition_file.exists():
         print(f"⚠️  File not found: {nutrition_file}")
         return
-    
+
     db = SessionLocal()
     try:
         data = json.loads(nutrition_file.read_text(encoding='utf-8'))
         count = 0
-        
+
         # Structure: {"metadata": {...}, "entries": [{"date": "...", "meals": [...]}]}
         entries = data.get('entries', [])
-        
+
         for day_entry in entries:
             date_str = day_entry.get('date')
             if not date_str:
                 continue
-                
+
             for meal in day_entry.get('meals', []):
                 meal_name = meal.get('meal', 'Прием пищи')
                 time_str = meal.get('time')
-                
+
                 # Skip if already exists
                 meal_time = datetime.strptime(time_str, '%H:%M').time() if time_str else None
                 existing = db.query(NutritionLog).filter(
@@ -85,10 +85,10 @@ def migrate_nutrition_log():
                     NutritionLog.meal_time == meal_time,
                     NutritionLog.meal_name == meal_name
                 ).first()
-                
+
                 if existing:
                     continue
-                
+
                 log = NutritionLog(
                     user_id=YOUR_TELEGRAM_ID,
                     date=datetime.strptime(date_str, '%Y-%m-%d').date(),
@@ -100,7 +100,7 @@ def migrate_nutrition_log():
                 )
                 db.add(log)
                 count += 1
-        
+
         db.commit()
         print(f"✅ Migrated {count} nutrition log entries")
     except Exception as e:
@@ -113,60 +113,60 @@ def migrate_nutrition_log():
 def migrate_weights():
     """Мигрирует данные весов из data/weights/*.json"""
     print("\n=== 3. Migrating Weights ===")
-    
+
     weights_dir = DATA_DIR / "weights"
     if not weights_dir.exists():
         print(f"⚠️  Directory not found: {weights_dir}")
         return
-    
+
     db = SessionLocal()
     try:
         count = 0
         skipped = 0
-        
+
         for weight_file in sorted(weights_dir.glob("*.json")):
             # Skip non-weight files
             if weight_file.name in ['apple_health_weights.json', 'zepp_reminders.json']:
                 continue
-                
+
             data = json.loads(weight_file.read_text(encoding='utf-8'))
-            
+
             # Data is a list of entries
             if not isinstance(data, list):
                 data = [data]
-                
+
             for entry in data:
                 date_val = entry.get('date')
                 if not date_val:
                     skipped += 1
                     continue
-                
+
                 # Handle both string and float dates
                 if isinstance(date_val, (int, float)):
                     skipped += 1
                     continue
-                    
+
                 try:
                     measured_at = datetime.strptime(date_val, '%Y-%m-%d %H:%M')
                 except ValueError:
                     skipped += 1
                     continue
-                
+
                 # Skip if already exists
                 existing = db.query(Weight).filter(
                     Weight.user_id == YOUR_TELEGRAM_ID,
                     Weight.measured_at == measured_at
                 ).first()
-                
+
                 if existing:
                     continue
-                
+
                 # Get weight value
                 weight_val = entry.get('weight')
                 if not weight_val:
                     skipped += 1
                     continue
-                
+
                 weight = Weight(
                     user_id=YOUR_TELEGRAM_ID,
                     measured_at=measured_at,
@@ -181,7 +181,7 @@ def migrate_weights():
                 )
                 db.add(weight)
                 count += 1
-        
+
         db.commit()
         print(f"✅ Migrated {count} weight entries (skipped {skipped} invalid entries)")
     except Exception as e:
@@ -194,25 +194,25 @@ def migrate_weights():
 def migrate_supplements():
     """Мигрирует данные добавок из supplements_log.json"""
     print("\n=== 4. Migrating Supplements ===")
-    
+
     supplements_file = DATA_DIR / "supplements_log.json"
     if not supplements_file.exists():
         print(f"⚠️  File not found: {supplements_file}")
         return
-    
+
     db = SessionLocal()
     try:
         data = json.loads(supplements_file.read_text(encoding='utf-8'))
         count = 0
-        
+
         # Structure: {"entries": [{"date": "...", "items": [{"name": "...", "time": "..."}]}]}
         entries = data.get('entries', [])
-        
+
         for day_entry in entries:
             date_str = day_entry.get('date')
             if not date_str:
                 continue
-                
+
             for item in day_entry.get('items', []):
                 supp = SupplementLog(
                     user_id=YOUR_TELEGRAM_ID,
@@ -223,7 +223,7 @@ def migrate_supplements():
                 )
                 db.add(supp)
                 count += 1
-        
+
         db.commit()
         print(f"✅ Migrated {count} supplement entries")
     except Exception as e:
@@ -236,33 +236,33 @@ def migrate_supplements():
 def migrate_garmin_data():
     """Мигрирует данные Garmin из data/garmin/daily-summary/*.json"""
     print("\n=== 5. Migrating Garmin Activity Data ===")
-    
+
     garmin_dir = DATA_DIR / "garmin" / "daily-summary"
     if not garmin_dir.exists():
         print(f"⚠️  Directory not found: {garmin_dir}")
         return
-    
+
     db = SessionLocal()
     try:
         count = 0
-        
+
         for garmin_file in sorted(garmin_dir.glob("*.json")):
             # Parse date from filename (YYYY-MM-DD.json)
             date_str = garmin_file.stem
             date = datetime.strptime(date_str, '%Y-%m-%d').date()
-            
+
             # Skip if already exists
             existing = db.query(ActivityLog).filter(
                 ActivityLog.user_id == YOUR_TELEGRAM_ID,
                 ActivityLog.date == date
             ).first()
-            
+
             if existing:
                 continue
-            
+
             data = json.loads(garmin_file.read_text(encoding='utf-8'))
             stats = data.get('stats', {})
-            
+
             activity = ActivityLog(
                 user_id=YOUR_TELEGRAM_ID,
                 date=date,
@@ -279,7 +279,7 @@ def migrate_garmin_data():
             )
             db.add(activity)
             count += 1
-        
+
         db.commit()
         print(f"✅ Migrated {count} Garmin activity entries")
     except Exception as e:
@@ -295,7 +295,7 @@ def main():
     print("=" * 60)
     print(f"\nTarget User ID: {YOUR_TELEGRAM_ID}")
     print(f"Data Directory: {DATA_DIR}")
-    
+
     # Initialize database (create tables)
     print("\n=== 0. Initializing Database ===")
     try:
@@ -304,14 +304,14 @@ def main():
     except Exception as e:
         print(f"❌ Error initializing database: {e}")
         return
-    
+
     # Run migrations
     migrate_user()
     migrate_nutrition_log()
     migrate_weights()
     migrate_supplements()
     migrate_garmin_data()
-    
+
     print("\n" + "=" * 60)
     print("  MIGRATION COMPLETE!")
     print("=" * 60)

@@ -1,0 +1,26 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.9
+    hooks:
+      # Автофикс: trailing whitespace, unused imports, f-string без {}
+      - id: ruff
+        args: [--fix]
+      # Форматтер (аналог black, но быстрее)
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      # Не даёт закоммитить файлы >1MB случайно
+      - id: check-added-large-files
+        args: [--maxkb=1000]
+      # Проверяет синтаксис Python
+      - id: check-ast
+      # Не даёт закоммитить .env с секретами
+      - id: detect-private-key
+      # Убирает trailing whitespace
+      - id: trailing-whitespace
+        exclude: "data/"
+      # Newline в конце файла
+      - id: end-of-file-fixer
+        exclude: "data/"

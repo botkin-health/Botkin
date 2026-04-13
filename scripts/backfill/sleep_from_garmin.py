@@ -15,6 +15,7 @@ project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
 from dotenv import load_dotenv
+
 load_dotenv(project_root / ".env")
 
 from database import SessionLocal
@@ -34,11 +35,14 @@ def main():
     db = SessionLocal()
     try:
         # Даты, где в БД уже есть сон > 0
-        r = db.execute(text("""
+        r = db.execute(
+            text("""
             SELECT date FROM activity_log
             WHERE user_id = :uid AND date >= :start AND date <= :end
             AND sleep_hours IS NOT NULL AND sleep_hours > 0
-        """), {"uid": USER_ID, "start": START, "end": END})
+        """),
+            {"uid": USER_ID, "start": START, "end": END},
+        )
         has_sleep = {row[0] for row in r.fetchall()}
         # Недостающие даты
         days = (END - START).days + 1
@@ -59,7 +63,9 @@ def main():
                     continue
                 sleep_hours = round(sec / 3600.0, 2)
                 create_or_update_activity(
-                    db, USER_ID, d,
+                    db,
+                    USER_ID,
+                    d,
                     sleep_hours=sleep_hours,
                     source="garmin_sleep_json",
                 )
