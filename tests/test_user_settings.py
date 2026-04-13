@@ -1,5 +1,5 @@
 """Tests for user_settings CRUD operations."""
-import pytest
+
 from unittest.mock import MagicMock
 from database.crud import get_user_settings, upsert_user_settings
 from database.models import UserSettings
@@ -38,11 +38,13 @@ def test_upsert_updates_existing_settings():
 def test_get_show_bar_default_is_true():
     # server_default='true' — значение по умолчанию при вставке в БД
     from sqlalchemy import inspect
+
     col = inspect(UserSettings).columns["show_calorie_budget_bar"]
     assert col.server_default.arg == "true"
 
 
 def test_get_reminders_default_is_false():
     from sqlalchemy import inspect
+
     col = inspect(UserSettings).columns["supplement_reminders_enabled"]
     assert col.server_default.arg == "false"

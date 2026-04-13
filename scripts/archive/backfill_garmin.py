@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 """
 Скрипт для ретроспективной синхронизации данных Garmin (Backfill).
@@ -16,22 +15,24 @@ sys.path.insert(0, str(project_root))
 
 # Загружаем переменные окружения
 from dotenv import load_dotenv
-load_dotenv(project_root / '.env')
+
+load_dotenv(project_root / ".env")
 
 from core.garmin_data import sync_garmin_data
+
 
 def backfill_garmin_data(days: int = 30, user_id: int = 895655):
     """
     Скачивает данные за последние days дней.
     """
     print(f"🔄 Начинаю синхронизацию Garmin за последние {days} дней...")
-    
+
     today = date.today()
-    
+
     for i in range(days):
         target_date = today - timedelta(days=i)
         print(f"   📅 Синхронизация {target_date}...", end=" ", flush=True)
-        
+
         try:
             success = sync_garmin_data(user_id=user_id, sync_date=target_date)
             if success:
@@ -43,6 +44,7 @@ def backfill_garmin_data(days: int = 30, user_id: int = 895655):
 
     print("\n✅ Синхронизация завершена.")
 
+
 if __name__ == "__main__":
     days = 30
     if len(sys.argv) > 1:
@@ -51,5 +53,5 @@ if __name__ == "__main__":
         except ValueError:
             print(f"Usage: python {sys.argv[0]} [days]")
             sys.exit(1)
-            
+
     backfill_garmin_data(days)

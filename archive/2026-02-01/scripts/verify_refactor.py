@@ -32,25 +32,25 @@ try:
         print("⚠️ Warning: Schema is empty. Check supplements.json path.")
     else:
         print(f"✅ Schema loaded with {count} items.")
-    
+
     # Test log intake logic
     print("Testing intake logic for 'омега'...")
-    # Mocking storage to avoid writing to real log? 
+    # Mocking storage to avoid writing to real log?
     # Actually logic uses _save_log. It will write to file.
     # Since this is "verify", maybe we shouldn't actally write or we should revert?
     # It sends to "supplements/log.json".
-    # Let's just check schema Logic first without saving? 
+    # Let's just check schema Logic first without saving?
     # log_intake calls _save_log.
     # We can mock _save_log temporarily.
-    
+
     original_save = supplement_service._save_log
     supplement_service._save_log = lambda x: print("(Mock) Log saved")
-    
+
     logged, remaining = supplement_service.log_intake("омега")
     print(f"Logged: {logged}")
-    
+
     supplement_service._save_log = original_save
-    
+
     if logged:
          print("✅ Supplement logic working")
     else:

@@ -36,19 +36,19 @@ def pdf_to_images_for_chatgpt(pdf_path: Path) -> List[bytes]:
         import pypdfium2 as pdfium
         from PIL import Image
         import io
-        
+
         pdf = pdfium.PdfDocument(str(pdf_path))
         images = []
-        
+
         for page_num in range(len(pdf)):
             page = pdf.get_page(page_num)
             bitmap = page.render(scale=2.0)
             pil_image = bitmap.to_pil()
-            
+
             img_bytes = io.BytesIO()
             pil_image.save(img_bytes, format='PNG')
             images.append(img_bytes.getvalue())
-        
+
         pdf.close()
         return images
     except Exception as e:
@@ -59,27 +59,27 @@ def pdf_to_images_for_chatgpt(pdf_path: Path) -> List[bytes]:
 def extract_health_data_with_chatgpt(file_path: Path, api_key: Optional[str] = None) -> Optional[Dict]:
     """
     Извлекает структурированные данные из медицинского анализа через ChatGPT Vision
-    
+
     Args:
         file_path: Путь к PDF или изображению
         api_key: OpenAI API ключ
-        
+
     Returns:
         Словарь с извлеченными данными
     """
     if not api_key:
         api_key = get_openai_api_key()
-    
+
     if not api_key:
         print("❌ OpenAI API ключ не найден")
         return None
-    
+
     try:
         import requests
     except ImportError:
         print("❌ Библиотека requests не установлена")
         return None
-    
+
     # Определяем тип файла
     if file_path.suffix.lower() == '.pdf':
         print(f"📄 Конвертация PDF в изображения: {file_path.name}...")
@@ -91,7 +91,7 @@ def extract_health_data_with_chatgpt(file_path: Path, api_key: Optional[str] = N
         # Для изображений читаем напрямую
         with open(file_path, 'rb') as f:
             images = [f.read()]
-    
+
     # Формируем промпт для извлечения данных
     prompt = """Проанализируй это изображение медицинского анализа (лабораторного исследования).
 
@@ -125,16 +125,16 @@ def extract_health_data_with_chatgpt(file_path: Path, api_key: Optional[str] = N
         "Content-Type": "application/json",
         "Authorization": f"Bearer {api_key}"
     }
-    
+
     all_extracted_data = []
-    
+
     # Обрабатываем каждую страницу
     for page_num, image_bytes in enumerate(images):
         print(f"   🤖 Обработка страницы {page_num + 1}/{len(images)} через ChatGPT Vision...")
-        
+
         # Кодируем изображение
         base64_image = base64.b64encode(image_bytes).decode('utf-8')
-        
+
         payload = {
             "model": "gpt-4o",
             "messages": [
@@ -157,7 +157,7 @@ def extract_health_data_with_chatgpt(file_path: Path, api_key: Optional[str] = N
             "max_tokens": 2000,
             "temperature": 0.1
         }
-        
+
         try:
             response = requests.post(
                 "https://api.openai.com/v1/chat/completions",
@@ -167,16 +167,16 @@ def extract_health_data_with_chatgpt(file_path: Path, api_key: Optional[str] = N
             )
             response.raise_for_status()
             result = response.json()
-            
+
             if 'choices' in result and len(result['choices']) > 0:
                 content = result['choices'][0]['message']['content'].strip()
-                
+
                 # Убираем markdown блоки если есть
                 if content.startswith('```'):
                     lines = content.split('\n')
                     content = '\n'.join(lines[1:-1]) if len(lines) > 2 else content
                     content = content.strip()
-                
+
                 # Парсим JSON
                 try:
                     data = json.loads(content)
@@ -188,7 +188,7 @@ def extract_health_data_with_chatgpt(file_path: Path, api_key: Optional[str] = N
         except Exception as e:
             print(f"      ❌ Ошибка при запросе к ChatGPT API: {e}")
             continue
-    
+
     # Объединяем данные со всех страниц
     if all_extracted_data:
         if len(all_extracted_data) == 1:
@@ -204,28 +204,28 @@ def extract_health_data_with_chatgpt(file_path: Path, api_key: Optional[str] = N
                 if 'comments' in page_data:
                     merged['comments'] = (merged.get('comments', '') + '\n' + page_data['comments']).strip()
             return merged
-    
+
     return None
 
 
 if __name__ == "__main__":
     import argparse
-    
+
     parser = argparse.ArgumentParser(description='Извлечение данных из медицинских анализов через ChatGPT Vision')
     parser.add_argument('file', help='Путь к PDF или изображению')
     parser.add_argument('--output', '-o', help='Файл для сохранения результата (JSON)')
     parser.add_argument('--api-key', help='OpenAI API ключ')
-    
+
     args = parser.parse_args()
-    
+
     file_path = Path(args.file)
     if not file_path.exists():
         print(f"❌ Файл не найден: {file_path}")
         sys.exit(1)
-    
+
     print(f"🔍 Извлечение данных из {file_path.name}...")
     data = extract_health_data_with_chatgpt(file_path, args.api_key)
-    
+
     if data:
         if args.output:
             output_path = Path(args.output)
@@ -239,5 +239,3 @@ if __name__ == "__main__":
             print(json.dumps(data, ensure_ascii=False, indent=2))
     else:
         print("❌ Не удалось извлечь данные")
-
-

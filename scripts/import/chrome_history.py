@@ -45,9 +45,7 @@ from datetime import datetime, timedelta
 from collections import defaultdict
 from urllib.parse import urlparse
 
-CHROME_HISTORY_PATH = os.path.expanduser(
-    "~/Library/Application Support/Google/Chrome/Default/History"
-)
+CHROME_HISTORY_PATH = os.path.expanduser("~/Library/Application Support/Google/Chrome/Default/History")
 TMP_DB = "/tmp/chrome_history_hv.db"
 
 # Московское время UTC+3
@@ -59,70 +57,182 @@ OUTPUT_FILE = "data/activities/chrome_history.json"
 # Порядок важен: первое совпадение побеждает
 
 CATEGORY_RULES: list[tuple[str, list[str]]] = [
-    ("ai_tools", [
-        "claude.ai", "chat.openai.com", "chatgpt.com", "perplexity.ai",
-        "gemini.google.com", "copilot.microsoft.com", "you.com",
-        "phind.com", "poe.com", "character.ai",
-    ]),
-    ("social_media", [
-        "twitter.com", "x.com", "facebook.com", "instagram.com",
-        "vk.com", "reddit.com", "tiktok.com", "linkedin.com",
-        "threads.net", "pikabu.ru",
-    ]),
-    ("entertainment", [
-        "youtube.com", "youtu.be", "netflix.com", "twitch.tv",
-        "kinopoisk.ru", "ivi.ru", "okko.tv", "more.tv",
-        "spotify.com", "music.yandex.ru", "music.apple.com",
-        "rutube.ru",
-    ]),
-    ("news_media", [
-        "meduza.io", "rbc.ru", "vc.ru", "habr.com", "tjournal.ru",
-        "republic.ru", "novayagazeta.ru", "kommersant.ru",
-        "the-village.ru", "wonderzine.com", "snob.ru",
-        "echo.msk.ru", "lenta.ru",
-    ]),
-    ("work_productivity", [
-        "docs.google.com", "sheets.google.com", "slides.google.com",
-        "drive.google.com", "notion.so", "github.com", "gitlab.com",
-        "figma.com", "miro.com", "trello.com", "asana.com",
-        "airtable.com", "linear.app", "clickup.com",
-        "jira.", "confluence.", "bitrix24.",
-    ]),
-    ("communication", [
-        "gmail.com", "mail.google.com", "mail.yandex.ru",
-        "web.telegram.org", "web.whatsapp.com",
-        "slack.com", "discord.com", "teams.microsoft.com",
-        "zoom.us", "us06web.zoom.us", "meet.google.com",
-        "telemost.yandex.ru", "telemost.yandex.by",
-        "spark.readdle.com", "calendar.google.com",
-    ]),
-    ("finance_crypto", [
-        "binance.com", "coinbase.com", "bybit.com", "okx.com",
-        "tradingview.com", "investing.com", "moex.com",
-        "tinkoff.ru", "sberbank.ru", "alfabank.ru",
-        "cbrf.ru",
-    ]),
-    ("health_biohacking", [
-        "garmin.com", "connect.garmin.com", "whoop.com",
-        "welltory.com", "cronometer.com", "examine.com",
-        "pubmed.ncbi.nlm.nih.gov", "scholar.google.com",
-        "oura.com",
-    ]),
-    ("shopping", [
-        "ozon.ru", "wildberries.ru", "market.yandex.ru",
-        "lamoda.ru", "avito.ru", "amazon.com", "aliexpress.com",
-        "lavka.yandex.ru", "sbermegamarket.ru",
-    ]),
-    ("maps_travel", [
-        "maps.google.com", "yandex.ru/maps", "2gis.ru",
-        "booking.com", "airbnb.com", "aviasales.ru",
-        "trip.com",
-    ]),
-    ("dev_tools", [
-        "stackoverflow.com", "developer.apple.com", "developer.android.com",
-        "npmjs.com", "pypi.org", "hub.docker.com",
-        "localhost", "127.0.0.1",
-    ]),
+    (
+        "ai_tools",
+        [
+            "claude.ai",
+            "chat.openai.com",
+            "chatgpt.com",
+            "perplexity.ai",
+            "gemini.google.com",
+            "copilot.microsoft.com",
+            "you.com",
+            "phind.com",
+            "poe.com",
+            "character.ai",
+        ],
+    ),
+    (
+        "social_media",
+        [
+            "twitter.com",
+            "x.com",
+            "facebook.com",
+            "instagram.com",
+            "vk.com",
+            "reddit.com",
+            "tiktok.com",
+            "linkedin.com",
+            "threads.net",
+            "pikabu.ru",
+        ],
+    ),
+    (
+        "entertainment",
+        [
+            "youtube.com",
+            "youtu.be",
+            "netflix.com",
+            "twitch.tv",
+            "kinopoisk.ru",
+            "ivi.ru",
+            "okko.tv",
+            "more.tv",
+            "spotify.com",
+            "music.yandex.ru",
+            "music.apple.com",
+            "rutube.ru",
+        ],
+    ),
+    (
+        "news_media",
+        [
+            "meduza.io",
+            "rbc.ru",
+            "vc.ru",
+            "habr.com",
+            "tjournal.ru",
+            "republic.ru",
+            "novayagazeta.ru",
+            "kommersant.ru",
+            "the-village.ru",
+            "wonderzine.com",
+            "snob.ru",
+            "echo.msk.ru",
+            "lenta.ru",
+        ],
+    ),
+    (
+        "work_productivity",
+        [
+            "docs.google.com",
+            "sheets.google.com",
+            "slides.google.com",
+            "drive.google.com",
+            "notion.so",
+            "github.com",
+            "gitlab.com",
+            "figma.com",
+            "miro.com",
+            "trello.com",
+            "asana.com",
+            "airtable.com",
+            "linear.app",
+            "clickup.com",
+            "jira.",
+            "confluence.",
+            "bitrix24.",
+        ],
+    ),
+    (
+        "communication",
+        [
+            "gmail.com",
+            "mail.google.com",
+            "mail.yandex.ru",
+            "web.telegram.org",
+            "web.whatsapp.com",
+            "slack.com",
+            "discord.com",
+            "teams.microsoft.com",
+            "zoom.us",
+            "us06web.zoom.us",
+            "meet.google.com",
+            "telemost.yandex.ru",
+            "telemost.yandex.by",
+            "spark.readdle.com",
+            "calendar.google.com",
+        ],
+    ),
+    (
+        "finance_crypto",
+        [
+            "binance.com",
+            "coinbase.com",
+            "bybit.com",
+            "okx.com",
+            "tradingview.com",
+            "investing.com",
+            "moex.com",
+            "tinkoff.ru",
+            "sberbank.ru",
+            "alfabank.ru",
+            "cbrf.ru",
+        ],
+    ),
+    (
+        "health_biohacking",
+        [
+            "garmin.com",
+            "connect.garmin.com",
+            "whoop.com",
+            "welltory.com",
+            "cronometer.com",
+            "examine.com",
+            "pubmed.ncbi.nlm.nih.gov",
+            "scholar.google.com",
+            "oura.com",
+        ],
+    ),
+    (
+        "shopping",
+        [
+            "ozon.ru",
+            "wildberries.ru",
+            "market.yandex.ru",
+            "lamoda.ru",
+            "avito.ru",
+            "amazon.com",
+            "aliexpress.com",
+            "lavka.yandex.ru",
+            "sbermegamarket.ru",
+        ],
+    ),
+    (
+        "maps_travel",
+        [
+            "maps.google.com",
+            "yandex.ru/maps",
+            "2gis.ru",
+            "booking.com",
+            "airbnb.com",
+            "aviasales.ru",
+            "trip.com",
+        ],
+    ),
+    (
+        "dev_tools",
+        [
+            "stackoverflow.com",
+            "developer.apple.com",
+            "developer.android.com",
+            "npmjs.com",
+            "pypi.org",
+            "hub.docker.com",
+            "localhost",
+            "127.0.0.1",
+        ],
+    ),
 ]
 
 OTHER_CATEGORY = "other"
@@ -196,13 +306,15 @@ def read_chrome_history() -> list[dict]:
         dt_local = dt_utc + UTC_OFFSET
         visit_dur_sec = (r["visit_duration"] or 0) / 1_000_000
 
-        visits.append({
-            "dt": dt_local,
-            "url": r["url"],
-            "title": r["title"] or "",
-            "domain": extract_domain(r["url"]),
-            "visit_duration_sec": visit_dur_sec,
-        })
+        visits.append(
+            {
+                "dt": dt_local,
+                "url": r["url"],
+                "title": r["title"] or "",
+                "domain": extract_domain(r["url"]),
+                "visit_duration_sec": visit_dur_sec,
+            }
+        )
 
     return visits
 
@@ -317,14 +429,9 @@ def build_day(visits: list[dict]) -> dict:
     # ── Переключения контекста ────────────────────────────────────────────────
     # Считаем смены домена в час (мера расфокуса)
     if len(visits) > 1:
-        total_hours = max(
-            (visits[-1]["dt"] - visits[0]["dt"]).total_seconds() / 3600, 1
-        )
+        total_hours = max((visits[-1]["dt"] - visits[0]["dt"]).total_seconds() / 3600, 1)
         # Смена домена = когда следующий домен ≠ текущему
-        switches = sum(
-            1 for i in range(1, len(visits))
-            if visits[i]["domain"] != visits[i - 1]["domain"]
-        )
+        switches = sum(1 for i in range(1, len(visits)) if visits[i]["domain"] != visits[i - 1]["domain"])
         ctx_switches_per_hour = round(switches / total_hours, 1)
     else:
         ctx_switches_per_hour = 0.0
@@ -393,9 +500,11 @@ def main():
         ai = cats.get("ai_tools", {}).get("minutes_est", 0)
         pre_sleep_v = day["pre_sleep_22_00"]["total_visits"]
         ctx = day["context_switches_per_hour"]
-        print(f"   {date_str}: {day['total_visits']} визитов | "
-              f"💼{fmt_time(work)} 🤖{fmt_time(ai)} 📱{fmt_time(social)} 🎬{fmt_time(entertain)} | "
-              f"🌙pre-sleep:{pre_sleep_v}v | 🔀{ctx}sw/h")
+        print(
+            f"   {date_str}: {day['total_visits']} визитов | "
+            f"💼{fmt_time(work)} 🤖{fmt_time(ai)} 📱{fmt_time(social)} 🎬{fmt_time(entertain)} | "
+            f"🌙pre-sleep:{pre_sleep_v}v | 🔀{ctx}sw/h"
+        )
 
     print()
 

@@ -22,14 +22,14 @@ if temp_dir.exists():
 temp_dir.mkdir()
 
 print("📂 Распаковка...")
-with zipfile.ZipFile(zip_file, 'r') as zip_ref:
+with zipfile.ZipFile(zip_file, "r") as zip_ref:
     zip_ref.extractall(temp_dir)
 
 xml_files = list(temp_dir.rglob("*.xml"))
 print(f"📄 Найдено XML: {len(xml_files)}")
 
 # Перемещаем
-timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 moved_files = []
 for xml_file in xml_files:
     new_name = f"export_{timestamp}.xml"
@@ -45,13 +45,15 @@ for xml_file in moved_files:
     try:
         tree = ET.parse(xml_file)
         root = tree.getroot()
-        for record in root.findall('.//Record'):
-            if record.get('type') == 'HKQuantityTypeIdentifierBodyMass':
-                all_weights.append({
-                    'value': float(record.get('value', 0)),
-                    'sourceName': record.get('sourceName', ''),
-                    'startDate': record.get('startDate', '')
-                })
+        for record in root.findall(".//Record"):
+            if record.get("type") == "HKQuantityTypeIdentifierBodyMass":
+                all_weights.append(
+                    {
+                        "value": float(record.get("value", 0)),
+                        "sourceName": record.get("sourceName", ""),
+                        "startDate": record.get("startDate", ""),
+                    }
+                )
     except Exception as e:
         print(f"⚠️  Ошибка при парсинге {xml_file.name}: {e}")
 
@@ -59,9 +61,9 @@ print(f"📊 Найдено записей о весе: {len(all_weights)}")
 
 # Обновляем JSON
 if WEIGHTS_FILE.exists():
-    with open(WEIGHTS_FILE, 'r', encoding='utf-8') as f:
+    with open(WEIGHTS_FILE, "r", encoding="utf-8") as f:
         data = json.load(f)
-    existing_dates = {e['date'] for e in data.get('entries', [])}
+    existing_dates = {e["date"] for e in data.get("entries", [])}
 else:
     data = {"source": "apple_health", "export_date": datetime.now().isoformat(), "total_days": 0, "entries": []}
     existing_dates = set()
@@ -69,47 +71,44 @@ else:
 new_count = 0
 for w in all_weights:
     try:
-        date_str = w['startDate'].split(' +')[0]
-        dt = datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S')
+        date_str = w["startDate"].split(" +")[0]
+        dt = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
         date = dt.date().isoformat()
         if date not in existing_dates:
-            data['entries'].append({
-                "date": date,
-                "weight_kg": w['value'],
-                "time": w['startDate'],
-                "source": w['sourceName']
-            })
+            data["entries"].append(
+                {"date": date, "weight_kg": w["value"], "time": w["startDate"], "source": w["sourceName"]}
+            )
             existing_dates.add(date)
             new_count += 1
-    except Exception as e:
+    except Exception:
         pass
 
-data['entries'] = sorted(data['entries'], key=lambda x: x['date'], reverse=True)
-data['export_date'] = datetime.now().isoformat()
-data['total_days'] = len(data['entries'])
+data["entries"] = sorted(data["entries"], key=lambda x: x["date"], reverse=True)
+data["export_date"] = datetime.now().isoformat()
+data["total_days"] = len(data["entries"])
 
-with open(WEIGHTS_FILE, 'w', encoding='utf-8') as f:
+with open(WEIGHTS_FILE, "w", encoding="utf-8") as f:
     json.dump(data, f, ensure_ascii=False, indent=2)
 
 print(f"✅ Добавлено новых записей: {new_count}")
 
 # Сравнение
-print("\n" + "="*60)
+print("\n" + "=" * 60)
 print("📊 СРАВНЕНИЕ С УМНЫМИ ВЕСАМИ")
-print("="*60)
-print(f"\n🎯 Умные весы (Zepp Life):")
-print(f"   Вес: 81.90 кг")
-print(f"   Дата: 2026-01-08")
-print(f"   Время: 13:16")
+print("=" * 60)
+print("\n🎯 Умные весы (Zepp Life):")
+print("   Вес: 81.90 кг")
+print("   Дата: 2026-01-08")
+print("   Время: 13:16")
 
-entry_2026_01_08 = next((e for e in data['entries'] if e['date'] == '2026-01-08'), None)
+entry_2026_01_08 = next((e for e in data["entries"] if e["date"] == "2026-01-08"), None)
 if entry_2026_01_08:
-    print(f"\n📱 Apple Health:")
+    print("\n📱 Apple Health:")
     print(f"   Вес: {entry_2026_01_08['weight_kg']} кг")
     print(f"   Дата: {entry_2026_01_08['date']}")
     print(f"   Время: {entry_2026_01_08.get('time', 'N/A')}")
     print(f"   Источник: {entry_2026_01_08.get('source', 'N/A')}")
-    diff = abs(entry_2026_01_08['weight_kg'] - 81.90)
+    diff = abs(entry_2026_01_08["weight_kg"] - 81.90)
     if diff < 0.1:
         print(f"\n✅ Данные совпадают (разница: {diff:.3f} кг)")
         print("✅ ВЫВОД: Все данные переносятся автоматически из Apple Health")
@@ -123,8 +122,8 @@ else:
     print("⚠️  Или данные еще не синхронизировались с Apple Health")
 
 # Показываем последние записи
-print(f"\n📋 Последние 5 записей из Apple Health:")
-for entry in data['entries'][:5]:
+print("\n📋 Последние 5 записей из Apple Health:")
+for entry in data["entries"][:5]:
     print(f"   {entry['date']}: {entry['weight_kg']} кг ({entry.get('source', 'N/A')})")
 
 # Удаляем временные файлы

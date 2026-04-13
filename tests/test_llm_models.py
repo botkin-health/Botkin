@@ -7,7 +7,7 @@
 3. Граничные случаи: отрицательные, пустые списки, неизвестный тип
 4. Интеграция с process_llm_food_data (pipeline без вызова API)
 """
-import pytest
+
 from core.llm_models import parse_llm_response
 
 # process_llm_food_data живёт в core.nutrition (circular import исправлен 22.03.2026)
@@ -18,8 +18,8 @@ from core.nutrition import process_llm_food_data
 # FOOD — ответы о еде
 # ===========================================================================
 
-class TestFoodResponseParsing:
 
+class TestFoodResponseParsing:
     def test_valid_food_response(self):
         """Нормальный ответ GPT — все числа числами, всё на месте."""
         raw = {
@@ -27,12 +27,9 @@ class TestFoodResponseParsing:
             "data": {
                 "dish_name": "Завтрак",
                 "meal_type": "breakfast",
-                "items": [
-                    {"name": "Овсянка", "weight": 100, "calories": 350,
-                     "protein": 10, "fats": 7, "carbs": 60}
-                ],
-                "total_nutrition": {"calories": 350, "protein": 10, "fats": 7, "carbs": 60}
-            }
+                "items": [{"name": "Овсянка", "weight": 100, "calories": 350, "protein": 10, "fats": 7, "carbs": 60}],
+                "total_nutrition": {"calories": 350, "protein": 10, "fats": 7, "carbs": 60},
+            },
         }
         result = parse_llm_response(raw)
         assert result["type"] == "food"
@@ -48,10 +45,11 @@ class TestFoodResponseParsing:
             "data": {
                 "dish_name": "Обед",
                 "meal_type": "lunch",
-                "items": [{"name": "Курица", "weight": "150", "calories": "250",
-                           "protein": "40", "fats": "5", "carbs": "0"}],
-                "total_nutrition": None
-            }
+                "items": [
+                    {"name": "Курица", "weight": "150", "calories": "250", "protein": "40", "fats": "5", "carbs": "0"}
+                ],
+                "total_nutrition": None,
+            },
         }
         result = parse_llm_response(raw)
         item = result["data"]["items"][0]
@@ -68,8 +66,8 @@ class TestFoodResponseParsing:
                 "dish_name": "Ужин",
                 "meal_type": "dinner",
                 "items": [{"name": "Борщ", "weight": None, "calories": 150}],
-                "total_nutrition": None
-            }
+                "total_nutrition": None,
+            },
         }
         result = parse_llm_response(raw)
         assert result["data"]["items"][0]["weight"] is None
@@ -82,8 +80,8 @@ class TestFoodResponseParsing:
                 "dish_name": "Суп",
                 "meal_type": "lunch",
                 "items": [{"name": "Суп", "weight": "null", "calories": 120}],
-                "total_nutrition": None
-            }
+                "total_nutrition": None,
+            },
         }
         result = parse_llm_response(raw)
         assert result["data"]["items"][0]["weight"] is None
@@ -96,8 +94,8 @@ class TestFoodResponseParsing:
                 "dish_name": "Тест",
                 "meal_type": "snack",
                 "items": [{"name": "Продукт", "weight": 100, "calories": -50}],
-                "total_nutrition": None
-            }
+                "total_nutrition": None,
+            },
         }
         result = parse_llm_response(raw)
         assert result["data"]["items"][0]["calories"] is None
@@ -110,8 +108,8 @@ class TestFoodResponseParsing:
                 "dish_name": "Яблоко",
                 "meal_type": "snack",
                 "items": [{"name": "Яблоко"}],  # нет weight, calories и т.д.
-                "total_nutrition": None
-            }
+                "total_nutrition": None,
+            },
         }
         result = parse_llm_response(raw)
         item = result["data"]["items"][0]
@@ -124,7 +122,7 @@ class TestFoodResponseParsing:
         """Отсутствует поле items → пустой список, не ошибка."""
         raw = {
             "type": "food",
-            "data": {"dish_name": "Без ингредиентов", "meal_type": "snack"}
+            "data": {"dish_name": "Без ингредиентов", "meal_type": "snack"},
             # нет "items"
         }
         result = parse_llm_response(raw)
@@ -134,12 +132,7 @@ class TestFoodResponseParsing:
         """Пустой список продуктов — не должно падать."""
         raw = {
             "type": "food",
-            "data": {
-                "dish_name": "Пустой",
-                "meal_type": "snack",
-                "items": [],
-                "total_nutrition": None
-            }
+            "data": {"dish_name": "Пустой", "meal_type": "snack", "items": [], "total_nutrition": None},
         }
         result = parse_llm_response(raw)
         assert result["data"]["items"] == []
@@ -152,10 +145,8 @@ class TestFoodResponseParsing:
                 "dish_name": "Тест",
                 "meal_type": "snack",
                 "items": [],
-                "total_nutrition": {
-                    "calories": None, "protein": None, "fats": None, "carbs": None
-                }
-            }
+                "total_nutrition": {"calories": None, "protein": None, "fats": None, "carbs": None},
+            },
         }
         result = parse_llm_response(raw)
         totals = result["data"]["total_nutrition"]
@@ -170,10 +161,8 @@ class TestFoodResponseParsing:
                 "dish_name": "Этикетка",
                 "meal_type": "snack",
                 "items": [],
-                "total_nutrition": {
-                    "calories": "668", "protein": "47", "fats": "22", "carbs": "70"
-                }
-            }
+                "total_nutrition": {"calories": "668", "protein": "47", "fats": "22", "carbs": "70"},
+            },
         }
         result = parse_llm_response(raw)
         assert result["data"]["total_nutrition"]["calories"] == 668.0
@@ -183,10 +172,7 @@ class TestFoodResponseParsing:
         """Нет meal_type → 'snack' по умолчанию."""
         raw = {
             "type": "food",
-            "data": {
-                "dish_name": "Что-то",
-                "items": [{"name": "Творог", "weight": 200, "calories": 200}]
-            }
+            "data": {"dish_name": "Что-то", "items": [{"name": "Творог", "weight": 200, "calories": 200}]},
         }
         result = parse_llm_response(raw)
         assert result["data"]["meal_type"] == "snack"
@@ -199,11 +185,10 @@ class TestFoodResponseParsing:
                 "dish_name": "Обед",
                 "meal_type": "lunch",
                 "items": [
-                    {"name": "Гречка", "weight": 150, "calories": 510,
-                     "protein": 18, "fats": 5, "carbs": 99},
+                    {"name": "Гречка", "weight": 150, "calories": 510, "protein": 18, "fats": 5, "carbs": 99},
                 ],
-                "total_nutrition": None
-            }
+                "total_nutrition": None,
+            },
         }
         result = parse_llm_response(raw)
         # Проверяем что у dict есть все ключи которые ждёт food processor
@@ -221,8 +206,8 @@ class TestFoodResponseParsing:
 # WEIGHT — данные весов
 # ===========================================================================
 
-class TestWeightResponseParsing:
 
+class TestWeightResponseParsing:
     def test_valid_weight_response(self):
         """Нормальные данные весов с body composition."""
         raw = {
@@ -233,8 +218,8 @@ class TestWeightResponseParsing:
                 "muscle_mass": 52.0,
                 "visceral_fat": 12,
                 "water_percent": None,
-                "date": None
-            }
+                "date": None,
+            },
         }
         result = parse_llm_response(raw)
         assert result["data"]["weight"] == 75.5
@@ -243,10 +228,7 @@ class TestWeightResponseParsing:
 
     def test_weight_as_string(self):
         """Вес как строка '75.3' → float 75.3."""
-        raw = {
-            "type": "weight",
-            "data": {"weight": "75.3", "body_fat": "27.5", "date": None}
-        }
+        raw = {"type": "weight", "data": {"weight": "75.3", "body_fat": "27.5", "date": None}}
         result = parse_llm_response(raw)
         assert isinstance(result["data"]["weight"], float)
         assert result["data"]["weight"] == 75.3
@@ -254,10 +236,7 @@ class TestWeightResponseParsing:
 
     def test_optional_fields_absent(self):
         """Только вес — опциональные поля должны быть None."""
-        raw = {
-            "type": "weight",
-            "data": {"weight": 80.0}
-        }
+        raw = {"type": "weight", "data": {"weight": 80.0}}
         result = parse_llm_response(raw)
         assert result["data"]["weight"] == 80.0
         assert result["data"]["body_fat"] is None
@@ -266,10 +245,7 @@ class TestWeightResponseParsing:
 
     def test_weight_null_falls_back_to_raw(self):
         """Вес = null → валидация падает, возвращаем raw (backward compat)."""
-        raw = {
-            "type": "weight",
-            "data": {"weight": None, "body_fat": 25.0}
-        }
+        raw = {"type": "weight", "data": {"weight": None, "body_fat": 25.0}}
         # Не должно бросить исключение — либо вернёт raw, либо поднимет
         # ValidationError которую мы ловим внутри parse_llm_response
         result = parse_llm_response(raw)
@@ -280,14 +256,11 @@ class TestWeightResponseParsing:
 # VITAMINS — витамины и БАДы
 # ===========================================================================
 
-class TestVitaminsResponseParsing:
 
+class TestVitaminsResponseParsing:
     def test_valid_vitamins(self):
         """Нормальный список витаминов."""
-        raw = {
-            "type": "vitamins",
-            "data": {"items": ["Витамин D", "Омега-3", "Магний"], "action": "logged"}
-        }
+        raw = {"type": "vitamins", "data": {"items": ["Витамин D", "Омега-3", "Магний"], "action": "logged"}}
         result = parse_llm_response(raw)
         assert result["type"] == "vitamins"
         assert "Витамин D" in result["data"]["items"]
@@ -295,19 +268,13 @@ class TestVitaminsResponseParsing:
 
     def test_empty_vitamins_list(self):
         """Пустой список витаминов — не должно падать."""
-        raw = {
-            "type": "vitamins",
-            "data": {"items": [], "action": "logged"}
-        }
+        raw = {"type": "vitamins", "data": {"items": [], "action": "logged"}}
         result = parse_llm_response(raw)
         assert result["data"]["items"] == []
 
     def test_missing_action_gets_default(self):
         """Нет поля action → 'logged' по умолчанию."""
-        raw = {
-            "type": "vitamins",
-            "data": {"items": ["Псиллиум"]}
-        }
+        raw = {"type": "vitamins", "data": {"items": ["Псиллиум"]}}
         result = parse_llm_response(raw)
         assert result["data"]["action"] == "logged"
 
@@ -316,8 +283,8 @@ class TestVitaminsResponseParsing:
 # OTHER / MEDICAL — прочие типы
 # ===========================================================================
 
-class TestOtherTypes:
 
+class TestOtherTypes:
     def test_other_type_passed_through_as_is(self):
         """Тип 'other' — данные пропускаются без изменений."""
         raw = {"type": "other", "data": {"reply": "Привет! Чем помочь?"}}
@@ -327,10 +294,7 @@ class TestOtherTypes:
 
     def test_medical_type_passed_through(self):
         """Тип 'medical' — произвольная структура, пропускается как есть."""
-        raw = {
-            "type": "medical",
-            "data": {"notes": "ЛДЛ 3.79, Общий холестерин 5.4"}
-        }
+        raw = {"type": "medical", "data": {"notes": "ЛДЛ 3.79, Общий холестерин 5.4"}}
         result = parse_llm_response(raw)
         assert result["type"] == "medical"
         assert result["data"]["notes"] == "ЛДЛ 3.79, Общий холестерин 5.4"
@@ -347,8 +311,8 @@ class TestOtherTypes:
 # EDGE CASES — граничные случаи
 # ===========================================================================
 
-class TestEdgeCases:
 
+class TestEdgeCases:
     def test_none_input_returns_none(self):
         """None на входе → None, не ошибка."""
         assert parse_llm_response(None) is None
@@ -375,6 +339,7 @@ class TestEdgeCases:
 # INTEGRATION — интеграция с process_llm_food_data
 # ===========================================================================
 
+
 class TestFoodProcessorIntegration:
     """
     Тестируем полный pipeline: parse_llm_response → process_llm_food_data.
@@ -389,13 +354,11 @@ class TestFoodProcessorIntegration:
                 "dish_name": "Обед",
                 "meal_type": "lunch",
                 "items": [
-                    {"name": "Гречка", "weight": 150, "calories": 510,
-                     "protein": 18, "fats": 5, "carbs": 99},
-                    {"name": "Куриная грудка", "weight": 200, "calories": 330,
-                     "protein": 62, "fats": 7, "carbs": 0}
+                    {"name": "Гречка", "weight": 150, "calories": 510, "protein": 18, "fats": 5, "carbs": 99},
+                    {"name": "Куриная грудка", "weight": 200, "calories": 330, "protein": 62, "fats": 7, "carbs": 0},
                 ],
-                "total_nutrition": None
-            }
+                "total_nutrition": None,
+            },
         }
         validated = parse_llm_response(raw)
         meal_items, totals = process_llm_food_data(validated)
@@ -412,8 +375,8 @@ class TestFoodProcessorIntegration:
                 "dish_name": "Снек",
                 "meal_type": "snack",
                 "items": [{"name": "Яблоко", "weight": None, "calories": 80}],
-                "total_nutrition": None
-            }
+                "total_nutrition": None,
+            },
         }
         validated = parse_llm_response(raw)
         meal_items, totals = process_llm_food_data(validated)
@@ -429,11 +392,11 @@ class TestFoodProcessorIntegration:
             "data": {
                 "dish_name": "Перекус",
                 "meal_type": "snack",
-                "items": [{"name": "Творог", "weight": "200",
-                           "calories": "200", "protein": "30",
-                           "fats": "4", "carbs": "8"}],
-                "total_nutrition": None
-            }
+                "items": [
+                    {"name": "Творог", "weight": "200", "calories": "200", "protein": "30", "fats": "4", "carbs": "8"}
+                ],
+                "total_nutrition": None,
+            },
         }
         validated = parse_llm_response(raw)
         meal_items, totals = process_llm_food_data(validated)
@@ -447,12 +410,7 @@ class TestFoodProcessorIntegration:
         """Пустой список продуктов → 0 ккал, не падает."""
         raw = {
             "type": "food",
-            "data": {
-                "dish_name": "Пустой",
-                "meal_type": "snack",
-                "items": [],
-                "total_nutrition": None
-            }
+            "data": {"dish_name": "Пустой", "meal_type": "snack", "items": [], "total_nutrition": None},
         }
         validated = parse_llm_response(raw)
         meal_items, totals = process_llm_food_data(validated)
@@ -467,10 +425,9 @@ class TestFoodProcessorIntegration:
             "data": {
                 "dish_name": "Баг GPT",
                 "meal_type": "snack",
-                "items": [{"name": "Салат", "weight": 100, "calories": -30,
-                           "protein": -5, "fats": -1, "carbs": -3}],
-                "total_nutrition": None
-            }
+                "items": [{"name": "Салат", "weight": 100, "calories": -30, "protein": -5, "fats": -1, "carbs": -3}],
+                "total_nutrition": None,
+            },
         }
         validated = parse_llm_response(raw)
         # После валидации calories/protein/fats/carbs = None
@@ -488,13 +445,17 @@ class TestFoodProcessorIntegration:
                 "dish_name": "Протеин Tree of Life",
                 "meal_type": "snack",
                 "items": [
-                    {"name": "Протеиновый коктейль", "weight": 35,
-                     "calories": 130, "protein": 25, "fats": 2, "carbs": 4}
+                    {
+                        "name": "Протеиновый коктейль",
+                        "weight": 35,
+                        "calories": 130,
+                        "protein": 25,
+                        "fats": 2,
+                        "carbs": 4,
+                    }
                 ],
-                "total_nutrition": {
-                    "calories": 130, "protein": 25, "fats": 2, "carbs": 4
-                }
-            }
+                "total_nutrition": {"calories": 130, "protein": 25, "fats": 2, "carbs": 4},
+            },
         }
         validated = parse_llm_response(raw)
         meal_items, totals = process_llm_food_data(validated)
@@ -520,20 +481,15 @@ class TestFoodProcessorIntegration:
                 "items": [
                     {
                         "name": "Индейка томлёная в собственном соку",
-                        "weight": 150,       # пользователь указал 150г
-                        "calories": 253.5,   # 169 * 1.5 — LLM умножил
-                        "protein": 27.75,    # 18.5 * 1.5
-                        "fats": 15.75,       # 10.5 * 1.5
-                        "carbs": 0.0
+                        "weight": 150,  # пользователь указал 150г
+                        "calories": 253.5,  # 169 * 1.5 — LLM умножил
+                        "protein": 27.75,  # 18.5 * 1.5
+                        "fats": 15.75,  # 10.5 * 1.5
+                        "carbs": 0.0,
                     }
                 ],
-                "total_nutrition": {
-                    "calories": 253.5,
-                    "protein": 27.75,
-                    "fats": 15.75,
-                    "carbs": 0.0
-                }
-            }
+                "total_nutrition": {"calories": 253.5, "protein": 27.75, "fats": 15.75, "carbs": 0.0},
+            },
         }
         validated = parse_llm_response(raw)
         meal_items, totals = process_llm_food_data(validated)
@@ -546,9 +502,7 @@ class TestFoodProcessorIntegration:
             f"Ожидалось ~253 ккал для 150г, получено {totals['calories']}. "
             "Возможно LLM вернул per-100g значение вместо итога для 150г."
         )
-        assert abs(totals["calories"] - 253.5) < 5, (
-            f"Ожидалось 253.5 ккал, получено {totals['calories']}"
-        )
+        assert abs(totals["calories"] - 253.5) < 5, f"Ожидалось 253.5 ккал, получено {totals['calories']}"
         assert totals["protein"] > 20  # 27.75г белка для 150г индейки
 
     def test_single_item_totals_consistent_with_computed(self):
@@ -557,23 +511,15 @@ class TestFoodProcessorIntegration:
         total_nutrition от LLM не должен подменять итог, если сильно расходится с суммой по позициям.
         """
         from unittest.mock import patch
+
         raw = {
             "type": "food",
             "data": {
                 "dish_name": "Фасоль",
                 "meal_type": "lunch",
-                "items": [
-                    {
-                        "name": "Фасоль",
-                        "weight": 45,
-                        "calories": 14,
-                        "protein": 0,
-                        "fats": 0,
-                        "carbs": 3
-                    }
-                ],
-                "total_nutrition": {"calories": 150, "protein": 10, "fats": 0, "carbs": 27}
-            }
+                "items": [{"name": "Фасоль", "weight": 45, "calories": 14, "protein": 0, "fats": 0, "carbs": 3}],
+                "total_nutrition": {"calories": 150, "protein": 10, "fats": 0, "carbs": 27},
+            },
         }
         validated = parse_llm_response(raw)
         with patch("core.nutrition.find_product", return_value=None):
