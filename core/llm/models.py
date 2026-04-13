@@ -10,6 +10,7 @@ Pydantic-модели для ответов LLM Router.
     raw = json.loads(gpt_response)
     validated = parse_llm_response(raw)  # ← всё нормализовано
 """
+
 import logging
 from typing import Any, List, Literal, Optional
 
@@ -22,17 +23,20 @@ logger = logging.getLogger(__name__)
 # Модели для FOOD
 # ---------------------------------------------------------------------------
 
+
 class FoodItem(BaseModel):
     """Один ингредиент/продукт в приёме пищи."""
+
     name: str = "Неизвестно"
-    weight: Optional[float] = None    # граммы, None если неизвестно
-    quantity: Optional[str] = None    # "1 cup", "2 слайса" — строка от GPT
+    weight: Optional[float] = None  # граммы, None если неизвестно
+    quantity: Optional[str] = None  # "1 cup", "2 слайса" — строка от GPT
     calories: Optional[float] = None
     protein: Optional[float] = None
     fats: Optional[float] = None
     carbs: Optional[float] = None
+    drinks: Optional[float] = None  # стандартные дозы алкоголя (1 доза = 10г этанола)
 
-    @field_validator("weight", "calories", "protein", "fats", "carbs", mode="before")
+    @field_validator("weight", "calories", "protein", "fats", "carbs", "drinks", mode="before")
     @classmethod
     def coerce_numeric(cls, v: Any) -> Optional[float]:
         """Строки → float, null/"null"/"" → None, отрицательные → None."""
@@ -47,12 +51,14 @@ class FoodItem(BaseModel):
 
 class TotalNutrition(BaseModel):
     """Итоговое КБЖУ блюда (с этикетки или рецепта)."""
+
     calories: float = 0.0
     protein: float = 0.0
     fats: float = 0.0
     carbs: float = 0.0
+    drinks: float = 0.0  # сумма стандартных доз алкоголя
 
-    @field_validator("calories", "protein", "fats", "carbs", mode="before")
+    @field_validator("calories", "protein", "fats", "carbs", "drinks", mode="before")
     @classmethod
     def coerce_non_negative(cls, v: Any) -> float:
         """Строки → float, None/отрицательные → 0.0."""
@@ -78,9 +84,11 @@ class FoodResponse(BaseModel):
 # Модели для WEIGHT
 # ---------------------------------------------------------------------------
 
+
 class WeightData(BaseModel):
     """Данные с весов/скриншота смарт-весов."""
-    weight: float                         # Обязательное — если null от GPT, валидация упадёт
+
+    weight: float  # Обязательное — если null от GPT, валидация упадёт
     body_fat: Optional[float] = None
     muscle_mass: Optional[float] = None
     visceral_fat: Optional[float] = None
@@ -107,6 +115,7 @@ class WeightResponse(BaseModel):
 # Модели для VITAMINS
 # ---------------------------------------------------------------------------
 
+
 class VitaminsData(BaseModel):
     items: List[str] = Field(default_factory=list)
     action: str = "logged"
@@ -120,6 +129,7 @@ class VitaminsResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # Главная функция
 # ---------------------------------------------------------------------------
+
 
 def parse_llm_response(raw: Optional[dict]) -> Optional[dict]:
     """
@@ -153,7 +163,6 @@ def parse_llm_response(raw: Optional[dict]) -> Optional[dict]:
 
     except Exception as e:
         logger.warning(
-            f"⚠️  LLM response validation failed (type={type_!r}): {e}. "
-            "Используем исходный ответ (backward compatible)."
+            f"⚠️  LLM response validation failed (type={type_!r}): {e}. Используем исходный ответ (backward compatible)."
         )
         return raw

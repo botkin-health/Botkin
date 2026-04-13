@@ -8,7 +8,7 @@ Helper функции для безопасной работы с состоян
 from typing import List, Optional, Dict, Any
 from pathlib import Path
 from services.state import UserState, state_manager
-from services.state_models import MenuData, PhotoStateData, menu_data_to_dict
+from services.state_models import MenuData, PhotoStateData
 
 
 def create_photo_state(
@@ -17,13 +17,13 @@ def create_photo_state(
     photo_file_ids: List[str],
     caption: str = "",
     menu_data: Optional[Dict] = None,
-    existing_state: Optional[UserState] = None
+    existing_state: Optional[UserState] = None,
 ) -> UserState:
     """
     Создать состояние обработки фото, СОХРАНЯЯ menu_data из existing_state.
-    
+
     КРИТИЧНО: Эта функция гарантирует что menu_data не теряется при пересоздании состояния!
-    
+
     Args:
         user_id: ID пользователя
         photo_paths: Список путей к фото
@@ -31,10 +31,10 @@ def create_photo_state(
         caption: Подпись от пользователя
         menu_data: Новые данные меню (если есть)
         existing_state: Существующее состояние (для сохранения данных)
-        
+
     Returns:
         Новое UserState с сохраненными данными
-        
+
     Example:
         >>> # Безопасное пересоздание состояния
         >>> existing = state_manager.get_state(user_id)
@@ -52,105 +52,94 @@ def create_photo_state(
     # 3. None если ничего нет
     final_menu_data = menu_data
     if final_menu_data is None and existing_state:
-        final_menu_data = existing_state.data.get('menu_data')
-    
+        final_menu_data = existing_state.data.get("menu_data")
+
     # Используем Pydantic для валидации структуры данных
     state_data = PhotoStateData(
         photo_paths=[str(p) for p in photo_paths],
         photo_file_ids=photo_file_ids,
         caption=caption,
-        menu_data=MenuData(**final_menu_data) if final_menu_data else None
+        menu_data=MenuData(**final_menu_data) if final_menu_data else None,
     )
-    
+
     # Конвертируем обратно в dict для UserState
-    return UserState(
-        user_id=user_id,
-        state='waiting_description',
-        data=state_data.model_dump()
-    )
+    return UserState(user_id=user_id, state="waiting_description", data=state_data.model_dump())
 
 
-def update_state_menu_data(
-    user_id: str,
-    menu_data: Dict,
-    state_mgr = None
-) -> UserState:
+def update_state_menu_data(user_id: str, menu_data: Dict, state_mgr=None) -> UserState:
     """
     Обновить menu_data в существующем состоянии, сохраняя все остальное.
-    
+
     Args:
         user_id: ID пользователя
         menu_data: Новые данные меню
         state_mgr: StateManager instance (для тестов)
-        
+
     Returns:
         Обновленное состояние
-        
+
     Raises:
         ValueError: Если состояние не существует
     """
     if state_mgr is None:
         state_mgr = state_manager
-    
+
     user_state = state_mgr.get_state(user_id)
     if not user_state:
         raise ValueError(f"State for user {user_id} does not exist")
-    
+
     # Валидируем menu_data через Pydantic
     validated_menu_data = MenuData(**menu_data)
-    
+
     # Обновляем только menu_data, сохраняя все остальные поля
     data = user_state.data.copy()
-    data['menu_data'] = validated_menu_data.model_dump()
+    data["menu_data"] = validated_menu_data.model_dump()
     user_state.data = data
-    
+
     state_mgr.set_state(user_id, user_state)
     return user_state
 
 
-def get_menu_data_from_state(user_id: str, state_mgr = None) -> Optional[MenuData]:
+def get_menu_data_from_state(user_id: str, state_mgr=None) -> Optional[MenuData]:
     """
     Безопасно извлечь menu_data из состояния пользователя.
-    
+
     Args:
         user_id: ID пользователя
         state_mgr: StateManager instance (для тестов)
-        
+
     Returns:
         MenuData объект или None если нет состояния/данных
     """
     if state_mgr is None:
         state_mgr = state_manager
-        
+
     user_state = state_mgr.get_state(user_id)
     if not user_state:
         return None
-    
-    menu_data_dict = user_state.data.get('menu_data')
+
+    menu_data_dict = user_state.data.get("menu_data")
     if not menu_data_dict:
         return None
-    
+
     return MenuData(**menu_data_dict)
 
 
-
 def preserve_and_merge_state_data(
-    existing_data: Dict[str, Any],
-    new_data: Dict[str, Any],
-    preserve_keys: List[str] = None
+    existing_data: Dict[str, Any], new_data: Dict[str, Any], preserve_keys: List[str] = None
 ) -> Dict[str, Any]:
     """
     Безопасно слить данные состояния, сохраняя критические ключи.
-    
+
     Args:
         existing_data: Существующие данные состояния
         new_data: Новые данные
         preserve_keys: Список ключей которые ОБЯЗАТЕЛЬНО сохранить из existing_data
                       По умолчанию: ['menu_data', 'meal_items', 'meal_totals']
-        
+
     Returns:
         Объединенный dict с сохраненными критическими ключами
-        
+
     Example:
         >>> existing = {'menu_data': {...}, 'caption': 'old'}
         >>> new = {'caption': 'new', 'photo_paths': [...]}
@@ -158,18 +147,18 @@ def preserve_and_merge_state_data(
         >>> # menu_data сохранено, caption обновлено, photo_paths добавлено
     """
     if preserve_keys is None:
-        preserve_keys = ['menu_data', 'meal_items', 'meal_totals']
-    
+        preserve_keys = ["menu_data", "meal_items", "meal_totals"]
+
     # Начинаем с новых данных
     result = new_data.copy()
-    
+
     # Сохраняем критические ключи из существующих данных
     for key in preserve_keys:
         if key in existing_data and existing_data[key] is not None:
             # Если в new_data нет этого ключа, берем из existing
             if key not in result or result[key] is None:
                 result[key] = existing_data[key]
-    
+
     return result
 
 

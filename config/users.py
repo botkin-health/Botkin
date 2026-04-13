@@ -7,8 +7,8 @@ and authorization logic.
 
 # Whitelist of allowed Telegram IDs
 ALLOWED_USERS = {
-    895655,   # Alex Lyskovsky
-    REDACTED_ID,   # Nika Selezneva
+    895655,  # Alex Lyskovsky
+    REDACTED_ID,  # Nika Selezneva
     REDACTED_ID,  # Andrey
 }
 
@@ -16,10 +16,10 @@ ALLOWED_USERS = {
 def is_user_allowed(telegram_id: int) -> bool:
     """
     Check if user is authorized to use the bot.
-    
+
     Args:
         telegram_id: Telegram user ID
-        
+
     Returns:
         True if user is in whitelist, False otherwise
     """

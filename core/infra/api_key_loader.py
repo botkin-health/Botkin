@@ -18,7 +18,7 @@ from config import get_settings
 def load_google_vision_api_key() -> Optional[str]:
     """
     Load Google Vision API key from settings.
-    
+
     Returns:
         API key or None if not configured
     """
@@ -29,10 +29,10 @@ def load_google_vision_api_key() -> Optional[str]:
 def get_google_vision_api_key(provided_key: Optional[str] = None) -> Optional[str]:
     """
     Get API key, using provided key or loading from settings.
-    
+
     Args:
         provided_key: Explicitly provided key (has priority)
-        
+
     Returns:
         API key or None
     """
@@ -41,6 +41,6 @@ def get_google_vision_api_key(provided_key: Optional[str] = None) -> Optional[st
         api_key = provided_key.strip()
         if len(api_key) > 20:
             return api_key
-    
+
     # Otherwise load from settings
     return load_google_vision_api_key()

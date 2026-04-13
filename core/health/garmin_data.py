@@ -20,41 +20,42 @@ logger = logging.getLogger(__name__)
 def get_garmin_data_for_date(date: str, user_id: int) -> Optional[Dict]:
     """
     Получает данные Garmin/Activity за указанную дату из PostgreSQL
-    
+
     Args:
         date: Дата в формате YYYY-MM-DD
         user_id: Telegram ID пользователя
-        
+
     Returns:
         Словарь с данными или None
     """
     try:
-        target_date = datetime.strptime(date, '%Y-%m-%d').date()
+        target_date = datetime.strptime(date, "%Y-%m-%d").date()
     except ValueError:
         return None
-    
+
     from database import get_user_by_telegram_id
+
     db = SessionLocal()
     try:
         user = get_user_by_telegram_id(db, user_id)
         if not user:
             return None
-            
+
         activity = get_activity_by_date(db, user.telegram_id, target_date)
-        
+
         if not activity:
             return None
-        
+
         # Return in old format for compatibility
         return {
-            'totalKilocalories': activity.total_calories,
-            'activeKilocalories': activity.active_calories,
-            'bmrKilocalories': activity.bmr_calories,
-            'totalSteps': activity.steps,
-            'totalDistanceMeters': activity.distance_km * 1000 if activity.distance_km else None,
-            'sleepingSeconds': activity.sleep_hours * 3600 if activity.sleep_hours else None,
-            'averageHeartRate': activity.heart_rate_avg,
-            'averageStressLevel': activity.stress_level,
+            "totalKilocalories": activity.total_calories,
+            "activeKilocalories": activity.active_calories,
+            "bmrKilocalories": activity.bmr_calories,
+            "totalSteps": activity.steps,
+            "totalDistanceMeters": activity.distance_km * 1000 if activity.distance_km else None,
+            "sleepingSeconds": activity.sleep_hours * 3600 if activity.sleep_hours else None,
+            "averageHeartRate": activity.heart_rate_avg,
+            "averageStressLevel": activity.stress_level,
         }
     finally:
         db.close()
@@ -63,38 +64,34 @@ def get_garmin_data_for_date(date: str, user_id: int) -> Optional[Dict]:
 def get_average_stats(user_id: int, days: int = 7) -> Dict:
     """
     Получает средние показатели за последние N дней
-    
+
     Args:
         days: Количество дней для анализа
         user_id: Telegram ID пользователя
-        
+
     Returns:
         Словарь со средними значениями
     """
     from database import get_activity_logs_by_period
-    
+
     db = SessionLocal()
     try:
         end_date = date_type.today()
-        start_date = end_date - timedelta(days=days-1)
-        
+        start_date = end_date - timedelta(days=days - 1)
+
         logs = get_activity_logs_by_period(db, user_id, start_date, end_date)
-        
+
         if not logs:
-            return {
-                'avg_steps': 0,
-                'avg_active_calories': 0,
-                'avg_total_calories': 0
-            }
-        
+            return {"avg_steps": 0, "avg_active_calories": 0, "avg_total_calories": 0}
+
         total_steps = sum(log.steps or 0 for log in logs)
         total_active = sum(log.active_calories or 0 for log in logs)
         total_cal = sum(log.total_calories or 0 for log in logs)
-        
+
         return {
-            'avg_steps': total_steps / len(logs),
-            'avg_active_calories': total_active / len(logs),
-            'avg_total_calories': total_cal / len(logs)
+            "avg_steps": total_steps / len(logs),
+            "avg_active_calories": total_active / len(logs),
+            "avg_total_calories": total_cal / len(logs),
         }
     finally:
         db.close()
@@ -128,7 +125,7 @@ def sync_today_garmin(user_id: int, target_date: Optional[date_type] = None) -> 
             age_min = (datetime.now(timezone.utc) - synced_at).total_seconds() / 60
             if age_min < _CACHE_MINUTES:
                 logger.debug(f"Garmin cache hit for {target_date} (age {age_min:.1f}m)")
-                return (float(activity.active_calories or 0), 'cached')
+                return (float(activity.active_calories or 0), "cached")
 
         # --- 2. Get credentials ---
         primary_id = int(os.getenv("HEALTHVAULT_USER_ID", "895655"))
@@ -137,13 +134,14 @@ def sync_today_garmin(user_id: int, target_date: Optional[date_type] = None) -> 
             password = os.getenv("GARMIN_PASSWORD")
         else:
             from database import get_user_by_telegram_id
+
             u = get_user_by_telegram_id(db, user_id)
             email = u.garmin_email if u else None
             password = u.garmin_password if u else None
 
         if not email:
             cached_val = float(activity.active_calories or 0) if activity else 0.0
-            return (cached_val, 'error')
+            return (cached_val, "error")
 
         # --- 3. Auth: только garth-токены (no password login on server!)
         # Токены живут 28 дней, обновляются автоматически через refresh_token.
@@ -154,13 +152,14 @@ def sync_today_garmin(user_id: int, target_date: Optional[date_type] = None) -> 
         if not os.path.exists(token_file):
             logger.error(f"Garmin: no garth tokens at {garth_dir}. Run /sync on Mac to upload.")
             cached_val = float(activity.active_calories or 0) if activity else 0.0
-            return (cached_val, 'error')
+            return (cached_val, "error")
 
         try:
             from garminconnect import Garmin
             import garth
             import warnings
-            warnings.filterwarnings('ignore', category=DeprecationWarning)
+
+            warnings.filterwarnings("ignore", category=DeprecationWarning)
             garth.resume(garth_dir)
             client = Garmin()
             client.login(garth_dir)  # загружает токены И делает profile-запрос (display_name)
@@ -168,44 +167,45 @@ def sync_today_garmin(user_id: int, target_date: Optional[date_type] = None) -> 
         except Exception as e:
             logger.error(f"Garmin token auth failed: {e}. Run /sync on Mac to refresh tokens.")
             cached_val = float(activity.active_calories or 0) if activity else 0.0
-            return (cached_val, 'error')
+            return (cached_val, "error")
 
         # --- 4. Fetch stats ---
         try:
-            stats = client.get_stats(target_date.strftime('%Y-%m-%d'))
+            stats = client.get_stats(target_date.strftime("%Y-%m-%d"))
         except Exception as e:
             logger.error(f"Garmin get_stats failed: {e}")
             cached_val = float(activity.active_calories or 0) if activity else 0.0
-            return (cached_val, 'error')
+            return (cached_val, "error")
 
         if not stats:
-            return (0.0, 'ok')
+            return (0.0, "ok")
 
         # --- 5. Save to DB ---
         from database.crud import create_or_update_activity
-        sleep_sec = stats.get('sleepingSeconds') or stats.get('measurableAsleepDuration')
+
+        sleep_sec = stats.get("sleepingSeconds") or stats.get("measurableAsleepDuration")
         sleep_hours = round(sleep_sec / 3600.0, 2) if sleep_sec else None
         create_or_update_activity(
             db=db,
             user_id=user_id,
             date=target_date,
-            steps=stats.get('totalSteps'),
-            active_calories=stats.get('activeKilocalories'),
-            total_calories=stats.get('totalKilocalories'),
-            bmr_calories=stats.get('bmrKilocalories'),
-            distance_km=(stats.get('totalDistanceMeters') or 0) / 1000.0,
+            steps=stats.get("totalSteps"),
+            active_calories=stats.get("activeKilocalories"),
+            total_calories=stats.get("totalKilocalories"),
+            bmr_calories=stats.get("bmrKilocalories"),
+            distance_km=(stats.get("totalDistanceMeters") or 0) / 1000.0,
             sleep_hours=sleep_hours,
-            heart_rate_avg=stats.get('restingHeartRate') or stats.get('minHeartRate'),
-            stress_level=stats.get('averageStressLevel'),
-            source='garmin_connect',
+            heart_rate_avg=stats.get("restingHeartRate") or stats.get("minHeartRate"),
+            stress_level=stats.get("averageStressLevel"),
+            source="garmin_connect",
             raw_data=stats,
         )
-        return (float(stats.get('activeKilocalories') or 0), 'ok')
+        return (float(stats.get("activeKilocalories") or 0), "ok")
 
     except Exception as e:
         logger.error(f"sync_today_garmin error: {e}", exc_info=True)
         cached_val = float(activity.active_calories or 0) if activity else 0.0
-        return (cached_val, 'error')
+        return (cached_val, "error")
     finally:
         db.close()
 
@@ -213,24 +213,24 @@ def sync_today_garmin(user_id: int, target_date: Optional[date_type] = None) -> 
 def sync_garmin_data(user_id: int, sync_date: Optional[date_type] = None):
     """
     Синхронизирует данные Garmin за сегодня или за указанную дату
-    
+
     Args:
         user_id: Telegram ID пользователя
         sync_date: Дата для синхронизации (по умолчанию сегодня)
     """
     logger.info(f"Garmin sync called for user {user_id}, date: {sync_date}")
-    
+
     # 1. Get credentials
     import os
     from database import get_user_by_telegram_id, create_or_update_activity
-    
+
     db = SessionLocal()
     try:
         user = get_user_by_telegram_id(db, user_id)
         if not user:
             logger.warning(f"User {user_id} not found for syncing")
             return
-        
+
         # Garmin: только из DB или ENV для основного пользователя (обратная совместимость)
         primary_id = int(os.getenv("HEALTHVAULT_USER_ID", "895655"))
         if user.garmin_email and user.garmin_password:
@@ -245,50 +245,51 @@ def sync_garmin_data(user_id: int, sync_date: Optional[date_type] = None):
         # 2. Connect to Garmin
         try:
             from garminconnect import Garmin
+
             client = Garmin(email, password)
             client.login()
         except ImportError:
-             logger.error("garminconnect library not installed")
-             return
+            logger.error("garminconnect library not installed")
+            return
         except Exception as e:
             logger.error(f"Garmin login failed: {e}")
             return
-            
+
         # 3. Get Data (Default to today)
         target_date = sync_date if sync_date else date_type.today()
-        target_date_str = target_date.strftime('%Y-%m-%d')
-        
+        target_date_str = target_date.strftime("%Y-%m-%d")
+
         try:
             stats = client.get_stats(target_date_str)
             # steps = client.get_steps_data(today_str) # Optional for more details
         except Exception as e:
             logger.error(f"Failed to fetch Garmin stats for {target_date_str}: {e}")
             return
-            
+
         if not stats:
             logger.info(f"No stats available for {target_date_str}")
             return
-            
+
         # 4. Save to DB (включая сон, если API вернул sleepingSeconds)
-        sleep_sec = stats.get('sleepingSeconds') or stats.get('measurableAsleepDuration')
+        sleep_sec = stats.get("sleepingSeconds") or stats.get("measurableAsleepDuration")
         sleep_hours = round(sleep_sec / 3600.0, 2) if sleep_sec else None
         create_or_update_activity(
             db=db,
             user_id=user.telegram_id,
             date=target_date,
-            steps=stats.get('totalSteps'),
-            active_calories=stats.get('activeKilocalories'),
-            total_calories=stats.get('totalKilocalories'),
-            bmr_calories=stats.get('bmrKilocalories'),
-            distance_km=(stats.get('totalDistanceMeters') or 0) / 1000.0,
+            steps=stats.get("totalSteps"),
+            active_calories=stats.get("activeKilocalories"),
+            total_calories=stats.get("totalKilocalories"),
+            bmr_calories=stats.get("bmrKilocalories"),
+            distance_km=(stats.get("totalDistanceMeters") or 0) / 1000.0,
             sleep_hours=sleep_hours,
-            heart_rate_avg=stats.get('restingHeartRate') or stats.get('minHeartRate'),
-            stress_level=stats.get('averageStressLevel'),
-            source='garmin_connect',
-            raw_data=stats
+            heart_rate_avg=stats.get("restingHeartRate") or stats.get("minHeartRate"),
+            stress_level=stats.get("averageStressLevel"),
+            source="garmin_connect",
+            raw_data=stats,
         )
         return True
-        
+
     except Exception as e:
         logger.error(f"Error in sync_garmin_data: {e}", exc_info=True)
         return False
@@ -299,16 +300,17 @@ def sync_garmin_data(user_id: int, sync_date: Optional[date_type] = None):
 def sync_missing_garmin_days(user_id: int):
     """
     Умная синхронизация: синхронизирует только недостающие дни
-    
+
     Синхронизируется с последней даты в БД (полностью) до сегодня (включительно)
     Это позволяет обновить частичные данные за последний день и добавить новые
-    
+
     Args:
         user_id: Telegram ID пользователя
     """
     logger.info(f"Smart Garmin sync started for user {user_id}")
-    
+
     from database import get_user_by_telegram_id
+
     db = SessionLocal()
     try:
         user = get_user_by_telegram_id(db, user_id)
@@ -318,17 +320,17 @@ def sync_missing_garmin_days(user_id: int):
 
         # Получаем последнюю дату с данными (по PK)
         last_date = get_last_activity_date(db, user.telegram_id)
-        
+
         if last_date is None:
             # Если данных нет - синхронизируем только сегодня
             logger.info("No previous Garmin data found, syncing today only")
             sync_garmin_data(user_id, date_type.today())
             return
-        
+
         # Синхронизируем с последней даты (полностью) до сегодня
         today = date_type.today()
         current_date = last_date
-        
+
         synced_count = 0
         while current_date <= today:
             logger.info(f"Syncing Garmin data for {current_date}")
@@ -337,8 +339,8 @@ def sync_missing_garmin_days(user_id: int):
             if success:
                 synced_count += 1
             current_date += timedelta(days=1)
-        
+
         logger.info(f"Smart sync completed: {synced_count} days synced")
-        
+
     finally:
         db.close()

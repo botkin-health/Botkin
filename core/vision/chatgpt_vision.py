@@ -20,6 +20,7 @@ from config import get_settings
 
 try:
     from infrastructure.cache.image_cache import get_image_cache
+
     CACHE_AVAILABLE = True
 except ImportError:
     CACHE_AVAILABLE = False
@@ -35,18 +36,20 @@ def get_openai_api_key() -> Optional[str]:
 def encode_image(image_path: Path) -> str:
     """Кодирует изображение в base64 для отправки в API"""
     with open(image_path, "rb") as image_file:
-        return base64.b64encode(image_file.read()).decode('utf-8')
+        return base64.b64encode(image_file.read()).decode("utf-8")
 
 
-def parse_menu_with_chatgpt(photo_path: Path, api_key: Optional[str] = None, description: Optional[str] = None) -> Optional[Dict]:
+def parse_menu_with_chatgpt(
+    photo_path: Path, api_key: Optional[str] = None, description: Optional[str] = None
+) -> Optional[Dict]:
     """
     Распознает меню кафе с КБЖУ через ChatGPT Vision API.
-    
+
     Args:
         photo_path: Путь к фото меню
         api_key: OpenAI API ключ (опционально)
         description: Описание блюда от пользователя (опционально)
-        
+
     Returns:
         Словарь с данными блюда или None:
         {
@@ -61,62 +64,59 @@ def parse_menu_with_chatgpt(photo_path: Path, api_key: Optional[str] = None, des
     if not photo_path.exists():
         print(f"    ❌ Файл не существует: {photo_path}")
         return None
-    
+
     # Проверяем кэш
     if CACHE_AVAILABLE and get_settings().cache_enabled:
         cache = get_image_cache()
         cached_result = cache.get(photo_path)
         if cached_result:
             print(f"    ✅ Используем кэш для изображения {photo_path.name}")
-            print(f"       💰 Экономия: ~$0.01 (Vision API вызов пропущен)")
+            print("       💰 Экономия: ~$0.01 (Vision API вызов пропущен)")
             return cached_result
-    
+
     # Получаем API ключ
     if not api_key:
         api_key = get_openai_api_key()
-    
+
     if not api_key:
         print("    ⚠️  OpenAI API ключ не найден")
         return None
-    
+
     # Debug log
     masked_key = f"{api_key[:8]}...{api_key[-4:]}" if len(api_key) > 12 else "INVALID_LEN"
     print(f"    🔑 ChatGPT Vision using key: {masked_key}")
-    
+
     try:
         import requests
     except ImportError:
         print("    ❌ Библиотека requests не установлена")
         return None
-    
+
     # Кодируем изображение
     base64_image = encode_image(photo_path)
-    
+
     # Формируем запрос к ChatGPT Vision API
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {api_key}"
-    }
-    
+    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
+
     user_context = ""
     meal_type_hint = ""
     if description:
         # Определяем hint для типа приема пищи из description
         description_lower = description.lower()
-        if any(word in description_lower for word in ['завтрак', 'breakfast']):
+        if any(word in description_lower for word in ["завтрак", "breakfast"]):
             meal_type_hint = "Время приема: завтрак."
-        elif any(word in description_lower for word in ['обед', 'lunch']):
+        elif any(word in description_lower for word in ["обед", "lunch"]):
             meal_type_hint = "Время приема: обед."
-        elif any(word in description_lower for word in ['ужин', 'dinner']):
+        elif any(word in description_lower for word in ["ужин", "dinner"]):
             meal_type_hint = "Время приема: ужин."
-        elif any(word in description_lower for word in ['перекус', 'snack']):
+        elif any(word in description_lower for word in ["перекус", "snack"]):
             meal_type_hint = "Время приема: перекус."
-        
-        user_context = f"КОНТЕКСТ ОТ ПОЛЬЗОВАТЕЛЯ: \"{description}\". {meal_type_hint} Используй это для уточнения ингредиентов и времени приема пищи."
-    
+
+        user_context = f'КОНТЕКСТ ОТ ПОЛЬЗОВАТЕЛЯ: "{description}". {meal_type_hint} Используй это для уточнения ингредиентов и времени приема пищи.'
+
     prompt = f"""Проанализируй это изображение еды, меню или добавок.
     {user_context}
-    
+
 ЦЕЛЬ: Оценить нутриенты для дневника питания.
 
 ВАЖНО О НАЗВАНИИ БЛЮДА:
@@ -209,39 +209,28 @@ def parse_menu_with_chatgpt(photo_path: Path, api_key: Optional[str] = None, des
             {
                 "role": "user",
                 "content": [
-                    {
-                        "type": "text",
-                        "text": prompt
-                    },
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/jpeg;base64,{base64_image}"
-                        }
-                    }
-                ]
+                    {"type": "text", "text": prompt},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}},
+                ],
             }
         ],
         "max_tokens": 2000,
-        "temperature": 0.1  # Низкая температура для более точных результатов
+        "temperature": 0.1,  # Низкая температура для более точных результатов
     }
-    
-    print(f"    🤖 Распознавание меню через ChatGPT Vision...")
-    
+
+    print("    🤖 Распознавание меню через ChatGPT Vision...")
+
     # Retry при 429 ошибке
     max_retries = 2
     retry_delay = 5  # секунд
     result = None
-    
+
     for attempt in range(max_retries + 1):
         try:
             response = requests.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers=headers,
-                json=payload,
-                timeout=30
+                "https://api.openai.com/v1/chat/completions", headers=headers, json=payload, timeout=30
             )
-            
+
             # Если 429 - ждем и пробуем снова
             if response.status_code == 429:
                 if attempt < max_retries:
@@ -252,11 +241,11 @@ def parse_menu_with_chatgpt(photo_path: Path, api_key: Optional[str] = None, des
                 else:
                     print(f"    ⚠️  Лимит запросов (429) после {max_retries} попыток")
                     return None
-            
+
             response.raise_for_status()
             result = response.json()
             break  # Успешно, выходим из цикла
-            
+
         except requests.exceptions.RequestException as e:
             error_msg = str(e)
             if "429" in error_msg or "Too Many Requests" in error_msg:
@@ -266,183 +255,191 @@ def parse_menu_with_chatgpt(photo_path: Path, api_key: Optional[str] = None, des
                     time.sleep(wait_time)
                     continue
                 else:
-                    print(f"    ⚠️  ChatGPT API: лимит запросов (429). Подождите немного.")
+                    print("    ⚠️  ChatGPT API: лимит запросов (429). Подождите немного.")
             elif "401" in error_msg or "Unauthorized" in error_msg:
-                print(f"    ❌ ChatGPT API: неверный API ключ (401)")
+                print("    ❌ ChatGPT API: неверный API ключ (401)")
             else:
-                if hasattr(e, 'response') and e.response is not None:
-                     print(f"    ❌ Детали ошибки API: {e.response.text}")
+                if hasattr(e, "response") and e.response is not None:
+                    print(f"    ❌ Детали ошибки API: {e.response.text}")
                 print(f"    ❌ Ошибка запроса к ChatGPT API: {e}")
                 print(f"    ❌ Ошибка запроса к ChatGPT API: {e}")
             return None
         except Exception as e:
             print(f"    ❌ Ошибка при распознавании через ChatGPT: {e}")
             return None
-    
+
     if not result:
         return None
-    
+
     # Извлекаем ответ
-    if 'choices' in result and len(result['choices']) > 0:
-        content = result['choices'][0]['message']['content']
-        
+    if "choices" in result and len(result["choices"]) > 0:
+        content = result["choices"][0]["message"]["content"]
+
         # Парсим JSON из ответа
         # ChatGPT может вернуть JSON в markdown блоках или просто текст
         content = content.strip()
-        
+
         # Убираем markdown блоки если есть
-        if '```json' in content:
+        if "```json" in content:
             # Ищем блок кода
-            match = re.search(r'```json\s*([\s\S]*?)\s*```', content)
+            match = re.search(r"```json\s*([\s\S]*?)\s*```", content)
             if match:
                 content = match.group(1)
-        elif '```' in content:
-            match = re.search(r'```\s*([\s\S]*?)\s*```', content)
+        elif "```" in content:
+            match = re.search(r"```\s*([\s\S]*?)\s*```", content)
             if match:
                 content = match.group(1)
-        
+
         # Парсим JSON
         try:
             # Очищаем от возможных лишних символов
             content = content.strip()
             # Если начинается с "Here is the JSON" или подобного, ищем первую { и последнюю }
-            if not content.startswith('{'):
-                start = content.find('{')
-                end = content.rfind('}')
+            if not content.startswith("{"):
+                start = content.find("{")
+                end = content.rfind("}")
                 if start != -1 and end != -1:
-                    content = content[start:end+1]
-            
+                    content = content[start : end + 1]
+
             data = json.loads(content)
-            
+
             # Если есть nutrition_per_100g и weight_grams, пересчитываем КБЖУ для всей порции
-            nutrition_per_100g = data.get('nutrition_per_100g', {})
-            weight_grams = data.get('weight_grams')
-            
+            nutrition_per_100g = data.get("nutrition_per_100g", {})
+            weight_grams = data.get("weight_grams")
+
             if nutrition_per_100g and weight_grams and weight_grams > 0:
                 # Пересчитываем КБЖУ для всей порции
                 multiplier = weight_grams / 100.0
-                
+
                 # Если основные поля не заполнены или равны 0, пересчитываем из nutrition_per_100g
-                if not data.get('calories') or data.get('calories', 0) == 0:
-                    data['calories'] = nutrition_per_100g.get('calories', 0) * multiplier
-                if not data.get('protein') or data.get('protein', 0) == 0:
-                    data['protein'] = nutrition_per_100g.get('protein', 0) * multiplier
-                if not data.get('fats') or data.get('fats', 0) == 0:
-                    data['fats'] = nutrition_per_100g.get('fats', 0) * multiplier
-                if not data.get('carbs') or data.get('carbs', 0) == 0:
-                    data['carbs'] = nutrition_per_100g.get('carbs', 0) * multiplier
-                
+                if not data.get("calories") or data.get("calories", 0) == 0:
+                    data["calories"] = nutrition_per_100g.get("calories", 0) * multiplier
+                if not data.get("protein") or data.get("protein", 0) == 0:
+                    data["protein"] = nutrition_per_100g.get("protein", 0) * multiplier
+                if not data.get("fats") or data.get("fats", 0) == 0:
+                    data["fats"] = nutrition_per_100g.get("fats", 0) * multiplier
+                if not data.get("carbs") or data.get("carbs", 0) == 0:
+                    data["carbs"] = nutrition_per_100g.get("carbs", 0) * multiplier
+
                 print(f"    ✅ Пересчитано КБЖУ для порции {weight_grams}г:")
-                print(f"       Калории: {nutrition_per_100g.get('calories', 0)} ккал/100г × {multiplier:.2f} = {data.get('calories', 0):.1f} ккал")
-                print(f"       Белки: {nutrition_per_100g.get('protein', 0)}г/100г × {multiplier:.2f} = {data.get('protein', 0):.1f}г")
-                print(f"       Жиры: {nutrition_per_100g.get('fats', 0)}г/100г × {multiplier:.2f} = {data.get('fats', 0):.1f}г")
-                print(f"       Углеводы: {nutrition_per_100g.get('carbs', 0)}г/100г × {multiplier:.2f} = {data.get('carbs', 0):.1f}г")
-            
+                print(
+                    f"       Калории: {nutrition_per_100g.get('calories', 0)} ккал/100г × {multiplier:.2f} = {data.get('calories', 0):.1f} ккал"
+                )
+                print(
+                    f"       Белки: {nutrition_per_100g.get('protein', 0)}г/100г × {multiplier:.2f} = {data.get('protein', 0):.1f}г"
+                )
+                print(
+                    f"       Жиры: {nutrition_per_100g.get('fats', 0)}г/100г × {multiplier:.2f} = {data.get('fats', 0):.1f}г"
+                )
+                print(
+                    f"       Углеводы: {nutrition_per_100g.get('carbs', 0)}г/100г × {multiplier:.2f} = {data.get('carbs', 0):.1f}г"
+                )
+
             # Проверяем наличие необходимых полей
-            calories = data.get('calories')
+            calories = data.get("calories")
             if calories is not None and calories > 0:
                 # Безопасно получаем значения с дефолтами
-                protein = data.get('protein') or 0
-                fats = data.get('fats') or 0
-                carbs = data.get('carbs') or 0
-                
+                protein = data.get("protein") or 0
+                fats = data.get("fats") or 0
+                carbs = data.get("carbs") or 0
+
                 print(f"    ✅ ChatGPT распознал: {data.get('dish_name', 'Блюдо')}")
-                print(f"       КБЖУ: {calories} ккал, "
-                      f"Б: {protein}г, "
-                      f"Ж: {fats}г, "
-                      f"У: {carbs}г")
-                
+                print(f"       КБЖУ: {calories} ккал, Б: {protein}г, Ж: {fats}г, У: {carbs}г")
+
                 # Сохраняем исходные значения на 100г для последующего пересчета
-                nutrition_per_100g_result = nutrition_per_100g if nutrition_per_100g else {
-                    'calories': calories / ((weight_grams / 100.0) if weight_grams and weight_grams > 0 else 1.0),
-                    'protein': protein / ((weight_grams / 100.0) if weight_grams and weight_grams > 0 else 1.0),
-                    'fats': fats / ((weight_grams / 100.0) if weight_grams and weight_grams > 0 else 1.0),
-                    'carbs': carbs / ((weight_grams / 100.0) if weight_grams and weight_grams > 0 else 1.0),
-                }
-                
+                nutrition_per_100g_result = (
+                    nutrition_per_100g
+                    if nutrition_per_100g
+                    else {
+                        "calories": calories / ((weight_grams / 100.0) if weight_grams and weight_grams > 0 else 1.0),
+                        "protein": protein / ((weight_grams / 100.0) if weight_grams and weight_grams > 0 else 1.0),
+                        "fats": fats / ((weight_grams / 100.0) if weight_grams and weight_grams > 0 else 1.0),
+                        "carbs": carbs / ((weight_grams / 100.0) if weight_grams and weight_grams > 0 else 1.0),
+                    }
+                )
+
                 # Если есть nutrition_per_100g из ответа ChatGPT, используем его
                 if nutrition_per_100g:
                     nutrition_per_100g_result = {
-                        'calories': nutrition_per_100g.get('calories', calories),
-                        'protein': nutrition_per_100g.get('protein', protein),
-                        'fats': nutrition_per_100g.get('fats', fats),
-                        'carbs': nutrition_per_100g.get('carbs', carbs),
+                        "calories": nutrition_per_100g.get("calories", calories),
+                        "protein": nutrition_per_100g.get("protein", protein),
+                        "fats": nutrition_per_100g.get("fats", fats),
+                        "carbs": nutrition_per_100g.get("carbs", carbs),
                     }
-                
+
                 # Валидация значений - проверяем разумность
                 # Жиры и углеводы на 100г обычно не превышают 50-60г для большинства продуктов
                 # Если значения слишком высокие (>80г), вероятно ошибка распознавания
                 validated_fats = float(fats)
                 validated_carbs = float(carbs)
-                
+
                 # Если nutrition_per_100g есть, валидируем его
                 if nutrition_per_100g_result:
-                    per_100g_fats = nutrition_per_100g_result.get('fats', 0)
-                    per_100g_carbs = nutrition_per_100g_result.get('carbs', 0)
-                    
+                    per_100g_fats = nutrition_per_100g_result.get("fats", 0)
+                    per_100g_carbs = nutrition_per_100g_result.get("carbs", 0)
+
                     # Если значения на 100г выглядят неразумно (>80г), возможно это ошибка
                     # Проверяем, не перепутаны ли значения (например, 100г вместо 24г)
                     if per_100g_fats > 80:
                         print(f"    ⚠️  Предупреждение: жиры на 100г = {per_100g_fats}г выглядят неразумно")
                         # Пробуем найти правильное значение в исходных данных
-                        if nutrition_per_100g and nutrition_per_100g.get('fats', 0) < 80:
-                            per_100g_fats = nutrition_per_100g.get('fats', 0)
+                        if nutrition_per_100g and nutrition_per_100g.get("fats", 0) < 80:
+                            per_100g_fats = nutrition_per_100g.get("fats", 0)
                             print(f"    ✅ Исправлено: используем {per_100g_fats}г жиров на 100г")
-                    
+
                     if per_100g_carbs > 80:
                         print(f"    ⚠️  Предупреждение: углеводы на 100г = {per_100g_carbs}г выглядят неразумно")
-                        if nutrition_per_100g and nutrition_per_100g.get('carbs', 0) < 80:
-                            per_100g_carbs = nutrition_per_100g.get('carbs', 0)
+                        if nutrition_per_100g and nutrition_per_100g.get("carbs", 0) < 80:
+                            per_100g_carbs = nutrition_per_100g.get("carbs", 0)
                             print(f"    ✅ Исправлено: используем {per_100g_carbs}г углеводов на 100г")
-                    
-                    nutrition_per_100g_result['fats'] = per_100g_fats
-                    nutrition_per_100g_result['carbs'] = per_100g_carbs
-                
-                
-                dish_name = data.get('dish_name')
-                if not dish_name or str(dish_name).lower() == 'none':
-                    dish_name = 'Блюдо из меню'
-                
+
+                    nutrition_per_100g_result["fats"] = per_100g_fats
+                    nutrition_per_100g_result["carbs"] = per_100g_carbs
+
+                dish_name = data.get("dish_name")
+                if not dish_name or str(dish_name).lower() == "none":
+                    dish_name = "Блюдо из меню"
+
                 result = {
-                    'dish_name': dish_name,
-                    'calories': float(calories),
-                    'protein': float(protein),
-                    'fats': validated_fats,
-                    'carbs': validated_carbs,
-                    'weight': data.get('weight_grams') or data.get('weight'),
-                    'nutrition_per_100g': nutrition_per_100g_result,  # Сохраняем исходные значения на 100г
-                    'components': data.get('components', []), # Сохраняем компоненты
-                    'source': 'chatgpt_vision',
+                    "dish_name": dish_name,
+                    "calories": float(calories),
+                    "protein": float(protein),
+                    "fats": validated_fats,
+                    "carbs": validated_carbs,
+                    "weight": data.get("weight_grams") or data.get("weight"),
+                    "nutrition_per_100g": nutrition_per_100g_result,  # Сохраняем исходные значения на 100г
+                    "components": data.get("components", []),  # Сохраняем компоненты
+                    "source": "chatgpt_vision",
                 }
-                
+
                 # Сохраняем в кэш
                 if CACHE_AVAILABLE and get_settings().cache_enabled:
                     cache = get_image_cache()
                     cache.set(photo_path, result)
-                    print(f"    💾 Результат сохранен в кэш")
-                
+                    print("    💾 Результат сохранен в кэш")
+
                 return result
             else:
-                print(f"    ⚠️  ChatGPT не нашел КБЖУ в изображении")
+                print("    ⚠️  ChatGPT не нашел КБЖУ в изображении")
                 return None
-                
+
         except json.JSONDecodeError as e:
             print(f"    ❌ Ошибка парсинга JSON от ChatGPT: {e}")
             print(f"    Ответ: {content[:200]}")
             return None
     else:
-        print(f"    ❌ Неожиданный формат ответа от ChatGPT")
+        print("    ❌ Неожиданный формат ответа от ChatGPT")
         return None
 
 
 def parse_text_description_with_chatgpt(description: str, api_key: Optional[str] = None) -> Optional[List[Dict]]:
     """
     Распознает продукты из текстового описания еды через ChatGPT API.
-    
+
     Args:
         description: Текстовое описание блюда (например, "обед: яичница из 2-х яиц, маленькой луковички, 6 томатов черри: маленького кусочка сливочного масла и 30 грамм сыра")
         api_key: OpenAI API ключ (опционально)
-        
+
     Returns:
         Список продуктов с весами или None:
         [
@@ -455,21 +452,21 @@ def parse_text_description_with_chatgpt(description: str, api_key: Optional[str]
     """
     if not description or len(description.strip()) < 3:
         return None
-    
+
     # Получаем API ключ
     if not api_key:
         api_key = get_openai_api_key()
-    
+
     if not api_key:
         print("    ⚠️  OpenAI API ключ не найден для обработки текста")
         return None
-    
+
     try:
         import requests
     except ImportError:
         print("    ❌ Библиотека requests не установлена")
         return None
-    
+
     # Формируем промпт
     prompt = """Проанализируй это описание еды и извлеки список продуктов с их весами в формате JSON.
 
@@ -525,40 +522,29 @@ Rule C: Если есть признаки неоднозначности (на�
 basis может быть: "cooked" (готовое), "raw" (сырое), "dry" (сухое), "packaged" (упаковка), "ambiguous" (неоднозначно).
 
 Возвращай ТОЛЬКО валидный JSON, без дополнительного текста, без markdown блоков.""".format(description=description)
-    
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {api_key}"
-    }
-    
+
+    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
+
     payload = {
         "model": "gpt-4o",  # Используем gpt-4o для текста тоже
-        "messages": [
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ],
+        "messages": [{"role": "user", "content": prompt}],
         "max_tokens": 2000,
-        "temperature": 0.1  # Низкая температура для более точных результатов
+        "temperature": 0.1,  # Низкая температура для более точных результатов
     }
-    
-    print(f"    🤖 Обработка описания через ChatGPT...")
-    
+
+    print("    🤖 Обработка описания через ChatGPT...")
+
     # Retry при 429 ошибке
     max_retries = 2
     retry_delay = 5  # секунд
     result = None
-    
+
     for attempt in range(max_retries + 1):
         try:
             response = requests.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers=headers,
-                json=payload,
-                timeout=30
+                "https://api.openai.com/v1/chat/completions", headers=headers, json=payload, timeout=30
             )
-            
+
             # Если 429 - ждем и пробуем снова
             if response.status_code == 429:
                 if attempt < max_retries:
@@ -569,11 +555,11 @@ basis может быть: "cooked" (готовое), "raw" (сырое), "dry" 
                 else:
                     print(f"    ⚠️  Лимит запросов (429) после {max_retries} попыток")
                     return None
-            
+
             response.raise_for_status()
             result = response.json()
             break  # Успешно, выходим из цикла
-            
+
         except requests.exceptions.RequestException as e:
             error_msg = str(e)
             if "429" in error_msg or "Too Many Requests" in error_msg:
@@ -583,98 +569,99 @@ basis может быть: "cooked" (готовое), "raw" (сырое), "dry" 
                     time.sleep(wait_time)
                     continue
                 else:
-                    print(f"    ⚠️  ChatGPT API: лимит запросов (429). Подождите немного.")
+                    print("    ⚠️  ChatGPT API: лимит запросов (429). Подождите немного.")
             elif "401" in error_msg or "Unauthorized" in error_msg:
-                print(f"    ❌ ChatGPT API: неверный API ключ (401)")
+                print("    ❌ ChatGPT API: неверный API ключ (401)")
             else:
                 print(f"    ❌ Ошибка запроса к ChatGPT API: {e}")
             return None
         except Exception as e:
             print(f"    ❌ Ошибка при обработке через ChatGPT: {e}")
             return None
-    
+
     if not result:
         return None
-    
+
     # Извлекаем ответ
-    if 'choices' in result and len(result['choices']) > 0:
-        content = result['choices'][0]['message']['content']
-        
+    if "choices" in result and len(result["choices"]) > 0:
+        content = result["choices"][0]["message"]["content"]
+
         # Парсим JSON из ответа
         content = content.strip()
-        
+
         # Убираем markdown блоки если есть
-        if content.startswith('```'):
-            lines = content.split('\n')
-            content = '\n'.join(lines[1:-1]) if len(lines) > 2 else content
+        if content.startswith("```"):
+            lines = content.split("\n")
+            content = "\n".join(lines[1:-1]) if len(lines) > 2 else content
             # Убираем "json" из первой строки если есть
-            if content.startswith('json'):
-                content = '\n'.join(content.split('\n')[1:])
-        
+            if content.startswith("json"):
+                content = "\n".join(content.split("\n")[1:])
+
         # Парсим JSON
         try:
             data = json.loads(content)
-            
+
             # Проверяем наличие продуктов
-            products_list = data.get('products', [])
+            products_list = data.get("products", [])
             if not products_list:
-                print(f"    ⚠️  ChatGPT не нашел продукты в описании")
+                print("    ⚠️  ChatGPT не нашел продукты в описании")
                 return None
-            
+
             # Конвертируем в нужный формат
             result_products = []
             for product in products_list:
-                name = product.get('name', '').strip()
-                weight = product.get('weight', 0)
-                basis = product.get('basis', 'raw')  # По умолчанию raw
-                
+                name = product.get("name", "").strip()
+                weight = product.get("weight", 0)
+                basis = product.get("basis", "raw")  # По умолчанию raw
+
                 # Пропускаем, если это название приёма пищи
-                meal_names = ['обед', 'завтрак', 'ужин', 'перекус', 'бранч', 'полдник']
+                meal_names = ["обед", "завтрак", "ужин", "перекус", "бранч", "полдник"]
                 if name.lower() in meal_names:
                     print(f"    ⚠️  Пропущен '{name}' (название приёма пищи)")
                     continue
-                
+
                 if name and weight > 0:
-                    result_products.append({
-                        'name': name,
-                        'weight': float(weight),
-                        'basis': basis,  # Сохраняем basis из ChatGPT
-                        'source': 'chatgpt'
-                    })
-            
+                    result_products.append(
+                        {
+                            "name": name,
+                            "weight": float(weight),
+                            "basis": basis,  # Сохраняем basis из ChatGPT
+                            "source": "chatgpt",
+                        }
+                    )
+
             # Дедупликация: убираем полные дубликаты (имя + вес)
             unique_products = []
             seen_combinations = set()
-            
+
             for p in result_products:
                 # Нормализуем имя для сравнения
-                norm_name = p['name'].lower().strip()
-                weight_key = round(p['weight'], 1)
-                
+                norm_name = p["name"].lower().strip()
+                weight_key = round(p["weight"], 1)
+
                 key = (norm_name, weight_key)
-                
+
                 if key not in seen_combinations:
                     seen_combinations.add(key)
                     unique_products.append(p)
                 else:
                     print(f"    ⚠️  Убран дубликат из ответа ChatGPT: {p['name']} ({p['weight']}г)")
-            
+
             result_products = unique_products
 
-            
             if result_products:
                 print(f"    ✅ ChatGPT распознал {len(result_products)} продуктов:")
                 for p in result_products:
                     print(f"       • {p['name']}: {p['weight']}г")
                 return result_products
             else:
-                print(f"    ⚠️  ChatGPT не нашел валидные продукты")
+                print("    ⚠️  ChatGPT не нашел валидные продукты")
                 return None
-                
+
         except json.JSONDecodeError as e:
             print(f"    ❌ Ошибка парсинга JSON от ChatGPT: {e}")
             print(f"    Ответ: {content[:200]}")
             return None
     else:
-        print(f"    ❌ Неожиданный формат ответа от ChatGPT")
+        print("    ❌ Неожиданный формат ответа от ChatGPT")
         return None
