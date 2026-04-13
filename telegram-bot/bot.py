@@ -13,82 +13,77 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 sys.path.append(str(Path(__file__).resolve().parent))
 
-from aiogram import Bot, Dispatcher, F
+from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.types import Update, BotCommand, BotCommandScopeAllPrivateChats
-from aiogram.filters import Command
 from dotenv import load_dotenv
 import os
 
 # Загружаем переменные окружения
 load_dotenv(override=True)
-load_dotenv(Path(__file__).parent.parent / '.env', override=True)
+load_dotenv(Path(__file__).parent.parent / ".env", override=True)
+
 
 # Настраиваем логирование
 class ConsoleFilter(logging.Filter):
     """Фильтр для консоли: только свои логи и ошибки"""
+
     def filter(self, record):
         # Пропускаем свои логи (main, handlers.*, services.*)
-        if record.name == '__main__' or record.name.startswith(('handlers.', 'services.')):
+        if record.name == "__main__" or record.name.startswith(("handlers.", "services.")):
             return True
         # Пропускаем предупреждения и ошибки ото всех
         return record.levelno >= logging.WARNING
 
+
 def setup_logging():
     # Создаем директорию для логов
-    Path('logs').mkdir(exist_ok=True)
-    
+    Path("logs").mkdir(exist_ok=True)
+
     # Корневой логгер
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.DEBUG)
-    
+
     # Очищаем существующие хендлеры
     root_logger.handlers.clear()
-    
+
     # 1. Файловый хендлер — пишет ВСЁ (DEBUG и выше), ротация 5 МБ × 3 бэкапа = ~15 МБ макс
-    file_handler = RotatingFileHandler(
-        'logs/bot.log', encoding='utf-8', maxBytes=5*1024*1024, backupCount=3
-    )
+    file_handler = RotatingFileHandler("logs/bot.log", encoding="utf-8", maxBytes=5 * 1024 * 1024, backupCount=3)
     file_handler.setLevel(logging.DEBUG)
-    file_handler.setFormatter(logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    ))
+    file_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
     root_logger.addHandler(file_handler)
-    
+
     # 2. Консольный хендлер - только важное и красивое
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(logging.INFO)
-    console_handler.setFormatter(logging.Formatter('%(message)s'))
+    console_handler.setFormatter(logging.Formatter("%(message)s"))
     console_handler.addFilter(ConsoleFilter())
     root_logger.addHandler(console_handler)
-    
+
     # Заглушаем шумные библиотеки (чтобы они не захламляли даже файл слишком сильно, если там debug)
-    logging.getLogger('httpcore').setLevel(logging.INFO)
-    logging.getLogger('httpx').setLevel(logging.INFO)
-    logging.getLogger('aiogram.event').setLevel(logging.WARNING) # Убираем спам о каждом апдейте
+    logging.getLogger("httpcore").setLevel(logging.INFO)
+    logging.getLogger("httpx").setLevel(logging.INFO)
+    logging.getLogger("aiogram.event").setLevel(logging.WARNING)  # Убираем спам о каждом апдейте
+
 
 setup_logging()
 logger = logging.getLogger(__name__)
 
 # Создаем директорию для логов
-Path('logs').mkdir(exist_ok=True)
+Path("logs").mkdir(exist_ok=True)
 
 # Получаем токен бота
-BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 if not BOT_TOKEN:
     logger.error("❌ TELEGRAM_BOT_TOKEN не найден в переменных окружения!")
     logger.error("Создайте файл .env и добавьте: TELEGRAM_BOT_TOKEN=ваш_токен")
     sys.exit(1)
 
 
-
 # Инициализируем бота и диспетчер
-bot = Bot(
-    token=BOT_TOKEN,
-    default=DefaultBotProperties(parse_mode=ParseMode.HTML)
-)
+bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
@@ -98,40 +93,44 @@ def register_handlers(dp: Dispatcher):
     handlers_count = 0
     registered_modules = []
     errors = []
-    
+
     # Register authorization middleware FIRST
     try:
         from middlewares.auth import AuthMiddleware
+
         dp.message.middleware(AuthMiddleware())
         logger.info("✅ Authorization middleware registered")
     except Exception as e:
         logger.error(f"❌ Failed to register auth middleware: {e}")
         errors.append(f"Auth middleware: {e}")
-    
+
     try:
         from handlers.commands import router as commands_router
+
         dp.include_router(commands_router)
-        count = len(commands_router.observers) if hasattr(commands_router, 'observers') else 0
+        count = len(commands_router.observers) if hasattr(commands_router, "observers") else 0
         handlers_count += count
         registered_modules.append("команд")
     except Exception as e:
         errors.append(f"Обработчик команд: {e}")
         logger.error(f"❌ Ошибка регистрации обработчика команд: {e}")
-    
+
     try:
         from handlers.photo import router as photo_router
+
         dp.include_router(photo_router)
-        count = len(photo_router.observers) if hasattr(photo_router, 'observers') else 0
+        count = len(photo_router.observers) if hasattr(photo_router, "observers") else 0
         handlers_count += count
         registered_modules.append("фото")
     except Exception as e:
         errors.append(f"Обработчик фото: {e}")
         logger.error(f"❌ Ошибка регистрации обработчика фото: {e}")
-    
+
     try:
         from handlers.voice import router as voice_router
+
         dp.include_router(voice_router)
-        count = len(voice_router.observers) if hasattr(voice_router, 'observers') else 0
+        count = len(voice_router.observers) if hasattr(voice_router, "observers") else 0
         handlers_count += count
         registered_modules.append("голоса")
     except Exception as e:
@@ -140,28 +139,30 @@ def register_handlers(dp: Dispatcher):
 
     try:
         from handlers.text import router as text_router
+
         dp.include_router(text_router)
-        count = len(text_router.observers) if hasattr(text_router, 'observers') else 0
+        count = len(text_router.observers) if hasattr(text_router, "observers") else 0
         handlers_count += count
         registered_modules.append("текста")
     except Exception as e:
         errors.append(f"Обработчик текста: {e}")
         logger.error(f"❌ Ошибка регистрации обработчика текста: {e}")
-    
+
     # Apple Health handlers removed
     pass
-        
+
     if registered_modules:
         modules_str = ", ".join(registered_modules)
         logger.info(f"✅ Обработчики {modules_str} зарегистрированы: {handlers_count} обработчиков")
-    
+
     # УБИРАЕМ универсальный обработчик текстовых сообщений - он мешает нормальной обработке
     # Вместо этого используем обработчик в handlers/text.py
     # Оставляем только обработчик для диагностики фото, которые не обработались
-    
+
     # Middleware для обеспечения идемпотентности (дедупликация)
     try:
         from middlewares.idempotency import IdempotencyMiddleware
+
         dp.update.outer_middleware(IdempotencyMiddleware())
         logger.info("✅ IdempotencyMiddleware подключен")
     except ImportError as e:
@@ -171,6 +172,7 @@ def register_handlers(dp: Dispatcher):
     # Middleware для сборки медиагрупп
     try:
         from middlewares.media_group import MediaGroupMiddleware
+
         dp.message.middleware(MediaGroupMiddleware())
         logger.info("✅ MediaGroupMiddleware подключен")
     except Exception as e:
@@ -193,17 +195,17 @@ def register_handlers(dp: Dispatcher):
                 log_msg += " (other type)"
             logger.info(log_msg)
         return await handler(event, data)
-    
+
     # Добавляем обработчик для всех обновлений (для диагностики необработанных)
     # catch_all_updates удален чтобы исключить побочные эффекты
-    
+
     # Проверяем наличие необходимых директорий
     try:
-        Path('data/media/nutrition').mkdir(parents=True, exist_ok=True)
-        Path('logs/nutrition').mkdir(parents=True, exist_ok=True)
+        Path("data/media/nutrition").mkdir(parents=True, exist_ok=True)
+        Path("logs/nutrition").mkdir(parents=True, exist_ok=True)
     except Exception as e:
         errors.append(f"Создание директорий: {e}")
-    
+
     # Если были ошибки - выводим тревожное сообщение
     if errors:
         error_msg = "❌ ⚠️ 🚨 HealthVault Tracker НЕ ЗАПУЩЕН!\n\n"
@@ -214,23 +216,25 @@ def register_handlers(dp: Dispatcher):
         logger.error(error_msg)
         print(error_msg)
         raise Exception("Ошибки при инициализации бота")
-    
+
     # Если всё хорошо - одна строка успеха
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("🚀  HealthVault Tracker v1.2")
     print("✅  Бот успешно запущен и готов к работе")
-    print(f"📝  Логи пишутся в файл: logs/bot.log")
-    print("="*50 + "\n")
-    
+    print("📝  Логи пишутся в файл: logs/bot.log")
+    print("=" * 50 + "\n")
+
     # Запускаем бота
+
+
 async def main():
     """Главная функция запуска бота"""
-    
+
     errors = []
-    
+
     # Register handlers and middleware
     register_handlers(dp)
-    
+
     # Set bot commands in menu
     commands = [
         BotCommand(command="start", description="Начать работу"),
@@ -240,7 +244,7 @@ async def main():
         BotCommand(command="my_products", description="Мои продукты"),
         BotCommand(command="help", description="Помощь"),
     ]
-    
+
     try:
         # Удаляем вебхук, если он был установлен (не сбрасываем апдейты, чтобы не терять сообщения)
         await bot.delete_webhook(drop_pending_updates=False)
@@ -248,10 +252,11 @@ async def main():
         logger.info("✅ Команды бота установлены")
     except Exception as e:
         logger.error(f"❌ Не удалось установить команды: {e}")
-    
+
     # Start polling + Apple Health webhook (параллельно)
     try:
         from webhook.apple_health import start_webhook_server
+
         webhook_enabled = True
     except ImportError:
         webhook_enabled = False
@@ -267,7 +272,7 @@ async def main():
         else:
             await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
     except Exception as e:
-        error_msg = f"❌ ⚠️ 🚨 HealthVault Tracker НЕ ЗАПУЩЕН!\n\n"
+        error_msg = "❌ ⚠️ 🚨 HealthVault Tracker НЕ ЗАПУЩЕН!\n\n"
         error_msg += f"Ошибка при запуске: {e}\n"
         error_msg += "\n⚠️ Перешли это сообщение разработчику для разбора логов!"
         logger.error(error_msg, exc_info=True)
@@ -277,7 +282,7 @@ async def main():
         await bot.session.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
@@ -285,4 +290,3 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"❌ Критическая ошибка: {e}", exc_info=True)
         sys.exit(1)
-

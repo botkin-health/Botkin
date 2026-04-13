@@ -3,10 +3,12 @@ from typing import Any, Awaitable, Callable, Dict, List
 from aiogram import BaseMiddleware
 from aiogram.types import Message, TelegramObject
 
+
 class MediaGroupMiddleware(BaseMiddleware):
     """
     Middleware для сбора медиагруппы (альбома) в один список.
     """
+
     ALBUM_DATA: Dict[str, List[Message]] = {}
     ALBUM_TIMEOUT = 1.0  # сек ожидания
 

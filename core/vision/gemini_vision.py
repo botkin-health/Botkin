@@ -7,7 +7,6 @@
 import base64
 import json
 import sys
-import time
 from pathlib import Path
 from typing import Dict, Optional, List
 
@@ -32,26 +31,26 @@ def get_gemini_api_key() -> Optional[str]:
 def parse_menu_with_gemini(photo_paths: List[Path] | Path, api_key: Optional[str] = None) -> Optional[Dict]:
     """
     Распознает меню или еду через Gemini 1.5 Flash API.
-    
+
     Args:
         photo_paths: Путь к фото или список путей
         api_key: Google API ключ
-        
+
     Returns:
         Словарь с данными или None
     """
     if isinstance(photo_paths, (str, Path)):
         photo_paths = [Path(photo_paths)]
-        
+
     # Фильтруем несуществующие файлы
     valid_paths = [p for p in photo_paths if p.exists()]
-    
+
     if not valid_paths:
         return None
-        
+
     if not api_key:
         api_key = get_gemini_api_key()
-        
+
     if not api_key:
         print("    ⚠️  Google Gemini API ключ не найден")
         return None
@@ -64,20 +63,20 @@ def parse_menu_with_gemini(photo_paths: List[Path] | Path, api_key: Optional[str
     image_parts = []
     for path in valid_paths:
         with open(path, "rb") as image_file:
-            base64_image = base64.b64encode(image_file.read()).decode('utf-8')
-            image_parts.append({
-                "inline_data": {
-                    "mime_type": "image/jpeg",  # Gemini понимает jpg/png, мы всегда сохраняем как jpg
-                    "data": base64_image
+            base64_image = base64.b64encode(image_file.read()).decode("utf-8")
+            image_parts.append(
+                {
+                    "inline_data": {
+                        "mime_type": "image/jpeg",  # Gemini понимает jpg/png, мы всегда сохраняем как jpg
+                        "data": base64_image,
+                    }
                 }
-            })
+            )
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
-    
-    headers = {
-        "Content-Type": "application/json"
-    }
-    
+
+    headers = {"Content-Type": "application/json"}
+
     prompt_text = """Analyze these food images and extract nutritional information.
 
 IMPORTANT - PRIORITIZE TEXT EXTRACTION:
@@ -85,7 +84,7 @@ IMPORTANT - PRIORITIZE TEXT EXTRACTION:
 2. Look for Russian nutrition formats:
    - "XXX ккал" or "XXX калорий" (calories)
    - "Б XX г" or "белки: XX г" (protein)
-   - "Ж XX г" or "жиры: XX г" (fats)  
+   - "Ж XX г" or "жиры: XX г" (fats)
    - "У XX г" or "углеводы: XX г" (carbs)
    - Format: "500 ккал | Б 33 г | Ж 13 г | У 61 г"
 3. Look for "на порцию" (per serving) or "на 100г" (per 100g)
@@ -115,69 +114,64 @@ Reply ONLY with JSON."""
     content_parts = [{"text": prompt_text}] + image_parts
 
     payload = {
-        "contents": [{
-            "parts": content_parts
-        }],
-        "generationConfig": {
-            "temperature": 0.1,
-            "response_mime_type": "application/json"
-        }
+        "contents": [{"parts": content_parts}],
+        "generationConfig": {"temperature": 0.1, "response_mime_type": "application/json"},
     }
-    
-    print(f"    ✨ Распознавание через Gemini 1.5 Flash...")
-    
+
+    print("    ✨ Распознавание через Gemini 1.5 Flash...")
+
     try:
         response = requests.post(url, headers=headers, json=payload, timeout=20)
-        
+
         if response.status_code != 200:
             print(f"    ❌ Ошибка Gemini API: {response.status_code} {response.text}")
             return None
-            
+
         result = response.json()
-        
+
         # Извлекаем текст
         try:
-            content = result['candidates'][0]['content']['parts'][0]['text']
+            content = result["candidates"][0]["content"]["parts"][0]["text"]
         except (KeyError, IndexError):
             print(f"    ❌ Неожиданный ответ от Gemini: {result}")
             return None
-            
+
         # Clean markdown
         content = content.strip()
-        if content.startswith('```'):
-            content = content.split('\n', 1)[1]
-            if content.endswith('```'):
+        if content.startswith("```"):
+            content = content.split("\n", 1)[1]
+            if content.endswith("```"):
                 content = content[:-3]
-        
+
         data = json.loads(content)
-        
+
         # Валидация и корректировка
-        calories = data.get('calories', 0)
-        
+        calories = data.get("calories", 0)
+
         # Если есть per_100g и вес, но нет итогов, считаем сами
-        nutr_100 = data.get('nutrition_per_100g', {})
-        weight = data.get('weight_grams', 0)
-        
+        nutr_100 = data.get("nutrition_per_100g", {})
+        weight = data.get("weight_grams", 0)
+
         if weight > 0 and (not calories or calories == 0):
             multiplier = weight / 100.0
-            data['calories'] = nutr_100.get('calories', 0) * multiplier
-            data['protein'] = nutr_100.get('protein', 0) * multiplier
-            data['fats'] = nutr_100.get('fats', 0) * multiplier
-            data['carbs'] = nutr_100.get('carbs', 0) * multiplier
-            
+            data["calories"] = nutr_100.get("calories", 0) * multiplier
+            data["protein"] = nutr_100.get("protein", 0) * multiplier
+            data["fats"] = nutr_100.get("fats", 0) * multiplier
+            data["carbs"] = nutr_100.get("carbs", 0) * multiplier
+
         print(f"    ✅ Gemini распознал: {data.get('dish_name')} ({data.get('calories')} ккал)")
-        
+
         return {
-            'dish_name': data.get('dish_name', 'Блюдо'),
-            'calories': float(data.get('calories', 0)),
-            'protein': float(data.get('protein', 0)),
-            'fats': float(data.get('fats', 0)),
-            'carbs': float(data.get('carbs', 0)),
-            'weight': float(weight) if weight else None,
-            'nutrition_per_100g': data.get('nutrition_per_100g'),
-            'source': 'gemini_vision'
+            "dish_name": data.get("dish_name", "Блюдо"),
+            "calories": float(data.get("calories", 0)),
+            "protein": float(data.get("protein", 0)),
+            "fats": float(data.get("fats", 0)),
+            "carbs": float(data.get("carbs", 0)),
+            "weight": float(weight) if weight else None,
+            "nutrition_per_100g": data.get("nutrition_per_100g"),
+            "source": "gemini_vision",
         }
-        
+
     except Exception as e:
         print(f"    ❌ Ошибка при запросе к Gemini: {e}")
         return None
