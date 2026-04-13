@@ -67,5 +67,14 @@ CREDENTIALS.md
 !KNOWLEDGE_BASE.md
 !HEALTH.md
 
+# Media (photos, voice messages)
+data/media/
+
+# Analysis charts (generated PNGs)
+data/analysis/
+
+# Superpowers (Claude Code skills cache)
+.superpowers/
+
 # macOS
 **/.DS_Store
