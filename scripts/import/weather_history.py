@@ -19,13 +19,13 @@ params = {
         "temperature_2m_min",
         "temperature_2m_mean",
         "precipitation_sum",
-        "sunshine_duration",      # секунды солнца за день
+        "sunshine_duration",  # секунды солнца за день
         "uv_index_max",
         "windspeed_10m_max",
         "weathercode",
     ],
     "hourly": [
-        "pressure_msl",           # атмосферное давление мПа
+        "pressure_msl",  # атмосферное давление мПа
         "relativehumidity_2m",
     ],
     "timezone": "Europe/Moscow",
@@ -51,15 +51,30 @@ for i, dt in enumerate(hourly["time"]):
 
 # WMO weather code → description
 WMO = {
-    0: "Ясно", 1: "Преим. ясно", 2: "Переменная облачность", 3: "Пасмурно",
-    45: "Туман", 48: "Изморозь",
-    51: "Лёгкая морось", 53: "Морось", 55: "Сильная морось",
-    61: "Лёгкий дождь", 63: "Дождь", 65: "Сильный дождь",
-    71: "Лёгкий снег", 73: "Снег", 75: "Сильный снег",
+    0: "Ясно",
+    1: "Преим. ясно",
+    2: "Переменная облачность",
+    3: "Пасмурно",
+    45: "Туман",
+    48: "Изморозь",
+    51: "Лёгкая морось",
+    53: "Морось",
+    55: "Сильная морось",
+    61: "Лёгкий дождь",
+    63: "Дождь",
+    65: "Сильный дождь",
+    71: "Лёгкий снег",
+    73: "Снег",
+    75: "Сильный снег",
     77: "Снежные зёрна",
-    80: "Ливень", 81: "Сильный ливень", 82: "Очень сильный ливень",
-    85: "Снегопад", 86: "Сильный снегопад",
-    95: "Гроза", 96: "Гроза с градом", 99: "Гроза с сильным градом",
+    80: "Ливень",
+    81: "Сильный ливень",
+    82: "Очень сильный ливень",
+    85: "Снегопад",
+    86: "Сильный снегопад",
+    95: "Гроза",
+    96: "Гроза с градом",
+    99: "Гроза с сильным градом",
 }
 
 entries = []
@@ -75,7 +90,9 @@ for i, day in enumerate(daily["time"]):
         "temp_min": daily["temperature_2m_min"][i],
         "temp_mean": daily["temperature_2m_mean"][i],
         "pressure_mmhg": avg_pressure,
-        "humidity_pct": round(sum(hourly["relativehumidity_2m"][i*24:(i+1)*24]) / 24) if i*24 < len(hourly["relativehumidity_2m"]) else None,
+        "humidity_pct": round(sum(hourly["relativehumidity_2m"][i * 24 : (i + 1) * 24]) / 24)
+        if i * 24 < len(hourly["relativehumidity_2m"])
+        else None,
         "sunshine_hours": sunshine_h,
         "uv_index_max": daily["uv_index_max"][i],
         "precipitation_mm": daily["precipitation_sum"][i],
@@ -91,6 +108,7 @@ output = {
 }
 
 import os
+
 os.makedirs("/Users/alexlyskovsky/HealthVault/data/weather", exist_ok=True)
 out_path = "/Users/alexlyskovsky/HealthVault/data/weather/weather_history.json"
 with open(out_path, "w") as f:
@@ -102,7 +120,9 @@ print(f"Saved {len(entries)} days to {out_path}")
 print(f"\n{'Дата':<12} {'t°min':>6} {'t°max':>6} {'Давл.':>7} {'Солнце':>8} {'УФ':>4} {'Погода'}")
 print("-" * 75)
 for e in entries:
-    sun = f"{e['sunshine_hours']}ч" if e['sunshine_hours'] is not None else "—"
-    pres = f"{e['pressure_mmhg']}" if e['pressure_mmhg'] else "—"
-    uv = f"{e['uv_index_max']}" if e['uv_index_max'] is not None else "—"
-    print(f"{e['date']:<12} {str(e['temp_min'])+'°':>6} {str(e['temp_max'])+'°':>6} {pres+' мм':>7} {sun:>8} {uv:>4}  {e['weather']}")
+    sun = f"{e['sunshine_hours']}ч" if e["sunshine_hours"] is not None else "—"
+    pres = f"{e['pressure_mmhg']}" if e["pressure_mmhg"] else "—"
+    uv = f"{e['uv_index_max']}" if e["uv_index_max"] is not None else "—"
+    print(
+        f"{e['date']:<12} {str(e['temp_min']) + '°':>6} {str(e['temp_max']) + '°':>6} {pres + ' мм':>7} {sun:>8} {uv:>4}  {e['weather']}"
+    )

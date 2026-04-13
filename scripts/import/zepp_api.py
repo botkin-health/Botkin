@@ -39,7 +39,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 _BASE = Path(__file__).resolve().parent.parent.parent  # HealthVault root
-load_dotenv(_BASE / '.env')
+load_dotenv(_BASE / ".env")
 
 BASE = Path(__file__).resolve().parent.parent.parent  # HealthVault root
 TOKEN_CACHE = BASE / "data/cache/tokens.json"
@@ -124,9 +124,9 @@ def exchange_code(code: str) -> tuple[str, str]:
 
 def do_reauth() -> tuple[str, str]:
     """Browser OAuth flow — открой URL, залогинься, вставь redirect."""
-    print(f"\n   Открой эту ссылку в браузере и залогинься:\n")
+    print("\n   Открой эту ссылку в браузере и залогинься:\n")
     print(f"   {XIAOMI_OAUTH_URL}\n")
-    print(f"   После логина скопируй URL из адресной строки (будет hm.xiaomi.com/watch.do?code=...)")
+    print("   После логина скопируй URL из адресной строки (будет hm.xiaomi.com/watch.do?code=...)")
 
     redirect_url = input("\n   Вставь URL сюда: ").strip()
 
@@ -176,12 +176,14 @@ def fetch_via_hetzner(user_id: str, app_token: str, start: str, end: str) -> lis
     url = f"{ZEPP_CN3_API}/users/{user_id}/members/-1/weightRecords?from_date={start}&to_date={end}"
 
     cmd = [
-        "/opt/homebrew/bin/sshpass", "-p", HETZNER_PASS,
-        "ssh", "-o", "StrictHostKeyChecking=no", HETZNER_HOST,
-        f"curl -sS --max-time 30 "
-        f"-H 'apptoken: {app_token}' "
-        f"-H 'userid: {user_id}' "
-        f"'{url}'"
+        "/opt/homebrew/bin/sshpass",
+        "-p",
+        HETZNER_PASS,
+        "ssh",
+        "-o",
+        "StrictHostKeyChecking=no",
+        HETZNER_HOST,
+        f"curl -sS --max-time 30 -H 'apptoken: {app_token}' -H 'userid: {user_id}' '{url}'",
     ]
 
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
@@ -191,9 +193,10 @@ def fetch_via_hetzner(user_id: str, app_token: str, start: str, end: str) -> lis
     data = json.loads(result.stdout)
     items = data.get("items", [])
 
-    # Check for auth error
-    if not items and data.get("code") == "0108":
-        raise PermissionError("Токен устарел. Запусти: python3 scripts/import_zepp_api.py --reauth")
+    # Check for auth error (0108 = expired, 0102 = invalid token)
+    inner_code = data.get("data", {}).get("code", "") if isinstance(data.get("data"), dict) else ""
+    if not items and (data.get("code") == "0108" or inner_code in ("0102", "0108")):
+        raise PermissionError("Токен устарел. Запусти: python3 scripts/import/zepp_api.py --reauth")
 
     return items
 
@@ -206,24 +209,26 @@ def items_to_csv_rows(items: list[dict]) -> list[dict]:
         ts = item.get("generatedTime", 0)
         dt = datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S") if ts else ""
 
-        rows.append({
-            "Date": dt,
-            "Weight": s.get("weight", ""),
-            "BMI": round(s.get("bmi", 0), 1) if s.get("bmi") else "",
-            "BodyFat": s.get("fatRate", ""),
-            "BodyWater": s.get("bodyWaterRate", ""),
-            "BoneMass": s.get("boneMass", ""),
-            "MetabolicAge": s.get("muscleAge", ""),
-            "MuscleMass": s.get("muscleRate", ""),
-            "PhysiqueRating": s.get("bodyScore", ""),
-            "ProteinMass": s.get("proteinRatio", ""),
-            "VisceralFat": s.get("visceralFat", ""),
-            "BasalMetabolism": s.get("metabolism", ""),
-            "HeartRate": s.get("heartRate", ""),
-            "SkeletalMuscleMass": "",
-            "User": "",
-            "Source": item.get("deviceId", ""),
-        })
+        rows.append(
+            {
+                "Date": dt,
+                "Weight": s.get("weight", ""),
+                "BMI": round(s.get("bmi", 0), 1) if s.get("bmi") else "",
+                "BodyFat": s.get("fatRate", ""),
+                "BodyWater": s.get("bodyWaterRate", ""),
+                "BoneMass": s.get("boneMass", ""),
+                "MetabolicAge": s.get("muscleAge", ""),
+                "MuscleMass": s.get("muscleRate", ""),
+                "PhysiqueRating": s.get("bodyScore", ""),
+                "ProteinMass": s.get("proteinRatio", ""),
+                "VisceralFat": s.get("visceralFat", ""),
+                "BasalMetabolism": s.get("metabolism", ""),
+                "HeartRate": s.get("heartRate", ""),
+                "SkeletalMuscleMass": "",
+                "User": "",
+                "Source": item.get("deviceId", ""),
+            }
+        )
     return rows
 
 
@@ -240,10 +245,22 @@ def merge_and_save(new_rows: list[dict]) -> list[dict]:
     all_rows = sorted(by_key.values(), key=lambda x: x["Date"])
 
     fieldnames = [
-        "Date", "Weight", "BMI", "BodyFat", "BodyWater", "BoneMass",
-        "MetabolicAge", "MuscleMass", "PhysiqueRating", "ProteinMass",
-        "VisceralFat", "BasalMetabolism", "HeartRate", "SkeletalMuscleMass",
-        "User", "Source",
+        "Date",
+        "Weight",
+        "BMI",
+        "BodyFat",
+        "BodyWater",
+        "BoneMass",
+        "MetabolicAge",
+        "MuscleMass",
+        "PhysiqueRating",
+        "ProteinMass",
+        "VisceralFat",
+        "BasalMetabolism",
+        "HeartRate",
+        "SkeletalMuscleMass",
+        "User",
+        "Source",
     ]
     with open(CSV_OUT, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
@@ -277,7 +294,7 @@ def main():
             except FileNotFoundError:
                 print("   ⚠️  Токен не найден")
                 print(f"   Нужна авторизация. Открой:\n   {XIAOMI_OAUTH_URL}")
-                print(f"   Затем запусти: python3 scripts/import/zepp_api.py --code 'REDIRECT_URL'")
+                print("   Затем запусти: python3 scripts/import/zepp_api.py --code 'REDIRECT_URL'")
                 return
 
         print(f"   Аккаунт: user_id={user_id}")
@@ -290,7 +307,7 @@ def main():
         except PermissionError:
             print("   ⚠️  Токен устарел!")
             print(f"   Нужна авторизация. Открой:\n   {XIAOMI_OAUTH_URL}")
-            print(f"   Затем запусти: python3 scripts/import/zepp_api.py --code 'REDIRECT_URL'")
+            print("   Затем запусти: python3 scripts/import/zepp_api.py --code 'REDIRECT_URL'")
             return
 
         print(f"   Получено {len(items)} записей от CN3 API")
@@ -306,7 +323,9 @@ def main():
         print(f"   ✅ CSV обновлён: {len(all_rows)} записей всего, {len(recent)} в марте")
         if recent:
             last = recent[-1]
-            print(f"   Последняя: {last['Date']} — {last['Weight']}кг, жир {last['BodyFat']}%, висцер {last['VisceralFat']}")
+            print(
+                f"   Последняя: {last['Date']} — {last['Weight']}кг, жир {last['BodyFat']}%, висцер {last['VisceralFat']}"
+            )
 
     except Exception as e:
         print(f"   ❌ Ошибка: {e}")

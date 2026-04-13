@@ -1,6 +1,6 @@
 # 📊 Протокол анализа данных HealthVault
 
-> **Создано**: 2026-01-24  
+> **Создано**: 2026-01-24
 > **Цель**: Предотвратить ошибки анализа и обеспечить полноту данных
 
 ---
@@ -10,7 +10,7 @@
 ### **1. Ошибка с тренировками кроссфит**
 **Что произошло:**
 - ❌ Анализировал поле `had_workout` в nutrition_log.json (всегда `false`)
-- ❌ Игнорировал данные Apple Health "Gym & Fitness Equipment" 
+- ❌ Игнорировал данные Apple Health "Gym & Fitness Equipment"
 - ❌ Не учитывал записи HIIT/CrossFit активности
 
 **Правильный подход:**
@@ -190,28 +190,28 @@ python3 scripts/comprehensive_analysis.py
 ```python
 def health_data_audit():
     """Полная проверка данных перед анализом"""
-    
+
     issues = []
-    
+
     # Проверка экспорта
     if export_date < (datetime.now() - timedelta(days=3)):
         issues.append("⚠️ Экспорт Apple Health старше 3 дней")
-    
+
     # Проверка тренировок
     gym_records = count_gym_activities(last_30_days)
     if gym_records < 8:  # Менее 2 раз в неделю
         issues.append("⚠️ Мало тренировок в данных")
-    
+
     # Проверка весов
     weight_records = count_weight_measurements(last_7_days)
     if weight_records == 0:
         issues.append("❌ Нет данных с умных весов за неделю")
-    
+
     # Проверка питания
     incomplete_days = find_incomplete_nutrition_days(last_14_days)
     if len(incomplete_days) > 2:
         issues.append(f"⚠️ {len(incomplete_days)} неполных дней питания")
-    
+
     return issues
 ```
 

@@ -23,6 +23,7 @@ BASE_DIR = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(BASE_DIR))
 
 from dotenv import load_dotenv
+
 load_dotenv(BASE_DIR / ".env")
 
 POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "HealthVault_Secure_2026_czTG")
@@ -40,9 +41,14 @@ def run_sql(query: str) -> list:
     # Убираем переносы строк — psql через -c не любит многострочный SQL
     query_oneline = " ".join(query.split())
     cmd = [
-        "/opt/homebrew/bin/sshpass", "-p", SERVER_PASS,
-        "ssh", "-o", "StrictHostKeyChecking=no", SERVER,
-        f"docker exec healthvault_postgres psql -U healthvault -d healthvault -t -A -F'|' -c \"{query_oneline}\""
+        "/opt/homebrew/bin/sshpass",
+        "-p",
+        SERVER_PASS,
+        "ssh",
+        "-o",
+        "StrictHostKeyChecking=no",
+        SERVER,
+        f"docker exec healthvault_postgres psql -U healthvault -d healthvault -t -A -F'|' -c \"{query_oneline}\"",
     ]
     result = subprocess.run(cmd, capture_output=True, text=True, shell=False)
     if result.returncode != 0:
@@ -58,9 +64,14 @@ def run_update(log_id: int, items_json: str, totals_json: str):
     totals_safe = totals_json.replace("'", "''")
     sql = f"UPDATE nutrition_log SET items='{items_safe}'::jsonb, totals='{totals_safe}'::jsonb WHERE id={log_id};"
     cmd = [
-        "/opt/homebrew/bin/sshpass", "-p", SERVER_PASS,
-        "ssh", "-o", "StrictHostKeyChecking=no", SERVER,
-        f"docker exec healthvault_postgres psql -U healthvault -d healthvault -c {json.dumps(sql)}"
+        "/opt/homebrew/bin/sshpass",
+        "-p",
+        SERVER_PASS,
+        "ssh",
+        "-o",
+        "StrictHostKeyChecking=no",
+        SERVER,
+        f"docker exec healthvault_postgres psql -U healthvault -d healthvault -c {json.dumps(sql)}",
     ]
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
@@ -92,7 +103,7 @@ def estimate_fiber_gpt(items: list) -> dict:
         "- Мясо, рыба, яйца, молочка: 0г\n"
         "- Масла, алкоголь: 0г\n\n"
         "ВАЖНО: клетчатка в порции << веса порции. Пример: огурец 150г → 1.5г клетчатки (НЕ 150г!).\n\n"
-        "Верни ТОЛЬКО JSON: {\"название продукта\": граммы_клетчатки}\n\n"
+        'Верни ТОЛЬКО JSON: {"название продукта": граммы_клетчатки}\n\n'
         f"{lines}"
     )
 
@@ -161,8 +172,7 @@ def run():
             new_totals = dict(totals)
             new_totals["fiber"] = round(total_fiber, 1)
 
-            run_update(row_id, json.dumps(new_items, ensure_ascii=False),
-                       json.dumps(new_totals, ensure_ascii=False))
+            run_update(row_id, json.dumps(new_items, ensure_ascii=False), json.dumps(new_totals, ensure_ascii=False))
             updated += 1
 
             if updated % 20 == 0:

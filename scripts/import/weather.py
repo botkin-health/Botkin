@@ -34,13 +34,30 @@ LOCATION_OVERRIDES = {
 }
 
 WMO = {
-    0: "Ясно", 1: "Преим. ясно", 2: "Переменная облачность", 3: "Пасмурно",
-    45: "Туман", 48: "Изморозь", 51: "Лёгкая морось", 53: "Морось", 55: "Сильная морось",
-    61: "Лёгкий дождь", 63: "Дождь", 65: "Сильный дождь",
-    71: "Лёгкий снег", 73: "Снег", 75: "Сильный снег", 77: "Снежные зёрна",
-    80: "Ливень", 81: "Сильный ливень", 82: "Очень сильный ливень",
-    85: "Снегопад", 86: "Сильный снегопад",
-    95: "Гроза", 96: "Гроза с градом", 99: "Гроза с сильным градом",
+    0: "Ясно",
+    1: "Преим. ясно",
+    2: "Переменная облачность",
+    3: "Пасмурно",
+    45: "Туман",
+    48: "Изморозь",
+    51: "Лёгкая морось",
+    53: "Морось",
+    55: "Сильная морось",
+    61: "Лёгкий дождь",
+    63: "Дождь",
+    65: "Сильный дождь",
+    71: "Лёгкий снег",
+    73: "Снег",
+    75: "Сильный снег",
+    77: "Снежные зёрна",
+    80: "Ливень",
+    81: "Сильный ливень",
+    82: "Очень сильный ливень",
+    85: "Снегопад",
+    86: "Сильный снегопад",
+    95: "Гроза",
+    96: "Гроза с градом",
+    99: "Гроза с сильным градом",
 }
 
 
@@ -74,8 +91,7 @@ def get_current_location():
     """Get current coordinates via CoreLocationCLI (WiFi-based, works with VPN)."""
     try:
         result = subprocess.run(
-            ["CoreLocationCLI", "-once", "-format", "%latitude %longitude"],
-            capture_output=True, text=True, timeout=10
+            ["CoreLocationCLI", "-once", "-format", "%latitude %longitude"], capture_output=True, text=True, timeout=10
         )
         if result.returncode == 0 and result.stdout.strip():
             parts = result.stdout.strip().split()
@@ -89,8 +105,15 @@ def fetch_weather_range(lat, lon, start_date, end_date):
     """Fetch daily weather from Open-Meteo.
     Uses archive API for past dates, forecast API for today/future.
     Merges results if range spans both."""
-    daily_params = ["temperature_2m_max", "temperature_2m_min", "temperature_2m_mean",
-                    "precipitation_sum", "sunshine_duration", "uv_index_max", "weathercode"]
+    daily_params = [
+        "temperature_2m_max",
+        "temperature_2m_min",
+        "temperature_2m_mean",
+        "precipitation_sum",
+        "sunshine_duration",
+        "uv_index_max",
+        "weathercode",
+    ]
     hourly_params = ["pressure_msl", "relativehumidity_2m"]
     today = date.today()
 
@@ -100,24 +123,36 @@ def fetch_weather_range(lat, lon, start_date, end_date):
     # If range starts in the past but includes today, fetch archive + forecast separately
     elif start_date < today:
         # Archive for past days
-        archive_r = requests.get("https://archive-api.open-meteo.com/v1/archive", params={
-            "latitude": lat, "longitude": lon,
-            "daily": daily_params, "hourly": hourly_params,
-            "timezone": "Europe/Moscow",
-            "start_date": start_date.isoformat(),
-            "end_date": (today - timedelta(days=1)).isoformat(),
-        }, timeout=15)
+        archive_r = requests.get(
+            "https://archive-api.open-meteo.com/v1/archive",
+            params={
+                "latitude": lat,
+                "longitude": lon,
+                "daily": daily_params,
+                "hourly": hourly_params,
+                "timezone": "Europe/Moscow",
+                "start_date": start_date.isoformat(),
+                "end_date": (today - timedelta(days=1)).isoformat(),
+            },
+            timeout=15,
+        )
         archive_r.raise_for_status()
         archive_data = archive_r.json()
 
         # Forecast for today
-        forecast_r = requests.get("https://api.open-meteo.com/v1/forecast", params={
-            "latitude": lat, "longitude": lon,
-            "daily": daily_params, "hourly": hourly_params,
-            "timezone": "Europe/Moscow",
-            "start_date": today.isoformat(),
-            "end_date": end_date.isoformat(),
-        }, timeout=15)
+        forecast_r = requests.get(
+            "https://api.open-meteo.com/v1/forecast",
+            params={
+                "latitude": lat,
+                "longitude": lon,
+                "daily": daily_params,
+                "hourly": hourly_params,
+                "timezone": "Europe/Moscow",
+                "start_date": today.isoformat(),
+                "end_date": end_date.isoformat(),
+            },
+            timeout=15,
+        )
         forecast_r.raise_for_status()
         forecast_data = forecast_r.json()
 
@@ -132,13 +167,19 @@ def fetch_weather_range(lat, lon, start_date, end_date):
     else:
         url = "https://api.open-meteo.com/v1/forecast"
 
-    r = requests.get(url, params={
-        "latitude": lat, "longitude": lon,
-        "daily": daily_params, "hourly": hourly_params,
-        "timezone": "Europe/Moscow",
-        "start_date": start_date.isoformat(),
-        "end_date": end_date.isoformat(),
-    }, timeout=15)
+    r = requests.get(
+        url,
+        params={
+            "latitude": lat,
+            "longitude": lon,
+            "daily": daily_params,
+            "hourly": hourly_params,
+            "timezone": "Europe/Moscow",
+            "start_date": start_date.isoformat(),
+            "end_date": end_date.isoformat(),
+        },
+        timeout=15,
+    )
     r.raise_for_status()
     return r.json()
 
@@ -181,8 +222,12 @@ def load_history():
     if os.path.exists(HISTORY_FILE):
         with open(HISTORY_FILE) as f:
             return json.load(f)
-    return {"source": "open-meteo", "default_location": {"lat": DEFAULT_LAT, "lon": DEFAULT_LON, "city": DEFAULT_CITY},
-            "location_overrides": {k: v[0] for k, v in LOCATION_OVERRIDES.items()}, "entries": []}
+    return {
+        "source": "open-meteo",
+        "default_location": {"lat": DEFAULT_LAT, "lon": DEFAULT_LON, "city": DEFAULT_CITY},
+        "location_overrides": {k: v[0] for k, v in LOCATION_OVERRIDES.items()},
+        "entries": [],
+    }
 
 
 def save_history(data):
@@ -213,7 +258,9 @@ def update_today():
     history["entries"] = [entries_by_date[d] for d in sorted(entries_by_date)]
     history["location_overrides"] = {k: v[0] for k, v in LOCATION_OVERRIDES.items()}
     save_history(history)
-    print(f"  ✓ {today_str}: {entry['temp_min']}°/{entry['temp_max']}° давл.{entry['pressure_mmhg']}мм {entry['sunshine_hours']}ч солнца {entry['weather']}")
+    print(
+        f"  ✓ {today_str}: {entry['temp_min']}°/{entry['temp_max']}° давл.{entry['pressure_mmhg']}мм {entry['sunshine_hours']}ч солнца {entry['weather']}"
+    )
     return entry
 
 
