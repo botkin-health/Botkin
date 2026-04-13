@@ -16,7 +16,7 @@ import os
 import subprocess
 from pathlib import Path
 
-BASE = Path(__file__).parent.parent
+BASE = Path(__file__).parent.parent.parent
 CSV_PATH = BASE / "data" / "zepp_export_latest.csv"
 USER_ID = 895655
 MIN_DATE = "2024-01-01"  # обрабатываем данные с 2024+
@@ -78,7 +78,11 @@ def main():
 
     result = subprocess.run(
         [
-            "/opt/homebrew/bin/sshpass", "-e", "ssh", "-o", "StrictHostKeyChecking=no",
+            "/opt/homebrew/bin/sshpass",
+            "-e",
+            "ssh",
+            "-o",
+            "StrictHostKeyChecking=no",
             "root@116.203.213.137",
             "docker exec -i healthvault_postgres psql -U healthvault -d healthvault",
         ],
@@ -92,13 +96,15 @@ def main():
         print(f"   ⚠️  Zepp: ошибка SQL: {result.stderr[:300]}")
         return
 
-    updated = sum(1 for line in result.stdout.splitlines() if line.strip().startswith("UPDATE") and line.strip() != "UPDATE 0")
+    updated = sum(
+        1 for line in result.stdout.splitlines() if line.strip().startswith("UPDATE") and line.strip() != "UPDATE 0"
+    )
     skipped = result.stdout.count("UPDATE 0")
 
     if updated > 0:
         print(f"   ✅ Zepp: обновлено {updated} дней с новыми данными состава тела")
     else:
-        print(f"   ✅ Zepp: все данные актуальны (нет новых zepp_life записей без body_fat)")
+        print("   ✅ Zepp: все данные актуальны (нет новых zepp_life записей без body_fat)")
 
 
 if __name__ == "__main__":

@@ -20,23 +20,13 @@ HEADERS = {"x-api-key": API_KEY}
 
 
 def get_historical():
-    resp = requests.get(
-        f"{BASE_URL}/getScreenTimeHistorical",
-        params={"handle": HANDLE},
-        headers=HEADERS,
-        timeout=15
-    )
+    resp = requests.get(f"{BASE_URL}/getScreenTimeHistorical", params={"handle": HANDLE}, headers=HEADERS, timeout=15)
     resp.raise_for_status()
     return resp.json()
 
 
 def get_today():
-    resp = requests.get(
-        f"{BASE_URL}/getScreenTimeToday",
-        params={"handle": HANDLE},
-        headers=HEADERS,
-        timeout=15
-    )
+    resp = requests.get(f"{BASE_URL}/getScreenTimeToday", params={"handle": HANDLE}, headers=HEADERS, timeout=15)
     resp.raise_for_status()
     return resp.json()
 
@@ -72,10 +62,7 @@ if __name__ == "__main__":
     today_resp = get_today()
     if today_resp.get("success"):
         td = today_resp["data"]
-        today_entry = {
-            "date": td["localDate"],
-            "screenTime": td["totalScreenTime"]
-        }
+        today_entry = {"date": td["localDate"], "screenTime": td["totalScreenTime"]}
         existing_dates = {d["date"] for d in days}
         if today_entry["date"] in existing_dates:
             days = [today_entry if d["date"] == today_entry["date"] else d for d in days]

@@ -194,7 +194,7 @@ def main():
 
     sorted_totals = sorted(app_totals.items(), key=lambda x: x[1]["seconds"], reverse=True)
     for app_id, info in sorted_totals[:10]:
-        print(f"   {fmt_time(info['seconds']/60):>8}  {info['name']}")
+        print(f"   {fmt_time(info['seconds'] / 60):>8}  {info['name']}")
 
 
 if __name__ == "__main__":

@@ -45,12 +45,14 @@ def load_csv(path: Path) -> list[dict]:
         reader = csv.DictReader(f)
         for row in reader:
             try:
-                rows.append({
-                    "measured_at": parse_date(row["Date"]),
-                    "systolic": int(row["Systolic"]),
-                    "diastolic": int(row["Diastolic"]),
-                    "source": row.get("Source", "apple_health").strip() or "apple_health",
-                })
+                rows.append(
+                    {
+                        "measured_at": parse_date(row["Date"]),
+                        "systolic": int(row["Systolic"]),
+                        "diastolic": int(row["Diastolic"]),
+                        "source": row.get("Source", "apple_health").strip() or "apple_health",
+                    }
+                )
             except Exception as e:
                 print(f"⚠️  Skipping row {row}: {e}")
     return rows
@@ -69,7 +71,8 @@ def import_to_db(rows: list[dict], db_url: str, dry_run: bool) -> tuple[int, int
     try:
         with conn.cursor() as cur:
             for r in rows:
-                cur.execute("""
+                cur.execute(
+                    """
                     INSERT INTO blood_pressure_logs
                         (user_id, measured_at, systolic, diastolic, heart_rate, source)
                     VALUES (%s, %s, %s, %s, NULL, %s)
@@ -78,7 +81,9 @@ def import_to_db(rows: list[dict], db_url: str, dry_run: bool) -> tuple[int, int
                         diastolic  = EXCLUDED.diastolic,
                         source     = EXCLUDED.source
                     RETURNING (xmax = 0) AS was_inserted
-                """, (USER_ID, r["measured_at"], r["systolic"], r["diastolic"], r["source"]))
+                """,
+                    (USER_ID, r["measured_at"], r["systolic"], r["diastolic"], r["source"]),
+                )
                 was_inserted = cur.fetchone()[0]
                 if was_inserted:
                     inserted += 1
@@ -95,11 +100,8 @@ def main():
     parser = argparse.ArgumentParser(description="Import blood pressure CSV → PostgreSQL")
     parser.add_argument(
         "--db-url",
-        default=os.getenv(
-            "DATABASE_URL",
-            "postgresql://healthvault:dev_password_123@116.203.213.137:5432/healthvault"
-        ),
-        help="PostgreSQL connection URL"
+        default=os.getenv("DATABASE_URL", "postgresql://healthvault:dev_password_123@116.203.213.137:5432/healthvault"),
+        help="PostgreSQL connection URL",
     )
     parser.add_argument("--dry-run", action="store_true", help="Parse only, don't write to DB")
     args = parser.parse_args()

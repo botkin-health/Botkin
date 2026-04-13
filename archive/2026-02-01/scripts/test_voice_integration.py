@@ -16,7 +16,7 @@ from core.nutrition import process_meal_description
 async def main():
     file_path = Path("/Users/alexlyskovsky/Downloads/2026-01-11 13.37.04.ogg")
     print(f"🎤 1. Читаю файл: {file_path}")
-    
+
     if not file_path.exists():
         print("❌ Файл не найден!")
         return
@@ -34,16 +34,16 @@ async def main():
     try:
         # process_meal_description is synchronous
         meal_items, meal_totals = process_meal_description(description=text)
-        
+
         print("\n📊 4. Результат анализа:")
         print("-" * 40)
         for item in meal_items:
             print(f"   • {item['product']} ({item['weight_g']}г): {item['calories']} ккал")
-        
+
         print("-" * 40)
         print(f"   Итого: {meal_totals['calories']} ккал | Б: {meal_totals['protein']} | Ж: {meal_totals['fats']} | У: {meal_totals['carbs']}")
         print("\n✅ УСПЕХ: Цепочка [Голос -> Текст -> КБЖУ] работает корректно.")
-        
+
     except Exception as e:
         print(f"❌ Ошибка анализа питания: {e}")
         import traceback

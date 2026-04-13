@@ -18,15 +18,72 @@
       "year": 2025,
       "laboratory": "cmd",
       "type": "blood_tests",
-      "status": "historical",
-      "note": "Исторический файл. Липидограмма присутствует: Total 4.97, LDL 3.29, HDL 1.56, TG 0.58. Основные решения принимать по свежим анализам.",
+      "status": "extracted",
+      "note": "CMD Менделеевская, комплексный чекап. Витамин D = 38.7 (оптимальный). ЛНП = 3.29 (чуть выше оптимума <2.85). Тестостерон 14.39 нмоль/л (норма). ПСА 2.466 (норма).",
       "values": {
-        "WBC": null,
-        "RBC": null,
-        "Hb": null,
-        "Ht": null,
-        "PLT": null,
-        "ESR": null
+        "WBC": 5.28,
+        "RBC": 5.86,
+        "Hb": 162,
+        "Ht": 47.6,
+        "PLT": 261,
+        "ESR": 3,
+        "MCV": 81.3,
+        "MCH": 27.6,
+        "MCHC": 340,
+        "RDW_CV": 13.8,
+        "neutrophils_seg": 59.0,
+        "lymphocytes": 32.0,
+        "monocytes": 6.0,
+        "eosinophils": 2.0,
+        "basophils": 0.0,
+        "cholesterol_total": 4.97,
+        "HDL": 1.56,
+        "LDL": 3.29,
+        "triglycerides": 0.58,
+        "atherogenic_index": 2.19,
+        "LH": 2.04,
+        "FSH": 4.14,
+        "prolactin": 117.0,
+        "testosterone": 14.39,
+        "free_testosterone": 19.4,
+        "FT4": 14.8,
+        "TSH": 0.93,
+        "total_protein": 74.54,
+        "urea": 5.8,
+        "uric_acid": 399.2,
+        "bilirubin_total": 11.9,
+        "bilirubin_direct": 4.6,
+        "ALT": 16.0,
+        "AST": 19.0,
+        "GGT": 26.0,
+        "ALP": 60.0,
+        "Fe": 17.3,
+        "Ca": 2.3,
+        "P": 1.09,
+        "Mg": 0.86,
+        "K": 4.4,
+        "Na": 142,
+        "Cl": 105,
+        "Zn": 14.68,
+        "creatinine": 79.9,
+        "glucose": 5.02,
+        "vitamin_d": 38.7,
+        "PSA_total": 2.466,
+        "total_cholesterol": 4.97,
+        "hdl": 1.56,
+        "ldl": 3.29,
+        "lh": 2.04,
+        "fsh": 4.14,
+        "tsh": 0.93,
+        "ft4": 14.8,
+        "alt": 16.0,
+        "ast": 19.0,
+        "ggt": 26.0,
+        "iron": 17.3,
+        "calcium": 2.3,
+        "magnesium": 0.86,
+        "zinc": 14.68,
+        "psa": 2.466
       }
     },
     {
@@ -39,8 +96,7 @@
       "analysis_type": "общий анализ крови",
       "values": {
         "Hb": 162.0,
-        "testosterone": 10.08,
-        "vitamin_d": 25.0
+        "testosterone": 10.08
       },
       "source": "CMD"
     },
@@ -51,10 +107,12 @@
       "year": 2025,
       "laboratory": "emias",
       "type": "blood",
-      "analysis_type": "глюкоза",
-      "status": "historical",
-      "note": "Исторический файл. Основные решения принимать по свежим анализам.",
-      "values": {},
+      "analysis_type": "Глюкоза",
+      "status": "extracted",
+      "note": "ЕМИАС диспансеризация. Дубликат general.",
+      "values": {
+        "glucose": 4.8
+      },
       "source": "ЕМИАС.ИНФО"
     },
     {
@@ -65,8 +123,12 @@
       "laboratory": "emias",
       "type": "blood",
       "analysis_type": "АСТ",
-      "values": {},
-      "source": "ЕМИАС.ИНФО"
+      "values": {
+        "ast": 15.3
+      },
+      "source": "ЕМИАС.ИНФО",
+      "status": "extracted",
+      "note": "ЕМИАС диспансеризация. Дубликат general_1."
     },
     {
       "file": "blood-tests/blood_emias_2025-01-23_general_11.pdf",
@@ -75,9 +137,13 @@
       "year": 2025,
       "laboratory": "emias",
       "type": "blood",
-      "analysis_type": "другое",
-      "values": {},
-      "source": "ЕМИАС.ИНФО"
+      "analysis_type": "ЛДГ",
+      "values": {
+        "ldh": 192
+      },
+      "source": "ЕМИАС.ИНФО",
+      "status": "extracted",
+      "note": "ЕМИАС диспансеризация. Дубликат general_2."
     },
     {
       "file": "blood-tests/blood_emias_2025-01-23_general_12.pdf",
@@ -87,8 +153,12 @@
       "laboratory": "emias",
       "type": "blood",
       "analysis_type": "АЛТ",
-      "values": {},
-      "source": "ЕМИАС.ИНФО"
+      "values": {
+        "alt": 22.2
+      },
+      "source": "ЕМИАС.ИНФО",
+      "status": "extracted",
+      "note": "ЕМИАС диспансеризация. Дубликат general_3."
     },
     {
       "file": "blood-tests/blood_emias_2025-01-23_general_13.pdf",
@@ -97,9 +167,13 @@
       "year": 2025,
       "laboratory": "emias",
       "type": "blood",
-      "analysis_type": "креатинин",
-      "values": {},
-      "source": "ЕМИАС.ИНФО"
+      "analysis_type": "Креатинин",
+      "values": {
+        "creatinine": 90.3
+      },
+      "source": "ЕМИАС.ИНФО",
+      "status": "extracted",
+      "note": "ЕМИАС диспансеризация. Дубликат general_4."
     },
     {
       "file": "blood-tests/blood_emias_2025-01-23_general_14.pdf",
@@ -108,9 +182,13 @@
       "year": 2025,
       "laboratory": "emias",
       "type": "blood",
-      "analysis_type": "ЛПНП",
-      "values": {},
-      "source": "ЕМИАС.ИНФО"
+      "analysis_type": "ЛПНП (LDL)",
+      "values": {
+        "ldl": 3.9
+      },
+      "source": "ЕМИАС.ИНФО",
+      "status": "extracted",
+      "note": "ЕМИАС диспансеризация. Дубликат general_5."
     },
     {
       "file": "blood-tests/blood_emias_2025-01-23_general_15.pdf",
@@ -119,9 +197,13 @@
       "year": 2025,
       "laboratory": "emias",
       "type": "blood",
-      "analysis_type": "холестерин",
-      "values": {},
-      "source": "ЕМИАС.ИНФО"
+      "analysis_type": "Холестерин общий",
+      "values": {
+        "cholesterol_total": 5.66
+      },
+      "source": "ЕМИАС.ИНФО",
+      "status": "extracted",
+      "note": "ЕМИАС диспансеризация. Дубликат general_6."
     },
     {
       "file": "blood-tests/blood_emias_2025-01-23_general_16.pdf",
@@ -131,8 +213,12 @@
       "laboratory": "emias",
       "type": "blood",
       "analysis_type": "С-реактивный белок",
-      "values": {},
-      "source": "ЕМИАС.ИНФО"
+      "values": {
+        "crp": 3
+      },
+      "source": "ЕМИАС.ИНФО",
+      "status": "extracted",
+      "note": "ЕМИАС диспансеризация. Дубликат general_7."
     },
     {
       "file": "blood-tests/blood_emias_2025-01-23_general_17.pdf",
@@ -141,9 +227,35 @@
       "year": 2025,
       "laboratory": "emias",
       "type": "blood",
-      "analysis_type": "общий анализ крови",
-      "values": {},
-      "source": "ЕМИАС.ИНФО"
+      "analysis_type": "ОАК + дифференциальный подсчёт + СОЭ",
+      "values": {
+        "Hb": 162,
+        "RBC": 5.57,
+        "Ht": 45.2,
+        "MCV": 81.2,
+        "MCH": 29.2,
+        "MCHC": 358,
+        "RDW_CV": 13.7,
+        "PLT": 241,
+        "MPV": 9.3,
+        "PDW": 15.7,
+        "PCT": 0.22,
+        "WBC": 5.46,
+        "neutrophils_abs": 3.22,
+        "neutrophils_rel": 59,
+        "eosinophils_abs": 0.1,
+        "eosinophils_rel": 1.8,
+        "basophils_abs": 0.02,
+        "basophils_rel": 0.4,
+        "lymphocytes_abs": 1.73,
+        "lymphocytes_rel": 31.6,
+        "monocytes_abs": 0.39,
+        "monocytes_rel": 7.2,
+        "ESR": 7
+      },
+      "source": "ЕМИАС.ИНФО",
+      "status": "extracted",
+      "note": "ЕМИАС диспансеризация. Полный ОАК + лейкоформула + СОЭ. Все в норме."
     },
     {
       "file": "blood-tests/blood_emias_2024-09-02_general_3.pdf",
@@ -153,8 +265,12 @@
       "laboratory": "emias",
       "type": "blood",
       "analysis_type": "СОЭ",
-      "values": {},
-      "source": "ЕМИАС.ИНФО"
+      "values": {
+        "ESR": 2.0
+      },
+      "source": "ЕМИАС.ИНФО",
+      "status": "extracted",
+      "note": "ЕМИАС, Дубликат general"
     },
     {
       "file": "blood-tests/blood_emias_2024-09-02_general_4.pdf",
@@ -163,9 +279,13 @@
       "year": 2024,
       "laboratory": "emias",
       "type": "blood",
-      "analysis_type": "АСТ",
-      "values": {},
-      "source": "ЕМИАС.ИНФО"
+      "analysis_type": "Коагулограмма — АЧТВ",
+      "values": {
+        "aptt": 32.7
+      },
+      "source": "ЕМИАС.ИНФО",
+      "status": "extracted",
+      "note": "ЕМИАС, Дубликат general_1"
     },
     {
       "file": "blood-tests/blood_emias_2024-09-02_general_5.pdf",
@@ -174,9 +294,14 @@
       "year": 2024,
       "laboratory": "emias",
       "type": "blood",
-      "analysis_type": "коагулограмма",
-      "values": {},
-      "source": "ЕМИАС.ИНФО"
+      "analysis_type": "Коагулограмма — протромбин/INR",
+      "values": {
+        "prothrombin_time": 10.8,
+        "inr": 1.0
+      },
+      "source": "ЕМИАС.ИНФО",
+      "status": "extracted",
+      "note": "ЕМИАС, Дубликат general_2"
     },
     {
       "file": "blood-tests/blood_emias_2024-08-26_general_1.pdf",
@@ -184,10 +309,14 @@
       "date": "2024-08-26",
       "year": 2024,
       "laboratory": "emias",
-      "type": "blood",
-      "analysis_type": "другое",
-      "values": {},
-      "source": "ЕМИАС.ИНФО"
+      "type": "covid_tests",
+      "analysis_type": "COVID-19 антиген",
+      "values": {
+        "sars_cov2_antigen": "detected"
+      },
+      "source": "ЕМИАС.ИНФО",
+      "status": "extracted",
+      "note": "COVID-19 экспресс-тест (антиген). Положительный."
     },
     {
       "file": "blood-tests/blood_emias_2024-07-12_general_3.pdf",
@@ -196,9 +325,34 @@
       "year": 2024,
       "laboratory": "emias",
       "type": "blood",
-      "analysis_type": "общий анализ крови",
-      "values": {},
-      "source": "ЕМИАС.ИНФО"
+      "analysis_type": "ОАК + дифференциальный подсчёт + СОЭ",
+      "values": {
+        "Hb": 150,
+        "RBC": 5.41,
+        "Ht": 44.4,
+        "MCH": 27.7,
+        "MCV": 82.0,
+        "MCHC": 338,
+        "RDW_CV": 13.7,
+        "PLT": 249,
+        "MPV": 9.6,
+        "PCT": 0.24,
+        "WBC": 6.3,
+        "neutrophils_abs": 3.3,
+        "neutrophils_rel": 52.5,
+        "lymphocytes_abs": 2.4,
+        "lymphocytes_rel": 37.2,
+        "monocytes_abs": 0.4,
+        "monocytes_rel": 6.3,
+        "eosinophils_abs": 0.22,
+        "eosinophils_rel": 3.5,
+        "basophils_abs": 0.03,
+        "basophils_rel": 0.5,
+        "ESR": 2.0
+      },
+      "source": "ЕМИАС.ИНФО",
+      "status": "extracted",
+      "note": "ЕМИАС, диспансеризация. ОАК + лейкоформула + СОЭ. Все в норме."
     },
     {
       "file": "blood-tests/blood_emias_2024-07-12_general_4.pdf",
@@ -207,9 +361,13 @@
       "year": 2024,
       "laboratory": "emias",
       "type": "blood",
-      "analysis_type": "холестерин",
-      "values": {},
-      "source": "ЕМИАС.ИНФО"
+      "analysis_type": "Холестерин общий",
+      "values": {
+        "cholesterol_total": 5.46
+      },
+      "source": "ЕМИАС.ИНФО",
+      "status": "extracted",
+      "note": "Дубликат general_1"
     },
     {
       "file": "blood-tests/blood_emias_2024-07-12_general_5.pdf",
@@ -218,9 +376,13 @@
       "year": 2024,
       "laboratory": "emias",
       "type": "blood",
-      "analysis_type": "глюкоза",
-      "values": {},
-      "source": "ЕМИАС.ИНФО"
+      "analysis_type": "Глюкоза",
+      "values": {
+        "glucose": 4.68
+      },
+      "source": "ЕМИАС.ИНФО",
+      "status": "extracted",
+      "note": "Дубликат general_2"
     },
     {
       "file": "blood-tests/blood_invitro_2016-05-23_general.pdf",
@@ -230,12 +392,22 @@
       "laboratory": "invitro",
       "type": "blood_tests",
       "values": {
-        "WBC": null,
-        "RBC": null,
-        "Hb": null,
-        "Ht": null,
-        "PLT": null,
-        "ESR": null
+        "WBC": 7.95,
+        "RBC": 5.26,
+        "Hb": 147,
+        "Ht": 40.0,
+        "PLT": 268,
+        "ESR": 2,
+        "MCV": 76.0,
+        "MCH": 27.9,
+        "MCHC": 368,
+        "RDW_CV": 13.7,
+        "neutrophils_seg": 59.0,
+        "lymphocytes": 26.0,
+        "monocytes": 10.0,
+        "eosinophils": 3.0,
+        "basophils": 0.0,
+        "neutrophils_band": 2.0
       }
     },
     {
@@ -246,12 +418,21 @@
       "laboratory": "invitro",
       "type": "blood_tests",
       "values": {
-        "WBC": null,
-        "RBC": null,
-        "Hb": null,
-        "Ht": null,
-        "PLT": null,
-        "ESR": null
+        "WBC": 6.25,
+        "RBC": 5.23,
+        "Hb": 143,
+        "Ht": 41.9,
+        "PLT": 231,
+        "ESR": 1,
+        "MCV": 80.1,
+        "MCH": 27.3,
+        "MCHC": 341,
+        "RDW_CV": 14.1,
+        "neutrophils_seg": 48.8,
+        "lymphocytes": 38.2,
+        "monocytes": 10.1,
+        "eosinophils": 2.4,
+        "basophils": 0.5
       }
     },
     {
@@ -261,7 +442,43 @@
       "year": 2015,
       "laboratory": "invitro",
       "type": "blood_tests",
-      "values": {}
+      "values": {
+        "alt": 28,
+        "ast": 14,
+        "albumin": 46.5,
+        "alpha_amylase": 65,
+        "bilirubin_total": 10.0,
+        "bilirubin_direct": 3.7,
+        "ggt": 34,
+        "glucose": 5.6,
+        "creatinine": 85,
+        "ldh": 156,
+        "urea": 4.5,
+        "total_protein": 71,
+        "alpha1_globulins": 2.7,
+        "alpha2_globulins": 6.2,
+        "beta_globulins": 6.8,
+        "gamma_globulins": 8.8,
+        "triglycerides": 0.71,
+        "cholesterol_total": 5.4,
+        "hdl": 1.72,
+        "ldl": 3.36,
+        "atherogenic_index": 2.1,
+        "alkaline_phosphatase": 57,
+        "calcium": 2.41,
+        "potassium": 4.4,
+        "sodium": 140,
+        "chloride": 105,
+        "iron": 19.0,
+        "albumin_pct": 65.5,
+        "alpha1_pct": 3.8,
+        "alpha2_pct": 8.7,
+        "beta_pct": 9.6,
+        "gamma_pct": 12.4,
+        "ag_ratio": 1.9
+      },
+      "status": "extracted",
+      "note": "ВНИМАНИЕ: дата в имени файла НЕВЕРНАЯ (2015-09-21). Реальная дата забора: 16.09.2016 (Инвитро-Сибирь, Новосибирск). Биохимия + электрофорез белков. HDL=1.72 (чуть выше нормы). Все остальное в норме."
     },
     {
       "file": "blood-tests/blood_invitro_2016-09-16_protein-electrophoresis.pdf",
@@ -272,7 +489,7 @@
       "type": "blood",
       "analysis_type": "электрофорез белковых фракций + биохимия",
       "values": {
-        "albumin_percent": 65.5,
+        "albumin_percent": 60.5,
         "albumin_g_l": 46.5,
         "alpha1_percent": 3.8,
         "alpha1_g_l": 2.7,
@@ -282,7 +499,7 @@
         "beta_g_l": 6.8,
         "gamma_percent": 12.4,
         "gamma_g_l": 8.8,
-        "total_protein": 71,
+        "total_protein": 74.0,
         "total_protein_unit": "g/L",
         "a_g_ratio": 1.9,
         "sodium": 140,
@@ -293,7 +510,26 @@
         "chloride_reference": "101-110",
         "iron": 19.0,
         "iron_unit": "мкмоль/л",
-        "iron_reference": "11.64-31.33"
+        "iron_reference": "11.64-31.33",
+        "alpha1_globulin_pct": 3.7,
+        "alpha2_globulin_pct": 10.0,
+        "beta_globulin_pct": 12.7,
+        "gamma_globulin_pct": 13.1,
+        "cholesterol_total": 5.0,
+        "HDL": 1.5,
+        "LDL": 3.1,
+        "triglycerides": 0.88,
+        "AST": 22.0,
+        "ALT": 20.0,
+        "GGT": 18.0,
+        "ALP": 65.0,
+        "bilirubin_total": 12.5,
+        "creatinine": 85.0,
+        "glucose": 5.0,
+        "urea": 5.2,
+        "Na": 140,
+        "Cl": 105,
+        "Fe": 19.0
       },
       "status": "historical",
       "source": "INVITRO-Сибирь"
@@ -305,7 +541,9 @@
       "year": 2014,
       "laboratory": "invitro",
       "type": "blood_tests",
-      "values": {}
+      "values": {
+        "tick_encephalitis_IgG": 194.9
+      }
     },
     {
       "file": "blood-tests/blood_invitro_2013-06-06_sti-pcr.pdf",
@@ -485,7 +723,8 @@
         "vitamin_d": 33.5,
         "vitamin_d_unit": "нг/мл",
         "vitamin_d_status": "адекватный",
-        "vitamin_d_note": "<10 - выраженный дефицит; <20 - дефицит; 20-30 - недостаточность; 30-100 - адекватный уровень (целевые значения 30-60); >150 - возможен токсический эффект"
+        "vitamin_d_note": "<10 - выраженный дефицит; <20 - дефицит; 20-30 - недостаточность; 30-100 - адекватный уровень (целевые значения 30-60); >150 - возможен токсический эффект",
+        "free_testosterone": 16.0
       },
       "source": "INVITRO",
       "equipment": "Abbott, Alinity i / Snibe, Maglumi 4000 Plus/X8"
@@ -574,6 +813,308 @@
         "HOMA_index": 1.7,
         "HOMA_ref": "<2.77"
       }
+    },
+    {
+      "file": "blood-tests/blood_invitro_2025-04-27_other.pdf",
+      "filename": "blood_invitro_2025-04-27_other.pdf",
+      "date": "2025-04-27",
+      "year": 2025,
+      "laboratory": "invitro",
+      "type": "blood",
+      "analysis_type": "Фолиевая кислота",
+      "values": {
+        "folate": 10.9
+      },
+      "source": "INVITRO"
+    },
+    {
+      "file": "blood-tests/blood_invitro_2025-06-26_other.pdf",
+      "filename": "blood_invitro_2025-06-26_other.pdf",
+      "date": "2025-06-26",
+      "year": 2025,
+      "laboratory": "invitro",
+      "type": "blood",
+      "analysis_type": "HbA1c (гликированный гемоглобин)",
+      "values": {
+        "HbA1c": 5.6
+      },
+      "source": "INVITRO"
+    },
+    {
+      "file": "blood-tests/blood_invitro_2026-01-07_other.pdf",
+      "filename": "blood_invitro_2026-01-07_other.pdf",
+      "date": "2026-01-07",
+      "year": 2026,
+      "laboratory": "invitro",
+      "type": "blood",
+      "analysis_type": "АТ к SARS-CoV-2 (COVID-19 IgG)",
+      "values": {
+        "SARS_CoV2_IgG": 459.6
+      },
+      "source": "INVITRO"
+    },
+    {
+      "file": "blood-tests/blood_invitro_2026-01-07_ferritin.pdf",
+      "filename": "blood_invitro_2026-01-07_ferritin.pdf",
+      "date": "2026-01-07",
+      "year": 2026,
+      "laboratory": "invitro",
+      "type": "blood_tests",
+      "status": "extracted",
+      "note": "Инвитро Москва. Биохимия+гормоны+ферритин. Ферритин=286 (HIGH, ref 22-275). Холестерин=5.86 (HIGH). LDL=3.79 (HIGH). Тестостерон=12.09 (пограничный). Витамин D=33.5 (оптим).",
+      "values": {
+        "insulin": 4.9,
+        "alt": 30,
+        "ast": 24,
+        "bilirubin_total": 17.8,
+        "bilirubin_direct": 5.5,
+        "bilirubin_indirect": 12.3,
+        "ggt": 36,
+        "glucose": 5.1,
+        "creatinine": 81,
+        "triglycerides": 0.94,
+        "cholesterol_total": 5.86,
+        "hdl": 1.64,
+        "ldl": 3.79,
+        "non_hdl": 4.22,
+        "alkaline_phosphatase": 54,
+        "ferritin": 286,
+        "homocysteine": 9.26,
+        "testosterone": 12.09,
+        "free_testosterone": 16.0,
+        "gfr": 98,
+        "vitamin_d": 33.5
+      }
+    },
+    {
+      "file": "blood-tests/blood_emias_2025-01-23_general.pdf",
+      "filename": "blood_emias_2025-01-23_general.pdf",
+      "date": "2025-01-23",
+      "year": 2025,
+      "laboratory": "emias",
+      "type": "blood_tests",
+      "status": "extracted",
+      "note": "ЕМИАС диспансеризация. Глюкоза.",
+      "values": {
+        "glucose": 4.8
+      }
+    },
+    {
+      "file": "blood-tests/blood_emias_2025-01-23_general_1.pdf",
+      "filename": "blood_emias_2025-01-23_general_1.pdf",
+      "date": "2025-01-23",
+      "year": 2025,
+      "laboratory": "emias",
+      "type": "blood_tests",
+      "status": "extracted",
+      "note": "ЕМИАС диспансеризация. АСТ.",
+      "values": {
+        "ast": 15.3
+      }
+    },
+    {
+      "file": "blood-tests/blood_emias_2025-01-23_general_2.pdf",
+      "filename": "blood_emias_2025-01-23_general_2.pdf",
+      "date": "2025-01-23",
+      "year": 2025,
+      "laboratory": "emias",
+      "type": "blood_tests",
+      "status": "extracted",
+      "note": "ЕМИАС диспансеризация. ЛДГ.",
+      "values": {
+        "ldh": 192
+      }
+    },
+    {
+      "file": "blood-tests/blood_emias_2025-01-23_general_3.pdf",
+      "filename": "blood_emias_2025-01-23_general_3.pdf",
+      "date": "2025-01-23",
+      "year": 2025,
+      "laboratory": "emias",
+      "type": "blood_tests",
+      "status": "extracted",
+      "note": "ЕМИАС диспансеризация. АЛТ.",
+      "values": {
+        "alt": 22.2
+      }
+    },
+    {
+      "file": "blood-tests/blood_emias_2025-01-23_general_4.pdf",
+      "filename": "blood_emias_2025-01-23_general_4.pdf",
+      "date": "2025-01-23",
+      "year": 2025,
+      "laboratory": "emias",
+      "type": "blood_tests",
+      "status": "extracted",
+      "note": "ЕМИАС диспансеризация. Креатинин.",
+      "values": {
+        "creatinine": 90.3
+      }
+    },
+    {
+      "file": "blood-tests/blood_emias_2025-01-23_general_5.pdf",
+      "filename": "blood_emias_2025-01-23_general_5.pdf",
+      "date": "2025-01-23",
+      "year": 2025,
+      "laboratory": "emias",
+      "type": "blood_tests",
+      "status": "extracted",
+      "note": "ЕМИАС диспансеризация. ЛПНП (HIGH).",
+      "values": {
+        "ldl": 3.9
+      }
+    },
+    {
+      "file": "blood-tests/blood_emias_2025-01-23_general_6.pdf",
+      "filename": "blood_emias_2025-01-23_general_6.pdf",
+      "date": "2025-01-23",
+      "year": 2025,
+      "laboratory": "emias",
+      "type": "blood_tests",
+      "status": "extracted",
+      "note": "ЕМИАС диспансеризация. Холестерин (HIGH).",
+      "values": {
+        "cholesterol_total": 5.66
+      }
+    },
+    {
+      "file": "blood-tests/blood_emias_2025-01-23_general_7.pdf",
+      "filename": "blood_emias_2025-01-23_general_7.pdf",
+      "date": "2025-01-23",
+      "year": 2025,
+      "laboratory": "emias",
+      "type": "blood_tests",
+      "status": "extracted",
+      "note": "ЕМИАС диспансеризация. С-реактивный белок.",
+      "values": {
+        "crp": 3
+      }
+    },
+    {
+      "file": "blood-tests/blood_emias_2025-01-23_general_8.pdf",
+      "filename": "blood_emias_2025-01-23_general_8.pdf",
+      "date": "2025-01-23",
+      "year": 2025,
+      "laboratory": "emias",
+      "type": "blood_tests",
+      "status": "extracted",
+      "note": "ЕМИАС диспансеризация. Гемоглобин (дубликат _17).",
+      "values": {
+        "Hb": 162
+      }
+    },
+    {
+      "file": "blood-tests/blood_emias_2024-07-12_general.pdf",
+      "filename": "blood_emias_2024-07-12_general.pdf",
+      "date": "2024-07-12",
+      "year": 2024,
+      "laboratory": "emias",
+      "type": "blood_tests",
+      "status": "extracted",
+      "note": "ЕМИАС диспансеризация. ОАК полный. Все в норме.",
+      "values": {
+        "Hb": 150,
+        "RBC": 5.41,
+        "Ht": 44.4,
+        "MCH": 27.7,
+        "MCV": 82.0,
+        "MCHC": 338,
+        "RDW_CV": 13.7,
+        "PLT": 249,
+        "MPV": 9.6,
+        "PCT": 0.24,
+        "WBC": 6.3,
+        "neutrophils_abs": 3.3,
+        "neutrophils_rel": 52.5,
+        "lymphocytes_abs": 2.4,
+        "lymphocytes_rel": 37.2,
+        "monocytes_abs": 0.4,
+        "monocytes_rel": 6.3,
+        "eosinophils_abs": 0.22,
+        "eosinophils_rel": 3.5,
+        "basophils_abs": 0.03,
+        "basophils_rel": 0.5,
+        "ESR": 2.0
+      }
+    },
+    {
+      "file": "blood-tests/blood_emias_2024-07-12_general_1.pdf",
+      "filename": "blood_emias_2024-07-12_general_1.pdf",
+      "date": "2024-07-12",
+      "year": 2024,
+      "laboratory": "emias",
+      "type": "blood_tests",
+      "status": "extracted",
+      "note": "Холестерин 5.46 (выше нормы 5.30)",
+      "values": {
+        "cholesterol_total": 5.46
+      }
+    },
+    {
+      "file": "blood-tests/blood_emias_2024-07-12_general_2.pdf",
+      "filename": "blood_emias_2024-07-12_general_2.pdf",
+      "date": "2024-07-12",
+      "year": 2024,
+      "laboratory": "emias",
+      "type": "blood_tests",
+      "status": "extracted",
+      "note": "Глюкоза 4.68 (норма)",
+      "values": {
+        "glucose": 4.68
+      }
+    },
+    {
+      "file": "blood-tests/blood_emias_2024-08-26_general.pdf",
+      "filename": "blood_emias_2024-08-26_general.pdf",
+      "date": "2024-08-26",
+      "year": 2024,
+      "laboratory": "emias",
+      "type": "blood_tests",
+      "status": "extracted",
+      "note": "COVID-19 экспресс-тест. Положительный.",
+      "values": {
+        "sars_cov2_antigen": "detected"
+      }
+    },
+    {
+      "file": "blood-tests/blood_emias_2024-09-02_general.pdf",
+      "filename": "blood_emias_2024-09-02_general.pdf",
+      "date": "2024-09-02",
+      "year": 2024,
+      "laboratory": "emias",
+      "type": "blood_tests",
+      "status": "extracted",
+      "note": "СОЭ 2.0 (норма)",
+      "values": {
+        "ESR": 2.0
+      }
+    },
+    {
+      "file": "blood-tests/blood_emias_2024-09-02_general_1.pdf",
+      "filename": "blood_emias_2024-09-02_general_1.pdf",
+      "date": "2024-09-02",
+      "year": 2024,
+      "laboratory": "emias",
+      "type": "blood_tests",
+      "status": "extracted",
+      "note": "АЧТВ 32.7 (норма)",
+      "values": {
+        "aptt": 32.7
+      }
+    },
+    {
+      "file": "blood-tests/blood_emias_2024-09-02_general_2.pdf",
+      "filename": "blood_emias_2024-09-02_general_2.pdf",
+      "date": "2024-09-02",
+      "year": 2024,
+      "laboratory": "emias",
+      "type": "blood_tests",
+      "status": "extracted",
+      "note": "ПВ+МНО (норма)",
+      "values": {
+        "prothrombin_time": 10.8,
+        "inr": 1.0
+      }
     }
   ],
   "urine_tests": [
@@ -597,7 +1138,9 @@
       "type": "hormones",
       "analysis_type": "глюкоза",
       "values": {},
-      "source": "ЕМИАС.ИНФО"
+      "source": "ЕМИАС.ИНФО",
+      "status": "no_lab_values",
+      "note": "Не лабораторный анализ. Иридодиагностика (ЭкоКлиника Доктора Ханбека). Содержит рекомендации по питанию и процедурам."
     },
     {
       "file": "hormones/hormones_invitro_2025-06-26_testosterone-tsh.pdf",
@@ -607,8 +1150,33 @@
       "laboratory": "invitro",
       "type": "hormones",
       "values": {
-        "testosterone": "10.72"
-      }
+        "hba1c": 5.6,
+        "prothrombin_time": 11.1,
+        "prothrombin_quick": 95.0,
+        "inr": 1.0,
+        "insulin": 8.0,
+        "alt": 28,
+        "ast": 20,
+        "bilirubin_total": 13.2,
+        "bilirubin_direct": 4.6,
+        "bilirubin_indirect": 8.6,
+        "ggt": 47,
+        "glucose": 5.1,
+        "urea": 5.0,
+        "total_protein": 70,
+        "triglycerides": 0.61,
+        "cholesterol_total": 5.57,
+        "hdl": 1.65,
+        "ldl": 3.64,
+        "non_hdl": 3.92,
+        "cholinesterase": 14798,
+        "alkaline_phosphatase": 58,
+        "testosterone": 10.72,
+        "shbg": 17.5,
+        "free_testosterone_index": 61.3
+      },
+      "status": "extracted",
+      "note": "Инвитро Москва. Биохимия + гормоны. Холестерин=5.57 (HIGH), LDL=3.64 (HIGH). Тестостерон=10.72 (ниже порога ISSAM 12). Холинэстераза=14798 (чуть выше нормы)."
     },
     {
       "file": "hormones/hormones_cmd_2025-06-25_testosterone-tsh.pdf",
@@ -617,7 +1185,20 @@
       "year": 2025,
       "laboratory": "cmd",
       "type": "hormones",
-      "values": {}
+      "values": {
+        "iron": 19.5,
+        "magnesium": 0.86,
+        "zinc": 12.98,
+        "tsh": 0.96,
+        "shbg": 16.3,
+        "testosterone": 15.12,
+        "free_androgen_index": 92.8,
+        "calcium_ionized": 1.24,
+        "vitamin_d": 32.1,
+        "vitamin_b12": 483.0
+      },
+      "status": "extracted",
+      "note": "CMD Менделеевская. Панель 'Здоровье кожи/волос/ногтей'. Витамин D=32.1 (оптим). Тестостерон=15.12 (норма). SHBG=16.3 (у нижней границы)."
     }
   ],
   "vitamins": [
@@ -630,11 +1211,20 @@
       "type": "vitamins",
       "analysis_type": "здоровье кожи, волос и ногтей (витамины, микроэлементы, гормоны)",
       "values": {
-        "testosterone": 0.4,
+        "iron": 19.5,
+        "magnesium": 0.86,
+        "zinc": 12.98,
+        "tsh": 0.96,
+        "shbg": 16.3,
+        "testosterone": 15.12,
+        "free_androgen_index": 92.8,
+        "calcium_ionized": 1.24,
         "vitamin_d": 25.0,
         "vitamin_b12": 483.0
       },
-      "source": "CMD"
+      "source": "CMD",
+      "status": "extracted",
+      "note": "CMD. Панель 'Здоровье кожи/волос/ногтей'. SHBG=16.3 (нижняя граница). Примечание: в записи hormones_cmd_2025-06-25 аналогичные данные, но vitamin_d=32.1. Оставляем 25.0 из оригинального извлечения (тот же заказ, но разные штрихкоды)."
     },
     {
       "file": "vitamins/vitamins_invitro_2025-04-27_vitamin-d-b12.pdf",
@@ -643,9 +1233,17 @@
       "year": 2025,
       "laboratory": "invitro",
       "type": "vitamins",
-      "status": "historical",
-      "note": "Исторический файл. Основные решения принимать по свежим анализам.",
-      "values": {}
+      "status": "extracted",
+      "note": "Витамин D 25.7 нг/мл (недостаточность, целевые 30-60). B12=394 (норма). Фолат=10.9 (норма). Инвитро СПб.",
+      "values": {
+        "vitamin_d": 25.7,
+        "vitamin_b12": 394.0,
+        "folate": 10.9,
+        "calcium": 2.41,
+        "magnesium": 0.99,
+        "phosphorus": 0.91,
+        "iron": 23.77
+      }
     }
   ],
   "genetics": [

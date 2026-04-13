@@ -46,7 +46,7 @@ def parse_invitro_date(text):
     match = re.search(r"Дата взятия.*?:?\s*(\d{2}\.\d{2}\.\d{4})", text)
     if match:
         return match.group(1)
-    
+
     # Fallback: look for any date pattern near "Дата"
     dates = re.findall(r"\d{2}\.\d{2}\.\d{4}", text)
     if dates:
@@ -77,24 +77,24 @@ def determine_type(text):
         return "hormones", "ttg"
     if "тестостерон" in text_lower:
         return "hormones", "testosterone"
-    
+
     # Default fallback
     return "blood", "other"
 
 def main():
     print("🚀 Starting analysis processing...")
-    
+
     # 1. Index existing files
     print("🔍 Indexing existing files in HealthVault...")
     existing_hashes = {}
     existing_files_count = 0
-    
+
     for path in DATA_DIR.rglob("*.pdf"):
         file_hash = get_file_hash(path)
         if file_hash:
             existing_hashes[file_hash] = path
             existing_files_count += 1
-            
+
     print(f"✅ Indexed {existing_files_count} existing files.")
 
     # 2. Scan Downloads
@@ -104,20 +104,20 @@ def main():
     for file in DOWNLOADS_DIR.glob("*.pdf"):
         if re.match(r"^\d+.*\.pdf", file.name) or "invitro" in file.name.lower() or "cmd" in file.name.lower():
             candidates.append(file)
-            
+
     print(f"Found {len(candidates)} potential medical files.")
-    
+
     processed_count = 0
     deleted_count = 0
     moved_count = 0
-    
+
     for file_path in candidates:
         print(f"Processing: {file_path.name}")
-        
+
         # Check specific exclude match (from user screenshot, some looked like unrelated docs but starting with digits)
-        # Assuming typical Invitro is purely digits + name. 
+        # Assuming typical Invitro is purely digits + name.
         # But let's process content to be sure.
-        
+
         # Hash check
         current_hash = get_file_hash(file_path)
         if current_hash in existing_hashes:
@@ -128,27 +128,27 @@ def main():
             except Exception as e:
                 print(f"  ❌ Failed to delete: {e}")
             continue
-            
+
         # Determine content
         text = extract_pdf_text(file_path)
         if not text or len(text) < 100:
             print("  ⚠️ Only image or empty PDF. Skipping for now (needs OCR).")
             continue
-            
+
         # Check if it's really medical (look for Lab keywords)
         is_medical = "invitro" in text.lower() or "инвитро" in text.lower() or "cmd" in text.lower() or "гемотест" in text.lower()
         if not is_medical:
             print("  ⚠️ Not recognized as a known lab report. Skipping.")
             continue
-            
+
         # Extract metadata
         date_str = parse_invitro_date(text)
         order_id = parse_invitro_id(text)
-        
+
         if not date_str:
             print("  ⚠️ Could not parse date. Skipping.")
             continue
-            
+
         # Format date YYYY-MM-DD
         try:
             dt = datetime.strptime(date_str, "%d.%m.%Y")
@@ -156,18 +156,18 @@ def main():
         except:
             print(f"  ⚠️ Invalid date format: {date_str}")
             continue
-            
+
         category, sub_type = determine_type(text)
         source = "invitro" if "инвитро" in text.lower() else "cmd" if "cmd" in text.lower() else "unknown"
-        
+
         # Construct new name
         new_name = f"{category}_{source}_{formatted_date}_{sub_type}.pdf"
         target_dir = DATA_DIR / f"{category}-tests"
         if not target_dir.exists():
             target_dir = DATA_DIR / "medical-records" # Fallback
-            
+
         target_path = target_dir / new_name
-        
+
         # Check for collision (same name but different hash - maybe duplicate text?)
         if target_path.exists():
             # If target exists but hash is different, append suffix
@@ -179,11 +179,11 @@ def main():
                  os.remove(file_path)
                  deleted_count += 1
                  continue
-            else: 
+            else:
                 # Different analysis same day? rename
                 new_name = f"{category}_{source}_{formatted_date}_{sub_type}_new.pdf"
                 target_path = target_dir / new_name
-        
+
         # Move
         print(f"  ✨ Moving to: {target_path}")
         try:
@@ -200,7 +200,7 @@ def main():
     print(f"  Deleted (Duplicates): {deleted_count}")
     print(f"  Moved (New): {moved_count}")
     print(f"  New content gathered for report: {len(NEW_ANALYSES_CONTENT)} files.")
-    
+
     # Save collected text for the Agent to read
     if NEW_ANALYSES_CONTENT:
         with open(HEALTH_VAULT_ROOT / "new_analysis_summary.txt", "w") as f:

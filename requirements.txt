@@ -23,7 +23,8 @@ pandas>=2.0.0
 # Development & Testing
 pytest>=7.0.0
 mypy>=1.0.0
-types-requests
+ruff>=0.15.0
+pre-commit>=4.0.0
 types-requests
 types-PyYAML>=6.0
 

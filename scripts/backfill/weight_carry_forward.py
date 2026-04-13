@@ -15,6 +15,7 @@ project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
 from dotenv import load_dotenv
+
 load_dotenv(project_root / ".env")
 
 from database import SessionLocal
@@ -31,24 +32,32 @@ def main():
     db = SessionLocal()
     try:
         # Даты, где уже есть хотя бы один вес (по дате в UTC)
-        r = db.execute(text("""
+        r = db.execute(
+            text("""
             SELECT DISTINCT (measured_at AT TIME ZONE 'UTC')::date
             FROM weights WHERE user_id = :uid
             AND (measured_at AT TIME ZONE 'UTC')::date >= :start
             AND (measured_at AT TIME ZONE 'UTC')::date <= :end
-        """), {"uid": USER_ID, "start": START, "end": END})
+        """),
+            {"uid": USER_ID, "start": START, "end": END},
+        )
         has_weight = set(row[0] for row in r.fetchall())
         days = (END - START).days + 1
-        missing_dates = [START + timedelta(days=i) for i in range(days) if (START + timedelta(days=i)) not in has_weight]
+        missing_dates = [
+            START + timedelta(days=i) for i in range(days) if (START + timedelta(days=i)) not in has_weight
+        ]
         if not missing_dates:
             print("Вес уже есть за все дни в диапазоне.")
             return
         # Все веса до END, упорядочены по убыванию даты
-        r = db.execute(text("""
+        r = db.execute(
+            text("""
             SELECT weight, (measured_at AT TIME ZONE 'UTC')::date as d
             FROM weights WHERE user_id = :uid AND (measured_at AT TIME ZONE 'UTC')::date <= :end
             ORDER BY measured_at DESC
-        """), {"uid": USER_ID, "end": END})
+        """),
+            {"uid": USER_ID, "end": END},
+        )
         rows = r.fetchall()
         if not rows:
             print("Нет ни одной записи веса в БД — нечего переносить.")
@@ -68,7 +77,9 @@ def main():
             measured_at = datetime(d.year, d.month, d.day, 12, 0, 0)
             try:
                 create_weight(
-                    db, USER_ID, measured_at,
+                    db,
+                    USER_ID,
+                    measured_at,
                     weight=float(last_weight),
                     source="carry_forward",
                 )

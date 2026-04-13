@@ -1,0 +1,44 @@
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+exclude = [
+    "archive/",
+    "venv/",
+    ".venv/",
+    "data/",
+    "migrations/",
+]
+
+[tool.ruff.lint]
+# E/W — pycodestyle, F — pyflakes
+# Исключаем E501 (длинные строки) — промпты LLM намеренно длинные
+# Исключаем E402 (импорт не в начале файла) — скрипты с sys.path.insert
+select = ["E", "W", "F"]
+ignore = [
+    "E501",   # line-too-long — LLM-промпты намеренно длинные
+    "E402",   # module-import-not-at-top — скрипты с sys.path
+    "E701",   # multiple-statements-on-one-line — стиль проекта
+    "E722",   # bare-except — есть в коде, исправить отдельно
+    "E741",   # ambiguous-variable-name — `l` как переменная
+    "E712",   # equality comparison to bool — стиль проекта
+    "F841",   # unused-variable — часто неиспользуемый `e` в except
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Скрипты могут иметь нестандартные импорты
+"scripts/**" = ["E402", "F401"]
+# supplement_service.log_intake — незавершённая интеграция, переменные закомментированы
+"telegram-bot/handlers/photo.py" = ["F821"]
+# lazy imports внутри функций — false positives F821
+"database/crud.py" = ["F821"]
+
+[tool.pytest.ini_options]
+# Исключаем integration-тесты из дефолтного запуска (требуют живой БД / API)
+addopts = "-m 'not integration'"
+markers = [
+    "integration: тесты требующие реальной БД на сервере или внешних API (pytest -m integration)",
+]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true

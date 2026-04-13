@@ -137,7 +137,7 @@ def create_photo_state(
     final_menu_data = menu_data
     if not final_menu_data and existing_state:
         final_menu_data = existing_state.data.get('menu_data')
-    
+
     return UserState(
         user_id=user_id,
         state='waiting_description',
@@ -213,14 +213,14 @@ def test_menu_data_preserved_on_state_update():
         state='waiting_description',
         data={'menu_data': {'calories': 500}}
     )
-    
+
     # Симулировать обновление состояния
     new_state = create_photo_state(
         user_id='test',
         photo_paths=[Path('/test.jpg')],
         existing_state=original_state
     )
-    
+
     # menu_data должен сохраниться
     assert new_state.data['menu_data'] is not None
     assert new_state.data['menu_data']['calories'] == 500

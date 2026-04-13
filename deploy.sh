@@ -82,10 +82,10 @@ else
     else
         echo "🔨 Step 2/4: Rebuilding Docker image..."
     fi
-    
+
     sshpass -p "$SERVER_PASSWORD" ssh ${SERVER_USER}@${SERVER_IP} \
         "cd ${SERVER_PATH} && (command -v docker-compose >/dev/null 2>&1 && docker-compose build $NO_CACHE bot || docker compose build $NO_CACHE bot)"
-    
+
     echo "✅ Docker image rebuilt successfully"
 fi
 echo ""
