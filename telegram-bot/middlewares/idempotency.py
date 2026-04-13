@@ -3,11 +3,13 @@ from aiogram.types import Update
 from collections import deque
 import logging
 
+
 class IdempotencyMiddleware(BaseMiddleware):
     """
     Middleware для фильтрации дублирующихся обновлений от Telegram.
     Хранит идентификаторы последних обработанных сообщений и отбрасывает повторы.
     """
+
     def __init__(self, capacity: int = 100):
         self.capacity = capacity
         # Храним ключи уникальности
@@ -20,7 +22,7 @@ class IdempotencyMiddleware(BaseMiddleware):
             return await handler(event, data)
 
         key = None
-        
+
         # Определяем ключ уникальности в зависимости от типа обновления
         try:
             if event.message:
@@ -44,7 +46,7 @@ class IdempotencyMiddleware(BaseMiddleware):
                 self.logger.warning(f"🔁 DETECTED DUPLICATE: Update {event.update_id} dropped (key={key})")
                 # Прерываем обработку (не вызываем handler)
                 return
-            
+
             # Сохраняем ключ
             self.processed_keys.append(key)
 

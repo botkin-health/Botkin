@@ -13,14 +13,25 @@ This module provides database operations for all tables:
 from datetime import datetime, date, time, timedelta
 from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, func, desc
+from sqlalchemy import desc
 import logging
 
-from database.models import User, NutritionLog, Weight, SupplementLog, ActivityLog, BloodTest, UserProduct, UserProductVariant, BodyMeasurement
+from database.models import (
+    User,
+    NutritionLog,
+    Weight,
+    SupplementLog,
+    ActivityLog,
+    BloodTest,
+    UserProduct,
+    UserProductVariant,
+    BodyMeasurement,
+)
 
 logger = logging.getLogger(__name__)
 
 # ==================== USER OPERATIONS ====================
+
 
 def get_user_by_telegram_id(db: Session, telegram_id: int) -> Optional[User]:
     """Get user by Telegram ID"""
@@ -33,20 +44,10 @@ def get_user_by_health_token(db: Session, health_token: str) -> Optional[User]:
 
 
 def create_user(
-    db: Session,
-    telegram_id: int,
-    first_name: Optional[str] = None,
-    username: Optional[str] = None,
-    role: str = 'user'
+    db: Session, telegram_id: int, first_name: Optional[str] = None, username: Optional[str] = None, role: str = "user"
 ) -> User:
     """Create a new user"""
-    user = User(
-        telegram_id=telegram_id,
-        first_name=first_name,
-        username=username,
-        role=role,
-        is_active=True
-    )
+    user = User(telegram_id=telegram_id, first_name=first_name, username=username, role=role, is_active=True)
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -66,7 +67,7 @@ def update_user_calorie_settings(
     telegram_id: int,
     bmr: Optional[float] = None,
     avg_active_calories: Optional[float] = None,
-    target_weight_kg: Optional[float] = None
+    target_weight_kg: Optional[float] = None,
 ) -> Optional[User]:
     """Update manual calorie settings (for users without Garmin)"""
     user = get_user_by_telegram_id(db, telegram_id)
@@ -86,17 +87,19 @@ def update_user_calorie_settings(
 def generate_health_token(db: Session, telegram_id: int) -> str:
     """Generate and save a unique Apple Health API token for user"""
     import secrets
+
     token = f"hvt_{telegram_id}_{secrets.token_hex(16)}"
-    
+
     user = get_user_by_telegram_id(db, telegram_id)
     if user:
         user.health_token = token
         db.commit()
-    
+
     return token
 
 
 # ==================== NUTRITION LOG OPERATIONS ====================
+
 
 def create_nutrition_log(
     db: Session,
@@ -106,7 +109,7 @@ def create_nutrition_log(
     meal_name: str,
     items: List[Dict],
     totals: Dict,
-    photo_paths: Optional[List[str]] = None
+    photo_paths: Optional[List[str]] = None,
 ) -> NutritionLog:
     """Create a new nutrition log entry"""
     log = NutritionLog(
@@ -116,7 +119,7 @@ def create_nutrition_log(
         meal_name=meal_name,
         items=items,
         totals=totals,
-        photo_paths=photo_paths or []
+        photo_paths=photo_paths or [],
     )
     db.add(log)
     db.commit()
@@ -126,70 +129,55 @@ def create_nutrition_log(
 
 def get_nutrition_logs_by_date(db: Session, user_id: int, date: date) -> List[NutritionLog]:
     """Get all nutrition logs for a specific date"""
-    return db.query(NutritionLog).filter(
-        NutritionLog.user_id == user_id,
-        NutritionLog.date == date
-    ).order_by(NutritionLog.meal_time).all()
+    return (
+        db.query(NutritionLog)
+        .filter(NutritionLog.user_id == user_id, NutritionLog.date == date)
+        .order_by(NutritionLog.meal_time)
+        .all()
+    )
 
 
-def get_nutrition_logs_by_period(
-    db: Session,
-    user_id: int,
-    start_date: date,
-    end_date: date
-) -> List[NutritionLog]:
+def get_nutrition_logs_by_period(db: Session, user_id: int, start_date: date, end_date: date) -> List[NutritionLog]:
     """Get nutrition logs for a date range"""
-    return db.query(NutritionLog).filter(
-        NutritionLog.user_id == user_id,
-        NutritionLog.date >= start_date,
-        NutritionLog.date <= end_date
-    ).order_by(NutritionLog.date, NutritionLog.meal_time).all()
+    return (
+        db.query(NutritionLog)
+        .filter(NutritionLog.user_id == user_id, NutritionLog.date >= start_date, NutritionLog.date <= end_date)
+        .order_by(NutritionLog.date, NutritionLog.meal_time)
+        .all()
+    )
 
 
-def get_activity_logs_by_period(
-    db: Session,
-    user_id: int,
-    start_date: date,
-    end_date: date
-) -> List[ActivityLog]:
+def get_activity_logs_by_period(db: Session, user_id: int, start_date: date, end_date: date) -> List[ActivityLog]:
     """Get activity logs (Garmin data) for a date range"""
-    return db.query(ActivityLog).filter(
-        ActivityLog.user_id == user_id,
-        ActivityLog.date >= start_date,
-        ActivityLog.date <= end_date
-    ).order_by(ActivityLog.date).all()
+    return (
+        db.query(ActivityLog)
+        .filter(ActivityLog.user_id == user_id, ActivityLog.date >= start_date, ActivityLog.date <= end_date)
+        .order_by(ActivityLog.date)
+        .all()
+    )
 
 
 def get_nutrition_totals_by_date(db: Session, user_id: int, date: date) -> Dict:
     """Calculate total nutrition for a specific date"""
     logs = get_nutrition_logs_by_date(db, user_id, date)
-    
-    total = {
-        'calories': 0,
-        'protein': 0,
-        'fats': 0,
-        'carbs': 0,
-        'fiber': 0
-    }
-    
+
+    total = {"calories": 0, "protein": 0, "fats": 0, "carbs": 0, "fiber": 0}
+
     for log in logs:
         totals = log.totals or {}
-        total['calories'] += totals.get('calories', 0)
-        total['protein'] += totals.get('protein', 0)
-        total['fats'] += totals.get('fats', 0)
-        total['carbs'] += totals.get('carbs', 0)
-        total['fiber'] += totals.get('fiber', 0)
-    
+        total["calories"] += totals.get("calories", 0)
+        total["protein"] += totals.get("protein", 0)
+        total["fats"] += totals.get("fats", 0)
+        total["carbs"] += totals.get("carbs", 0)
+        total["fiber"] += totals.get("fiber", 0)
+
     return total
 
 
 def delete_nutrition_log(db: Session, log_id: int, user_id: int) -> bool:
     """Delete a nutrition log entry"""
-    log = db.query(NutritionLog).filter(
-        NutritionLog.id == log_id,
-        NutritionLog.user_id == user_id
-    ).first()
-    
+    log = db.query(NutritionLog).filter(NutritionLog.id == log_id, NutritionLog.user_id == user_id).first()
+
     if log:
         db.delete(log)
         db.commit()
@@ -198,6 +186,7 @@ def delete_nutrition_log(db: Session, log_id: int, user_id: int) -> bool:
 
 
 # ==================== WEIGHT OPERATIONS ====================
+
 
 def create_weight(
     db: Session,
@@ -210,7 +199,7 @@ def create_weight(
     bmi: Optional[float] = None,
     visceral_fat: Optional[int] = None,
     bone_mass: Optional[float] = None,
-    source: str = 'manual'
+    source: str = "manual",
 ) -> Weight:
     """Create a new weight entry"""
     weight_entry = Weight(
@@ -223,7 +212,7 @@ def create_weight(
         bmi=bmi,
         visceral_fat=visceral_fat,
         bone_mass=bone_mass,
-        source=source
+        source=source,
     )
     db.add(weight_entry)
     db.commit()
@@ -233,65 +222,49 @@ def create_weight(
 
 def get_latest_weight(db: Session, user_id: int) -> Optional[Weight]:
     """Get the most recent weight measurement"""
-    return db.query(Weight).filter(
-        Weight.user_id == user_id
-    ).order_by(desc(Weight.measured_at)).first()
+    return db.query(Weight).filter(Weight.user_id == user_id).order_by(desc(Weight.measured_at)).first()
 
 
-def get_weights_by_period(
-    db: Session,
-    user_id: int,
-    start_date: datetime,
-    end_date: datetime
-) -> List[Weight]:
+def get_weights_by_period(db: Session, user_id: int, start_date: datetime, end_date: datetime) -> List[Weight]:
     """Get weight measurements for a date range"""
-    return db.query(Weight).filter(
-        Weight.user_id == user_id,
-        Weight.measured_at >= start_date,
-        Weight.measured_at <= end_date
-    ).order_by(Weight.measured_at).all()
+    return (
+        db.query(Weight)
+        .filter(Weight.user_id == user_id, Weight.measured_at >= start_date, Weight.measured_at <= end_date)
+        .order_by(Weight.measured_at)
+        .all()
+    )
 
 
 def get_weight_stats(db: Session, user_id: int, days: int = 30) -> Dict:
     """Get weight statistics for the last N days"""
     end_date = datetime.now()
     start_date = end_date - timedelta(days=days)
-    
+
     weights = get_weights_by_period(db, user_id, start_date, end_date)
-    
+
     if not weights:
         return {}
-    
+
     weight_values = [w.weight for w in weights]
-    
+
     return {
-        'current': weights[-1].weight,
-        'min': min(weight_values),
-        'max': max(weight_values),
-        'avg': sum(weight_values) / len(weight_values),
-        'change': weights[-1].weight - weights[0].weight,
-        'count': len(weights)
+        "current": weights[-1].weight,
+        "min": min(weight_values),
+        "max": max(weight_values),
+        "avg": sum(weight_values) / len(weight_values),
+        "change": weights[-1].weight - weights[0].weight,
+        "count": len(weights),
     }
 
 
 # ==================== SUPPLEMENT LOG OPERATIONS ====================
 
+
 def create_supplement_log(
-    db: Session,
-    user_id: int,
-    date: date,
-    time: Optional[time],
-    supplement_name: str,
-    dosage: Optional[str] = None
+    db: Session, user_id: int, date: date, time: Optional[time], supplement_name: str, dosage: Optional[str] = None
 ) -> SupplementLog:
     """Create a new supplement log entry"""
-    log = SupplementLog(
-        user_id=user_id,
-        date=date,
-        time=time,
-        supplement_name=supplement_name,
-        dosage=dosage
-    )
+    log = SupplementLog(user_id=user_id, date=date, time=time, supplement_name=supplement_name, dosage=dosage)
     db.add(log)
     db.commit()
     db.refresh(log)
@@ -300,35 +273,33 @@ def create_supplement_log(
 
 def get_supplements_by_date(db: Session, user_id: int, date: date) -> List[SupplementLog]:
     """Get all supplements taken on a specific date"""
-    return db.query(SupplementLog).filter(
-        SupplementLog.user_id == user_id,
-        SupplementLog.date == date
-    ).order_by(SupplementLog.time).all()
+    return (
+        db.query(SupplementLog)
+        .filter(SupplementLog.user_id == user_id, SupplementLog.date == date)
+        .order_by(SupplementLog.time)
+        .all()
+    )
 
 
 # User operations
 def ensure_user_exists(
-    db: Session,
-    telegram_id: int,
-    username: str = None,
-    first_name: str = None,
-    last_name: str = None
+    db: Session, telegram_id: int, username: str = None, first_name: str = None, last_name: str = None
 ) -> User:
     """
     Ensure user exists in database. Create if doesn't exist.
-    
+
     Args:
         db: Database session
         telegram_id: Telegram user ID
         username: Telegram username
         first_name: User's first name
         last_name: User's last name
-        
+
     Returns:
         User object (existing or newly created)
     """
     user = db.query(User).filter(User.telegram_id == telegram_id).first()
-    
+
     if not user:
         user = User(
             telegram_id=telegram_id,
@@ -336,7 +307,7 @@ def ensure_user_exists(
             first_name=first_name,
             last_name=last_name,
             is_active=True,
-            role='user'
+            role="user",
         )
         db.add(user)
         db.commit()
@@ -345,31 +316,25 @@ def ensure_user_exists(
     else:
         # Update last active time
         from datetime import datetime
+
         user.last_active = datetime.now()
         db.commit()
-    
+
     return user
 
 
-
-
-
-
-def get_supplements_by_period(
-    db: Session,
-    user_id: int,
-    start_date: date,
-    end_date: date
-) -> List[SupplementLog]:
+def get_supplements_by_period(db: Session, user_id: int, start_date: date, end_date: date) -> List[SupplementLog]:
     """Get supplements for a date range"""
-    return db.query(SupplementLog).filter(
-        SupplementLog.user_id == user_id,
-        SupplementLog.date >= start_date,
-        SupplementLog.date <= end_date
-    ).order_by(SupplementLog.date, SupplementLog.time).all()
+    return (
+        db.query(SupplementLog)
+        .filter(SupplementLog.user_id == user_id, SupplementLog.date >= start_date, SupplementLog.date <= end_date)
+        .order_by(SupplementLog.date, SupplementLog.time)
+        .all()
+    )
 
 
 # ==================== ACTIVITY LOG OPERATIONS ====================
+
 
 def create_or_update_activity(
     db: Session,
@@ -384,16 +349,13 @@ def create_or_update_activity(
     heart_rate_avg: Optional[int] = None,
     hrv: Optional[int] = None,
     stress_level: Optional[int] = None,
-    source: str = 'apple_health',
-    raw_data: Optional[Dict] = None
+    source: str = "apple_health",
+    raw_data: Optional[Dict] = None,
 ) -> ActivityLog:
     """Create or update activity log for a specific date"""
     # Check if entry exists
-    existing = db.query(ActivityLog).filter(
-        ActivityLog.user_id == user_id,
-        ActivityLog.date == date
-    ).first()
-    
+    existing = db.query(ActivityLog).filter(ActivityLog.user_id == user_id, ActivityLog.date == date).first()
+
     if existing:
         # Update existing entry
         if steps is not None:
@@ -416,7 +378,7 @@ def create_or_update_activity(
             existing.stress_level = stress_level
         if raw_data is not None:
             existing.raw_data = raw_data
-        
+
         existing.synced_at = datetime.now()
         db.commit()
         db.refresh(existing)
@@ -436,7 +398,7 @@ def create_or_update_activity(
             hrv=hrv,
             stress_level=stress_level,
             source=source,
-            raw_data=raw_data
+            raw_data=raw_data,
         )
         db.add(activity)
         db.commit()
@@ -446,28 +408,22 @@ def create_or_update_activity(
 
 def get_activity_by_date(db: Session, user_id: int, date: date) -> Optional[ActivityLog]:
     """Get activity log for a specific date"""
-    return db.query(ActivityLog).filter(
-        ActivityLog.user_id == user_id,
-        ActivityLog.date == date
-    ).first()
+    return db.query(ActivityLog).filter(ActivityLog.user_id == user_id, ActivityLog.date == date).first()
 
 
-def get_activities_by_period(
-    db: Session,
-    user_id: int,
-    start_date: date,
-    end_date: date
-) -> List[ActivityLog]:
+def get_activities_by_period(db: Session, user_id: int, start_date: date, end_date: date) -> List[ActivityLog]:
     """Get activity logs for a date range"""
-    return db.query(ActivityLog).filter(
-        ActivityLog.user_id == user_id,
-        ActivityLog.date >= start_date,
-        ActivityLog.date <= end_date
-    ).order_by(ActivityLog.date).all()
+    return (
+        db.query(ActivityLog)
+        .filter(ActivityLog.user_id == user_id, ActivityLog.date >= start_date, ActivityLog.date <= end_date)
+        .order_by(ActivityLog.date)
+        .all()
+    )
 
 
 def get_average_activity_stats(db: Session, user_id: int, days: int = 14) -> Dict:
     import logging
+
     _log = logging.getLogger(__name__)
     """Get average activity stats for the last N days.
 
@@ -486,13 +442,13 @@ def get_average_activity_stats(db: Session, user_id: int, days: int = 14) -> Dic
     # Only include days with plausible total calories (full Garmin sync).
     # Partial syncs (watch charging, early sync) produce total < 1500 — skip them.
     MIN_TOTAL_CALORIES = 1500
-    valid_activities = [a for a in activities
-                        if a.total_calories and a.total_calories >= MIN_TOTAL_CALORIES]
+    valid_activities = [a for a in activities if a.total_calories and a.total_calories >= MIN_TOTAL_CALORIES]
 
     skipped = len(activities) - len(valid_activities)
     if skipped:
-        skipped_dates = [str(a.date) for a in activities
-                         if not a.total_calories or a.total_calories < MIN_TOTAL_CALORIES]
+        skipped_dates = [
+            str(a.date) for a in activities if not a.total_calories or a.total_calories < MIN_TOTAL_CALORIES
+        ]
         _log.info(f"[avg_activity] filtered out {skipped} incomplete days: {skipped_dates}")
 
     if not valid_activities:
@@ -500,17 +456,18 @@ def get_average_activity_stats(db: Session, user_id: int, days: int = 14) -> Dic
         return {}
 
     result = {
-        'active_calories': sum(a.active_calories or 0 for a in valid_activities) / len(valid_activities),
-        'total_calories': sum(a.total_calories for a in valid_activities) / len(valid_activities),
-        'bmr_calories': sum(a.bmr_calories or 0 for a in valid_activities) / len(valid_activities),
-        'steps': sum(a.steps or 0 for a in valid_activities) / len(valid_activities),
-        'count': len(valid_activities)
+        "active_calories": sum(a.active_calories or 0 for a in valid_activities) / len(valid_activities),
+        "total_calories": sum(a.total_calories for a in valid_activities) / len(valid_activities),
+        "bmr_calories": sum(a.bmr_calories or 0 for a in valid_activities) / len(valid_activities),
+        "steps": sum(a.steps or 0 for a in valid_activities) / len(valid_activities),
+        "count": len(valid_activities),
     }
     _log.info(f"[avg_activity] user_id={user_id} count={result['count']} total_cal={result['total_calories']:.0f}")
     return result
 
 
 # ==================== BLOOD TEST OPERATIONS ====================
+
 
 def create_blood_test(
     db: Session,
@@ -519,16 +476,11 @@ def create_blood_test(
     test_type: Optional[str],
     values: Dict,
     file_path: Optional[str] = None,
-    status: str = 'current'
+    status: str = "current",
 ) -> BloodTest:
     """Create a new blood test entry"""
     test = BloodTest(
-        user_id=user_id,
-        test_date=test_date,
-        test_type=test_type,
-        values=values,
-        file_path=file_path,
-        status=status
+        user_id=user_id, test_date=test_date, test_type=test_type, values=values, file_path=file_path, status=status
     )
     db.add(test)
     db.commit()
@@ -538,42 +490,37 @@ def create_blood_test(
 
 def get_latest_blood_test(db: Session, user_id: int) -> Optional[BloodTest]:
     """Get the most recent blood test"""
-    return db.query(BloodTest).filter(
-        BloodTest.user_id == user_id,
-        BloodTest.status == 'current'
-    ).order_by(desc(BloodTest.test_date)).first()
+    return (
+        db.query(BloodTest)
+        .filter(BloodTest.user_id == user_id, BloodTest.status == "current")
+        .order_by(desc(BloodTest.test_date))
+        .first()
+    )
 
 
-def get_blood_tests_by_period(
-    db: Session,
-    user_id: int,
-    start_date: date,
-    end_date: date
-) -> List[BloodTest]:
+def get_blood_tests_by_period(db: Session, user_id: int, start_date: date, end_date: date) -> List[BloodTest]:
     """Get blood tests for a date range"""
-    return db.query(BloodTest).filter(
-        BloodTest.user_id == user_id,
-        BloodTest.test_date >= start_date,
-        BloodTest.test_date <= end_date
-    ).order_by(BloodTest.test_date).all()
+    return (
+        db.query(BloodTest)
+        .filter(BloodTest.user_id == user_id, BloodTest.test_date >= start_date, BloodTest.test_date <= end_date)
+        .order_by(BloodTest.test_date)
+        .all()
+    )
 
 
 def get_all_blood_tests(db: Session, user_id: int) -> List[BloodTest]:
     """Get all blood tests for a user"""
-    return db.query(BloodTest).filter(
-        BloodTest.user_id == user_id
-    ).order_by(desc(BloodTest.test_date)).all()
+    return db.query(BloodTest).filter(BloodTest.user_id == user_id).order_by(desc(BloodTest.test_date)).all()
 
 
 def get_last_activity_date(db: Session, user_id: int) -> Optional[date]:
     """Get the most recent date with activity data"""
-    result = db.query(ActivityLog.date).filter(
-        ActivityLog.user_id == user_id
-    ).order_by(ActivityLog.date.desc()).first()
+    result = db.query(ActivityLog.date).filter(ActivityLog.user_id == user_id).order_by(ActivityLog.date.desc()).first()
     return result[0] if result else None
 
 
 # ==================== USER PRODUCTS (мои продукты) ====================
+
 
 def get_user_products(db: Session, user_id: int) -> List[UserProduct]:
     """Список продуктов пользователя"""
@@ -655,6 +602,7 @@ def match_user_product(db: Session, user_id: int, text: str) -> Optional[Dict[st
     или None если не совпадение.
     """
     import re
+
     text_lower = (text or "").strip().lower()
     if not text_lower or len(text_lower) < 2:
         return None
@@ -710,7 +658,7 @@ def create_body_measurement(
     chest_cm: Optional[float] = None,
     thigh_cm: Optional[float] = None,
     biceps_cm: Optional[float] = None,
-    notes: Optional[str] = None
+    notes: Optional[str] = None,
 ) -> BodyMeasurement:
     """Create a new body measurement entry"""
     measurement = BodyMeasurement(
@@ -722,7 +670,7 @@ def create_body_measurement(
         chest_cm=chest_cm,
         thigh_cm=thigh_cm,
         biceps_cm=biceps_cm,
-        notes=notes
+        notes=notes,
     )
     db.add(measurement)
     db.commit()
@@ -732,9 +680,11 @@ def create_body_measurement(
 
 # ==================== USER SETTINGS ====================
 
+
 def get_user_settings(db: Session, user_id: int) -> Optional["UserSettings"]:
     """Get settings for a user. Returns None if no settings saved yet."""
     from database.models import UserSettings
+
     return db.query(UserSettings).filter(UserSettings.user_id == user_id).first()
 
 
@@ -757,4 +707,3 @@ def upsert_user_settings(db: Session, user_id: int, **kwargs) -> "UserSettings":
     db.commit()
     db.refresh(settings)
     return settings
-

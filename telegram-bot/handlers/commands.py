@@ -10,9 +10,9 @@ from datetime import datetime, timezone, timedelta
 
 MSK = timezone(timedelta(hours=3))
 
-from core.garmin_data import get_garmin_data_for_date, get_average_stats, sync_today_garmin
+from core.garmin_data import get_garmin_data_for_date, sync_today_garmin
 from core.weekly_nutrition import analyze_weekly_nutrition
-from core.nutrition_targets import calculate_targets, check_feasibility
+from core.nutrition_targets import check_feasibility
 # NOTE: SupplementService imported per-request to support multi-user
 
 router = Router()
@@ -24,21 +24,16 @@ async def cmd_start(message: Message, user_id: int, username: str, first_name: s
     # Register user in database
     from database import SessionLocal
     from database.crud import ensure_user_exists
-    
+
     db = SessionLocal()
     try:
-        user = ensure_user_exists(
-            db, 
-            telegram_id=user_id,
-            username=username,
-            first_name=first_name
-        )
+        user = ensure_user_exists(db, telegram_id=user_id, username=username, first_name=first_name)
         db.close()
     except Exception as e:
         db.close()
         await message.answer(f"❌ Error registering user: {e}")
         return
-    
+
     await message.answer(
         f"👋 Привет, {first_name}! Я HealthVault Tracker - бот для учёта питания и здоровья.\n\n"
         "📸 Отправь фото еды/таблеток с описанием.\n"
@@ -83,7 +78,7 @@ async def cmd_help(message: Message):
 async def cmd_day(message: Message, user_id: int):
     """Показывает итоги дня"""
     import logging
-    import asyncio
+
     logger = logging.getLogger(__name__)
     logger.info(f"📊 /day user={message.from_user.id} ({message.from_user.first_name})")
 
@@ -91,13 +86,14 @@ async def cmd_day(message: Message, user_id: int):
     try:
         from database import SessionLocal
         from database.crud import get_user_settings
+
         db = SessionLocal()
         _us = get_user_settings(db, user_id)
         show_bar = _us.show_calorie_budget_bar if _us else True
 
         real_today = datetime.now(MSK).date()
         today_date = real_today
-        
+
         # Check if user asked for a specific date
         text = message.text.lower() if message.text else ""
         if "вчера" in text or "yesterday" in text:
@@ -106,62 +102,66 @@ async def cmd_day(message: Message, user_id: int):
             parts = text.split()
             if len(parts) > 1:
                 date_str = parts[1]
-                for fmt in ('%d.%m', '%d.%m.%Y', '%Y-%m-%d'):
+                for fmt in ("%d.%m", "%d.%m.%Y", "%Y-%m-%d"):
                     try:
                         parsed = datetime.strptime(date_str, fmt).date()
-                        if fmt == '%d.%m':
+                        if fmt == "%d.%m":
                             parsed = parsed.replace(year=today_date.year)
                         today_date = parsed
                         break
                     except ValueError:
                         pass
-        
-        today_str = today_date.strftime('%Y-%m-%d')
-        today_formatted = today_date.strftime('%d.%m.%Y')
+
+        today_str = today_date.strftime("%Y-%m-%d")
+        today_formatted = today_date.strftime("%d.%m.%Y")
         activity_label = "сегодня" if today_date == real_today else today_formatted
-        
+
         # New Service Logic
         from services.nutrition_service import get_nutrition_service
+
         service = get_nutrition_service(user_id=user_id)
         stats = service.get_day_stats(today_date)
-        
-        totals = stats['totals']
-        targets = stats['targets']
-        remaining = stats['remaining']
-        
+
+        totals = stats["totals"]
+        targets = stats["targets"]
+        remaining = stats["remaining"]
+
         # Garmin Data — для сегодня синхронизируем через API (с 15-мин кешем),
         # для исторических дат читаем только из БД
         garmin_error = False
         if today_date == real_today:
             active_calories, garmin_status = sync_today_garmin(user_id, today_date)
-            garmin_error = (garmin_status == 'error')
+            garmin_error = garmin_status == "error"
         else:
             garmin_data = get_garmin_data_for_date(today_str, user_id=user_id)
-            active_calories = garmin_data.get('activeKilocalories', 0.0) or 0.0 if garmin_data else 0.0
-        
+            active_calories = garmin_data.get("activeKilocalories", 0.0) or 0.0 if garmin_data else 0.0
+
         # Supplements Status - create per-user instance
         from core.supplements import SupplementService
+
         user_supplement_service = SupplementService(user_id=user_id)
         supplements_text = user_supplement_service.get_brief_status(for_date=today_str)
-        
+
         # Apple Health - latest weight
         from database.crud import get_latest_weight
+
         weight_text = ""
         weight = get_latest_weight(db, user_id)
         if weight:
             # Only show if recorded today
             if weight.measured_at.date() == today_date:
                 weight_text = f"⚖️ Вес: <b>{weight.weight} кг</b>"
-        
+
         # --- Energy balance (14-day averages → consistent with target calculation) ---
         from database.crud import get_average_activity_stats
-        from core.caloric_budget import make_macro_bar, make_block_bar
+        from core.caloric_budget import make_block_bar
+
         avg_stats = get_average_activity_stats(db, user_id, days=14)
-        avg_bmr    = round(avg_stats.get('bmr_calories',    0)) if avg_stats else 0
-        avg_active = round(avg_stats.get('active_calories', 0)) if avg_stats else 0
-        avg_total  = round(avg_stats.get('total_calories',  0)) if avg_stats else 0
+        avg_bmr = round(avg_stats.get("bmr_calories", 0)) if avg_stats else 0
+        avg_active = round(avg_stats.get("active_calories", 0)) if avg_stats else 0
+        avg_total = round(avg_stats.get("total_calories", 0)) if avg_stats else 0
         today_active_r = round(active_calories)
-        target_cal = targets['calories']
+        target_cal = targets["calories"]
 
         deficit_pct = round((1 - 0.85) * 100)  # 15%
         if avg_total > 1500:
@@ -176,8 +176,7 @@ async def cmd_day(message: Message, user_id: int):
             )
         else:
             energy_line = (
-                f"🏃 {today_active_r} ккал — активность сегодня\n"
-                f"🎯 {target_cal} ккал — цель (дефицит −{deficit_pct}%)"
+                f"🏃 {today_active_r} ккал — активность сегодня\n🎯 {target_cal} ккал — цель (дефицит −{deficit_pct}%)"
             )
 
         # --- Calorie bar ---
@@ -193,18 +192,31 @@ async def cmd_day(message: Message, user_id: int):
             cal_line = f"{round(totals.calories):.0f} / {target_cal} ккал · {cal_tail}"
 
         # --- Macro bars ---
-        p_bar, p_pct = make_block_bar(totals.protein, targets['protein'], invert=True)
-        f_bar, f_pct = make_block_bar(totals.fats,    targets['fats'])
-        c_bar, c_pct = make_block_bar(totals.carbs,   targets['carbs'])
+        p_bar, p_pct = make_block_bar(totals.protein, targets["protein"], invert=True)
+        f_bar, f_pct = make_block_bar(totals.fats, targets["fats"])
+        c_bar, c_pct = make_block_bar(totals.carbs, targets["carbs"])
 
         # --- Fiber (optional, norm 30g) ---
-        fiber_val = getattr(totals, 'fiber', 0) or 0
+        fiber_val = getattr(totals, "fiber", 0) or 0
         fiber_line = ""
         if fiber_val > 0:
             fib_bar, fib_pct = make_block_bar(fiber_val, 30, invert=True)
             fiber_line = f"🌿 {fib_bar} {fib_pct}% · {fiber_val:.0f}/30г"
 
         # --- Response Construction ---
+        if show_bar:
+            macro_lines = [
+                f"Б {p_bar} {totals.protein:.0f}/{targets['protein']}г",
+                f"Ж {f_bar} {totals.fats:.0f}/{targets['fats']}г",
+                f"У {c_bar} {totals.carbs:.0f}/{targets['carbs']}г",
+            ]
+        else:
+            macro_lines = [
+                f"Б {totals.protein:.0f}/{targets['protein']}г",
+                f"Ж {totals.fats:.0f}/{targets['fats']}г",
+                f"У {totals.carbs:.0f}/{targets['carbs']}г",
+            ]
+
         response_parts = [
             f"📅 <b>Итоги дня {today_formatted}</b>",
             "",
@@ -212,9 +224,7 @@ async def cmd_day(message: Message, user_id: int):
             "",
             cal_line,
             "",
-            f"Б {p_bar} {totals.protein:.0f}/{targets['protein']}г",
-            f"Ж {f_bar} {totals.fats:.0f}/{targets['fats']}г",
-            f"У {c_bar} {totals.carbs:.0f}/{targets['carbs']}г",
+            *macro_lines,
         ]
         if fiber_line:
             response_parts.append(fiber_line)
@@ -226,7 +236,7 @@ async def cmd_day(message: Message, user_id: int):
         response_parts.append(supplements_text)
 
         # Feasibility Warning
-        feasibility_warning = check_feasibility(remaining['calories'], remaining['protein'])
+        feasibility_warning = check_feasibility(remaining["calories"], remaining["protein"])
         if feasibility_warning:
             response_parts.append(f"\n⚠️ <i>{feasibility_warning}</i>")
 
@@ -235,6 +245,7 @@ async def cmd_day(message: Message, user_id: int):
     except Exception as e:
         logger.error(f"Error in /day: {e}", exc_info=True)
         import html
+
         await message.answer(f"❌ Ошибка при получении статистики: {html.escape(str(e))}")
     finally:
         if db:
@@ -247,6 +258,7 @@ async def cmd_vitamins(message: Message, user_id: int):
     try:
         # Create per-user supplement service
         from core.supplements import SupplementService
+
         user_supplement_service = SupplementService(user_id=user_id)
         status = user_supplement_service.get_detailed_schedule()
         await message.answer(status)
@@ -260,32 +272,32 @@ async def cmd_week(message: Message, user_id: int):
     try:
         # Получаем данные
         weekly_data = analyze_weekly_nutrition(user_id=user_id)
-        totals = weekly_data.get('totals', {})
-        days_count = weekly_data.get('days_with_data', 0)
-        
+        totals = weekly_data.get("totals", {})
+        days_count = weekly_data.get("days_with_data", 0)
+
         if days_count == 0:
             await message.answer("📊 Нет данных за последние 7 дней.")
             return
 
         # Средние значения потребления
-        avg_consumed = totals.get('calories', 0) / days_count
-        avg_prot = totals.get('protein', 0) / days_count
-        avg_fats = totals.get('fats', 0) / days_count
-        avg_carbs = totals.get('carbs', 0) / days_count
-        avg_fiber = totals.get('fiber', 0) / days_count
-        
+        avg_consumed = totals.get("calories", 0) / days_count
+        avg_prot = totals.get("protein", 0) / days_count
+        avg_fats = totals.get("fats", 0) / days_count
+        avg_carbs = totals.get("carbs", 0) / days_count
+        avg_fiber = totals.get("fiber", 0) / days_count
+
         # TDEE (расход) и дефицит
-        avg_tdee = totals.get('avg_tdee', 0)
-        avg_active_cal = totals.get('avg_active_cal', 0)
-        avg_bmr = totals.get('avg_bmr', 1700)
-        
+        avg_tdee = totals.get("avg_tdee", 0)
+        avg_active_cal = totals.get("avg_active_cal", 0)
+        avg_bmr = totals.get("avg_bmr", 1700)
+
         # Расчет дефицита
         deficit = avg_tdee - avg_consumed
         deficit_pct = (deficit / avg_tdee * 100) if avg_tdee > 0 else 0
-        
+
         # Цель с дефицитом 15%
         target_cal = avg_tdee * 0.85
-        
+
         # Эмодзи для оценки дефицита
         if deficit_pct < 10:
             deficit_emoji = "⚠️"  # Слишком мало
@@ -295,18 +307,18 @@ async def cmd_week(message: Message, user_id: int):
             deficit_emoji = "👍"  # Хорошо
         else:
             deficit_emoji = "⚠️"  # Слишком много
-        
+
         # Целевые значения БЖУ
         target_protein = 150  # Целевое значение
-        
-        recommendations = weekly_data.get('recommendations', [])
-        
+
+        recommendations = weekly_data.get("recommendations", [])
+
         # Заголовок (показываем дни только если не все 7)
         if days_count < 7:
             title = f"📊 Анализ за 7 дней (дней с данными: {days_count})"
         else:
             title = "📊 Анализ за 7 дней"
-        
+
         response = [
             title,
             "",
@@ -320,17 +332,17 @@ async def cmd_week(message: Message, user_id: int):
             f"🔥 Расход {avg_tdee:.0f} = {avg_bmr:.0f}😴 + {avg_active_cal:.0f}🏃",
             f"🎯 Цель {target_cal:.0f} (-15%) : {deficit:.0f} ({deficit_pct:.1f}%) {deficit_emoji}",
             "",
-            "🔍 Анализ питания:"
+            "🔍 Анализ питания:",
         ]
-        
+
         if recommendations:
             for rec in recommendations:
                 response.append(f"• {rec}")
         else:
             response.append("• Ваш рацион выглядит сбалансированным! Продолжайте в том же духе.")
-            
+
         await message.answer("\n".join(response))
-        
+
     except Exception as e:
         await message.answer(f"❌ Ошибка анализа недели: {e}")
 
@@ -340,17 +352,17 @@ async def cmd_cache_stats(message: Message):
     """Показывает статистику Image Cache"""
     try:
         from infrastructure.cache.image_cache import get_image_cache
+
         cache = get_image_cache()
         stats = cache.stats()
-        
-        total = stats['total']
-        valid = stats['valid']
-        expired = stats['expired']
-        
+
+        total = stats["total"]
+        valid = stats["valid"]
+        expired = stats["expired"]
+
         if total == 0:
             await message.answer(
-                "📊 <b>Статистика кэша изображений</b>\n\n"
-                "Кэш пустой. Отправьте фото для создания первой записи."
+                "📊 <b>Статистика кэша изображений</b>\n\nКэш пустой. Отправьте фото для создания первой записи."
             )
         else:
             hit_rate = (valid / total * 100) if total > 0 else 0
@@ -372,11 +384,12 @@ async def cmd_cache_clear(message: Message):
     """Очищает Image Cache"""
     try:
         from infrastructure.cache.image_cache import get_image_cache
+
         cache = get_image_cache()
-        
+
         stats_before = cache.stats()
         cache.clear()
-        
+
         await message.answer(
             "🗑 <b>Кэш очищен</b>\n\n"
             f"Удалено записей: {stats_before['total']}\n"
@@ -412,7 +425,7 @@ async def cmd_setup(message: Message, user_id: int):
             "• BMR — базовая энергия (ккал/день)\n"
             "• Активные — среднее сжигание от движения\n"
             "• Вес — для расчёта белков (опционально)",
-            parse_mode="HTML"
+            parse_mode="HTML",
         )
         return
     bmr = None
@@ -442,6 +455,7 @@ async def cmd_setup(message: Message, user_id: int):
         return
     from database import SessionLocal
     from database.crud import update_user_calorie_settings
+
     db = SessionLocal()
     try:
         update_user_calorie_settings(db, user_id, bmr=bmr, avg_active_calories=active, target_weight_kg=weight)
@@ -471,6 +485,7 @@ async def cmd_activity(message: Message, user_id: int):
         return
     from database import SessionLocal
     from database.crud import create_or_update_activity
+
     db = SessionLocal()
     try:
         today = datetime.now(MSK).date()
@@ -493,6 +508,7 @@ async def cmd_burn(message: Message, user_id: int):
         return
     from database import SessionLocal
     from database.crud import create_or_update_activity
+
     db = SessionLocal()
     try:
         create_or_update_activity(db, user_id, datetime.now(MSK).date(), active_calories=float(cal), source="manual")
@@ -511,6 +527,7 @@ async def cmd_targets(message: Message):
 async def cmd_my_products(message: Message, user_id: int):
     """Список моих продуктов"""
     from database import SessionLocal, get_user_products
+
     db = SessionLocal()
     try:
         products = get_user_products(db, user_id)
@@ -538,6 +555,7 @@ async def cmd_add_product(message: Message, user_id: int):
     Или: /add_product Сыворочный протеин | 400 80 5 5 | порция 30 | алиасы: протеин, сыворочный
     """
     import re
+
     text = (message.text or "").replace("/add_product", "").strip()
     if not text:
         await message.answer(
@@ -546,7 +564,7 @@ async def cmd_add_product(message: Message, user_id: int):
             "Пример:\n"
             "<code>/add_product Boombar | 400 20 15 45 | порция 50 | алиасы: бумбар, бум бар</code>\n"
             "<code>/add_product Сыворочный протеин | 400 80 5 5 | порция 30 | алиасы: протеин</code>",
-            parse_mode="HTML"
+            parse_mode="HTML",
         )
         return
     parts = [p.strip() for p in text.split("|")]
@@ -559,11 +577,21 @@ async def cmd_add_product(message: Message, user_id: int):
     if len(parts) >= 2:
         nums = re.findall(r"[\d.,]+", parts[1])
         if len(nums) >= 4:
-            kcal, protein, fats, carbs = float(nums[0].replace(",", ".")), float(nums[1].replace(",", ".")), float(nums[2].replace(",", ".")), float(nums[3].replace(",", "."))
+            kcal, protein, fats, carbs = (
+                float(nums[0].replace(",", ".")),
+                float(nums[1].replace(",", ".")),
+                float(nums[2].replace(",", ".")),
+                float(nums[3].replace(",", ".")),
+            )
     if kcal is None:
         nums = re.findall(r"[\d.,]+", text)
         if len(nums) >= 4:
-            kcal, protein, fats, carbs = float(nums[0].replace(",", ".")), float(nums[1].replace(",", ".")), float(nums[2].replace(",", ".")), float(nums[3].replace(",", "."))
+            kcal, protein, fats, carbs = (
+                float(nums[0].replace(",", ".")),
+                float(nums[1].replace(",", ".")),
+                float(nums[2].replace(",", ".")),
+                float(nums[3].replace(",", ".")),
+            )
     if kcal is None:
         await message.answer("❌ Укажи КБЖУ на 100г: ккал белки жиры углеводы (четыре числа).")
         return
@@ -578,12 +606,19 @@ async def cmd_add_product(message: Message, user_id: int):
             raw = re.sub(r"алиасы?\s*:\s*", "", p, flags=re.I).strip()
             aliases = [a.strip() for a in re.split(r"[,;]", raw) if a.strip()]
     from database import SessionLocal, add_user_product
+
     db = SessionLocal()
     try:
         add_user_product(
-            db, user_id, name,
-            calories_per_100g=kcal, protein_per_100g=protein, fats_per_100g=fats, carbs_per_100g=carbs,
-            aliases=aliases, default_portion_g=default_portion
+            db,
+            user_id,
+            name,
+            calories_per_100g=kcal,
+            protein_per_100g=protein,
+            fats_per_100g=fats,
+            carbs_per_100g=carbs,
+            aliases=aliases,
+            default_portion_g=default_portion,
         )
         msg = f"✅ Продукт «{name}» добавлен. КБЖУ на 100г: {kcal:.0f} / {protein:.0f} / {fats:.0f} / {carbs:.0f}"
         if default_portion:
@@ -608,11 +643,12 @@ async def cmd_add_variant(message: Message, user_id: int):
             "📌 <b>Добавить вариант продукта</b> (среднее КБЖУ):\n\n"
             "<code>/add_variant [id продукта] | Название варианта | ккал б ж у</code>\n\n"
             "Пример: /add_variant 1 | Протеин Optimum | 400 80 5 5",
-            parse_mode="HTML"
+            parse_mode="HTML",
         )
         return
     from database import SessionLocal, get_user_products, add_product_variant, update_product_average_from_variants
     import re
+
     parts = [p.strip() for p in text.split("|")]
     product_id = None
     if len(parts) >= 1 and parts[0].isdigit():
@@ -626,7 +662,12 @@ async def cmd_add_variant(message: Message, user_id: int):
     if len(nums) < 4:
         await message.answer("❌ Нужны четыре числа: ккал, белки, жиры, углеводы на 100г.")
         return
-    kcal, protein, fats, carbs = float(nums[0].replace(",", ".")), float(nums[1].replace(",", ".")), float(nums[2].replace(",", ".")), float(nums[3].replace(",", "."))
+    kcal, protein, fats, carbs = (
+        float(nums[0].replace(",", ".")),
+        float(nums[1].replace(",", ".")),
+        float(nums[2].replace(",", ".")),
+        float(nums[3].replace(",", ".")),
+    )
     db = SessionLocal()
     try:
         if product_id is None:
@@ -640,5 +681,3 @@ async def cmd_add_variant(message: Message, user_id: int):
         await message.answer(f"✅ Вариант «{name}» добавлен. КБЖУ продукта пересчитаны как среднее.")
     finally:
         db.close()
-
-

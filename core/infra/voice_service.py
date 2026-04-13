@@ -5,6 +5,7 @@ from openai import AsyncOpenAI
 
 logger = logging.getLogger(__name__)
 
+
 class VoiceService:
     def __init__(self):
         self.api_key = self._get_api_key()
@@ -28,20 +29,19 @@ class VoiceService:
                 raise FileNotFoundError(f"Файл не найден: {file_path}")
 
             logger.info(f"🎤 Отправляю файл в Whisper: {file_path}")
-            
+
             with open(file_path, "rb") as audio_file:
                 transcript = await self.client.audio.transcriptions.create(
-                    model="whisper-1", 
-                    file=audio_file,
-                    response_format="text"
+                    model="whisper-1", file=audio_file, response_format="text"
                 )
-            
+
             logger.info(f"✅ Успешно транскрибировано: {transcript[:50]}...")
             return transcript
 
         except Exception as e:
             logger.error(f"❌ Ошибка при транскрибации: {e}")
             raise
+
 
 # Создаем глобальный экземпляр
 voice_service = VoiceService()

@@ -17,7 +17,6 @@ from datetime import date, datetime
 from typing import Optional, List
 
 from fastapi import FastAPI, HTTPException, Depends, Header
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 import uvicorn
 
@@ -31,6 +30,7 @@ PRIMARY_USER_ID = int(os.getenv("TELEGRAM_USER_ID", "895655"))
 
 
 # ── Telegram WebApp Auth ──────────────────────────────────────────────────────
+
 
 def verify_telegram_init_data(init_data_str: str) -> dict:
     """Validate Telegram WebApp initData HMAC and return user dict."""
@@ -65,6 +65,7 @@ def get_tg_user(authorization: str = Header(...)) -> dict:
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
 
+
 def verify_token(authorization: str = Header(...)):
     """Bearer token auth."""
     if not authorization.startswith("Bearer "):
@@ -77,11 +78,13 @@ def verify_token(authorization: str = Header(...)):
 
 # ── Request schema ────────────────────────────────────────────────────────────
 
+
 class AppleHealthPayload(BaseModel):
     """
     Данные за один день от iPhone Shortcuts.
     Все поля опциональны — Shortcut присылает только то что есть.
     """
+
     date: str = Field(..., description="YYYY-MM-DD, обычно вчерашняя дата")
 
     # Активность
@@ -120,6 +123,7 @@ class AppleHealthPayload(BaseModel):
 
 # ── Endpoint ──────────────────────────────────────────────────────────────────
 
+
 @app.get("/health")
 async def health_check():
     """Liveness probe для мониторинга."""
@@ -146,6 +150,7 @@ async def receive_apple_health(
         # Импортируем здесь чтобы не ломать импорт если БД недоступна при старте
         import sys
         from pathlib import Path
+
         sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
         from database import SessionLocal
@@ -233,6 +238,7 @@ async def receive_apple_health(
 
 # ── Settings API ─────────────────────────────────────────────────────────────
 
+
 class SupplementItem(BaseModel):
     name: str
     slot: str  # morning_before | morning_with | evening
@@ -244,7 +250,7 @@ class UserSettingsSchema(BaseModel):
     target_weight_kg: Optional[float] = None
     target_weight_date: Optional[str] = None  # YYYY-MM-DD string
     supplement_reminders_enabled: bool = False
-    supplement_reminder_time: str = "08:00"   # HH:MM string
+    supplement_reminder_time: str = "08:00"  # HH:MM string
     supplements: List[SupplementItem] = []
 
 
@@ -253,6 +259,7 @@ async def get_settings(tg_user: dict = Depends(get_tg_user)):
     """Return current settings for authenticated Telegram user."""
     import sys
     from pathlib import Path
+
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
     from database import SessionLocal
@@ -282,7 +289,9 @@ async def get_settings(tg_user: dict = Depends(get_tg_user)):
             "target_weight_kg": s.target_weight_kg,
             "target_weight_date": s.target_weight_date.isoformat() if s.target_weight_date else None,
             "supplement_reminders_enabled": s.supplement_reminders_enabled,
-            "supplement_reminder_time": s.supplement_reminder_time.strftime("%H:%M") if s.supplement_reminder_time else "08:00",
+            "supplement_reminder_time": s.supplement_reminder_time.strftime("%H:%M")
+            if s.supplement_reminder_time
+            else "08:00",
             "supplements": s.supplements or [],
         }
     finally:
@@ -294,6 +303,7 @@ async def save_settings(payload: UserSettingsSchema, tg_user: dict = Depends(get
     """Save settings for authenticated Telegram user."""
     import sys
     from pathlib import Path
+
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
     from database import SessionLocal

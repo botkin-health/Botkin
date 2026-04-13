@@ -10,11 +10,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from database import engine
-from database.models import Base, AppleHealthData
+from database.models import AppleHealthData
 import logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 
 def create_apple_health_table():
     """Create apple_health_data table if it doesn't exist"""
@@ -27,13 +28,13 @@ def create_apple_health_table():
         logger.error(f"❌ Error creating table: {e}")
         return False
 
+
 if __name__ == "__main__":
     logger.info("Creating AppleHealthData table...")
     success = create_apple_health_table()
-    
+
     if success:
         print("\n✅ Database ready for Apple Health import!")
         print("Use /import_health in the bot to start importing data")
     else:
         print("\n❌ Failed to create table. Check logs above.")
-

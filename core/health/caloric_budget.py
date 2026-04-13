@@ -9,9 +9,9 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-DEFICIT_RATIO = 0.85   # 15% deficit target
+DEFICIT_RATIO = 0.85  # 15% deficit target
 WARN_THRESHOLD = 0.80  # warn when consumed ≥ 80% of target
-DEFAULT_TOTAL = 2150   # fallback if no Garmin data (≈ avg from analysis)
+DEFAULT_TOTAL = 2150  # fallback if no Garmin data (≈ avg from analysis)
 
 
 def get_daily_budget(user_id: int, for_date: Optional[date_type] = None) -> dict:
@@ -124,10 +124,10 @@ def format_budget_line(user_id: int, for_date: Optional[date_type] = None, show_
     if not b:
         return ""
 
-    consumed  = b["consumed"]
-    target    = b["target"]
+    consumed = b["consumed"]
+    target = b["target"]
     remaining = b["remaining"]
-    pct       = b["pct"]
+    pct = b["pct"]
 
     # Progress bar: 10 colored squares
     filled = min(10, round(pct / 10))
@@ -146,6 +146,7 @@ def format_budget_line(user_id: int, for_date: Optional[date_type] = None, show_
 
     hint = "" if b["has_garmin"] else " (≈ среднее)"
     from datetime import timedelta
+
     today = date_type.today()
     yesterday = today - timedelta(days=1)
     if for_date is None or for_date == today:
@@ -156,9 +157,6 @@ def format_budget_line(user_id: int, for_date: Optional[date_type] = None, show_
         day_label = for_date.strftime("%d.%m")
     if show_bar:
         bar = sq_fill * filled + "⬜" * (10 - filled)
-        return (
-            f"\n{icon} {bar} {pct}%\n"
-            f"{day_label}: {consumed} / {target} ккал · {tail}{hint}"
-        )
+        return f"\n{icon} {bar} {pct}%\n{day_label}: {consumed} / {target} ккал · {tail}{hint}"
     else:
         return f"\n{icon} {day_label}: {consumed} / {target} ккал · {tail}{hint}"
