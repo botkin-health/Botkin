@@ -123,30 +123,28 @@
           <div class="slot-empty">Пока ничего</div>
         </div>`;
       }
-      // If 2+ meals fall into the same slot, render each as its own card inside the slot.
-      return meals.map((m, mi) => {
-        const expandedKey = `exp:${m.id}`;
-        const isExpanded = sessionStorage.getItem(expandedKey) === '1' || (meals.length === 1);
-        const hdrExtra = isExpanded ? '⌄' : '›';
-        const itemsHtml = isExpanded ? renderItems(m) : '';
-        return `
-        <div class="slot" data-slot="${slot}" data-meal-id="${m.id}">
-          <div class="slot-header" data-toggle="${m.id}">
-            <div class="slot-title">${SLOT_LABEL[slot]}
-              <span class="slot-meta">· ${m.meal_time || ''}</span>
-            </div>
-            <div class="slot-meta">${Math.round(m.totals.kcal)} ккал ${hdrExtra}</div>
+      // Merge all meals in this slot into one card (items from each preserve their meal_id).
+      const expandedKey = `exp:slot:${slot}`;
+      const isExpanded = sessionStorage.getItem(expandedKey) !== '0';
+      const hdrExtra = isExpanded ? '⌄' : '›';
+      const totalKcal = meals.reduce((s, m) => s + (m.totals.kcal || 0), 0);
+      const timeMeta = meals.length === 1 && meals[0].meal_time
+        ? `<span class="slot-meta">· ${meals[0].meal_time}</span>` : '';
+      const itemsHtml = isExpanded ? renderMergedItems(slot, meals) : '';
+      return `
+        <div class="slot" data-slot="${slot}">
+          <div class="slot-header" data-toggle="slot:${slot}">
+            <div class="slot-title">${SLOT_LABEL[slot]} ${timeMeta}</div>
+            <div class="slot-meta">${Math.round(totalKcal)} ккал ${hdrExtra}</div>
           </div>
           ${itemsHtml}
         </div>`;
-      }).join('');
     }).join('');
 
     container.querySelectorAll('.slot-header[data-toggle]').forEach(el => {
       el.addEventListener('click', () => {
-        const id = el.dataset.toggle;
-        const key = `exp:${id}`;
-        sessionStorage.setItem(key, sessionStorage.getItem(key) === '1' ? '0' : '1');
+        const key = `exp:${el.dataset.toggle}`;
+        sessionStorage.setItem(key, sessionStorage.getItem(key) === '0' ? '1' : '0');
         renderSlots();
       });
     });
@@ -160,9 +158,13 @@
     window.__wireItemGestures?.(container);
   }
 
-  function renderItems(meal) {
+  function renderMergedItems(slot, meals) {
     const hintShown = localStorage.getItem('swipeHintShown') === '1';
-    const itemsHtml = meal.items.map(it => {
+    const rows = [];
+    for (const meal of meals) {
+      for (const it of meal.items) rows.push({ meal, it });
+    }
+    const itemsHtml = rows.map(({ meal, it }) => {
       const noMacros = it.kcal === 0 && it.p === 0 && it.f === 0 && it.c === 0;
       const warn = noMacros ? '<span class="item-warn">❗</span> ' : '';
       return `
@@ -186,7 +188,7 @@
     <div class="items">
       ${itemsHtml}
       ${hint}
-      <div class="add-in-slot" data-slot="${meal.slot}">+ добавить в ${SLOT_LABEL[meal.slot].replace(/^\S+\s/, '').toLowerCase()}</div>
+      <div class="add-in-slot" data-slot="${slot}">+ добавить в ${SLOT_LABEL[slot].replace(/^\S+\s/, '').toLowerCase()}</div>
     </div>`;
   }
 
