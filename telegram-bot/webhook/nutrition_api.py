@@ -24,7 +24,7 @@ from database.crud import (
     delete_nutrition_log,
     get_recent_product_names,
 )
-from webhook.apple_health import get_tg_user
+from webhook.tg_auth import get_tg_user
 from webhook.nutrition_slots import SLOTS, slot_center_time, slot_from_meal, slot_label_ru
 from webhook.nutrition_goals import compute_goals
 from core.food.nutrition import process_meal_description
