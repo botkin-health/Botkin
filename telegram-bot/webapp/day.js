@@ -95,7 +95,129 @@
   });
 
   // Render functions defined in Task 11 / 12.
-  function render() { /* filled in Task 11 */ window.__dayRender?.(state); }
+  function render() {
+    if (!state.data) return;
+    renderSlots();
+    renderFooter();
+  }
+
+  function renderSlots() {
+    const container = document.getElementById('slots-container');
+    const SLOTS = ['breakfast', 'lunch', 'snack', 'dinner'];
+    // Group meals by slot
+    const bySlot = { breakfast: [], lunch: [], snack: [], dinner: [] };
+    for (const m of state.data.meals) bySlot[m.slot]?.push(m);
+
+    container.innerHTML = SLOTS.map(slot => {
+      const meals = bySlot[slot];
+      if (meals.length === 0) {
+        return `
+        <div class="slot dim" data-slot="${slot}">
+          <div class="slot-header">
+            <div class="slot-title">${SLOT_LABEL[slot]}</div>
+            <button class="header-btn add-in-slot-btn" data-slot="${slot}">+</button>
+          </div>
+          <div class="slot-empty">Пока ничего</div>
+        </div>`;
+      }
+      // If 2+ meals fall into the same slot, render each as its own card inside the slot.
+      return meals.map((m, mi) => {
+        const expandedKey = `exp:${m.id}`;
+        const isExpanded = sessionStorage.getItem(expandedKey) === '1' || (meals.length === 1);
+        const hdrExtra = isExpanded ? '⌄' : '›';
+        const itemsHtml = isExpanded ? renderItems(m) : '';
+        return `
+        <div class="slot" data-slot="${slot}" data-meal-id="${m.id}">
+          <div class="slot-header" data-toggle="${m.id}">
+            <div class="slot-title">${SLOT_LABEL[slot]}
+              <span class="slot-meta">· ${m.meal_time || ''}</span>
+            </div>
+            <div class="slot-meta">${Math.round(m.totals.kcal)} ккал ${hdrExtra}</div>
+          </div>
+          ${itemsHtml}
+        </div>`;
+      }).join('');
+    }).join('');
+
+    container.querySelectorAll('.slot-header[data-toggle]').forEach(el => {
+      el.addEventListener('click', () => {
+        const id = el.dataset.toggle;
+        const key = `exp:${id}`;
+        sessionStorage.setItem(key, sessionStorage.getItem(key) === '1' ? '0' : '1');
+        renderSlots();
+      });
+    });
+    container.querySelectorAll('.add-in-slot-btn, .add-in-slot').forEach(el => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openAddSheet(el.dataset.slot);
+      });
+    });
+    // Swipe + tap: wired in Task 13.
+    window.__wireItemGestures?.(container);
+  }
+
+  function renderItems(meal) {
+    const hintShown = localStorage.getItem('swipeHintShown') === '1';
+    const itemsHtml = meal.items.map(it => {
+      const noMacros = it.kcal === 0 && it.p === 0 && it.f === 0 && it.c === 0;
+      const warn = noMacros ? '<span class="item-warn">❗</span> ' : '';
+      return `
+      <div class="item" data-meal-id="${meal.id}" data-idx="${it.idx}">
+        <div class="delete-bg">Удалить</div>
+        <div class="item-row">
+          <div class="item-name">${warn}${escapeHtml(it.name)}</div>
+          <div class="item-weight">${Math.round(it.weight)} г</div>
+          <div class="item-macros">
+            <span>Б <b>${it.p}</b></span>
+            <span>Ж <b>${it.f}</b></span>
+            <span>У <b>${it.c}</b></span>
+            <span>Кл <b>${it.fib}</b></span>
+            <span>${Math.round(it.kcal)} ккал</span>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+    const hint = hintShown ? '' : '<div class="swipe-hint">← свайп для удаления · тап для редактирования веса</div>';
+    return `
+    <div class="items">
+      ${itemsHtml}
+      ${hint}
+      <div class="add-in-slot" data-slot="${meal.slot}">+ добавить в ${SLOT_LABEL[meal.slot].replace(/^\S+\s/, '').toLowerCase()}</div>
+    </div>`;
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
+  function renderFooter() {
+    const { totals_day: t, goals: g } = state.data;
+    const bars = [
+      { key: 'kcal',   label: 'Ккал',      cls: 'kcal', val: t.kcal,  goal: g.kcal,    unit: '' },
+      { key: 'p',      label: 'Белки',     cls: 'p',    val: t.p,     goal: g.protein, unit: 'г' },
+      { key: 'f',      label: 'Жиры',      cls: 'f',    val: t.f,     goal: g.fats,    unit: 'г' },
+      { key: 'c',      label: 'Углеводы',  cls: 'c',    val: t.c,     goal: g.carbs,   unit: 'г' },
+      { key: 'fib',    label: 'Клетчатка', cls: 'fib',  val: t.fib,   goal: g.fiber,   unit: 'г' },
+    ];
+    document.getElementById('bars').innerHTML = bars.map(b => {
+      if (b.goal == null) {
+        return `<div class="bar-row">
+                <span>${b.label}</span>
+                <div></div>
+                <span class="bar-value">${Math.round(b.val)}${b.unit ? ' ' + b.unit : ''}</span>
+              </div>`;
+      }
+      const pct = Math.min(100, Math.round((b.val / b.goal) * 100));
+      return `<div class="bar-row">
+              <span>${b.label}</span>
+              <div class="bar-track"><div class="bar-fill ${b.cls}" style="width:${pct}%"></div></div>
+              <span class="bar-value">${Math.round(b.val)} <span>/ ${b.goal}${b.unit ? ' ' + b.unit : ''}</span></span>
+            </div>`;
+    }).join('');
+  }
 
   // Expose for later tasks
   window.__nutri = { state, api, loadDay, render, setDate };
