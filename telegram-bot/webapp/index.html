@@ -322,6 +322,29 @@
 
 </section><!-- /settings-section -->
 
+<div id="add-sheet" class="sheet-overlay">
+  <div class="sheet">
+    <button class="sheet-close" id="add-sheet-close" aria-label="Закрыть">✕</button>
+    <h3 id="add-sheet-title">Добавить</h3>
+
+    <label class="form-row">
+      <span>Часто используемое</span>
+    </label>
+    <div id="fav-list" class="fav-list"><div style="color:#999;font-size:12px">Загружаем…</div></div>
+
+    <div class="form-row">
+      <label>Или ввести вручную</label>
+      <input type="text" id="add-name" placeholder="Например: курица грудка">
+    </div>
+    <div class="form-row">
+      <label>Вес, г</label>
+      <input type="number" id="add-weight" inputmode="numeric" min="1" max="5000" placeholder="180">
+    </div>
+
+    <button class="primary-btn" id="add-submit">Добавить</button>
+  </div>
+</div>
+
 <script src="day.js"></script>
 <script>
 const tg = window.Telegram.WebApp;

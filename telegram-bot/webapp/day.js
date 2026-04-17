@@ -222,6 +222,73 @@
   // Expose for later tasks
   window.__nutri = { state, api, loadDay, render, setDate };
 
+  let activeSlot = null;
+
+  async function openAddSheet(slot) {
+    activeSlot = slot;
+    document.getElementById('add-sheet-title').textContent =
+      `Добавить в ${SLOT_LABEL[slot].replace(/^\S+\s/, '')}`;
+    document.getElementById('add-sheet').classList.add('open');
+    document.getElementById('add-name').value = '';
+    document.getElementById('add-weight').value = '';
+    document.getElementById('fav-list').innerHTML = '<div style="color:#999;font-size:12px">Загружаем…</div>';
+    try {
+      const favs = await api('/api/favorites?limit=15');
+      document.getElementById('fav-list').innerHTML = favs.length
+        ? favs.map(f => `
+            <button class="fav-chip" data-name="${escapeHtml(f.name)}" data-weight="${f.default_weight}">
+              ${escapeHtml(f.name)}
+              <span class="w">${Math.round(f.default_weight)} г</span>
+            </button>`).join('')
+        : '<div style="color:#999;font-size:12px">Пока пусто</div>';
+      document.querySelectorAll('.fav-chip').forEach(c => {
+        c.addEventListener('click', () => {
+          document.getElementById('add-name').value = c.dataset.name;
+          document.getElementById('add-weight').value = c.dataset.weight;
+        });
+      });
+    } catch (e) { console.error(e); }
+  }
+
+  function closeAddSheet() {
+    document.getElementById('add-sheet').classList.remove('open');
+    activeSlot = null;
+  }
+
+  document.getElementById('add-sheet-close').addEventListener('click', closeAddSheet);
+  document.getElementById('add-sheet').addEventListener('click', (e) => {
+    if (e.target.id === 'add-sheet') closeAddSheet();
+  });
+
+  document.getElementById('add-submit').addEventListener('click', async () => {
+    const name = document.getElementById('add-name').value.trim();
+    const weight = parseFloat(document.getElementById('add-weight').value);
+    if (!name || !weight || weight <= 0) {
+      tg?.showAlert?.('Заполни название и вес') ?? alert('Заполни название и вес');
+      return;
+    }
+    const btn = document.getElementById('add-submit');
+    btn.disabled = true; btn.textContent = 'Добавляем…';
+    try {
+      await api('/api/meal/item', {
+        method: 'POST',
+        body: JSON.stringify({
+          date: toISO(state.date), slot: activeSlot,
+          name, weight, source: 'manual',
+        }),
+      });
+      closeAddSheet();
+      await loadDay();
+      tg?.HapticFeedback?.notificationOccurred?.('success');
+    } catch (e) {
+      tg?.showAlert?.(`Ошибка: ${e.message}`) ?? alert(e.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Добавить';
+    }
+  });
+
+  window.__openAddSheet = openAddSheet;  // for Task 11 renderer
+
   // Init
   updateSwitcher();
   loadDay();
