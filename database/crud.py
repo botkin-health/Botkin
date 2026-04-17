@@ -707,3 +707,149 @@ def upsert_user_settings(db: Session, user_id: int, **kwargs) -> "UserSettings":
     db.commit()
     db.refresh(settings)
     return settings
+
+
+# ==================== NUTRITION ITEM-LEVEL EDIT HELPERS ====================
+
+
+def get_nutrition_log(db: Session, meal_id: int, user_id: int) -> Optional[NutritionLog]:
+    """Fetch single nutrition log row, scoped by user."""
+    return db.query(NutritionLog).filter(NutritionLog.id == meal_id, NutritionLog.user_id == user_id).first()
+
+
+def _recalc_totals(items: list) -> dict:
+    totals = {"calories": 0.0, "protein": 0.0, "fats": 0.0, "carbs": 0.0, "fiber": 0.0}
+    for it in items:
+        for k in ("calories", "protein", "fats", "carbs", "fiber"):
+            totals[k] += float(it.get(k, 0) or 0)
+    return {k: round(v, 1) for k, v in totals.items()}
+
+
+def update_nutrition_item_weight(db: Session, meal_id: int, user_id: int, idx: int, new_weight: float) -> tuple:
+    """Scale item KBJU proportionally to new weight. Returns (item, totals)."""
+    row = get_nutrition_log(db, meal_id=meal_id, user_id=user_id)
+    if row is None:
+        raise LookupError(f"meal {meal_id} not found for user {user_id}")
+    items = list(row.items or [])
+    if idx < 0 or idx >= len(items):
+        raise IndexError(f"idx {idx} out of range (have {len(items)} items)")
+
+    old = dict(items[idx])
+    old_w = float(old.get("weight_g") or 0)
+    if old_w <= 0:
+        old["weight_g"] = new_weight
+    else:
+        factor = new_weight / old_w
+        old["weight_g"] = new_weight
+        for k in ("calories", "protein", "fats", "carbs", "fiber"):
+            if old.get(k) is not None:
+                old[k] = round(float(old[k]) * factor, 1)
+
+    items[idx] = old
+    row.items = items
+    row.totals = _recalc_totals(items)
+    from sqlalchemy.orm.attributes import flag_modified
+
+    flag_modified(row, "items")
+    flag_modified(row, "totals")
+    db.commit()
+    db.refresh(row)
+    return old, row.totals
+
+
+def delete_nutrition_item(db: Session, meal_id: int, user_id: int, idx: int) -> tuple:
+    """Remove item. Deletes meal row if it was the last item. Returns (removed, new_totals_or_None)."""
+    row = get_nutrition_log(db, meal_id=meal_id, user_id=user_id)
+    if row is None:
+        raise LookupError(f"meal {meal_id} not found for user {user_id}")
+    items = list(row.items or [])
+    if idx < 0 or idx >= len(items):
+        raise IndexError(f"idx {idx} out of range")
+    removed = items.pop(idx)
+    if not items:
+        db.delete(row)
+        db.commit()
+        return removed, None
+    row.items = items
+    row.totals = _recalc_totals(items)
+    from sqlalchemy.orm.attributes import flag_modified
+
+    flag_modified(row, "items")
+    flag_modified(row, "totals")
+    db.commit()
+    db.refresh(row)
+    return removed, row.totals
+
+
+def update_nutrition_meal_fields(
+    db: Session,
+    meal_id: int,
+    user_id: int,
+    meal_name: Optional[str] = None,
+    meal_time: Optional[time] = None,
+) -> NutritionLog:
+    row = get_nutrition_log(db, meal_id=meal_id, user_id=user_id)
+    if row is None:
+        raise LookupError(f"meal {meal_id} not found for user {user_id}")
+    if meal_name is not None:
+        row.meal_name = meal_name
+    if meal_time is not None:
+        row.meal_time = meal_time
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+def find_meal_for_slot(db: Session, user_id: int, for_date: date, slot: str) -> Optional[NutritionLog]:
+    """Find first nutrition_log on that date whose (name, time) maps to `slot`."""
+    import sys as _sys
+    import pathlib as _pl
+
+    _sys.path.insert(0, str(_pl.Path(__file__).resolve().parent.parent / "telegram-bot"))
+    from webhook.nutrition_slots import slot_from_meal
+
+    rows = get_nutrition_logs_by_date(db, user_id=user_id, date=for_date)
+    for r in rows:
+        if slot_from_meal(r.meal_name, r.meal_time) == slot:
+            return r
+    return None
+
+
+def get_recent_product_names(db: Session, user_id: int, limit: int = 15, lookback_days: int = 90) -> list:
+    """Aggregate recent product usage from nutrition_log.items[]. Sort by last_used DESC."""
+    from collections import OrderedDict
+
+    end = date.today()
+    start = end - timedelta(days=lookback_days)
+    rows = get_nutrition_logs_by_period(db, user_id=user_id, start_date=start, end_date=end)
+    by_name: Dict[str, Any] = OrderedDict()
+    for r in sorted(rows, key=lambda x: (x.date, x.meal_time or time(0, 0)), reverse=True):
+        for it in r.items or []:
+            name = (it.get("product") or "").strip()
+            if not name or name in by_name:
+                continue
+            w = float(it.get("weight_g") or 0)
+            if w <= 0:
+                continue
+
+            def per100(key, weight=w, item=it):
+                v = item.get(key)
+                return round(float(v) * 100 / weight, 1) if v is not None else 0
+
+            by_name[name] = {
+                "name": name,
+                "default_weight": round(w, 0),
+                "last_used": r.date.isoformat(),
+                "per_100": {
+                    "kcal": per100("calories"),
+                    "p": per100("protein"),
+                    "f": per100("fats"),
+                    "c": per100("carbs"),
+                    "fib": per100("fiber"),
+                },
+            }
+            if len(by_name) >= limit:
+                break
+        if len(by_name) >= limit:
+            break
+    return list(by_name.values())
