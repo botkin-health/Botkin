@@ -24,18 +24,19 @@
 }
 
 .day-switcher {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 16px 4px;
+  display: flex; align-items: center; justify-content: center; gap: 14px;
+  padding: 8px 16px 10px;
 }
 .day-nav {
-  background: none; border: none; font-size: 24px; color: var(--accent);
-  padding: 4px 14px; cursor: pointer; min-width: 40px; min-height: 40px;
+  background: none; border: none; font-size: 18px; color: var(--accent);
+  padding: 4px 8px; cursor: pointer; line-height: 1;
 }
 .day-nav:disabled { opacity: .3; cursor: not-allowed; }
-.day-label { font-size: 17px; font-weight: 600; text-align: center; }
-.day-sub { font-size: 12px; color: var(--muted); text-align: center; }
-.calendar-row { text-align: center; padding: 2px 16px 10px; }
-.calendar-btn { color: var(--accent); font-size: 13px; cursor: pointer; display: inline-block; padding: 4px 8px; }
+.day-label-wrap { cursor: pointer; display: flex; align-items: baseline; gap: 6px; }
+.day-label { font-size: 15px; font-weight: 600; }
+.day-sub { font-size: 12px; color: var(--muted); }
+.calendar-row { display: none; }
+.calendar-btn { display: none; }
 
 #slots-container { padding: 0 16px 100px; }
 
