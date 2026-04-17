@@ -5,6 +5,7 @@ breakfast / lunch / snack / dinner. DB stores free-form meal_name + meal_time;
 this module resolves each meal into exactly one slot.
 """
 
+import re
 from datetime import time
 from typing import Optional
 
@@ -43,11 +44,22 @@ def slot_from_time(t: time) -> str:
     return "dinner"
 
 
+def _starts_with_token(text: str, token: str) -> bool:
+    """True if text begins with the token as a whole word (ignoring leading non-letter chars like emoji).
+
+    Matches "Завтрак", "🌅 Завтрак дома", "breakfast smoothie" for token "завтрак"/"breakfast".
+    Does NOT match "Поздний обед" for token "обед" — prefix qualifiers push it to time-based resolution.
+    """
+    stripped = re.sub(r"^[^\w]+", "", text, flags=re.UNICODE)
+    pattern = r"^" + re.escape(token) + r"\b"
+    return re.match(pattern, stripped, flags=re.UNICODE) is not None
+
+
 def slot_from_meal(name: Optional[str], t: Optional[time]) -> str:
     if name:
         lowered = name.lower()
         for slot, tokens in _NAME_TOKENS.items():
-            if any(lowered == tok for tok in tokens):
+            if any(_starts_with_token(lowered, tok) for tok in tokens):
                 return slot
     if t is not None:
         return slot_from_time(t)
