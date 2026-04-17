@@ -2,6 +2,8 @@
 data/apple-health/
 data/backup/
 data/cache/
+data/scout/
+config/scout/seen.jsonl
 *.xml
 *.sql
 !database/init.sql
