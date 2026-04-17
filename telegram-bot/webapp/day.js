@@ -9,7 +9,7 @@
     lastDeleted: null, // for undo
   };
 
-  const FMT = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', weekday: 'short' });
+  const FMT = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short', weekday: 'short' });
   const SLOT_LABEL = { breakfast: '🌅 Завтрак', lunch: '☀️ Обед', snack: '🍎 Перекус', dinner: '🌙 Ужин' };
 
   function toISO(d) {
@@ -60,8 +60,11 @@
 
   function updateSwitcher() {
     const d = state.date, today = new Date();
-    document.getElementById('day-label').textContent = dayLabelText(d);
-    document.getElementById('day-sub').textContent = FMT.format(d);
+    const label = dayLabelText(d);
+    const formatted = FMT.format(d);
+    const isRelative = label !== formatted;
+    document.getElementById('day-label').textContent = label;
+    document.getElementById('day-sub').textContent = isRelative ? `· ${formatted}` : '';
     // Disable next-day if more than +7 days ahead
     document.getElementById('next-day').disabled = daysDiff(today, d) >= 7;
     document.getElementById('date-picker').value = toISO(d);
@@ -75,8 +78,8 @@
     if (document.getElementById('next-day').disabled) return;
     const d = new Date(state.date); d.setDate(d.getDate() + 1); setDate(d);
   });
-  document.querySelector('.calendar-btn').addEventListener('click', (e) => {
-    // Opens native date picker when clicking the hidden input
+  document.querySelector('.day-label-wrap').addEventListener('click', (e) => {
+    e.preventDefault();
     document.getElementById('date-picker').showPicker?.();
   });
   document.getElementById('date-picker').addEventListener('change', (e) => {
