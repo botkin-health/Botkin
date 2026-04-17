@@ -129,3 +129,101 @@ def test_get_day_user_scoped(client, api_db):
     )
     r = client.get("/api/day?date=2026-04-17")
     assert r.json()["meals"] == []
+
+
+def test_post_item_creates_new_meal(client, api_db, monkeypatch):
+    def fake_process(description, **kwargs):
+        return (
+            [
+                {
+                    "product": description,
+                    "weight_g": 180,
+                    "calories": 220,
+                    "protein": 38,
+                    "fats": 6,
+                    "carbs": 0,
+                    "fiber": 0,
+                }
+            ],
+            {"calories": 220, "protein": 38, "fats": 6, "carbs": 0, "fiber": 0},
+        )
+
+    from webhook import nutrition_api
+
+    monkeypatch.setattr(nutrition_api, "process_meal_description", fake_process)
+
+    r = client.post(
+        "/api/meal/item",
+        json={
+            "date": "2026-04-17",
+            "slot": "lunch",
+            "name": "Курица грудка",
+            "weight": 180,
+            "source": "manual",
+        },
+    )
+    assert r.status_code == 201, r.text
+    body = r.json()
+    assert body["item"]["name"] == "Курица грудка"
+    assert body["item"]["weight"] == 180
+    assert body["item"]["kcal"] == 220
+    assert "meal_id" in body
+
+    day = client.get("/api/day?date=2026-04-17").json()
+    assert len(day["meals"]) == 1
+    assert day["meals"][0]["slot"] == "lunch"
+    assert day["meals"][0]["meal_name"] == "Обед"
+    assert day["meals"][0]["meal_time"] == "13:00"
+
+
+def test_post_item_appends_to_existing_slot(client, api_db, monkeypatch):
+    from webhook import nutrition_api
+
+    monkeypatch.setattr(
+        nutrition_api,
+        "process_meal_description",
+        lambda desc, **_: (
+            [{"product": desc, "weight_g": 100, "calories": 50, "protein": 1, "fats": 0, "carbs": 12, "fiber": 0}],
+            {"calories": 50, "protein": 1, "fats": 0, "carbs": 12, "fiber": 0},
+        ),
+    )
+    create_nutrition_log(
+        db=api_db,
+        user_id=895655,
+        date=date(2026, 4, 17),
+        meal_time=time(13, 0),
+        meal_name="Обед",
+        items=[
+            {"product": "Рис", "weight_g": 150, "calories": 195, "protein": 4.5, "fats": 1.5, "carbs": 42, "fiber": 2}
+        ],
+        totals={"calories": 195, "protein": 4.5, "fats": 1.5, "carbs": 42, "fiber": 2},
+    )
+    r = client.post(
+        "/api/meal/item",
+        json={
+            "date": "2026-04-17",
+            "slot": "lunch",
+            "name": "Яблоко",
+            "weight": 100,
+            "source": "manual",
+        },
+    )
+    assert r.status_code == 201
+    day = client.get("/api/day?date=2026-04-17").json()
+    assert len(day["meals"]) == 1
+    assert len(day["meals"][0]["items"]) == 2
+    assert day["meals"][0]["totals"]["kcal"] == 245
+
+
+def test_post_item_bad_slot_400(client):
+    r = client.post(
+        "/api/meal/item",
+        json={
+            "date": "2026-04-17",
+            "slot": "brunch",
+            "name": "x",
+            "weight": 100,
+            "source": "manual",
+        },
+    )
+    assert r.status_code == 400
