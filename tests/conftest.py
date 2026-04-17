@@ -1,8 +1,14 @@
 import pytest
+import sys
+from pathlib import Path
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from database.models import Base
 from unittest.mock import patch
+
+# Add root to path so database module can be imported
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from database.models import Base
 
 # Setup in-memory SQLite database
 # Use check_same_thread=False for SQLite with threaded tests if needed

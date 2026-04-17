@@ -1,0 +1,138 @@
+/* ── Day editor styles ─────────────────────────────────────────────────── */
+:root {
+  --slot-bg: var(--tg-theme-secondary-bg-color, #f7f7fa);
+  --border: var(--tg-theme-hint-color, #ececf0);
+  --accent: var(--tg-theme-button-color, #2a7ae2);
+  --muted: var(--tg-theme-hint-color, #8e8e93);
+  --bar-kcal: #2a7ae2;
+  --bar-p: #e0577c;
+  --bar-f: #f5b02b;
+  --bar-c: #4cb563;
+  --bar-fib: #8e79d6;
+  --danger: #ff3b30;
+}
+
+.top-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px; border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; background: var(--tg-theme-bg-color, #fff); z-index: 10;
+}
+.top-title { font-weight: 600; font-size: 15px; }
+.header-btn {
+  background: none; border: none; font-size: 20px; padding: 4px 8px; cursor: pointer;
+  color: var(--accent);
+}
+
+.day-switcher {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px 4px;
+}
+.day-nav {
+  background: none; border: none; font-size: 24px; color: var(--accent);
+  padding: 4px 14px; cursor: pointer; min-width: 40px; min-height: 40px;
+}
+.day-nav:disabled { opacity: .3; cursor: not-allowed; }
+.day-label { font-size: 17px; font-weight: 600; text-align: center; }
+.day-sub { font-size: 12px; color: var(--muted); text-align: center; }
+.calendar-row { text-align: center; padding: 2px 16px 10px; }
+.calendar-btn { color: var(--accent); font-size: 13px; cursor: pointer; display: inline-block; padding: 4px 8px; }
+
+#slots-container { padding: 0 16px 100px; }
+
+.slot {
+  background: var(--slot-bg); border-radius: 14px; padding: 12px 14px;
+  margin-bottom: 10px;
+}
+.slot.dim .slot-title { color: var(--muted); font-weight: 500; }
+.slot-header {
+  display: flex; justify-content: space-between; align-items: center;
+  min-height: 36px; cursor: pointer;
+}
+.slot-title { font-weight: 600; font-size: 15px; }
+.slot-meta { font-size: 12px; color: var(--muted); }
+.slot-empty { color: #c7c7cc; font-size: 13px; padding: 4px 0; }
+
+.items { margin-top: 10px; border-top: 1px solid var(--border); padding-top: 6px; }
+.item { position: relative; overflow: hidden; }
+.item-row {
+  display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; padding: 10px 4px;
+  border-bottom: 1px dashed var(--border); background: var(--slot-bg);
+  transform: translateX(0); transition: transform .2s;
+}
+.item:last-child .item-row { border-bottom: none; }
+.item-name { font-size: 14px; font-weight: 500; }
+.item-weight { font-size: 13px; color: var(--muted); text-align: right; }
+.item-macros { grid-column: 1 / 3; font-size: 11px; color: var(--muted); display: flex; gap: 10px; flex-wrap: wrap; }
+.item-macros b { color: var(--tg-theme-text-color, #48484a); font-weight: 500; }
+.item-warn { color: var(--danger); font-size: 11px; }
+
+.item .delete-bg {
+  position: absolute; inset: 0; background: var(--danger); color: white;
+  display: flex; align-items: center; justify-content: flex-end;
+  padding-right: 20px; font-size: 13px;
+}
+.item.swiped .item-row { transform: translateX(-80px); }
+
+.swipe-hint { font-size: 10px; color: #c7c7cc; font-style: italic;
+              text-align: right; padding: 4px 0 0; }
+
+.add-in-slot { color: var(--accent); font-size: 13px; padding: 10px 0 2px;
+               cursor: pointer; text-align: center; }
+
+.day-footer {
+  position: sticky; bottom: 0; background: var(--tg-theme-bg-color, #fff);
+  border-top: 1px solid var(--border); padding: 10px 16px 14px;
+}
+.footer-title { font-size: 11px; color: var(--muted); text-transform: uppercase;
+                letter-spacing: .5px; margin-bottom: 6px; }
+.bar-row { display: grid; grid-template-columns: 70px 1fr 80px; align-items: center;
+           gap: 8px; font-size: 12px; margin-bottom: 4px; }
+.bar-track { background: var(--border); border-radius: 4px; height: 6px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 4px; transition: width .3s; }
+.bar-fill.kcal { background: var(--bar-kcal); }
+.bar-fill.p { background: var(--bar-p); }
+.bar-fill.f { background: var(--bar-f); }
+.bar-fill.c { background: var(--bar-c); }
+.bar-fill.fib { background: var(--bar-fib); }
+.bar-value { text-align: right; color: var(--tg-theme-text-color, #48484a); }
+.bar-value span { color: var(--muted); font-size: 11px; }
+
+/* Bottom sheet */
+.sheet-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 100;
+                 display: none; align-items: flex-end; justify-content: center; }
+.sheet-overlay.open { display: flex; }
+.sheet {
+  background: var(--tg-theme-bg-color, #fff); width: 100%; max-width: 480px;
+  border-radius: 16px 16px 0 0; padding: 18px 16px 20px; max-height: 80vh;
+  overflow-y: auto;
+}
+.sheet h3 { font-size: 16px; margin-bottom: 12px; }
+.sheet-close { float: right; background: none; border: none; font-size: 18px; cursor: pointer; color: var(--muted); }
+
+.fav-list { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; margin-bottom: 14px; }
+.fav-chip {
+  flex: 0 0 auto; background: var(--slot-bg); border-radius: 10px; padding: 8px 12px;
+  font-size: 13px; cursor: pointer; border: 1px solid var(--border);
+}
+.fav-chip .w { color: var(--muted); font-size: 11px; display: block; margin-top: 2px; }
+
+.form-row { margin-bottom: 10px; }
+.form-row label { display: block; font-size: 11px; color: var(--muted);
+                  text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+.form-row input { width: 100%; border: 1px solid var(--border); border-radius: 8px;
+                  padding: 10px 12px; font-size: 14px; }
+.primary-btn {
+  background: var(--accent); color: white; border: none; border-radius: 10px;
+  padding: 12px 16px; font-size: 15px; font-weight: 600; width: 100%; cursor: pointer;
+}
+.primary-btn:disabled { opacity: .5; cursor: wait; }
+
+.snackbar {
+  position: fixed; bottom: 70px; left: 16px; right: 16px; max-width: 480px; margin: 0 auto;
+  background: #333; color: white; border-radius: 10px; padding: 12px 14px;
+  display: flex; justify-content: space-between; align-items: center; z-index: 200;
+}
+.snackbar.hidden { display: none; }
+.snackbar button {
+  background: none; border: none; color: #6eb4ff; font-weight: 600; cursor: pointer;
+}
