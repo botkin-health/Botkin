@@ -292,4 +292,104 @@
   // Init
   updateSwitcher();
   loadDay();
+
+function showSnackbar(text, onUndo) {
+  const bar = document.getElementById('snackbar');
+  document.getElementById('snackbar-text').textContent = text;
+  bar.classList.remove('hidden');
+  const undoBtn = document.getElementById('snackbar-undo');
+  const handler = async () => { undoBtn.removeEventListener('click', handler); bar.classList.add('hidden'); await onUndo(); };
+  undoBtn.addEventListener('click', handler);
+  setTimeout(() => { bar.classList.add('hidden'); undoBtn.removeEventListener('click', handler); }, 4000);
+}
+
+function wireItemGestures(root) {
+  root.querySelectorAll('.item').forEach(el => {
+    let startX = 0, currentX = 0, dragging = false;
+    const row = el.querySelector('.item-row');
+    el.addEventListener('touchstart', (e) => {
+      startX = e.touches[0].clientX; dragging = true;
+    }, { passive: true });
+    el.addEventListener('touchmove', (e) => {
+      if (!dragging) return;
+      currentX = e.touches[0].clientX - startX;
+      if (currentX < 0) row.style.transform = `translateX(${Math.max(currentX, -100)}px)`;
+    }, { passive: true });
+    el.addEventListener('touchend', async () => {
+      dragging = false;
+      if (currentX < -60) {
+        // Mark hint as seen
+        localStorage.setItem('swipeHintShown', '1');
+        await deleteItem(el);
+      } else {
+        row.style.transform = '';
+      }
+      currentX = 0;
+    });
+    // Tap to edit weight
+    row.addEventListener('click', (e) => {
+      if (Math.abs(currentX) > 5) return;  // ignore if this was a swipe
+      openEditSheet(el);
+    });
+  });
+}
+window.__wireItemGestures = wireItemGestures;
+
+async function deleteItem(el) {
+  const mealId = Number(el.dataset.mealId);
+  const idx = Number(el.dataset.idx);
+  try {
+    const res = await api(`/api/meal/item?meal_id=${mealId}&idx=${idx}`, { method: 'DELETE' });
+    const removed = res.removed;
+    tg?.HapticFeedback?.impactOccurred?.('medium');
+    showSnackbar(`Удалено: ${removed.name}`, async () => {
+      // Undo: POST same product back to same slot
+      const slot = el.closest('.slot')?.dataset.slot;
+      await api('/api/meal/item', {
+        method: 'POST',
+        body: JSON.stringify({
+          date: toISO(state.date), slot, name: removed.name,
+          weight: removed.weight, source: 'manual',
+        }),
+      });
+      loadDay();
+    });
+    loadDay();
+  } catch (e) {
+    tg?.showAlert?.(`Ошибка: ${e.message}`);
+  }
+}
+
+function openEditSheet(el) {
+  const mealId = Number(el.dataset.mealId);
+  const idx = Number(el.dataset.idx);
+  const meal = state.data.meals.find(m => m.id === mealId);
+  const item = meal?.items[idx];
+  if (!item) return;
+  document.getElementById('edit-sheet-title').textContent = `Изменить: ${item.name}`;
+  document.getElementById('edit-weight').value = item.weight;
+  document.getElementById('edit-sheet').classList.add('open');
+  document.getElementById('edit-submit').onclick = async () => {
+    const w = parseFloat(document.getElementById('edit-weight').value);
+    if (!w || w <= 0) return;
+    try {
+      await api('/api/meal/item', {
+        method: 'PATCH',
+        body: JSON.stringify({ meal_id: mealId, idx, weight: w }),
+      });
+      document.getElementById('edit-sheet').classList.remove('open');
+      tg?.HapticFeedback?.notificationOccurred?.('success');
+      loadDay();
+    } catch (e) {
+      tg?.showAlert?.(`Ошибка: ${e.message}`);
+    }
+  };
+}
+
+document.getElementById('edit-sheet-close').addEventListener('click', () =>
+  document.getElementById('edit-sheet').classList.remove('open')
+);
+document.getElementById('edit-sheet').addEventListener('click', (e) => {
+  if (e.target.id === 'edit-sheet') e.target.classList.remove('open');
+});
 })();
