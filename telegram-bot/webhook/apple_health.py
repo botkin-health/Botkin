@@ -348,6 +348,13 @@ async def save_settings(payload: UserSettingsSchema, tg_user: dict = Depends(get
     return {"status": "ok"}
 
 
+# ── Nutrition day editor API ─────────────────────────────────────────────────
+
+from webhook.nutrition_api import router as nutrition_router
+
+app.include_router(nutrition_router)
+
+
 # ── Static webapp ─────────────────────────────────────────────────────────────
 
 from fastapi.staticfiles import StaticFiles
