@@ -22,6 +22,7 @@ from database.crud import (
     update_nutrition_meal_fields,
     delete_nutrition_item,
     delete_nutrition_log,
+    get_recent_product_names,
 )
 from webhook.apple_health import get_tg_user
 from webhook.nutrition_slots import SLOTS, slot_center_time, slot_from_meal, slot_label_ru
@@ -337,3 +338,22 @@ async def delete_meal(
         db.expire_all()
         db.close()
     return Response(status_code=204)
+
+
+@router.get("/api/favorites")
+async def get_favorites(
+    limit: int = Query(15, ge=1, le=50, description="Max number of products to return"),
+    tg_user: dict = Depends(get_tg_user),
+):
+    user_id = tg_user.get("id")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="No user id in initData")
+
+    db = SessionLocal()
+    try:
+        db.expire_all()
+        favorites = get_recent_product_names(db=db, user_id=user_id, limit=limit)
+    finally:
+        db.close()
+
+    return favorites

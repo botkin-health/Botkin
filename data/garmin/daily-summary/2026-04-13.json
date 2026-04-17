@@ -1,0 +1,910 @@
+{
+  "stats": {
+    "userProfileId": 58868684,
+    "totalKilocalories": 2124.0,
+    "activeKilocalories": 146.0,
+    "bmrKilocalories": 1978.0,
+    "wellnessKilocalories": 2124.0,
+    "burnedKilocalories": null,
+    "consumedKilocalories": null,
+    "remainingKilocalories": null,
+    "totalSteps": 4686,
+    "netCalorieGoal": null,
+    "totalDistanceMeters": 3625,
+    "wellnessDistanceMeters": 3625,
+    "wellnessActiveKilocalories": 146.0,
+    "netRemainingKilocalories": 146.0,
+    "userDailySummaryId": 58868684,
+    "calendarDate": "2026-04-13",
+    "rule": {
+      "typeId": 4,
+      "typeKey": "groups"
+    },
+    "uuid": "3637dc2523234451b4ddfe612d120ed2",
+    "dailyStepGoal": 8140,
+    "wellnessStartTimeGmt": "2026-04-12T17:00:00.0",
+    "wellnessStartTimeLocal": "2026-04-13T00:00:00.0",
+    "wellnessEndTimeGmt": "2026-04-13T17:00:00.0",
+    "wellnessEndTimeLocal": "2026-04-14T00:00:00.0",
+    "durationInMilliseconds": 86400000,
+    "wellnessDescription": null,
+    "highlyActiveSeconds": 925,
+    "activeSeconds": 3609,
+    "sedentarySeconds": 57566,
+    "sleepingSeconds": 24300,
+    "includesWellnessData": true,
+    "includesActivityData": false,
+    "includesCalorieConsumedData": false,
+    "privacyProtected": false,
+    "moderateIntensityMinutes": 0,
+    "vigorousIntensityMinutes": 0,
+    "floorsAscendedInMeters": 10.595,
+    "floorsDescendedInMeters": 23.859,
+    "floorsAscended": 3.47605,
+    "floorsDescended": 7.82776,
+    "intensityMinutesGoal": 150,
+    "userFloorsAscendedGoal": 10,
+    "minHeartRate": 51,
+    "maxHeartRate": 110,
+    "restingHeartRate": 53,
+    "lastSevenDaysAvgRestingHeartRate": 53,
+    "source": "GARMIN",
+    "averageStressLevel": 37,
+    "maxStressLevel": 89,
+    "stressDuration": 45960,
+    "restStressDuration": 30960,
+    "activityStressDuration": 5940,
+    "uncategorizedStressDuration": 1020,
+    "totalStressDuration": 83880,
+    "lowStressDuration": 23940,
+    "mediumStressDuration": 17100,
+    "highStressDuration": 4920,
+    "stressPercentage": 54.79,
+    "restStressPercentage": 36.91,
+    "activityStressPercentage": 7.08,
+    "uncategorizedStressPercentage": 1.22,
+    "lowStressPercentage": 28.54,
+    "mediumStressPercentage": 20.39,
+    "highStressPercentage": 5.87,
+    "stressQualifier": "STRESSFUL",
+    "measurableAwakeDuration": 58560,
+    "measurableAsleepDuration": 24300,
+    "lastSyncTimestampGMT": null,
+    "minAvgHeartRate": 51,
+    "maxAvgHeartRate": 108,
+    "bodyBatteryChargedValue": 67,
+    "bodyBatteryDrainedValue": 68,
+    "bodyBatteryHighestValue": 75,
+    "bodyBatteryLowestValue": 10,
+    "bodyBatteryMostRecentValue": 18,
+    "bodyBatteryDuringSleep": 64,
+    "bodyBatteryAtWakeTime": 74,
+    "bodyBatteryVersion": 3.0,
+    "abnormalHeartRateAlertsCount": null,
+    "averageSpo2": 93.0,
+    "lowestSpo2": 81,
+    "latestSpo2": 95,
+    "latestSpo2ReadingTimeGmt": "2026-04-13T16:59:00.0",
+    "latestSpo2ReadingTimeLocal": "2026-04-13T23:59:00.0",
+    "averageMonitoringEnvironmentAltitude": 161.0,
+    "restingCaloriesFromActivity": null,
+    "bodyBatteryDynamicFeedbackEvent": {
+      "eventTimestampGmt": "2026-04-13T16:00:35",
+      "bodyBatteryLevel": "LOW",
+      "feedbackShortType": "SLEEP_PREPARATION_STRESSFUL_AND_INACTIVE",
+      "feedbackLongType": "SLEEP_PREPARATION_STRESSFUL_AND_INACTIVE_AND_BB_LOW"
+    },
+    "endOfDayBodyBatteryDynamicFeedbackEvent": {
+      "eventTimestampGmt": "2026-04-13T00:27:26",
+      "bodyBatteryLevel": "HIGH",
+      "feedbackShortType": "SLEEP_TIME_PASSED_STRESSFUL_AND_INACTIVE",
+      "feedbackLongType": "SLEEP_TIME_PASSED_STRESSFUL_AND_INACTIVE"
+    },
+    "bodyBatteryActivityEventList": [
+      {
+        "eventType": "SLEEP",
+        "eventStartTimeGmt": "2026-04-12T22:25:58",
+        "timezoneOffset": 25200000,
+        "durationInMilliseconds": 24300000,
+        "bodyBatteryImpact": 63,
+        "feedbackType": "NONE",
+        "shortFeedback": "NONE",
+        "deviceId": 3404099129,
+        "activityName": null,
+        "activityType": null,
+        "activityId": null,
+        "eventUpdateTimeGmt": "2026-04-13T05:11:04"
+      },
+      {
+        "eventType": "STRESS",
+        "eventStartTimeGmt": "2026-04-13T11:27:24",
+        "timezoneOffset": 25200000,
+        "durationInMilliseconds": 3060000,
+        "bodyBatteryImpact": -6,
+        "feedbackType": "STRESS",
+        "shortFeedback": "STRESSFUL_PERIOD",
+        "deviceId": 3404099129,
+        "activityName": null,
+        "activityType": null,
+        "activityId": null,
+        "eventUpdateTimeGmt": "2026-04-13T12:19:30"
+      }
+    ],
+    "avgWakingRespirationValue": 16.0,
+    "highestRespirationValue": 23.0,
+    "lowestRespirationValue": 7.0,
+    "latestRespirationValue": 18.0,
+    "latestRespirationTimeGMT": "2026-04-13T16:58:00.0",
+    "respirationAlgorithmVersion": 200
+  },
+  "steps": [
+    {
+      "startGMT": "2026-04-12T17:00:00.0",
+      "endGMT": "2026-04-12T17:15:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-12T17:15:00.0",
+      "endGMT": "2026-04-12T17:30:00.0",
+      "steps": 47,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-12T17:30:00.0",
+      "endGMT": "2026-04-12T17:45:00.0",
+      "steps": 18,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-12T17:45:00.0",
+      "endGMT": "2026-04-12T18:00:00.0",
+      "steps": 1316,
+      "pushes": 0,
+      "primaryActivityLevel": "active",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-12T18:00:00.0",
+      "endGMT": "2026-04-12T18:15:00.0",
+      "steps": 483,
+      "pushes": 0,
+      "primaryActivityLevel": "active",
+      "activityLevelConstant": false
+    },
+    {
+      "startGMT": "2026-04-12T18:15:00.0",
+      "endGMT": "2026-04-12T18:30:00.0",
+      "steps": 13,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-12T18:30:00.0",
+      "endGMT": "2026-04-12T18:45:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-12T18:45:00.0",
+      "endGMT": "2026-04-12T19:00:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-12T19:00:00.0",
+      "endGMT": "2026-04-12T19:15:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-12T19:15:00.0",
+      "endGMT": "2026-04-12T19:30:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-12T19:30:00.0",
+      "endGMT": "2026-04-12T19:45:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-12T19:45:00.0",
+      "endGMT": "2026-04-12T20:00:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-12T20:00:00.0",
+      "endGMT": "2026-04-12T20:15:00.0",
+      "steps": 32,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-12T20:15:00.0",
+      "endGMT": "2026-04-12T20:30:00.0",
+      "steps": 13,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-12T20:30:00.0",
+      "endGMT": "2026-04-12T20:45:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-12T20:45:00.0",
+      "endGMT": "2026-04-12T21:00:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-12T21:00:00.0",
+      "endGMT": "2026-04-12T21:15:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-12T21:15:00.0",
+      "endGMT": "2026-04-12T21:30:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-12T21:30:00.0",
+      "endGMT": "2026-04-12T21:45:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-12T21:45:00.0",
+      "endGMT": "2026-04-12T22:00:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-12T22:00:00.0",
+      "endGMT": "2026-04-12T22:15:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-12T22:15:00.0",
+      "endGMT": "2026-04-12T22:30:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": false
+    },
+    {
+      "startGMT": "2026-04-12T22:30:00.0",
+      "endGMT": "2026-04-12T22:45:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sleeping",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-12T22:45:00.0",
+      "endGMT": "2026-04-12T23:00:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sleeping",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-12T23:00:00.0",
+      "endGMT": "2026-04-12T23:15:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sleeping",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-12T23:15:00.0",
+      "endGMT": "2026-04-12T23:30:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sleeping",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-12T23:30:00.0",
+      "endGMT": "2026-04-12T23:45:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sleeping",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-12T23:45:00.0",
+      "endGMT": "2026-04-13T00:00:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sleeping",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T00:00:00.0",
+      "endGMT": "2026-04-13T00:15:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sleeping",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T00:15:00.0",
+      "endGMT": "2026-04-13T00:30:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sleeping",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T00:30:00.0",
+      "endGMT": "2026-04-13T00:45:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sleeping",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T00:45:00.0",
+      "endGMT": "2026-04-13T01:00:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sleeping",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T01:00:00.0",
+      "endGMT": "2026-04-13T01:15:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sleeping",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T01:15:00.0",
+      "endGMT": "2026-04-13T01:30:00.0",
+      "steps": 10,
+      "pushes": 0,
+      "primaryActivityLevel": "sleeping",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T01:30:00.0",
+      "endGMT": "2026-04-13T01:45:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sleeping",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T01:45:00.0",
+      "endGMT": "2026-04-13T02:00:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sleeping",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T02:00:00.0",
+      "endGMT": "2026-04-13T02:15:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sleeping",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T02:15:00.0",
+      "endGMT": "2026-04-13T02:30:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sleeping",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T02:30:00.0",
+      "endGMT": "2026-04-13T02:45:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sleeping",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T02:45:00.0",
+      "endGMT": "2026-04-13T03:00:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sleeping",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T03:00:00.0",
+      "endGMT": "2026-04-13T03:15:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sleeping",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T03:15:00.0",
+      "endGMT": "2026-04-13T03:30:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sleeping",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T03:30:00.0",
+      "endGMT": "2026-04-13T03:45:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sleeping",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T03:45:00.0",
+      "endGMT": "2026-04-13T04:00:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sleeping",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T04:00:00.0",
+      "endGMT": "2026-04-13T04:15:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sleeping",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T04:15:00.0",
+      "endGMT": "2026-04-13T04:30:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sleeping",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T04:30:00.0",
+      "endGMT": "2026-04-13T04:45:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sleeping",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T04:45:00.0",
+      "endGMT": "2026-04-13T05:00:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sleeping",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T05:00:00.0",
+      "endGMT": "2026-04-13T05:15:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sleeping",
+      "activityLevelConstant": false
+    },
+    {
+      "startGMT": "2026-04-13T05:15:00.0",
+      "endGMT": "2026-04-13T05:30:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T05:30:00.0",
+      "endGMT": "2026-04-13T05:45:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T05:45:00.0",
+      "endGMT": "2026-04-13T06:00:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T06:00:00.0",
+      "endGMT": "2026-04-13T06:15:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T06:15:00.0",
+      "endGMT": "2026-04-13T06:30:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T06:30:00.0",
+      "endGMT": "2026-04-13T06:45:00.0",
+      "steps": 270,
+      "pushes": 0,
+      "primaryActivityLevel": "highlyActive",
+      "activityLevelConstant": false
+    },
+    {
+      "startGMT": "2026-04-13T06:45:00.0",
+      "endGMT": "2026-04-13T07:00:00.0",
+      "steps": 119,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T07:00:00.0",
+      "endGMT": "2026-04-13T07:15:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T07:15:00.0",
+      "endGMT": "2026-04-13T07:30:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T07:30:00.0",
+      "endGMT": "2026-04-13T07:45:00.0",
+      "steps": 242,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": false
+    },
+    {
+      "startGMT": "2026-04-13T07:45:00.0",
+      "endGMT": "2026-04-13T08:00:00.0",
+      "steps": 232,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": false
+    },
+    {
+      "startGMT": "2026-04-13T08:00:00.0",
+      "endGMT": "2026-04-13T08:15:00.0",
+      "steps": 29,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T08:15:00.0",
+      "endGMT": "2026-04-13T08:30:00.0",
+      "steps": 306,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": false
+    },
+    {
+      "startGMT": "2026-04-13T08:30:00.0",
+      "endGMT": "2026-04-13T08:45:00.0",
+      "steps": 174,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": false
+    },
+    {
+      "startGMT": "2026-04-13T08:45:00.0",
+      "endGMT": "2026-04-13T09:00:00.0",
+      "steps": 141,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": false
+    },
+    {
+      "startGMT": "2026-04-13T09:00:00.0",
+      "endGMT": "2026-04-13T09:15:00.0",
+      "steps": 78,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T09:15:00.0",
+      "endGMT": "2026-04-13T09:30:00.0",
+      "steps": 77,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": false
+    },
+    {
+      "startGMT": "2026-04-13T09:30:00.0",
+      "endGMT": "2026-04-13T09:45:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T09:45:00.0",
+      "endGMT": "2026-04-13T10:00:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T10:00:00.0",
+      "endGMT": "2026-04-13T10:15:00.0",
+      "steps": 11,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T10:15:00.0",
+      "endGMT": "2026-04-13T10:30:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T10:30:00.0",
+      "endGMT": "2026-04-13T10:45:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T10:45:00.0",
+      "endGMT": "2026-04-13T11:00:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T11:00:00.0",
+      "endGMT": "2026-04-13T11:15:00.0",
+      "steps": 9,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T11:15:00.0",
+      "endGMT": "2026-04-13T11:30:00.0",
+      "steps": 75,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": false
+    },
+    {
+      "startGMT": "2026-04-13T11:30:00.0",
+      "endGMT": "2026-04-13T11:45:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T11:45:00.0",
+      "endGMT": "2026-04-13T12:00:00.0",
+      "steps": 75,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": false
+    },
+    {
+      "startGMT": "2026-04-13T12:00:00.0",
+      "endGMT": "2026-04-13T12:15:00.0",
+      "steps": 70,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": false
+    },
+    {
+      "startGMT": "2026-04-13T12:15:00.0",
+      "endGMT": "2026-04-13T12:30:00.0",
+      "steps": 71,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": false
+    },
+    {
+      "startGMT": "2026-04-13T12:30:00.0",
+      "endGMT": "2026-04-13T12:45:00.0",
+      "steps": 328,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": false
+    },
+    {
+      "startGMT": "2026-04-13T12:45:00.0",
+      "endGMT": "2026-04-13T13:00:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T13:00:00.0",
+      "endGMT": "2026-04-13T13:15:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T13:15:00.0",
+      "endGMT": "2026-04-13T13:30:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T13:30:00.0",
+      "endGMT": "2026-04-13T13:45:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T13:45:00.0",
+      "endGMT": "2026-04-13T14:00:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T14:00:00.0",
+      "endGMT": "2026-04-13T14:15:00.0",
+      "steps": 92,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": false
+    },
+    {
+      "startGMT": "2026-04-13T14:15:00.0",
+      "endGMT": "2026-04-13T14:30:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T14:30:00.0",
+      "endGMT": "2026-04-13T14:45:00.0",
+      "steps": 25,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T14:45:00.0",
+      "endGMT": "2026-04-13T15:00:00.0",
+      "steps": 28,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T15:00:00.0",
+      "endGMT": "2026-04-13T15:15:00.0",
+      "steps": 18,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T15:15:00.0",
+      "endGMT": "2026-04-13T15:30:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T15:30:00.0",
+      "endGMT": "2026-04-13T15:45:00.0",
+      "steps": 0,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T15:45:00.0",
+      "endGMT": "2026-04-13T16:00:00.0",
+      "steps": 28,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T16:00:00.0",
+      "endGMT": "2026-04-13T16:15:00.0",
+      "steps": 26,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": true
+    },
+    {
+      "startGMT": "2026-04-13T16:15:00.0",
+      "endGMT": "2026-04-13T16:30:00.0",
+      "steps": 43,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": false
+    },
+    {
+      "startGMT": "2026-04-13T16:30:00.0",
+      "endGMT": "2026-04-13T16:45:00.0",
+      "steps": 83,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": false
+    },
+    {
+      "startGMT": "2026-04-13T16:45:00.0",
+      "endGMT": "2026-04-13T17:00:00.0",
+      "steps": 104,
+      "pushes": 0,
+      "primaryActivityLevel": "sedentary",
+      "activityLevelConstant": false
+    }
+  ]
+}

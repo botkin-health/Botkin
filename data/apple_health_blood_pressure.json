@@ -1121,6 +1121,42 @@
       "time": "09:33:50",
       "systolic": 112,
       "diastolic": 74
+    },
+    {
+      "date": "2026-04-10",
+      "time": "10:18:58",
+      "systolic": 116,
+      "diastolic": 88
+    },
+    {
+      "date": "2026-04-10",
+      "time": "10:19:56",
+      "systolic": 105,
+      "diastolic": 79
+    },
+    {
+      "date": "2026-04-11",
+      "time": "06:13:18",
+      "systolic": 112,
+      "diastolic": 69
+    },
+    {
+      "date": "2026-04-11",
+      "time": "06:14:13",
+      "systolic": 112,
+      "diastolic": 74
+    },
+    {
+      "date": "2026-04-16",
+      "time": "10:48:42",
+      "systolic": 137,
+      "diastolic": 84
+    },
+    {
+      "date": "2026-04-16",
+      "time": "10:49:45",
+      "systolic": 128,
+      "diastolic": 86
     }
   ]
 }

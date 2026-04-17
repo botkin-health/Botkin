@@ -14435,8 +14435,22 @@
       "source": "Connect"
     },
     {
+      "date": "2026-04-03",
+      "time": "22:00:00",
+      "bpm": 54,
+      "type": "resting",
+      "source": "Connect"
+    },
+    {
       "date": "2026-04-04",
       "time": "00:00:00",
+      "bpm": 54,
+      "type": "resting",
+      "source": "Connect"
+    },
+    {
+      "date": "2026-04-04",
+      "time": "22:00:00",
       "bpm": 54,
       "type": "resting",
       "source": "Connect"
@@ -14456,6 +14470,13 @@
       "source": "Connect"
     },
     {
+      "date": "2026-04-06",
+      "time": "20:00:00",
+      "bpm": 54,
+      "type": "resting",
+      "source": "Connect"
+    },
+    {
       "date": "2026-04-07",
       "time": "00:00:00",
       "bpm": 54,
@@ -14463,9 +14484,121 @@
       "source": "Connect"
     },
     {
+      "date": "2026-04-07",
+      "time": "20:00:00",
+      "bpm": 50,
+      "type": "resting",
+      "source": "Connect"
+    },
+    {
       "date": "2026-04-08",
       "time": "00:00:00",
       "bpm": 50,
+      "type": "resting",
+      "source": "Connect"
+    },
+    {
+      "date": "2026-04-08",
+      "time": "20:00:00",
+      "bpm": 54,
+      "type": "resting",
+      "source": "Connect"
+    },
+    {
+      "date": "2026-04-09",
+      "time": "00:00:00",
+      "bpm": 54,
+      "type": "resting",
+      "source": "Connect"
+    },
+    {
+      "date": "2026-04-09",
+      "time": "20:00:00",
+      "bpm": 52,
+      "type": "resting",
+      "source": "Connect"
+    },
+    {
+      "date": "2026-04-10",
+      "time": "00:00:00",
+      "bpm": 52,
+      "type": "resting",
+      "source": "Connect"
+    },
+    {
+      "date": "2026-04-10",
+      "time": "20:00:00",
+      "bpm": 57,
+      "type": "resting",
+      "source": "Connect"
+    },
+    {
+      "date": "2026-04-11",
+      "time": "00:00:00",
+      "bpm": 57,
+      "type": "resting",
+      "source": "Connect"
+    },
+    {
+      "date": "2026-04-11",
+      "time": "20:00:00",
+      "bpm": 54,
+      "type": "resting",
+      "source": "Connect"
+    },
+    {
+      "date": "2026-04-12",
+      "time": "00:00:00",
+      "bpm": 54,
+      "type": "resting",
+      "source": "Connect"
+    },
+    {
+      "date": "2026-04-12",
+      "time": "20:00:00",
+      "bpm": 53,
+      "type": "resting",
+      "source": "Connect"
+    },
+    {
+      "date": "2026-04-13",
+      "time": "00:00:00",
+      "bpm": 53,
+      "type": "resting",
+      "source": "Connect"
+    },
+    {
+      "date": "2026-04-13",
+      "time": "20:00:00",
+      "bpm": 52,
+      "type": "resting",
+      "source": "Connect"
+    },
+    {
+      "date": "2026-04-14",
+      "time": "00:00:00",
+      "bpm": 52,
+      "type": "resting",
+      "source": "Connect"
+    },
+    {
+      "date": "2026-04-14",
+      "time": "20:00:00",
+      "bpm": 57,
+      "type": "resting",
+      "source": "Connect"
+    },
+    {
+      "date": "2026-04-15",
+      "time": "00:00:00",
+      "bpm": 54,
+      "type": "resting",
+      "source": "Connect"
+    },
+    {
+      "date": "2026-04-16",
+      "time": "00:00:00",
+      "bpm": 49,
       "type": "resting",
       "source": "Connect"
     }

@@ -331,3 +331,35 @@ def test_delete_meal_whole(client, api_db):
     assert r.status_code == 204
     day = client.get("/api/day?date=2026-04-17").json()
     assert day["meals"] == []
+
+
+def test_get_favorites(client, api_db):
+    from datetime import timedelta
+
+    today = date(2026, 4, 17)
+    create_nutrition_log(
+        db=api_db,
+        user_id=895655,
+        date=today - timedelta(days=1),
+        meal_time=time(9, 0),
+        meal_name="Завтрак",
+        items=[
+            {"product": "Кофе", "weight_g": 200, "calories": 10, "protein": 0, "fats": 0, "carbs": 2, "fiber": 0},
+            {"product": "Овсянка", "weight_g": 60, "calories": 240, "protein": 8, "fats": 5, "carbs": 42, "fiber": 6},
+        ],
+        totals={"calories": 250, "protein": 8, "fats": 5, "carbs": 44, "fiber": 6},
+    )
+    r = client.get("/api/favorites?limit=15")
+    assert r.status_code == 200
+    body = r.json()
+    names = [x["name"] for x in body]
+    assert "Кофе" in names
+    assert "Овсянка" in names
+    for rec in body:
+        assert set(rec.keys()) >= {"name", "default_weight", "last_used", "per_100"}
+        assert set(rec["per_100"].keys()) == {"kcal", "p", "f", "c", "fib"}
+
+
+def test_get_favorites_respects_limit(client, api_db):
+    r = client.get("/api/favorites?limit=0")
+    assert r.status_code == 422

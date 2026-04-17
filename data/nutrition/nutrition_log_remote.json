@@ -8885,6 +8885,37 @@
     "created_at": "2026-02-16T14:25:22.894871+00:00"
   },
   {
+    "id": 482,
+    "user_id": 895655,
+    "date": "2026-02-16",
+    "meal_time": "20:08:00",
+    "meal_name": "Котлеты из индейки с сырным пюре",
+    "items": [
+      {
+        "fats": 68,
+        "food": "Котлеты из индейки с сырным пюре",
+        "unit": "г",
+        "carbs": 34,
+        "fiber": 0.0,
+        "amount": 340,
+        "drinks": 0,
+        "protein": 51,
+        "calories": 850
+      }
+    ],
+    "totals": {
+      "fats": 68,
+      "carbs": 34,
+      "fiber": 0.0,
+      "protein": 51,
+      "calories": 850
+    },
+    "photo_paths": [
+      "/app/data/media/nutrition/2026-02-16/AgACAgIAAxkBAAIIw2mTeRNp9aSfxLlvWztRlomRslE_AAK7GmsbsySYSKQEm8791k7ZAQADAgADeQADOgQ.jpg"
+    ],
+    "created_at": "2026-02-16T20:08:17.645288+00:00"
+  },
+  {
     "id": 483,
     "user_id": 895655,
     "date": "2026-02-16",
@@ -8923,37 +8954,6 @@
     },
     "photo_paths": [],
     "created_at": "2026-02-16T20:09:02.336662+00:00"
-  },
-  {
-    "id": 482,
-    "user_id": 895655,
-    "date": "2026-02-16",
-    "meal_time": "20:08:00",
-    "meal_name": "Котлеты из индейки с сырным пюре",
-    "items": [
-      {
-        "fats": 68,
-        "food": "Котлеты из индейки с сырным пюре",
-        "unit": "г",
-        "carbs": 34,
-        "fiber": 0.0,
-        "amount": 340,
-        "drinks": 0,
-        "protein": 51,
-        "calories": 850
-      }
-    ],
-    "totals": {
-      "fats": 68,
-      "carbs": 34,
-      "fiber": 0.0,
-      "protein": 51,
-      "calories": 850
-    },
-    "photo_paths": [
-      "/app/data/media/nutrition/2026-02-16/AgACAgIAAxkBAAIIw2mTeRNp9aSfxLlvWztRlomRslE_AAK7GmsbsySYSKQEm8791k7ZAQADAgADeQADOgQ.jpg"
-    ],
-    "created_at": "2026-02-16T20:08:17.645288+00:00"
   },
   {
     "id": 484,
@@ -10706,6 +10706,35 @@
     "created_at": "2026-02-23T14:50:42.344425+00:00"
   },
   {
+    "id": 638,
+    "user_id": 895655,
+    "date": "2026-02-24",
+    "meal_time": "07:35:00",
+    "meal_name": "Тунец",
+    "items": [
+      {
+        "fats": 1,
+        "food": "Тунец",
+        "unit": "г",
+        "carbs": 0,
+        "fiber": 0.0,
+        "amount": 100.0,
+        "drinks": 0,
+        "protein": 28,
+        "calories": 132
+      }
+    ],
+    "totals": {
+      "fats": 1,
+      "carbs": 0,
+      "fiber": 0.0,
+      "protein": 29,
+      "calories": 130
+    },
+    "photo_paths": [],
+    "created_at": "2026-02-24T07:35:40.440150+00:00"
+  },
+  {
     "id": 637,
     "user_id": 895655,
     "date": "2026-02-24",
@@ -10735,35 +10764,6 @@
       "/app/data/media/nutrition/2026-02-24/AgACAgIAAxkBAAIJtGmdVLVIVp-AYYntwOknlKpytigfAAKIE2sbdYLoSAVJ2WMSH7BUAQADAgADeQADOgQ.jpg"
     ],
     "created_at": "2026-02-24T07:35:34.241165+00:00"
-  },
-  {
-    "id": 638,
-    "user_id": 895655,
-    "date": "2026-02-24",
-    "meal_time": "07:35:00",
-    "meal_name": "Тунец",
-    "items": [
-      {
-        "fats": 1,
-        "food": "Тунец",
-        "unit": "г",
-        "carbs": 0,
-        "fiber": 0.0,
-        "amount": 100.0,
-        "drinks": 0,
-        "protein": 28,
-        "calories": 132
-      }
-    ],
-    "totals": {
-      "fats": 1,
-      "carbs": 0,
-      "fiber": 0.0,
-      "protein": 29,
-      "calories": 130
-    },
-    "photo_paths": [],
-    "created_at": "2026-02-24T07:35:40.440150+00:00"
   },
   {
     "id": 647,
@@ -10846,35 +10846,6 @@
     "created_at": "2026-02-24T19:59:47.885397+00:00"
   },
   {
-    "id": 650,
-    "user_id": 895655,
-    "date": "2026-02-24",
-    "meal_time": "20:30:00",
-    "meal_name": "Удобный белок с солью",
-    "items": [
-      {
-        "fats": 0,
-        "food": "Удобный белок с солью",
-        "unit": "г",
-        "carbs": 0,
-        "fiber": 0.0,
-        "amount": null,
-        "drinks": 0,
-        "protein": 15,
-        "calories": 55
-      }
-    ],
-    "totals": {
-      "fats": 0,
-      "carbs": 0,
-      "fiber": 0.0,
-      "protein": 15,
-      "calories": 55
-    },
-    "photo_paths": [],
-    "created_at": "2026-02-24T20:31:41.943644+00:00"
-  },
-  {
     "id": 649,
     "user_id": 895655,
     "date": "2026-02-24",
@@ -10902,6 +10873,35 @@
     },
     "photo_paths": [],
     "created_at": "2026-02-24T20:30:36.530304+00:00"
+  },
+  {
+    "id": 650,
+    "user_id": 895655,
+    "date": "2026-02-24",
+    "meal_time": "20:30:00",
+    "meal_name": "Удобный белок с солью",
+    "items": [
+      {
+        "fats": 0,
+        "food": "Удобный белок с солью",
+        "unit": "г",
+        "carbs": 0,
+        "fiber": 0.0,
+        "amount": null,
+        "drinks": 0,
+        "protein": 15,
+        "calories": 55
+      }
+    ],
+    "totals": {
+      "fats": 0,
+      "carbs": 0,
+      "fiber": 0.0,
+      "protein": 15,
+      "calories": 55
+    },
+    "photo_paths": [],
+    "created_at": "2026-02-24T20:31:41.943644+00:00"
   },
   {
     "id": 651,
@@ -10986,35 +10986,6 @@
     "created_at": "2026-02-25T12:07:00.348571+00:00"
   },
   {
-    "id": 653,
-    "user_id": 895655,
-    "date": "2026-02-25",
-    "meal_time": "20:05:00",
-    "meal_name": "Конфеты Рафаэлло",
-    "items": [
-      {
-        "fats": 14,
-        "food": "Конфета Рафаэлло",
-        "unit": "г",
-        "carbs": 12,
-        "fiber": 0.0,
-        "amount": 30.0,
-        "drinks": 0,
-        "protein": 2,
-        "calories": 180
-      }
-    ],
-    "totals": {
-      "fats": 14,
-      "carbs": 12,
-      "fiber": 0.0,
-      "protein": 2,
-      "calories": 180
-    },
-    "photo_paths": [],
-    "created_at": "2026-02-25T17:05:17.112153+00:00"
-  },
-  {
     "id": 654,
     "user_id": 895655,
     "date": "2026-02-25",
@@ -11042,6 +11013,35 @@
     },
     "photo_paths": [],
     "created_at": "2026-02-25T17:05:32.865673+00:00"
+  },
+  {
+    "id": 653,
+    "user_id": 895655,
+    "date": "2026-02-25",
+    "meal_time": "20:05:00",
+    "meal_name": "Конфеты Рафаэлло",
+    "items": [
+      {
+        "fats": 14,
+        "food": "Конфета Рафаэлло",
+        "unit": "г",
+        "carbs": 12,
+        "fiber": 0.0,
+        "amount": 30.0,
+        "drinks": 0,
+        "protein": 2,
+        "calories": 180
+      }
+    ],
+    "totals": {
+      "fats": 14,
+      "carbs": 12,
+      "fiber": 0.0,
+      "protein": 2,
+      "calories": 180
+    },
+    "photo_paths": [],
+    "created_at": "2026-02-25T17:05:17.112153+00:00"
   },
   {
     "id": 655,
@@ -11571,35 +11571,6 @@
     "created_at": "2026-02-28T11:04:14.542242+00:00"
   },
   {
-    "id": 686,
-    "user_id": 895655,
-    "date": "2026-02-27",
-    "meal_time": "14:06:00",
-    "meal_name": "Жареная индейка",
-    "items": [
-      {
-        "fats": 16,
-        "food": "Индейка жареная",
-        "unit": "г",
-        "carbs": 0,
-        "fiber": 0.0,
-        "amount": 120.0,
-        "drinks": 0,
-        "protein": 35,
-        "calories": 287
-      }
-    ],
-    "totals": {
-      "fats": 7,
-      "carbs": 0,
-      "fiber": 0.0,
-      "protein": 29,
-      "calories": 195
-    },
-    "photo_paths": [],
-    "created_at": "2026-02-28T11:06:22.067815+00:00"
-  },
-  {
     "id": 687,
     "user_id": 895655,
     "date": "2026-02-27",
@@ -11629,6 +11600,35 @@
       "/app/data/media/nutrition/2026-02-28/AgACAgIAAxkBAAIK32mizDuvXkslkiK4uRjpOkw5XRkmAAJSFGsb6OIYSQk7H-FN38TvAQADAgADeQADOgQ.jpg"
     ],
     "created_at": "2026-02-28T11:06:52.509875+00:00"
+  },
+  {
+    "id": 686,
+    "user_id": 895655,
+    "date": "2026-02-27",
+    "meal_time": "14:06:00",
+    "meal_name": "Жареная индейка",
+    "items": [
+      {
+        "fats": 16,
+        "food": "Индейка жареная",
+        "unit": "г",
+        "carbs": 0,
+        "fiber": 0.0,
+        "amount": 120.0,
+        "drinks": 0,
+        "protein": 35,
+        "calories": 287
+      }
+    ],
+    "totals": {
+      "fats": 7,
+      "carbs": 0,
+      "fiber": 0.0,
+      "protein": 29,
+      "calories": 195
+    },
+    "photo_paths": [],
+    "created_at": "2026-02-28T11:06:22.067815+00:00"
   },
   {
     "id": 688,
@@ -12656,37 +12656,6 @@
     "created_at": "2026-03-03T18:49:15.537052+00:00"
   },
   {
-    "id": 715,
-    "user_id": 895655,
-    "date": "2026-03-03",
-    "meal_time": "21:50:00",
-    "meal_name": "Маленький сендвич с тунцом и овощами",
-    "items": [
-      {
-        "fats": 3,
-        "food": "Маленький сендвич с тунцом и овощами",
-        "unit": "г",
-        "carbs": 27,
-        "fiber": 3.0,
-        "amount": 200,
-        "drinks": 0,
-        "protein": 30,
-        "calories": 261
-      }
-    ],
-    "totals": {
-      "fats": 3,
-      "carbs": 27,
-      "fiber": 3.0,
-      "protein": 30,
-      "calories": 261
-    },
-    "photo_paths": [
-      "/app/data/media/nutrition/2026-03-03/AgACAgIAAxkBAAILf2mnLYBGTUHRVoY1EgWuE4lertOHAALNEmsbQ1I4SbCxEYOqeCApAQADAgADeQADOgQ.jpg"
-    ],
-    "created_at": "2026-03-03T18:50:54.171695+00:00"
-  },
-  {
     "id": 714,
     "user_id": 895655,
     "date": "2026-03-03",
@@ -12716,6 +12685,37 @@
       "/app/data/media/nutrition/2026-03-03/AgACAgIAAxkBAAILfWmnLVEPXqxZQSqn2bIWtu5pYtKMAALLEmsbQ1I4SVBfMRwaTuVqAQADAgADeQADOgQ.jpg"
     ],
     "created_at": "2026-03-03T18:50:10.923380+00:00"
+  },
+  {
+    "id": 715,
+    "user_id": 895655,
+    "date": "2026-03-03",
+    "meal_time": "21:50:00",
+    "meal_name": "Маленький сендвич с тунцом и овощами",
+    "items": [
+      {
+        "fats": 3,
+        "food": "Маленький сендвич с тунцом и овощами",
+        "unit": "г",
+        "carbs": 27,
+        "fiber": 3.0,
+        "amount": 200,
+        "drinks": 0,
+        "protein": 30,
+        "calories": 261
+      }
+    ],
+    "totals": {
+      "fats": 3,
+      "carbs": 27,
+      "fiber": 3.0,
+      "protein": 30,
+      "calories": 261
+    },
+    "photo_paths": [
+      "/app/data/media/nutrition/2026-03-03/AgACAgIAAxkBAAILf2mnLYBGTUHRVoY1EgWuE4lertOHAALNEmsbQ1I4SbCxEYOqeCApAQADAgADeQADOgQ.jpg"
+    ],
+    "created_at": "2026-03-03T18:50:54.171695+00:00"
   },
   {
     "id": 718,
@@ -12955,6 +12955,35 @@
     "created_at": "2026-03-04T18:22:46.381689+00:00"
   },
   {
+    "id": 724,
+    "user_id": 895655,
+    "date": "2026-03-04",
+    "meal_time": "21:23:00",
+    "meal_name": "Bombbar протеиновый батончик",
+    "items": [
+      {
+        "fats": 7,
+        "food": "Батончик Bombbar протеиновый",
+        "unit": "г",
+        "carbs": 4,
+        "fiber": 0.0,
+        "amount": 40.0,
+        "drinks": 0,
+        "protein": 10,
+        "calories": 144
+      }
+    ],
+    "totals": {
+      "fats": 3,
+      "carbs": 4,
+      "fiber": 0.0,
+      "protein": 10,
+      "calories": 116
+    },
+    "photo_paths": [],
+    "created_at": "2026-03-04T18:23:40.638604+00:00"
+  },
+  {
     "id": 723,
     "user_id": 895655,
     "date": "2026-03-04",
@@ -12984,35 +13013,6 @@
       "/app/data/media/nutrition/2026-03-04/AgACAgIAAxkBAAILmGmoeH3BMVoQf87pkiKCzd_1Zg8NAAKXFWsbLcVISezdT7xnYFSLAQADAgADeQADOgQ.jpg"
     ],
     "created_at": "2026-03-04T18:23:11.751785+00:00"
-  },
-  {
-    "id": 724,
-    "user_id": 895655,
-    "date": "2026-03-04",
-    "meal_time": "21:23:00",
-    "meal_name": "Bombbar протеиновый батончик",
-    "items": [
-      {
-        "fats": 7,
-        "food": "Батончик Bombbar протеиновый",
-        "unit": "г",
-        "carbs": 4,
-        "fiber": 0.0,
-        "amount": 40.0,
-        "drinks": 0,
-        "protein": 10,
-        "calories": 144
-      }
-    ],
-    "totals": {
-      "fats": 3,
-      "carbs": 4,
-      "fiber": 0.0,
-      "protein": 10,
-      "calories": 116
-    },
-    "photo_paths": [],
-    "created_at": "2026-03-04T18:23:40.638604+00:00"
   },
   {
     "id": 727,
@@ -13088,6 +13088,46 @@
     "created_at": "2026-03-05T10:14:24.017845+00:00"
   },
   {
+    "id": 728,
+    "user_id": 895655,
+    "date": "2026-03-05",
+    "meal_time": "23:35:00",
+    "meal_name": "Обед",
+    "items": [
+      {
+        "fats": 4,
+        "food": "Чечевичный суп",
+        "unit": "г",
+        "carbs": 25,
+        "fiber": 15.0,
+        "amount": 300.0,
+        "drinks": 0,
+        "protein": 12,
+        "calories": 180
+      },
+      {
+        "fats": 15,
+        "food": "Панини с брискитом и баклажаном на гриле",
+        "unit": "г",
+        "carbs": 35,
+        "fiber": 3.0,
+        "amount": 150.0,
+        "drinks": 0,
+        "protein": 20,
+        "calories": 350
+      }
+    ],
+    "totals": {
+      "fats": 19,
+      "carbs": 60,
+      "fiber": 18.0,
+      "protein": 32,
+      "calories": 530
+    },
+    "photo_paths": [],
+    "created_at": "2026-03-05T20:35:34.696609+00:00"
+  },
+  {
     "id": 729,
     "user_id": 895655,
     "date": "2026-03-05",
@@ -13160,46 +13200,6 @@
     },
     "photo_paths": [],
     "created_at": "2026-03-05T20:35:55.613755+00:00"
-  },
-  {
-    "id": 728,
-    "user_id": 895655,
-    "date": "2026-03-05",
-    "meal_time": "23:35:00",
-    "meal_name": "Обед",
-    "items": [
-      {
-        "fats": 4,
-        "food": "Чечевичный суп",
-        "unit": "г",
-        "carbs": 25,
-        "fiber": 15.0,
-        "amount": 300.0,
-        "drinks": 0,
-        "protein": 12,
-        "calories": 180
-      },
-      {
-        "fats": 15,
-        "food": "Панини с брискитом и баклажаном на гриле",
-        "unit": "г",
-        "carbs": 35,
-        "fiber": 3.0,
-        "amount": 150.0,
-        "drinks": 0,
-        "protein": 20,
-        "calories": 350
-      }
-    ],
-    "totals": {
-      "fats": 19,
-      "carbs": 60,
-      "fiber": 18.0,
-      "protein": 32,
-      "calories": 530
-    },
-    "photo_paths": [],
-    "created_at": "2026-03-05T20:35:34.696609+00:00"
   },
   {
     "id": 733,
@@ -13902,35 +13902,6 @@
     "created_at": "2026-03-08T13:47:19.478330+00:00"
   },
   {
-    "id": 743,
-    "user_id": 895655,
-    "date": "2026-03-08",
-    "meal_time": "21:59:00",
-    "meal_name": "Творог «Ты + Protein»",
-    "items": [
-      {
-        "fats": 3,
-        "food": "Творог «Ты + Protein»",
-        "unit": "г",
-        "carbs": 4,
-        "fiber": 0.0,
-        "amount": null,
-        "drinks": 0,
-        "protein": 26,
-        "calories": 254
-      }
-    ],
-    "totals": {
-      "fats": 3,
-      "carbs": 4,
-      "fiber": 0.0,
-      "protein": 26,
-      "calories": 254
-    },
-    "photo_paths": [],
-    "created_at": "2026-03-08T18:59:31.171345+00:00"
-  },
-  {
     "id": 742,
     "user_id": 895655,
     "date": "2026-03-08",
@@ -13958,6 +13929,35 @@
     },
     "photo_paths": [],
     "created_at": "2026-03-08T18:59:07.734461+00:00"
+  },
+  {
+    "id": 743,
+    "user_id": 895655,
+    "date": "2026-03-08",
+    "meal_time": "21:59:00",
+    "meal_name": "Творог «Ты + Protein»",
+    "items": [
+      {
+        "fats": 3,
+        "food": "Творог «Ты + Protein»",
+        "unit": "г",
+        "carbs": 4,
+        "fiber": 0.0,
+        "amount": null,
+        "drinks": 0,
+        "protein": 26,
+        "calories": 254
+      }
+    ],
+    "totals": {
+      "fats": 3,
+      "carbs": 4,
+      "fiber": 0.0,
+      "protein": 26,
+      "calories": 254
+    },
+    "photo_paths": [],
+    "created_at": "2026-03-08T18:59:31.171345+00:00"
   },
   {
     "id": 744,
@@ -15133,35 +15133,6 @@
     "created_at": "2026-03-13T08:54:49.171553+00:00"
   },
   {
-    "id": 774,
-    "user_id": 895655,
-    "date": "2026-03-13",
-    "meal_time": "12:10:00",
-    "meal_name": "Йогурт высокобелковый 2,1%",
-    "items": [
-      {
-        "fats": 3,
-        "food": "Йогурт высокобелковый 2,1%",
-        "unit": "г",
-        "carbs": 4,
-        "fiber": 0.0,
-        "amount": null,
-        "drinks": 0,
-        "protein": 11,
-        "calories": 86
-      }
-    ],
-    "totals": {
-      "fats": 3,
-      "carbs": 4,
-      "fiber": 0.0,
-      "protein": 11,
-      "calories": 86
-    },
-    "photo_paths": [],
-    "created_at": "2026-03-13T09:10:28.991475+00:00"
-  },
-  {
     "id": 775,
     "user_id": 895655,
     "date": "2026-03-13",
@@ -15189,6 +15160,35 @@
     },
     "photo_paths": [],
     "created_at": "2026-03-13T09:22:01.167639+00:00"
+  },
+  {
+    "id": 774,
+    "user_id": 895655,
+    "date": "2026-03-13",
+    "meal_time": "12:10:00",
+    "meal_name": "Йогурт высокобелковый 2,1%",
+    "items": [
+      {
+        "fats": 3,
+        "food": "Йогурт высокобелковый 2,1%",
+        "unit": "г",
+        "carbs": 4,
+        "fiber": 0.0,
+        "amount": null,
+        "drinks": 0,
+        "protein": 11,
+        "calories": 86
+      }
+    ],
+    "totals": {
+      "fats": 3,
+      "carbs": 4,
+      "fiber": 0.0,
+      "protein": 11,
+      "calories": 86
+    },
+    "photo_paths": [],
+    "created_at": "2026-03-13T09:10:28.991475+00:00"
   },
   {
     "id": 776,
@@ -16871,35 +16871,6 @@
     "created_at": "2026-03-19T11:56:18.658095+00:00"
   },
   {
-    "id": 856,
-    "user_id": 895655,
-    "date": "2026-03-19",
-    "meal_time": "23:29:00",
-    "meal_name": "Протеиновый батончик Bombbar",
-    "items": [
-      {
-        "fats": 6,
-        "food": "Батончик Bombbar протеиновый",
-        "unit": "г",
-        "carbs": 3,
-        "fiber": 0.0,
-        "amount": 35.0,
-        "drinks": 0,
-        "protein": 9,
-        "calories": 126
-      }
-    ],
-    "totals": {
-      "fats": 3,
-      "carbs": 4,
-      "fiber": 0.0,
-      "protein": 10,
-      "calories": 116
-    },
-    "photo_paths": [],
-    "created_at": "2026-03-19T20:29:57.520744+00:00"
-  },
-  {
     "id": 855,
     "user_id": 895655,
     "date": "2026-03-19",
@@ -16961,6 +16932,35 @@
     },
     "photo_paths": [],
     "created_at": "2026-03-19T20:29:24.739641+00:00"
+  },
+  {
+    "id": 856,
+    "user_id": 895655,
+    "date": "2026-03-19",
+    "meal_time": "23:29:00",
+    "meal_name": "Протеиновый батончик Bombbar",
+    "items": [
+      {
+        "fats": 6,
+        "food": "Батончик Bombbar протеиновый",
+        "unit": "г",
+        "carbs": 3,
+        "fiber": 0.0,
+        "amount": 35.0,
+        "drinks": 0,
+        "protein": 9,
+        "calories": 126
+      }
+    ],
+    "totals": {
+      "fats": 3,
+      "carbs": 4,
+      "fiber": 0.0,
+      "protein": 10,
+      "calories": 116
+    },
+    "photo_paths": [],
+    "created_at": "2026-03-19T20:29:57.520744+00:00"
   },
   {
     "id": 859,
@@ -18023,6 +18023,36 @@
     "created_at": "2026-03-24T20:49:34.747484+00:00"
   },
   {
+    "id": 892,
+    "user_id": 895655,
+    "date": "2026-03-24",
+    "meal_time": "23:50:00",
+    "meal_name": "Завтрак",
+    "items": [
+      {
+        "fats": 0,
+        "food": "Шампанское",
+        "unit": "г",
+        "carbs": 2,
+        "fiber": 0.0,
+        "amount": null,
+        "drinks": 1.5,
+        "protein": 0,
+        "calories": 89
+      }
+    ],
+    "totals": {
+      "fats": 0,
+      "carbs": 2,
+      "fiber": 0.0,
+      "protein": 0,
+      "calories": 89,
+      "has_alcohol": true
+    },
+    "photo_paths": [],
+    "created_at": "2026-03-24T20:50:46.913958+00:00"
+  },
+  {
     "id": 891,
     "user_id": 895655,
     "date": "2026-03-24",
@@ -18072,36 +18102,6 @@
     },
     "photo_paths": [],
     "created_at": "2026-03-24T20:50:33.196685+00:00"
-  },
-  {
-    "id": 892,
-    "user_id": 895655,
-    "date": "2026-03-24",
-    "meal_time": "23:50:00",
-    "meal_name": "Завтрак",
-    "items": [
-      {
-        "fats": 0,
-        "food": "Шампанское",
-        "unit": "г",
-        "carbs": 2,
-        "fiber": 0.0,
-        "amount": null,
-        "drinks": 1.5,
-        "protein": 0,
-        "calories": 89
-      }
-    ],
-    "totals": {
-      "fats": 0,
-      "carbs": 2,
-      "fiber": 0.0,
-      "protein": 0,
-      "calories": 89,
-      "has_alcohol": true
-    },
-    "photo_paths": [],
-    "created_at": "2026-03-24T20:50:46.913958+00:00"
   },
   {
     "id": 893,
@@ -18679,37 +18679,6 @@
     "created_at": "2026-03-27T06:08:06.202366+00:00"
   },
   {
-    "id": 904,
-    "user_id": 895655,
-    "date": "2026-03-27",
-    "meal_time": "12:29:00",
-    "meal_name": "Куриный суп с лапшой",
-    "items": [
-      {
-        "fats": 5,
-        "food": "Куриный суп с лапшой",
-        "unit": "г",
-        "carbs": 40,
-        "fiber": 0.0,
-        "amount": 300,
-        "drinks": 0,
-        "protein": 28,
-        "calories": 322
-      }
-    ],
-    "totals": {
-      "fats": 5,
-      "carbs": 40,
-      "fiber": 0.0,
-      "protein": 28,
-      "calories": 322
-    },
-    "photo_paths": [
-      "/app/data/media/nutrition/2026-03-27/AgACAgIAAxkBAAIOvmnGTc9azwUKcJIOLzSIXGkDfIshAAK-FGsbHPgwSuJwlopWorSZAQADAgADeQADOgQ.jpg"
-    ],
-    "created_at": "2026-03-27T09:29:09.269692+00:00"
-  },
-  {
     "id": 905,
     "user_id": 895655,
     "date": "2026-03-27",
@@ -18739,6 +18708,37 @@
       "/app/data/media/nutrition/2026-03-27/AgACAgIAAxkBAAIOwGnGTew5gSWjldnvcbETbcy8sDU7AAK_FGsbHPgwSkLPEXvBGyuZAQADAgADeQADOgQ.jpg"
     ],
     "created_at": "2026-03-27T09:29:35.710860+00:00"
+  },
+  {
+    "id": 904,
+    "user_id": 895655,
+    "date": "2026-03-27",
+    "meal_time": "12:29:00",
+    "meal_name": "Куриный суп с лапшой",
+    "items": [
+      {
+        "fats": 5,
+        "food": "Куриный суп с лапшой",
+        "unit": "г",
+        "carbs": 40,
+        "fiber": 0.0,
+        "amount": 300,
+        "drinks": 0,
+        "protein": 28,
+        "calories": 322
+      }
+    ],
+    "totals": {
+      "fats": 5,
+      "carbs": 40,
+      "fiber": 0.0,
+      "protein": 28,
+      "calories": 322
+    },
+    "photo_paths": [
+      "/app/data/media/nutrition/2026-03-27/AgACAgIAAxkBAAIOvmnGTc9azwUKcJIOLzSIXGkDfIshAAK-FGsbHPgwSuJwlopWorSZAQADAgADeQADOgQ.jpg"
+    ],
+    "created_at": "2026-03-27T09:29:09.269692+00:00"
   },
   {
     "id": 906,
@@ -19732,35 +19732,6 @@
     "created_at": "2026-03-31T06:20:23.413971+00:00"
   },
   {
-    "id": 931,
-    "user_id": 895655,
-    "date": "2026-03-31",
-    "meal_time": "22:09:00",
-    "meal_name": "Белковый Батончик Bombbar",
-    "items": [
-      {
-        "fats": 3,
-        "food": "Белковый Батончик Bombbar",
-        "unit": "г",
-        "carbs": 4,
-        "fiber": 0.0,
-        "amount": 35.0,
-        "drinks": 0,
-        "protein": 10,
-        "calories": 116
-      }
-    ],
-    "totals": {
-      "fats": 3,
-      "carbs": 4,
-      "fiber": 0.0,
-      "protein": 10,
-      "calories": 116
-    },
-    "photo_paths": [],
-    "created_at": "2026-03-31T19:09:49.074775+00:00"
-  },
-  {
     "id": 930,
     "user_id": 895655,
     "date": "2026-03-31",
@@ -19832,6 +19803,35 @@
     },
     "photo_paths": [],
     "created_at": "2026-03-31T19:09:22.339765+00:00"
+  },
+  {
+    "id": 931,
+    "user_id": 895655,
+    "date": "2026-03-31",
+    "meal_time": "22:09:00",
+    "meal_name": "Белковый Батончик Bombbar",
+    "items": [
+      {
+        "fats": 3,
+        "food": "Белковый Батончик Bombbar",
+        "unit": "г",
+        "carbs": 4,
+        "fiber": 0.0,
+        "amount": 35.0,
+        "drinks": 0,
+        "protein": 10,
+        "calories": 116
+      }
+    ],
+    "totals": {
+      "fats": 3,
+      "carbs": 4,
+      "fiber": 0.0,
+      "protein": 10,
+      "calories": 116
+    },
+    "photo_paths": [],
+    "created_at": "2026-03-31T19:09:49.074775+00:00"
   },
   {
     "id": 932,
@@ -20592,33 +20592,6 @@
     "created_at": "2026-04-03T19:47:32.536079+00:00"
   },
   {
-    "id": 949,
-    "user_id": 895655,
-    "date": "2026-04-03",
-    "meal_time": "23:28:00",
-    "meal_name": "Пудинг молочный ультрапастеризованный безлактозный обогащенный белком со вкусом ванили",
-    "items": [
-      {
-        "fats": 3,
-        "food": "Пудинг молочный ультрапастеризованный безлактозный обогащенный белком со вкусом ванили",
-        "unit": "г",
-        "carbs": 14,
-        "amount": null,
-        "drinks": 0,
-        "protein": 14,
-        "calories": 200
-      }
-    ],
-    "totals": {
-      "fats": 3,
-      "carbs": 14,
-      "protein": 14,
-      "calories": 200
-    },
-    "photo_paths": [],
-    "created_at": "2026-04-03T20:28:24.959660+00:00"
-  },
-  {
     "id": 950,
     "user_id": 895655,
     "date": "2026-04-03",
@@ -20654,6 +20627,33 @@
     },
     "photo_paths": [],
     "created_at": "2026-04-03T20:28:57.843728+00:00"
+  },
+  {
+    "id": 949,
+    "user_id": 895655,
+    "date": "2026-04-03",
+    "meal_time": "23:28:00",
+    "meal_name": "Пудинг молочный ультрапастеризованный безлактозный обогащенный белком со вкусом ванили",
+    "items": [
+      {
+        "fats": 3,
+        "food": "Пудинг молочный ультрапастеризованный безлактозный обогащенный белком со вкусом ванили",
+        "unit": "г",
+        "carbs": 14,
+        "amount": null,
+        "drinks": 0,
+        "protein": 14,
+        "calories": 200
+      }
+    ],
+    "totals": {
+      "fats": 3,
+      "carbs": 14,
+      "protein": 14,
+      "calories": 200
+    },
+    "photo_paths": [],
+    "created_at": "2026-04-03T20:28:24.959660+00:00"
   },
   {
     "id": 951,
@@ -22516,5 +22516,480 @@
     },
     "photo_paths": [],
     "created_at": "2026-04-11T19:24:25.632425+00:00"
+  },
+  {
+    "id": 1012,
+    "user_id": 895655,
+    "date": "2026-04-12",
+    "meal_time": "16:27:00",
+    "meal_name": "Обед: Строганина, салат, пельмени, соус",
+    "items": [
+      {
+        "fats": 10,
+        "food": "Строганина рыбная и оленина ассорти",
+        "unit": "г",
+        "carbs": 0,
+        "amount": 120.0,
+        "protein": 22,
+        "calories": 180
+      },
+      {
+        "fats": 4,
+        "food": "Салат зелень с папоротником",
+        "unit": "г",
+        "carbs": 7,
+        "amount": 150.0,
+        "protein": 3,
+        "calories": 75
+      },
+      {
+        "fats": 15,
+        "food": "Пельмени с мясом косули",
+        "unit": "г",
+        "carbs": 50,
+        "amount": 250.0,
+        "protein": 23,
+        "calories": 450
+      },
+      {
+        "fats": 5,
+        "food": "Соус грибной сливочный",
+        "unit": "г",
+        "carbs": 3,
+        "amount": 50.0,
+        "protein": 2,
+        "calories": 65
+      }
+    ],
+    "totals": {
+      "fats": 34,
+      "carbs": 60,
+      "protein": 50,
+      "calories": 770
+    },
+    "photo_paths": [],
+    "created_at": "2026-04-12T13:27:15.200475+00:00"
+  },
+  {
+    "id": 1013,
+    "user_id": 895655,
+    "date": "2026-04-12",
+    "meal_time": "16:28:00",
+    "meal_name": "Батончик мюсли цельнозерновой с абрикосом в глазури",
+    "items": [
+      {
+        "fats": 5,
+        "food": "Батончик мюсли цельнозерновой с абрикосом в глазури",
+        "unit": "г",
+        "carbs": 18,
+        "amount": 32.0,
+        "protein": 2,
+        "calories": 110
+      }
+    ],
+    "totals": {
+      "fats": 5,
+      "carbs": 18,
+      "protein": 2,
+      "calories": 110
+    },
+    "photo_paths": [],
+    "created_at": "2026-04-12T13:28:05.210417+00:00"
+  },
+  {
+    "id": 1014,
+    "user_id": 895655,
+    "date": "2026-04-12",
+    "meal_time": "16:29:00",
+    "meal_name": "Ужин: Пирожки с печенью, сметана и варенье",
+    "items": [
+      {
+        "fats": 42,
+        "food": "Пирожки жареные с печенью",
+        "unit": "г",
+        "carbs": 102,
+        "amount": 360.0,
+        "protein": 30,
+        "calories": 900
+      },
+      {
+        "fats": 6,
+        "food": "Сметана",
+        "unit": "г",
+        "carbs": 2,
+        "amount": 40.0,
+        "protein": 1,
+        "calories": 72
+      },
+      {
+        "fats": 0,
+        "food": "Варенье земляничное",
+        "unit": "г",
+        "carbs": 26,
+        "amount": 40.0,
+        "protein": 0,
+        "calories": 104
+      }
+    ],
+    "totals": {
+      "fats": 48,
+      "carbs": 130,
+      "protein": 31,
+      "calories": 1076
+    },
+    "photo_paths": [],
+    "created_at": "2026-04-12T13:29:12.603296+00:00"
+  },
+  {
+    "id": 1015,
+    "user_id": 895655,
+    "date": "2026-04-15",
+    "meal_time": "13:11:00",
+    "meal_name": "Груша",
+    "items": [
+      {
+        "fats": 0,
+        "food": "Груша",
+        "unit": "г",
+        "carbs": 21,
+        "amount": 140.0,
+        "protein": 1,
+        "calories": 81
+      }
+    ],
+    "totals": {
+      "fats": 0,
+      "carbs": 21,
+      "protein": 1,
+      "calories": 81
+    },
+    "photo_paths": [],
+    "created_at": "2026-04-15T10:41:07.913333+00:00"
+  },
+  {
+    "id": 1016,
+    "user_id": 895655,
+    "date": "2026-04-15",
+    "meal_time": "20:52:00",
+    "meal_name": "Утиное филе в карри-соусе с зелеными овощами",
+    "items": [
+      {
+        "fats": 17,
+        "food": "Утиное филе в карри-соусе с зелеными овощами",
+        "unit": "г",
+        "carbs": 49,
+        "amount": null,
+        "protein": 37,
+        "calories": 501
+      }
+    ],
+    "totals": {
+      "fats": 17,
+      "carbs": 49,
+      "protein": 37,
+      "calories": 501
+    },
+    "photo_paths": [],
+    "created_at": "2026-04-15T17:58:04.905477+00:00"
+  },
+  {
+    "id": 1017,
+    "user_id": 895655,
+    "date": "2026-04-15",
+    "meal_time": "21:05:00",
+    "meal_name": "Обед: хлеб с маслом, салат с авокадо и яйцом, американо",
+    "items": [
+      {
+        "fats": 1,
+        "food": "Хлеб зерновой",
+        "unit": "г",
+        "carbs": 13,
+        "amount": 30.0,
+        "protein": 2,
+        "calories": 70
+      },
+      {
+        "fats": 4,
+        "food": "Сливочное масло",
+        "unit": "г",
+        "carbs": 0,
+        "amount": 5.0,
+        "protein": 0,
+        "calories": 37
+      },
+      {
+        "fats": 0,
+        "food": "Зеленый салат",
+        "unit": "г",
+        "carbs": 2,
+        "amount": 30,
+        "protein": 1,
+        "calories": 10
+      },
+      {
+        "fats": 15,
+        "food": "Авокадо",
+        "unit": "г",
+        "carbs": 9,
+        "amount": 30,
+        "protein": 2,
+        "calories": 160
+      },
+      {
+        "fats": 5,
+        "food": "Яйцо вареное",
+        "unit": "г",
+        "carbs": 1,
+        "amount": 55.0,
+        "protein": 6,
+        "calories": 68
+      },
+      {
+        "fats": 0,
+        "food": "Американо",
+        "unit": "г",
+        "carbs": 0,
+        "amount": 200.0,
+        "protein": 0,
+        "calories": 3
+      }
+    ],
+    "totals": {
+      "fats": 25,
+      "carbs": 25,
+      "protein": 11,
+      "calories": 348
+    },
+    "photo_paths": [],
+    "created_at": "2026-04-15T18:05:47.553942+00:00"
+  },
+  {
+    "id": 1018,
+    "user_id": 895655,
+    "date": "2026-04-16",
+    "meal_time": "02:02:00",
+    "meal_name": "Протеиновый батончик Bombbar",
+    "items": [
+      {
+        "fats": 3,
+        "food": "Протеиновый батончик Bombbar",
+        "unit": "г",
+        "carbs": 4,
+        "amount": 81040.0,
+        "protein": 10,
+        "calories": 116
+      }
+    ],
+    "totals": {
+      "fats": 3,
+      "carbs": 4,
+      "protein": 10,
+      "calories": 116
+    },
+    "photo_paths": [],
+    "created_at": "2026-04-16T08:00:32.253958+00:00"
+  },
+  {
+    "id": 1020,
+    "user_id": 895655,
+    "date": "2026-04-17",
+    "meal_time": "11:35:00",
+    "meal_name": "Тунец полосатый рубленый",
+    "items": [
+      {
+        "fats": 7,
+        "food": "Тунец полосатый рубленый",
+        "unit": "г",
+        "carbs": 0,
+        "amount": 100,
+        "protein": 26,
+        "calories": 169
+      }
+    ],
+    "totals": {
+      "fats": 7,
+      "carbs": 0,
+      "protein": 26,
+      "calories": 169
+    },
+    "photo_paths": [
+      "/app/data/media/nutrition/2026-04-17/AgACAgIAAxkBAAIQ6Wnh8Kw50XoPEDWVBcxApFGfPgPcAAJ1E2sbO2oRSyy7yKGknQvkAQADAgADeQADOwQ.jpg"
+    ],
+    "created_at": "2026-04-17T08:41:13.682222+00:00"
+  },
+  {
+    "id": 1021,
+    "user_id": 895655,
+    "date": "2026-04-17",
+    "meal_time": "11:41:00",
+    "meal_name": "Завтрак с квашенной капустой, подсолнечным маслом и грушей",
+    "items": [
+      {
+        "fats": 0,
+        "food": "Квашенная капуста",
+        "unit": "г",
+        "carbs": 4,
+        "amount": 100.0,
+        "protein": 1,
+        "calories": 19
+      },
+      {
+        "fats": 5,
+        "food": "Подсолнечное масло",
+        "unit": "г",
+        "carbs": 0,
+        "amount": 5.0,
+        "protein": 0,
+        "calories": 45
+      },
+      {
+        "fats": 0,
+        "food": "Груша",
+        "unit": "г",
+        "carbs": 23,
+        "amount": 148.0,
+        "protein": 1,
+        "calories": 86
+      }
+    ],
+    "totals": {
+      "fats": 5,
+      "carbs": 27,
+      "protein": 2,
+      "calories": 150
+    },
+    "photo_paths": [],
+    "created_at": "2026-04-17T08:41:56.278655+00:00"
+  },
+  {
+    "id": 1022,
+    "user_id": 895655,
+    "date": "2026-04-17",
+    "meal_time": "11:42:00",
+    "meal_name": "Завтрак: 3 яйца",
+    "items": [
+      {
+        "fats": 15,
+        "food": "Яйцо куриное",
+        "unit": "г",
+        "carbs": 1,
+        "amount": 165.0,
+        "protein": 18,
+        "calories": 231
+      }
+    ],
+    "totals": {
+      "fats": 15,
+      "carbs": 1,
+      "protein": 18,
+      "calories": 231
+    },
+    "photo_paths": [],
+    "created_at": "2026-04-17T08:48:15.319473+00:00"
+  },
+  {
+    "id": 1023,
+    "user_id": 895655,
+    "date": "2026-04-17",
+    "meal_time": "11:49:00",
+    "meal_name": "Завтрак: слабосоленая красная рыба и хлебцы",
+    "items": [
+      {
+        "fats": 12,
+        "food": "Слабосоленая красная рыба",
+        "unit": "г",
+        "carbs": 0,
+        "amount": 97.0,
+        "protein": 20,
+        "calories": 194
+      },
+      {
+        "fats": 0,
+        "food": "Хлебцы",
+        "unit": "г",
+        "carbs": 6,
+        "amount": 30,
+        "protein": 1,
+        "calories": 30
+      }
+    ],
+    "totals": {
+      "fats": 12,
+      "carbs": 6,
+      "protein": 21,
+      "calories": 224
+    },
+    "photo_paths": [],
+    "created_at": "2026-04-17T15:41:11.922561+00:00"
+  },
+  {
+    "id": 1019,
+    "user_id": 895655,
+    "date": "2026-04-17",
+    "meal_time": "12:17:00",
+    "meal_name": "Завтрак: Горчичная говядина с кремовым шпинатом, рис отварной, соевый соус",
+    "items": [
+      {
+        "fats": 20,
+        "food": "Горчичная говядина с кремовым шпинатом",
+        "unit": "г",
+        "carbs": 31,
+        "amount": 183.0,
+        "protein": 13,
+        "calories": 352
+      },
+      {
+        "fats": 0,
+        "food": "Рис отварной",
+        "unit": "г",
+        "carbs": 12,
+        "amount": 60.0,
+        "protein": 1,
+        "calories": 52
+      },
+      {
+        "fats": 0,
+        "food": "Соевый соус",
+        "unit": "г",
+        "carbs": 1,
+        "amount": 10.0,
+        "protein": 1,
+        "calories": 6
+      }
+    ],
+    "totals": {
+      "fats": 20,
+      "carbs": 44,
+      "protein": 15,
+      "calories": 410
+    },
+    "photo_paths": [],
+    "created_at": "2026-04-17T08:34:37.248761+00:00"
+  },
+  {
+    "id": 1024,
+    "user_id": 895655,
+    "date": "2026-04-17",
+    "meal_time": "18:41:00",
+    "meal_name": "Адыгейский сыр",
+    "items": [
+      {
+        "fats": 18,
+        "food": "Адыгейский сыр",
+        "unit": "г",
+        "carbs": 3,
+        "amount": 75.0,
+        "protein": 15,
+        "calories": 225
+      }
+    ],
+    "totals": {
+      "fats": 18,
+      "carbs": 3,
+      "protein": 15,
+      "calories": 225
+    },
+    "photo_paths": [],
+    "created_at": "2026-04-17T15:41:32.014030+00:00"
   }
 ]

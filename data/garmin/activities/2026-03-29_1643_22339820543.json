@@ -195,12 +195,12 @@
   "qualifyingDive": false,
   "activityUUID": "b48b7cba-612b-4a93-93b8-e97e78ab58ee",
   "pr": true,
-  "manualActivity": false,
-  "autoCalcCalories": false,
-  "elevationCorrected": false,
-  "atpActivity": false,
   "favorite": false,
   "purposeful": false,
   "parent": false,
-  "decoDive": false
+  "decoDive": false,
+  "manualActivity": false,
+  "autoCalcCalories": false,
+  "elevationCorrected": false,
+  "atpActivity": false
 }

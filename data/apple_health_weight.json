@@ -6347,6 +6347,36 @@
       "time": "09:39:00",
       "weight_kg": 77.15,
       "source": "Zepp Life"
+    },
+    {
+      "date": "2026-04-09",
+      "time": "08:32:21",
+      "weight_kg": 77.0,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-04-10",
+      "time": "10:21:43",
+      "weight_kg": 77.2,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-04-10",
+      "time": "19:07:55",
+      "weight_kg": 76.75,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-04-11",
+      "time": "06:21:07",
+      "weight_kg": 77.9,
+      "source": "Zepp Life"
+    },
+    {
+      "date": "2026-04-16",
+      "time": "10:55:13",
+      "weight_kg": 76.75,
+      "source": "Zepp Life"
     }
   ]
 }

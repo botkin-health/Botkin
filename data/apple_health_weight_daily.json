@@ -2959,6 +2959,26 @@
       "date": "2026-04-08",
       "weight_kg": 77.15,
       "measurements_count": 1
+    },
+    {
+      "date": "2026-04-09",
+      "weight_kg": 77.0,
+      "measurements_count": 1
+    },
+    {
+      "date": "2026-04-10",
+      "weight_kg": 76.97,
+      "measurements_count": 2
+    },
+    {
+      "date": "2026-04-11",
+      "weight_kg": 77.9,
+      "measurements_count": 1
+    },
+    {
+      "date": "2026-04-16",
+      "weight_kg": 76.75,
+      "measurements_count": 1
     }
   ]
 }
