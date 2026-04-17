@@ -117,17 +117,12 @@
 <section id="day-section" class="section active">
   <div class="day-switcher">
     <button class="day-nav" id="prev-day" aria-label="Предыдущий день">‹</button>
-    <div class="day-label-wrap">
+    <label class="day-label-wrap" aria-label="Выбрать дату">
       <div class="day-label" id="day-label">Сегодня</div>
       <div class="day-sub" id="day-sub"></div>
-    </div>
-    <button class="day-nav" id="next-day" aria-label="Следующий день">›</button>
-  </div>
-  <div class="calendar-row">
-    <label class="calendar-btn">
-      📅 Выбрать дату
       <input type="date" id="date-picker" hidden>
     </label>
+    <button class="day-nav" id="next-day" aria-label="Следующий день">›</button>
   </div>
 
   <div id="slots-container"></div>
