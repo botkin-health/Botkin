@@ -8,10 +8,6 @@ Auth: Bearer token (APPLE_HEALTH_TOKEN из .env)
 """
 
 import os
-import hmac
-import hashlib
-import json
-import urllib.parse
 import logging
 from datetime import date, datetime
 from typing import Optional, List
@@ -31,36 +27,7 @@ PRIMARY_USER_ID = int(os.getenv("TELEGRAM_USER_ID", "895655"))
 
 # ── Telegram WebApp Auth ──────────────────────────────────────────────────────
 
-
-def verify_telegram_init_data(init_data_str: str) -> dict:
-    """Validate Telegram WebApp initData HMAC and return user dict."""
-    if not init_data_str:
-        raise ValueError("Empty initData")
-
-    params = dict(urllib.parse.parse_qsl(init_data_str, keep_blank_values=True))
-    received_hash = params.pop("hash", None)
-    if not received_hash:
-        raise ValueError("No hash in initData")
-
-    data_check_string = "\n".join(f"{k}={v}" for k, v in sorted(params.items()))
-    secret_key = hmac.new(b"WebAppData", BOT_TOKEN.encode(), hashlib.sha256).digest()
-    computed = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
-
-    if not hmac.compare_digest(computed, received_hash):
-        raise ValueError("initData HMAC mismatch")
-
-    return json.loads(params.get("user", "{}"))
-
-
-def get_tg_user(authorization: str = Header(...)) -> dict:
-    """FastAPI dependency: validates TMA token, returns Telegram user dict."""
-    if not authorization.startswith("tma "):
-        raise HTTPException(status_code=401, detail="Expected 'tma <initData>'")
-    init_data = authorization.removeprefix("tma ").strip()
-    try:
-        return verify_telegram_init_data(init_data)
-    except ValueError as e:
-        raise HTTPException(status_code=403, detail=str(e))
+from webhook.tg_auth import get_tg_user, verify_telegram_init_data  # noqa: F401
 
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
@@ -346,6 +313,13 @@ async def save_settings(payload: UserSettingsSchema, tg_user: dict = Depends(get
         db.close()
 
     return {"status": "ok"}
+
+
+# ── Nutrition day editor API ─────────────────────────────────────────────────
+
+from webhook.nutrition_api import router as nutrition_router
+
+app.include_router(nutrition_router)
 
 
 # ── Static webapp ─────────────────────────────────────────────────────────────

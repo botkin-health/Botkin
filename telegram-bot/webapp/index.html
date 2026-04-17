@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>Настройки NutriLogBot</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="day.css">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -107,6 +108,42 @@
   </style>
 </head>
 <body>
+
+<div class="top-header">
+  <span class="top-title" id="top-title">🍽 Дневник</span>
+  <button class="header-btn" id="toggle-settings" aria-label="Настройки">⚙️</button>
+</div>
+
+<section id="day-section" class="section active">
+  <div class="day-switcher">
+    <button class="day-nav" id="prev-day" aria-label="Предыдущий день">‹</button>
+    <div class="day-label-wrap">
+      <div class="day-label" id="day-label">Сегодня</div>
+      <div class="day-sub" id="day-sub"></div>
+    </div>
+    <button class="day-nav" id="next-day" aria-label="Следующий день">›</button>
+  </div>
+  <div class="calendar-row">
+    <label class="calendar-btn">
+      📅 Выбрать дату
+      <input type="date" id="date-picker" hidden>
+    </label>
+  </div>
+
+  <div id="slots-container"></div>
+
+  <div id="snackbar" class="snackbar hidden">
+    <span id="snackbar-text"></span>
+    <button id="snackbar-undo">Отменить</button>
+  </div>
+
+  <div class="day-footer" id="day-footer">
+    <div class="footer-title">Итого за день</div>
+    <div id="bars"></div>
+  </div>
+</section>
+
+<section id="settings-section" class="section">
 
 <!-- HOME -->
 <div id="home" class="section active">
@@ -283,6 +320,47 @@
   </div>
 </div>
 
+</section><!-- /settings-section -->
+
+<div id="add-sheet" class="sheet-overlay">
+  <div class="sheet">
+    <button class="sheet-close" id="add-sheet-close" aria-label="Закрыть">✕</button>
+    <h3 id="add-sheet-title">Добавить</h3>
+
+    <label class="form-row">
+      <span>Часто используемое</span>
+    </label>
+    <div id="fav-list" class="fav-list"><div style="color:#999;font-size:12px">Загружаем…</div></div>
+
+    <div class="form-row">
+      <label>Или ввести вручную</label>
+      <input type="text" id="add-name" placeholder="Например: курица грудка">
+    </div>
+    <div class="form-row">
+      <label>Вес, г</label>
+      <input type="number" id="add-weight" inputmode="numeric" min="1" max="5000" placeholder="180">
+    </div>
+
+    <button class="primary-btn" id="add-submit">Добавить</button>
+  </div>
+</div>
+
+<div id="edit-sheet" class="sheet-overlay">
+  <div class="sheet">
+    <button class="sheet-close" id="edit-sheet-close" aria-label="Закрыть">✕</button>
+    <h3 id="edit-sheet-title">Изменить вес</h3>
+    <div class="form-row">
+      <label>Вес, г</label>
+      <input type="number" id="edit-weight" inputmode="numeric" min="1" max="5000">
+    </div>
+    <div class="form-row" style="font-size:12px;color:#888;">
+      КБЖУ пересчитаются пропорционально.
+    </div>
+    <button class="primary-btn" id="edit-submit">Сохранить</button>
+  </div>
+</div>
+
+<script src="day.js"></script>
 <script>
 const tg = window.Telegram.WebApp;
 tg.ready();
@@ -298,7 +376,7 @@ const SLOTS = {
 
 // ── Navigation ──────────────────────────────────────────────────────────────
 function go(section) {
-  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('#settings-section .section').forEach(s => s.classList.remove('active'));
   document.getElementById(section).classList.add('active');
 }
 
