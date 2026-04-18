@@ -35,9 +35,9 @@ _NAME_TOKENS = {
 
 def slot_from_time(t: time) -> str:
     h = t.hour
-    if 6 <= h < 11:
+    if 6 <= h < 12:
         return "breakfast"
-    if 11 <= h < 15:
+    if 12 <= h < 15:
         return "lunch"
     if 15 <= h < 18:
         return "snack"

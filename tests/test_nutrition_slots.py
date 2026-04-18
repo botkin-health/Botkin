@@ -16,8 +16,8 @@ from webhook.nutrition_slots import (
 
 def test_slot_from_time_boundaries():
     assert slot_from_time(time(6, 0)) == "breakfast"
-    assert slot_from_time(time(10, 59)) == "breakfast"
-    assert slot_from_time(time(11, 0)) == "lunch"
+    assert slot_from_time(time(11, 59)) == "breakfast"
+    assert slot_from_time(time(12, 0)) == "lunch"
     assert slot_from_time(time(14, 59)) == "lunch"
     assert slot_from_time(time(15, 0)) == "snack"
     assert slot_from_time(time(17, 59)) == "snack"
