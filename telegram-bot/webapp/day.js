@@ -9,7 +9,7 @@
     lastDeleted: null, // for undo
   };
 
-  const FMT = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short', weekday: 'short' });
+  const FMT = new Intl.DateTimeFormat('ru-RU', { weekday: 'short', day: 'numeric', month: 'short' });
   const SLOT_LABEL = { breakfast: '🌅 Завтрак', lunch: '☀️ Обед', snack: '🍎 Перекус', dinner: '🌙 Ужин' };
 
   function toISO(d) {
@@ -24,12 +24,6 @@
   }
 
   function dayLabelText(d) {
-    const today = new Date();
-    if (sameDay(d, today)) return 'Сегодня';
-    const y = new Date(today); y.setDate(y.getDate() - 1);
-    if (sameDay(d, y)) return 'Вчера';
-    const t = new Date(today); t.setDate(t.getDate() + 1);
-    if (sameDay(d, t)) return 'Завтра';
     return FMT.format(d);
   }
 
@@ -60,12 +54,7 @@
 
   function updateSwitcher() {
     const d = state.date, today = new Date();
-    const label = dayLabelText(d);
-    const formatted = FMT.format(d);
-    const isRelative = label !== formatted;
-    document.getElementById('day-label').textContent = label;
-    document.getElementById('day-sub').textContent = isRelative ? `· ${formatted}` : '';
-    // Disable next-day if more than +7 days ahead
+    document.getElementById('day-label').textContent = dayLabelText(d);
     document.getElementById('next-day').disabled = daysDiff(today, d) >= 7;
     document.getElementById('date-picker').value = toISO(d);
   }
@@ -100,8 +89,26 @@
   // Render functions defined in Task 11 / 12.
   function render() {
     if (!state.data) return;
+    renderBudgetBanner();
     renderSlots();
     renderFooter();
+  }
+
+  function renderBudgetBanner() {
+    const { totals_day: t, goals: g } = state.data;
+    const banner = document.getElementById('budget-banner');
+    if (!g || g.kcal == null) { banner.innerHTML = ''; return; }
+    const remaining = Math.round(g.kcal - t.kcal);
+    const pct = t.kcal / g.kcal;
+    const cls = pct >= 1 ? 'over' : pct >= 0.85 ? 'warn' : 'ok';
+    const label = remaining >= 0 ? `осталось ${remaining} ккал` : `перебор ${-remaining} ккал`;
+    banner.innerHTML = `
+      <span class="budget-remaining ${cls}">${label}</span>
+      <span class="budget-macros">
+        <span>Б ${Math.round(t.p)}г</span>
+        <span>Ж ${Math.round(t.f)}г</span>
+        <span>У ${Math.round(t.c)}г</span>
+      </span>`;
   }
 
   function renderSlots() {
@@ -128,16 +135,16 @@
       const isExpanded = sessionStorage.getItem(expandedKey) !== '0';
       const hdrExtra = isExpanded ? '⌄' : '›';
       const totalKcal = meals.reduce((s, m) => s + (m.totals.kcal || 0), 0);
-      const timeMeta = meals.length === 1 && meals[0].meal_time
-        ? `<span class="slot-meta">· ${meals[0].meal_time}</span>` : '';
+      const allItems = meals.flatMap(m => m.items);
+      const previewText = allItems.map(it => it.name).join(' · ');
       const itemsHtml = isExpanded ? renderMergedItems(slot, meals) : '';
       return `
         <div class="slot" data-slot="${slot}">
           <div class="slot-header" data-toggle="slot:${slot}">
-            <div class="slot-title">${SLOT_LABEL[slot]} ${timeMeta}</div>
+            <div class="slot-title">${SLOT_LABEL[slot]}</div>
             <div class="slot-meta">${Math.round(totalKcal)} ккал ${hdrExtra}</div>
           </div>
-          ${itemsHtml}
+          ${!isExpanded ? `<div class="slot-preview">${escapeHtml(previewText)}</div>` : itemsHtml}
         </div>`;
     }).join('');
 
