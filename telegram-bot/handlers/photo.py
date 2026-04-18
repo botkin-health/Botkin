@@ -891,6 +891,11 @@ async def handle_description(
         if meal_name_ru:
             meal_name = meal_name_ru
 
+    # Если в подписи к фото есть явный префикс слота — приклеиваем его к названию
+    from handlers.text import apply_slot_prefix
+
+    meal_name = apply_slot_prefix(full_description, meal_name)
+
     # Обновляем состояние
     user_state.data.update(
         {
