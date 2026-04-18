@@ -112,6 +112,45 @@ def _is_food_description(text: str) -> bool:
     return False
 
 
+_SLOT_PREFIX_MAP = {
+    "завтрак": "Завтрак",
+    "обед": "Обед",
+    "ужин": "Ужин",
+    "перекус": "Перекус",
+    "бранч": "Бранч",
+    "полдник": "Полдник",
+    "breakfast": "Завтрак",
+    "lunch": "Обед",
+    "dinner": "Ужин",
+    "snack": "Перекус",
+    "brunch": "Бранч",
+}
+
+
+def detect_slot_prefix(text: str) -> str | None:
+    """Вернуть 'Завтрак'/'Обед'/... если текст начинается с префикса типа 'завтрак:', иначе None."""
+    if not text:
+        return None
+    m = re.match(
+        r"^\s*(завтрак|обед|ужин|перекус|бранч|полдник|breakfast|lunch|dinner|snack|brunch)\s*[:\-—]",
+        text,
+        re.IGNORECASE,
+    )
+    if not m:
+        return None
+    return _SLOT_PREFIX_MAP.get(m.group(1).lower())
+
+
+def apply_slot_prefix(text: str, meal_name: str | None) -> str | None:
+    """Если у пользовательского текста есть префикс слота, приклеить его к meal_name."""
+    if not meal_name:
+        return meal_name
+    prefix = detect_slot_prefix(text)
+    if prefix and not meal_name.lower().startswith(prefix.lower()):
+        return f"{prefix}: {meal_name}"
+    return meal_name
+
+
 def extract_meal_name(text: str, meal_time: str = None) -> str:
     """
     Извлекает название приёма пищи из текста.
@@ -831,6 +870,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             meal_name = data.get("dish_name") or data.get("meal_type")
             if not meal_name:
                 meal_name = extract_meal_name(text, datetime.now(MSK).strftime("%H:%M"))
+            meal_name = apply_slot_prefix(text, meal_name)
 
             # Создаем состояние confirmation
             from services.state import UserState
