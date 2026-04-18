@@ -87,8 +87,6 @@
 }
 .item.swiped .item-row { transform: translateX(-80px); }
 
-.swipe-hint { font-size: 10px; color: #c7c7cc; font-style: italic;
-              text-align: right; padding: 4px 0 0; }
 
 .add-in-slot { color: var(--accent); font-size: 13px; padding: 10px 0 2px;
                cursor: pointer; text-align: center; }

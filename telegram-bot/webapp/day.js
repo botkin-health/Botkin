@@ -166,7 +166,6 @@
   }
 
   function renderMergedItems(slot, meals) {
-    const hintShown = localStorage.getItem('swipeHintShown') === '1';
     const rows = [];
     for (const meal of meals) {
       for (const it of meal.items) rows.push({ meal, it });
@@ -190,11 +189,9 @@
         </div>
       </div>`;
     }).join('');
-    const hint = hintShown ? '' : '<div class="swipe-hint">← свайп для удаления · тап для редактирования веса</div>';
     return `
     <div class="items">
       ${itemsHtml}
-      ${hint}
       <div class="add-in-slot" data-slot="${slot}">+ добавить в ${SLOT_LABEL[slot].replace(/^\S+\s/, '').toLowerCase()}</div>
     </div>`;
   }
@@ -330,8 +327,6 @@ function wireItemGestures(root) {
     el.addEventListener('touchend', async () => {
       dragging = false;
       if (currentX < -60) {
-        // Mark hint as seen
-        localStorage.setItem('swipeHintShown', '1');
         await deleteItem(el);
       } else {
         row.style.transform = '';
