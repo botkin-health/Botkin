@@ -35,8 +35,8 @@ router = APIRouter()
 def _item_to_wire(idx: int, it: dict) -> dict:
     return {
         "idx": idx,
-        "name": it.get("product") or it.get("name") or "",
-        "weight": round(float(it.get("weight_g") or 0), 1),
+        "name": it.get("product") or it.get("name") or it.get("food") or "",
+        "weight": round(float(it.get("weight_g") or it.get("amount") or 0), 1),
         "kcal": round(float(it.get("calories") or 0), 1),
         "p": round(float(it.get("protein") or 0), 1),
         "f": round(float(it.get("fats") or 0), 1),
