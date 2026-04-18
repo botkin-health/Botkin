@@ -24,19 +24,31 @@
 }
 
 .day-switcher {
-  display: flex; align-items: center; justify-content: center; gap: 14px;
-  padding: 8px 16px 10px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 5px 4px 6px;
 }
 .day-nav {
-  background: none; border: none; font-size: 18px; color: var(--accent);
-  padding: 4px 8px; cursor: pointer; line-height: 1;
+  background: none; border: none; font-size: 22px; color: var(--accent);
+  padding: 2px 14px; cursor: pointer; line-height: 1;
 }
 .day-nav:disabled { opacity: .3; cursor: not-allowed; }
-.day-label-wrap { cursor: pointer; display: flex; align-items: baseline; gap: 6px; }
-.day-label { font-size: 15px; font-weight: 600; }
-.day-sub { font-size: 12px; color: var(--muted); }
+.day-label-wrap { cursor: pointer; flex: 1; text-align: center; }
+.day-label { font-size: 14px; font-weight: 600; }
+.day-sub { display: none; }
 .calendar-row { display: none; }
 .calendar-btn { display: none; }
+
+.budget-banner {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 16px 8px; font-size: 12px;
+}
+.budget-remaining {
+  font-size: 15px; font-weight: 700;
+}
+.budget-remaining.ok { color: #34c759; }
+.budget-remaining.warn { color: #ff9500; }
+.budget-remaining.over { color: #ff3b30; }
+.budget-macros { color: var(--muted); display: flex; gap: 10px; }
 
 #slots-container { padding: 0 16px 100px; }
 
@@ -52,6 +64,7 @@
 .slot-title { font-weight: 600; font-size: 15px; }
 .slot-meta { font-size: 12px; color: var(--muted); }
 .slot-empty { color: #c7c7cc; font-size: 13px; padding: 4px 0; }
+.slot-preview { font-size: 12px; color: var(--muted); padding: 2px 0 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .items { margin-top: 10px; border-top: 1px solid var(--border); padding-top: 6px; }
 .item { position: relative; overflow: hidden; }
