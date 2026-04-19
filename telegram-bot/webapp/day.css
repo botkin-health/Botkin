@@ -42,6 +42,13 @@
   padding: 6px 16px 8px;
   border-bottom: 1px solid var(--border);
 }
+.budget-banner-inner {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+}
+.budget-info-col {
+  flex-shrink: 0; text-align: right; padding-top: 6px;
+  font-size: 11px; color: var(--muted); line-height: 1.8;
+}
 .budget-remaining {
   font-size: 34px; font-weight: 900; letter-spacing: -1px; line-height: 1;
   display: block;
@@ -140,7 +147,7 @@
 }
 .footer-title { font-size: 9px; color: var(--muted); text-transform: uppercase;
                 letter-spacing: .5px; margin-bottom: 4px; }
-.bar-row { display: grid; grid-template-columns: 64px 1fr 72px; align-items: center;
+.bar-row { display: grid; grid-template-columns: 72px 1fr 72px; align-items: center;
            gap: 6px; font-size: 11px; margin-bottom: 3px; }
 .bar-track { background: var(--border); border-radius: 4px; height: 6px; overflow: hidden; }
 .bar-fill { height: 100%; border-radius: 4px; transition: width .3s; }
