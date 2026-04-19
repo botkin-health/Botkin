@@ -54,9 +54,12 @@
 
   function updateSwitcher() {
     const d = state.date, today = new Date();
-    document.getElementById('day-label').textContent = dayLabelText(d);
-    document.getElementById('next-day').disabled = daysDiff(today, d) >= 7;
-    document.getElementById('date-picker').value = toISO(d);
+    const lbl = document.getElementById('day-label');
+    if (lbl) lbl.textContent = dayLabelText(d);
+    const nextBtn = document.getElementById('next-day');
+    if (nextBtn) nextBtn.disabled = daysDiff(today, d) >= 7;
+    const picker = document.getElementById('date-picker');
+    if (picker) picker.value = toISO(d);
   }
 
   // Wire up controls
@@ -87,12 +90,20 @@
     const { totals_day: t, goals: g } = state.data;
     const banner = document.getElementById('budget-banner');
     if (!g || g.kcal == null) { banner.innerHTML = ''; return; }
-    const remaining = Math.round(g.kcal - t.kcal);
-    const pct = t.kcal / g.kcal;
-    const cls = pct >= 1 ? 'over' : pct >= 0.85 ? 'warn' : 'ok';
-    const label = remaining >= 0 ? `осталось ${remaining} ккал` : `перебор ${-remaining} ккал`;
 
-    // Per-macro coloring: 0.85..1.0 = warn, >1.0 or <0.5 = over/low. Undefined goal → neutral.
+    const consumed = Math.round(t.kcal || 0);
+    const goal = Math.round(g.kcal);
+    const diff = goal - consumed;
+    const isOver = diff < 0;
+    const cls = isOver ? 'over' : diff / goal < 0.15 ? 'warn' : 'ok';
+
+    const heroText = isOver
+      ? `−${Math.abs(diff)} ккал`
+      : `+${diff} ккал`;
+    const subText = isOver
+      ? `перебор · съедено ${consumed} из ${goal}`
+      : `осталось · съедено ${consumed} из ${goal}`;
+
     const macroCls = (val, goal) => {
       if (!goal) return '';
       const p = val / goal;
@@ -100,7 +111,6 @@
       if (p >= 0.85) return 'ok';
       return 'warn';
     };
-
     const macro = (letter, val, goal) => {
       const v = Math.round(val || 0);
       const c = macroCls(val, goal);
@@ -110,12 +120,13 @@
     };
 
     banner.innerHTML = `
-      <span class="budget-remaining ${cls}">${label}</span>
-      <span class="budget-macros">
-        ${macro('Б', t.p, g.protein)}
-        ${macro('Ж', t.f, g.fats)}
-        ${macro('У', t.c, g.carbs)}
-      </span>`;
+    <span class="budget-remaining ${cls}">${heroText}</span>
+    <span class="budget-sub">${subText}</span>
+    <div class="budget-macros">
+      ${macro('Б', t.p, g.protein)}
+      ${macro('Ж', t.f, g.fats)}
+      ${macro('У', t.c, g.carbs)}
+    </div>`;
   }
 
   function renderSlots() {
@@ -125,16 +136,18 @@
     const bySlot = { breakfast: [], lunch: [], snack: [], dinner: [] };
     for (const m of state.data.meals) bySlot[m.slot]?.push(m);
 
-    container.innerHTML = SLOTS.map(slot => {
+    container.innerHTML = `<div class="slots-section">${SLOTS.map(slot => {
       const meals = bySlot[slot];
       if (meals.length === 0) {
         return `
         <div class="slot dim" data-slot="${slot}">
-          <div class="slot-header">
+          <div class="slot-left">
             <div class="slot-title">${SLOT_LABEL[slot]}</div>
-            <button class="header-btn add-in-slot-btn" data-slot="${slot}">+</button>
+            <div class="slot-empty">Пусто</div>
           </div>
-          <div class="slot-empty">Пока ничего</div>
+          <div class="slot-right">
+            <span class="slot-meta" style="color:#c7c7cc;">—</span>
+          </div>
         </div>`;
       }
       // Merge all meals in this slot into one card (items from each preserve their meal_id).
@@ -146,16 +159,21 @@
       const previewText = allItems.map(it => it.name).join(' · ');
       const itemsHtml = isExpanded ? renderMergedItems(slot, meals) : '';
       return `
-        <div class="slot" data-slot="${slot}">
-          <div class="slot-header" data-toggle="slot:${slot}">
-            <div class="slot-title">${SLOT_LABEL[slot]}</div>
-            <div class="slot-meta">${Math.round(totalKcal)} ккал ${hdrExtra}</div>
+        <div class="slot ${isExpanded ? 'expanded' : ''}" data-slot="${slot}">
+          <div class="slot-header-row" data-toggle="slot:${slot}" style="display:flex;justify-content:space-between;align-items:flex-start;cursor:pointer;width:100%">
+            <div class="slot-left" style="flex:1;min-width:0;">
+              <div class="slot-title">${SLOT_LABEL[slot]}</div>
+              ${!isExpanded ? `<div class="slot-preview">${escapeHtml(previewText)}</div>` : ''}
+            </div>
+            <div class="slot-right" style="flex-shrink:0;padding-left:8px;">
+              <div class="slot-meta">${Math.round(totalKcal)}</div>
+            </div>
           </div>
-          ${!isExpanded ? `<div class="slot-preview">${escapeHtml(previewText)}</div>` : itemsHtml}
+          ${isExpanded ? itemsHtml : ''}
         </div>`;
-    }).join('');
+    }).join('')}</div>`;
 
-    container.querySelectorAll('.slot-header[data-toggle]').forEach(el => {
+    container.querySelectorAll('[data-toggle]').forEach(el => {
       el.addEventListener('click', () => {
         const key = `exp:${el.dataset.toggle}`;
         sessionStorage.setItem(key, sessionStorage.getItem(key) === '0' ? '1' : '0');
@@ -212,26 +230,25 @@
   function renderFooter() {
     const { totals_day: t, goals: g } = state.data;
     const bars = [
-      { key: 'kcal',   label: 'Ккал',      cls: 'kcal', val: t.kcal,  goal: g.kcal,    unit: '' },
-      { key: 'p',      label: 'Белки',     cls: 'p',    val: t.p,     goal: g.protein, unit: 'г' },
-      { key: 'f',      label: 'Жиры',      cls: 'f',    val: t.f,     goal: g.fats,    unit: 'г' },
-      { key: 'c',      label: 'Углеводы',  cls: 'c',    val: t.c,     goal: g.carbs,   unit: 'г' },
-      { key: 'fib',    label: 'Клетчатка', cls: 'fib',  val: t.fib,   goal: g.fiber,   unit: 'г' },
+      { label: 'Клетчатка', cls: 'fib', val: t.fib, goal: g?.fiber,   unit: 'г' },
+      { label: 'Белки',     cls: 'p',   val: t.p,   goal: g?.protein, unit: 'г' },
     ];
     document.getElementById('bars').innerHTML = bars.map(b => {
       if (b.goal == null) {
         return `<div class="bar-row">
-                <span>${b.label}</span>
-                <div></div>
-                <span class="bar-value">${Math.round(b.val)}${b.unit ? ' ' + b.unit : ''}</span>
-              </div>`;
-      }
-      const pct = Math.min(100, Math.round((b.val / b.goal) * 100));
-      return `<div class="bar-row">
               <span>${b.label}</span>
-              <div class="bar-track"><div class="bar-fill ${b.cls}" style="width:${pct}%"></div></div>
-              <span class="bar-value">${Math.round(b.val)} <span>/ ${b.goal}${b.unit ? ' ' + b.unit : ''}</span></span>
+              <div></div>
+              <span class="bar-value">${Math.round(b.val || 0)} ${b.unit}</span>
             </div>`;
+      }
+      const pct = Math.min(100, Math.round(((b.val || 0) / b.goal) * 100));
+      const valCls = pct >= 110 ? 'over' : pct >= 85 ? 'ok' : 'warn';
+      const valColor = valCls === 'ok' ? '#34c759' : valCls === 'over' ? '#ff3b30' : '#ff9500';
+      return `<div class="bar-row">
+            <span>${b.label}</span>
+            <div class="bar-track"><div class="bar-fill ${b.cls}" style="width:${pct}%"></div></div>
+            <span class="bar-value" style="color:${valColor}">${Math.round(b.val || 0)}<span> / ${b.goal}${b.unit}</span></span>
+          </div>`;
     }).join('');
   }
 
