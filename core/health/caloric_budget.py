@@ -59,6 +59,8 @@ def get_daily_budget(user_id: int, for_date: Optional[date_type] = None) -> dict
             "pct": pct,
             "warn": pct >= WARN_THRESHOLD * 100,
             "has_garmin": has_garmin,
+            "bmr_avg": round(avg_stats.get("bmr_calories", 0)) if avg_stats else None,
+            "activity_avg": round(avg_stats.get("active_calories", 0)) if avg_stats else None,
         }
     except Exception as e:
         logger.warning(f"get_daily_budget failed: {e}")
