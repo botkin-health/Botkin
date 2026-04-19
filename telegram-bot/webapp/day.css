@@ -49,6 +49,11 @@
 .budget-remaining.warn { color: #ff9500; }
 .budget-remaining.over { color: #ff3b30; }
 .budget-macros { color: var(--muted); display: flex; gap: 10px; }
+.budget-macros .macro { white-space: nowrap; }
+.budget-macros .macro.ok { color: #34c759; }
+.budget-macros .macro.warn { color: #ff9500; }
+.budget-macros .macro.over { color: #ff3b30; }
+.budget-macros .macro-goal { color: var(--muted); font-weight: 400; }
 
 #slots-container { padding: 0 16px 100px; }
 
@@ -110,7 +115,7 @@
 .bar-value span { color: var(--muted); font-size: 11px; }
 
 /* Bottom sheet */
-.sheet-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 100;
+.sheet-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 300;
                  display: none; align-items: flex-end; justify-content: center; }
 .sheet-overlay.open { display: flex; }
 .sheet {
