@@ -97,35 +97,28 @@
     const isOver = diff < 0;
     const cls = isOver ? 'over' : diff / goal < 0.15 ? 'warn' : 'ok';
 
-    const heroText = isOver
-      ? `−${Math.abs(diff)} ккал`
-      : `+${diff} ккал`;
+    const heroText = isOver ? `−${Math.abs(diff)} ккал` : `+${diff} ккал`;
     const subText = isOver
       ? `перебор · съедено ${consumed} из ${goal}`
       : `осталось · съедено ${consumed} из ${goal}`;
 
-    const macroCls = (val, goal) => {
-      if (!goal) return '';
-      const p = val / goal;
-      if (p >= 1.1) return 'over';
-      if (p >= 0.85) return 'ok';
-      return 'warn';
-    };
-    const macro = (letter, val, goal) => {
-      const v = Math.round(val || 0);
-      const c = macroCls(val, goal);
-      return goal
-        ? `<span class="macro ${c}">${letter} ${v}<span class="macro-goal">/${goal}</span></span>`
-        : `<span class="macro">${letter} ${v}</span>`;
-    };
+    // Right column: BMR / activity / deficit (show only if data available)
+    let infoCol = '';
+    if (g.bmr || g.activity_avg || g.deficit_pct) {
+      const lines = [];
+      if (g.bmr) lines.push(`💤 БМР ${g.bmr}`);
+      if (g.activity_avg) lines.push(`🏃 +${g.activity_avg} актив.`);
+      if (g.deficit_pct) lines.push(`🎯 −${g.deficit_pct}% дефицит`);
+      infoCol = `<div class="budget-info-col">${lines.join('<br>')}</div>`;
+    }
 
     banner.innerHTML = `
-    <span class="budget-remaining ${cls}">${heroText}</span>
-    <span class="budget-sub">${subText}</span>
-    <div class="budget-macros">
-      ${macro('Б', t.p, g.protein)}
-      ${macro('Ж', t.f, g.fats)}
-      ${macro('У', t.c, g.carbs)}
+    <div class="budget-banner-inner">
+      <div>
+        <span class="budget-remaining ${cls}">${heroText}</span>
+        <span class="budget-sub">${subText}</span>
+      </div>
+      ${infoCol}
     </div>`;
   }
 
@@ -230,8 +223,11 @@
   function renderFooter() {
     const { totals_day: t, goals: g } = state.data;
     const bars = [
-      { label: 'Клетчатка', cls: 'fib', val: t.fib, goal: g?.fiber,   unit: 'г' },
-      { label: 'Белки',     cls: 'p',   val: t.p,   goal: g?.protein, unit: 'г' },
+      { label: 'Ккал',      cls: 'kcal', val: t.kcal, goal: g?.kcal,    unit: '' },
+      { label: 'Белки',     cls: 'p',    val: t.p,    goal: g?.protein, unit: 'г' },
+      { label: 'Жиры',      cls: 'f',    val: t.f,    goal: g?.fats,    unit: 'г' },
+      { label: 'Углев.',    cls: 'c',    val: t.c,    goal: g?.carbs,   unit: 'г' },
+      { label: 'Клетчатка', cls: 'fib',  val: t.fib,  goal: g?.fiber,   unit: 'г' },
     ];
     document.getElementById('bars').innerHTML = bars.map(b => {
       if (b.goal == null) {
