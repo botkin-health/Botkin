@@ -120,7 +120,7 @@
   <button class="day-nav" id="next-day" aria-label="Следующий день">›</button>
 </div>
 
-<section id="day-section" class="section active">
+<section id="day-section" class="section tab-panel active">
 
   <div id="budget-banner" class="budget-banner"></div>
 
@@ -137,7 +137,7 @@
   </div>
 </section>
 
-<section id="settings-section" class="section">
+<section id="settings-section" class="section tab-panel">
 
 <!-- HOME -->
 <div id="home" class="section active">
@@ -316,7 +316,7 @@
 
 </section><!-- /settings-section -->
 
-<section id="supplements-tab-section" class="section">
+<section id="supplements-tab-section" class="section tab-panel">
   <div style="padding: 40px 24px; text-align: center; color: #8e8e93;">
     <div style="font-size: 48px; margin-bottom: 16px;">💊</div>
     <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px; color: #1c1c1e;">Добавки</div>
@@ -409,7 +409,7 @@ function switchTab(tab) {
     'supplements-tab': 'supplements-tab-section',
     'settings': 'settings-section',
   };
-  document.querySelectorAll('body > section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(s => s.classList.remove('active'));
   const target = document.getElementById(sectionMap[tab]);
   if (target) target.classList.add('active');
   // When switching to settings, reset to home sub-section
