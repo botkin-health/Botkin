@@ -104,10 +104,15 @@
 
     // Right column: BMR / activity / deficit (show only if data available)
     let infoCol = '';
-    if (g.bmr || g.activity_avg || g.deficit_pct) {
+    if (g.bmr || g.activity_today != null || g.activity_avg || g.deficit_pct) {
       const lines = [];
       if (g.bmr) lines.push(`💤 БМР ${g.bmr}`);
-      if (g.activity_avg) lines.push(`🏃 +${g.activity_avg} актив.`);
+      if (g.activity_today != null) {
+        const avgSuffix = g.activity_avg ? ` · ${g.activity_avg} ср.` : '';
+        lines.push(`🏃 ${g.activity_today} сег.${avgSuffix}`);
+      } else if (g.activity_avg) {
+        lines.push(`🏃 ${g.activity_avg} ккал`);
+      }
       if (g.deficit_pct) lines.push(`🎯 −${g.deficit_pct}% дефицит`);
       infoCol = `<div class="budget-info-col">${lines.join('<br>')}</div>`;
     }
