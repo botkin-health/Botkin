@@ -75,17 +75,6 @@
     if (e.target.value) setDate(new Date(e.target.value + 'T00:00:00'));
   });
 
-  // Settings toggle
-  document.getElementById('toggle-settings').addEventListener('click', () => {
-    const day = document.getElementById('day-section');
-    const set = document.getElementById('settings-section');
-    const isOnDay = day.classList.contains('active');
-    day.classList.toggle('active', !isOnDay);
-    set.classList.toggle('active', isOnDay);
-    document.getElementById('top-title').textContent = isOnDay ? '⚙️ Настройки' : '🍽 Дневник';
-    document.getElementById('toggle-settings').textContent = isOnDay ? '✕' : '⚙️';
-  });
-
   // Render functions defined in Task 11 / 12.
   function render() {
     if (!state.data) return;
@@ -102,12 +91,30 @@
     const pct = t.kcal / g.kcal;
     const cls = pct >= 1 ? 'over' : pct >= 0.85 ? 'warn' : 'ok';
     const label = remaining >= 0 ? `осталось ${remaining} ккал` : `перебор ${-remaining} ккал`;
+
+    // Per-macro coloring: 0.85..1.0 = warn, >1.0 or <0.5 = over/low. Undefined goal → neutral.
+    const macroCls = (val, goal) => {
+      if (!goal) return '';
+      const p = val / goal;
+      if (p >= 1.1) return 'over';
+      if (p >= 0.85) return 'ok';
+      return 'warn';
+    };
+
+    const macro = (letter, val, goal) => {
+      const v = Math.round(val || 0);
+      const c = macroCls(val, goal);
+      return goal
+        ? `<span class="macro ${c}">${letter} ${v}<span class="macro-goal">/${goal}</span></span>`
+        : `<span class="macro">${letter} ${v}</span>`;
+    };
+
     banner.innerHTML = `
       <span class="budget-remaining ${cls}">${label}</span>
       <span class="budget-macros">
-        <span>Б ${Math.round(t.p)}г</span>
-        <span>Ж ${Math.round(t.f)}г</span>
-        <span>У ${Math.round(t.c)}г</span>
+        ${macro('Б', t.p, g.protein)}
+        ${macro('Ж', t.f, g.fats)}
+        ${macro('У', t.c, g.carbs)}
       </span>`;
   }
 
