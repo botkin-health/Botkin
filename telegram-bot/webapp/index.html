@@ -109,21 +109,18 @@
 </head>
 <body>
 
-<div class="top-header">
-  <span class="top-title" id="top-title">🍽 Дневник</span>
-  <button class="header-btn" id="toggle-settings" aria-label="Настройки">⚙️</button>
+<!-- NEW: single-row app header (always visible) -->
+<div class="app-header">
+  <button class="day-nav" id="prev-day" aria-label="Предыдущий день">‹</button>
+  <label class="day-label-wrap" aria-label="Выбрать дату">
+    <div class="app-header-label">ДНЕВНИК</div>
+    <div class="app-header-date" id="day-label">Сегодня</div>
+    <input type="date" id="date-picker" hidden>
+  </label>
+  <button class="day-nav" id="next-day" aria-label="Следующий день">›</button>
 </div>
 
 <section id="day-section" class="section active">
-  <div class="day-switcher">
-    <button class="day-nav" id="prev-day" aria-label="Предыдущий день">‹</button>
-    <label class="day-label-wrap" aria-label="Выбрать дату">
-      <div class="day-label" id="day-label">Сегодня</div>
-      <div class="day-sub" id="day-sub"></div>
-      <input type="date" id="date-picker" hidden>
-    </label>
-    <button class="day-nav" id="next-day" aria-label="Следующий день">›</button>
-  </div>
 
   <div id="budget-banner" class="budget-banner"></div>
 
@@ -319,6 +316,14 @@
 
 </section><!-- /settings-section -->
 
+<section id="supplements-tab-section" class="section">
+  <div style="padding: 40px 24px; text-align: center; color: #8e8e93;">
+    <div style="font-size: 48px; margin-bottom: 16px;">💊</div>
+    <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px; color: #1c1c1e;">Добавки</div>
+    <div style="font-size: 14px; line-height: 1.5;">Раздел в разработке.<br>Пока управляй добавками через ⚙️ Настройки.</div>
+  </div>
+</section>
+
 <div id="add-sheet" class="sheet-overlay">
   <div class="sheet">
     <button class="sheet-close" id="add-sheet-close" aria-label="Закрыть">✕</button>
@@ -357,7 +362,23 @@
   </div>
 </div>
 
-<script src="day.js?v=3"></script>
+<!-- Tab bar -->
+<nav class="tab-bar" id="tab-bar">
+  <button class="tab-item active" data-tab="day" onclick="switchTab('day')">
+    <span class="tab-icon">📅</span>
+    <span class="tab-label">Дневник</span>
+  </button>
+  <button class="tab-item" data-tab="supplements-tab" onclick="switchTab('supplements-tab')">
+    <span class="tab-icon">💊</span>
+    <span class="tab-label">Добавки</span>
+  </button>
+  <button class="tab-item" data-tab="settings" onclick="switchTab('settings')">
+    <span class="tab-icon">⚙️</span>
+    <span class="tab-label">Настройки</span>
+  </button>
+</nav>
+
+<script src="day.js?v=5"></script>
 <script>
 const tg = window.Telegram.WebApp;
 tg.ready();
@@ -375,6 +396,24 @@ const SLOTS = {
 function go(section) {
   document.querySelectorAll('#settings-section .section').forEach(s => s.classList.remove('active'));
   document.getElementById(section).classList.add('active');
+}
+
+function switchTab(tab) {
+  // Update tab bar active state
+  document.querySelectorAll('.tab-item').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tab);
+  });
+  // Show/hide sections
+  const sectionMap = {
+    'day': 'day-section',
+    'supplements-tab': 'supplements-tab-section',
+    'settings': 'settings-section',
+  };
+  document.querySelectorAll('body > section').forEach(s => s.classList.remove('active'));
+  const target = document.getElementById(sectionMap[tab]);
+  if (target) target.classList.add('active');
+  // When switching to settings, reset to home sub-section
+  if (tab === 'settings') go('home');
 }
 
 // ── Load settings ───────────────────────────────────────────────────────────
