@@ -61,18 +61,40 @@ FRACTION_METRICS = {
 
 
 def find_latest_export():
-    """Ищет последний экспорт Apple Health в ~/Downloads/"""
+    """Ищет последний экспорт Apple Health в ~/Downloads/.
+
+    Учитывает:
+    - Английское имя файла (export.xml) и русское (экспорт.xml — если iPhone
+      был в русской локали при экспорте).
+    - Папки вида apple_health_export, apple_health_export2, apple_health_export3…
+      (Safari добавляет суффикс при автораспаковке).
+    - Выбирает файл с САМЫМ СВЕЖИМ mtime — сортировка по имени ломалась,
+      потому что apple_health_export3/ (март) алфавитно > apple_health_export/ (апрель).
+    """
+    base = os.path.expanduser("~/Downloads")
     patterns = [
-        os.path.expanduser("~/Downloads/apple_health_export*/apple_health_export/export.xml"),
-        os.path.expanduser("~/Downloads/apple_health_export/apple_health_export/export.xml"),
+        f"{base}/apple_health_export*/apple_health_export/export.xml",
+        f"{base}/apple_health_export*/apple_health_export/экспорт.xml",
+        f"{base}/apple_health_export/apple_health_export/export.xml",
+        f"{base}/apple_health_export/apple_health_export/экспорт.xml",
     ]
     candidates = []
     for p in patterns:
         candidates.extend(glob.glob(p))
-    if candidates:
-        # Берём самый свежий (по имени директории, т.к. цифровой суффикс растёт)
-        return sorted(candidates)[-1]
-    return None
+    if not candidates:
+        return None
+    # Дедуп + выбор по mtime (самый свежий)
+    candidates = list(set(candidates))
+    latest = max(candidates, key=lambda f: os.path.getmtime(f))
+    if len(candidates) > 1:
+        from datetime import datetime as _dt
+
+        print(f"   🔍 Найдено {len(candidates)} экспортов, выбираю самый свежий:")
+        for c in sorted(candidates, key=lambda f: os.path.getmtime(f), reverse=True):
+            mtime = _dt.fromtimestamp(os.path.getmtime(c)).strftime("%Y-%m-%d %H:%M")
+            marker = "👉" if c == latest else "  "
+            print(f"   {marker} {mtime}  {c}")
+    return latest
 
 
 def parse_date(date_str):

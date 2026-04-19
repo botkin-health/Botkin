@@ -324,11 +324,39 @@ app.include_router(nutrition_router)
 
 # ── Static webapp ─────────────────────────────────────────────────────────────
 
+import hashlib
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path as _Path
 
 _webapp_dir = _Path(__file__).parent.parent / "webapp"
+
+
+def _webapp_version() -> str:
+    """Short hash of mtimes for day.js + api.js + day.css — forces cache bust on any change."""
+    parts = []
+    for fname in ("day.js", "api.js", "day.css"):
+        p = _webapp_dir / fname
+        if p.exists():
+            parts.append(str(p.stat().st_mtime_ns))
+    return hashlib.md5("-".join(parts).encode()).hexdigest()[:8] if parts else "0"
+
+
+async def _serve_index() -> HTMLResponse:
+    """Serve index.html with {{V}} placeholder replaced by version hash."""
+    index_path = _webapp_dir / "index.html"
+    html = index_path.read_text(encoding="utf-8")
+    html = html.replace("{{V}}", _webapp_version())
+    # Prevent CDN/browser from caching the HTML itself — JS/CSS get cached via ?v=hash
+    headers = {"Cache-Control": "no-cache, no-store, must-revalidate"}
+    return HTMLResponse(content=html, headers=headers)
+
+
 if _webapp_dir.exists():
+    # Explicit routes for index — must be registered BEFORE the mount.
+    app.get("/webapp/")(_serve_index)
+    app.get("/webapp/index.html")(_serve_index)
+    # Everything else (day.js, api.js, day.css, etc.) served as static.
     app.mount("/webapp", StaticFiles(directory=str(_webapp_dir), html=True), name="webapp")
 
 
