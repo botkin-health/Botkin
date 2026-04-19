@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>Настройки NutriLogBot</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="day.css">
+  <link rel="stylesheet" href="day.css?v={{V}}">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -377,7 +377,8 @@
   </button>
 </nav>
 
-<script src="day.js?v=11"></script>
+<script src="api.js?v={{V}}"></script>
+<script src="day.js?v={{V}}"></script>
 <script>
 const tg = window.Telegram.WebApp;
 tg.ready();

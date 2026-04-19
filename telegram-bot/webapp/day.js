@@ -28,17 +28,12 @@
     return s.charAt(0).toUpperCase() + s.slice(1);
   }
 
-  async function api(path, options = {}) {
-    const initData = tg?.initData || '';
-    const headers = { 'Authorization': `tma ${initData}`, 'Content-Type': 'application/json', ...(options.headers || {}) };
-    const r = await fetch(path, { ...options, headers });
-    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
-    return r.status === 204 ? null : r.json();
-  }
+  // API client lives in api.js → window.API
+  const API = window.API;
 
   async function loadDay() {
     try {
-      state.data = await api(`/api/day?date=${toISO(state.date)}`);
+      state.data = await API.getDay(toISO(state.date));
       render();
     } catch (e) {
       console.error(e);
@@ -255,7 +250,7 @@
   }
 
   // Expose for later tasks
-  window.__nutri = { state, api, loadDay, render, setDate };
+  window.__nutri = { state, API, loadDay, render, setDate };
 
   let activeSlot = null;
 
@@ -268,7 +263,7 @@
     document.getElementById('add-weight').value = '';
     document.getElementById('fav-list').innerHTML = '<div style="color:#999;font-size:12px">Загружаем…</div>';
     try {
-      const favs = await api('/api/favorites?limit=15');
+      const favs = await API.getFavorites(15);
       document.getElementById('fav-list').innerHTML = favs.length
         ? favs.map(f => `
             <button class="fav-chip" data-name="${escapeHtml(f.name)}" data-weight="${f.default_weight}">
@@ -305,12 +300,11 @@
     const btn = document.getElementById('add-submit');
     btn.disabled = true; btn.textContent = 'Добавляем…';
     try {
-      await api('/api/meal/item', {
-        method: 'POST',
-        body: JSON.stringify({
-          date: toISO(state.date), slot: activeSlot,
-          name, weight, source: 'manual',
-        }),
+      await API.addItem({
+        date: toISO(state.date),
+        slot: activeSlot,
+        name,
+        weight,
       });
       closeAddSheet();
       await loadDay();
@@ -372,18 +366,17 @@ async function deleteItem(el) {
   const mealId = Number(el.dataset.mealId);
   const idx = Number(el.dataset.idx);
   try {
-    const res = await api(`/api/meal/item?meal_id=${mealId}&idx=${idx}`, { method: 'DELETE' });
+    const res = await API.deleteItem({ meal_id: mealId, idx });
     const removed = res.removed;
     tg?.HapticFeedback?.impactOccurred?.('medium');
     showSnackbar(`Удалено: ${removed.name}`, async () => {
       // Undo: POST same product back to same slot
       const slot = el.closest('.slot')?.dataset.slot;
-      await api('/api/meal/item', {
-        method: 'POST',
-        body: JSON.stringify({
-          date: toISO(state.date), slot, name: removed.name,
-          weight: removed.weight, source: 'manual',
-        }),
+      await API.addItem({
+        date: toISO(state.date),
+        slot,
+        name: removed.name,
+        weight: removed.weight,
       });
       loadDay();
     });
@@ -406,10 +399,7 @@ function openEditSheet(el) {
     const w = parseFloat(document.getElementById('edit-weight').value);
     if (!w || w <= 0) return;
     try {
-      await api('/api/meal/item', {
-        method: 'PATCH',
-        body: JSON.stringify({ meal_id: mealId, idx, weight: w }),
-      });
+      await API.patchWeight({ meal_id: mealId, idx, weight: w });
       document.getElementById('edit-sheet').classList.remove('open');
       tg?.HapticFeedback?.notificationOccurred?.('success');
       loadDay();

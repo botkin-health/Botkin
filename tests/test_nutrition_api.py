@@ -56,7 +56,10 @@ def test_get_day_empty(client):
     assert body["date"] == "2026-04-17"
     assert body["meals"] == []
     assert body["totals_day"] == {"kcal": 0, "p": 0, "f": 0, "c": 0, "fib": 0}
-    assert set(body["goals"].keys()) == {"kcal", "protein", "fats", "carbs", "fiber"}
+    # Baseline macro goals must always be present
+    assert {"kcal", "protein", "fats", "carbs", "fiber"} <= set(body["goals"].keys())
+    # Activity for historical date (not today) comes from DB or None
+    assert "activity_today" in body["goals"]
 
 
 def test_get_day_with_meals(client, api_db):
@@ -363,3 +366,102 @@ def test_get_favorites(client, api_db):
 def test_get_favorites_respects_limit(client, api_db):
     r = client.get("/api/favorites?limit=0")
     assert r.status_code == 422
+
+
+# ── Goals: today's activity vs historical ──────────────────────────────────
+# Regression tests for 2026-04-19 fix: banner should show TODAY's actual
+# Garmin activity (fresh, via sync_today_garmin), not the 14-day average —
+# but for past dates we pull from the DB so old days stay stable.
+
+
+def test_goals_activity_today_uses_garmin_for_today(client, monkeypatch):
+    """For today's date we call sync_today_garmin, not the DB."""
+    from datetime import date
+
+    from webhook import nutrition_api
+
+    calls = {"sync": 0, "db_lookup": 0}
+
+    def fake_sync(user_id, for_date):
+        calls["sync"] += 1
+        return 487.0, "ok"
+
+    def fake_db(*args, **kwargs):
+        calls["db_lookup"] += 1
+        return None
+
+    monkeypatch.setattr(nutrition_api, "sync_today_garmin", fake_sync)
+    monkeypatch.setattr(nutrition_api, "get_activity_by_date", fake_db)
+
+    today = date.today().isoformat()
+    r = client.get(f"/api/day?date={today}")
+    assert r.status_code == 200
+    assert r.json()["goals"]["activity_today"] == 487
+    assert calls["sync"] == 1
+    assert calls["db_lookup"] == 0
+
+
+def test_goals_activity_today_uses_db_for_past(client, api_db, monkeypatch):
+    """For historical dates we read activity_log from the DB, never Garmin."""
+    from webhook import nutrition_api
+
+    class FakeActRow:
+        active_calories = 312.0
+
+    def should_not_be_called(*args, **kwargs):
+        raise AssertionError("sync_today_garmin must not be called for past dates")
+
+    monkeypatch.setattr(nutrition_api, "sync_today_garmin", should_not_be_called)
+    monkeypatch.setattr(nutrition_api, "get_activity_by_date", lambda db, uid, d: FakeActRow())
+
+    # Use a date that's definitely in the past
+    r = client.get("/api/day?date=2020-01-01")
+    assert r.status_code == 200
+    assert r.json()["goals"]["activity_today"] == 312
+
+
+def test_goals_activity_today_null_when_no_data(client, monkeypatch):
+    """When Garmin has no data for today, activity_today is null (not 0)."""
+    from datetime import date
+
+    from webhook import nutrition_api
+
+    monkeypatch.setattr(nutrition_api, "sync_today_garmin", lambda uid, d: (None, "no-data"))
+
+    r = client.get(f"/api/day?date={date.today().isoformat()}")
+    assert r.status_code == 200
+    assert r.json()["goals"]["activity_today"] is None
+
+
+def test_goals_exposes_bmr_and_deficit_when_budget_available(client, monkeypatch):
+    """When caloric budget is computed, goals must expose bmr/activity_avg/deficit_pct."""
+    # Patch in nutrition_goals where it's actually called from
+    from webhook import nutrition_goals
+
+    monkeypatch.setattr(
+        nutrition_goals,
+        "get_daily_budget",
+        lambda user_id, for_date=None: {
+            "consumed": 0,
+            "target": 2000,
+            "remaining": 2000,
+            "pct": 0,
+            "warn": False,
+            "has_garmin": True,
+            "bmr_avg": 1650,
+            "activity_avg": 350,
+        },
+    )
+
+    r = client.get("/api/day?date=2026-04-17")
+    assert r.status_code == 200
+    g = r.json()["goals"]
+    assert g["kcal"] == 2000
+    assert g["bmr"] == 1650
+    assert g["activity_avg"] == 350
+    assert g["deficit_pct"] == 15
+    # Macros derived from kcal
+    assert g["protein"] == round(2000 * 0.30 / 4)
+    assert g["fats"] == round(2000 * 0.30 / 9)
+    assert g["carbs"] == round(2000 * 0.40 / 4)
+    assert g["fiber"] == 30
