@@ -12,8 +12,11 @@ from handlers.text import extract_date_from_text
 def test_extract_date():
     today = datetime.now()
     yesterday = (today - timedelta(days=1)).strftime("%Y-%m-%d")
+    apr19 = "2026-04-19"
+    jan29 = "2026-01-29"
 
     test_cases = [
+        # Relative keywords
         ("Вчера ужин: яйцо", yesterday, "ужин: яйцо"),
         ("вчера: каша", yesterday, "каша"),
         ("Вчера, обед суп", yesterday, "обед суп"),
@@ -21,6 +24,13 @@ def test_extract_date():
         ("Сегодня ужин", None, "Сегодня ужин"),
         ("Просто текст", None, "Просто текст"),
         ("Вчера", yesterday, ""),
+        # Absolute date — number BEFORE meal name (classic)
+        ("29 января: каша", jan29, "каша"),
+        ("29-го января обед: суп", jan29, "обед: суп"),
+        # Regression: meal name BEFORE date (the actual bug)
+        ("ужин 19-е апреля: сыр и тунец", apr19, "ужин сыр и тунец"),
+        ("завтрак 19-го апреля: омлет", apr19, "завтрак омлет"),
+        ("обед 19 апреля: суп", apr19, "обед суп"),
     ]
 
     print(f"Testing for Yesterday date: {yesterday}\n")

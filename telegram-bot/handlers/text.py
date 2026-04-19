@@ -321,8 +321,9 @@ def extract_date_from_text(text: str) -> tuple[str, str]:
         "декабр": 12,
     }
 
-    # Регулярка для "29-го января" или "29 января"
-    text_date_match = re.search(r"^(\d{1,2})(?:-?го)?\s+([а-я]+)", text_lower)
+    # Регулярка для "29-го января", "29-е апреля", "29 января", "ужин 19-е апреля:"
+    # Ищем где угодно в тексте (не только в начале), суффиксы -го/-е/-ого и без
+    text_date_match = re.search(r"(\d{1,2})(?:-?(?:го|е|ого))?\s+([а-я]+)", text_lower)
     if text_date_match:
         day = int(text_date_match.group(1))
         month_str = text_date_match.group(2)
@@ -342,8 +343,14 @@ def extract_date_from_text(text: str) -> tuple[str, str]:
                     target_date = datetime(current_year - 1, month, day, tzinfo=MSK)
 
                 date_str = target_date.strftime("%Y-%m-%d")
+                # Убираем всё до конца даты (включая само упоминание даты)
                 clean_text = text[text_date_match.end() :].strip()
                 clean_text = re.sub(r"^[:,\-\s]+", "", clean_text).strip()
+                # Если перед датой было слово (например "ужин") — добавляем его обратно
+                prefix = text[: text_date_match.start()].strip()
+                if prefix:
+                    prefix = re.sub(r"[:,\-\s]+$", "", prefix).strip()
+                    clean_text = f"{prefix} {clean_text}".strip() if prefix else clean_text
                 return date_str, clean_text
             except ValueError:
                 pass
