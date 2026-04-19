@@ -12,8 +12,36 @@ from typing import List, Dict, Optional
 MSK = timezone(timedelta(hours=3))
 
 from database import SessionLocal, get_supplements_by_date, create_supplement_log
+from database.crud import create_nutrition_log
 
 logger = logging.getLogger(__name__)
+
+# Supplements that also have nutritional value → auto-logged to nutrition_log
+# Keyed by canonical lowercase name. Values are per one serving.
+SUPPLEMENT_NUTRITION = {
+    "псиллиум": {
+        "display": "Псиллиум (БАД)",
+        "weight_g": 5,
+        "calories": 18,
+        "protein": 0.0,
+        "fats": 0.0,
+        "carbs": 5.0,
+        "fiber": 4.0,
+    },
+}
+
+# Normalize raw supplement name → canonical key in SUPPLEMENT_NUTRITION.
+_NAME_TO_CANONICAL = {
+    "псиллиум": "псиллиум",
+    "псилиум": "псиллиум",
+    "psyllium": "псиллиум",
+}
+
+
+def _canonical_supplement_name(raw: str) -> Optional[str]:
+    key = (raw or "").strip().lower()
+    return _NAME_TO_CANONICAL.get(key)
+
 
 # Default supplement schedule — used for new users and migration
 DEFAULT_SUPPLEMENTS = [
@@ -63,6 +91,37 @@ def save_supplements(items: List[str], user_id: int, date_str: Optional[str] = N
             create_supplement_log(
                 db, user_id=user_id, date=target_date, time=current_time, supplement_name=item, dosage=None
             )
+
+            # If this supplement has known nutritional value — also log it as food
+            # so fiber/calories are counted in the daily budget (e.g. psyllium → fiber).
+            canonical = _canonical_supplement_name(item)
+            nutri = SUPPLEMENT_NUTRITION.get(canonical) if canonical else None
+            if nutri:
+                food_item = {
+                    "name": nutri["display"],
+                    "weight_g": nutri["weight_g"],
+                    "calories": nutri["calories"],
+                    "protein": nutri["protein"],
+                    "fats": nutri["fats"],
+                    "carbs": nutri["carbs"],
+                    "fiber": nutri["fiber"],
+                }
+                totals = {
+                    "calories": nutri["calories"],
+                    "protein": nutri["protein"],
+                    "fats": nutri["fats"],
+                    "carbs": nutri["carbs"],
+                    "fiber": nutri["fiber"],
+                }
+                create_nutrition_log(
+                    db,
+                    user_id=user_id,
+                    date=target_date,
+                    meal_time=current_time,
+                    meal_name=nutri["display"],
+                    items=[food_item],
+                    totals=totals,
+                )
 
         return True
     except Exception as e:

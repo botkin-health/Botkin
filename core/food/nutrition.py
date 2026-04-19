@@ -265,6 +265,7 @@ def calculate_meal_totals(meal_items: List[Dict]) -> Dict[str, float]:
         "protein": 0.0,
         "fats": 0.0,
         "carbs": 0.0,
+        "fiber": 0.0,
         "drinks": 0.0,
     }
 
@@ -273,6 +274,7 @@ def calculate_meal_totals(meal_items: List[Dict]) -> Dict[str, float]:
         totals["protein"] += item.get("protein", 0)
         totals["fats"] += item.get("fats", 0)
         totals["carbs"] += item.get("carbs", 0)
+        totals["fiber"] += item.get("fiber", 0) or 0
         totals["drinks"] += item.get("drinks", 0) or 0
 
     # Округляем
@@ -418,6 +420,13 @@ def process_meal_description(
                     "source": "local_db",
                 }
             )
+
+    # Fiber fallback for items that lack it (menu_ocr / local_db paths don't set fiber).
+    from .fiber_table import estimate_fiber
+
+    for mi in meal_items:
+        if mi.get("fiber") is None:
+            mi["fiber"] = estimate_fiber(mi.get("product") or "", mi.get("weight_g"))
 
     # Рассчитываем общие КБЖУ
     meal_totals = calculate_meal_totals(meal_items)
@@ -834,6 +843,24 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
                     }
                 )
 
+    # Backfill fiber on each meal item:
+    #  1) from matching LLM item (if LLM returned fiber), or
+    #  2) from static fiber_table fallback by product name + weight.
+    # meal_items were built in the same order as input items — safe to zip.
+    from .fiber_table import estimate_fiber
+
+    for mi, llm_it in zip(meal_items, items):
+        if mi.get("fiber") is not None:
+            continue
+        llm_fiber = llm_it.get("fiber")
+        if llm_fiber is not None:
+            try:
+                mi["fiber"] = float(llm_fiber)
+                continue
+            except (TypeError, ValueError):
+                pass
+        mi["fiber"] = estimate_fiber(mi.get("product") or "", mi.get("weight_g"))
+
     # Check for explicit total_nutrition from LLM (Recipe Cards/Labels)
     total_nutrition = data.get("total_nutrition")
 
@@ -862,6 +889,7 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
                 "protein": float(total_nutrition.get("protein", 0)),
                 "fats": float(total_nutrition.get("fats", 0)),
                 "carbs": float(total_nutrition.get("carbs", 0)),
+                "fiber": float(total_nutrition.get("fiber", 0) or 0),
                 "drinks": float(total_nutrition.get("drinks", 0) or 0),
                 "has_alcohol": detect_alcohol(meal_items),
             }

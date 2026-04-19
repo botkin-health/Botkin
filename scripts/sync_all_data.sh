@@ -41,6 +41,9 @@ PY=/opt/homebrew/bin/python3.13
 $PY scripts/import/zepp_api.py 2>&1 || echo "   ⚠️  Zepp API: нужен свежий токен (см. scripts/import/zepp_api.py --help)"
 $PY scripts/import/zepp_csv.py 2>/dev/null || true
 
+echo "1.9/4 🍷 Обновление alcohol_daily.json из nutrition_log..."
+$PY scripts/import/sync_alcohol.py
+
 echo "2/4 🏃 Загрузка свежего сна, стресса, HRV, Body Battery и тренировок из Garmin Connect..."
 $PY scripts/garmin/download_garmin_data.py || echo "   ⚠️  Garmin пропущен (см. выше)"
 echo "2.3/4 📤 Пуш Garmin daily-summary → activity_log на сервере..."
@@ -59,7 +62,14 @@ $PY scripts/import/mac_screentime.py
 echo "5/4 🍎 Apple Health (шаги, ходьба, АД, вес, пульс)..."
 # Необязательный шаг — требует ручного экспорта Apple Health (Health → Профиль → Экспорт данных)
 # Ищет export.xml в ~/Downloads/apple_health_export*/
-if $PY scripts/import/apple_health.py 2>/dev/null; then
+# ЗАЩИТА ОТ РЕГРЕССА: если найденный XML старше уже имеющихся плоских файлов — пропускаем,
+# чтобы не затереть свежие данные, импортированные вручную через parse_apple_health_xml.py
+AH_XML=$(ls -t ~/Downloads/apple_health_export*/apple_health_export/export.xml ~/Downloads/apple_health_export*/apple_health_export/экспорт.xml 2>/dev/null | head -1)
+AH_FLAT="data/apple_health_steps_daily.json"
+if [ -n "$AH_XML" ] && [ -f "$AH_FLAT" ] && [ "$AH_FLAT" -nt "$AH_XML" ]; then
+    echo "   ⏭  Пропущен — $AH_FLAT новее чем экспорт в ~/Downloads/ (защита от регресса)"
+    echo "      Если хочешь пере-импортировать: удали $AH_FLAT и запусти снова"
+elif $PY scripts/import/apple_health.py 2>/dev/null; then
     echo "   ✅ Apple Health обновлён"
 else
     echo "   ⏭  Пропущен — нет export.xml в ~/Downloads/apple_health_export*/"

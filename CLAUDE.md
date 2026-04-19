@@ -70,11 +70,35 @@ FAMILY_HEALTH = Path.home() / "Library/CloudStorage/GoogleDrive-lyskovsky@gmail.
 **Webhook:** `POST https://health.orangegate.cc/apple_health` (Bearer token в `.env`)
 **Чтение в дашборде:** SSH → PostgreSQL → `SELECT raw_data FROM activity_log WHERE user_id=895655`
 
-### НЕ используется (устаревшие пути)
-- `data/apple_health_heart_rate.json` → заменено на Garmin daily-summary
-- `data/apple_health_steps_daily.json` → заменено на Garmin daily-summary
-- `data/apple_health_weight*.json` → заменено на Zepp CSV
-- Ручной экспорт Apple Health XML → больше не нужен
+### Apple Health XML экспорт (ручной, редко)
+
+Когда пользователь делает Health → Export All Health Data и присылает zip (`экспорт.zip`), распаковываем и запускаем парсер:
+
+```bash
+# 1. Распаковать zip в /tmp/apple_health/apple_health_export/
+# 2. Запустить парсер (путь к XML захардкожен — поправить при необходимости)
+python3 scripts/import/parse_apple_health_xml.py
+# 3. Удалить сырой XML — он 700 МБ+
+```
+
+Это обновляет **плоские файлы, которые читают `/sync` и `/dashboard`**:
+- `data/apple_health_blood_pressure.json` → `measurements[{date, time, systolic, diastolic}]` — история АД с 2018
+- `data/apple_health_heart_rate.json` → `measurements[{date, avg, min, max, n}]` — дневная агрегация пульса
+- `data/apple_health_steps_daily.json` → `steps_by_day[{date, steps}]` — шаги с 2015
+- `data/apple_health_gait.json` → `gait_by_day[{date, speed_km_h, step_length_cm, double_support_pct, asymmetry_pct}]` — походка с 2020
+- `data/apple_health_weight_daily.json` + `apple_health_weight.json` — вес с 2015
+
+**ВАЖНО:** эти файлы НЕ устарели. /sync читает их, /dashboard тоже. Каждый раз когда приходит новый Apple Health экспорт — перезаписываем их через `regen_flat_files.py` и удаляем сырой XML (он 700 МБ+).
+
+### Apple Health — исторический архив (не читается автоматически)
+
+Дополнительно из того же XML-экспорта вытащены данные, которых нет в боте/Garmin/Zepp:
+
+- **`data/apple_health/workouts.json`** — 502 тренировки за 11 лет (2015–2026), поля: `type`, `duration`, `distance`, `energy`, `start`, `source`. Использовать когда нужно посмотреть долгосрочную динамику спорта ("сколько HIIT в 2022 vs 2026", "пробежки до 2020").
+- **`data/apple_health/daily_metrics.json`** — 16 дополнительных метрик с дневной агрегацией: SpO2, активные ккал, этажи, температура тела, плавание, громкость наушников и т.д. Покрытие: см. файл.
+- **`data/apple_health/types_summary.json`** — каталог всех 31 типов записей из последнего экспорта с диапазонами дат (метадата, для справки).
+
+Эти файлы НЕ читают `/sync` и `/dashboard` — они лежат как архив. Если пользователь спросит что-то из истории ("тренировки за 2017", "плавание в 2024") — читаем напрямую через `Read`/`python3`.
 
 ## Skills (Claude Code)
 
@@ -111,8 +135,24 @@ FAMILY_HEALTH = Path.home() / "Library/CloudStorage/GoogleDrive-lyskovsky@gmail.
 - **Язык**: всегда общаться с пользователем на русском
 - **AI_CHANGELOG**: после каждой задачи обновлять `docs/ai_context/AI_CHANGELOG.md`
 - **Синк перед анализом**: всегда запускать `/sync` перед анализом данных здоровья
-- **knowledge_base.json**: при добавлении новых анализов крови — обновлять этот файл
+- **knowledge_base.json**: при добавлении новых анализов/УЗИ/МРТ/ЭКГ — обновлять этот файл
 - **Бэкап**: БД на удалённом сервере, не на localhost. Для записи в БД нужен SSH к серверу.
+
+## Протокол чтения медданных (КРИТИЧНО)
+
+**При ЛЮБОМ вопросе о здоровье Александра (или члена семьи) — порядок чтения строго такой:**
+
+1. **`PROFILE.md`** в папке человека (`HealthVault/{Имя} — Здоровье/PROFILE.md`) — карта диагнозов и хронических состояний. Читать ПЕРВЫМ, чтобы понимать контекст (что уже известно, с какого года).
+2. **`knowledge_base.json`** в той же папке — структурированный индекс всех обследований. Искать по секциям:
+   - `blood_tests`, `urine_tests`, `hormones`, `vitamins`, `genetics` — лабораторные
+   - `ultrasound` — УЗИ (все типы)
+   - `medical_records` — **приёмы терапевтов/специалистов часто содержат embedded summary с ЭКГ/ЭхоКГ/УЗДГ/ЭГДС/колоноскопией** (например, 2021-03-01 atlas_therapist — там весь комплекс Атласа за февраль-март 2021)
+   - `ecg`, `spirometry`, `sports_tests` — функциональные тесты
+3. **Только после этого** — читать отдельные PDF/docx для деталей, которых нет в JSON.
+
+**Главная ошибка прошлого:** игнорировать `medical_records.summary` и искать данные отдельными файлами. В `summary` часто лежит вся информация из приёма — и УЗИ, и ЭКГ, и ЭхоКГ сразу. Если в JSON не нашёл — перечитай `summary` у записей `type: medical_record`.
+
+**Никаких параллельных md-черновиков к обследованиям.** Если нужна развёрнутая интерпретация — пиши её в `knowledge_base.json` в полях `summary`/`conclusion`/`recommendations`. JSON — единственный источник истины, PDF/docx — архив оригиналов.
 
 ## Правила аналитики и отображения данных
 
