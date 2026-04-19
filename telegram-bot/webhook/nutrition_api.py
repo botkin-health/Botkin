@@ -16,6 +16,7 @@ from database.models import NutritionLog
 from database.crud import (
     create_nutrition_log,
     find_meal_for_slot,
+    get_activity_by_date,
     get_nutrition_logs_by_date,
     get_nutrition_totals_by_date,
     update_nutrition_item_weight,
@@ -24,6 +25,7 @@ from database.crud import (
     delete_nutrition_log,
     get_recent_product_names,
 )
+from core.health.garmin_data import sync_today_garmin
 from webhook.tg_auth import get_tg_user
 from webhook.nutrition_slots import SLOTS, slot_center_time, slot_from_meal, slot_label_ru
 from webhook.nutrition_goals import compute_goals
@@ -88,6 +90,16 @@ async def get_day(
             )
         totals_day = _totals_to_wire(get_nutrition_totals_by_date(db, user_id=user_id, date=for_date))
         goals = compute_goals(user_id=user_id, for_date=for_date)
+
+        # Today's actual activity from Garmin (same logic as /day bot command)
+        real_today = date_type.today()
+        if for_date == real_today:
+            # sync_today_garmin has its own DB session + 15-min cache
+            activity_today, _ = sync_today_garmin(user_id, for_date)
+        else:
+            act_row = get_activity_by_date(db, user_id, for_date)
+            activity_today = float(act_row.active_calories or 0) if act_row else None
+        goals["activity_today"] = round(activity_today) if activity_today is not None else None
     finally:
         db.close()
 
