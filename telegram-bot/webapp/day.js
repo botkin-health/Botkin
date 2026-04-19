@@ -152,7 +152,7 @@
       }
       // Merge all meals in this slot into one card (items from each preserve their meal_id).
       const expandedKey = `exp:slot:${slot}`;
-      const isExpanded = sessionStorage.getItem(expandedKey) !== '0';
+      const isExpanded = sessionStorage.getItem(expandedKey) === '1';
       const hdrExtra = isExpanded ? '⌄' : '›';
       const totalKcal = meals.reduce((s, m) => s + (m.totals.kcal || 0), 0);
       const allItems = meals.flatMap(m => m.items);
@@ -176,7 +176,7 @@
     container.querySelectorAll('[data-toggle]').forEach(el => {
       el.addEventListener('click', () => {
         const key = `exp:${el.dataset.toggle}`;
-        sessionStorage.setItem(key, sessionStorage.getItem(key) === '0' ? '1' : '0');
+        sessionStorage.setItem(key, sessionStorage.getItem(key) === '1' ? '0' : '1');
         renderSlots();
       });
     });
