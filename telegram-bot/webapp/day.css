@@ -28,11 +28,8 @@
 }
 .day-nav:disabled { opacity: .3; cursor: not-allowed; }
 .day-label-wrap { cursor: pointer; flex: 1; text-align: center; }
-.app-header-label {
-  font-size: 11px; font-weight: 800; color: var(--muted);
-  text-transform: uppercase; letter-spacing: .5px; line-height: 1;
-}
-.app-header-date { font-size: 15px; font-weight: 700; line-height: 1.3; }
+.app-header-label { display: none; }
+.app-header-date { font-size: 17px; font-weight: 700; line-height: 1; }
 
 /* legacy — kept to avoid JS errors if referenced anywhere */
 .day-sub { display: none; }
@@ -43,7 +40,7 @@
   border-bottom: 1px solid var(--border);
 }
 .budget-banner-inner {
-  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
 }
 .budget-info-col {
   flex-shrink: 0; text-align: right; padding-top: 6px;

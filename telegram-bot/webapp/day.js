@@ -9,8 +9,8 @@
     lastDeleted: null, // for undo
   };
 
-  const FMT = new Intl.DateTimeFormat('ru-RU', { weekday: 'short', day: 'numeric', month: 'short' });
-  const SLOT_LABEL = { breakfast: '🌅 Завтрак', lunch: '☀️ Обед', snack: '🍎 Перекус', dinner: '🌙 Ужин' };
+  const FMT = new Intl.DateTimeFormat('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
+  const SLOT_LABEL = { breakfast: '🌅 Завтрак', lunch: '☀️ Обед', snack: '🍎 Перекусы', dinner: '🌙 Ужин' };
 
   function toISO(d) {
     const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'),
@@ -24,7 +24,8 @@
   }
 
   function dayLabelText(d) {
-    return FMT.format(d);
+    const s = FMT.format(d);
+    return s.charAt(0).toUpperCase() + s.slice(1);
   }
 
   async function api(path, options = {}) {
