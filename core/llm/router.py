@@ -65,7 +65,7 @@ IMPORTANT: Return "name" in RUSSIAN language (e.g. "Морковь", not "Carrot
         "protein": number,
         "fats": number,
         "carbs": number,
-        "fiber": number (dietary fiber in grams; estimate from food type — vegetables/legumes/whole grains are high, meat/dairy/refined foods are near 0),
+        "fiber": number (dietary fiber in grams — MANDATORY, never null. Estimation table: овощи/зелень ~2-3г/100г, тыква/морковь/свёкла ~2.5г, капуста ~2.5г, листовая зелень ~1.5г. Бобовые/чечевица/нут ~6-8г. Цельнозерновые/гречка/овсянка ~3-10г сухой крупы, ~1-2г варёной. Хлеб цельнозерновой ~7г, белый ~2г. Фрукты ~2-3г, ягоды ~3-5г. Орехи/семечки ~6-10г, чиа/лён 27-34г. Супы с овощами (уха, щи, борщ) ~0.5-1.5г/100г. Паста с овощами ~2г/100г. Салаты с овощами ~1.5-2.5г/100г. Мясо/рыба/молочка/сыр/масло/яйца = 0. Готовые блюда — оцени по ингредиентам),
         "drinks": number (standard alcohol doses: 1 dose = 10g pure ethanol ≈ 150ml wine ≈ 50ml vodka ≈ 500ml beer ≈ 330ml 5% beer. 0 for non-alcoholic items. Бокал вина = 1.5, рюмка водки = 1, кружка пива 500мл = 2, бутылка пива 330мл = 1.3)
       }
     ],
