@@ -224,11 +224,11 @@
   function renderFooter() {
     const { totals_day: t, goals: g } = state.data;
     const bars = [
-      { label: 'Ккал',      cls: 'kcal', val: t.kcal, goal: g?.kcal,    unit: '' },
-      { label: 'Белки',     cls: 'p',    val: t.p,    goal: g?.protein, unit: 'г' },
-      { label: 'Жиры',      cls: 'f',    val: t.f,    goal: g?.fats,    unit: 'г' },
-      { label: 'Углев.',    cls: 'c',    val: t.c,    goal: g?.carbs,   unit: 'г' },
-      { label: 'Клетчатка', cls: 'fib',  val: t.fib,  goal: g?.fiber,   unit: 'г' },
+      { label: 'Ккал',      cls: 'kcal', val: t.kcal, goal: g?.kcal,    unit: '',  moreIsBetter: false },
+      { label: 'Белки',     cls: 'p',    val: t.p,    goal: g?.protein, unit: 'г', moreIsBetter: true  },
+      { label: 'Жиры',      cls: 'f',    val: t.f,    goal: g?.fats,    unit: 'г', moreIsBetter: false },
+      { label: 'Углев.',    cls: 'c',    val: t.c,    goal: g?.carbs,   unit: 'г', moreIsBetter: false },
+      { label: 'Клетчатка', cls: 'fib',  val: t.fib,  goal: g?.fiber,   unit: 'г', moreIsBetter: true  },
     ];
     document.getElementById('bars').innerHTML = bars.map(b => {
       if (b.goal == null) {
@@ -238,9 +238,17 @@
               <span class="bar-value">${Math.round(b.val || 0)} ${b.unit}</span>
             </div>`;
       }
-      const pct = Math.min(100, Math.round(((b.val || 0) / b.goal) * 100));
-      const valCls = pct >= 110 ? 'over' : pct >= 85 ? 'ok' : 'warn';
-      const valColor = valCls === 'ok' ? '#34c759' : valCls === 'over' ? '#ff3b30' : '#ff9500';
+      const rawPct = Math.round(((b.val || 0) / b.goal) * 100);   // uncapped, for color
+      const pct = Math.min(100, rawPct);                            // capped, for bar width
+      // Semantic coloring: red = problem, green = good
+      // moreIsBetter (protein, fiber): under = red, on/over target = green
+      // lowerIsBetter (kcal, fats, carbs): over = red, on/under target = green
+      let valColor;
+      if (b.moreIsBetter) {
+        valColor = rawPct >= 85 ? '#34c759' : rawPct >= 60 ? '#ff9500' : '#ff3b30';
+      } else {
+        valColor = rawPct <= 100 ? '#34c759' : rawPct <= 115 ? '#ff9500' : '#ff3b30';
+      }
       return `<div class="bar-row">
             <span>${b.label}</span>
             <div class="bar-track"><div class="bar-fill ${b.cls}" style="width:${pct}%"></div></div>

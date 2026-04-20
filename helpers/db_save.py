@@ -52,7 +52,14 @@ def save_meal_to_db(meal_data: dict, meal_name: str = None, user_id: int = 89565
             meal_name = meal_data.get("dish_name") or meal_data.get("meal_name") or "Приём пищи"
 
         # Формируем items
+        # Enrich with fiber fallback before serialization — LLM may omit fiber
+        # for some items, and fiber_table gives us a reasonable default from
+        # product name + weight. Idempotent for items that already have fiber.
+        from core.food.fiber_table import enrich_items_with_fiber, sum_fiber
+
         meal_items = meal_data.get("meal_items", [])
+        enrich_items_with_fiber(meal_items)
+
         items = []
         for item in meal_items:
             items.append(
@@ -64,16 +71,18 @@ def save_meal_to_db(meal_data: dict, meal_name: str = None, user_id: int = 89565
                     "protein": int(round(item.get("protein", 0.0))),
                     "fats": int(round(item.get("fats", 0.0))),
                     "carbs": int(round(item.get("carbs", 0.0))),
+                    "fiber": round(float(item.get("fiber") or 0), 1),
                 }
             )
 
-        # Totals
+        # Totals — recompute fiber from enriched items to avoid drift.
         meal_totals = meal_data.get("meal_totals", {})
         totals = {
             "calories": int(round(meal_totals.get("calories", 0.0))),
             "protein": int(round(meal_totals.get("protein", 0.0))),
             "fats": int(round(meal_totals.get("fats", 0.0))),
             "carbs": int(round(meal_totals.get("carbs", 0.0))),
+            "fiber": sum_fiber(items),
         }
 
         # Фото

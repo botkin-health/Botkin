@@ -171,3 +171,62 @@ def estimate_fiber(name: str, weight_g: Optional[float]) -> float:
     if per100 is None:
         return 0.0
     return round(per100 * weight_g / 100.0, 1)
+
+
+def _item_name(it: dict) -> str:
+    """Extract display name from an item dict, handling all three schemas
+    (product / name / food) used across the codebase."""
+    return str(it.get("product") or it.get("name") or it.get("food") or "")
+
+
+def _item_weight(it: dict) -> float:
+    """Extract weight in grams, handling weight_g / amount / weight field names."""
+    w = it.get("weight_g")
+    if w is None:
+        w = it.get("amount")
+    if w is None:
+        w = it.get("weight")
+    try:
+        return float(w) if w is not None else 0.0
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def enrich_items_with_fiber(items: list) -> list:
+    """Fill the `fiber` field on items that lack it, using estimate_fiber.
+
+    Idempotent — items with existing fiber > 0 are never overwritten.
+    Items with fiber = 0, None, or missing are re-estimated from name + weight.
+    Mutates items in place (safe since they are fresh copies from SQLAlchemy JSONB).
+
+    Handles all three item schemas in the codebase:
+      - DB LLM/vision items: {"food": ..., "amount": ...}
+      - internal meal_items: {"product": ..., "weight_g": ...}
+      - supplements items:   {"name": ..., "weight_g": ..., "fiber": ...}
+
+    Returns the same list for convenience.
+    """
+    for it in items:
+        existing = it.get("fiber")
+        if existing is not None:
+            try:
+                if float(existing) > 0:
+                    continue
+            except (TypeError, ValueError):
+                pass
+        estimated = estimate_fiber(_item_name(it), _item_weight(it))
+        if estimated > 0:
+            it["fiber"] = estimated
+    return items
+
+
+def sum_fiber(items: list) -> float:
+    """Sum fiber across items (assumes items already enriched). Rounded to 1 decimal."""
+    total = 0.0
+    for it in items:
+        v = it.get("fiber")
+        try:
+            total += float(v) if v is not None else 0.0
+        except (TypeError, ValueError):
+            pass
+    return round(total, 1)
