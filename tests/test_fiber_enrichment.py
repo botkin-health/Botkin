@@ -117,14 +117,67 @@ def test_enrich_handles_unknown_food():
 def test_enrich_handles_mixed_meal():
     """Real-world example: today's meal with mixed items."""
     items = [
-        {"food": "Уха", "amount": 300},  # no match → 0
+        {"food": "Уха", "amount": 300},  # уха dish → 0.8 * 3 = 2.4
         {"food": "Салат с креветками, тыквой и зеленью", "amount": 200},  # matches
         {"name": "Псиллиум (БАД)", "weight_g": 5, "fiber": 4.0},  # preserve
     ]
     enrich_items_with_fiber(items)
-    assert items[0].get("fiber", 0) == 0  # Уха — no ingredient match
+    assert items[0]["fiber"] == 2.4  # Уха dish-level match
     assert items[1]["fiber"] > 0  # Салат matches
     assert items[2]["fiber"] == 4.0  # Псиллиум preserved
+
+
+# ── dish-level entries (added via frequency analysis of real logs) ──────────
+
+
+def test_dish_soups_match():
+    assert fiber_per_100g("Уха") == 0.8
+    assert fiber_per_100g("Борщ со свёклой") == 2.0
+    assert fiber_per_100g("Щи") == 1.5
+    assert fiber_per_100g("Куриный суп с лапшой") == 0.8
+    # Generic suffix fallback
+    assert fiber_per_100g("Какой-то суп") == 1.0
+
+
+def test_dish_bakery_match():
+    assert fiber_per_100g("Сочник с творогом") == 1.0
+    assert fiber_per_100g("Сырники") == 0.6
+    assert fiber_per_100g("Пирог с курицей") == 1.5
+    assert fiber_per_100g("Овсяное печенье") == 4.0
+    # Generic печенье fallback
+    assert fiber_per_100g("Печенье Oreo") == 2.0
+
+
+def test_dish_bars_and_chocolate():
+    # Bombbar substring match
+    assert fiber_per_100g("Протеиновый батончик Bombbar") == 4.5
+    assert fiber_per_100g("Bombbar Slim Nuts") == 4.5
+    # Dark chocolate gets higher value than milk
+    assert fiber_per_100g("Горький шоколад 85%") == 10.5
+    assert fiber_per_100g("Молочный шоколад") == 2.5
+
+
+def test_dish_level_wins_over_ingredient():
+    """Dish-level entries are placed first in the table, so compound dish
+    names match the dish estimate even when a high-fiber ingredient is
+    mentioned. This gives consistent per-dish expectations at the cost
+    of slight accuracy loss on known-ingredient variants."""
+    # "Паста со шпинатом" → паст (1.8) wins, not шпинат (2.2)
+    assert fiber_per_100g("Паста со шпинатом и кальмарами") == 1.8
+    # "Пирог с тыквой" → пирог (1.5) wins, not тыкв (2.1)
+    assert fiber_per_100g("Пирог с тыквой") == 1.5
+    # "Овсяное печенье" → печенье овсян (4.0) wins, not овсян (10.0)
+    assert fiber_per_100g("Овсяное печенье") == 4.0
+
+
+def test_dish_real_unmatched_from_migration():
+    """Names taken directly from backfill_fiber_all_history.py unmatched report."""
+    # From today's actual DB: these used to be 0, should now have values
+    assert estimate_fiber("Сочник с творогом", 160) == 1.6  # 1.0 * 1.6
+    assert estimate_fiber("Уха", 300) == 2.4  # 0.8 * 3
+    assert estimate_fiber("Куриный суп с лапшой", 400) == 3.2  # 0.8 * 4
+    # Пирог с курицей 100g — should match "пирог" (1.5) since курица has no fiber match
+    assert estimate_fiber("Пирог с курицей", 100) == 1.5
 
 
 def test_enrich_returns_same_list():
