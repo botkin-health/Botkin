@@ -30,6 +30,7 @@ from webhook.tg_auth import get_tg_user
 from webhook.nutrition_slots import SLOTS, slot_center_time, slot_from_meal, slot_label_ru
 from webhook.nutrition_goals import compute_goals
 from core.food.nutrition import process_meal_description
+from core.food.fiber_table import enrich_items_with_fiber, sum_fiber
 
 router = APIRouter()
 
@@ -76,19 +77,31 @@ async def get_day(
         db.expire_all()
         rows = get_nutrition_logs_by_date(db, user_id=user_id, date=for_date)
         meals = []
+        total_fiber_enriched = 0.0
         for r in rows:
             slot = slot_from_meal(r.meal_name, r.meal_time)
+            # Enrich items with fiber fallback for legacy records that lack it.
+            # Mutates a copy of the JSONB list — safe, not persisted to DB here.
+            items_enriched = enrich_items_with_fiber([dict(it) for it in (r.items or [])])
+            # Prefer enriched fiber over stored totals.fiber (which is often 0 for
+            # historical records written before fiber was tracked consistently).
+            meal_totals = dict(r.totals or {})
+            meal_totals["fiber"] = sum_fiber(items_enriched)
+            total_fiber_enriched += meal_totals["fiber"]
             meals.append(
                 {
                     "id": r.id,
                     "meal_name": r.meal_name,
                     "meal_time": r.meal_time.strftime("%H:%M") if r.meal_time else None,
                     "slot": slot,
-                    "items": [_item_to_wire(i, it) for i, it in enumerate(r.items or [])],
-                    "totals": _totals_to_wire(r.totals or {}),
+                    "items": [_item_to_wire(i, it) for i, it in enumerate(items_enriched)],
+                    "totals": _totals_to_wire(meal_totals),
                 }
             )
-        totals_day = _totals_to_wire(get_nutrition_totals_by_date(db, user_id=user_id, date=for_date))
+        # Override daily fiber with enriched sum (keeps kcal/p/f/c from DB).
+        totals_raw = get_nutrition_totals_by_date(db, user_id=user_id, date=for_date)
+        totals_raw["fiber"] = round(total_fiber_enriched, 1)
+        totals_day = _totals_to_wire(totals_raw)
         goals = compute_goals(user_id=user_id, for_date=for_date)
 
         # Today's actual activity from Garmin (same logic as /day bot command)
