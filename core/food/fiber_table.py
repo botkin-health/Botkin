@@ -239,7 +239,9 @@ _FIBER_PER_100G = [
     ("тыквенн семен", 6.0),
     ("льнян семен", 27.3),
     ("семена чиа", 34.4),
-    ("чиа", 34.4),
+    ("чиа семен", 34.4),
+    # NB: bare "чиа" is too short — matches "чиабатта" (ciabatta bread, 2g fiber).
+    # Require "семен" context to avoid false positives.
     ("кунжут", 11.8),
     # Mushrooms
     ("гриб", 2.3),
