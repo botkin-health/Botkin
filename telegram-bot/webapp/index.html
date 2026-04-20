@@ -105,6 +105,85 @@
     .cmd-table td { padding: 5px 0; border-bottom: 1px solid #f5f5f5; }
     .cmd-table td:first-child { color: #2a7ae2; font-family: monospace; width: 90px; }
     .disabled-notice { font-size: 11px; color: #aaa; margin-top: 3px; }
+
+    /* ── iOS-style grouped settings list ── */
+    .profile-header {
+      padding: 24px 16px 12px; text-align: left;
+    }
+    .profile-header .profile-name {
+      font-size: 22px; font-weight: 700; line-height: 1.2;
+    }
+    .profile-header .profile-sub {
+      font-size: 13px; color: #8e8e93; margin-top: 4px;
+    }
+    .settings-group {
+      margin: 0 0 24px; background: #fff;
+      border-top: 1px solid #e5e5ea; border-bottom: 1px solid #e5e5ea;
+    }
+    @media (prefers-color-scheme: dark) {
+      .settings-group { background: #1c1c1e; border-color: #2c2c2e; }
+    }
+    .group-title {
+      font-size: 12px; color: #8e8e93; font-weight: 500;
+      text-transform: uppercase; letter-spacing: .5px;
+      padding: 8px 16px 6px; margin: 0;
+    }
+    .settings-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 16px; min-height: 48px;
+      border-top: 1px solid #e5e5ea;
+      background: transparent; cursor: default;
+    }
+    @media (prefers-color-scheme: dark) { .settings-row { border-color: #2c2c2e; } }
+    .settings-row:first-child { border-top: none; }
+    .settings-row.clickable { cursor: pointer; }
+    .settings-row.clickable:active { background: rgba(0,0,0,.04); }
+    @media (prefers-color-scheme: dark) {
+      .settings-row.clickable:active { background: rgba(255,255,255,.06); }
+    }
+    .settings-row.disabled { opacity: .5; }
+    .row-label {
+      flex: 1; font-size: 15px; line-height: 1.2;
+    }
+    .row-sub {
+      font-size: 12px; color: #8e8e93; margin-top: 3px; font-weight: 400;
+    }
+    .row-value {
+      color: #8e8e93; font-size: 14px; text-align: right;
+    }
+    .row-chevron {
+      color: #c7c7cc; font-size: 18px; line-height: 1; margin-left: 2px;
+    }
+    .row-badge {
+      font-size: 11px; color: #8e8e93; background: #f2f2f7;
+      padding: 3px 8px; border-radius: 8px;
+    }
+    @media (prefers-color-scheme: dark) {
+      .row-badge { background: #2c2c2e; }
+    }
+    .row-input {
+      border: none !important; background: transparent;
+      text-align: right; font-size: 15px; color: inherit;
+      padding: 0 !important; width: auto; min-width: 60px;
+      outline: none;
+    }
+    .row-input:focus { color: #2a7ae2; }
+    .row-input.wide { min-width: 130px; }
+    .row-suffix { color: #8e8e93; font-size: 13px; }
+    .version-footer {
+      text-align: center; color: #c7c7cc; font-size: 11px;
+      padding: 24px 0 12px;
+    }
+    .autosave-pill {
+      position: fixed; bottom: 72px; left: 50%; transform: translateX(-50%);
+      background: rgba(52,199,89,.95); color: #fff;
+      padding: 6px 14px; border-radius: 16px;
+      font-size: 12px; font-weight: 500;
+      opacity: 0; transition: opacity .2s;
+      pointer-events: none; z-index: 50;
+    }
+    .autosave-pill.show { opacity: 1; }
+    .autosave-pill.error { background: rgba(255,59,48,.95); }
   </style>
 </head>
 <body>
@@ -138,74 +217,57 @@
 
 <section id="settings-section" class="section tab-panel">
 
-<!-- HOME -->
-<div id="home" class="section active">
-  <h1>⚙️ Настройки</h1>
-  <p class="subtitle" id="user-name">NutriLogBot</p>
-  <div class="tiles">
-    <button class="tile" onclick="go('nutrition')">
-      <div class="icon">🥗</div>
-      <div class="name">Питание</div>
-      <div class="desc">BMR · цель · шкала</div>
-    </button>
-    <button class="tile green" onclick="go('supplements')">
-      <div class="icon">💊</div>
-      <div class="name">Добавки</div>
-      <div class="desc" id="supp-count">загрузка...</div>
-    </button>
-    <button class="tile orange" onclick="go('notifications')">
-      <div class="icon">🔔</div>
-      <div class="name">Уведомления</div>
-      <div class="desc" id="notif-status">Выкл</div>
-    </button>
-    <button class="tile purple" onclick="go('help')">
-      <div class="icon">📖</div>
-      <div class="name">Справка</div>
-      <div class="desc">Как пользоваться</div>
-    </button>
+<!-- HOME — flat grouped list with autosave -->
+<div id="home" class="section active" style="padding:0">
+
+  <div class="profile-header">
+    <div class="profile-name" id="user-name">NutriLogBot</div>
+    <div class="profile-sub">Персональные настройки</div>
   </div>
-</div>
 
-<!-- NUTRITION -->
-<div id="nutrition" class="section">
-  <button class="back-btn" onclick="go('home')">← Назад</button>
-  <div class="section-title">🥗 Питание</div>
-
-  <div class="field-group">
-    <div class="field-label">Базовый обмен (BMR)</div>
-    <div class="field-row">
-      <input type="number" id="bmr-input" placeholder="1950" min="800" max="4000" style="width:110px">
-      <span class="unit">ккал/день</span>
-      <button class="calc-btn" onclick="toggleCalc()">🧮 Рассчитать</button>
+  <!-- ЦЕЛИ -->
+  <div class="group-title">Цели</div>
+  <div class="settings-group">
+    <div class="settings-row">
+      <div class="row-label">
+        BMR
+        <div class="row-sub" id="bmr-hint">Пусто — используется Garmin</div>
+      </div>
+      <input type="number" id="bmr-input" class="row-input" placeholder="1950" min="800" max="4000">
+      <span class="row-suffix">ккал</span>
     </div>
-    <div class="hint" id="bmr-hint">Оставьте пустым — будет использоваться Garmin</div>
-    <div class="calc-panel" id="calc-panel">
-      <div class="field-label">Рассчитать по параметрам (Миффлин)</div>
-      <div class="field-row"><input type="number" id="calc-height" placeholder="Рост, см" style="width:110px"><span class="unit">см</span></div>
-      <div style="height:6px"></div>
-      <div class="field-row"><input type="number" id="calc-weight" placeholder="Вес, кг" style="width:110px"><span class="unit">кг</span></div>
-      <div style="height:6px"></div>
-      <div class="field-row"><input type="number" id="calc-age" placeholder="Возраст" style="width:110px"><span class="unit">лет</span></div>
-      <div style="height:8px"></div>
-      <button class="calc-btn" onclick="calcBMR()">Рассчитать →</button>
+    <div class="settings-row clickable" onclick="toggleCalc()">
+      <div class="row-label">Рассчитать по параметрам</div>
+      <div class="row-value">Миффлин</div>
+      <div class="row-chevron">›</div>
+    </div>
+    <div id="calc-panel" class="calc-panel">
+      <div class="field-label" style="padding:0 16px 6px">Формула Миффлина-Сан Жеора</div>
+      <div style="padding:0 16px 12px">
+        <div class="field-row" style="margin-bottom:8px"><input type="number" id="calc-height" placeholder="Рост, см" style="width:110px"><span class="unit">см</span></div>
+        <div class="field-row" style="margin-bottom:8px"><input type="number" id="calc-weight" placeholder="Вес, кг" style="width:110px"><span class="unit">кг</span></div>
+        <div class="field-row" style="margin-bottom:10px"><input type="number" id="calc-age" placeholder="Возраст" style="width:110px"><span class="unit">лет</span></div>
+        <button class="calc-btn" onclick="calcBMR()">Рассчитать →</button>
+      </div>
+    </div>
+    <div class="settings-row">
+      <div class="row-label">Цель по весу</div>
+      <input type="number" id="target-weight" class="row-input" placeholder="75" step="0.1">
+      <span class="row-suffix">кг</span>
+    </div>
+    <div class="settings-row">
+      <div class="row-label">Дедлайн цели</div>
+      <input type="date" id="target-date" class="row-input wide">
     </div>
   </div>
 
-  <div class="field-group">
-    <div class="field-label">Цель по весу</div>
-    <div class="field-row">
-      <input type="number" id="target-weight" placeholder="75" step="0.1" style="width:90px">
-      <span class="unit">кг до</span>
-      <input type="date" id="target-date" style="width:150px">
-    </div>
-  </div>
-
-  <div class="field-group">
-    <div class="field-label">Отображение</div>
-    <div class="toggle-row">
-      <div class="toggle-info">
-        <div class="name">Шкала калорий</div>
-        <div class="desc">Полоска 🟩🟥 в /day и при записи еды</div>
+  <!-- ОТОБРАЖЕНИЕ -->
+  <div class="group-title">Отображение</div>
+  <div class="settings-group">
+    <div class="settings-row">
+      <div class="row-label">
+        Шкала калорий
+        <div class="row-sub">🟩🟥 в /day и при записи еды</div>
       </div>
       <label class="toggle">
         <input type="checkbox" id="show-bar" checked>
@@ -214,8 +276,52 @@
     </div>
   </div>
 
-  <button class="save-btn" onclick="saveNutrition()">Сохранить</button>
-  <div class="saved-toast" id="nutrition-toast">✅ Сохранено</div>
+  <!-- ДОБАВКИ -->
+  <div class="group-title">Добавки</div>
+  <div class="settings-group">
+    <div class="settings-row clickable" onclick="go('supplements')">
+      <div class="row-label">Управление списком</div>
+      <div class="row-value" id="supp-count">…</div>
+      <div class="row-chevron">›</div>
+    </div>
+    <div class="settings-row">
+      <div class="row-label">
+        Напоминания
+        <div class="row-sub">Бот напишет в указанное время</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="reminders-toggle">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="settings-row" id="reminder-time-row" style="display:none">
+      <div class="row-label">Время напоминания</div>
+      <input type="time" id="reminder-time" class="row-input" value="08:00">
+    </div>
+  </div>
+
+  <!-- УВЕДОМЛЕНИЯ -->
+  <div class="group-title">Уведомления</div>
+  <div class="settings-group">
+    <div class="settings-row disabled">
+      <div class="row-label">
+        Утренний брифинг
+        <div class="row-sub">Сон, HRV, план дня</div>
+      </div>
+      <div class="row-badge">Скоро</div>
+    </div>
+  </div>
+
+  <!-- ПРОЧЕЕ -->
+  <div class="group-title">Прочее</div>
+  <div class="settings-group">
+    <div class="settings-row clickable" onclick="go('help')">
+      <div class="row-label">Справка</div>
+      <div class="row-chevron">›</div>
+    </div>
+  </div>
+
+  <div class="version-footer">NutriLogBot · mini-app</div>
 </div>
 
 <!-- SUPPLEMENTS -->
@@ -233,47 +339,9 @@
     </select>
     <button class="add-confirm-btn" onclick="addSupplement()">Добавить</button>
   </div>
-  <button class="save-btn" onclick="saveSupplements()">Сохранить</button>
-  <div class="saved-toast" id="supp-toast">✅ Сохранено</div>
 </div>
 
-<!-- NOTIFICATIONS -->
-<div id="notifications" class="section">
-  <button class="back-btn" onclick="go('home')">← Назад</button>
-  <div class="section-title">🔔 Уведомления</div>
-
-  <div class="toggle-row">
-    <div class="toggle-info">
-      <div class="name">Напоминание о добавках</div>
-      <div class="desc">Бот напишет в указанное время</div>
-    </div>
-    <label class="toggle">
-      <input type="checkbox" id="reminders-toggle" onchange="toggleReminderTime()">
-      <span class="slider"></span>
-    </label>
-  </div>
-  <div id="reminder-time-row" style="padding:10px 0;display:none">
-    <div class="field-row">
-      <span class="unit">Время:</span>
-      <input type="time" id="reminder-time" value="08:00" style="width:100px">
-    </div>
-  </div>
-
-  <div class="toggle-row" style="margin-top:12px;opacity:.5">
-    <div class="toggle-info">
-      <div class="name">Утренний брифинг</div>
-      <div class="desc">Сон, HRV, план дня</div>
-      <div class="disabled-notice">🔜 Скоро</div>
-    </div>
-    <label class="toggle">
-      <input type="checkbox" disabled>
-      <span class="slider"></span>
-    </label>
-  </div>
-
-  <button class="save-btn" onclick="saveNotifications()">Сохранить</button>
-  <div class="saved-toast" id="notif-toast">✅ Сохранено</div>
-</div>
+<!-- NOTIFICATIONS moved inline into #home (Phase 2) -->
 
 <!-- HELP -->
 <div id="help" class="section">
@@ -361,6 +429,9 @@
   </div>
 </div>
 
+<!-- Autosave indicator -->
+<div id="autosave-pill" class="autosave-pill">✓ Сохранено</div>
+
 <!-- Tab bar -->
 <nav class="tab-bar" id="tab-bar">
   <button class="tab-item active" data-tab="day" onclick="switchTab('day')">
@@ -412,6 +483,12 @@ function switchTab(tab) {
   document.querySelectorAll('.tab-panel').forEach(s => s.classList.remove('active'));
   const target = document.getElementById(sectionMap[tab]);
   if (target) target.classList.add('active');
+  // Hide global date picker on non-date-scoped tabs (settings, supplements config)
+  // Only the Diary tab is day-scoped.
+  const appHeader = document.querySelector('.app-header');
+  if (appHeader) {
+    appHeader.style.display = (tab === 'day') ? '' : 'none';
+  }
   // When switching to settings, reset to home sub-section
   if (tab === 'settings') go('home');
 }
@@ -445,15 +522,85 @@ function populate() {
     document.getElementById('reminder-time').value = settings.supplement_reminder_time;
   toggleReminderTime();
 
-  // Home tile summaries
+  // Home summary
   const supps = (settings.supplements || []);
   document.getElementById('supp-count').textContent = supps.length + ' активных';
-  document.getElementById('notif-status').textContent =
-    settings.supplement_reminders_enabled ? ('Вкл · ' + (settings.supplement_reminder_time || '08:00')) : 'Выкл';
 
   // Username
   if (tg.initDataUnsafe && tg.initDataUnsafe.user)
-    document.getElementById('user-name').textContent = tg.initDataUnsafe.user.first_name || '';
+    document.getElementById('user-name').textContent = tg.initDataUnsafe.user.first_name || 'Профиль';
+
+  // Wire up autosave listeners (idempotent — marker attribute guards against re-binding)
+  wireAutosave();
+}
+
+// ── Autosave infrastructure ─────────────────────────────────────────────────
+let autosaveTimer = null;
+function showAutosavePill(ok = true) {
+  const pill = document.getElementById('autosave-pill');
+  pill.textContent = ok ? '✓ Сохранено' : '⚠ Ошибка';
+  pill.classList.toggle('error', !ok);
+  pill.classList.add('show');
+  clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(() => pill.classList.remove('show'), 1500);
+}
+
+async function autosave(patch) {
+  Object.assign(settings, patch);
+  try {
+    await fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'tma ' + tg.initData },
+      body: JSON.stringify(settings),
+    });
+    showAutosavePill(true);
+  } catch (e) {
+    console.error('Autosave failed', e);
+    showAutosavePill(false);
+  }
+}
+
+function wireAutosave() {
+  // Prevent double-binding if populate() is called twice
+  const root = document.getElementById('home');
+  if (root.dataset.autosaveWired === '1') return;
+  root.dataset.autosaveWired = '1';
+
+  // BMR (number input — debounce on change, save on blur)
+  const bmr = document.getElementById('bmr-input');
+  bmr.addEventListener('blur', () => {
+    const v = parseInt(bmr.value) || null;
+    autosave({ bmr_override: v });
+  });
+
+  // Target weight
+  const tw = document.getElementById('target-weight');
+  tw.addEventListener('blur', () => {
+    const v = parseFloat(tw.value) || null;
+    autosave({ target_weight_kg: v });
+  });
+
+  // Target date
+  const td = document.getElementById('target-date');
+  td.addEventListener('change', () => {
+    autosave({ target_weight_date: td.value || null });
+  });
+
+  // Show calorie bar
+  document.getElementById('show-bar').addEventListener('change', e => {
+    autosave({ show_calorie_budget_bar: e.target.checked });
+  });
+
+  // Reminders toggle (also reveals time row)
+  document.getElementById('reminders-toggle').addEventListener('change', e => {
+    toggleReminderTime();
+    autosave({ supplement_reminders_enabled: e.target.checked });
+  });
+
+  // Reminder time
+  document.getElementById('reminder-time').addEventListener('change', e => {
+    autosave({ supplement_reminder_time: e.target.value });
+  });
 }
 
 // ── Supplement rendering ─────────────────────────────────────────────────────
@@ -484,6 +631,8 @@ function deleteSupplement(slot, name) {
     s => !(s.slot === slot && s.name === name)
   );
   renderSupplements();
+  document.getElementById('supp-count').textContent = (settings.supplements || []).length + ' активных';
+  autosave({ supplements: settings.supplements });
 }
 
 function toggleAddPanel() {
@@ -501,6 +650,8 @@ function addSupplement() {
   document.getElementById('new-supp-name').value = '';
   document.getElementById('add-panel').classList.remove('open');
   renderSupplements();
+  document.getElementById('supp-count').textContent = settings.supplements.length + ' активных';
+  autosave({ supplements: settings.supplements });
 }
 
 // ── BMR calculator ──────────────────────────────────────────────────────────
@@ -523,47 +674,6 @@ function calcBMR() {
 function toggleReminderTime() {
   const enabled = document.getElementById('reminders-toggle').checked;
   document.getElementById('reminder-time-row').style.display = enabled ? 'block' : 'none';
-}
-
-// ── Save helpers ─────────────────────────────────────────────────────────────
-async function post(data) {
-  const res = await fetch(API, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: 'tma ' + tg.initData },
-    body: JSON.stringify({ ...settings, ...data })
-  });
-  return res.json();
-}
-
-function showToast(id) {
-  const t = document.getElementById(id);
-  t.style.display = 'block';
-  setTimeout(() => { t.style.display = 'none'; }, 2000);
-}
-
-async function saveNutrition() {
-  const bmr = parseInt(document.getElementById('bmr-input').value) || null;
-  const tw  = parseFloat(document.getElementById('target-weight').value) || null;
-  const td  = document.getElementById('target-date').value || null;
-  const bar = document.getElementById('show-bar').checked;
-  await post({ bmr_override: bmr, target_weight_kg: tw, target_weight_date: td, show_calorie_budget_bar: bar });
-  Object.assign(settings, { bmr_override: bmr, target_weight_kg: tw, target_weight_date: td, show_calorie_budget_bar: bar });
-  showToast('nutrition-toast');
-}
-
-async function saveSupplements() {
-  await post({ supplements: settings.supplements });
-  document.getElementById('supp-count').textContent = (settings.supplements || []).length + ' активных';
-  showToast('supp-toast');
-}
-
-async function saveNotifications() {
-  const enabled = document.getElementById('reminders-toggle').checked;
-  const time    = document.getElementById('reminder-time').value;
-  await post({ supplement_reminders_enabled: enabled, supplement_reminder_time: time });
-  Object.assign(settings, { supplement_reminders_enabled: enabled, supplement_reminder_time: time });
-  document.getElementById('notif-status').textContent = enabled ? ('Вкл · ' + time) : 'Выкл';
-  showToast('notif-toast');
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────
