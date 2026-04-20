@@ -184,6 +184,92 @@
     }
     .autosave-pill.show { opacity: 1; }
     .autosave-pill.error { background: rgba(255,59,48,.95); }
+
+    /* ── Supplements daily tracking screen ── */
+    .supp-progress-card {
+      margin: 12px 16px 16px; padding: 14px 16px;
+      background: #f2f2f7; border-radius: 14px;
+    }
+    @media (prefers-color-scheme: dark) {
+      .supp-progress-card { background: #1c1c1e; }
+    }
+    .supp-progress-head {
+      display: flex; justify-content: space-between; align-items: baseline;
+      margin-bottom: 8px;
+    }
+    .supp-progress-title { font-size: 14px; font-weight: 600; }
+    .supp-progress-count { font-size: 13px; color: #8e8e93; }
+    .supp-progress-track {
+      height: 8px; background: #e5e5ea; border-radius: 4px; overflow: hidden;
+    }
+    @media (prefers-color-scheme: dark) {
+      .supp-progress-track { background: #2c2c2e; }
+    }
+    .supp-progress-fill {
+      height: 100%; background: #34c759; border-radius: 4px;
+      transition: width .3s ease;
+    }
+    .supp-slot-title {
+      font-size: 12px; color: #8e8e93; font-weight: 500;
+      text-transform: uppercase; letter-spacing: .5px;
+      padding: 8px 16px 6px; margin: 0;
+    }
+    .supp-row {
+      display: flex; align-items: center; gap: 14px;
+      padding: 14px 16px; min-height: 52px;
+      border-top: 1px solid #e5e5ea;
+      background: #fff; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    @media (prefers-color-scheme: dark) {
+      .supp-row { border-color: #2c2c2e; background: #1c1c1e; }
+    }
+    .supp-row:first-child { border-top: none; }
+    .supp-row:active { background: #f2f2f7; }
+    @media (prefers-color-scheme: dark) {
+      .supp-row:active { background: #2c2c2e; }
+    }
+    .supp-check {
+      flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
+      border: 2px solid #c7c7cc; display: flex; align-items: center; justify-content: center;
+      font-size: 16px; color: #fff; transition: all .2s;
+    }
+    .supp-row.taken .supp-check {
+      background: #34c759; border-color: #34c759;
+    }
+    .supp-row.taken .supp-check::before { content: '✓'; font-weight: 700; }
+    .supp-name { flex: 1; font-size: 15px; line-height: 1.2; }
+    .supp-row.taken .supp-name { color: #8e8e93; text-decoration: line-through; text-decoration-thickness: 1px; }
+    .supp-time {
+      font-size: 13px; color: #34c759; font-weight: 500; min-width: 44px; text-align: right;
+    }
+    .supp-row:not(.taken) .supp-time { color: #c7c7cc; }
+    .supp-slot-empty {
+      padding: 14px 16px; color: #c7c7cc; font-size: 13px;
+      background: #fff; font-style: italic;
+      border-top: 1px solid #e5e5ea;
+    }
+    @media (prefers-color-scheme: dark) {
+      .supp-slot-empty { background: #1c1c1e; border-color: #2c2c2e; }
+    }
+    .supp-slot-group {
+      background: #fff;
+      border-top: 1px solid #e5e5ea; border-bottom: 1px solid #e5e5ea;
+      margin-bottom: 20px;
+    }
+    @media (prefers-color-scheme: dark) {
+      .supp-slot-group { background: #1c1c1e; border-color: #2c2c2e; }
+    }
+    .supp-empty-state {
+      padding: 60px 24px; text-align: center; color: #8e8e93;
+    }
+    .supp-empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+    .supp-empty-state .title { font-size: 16px; font-weight: 600; margin-bottom: 8px; color: #1c1c1e; }
+    @media (prefers-color-scheme: dark) {
+      .supp-empty-state .title { color: #fff; }
+    }
+    .supp-empty-state .hint { font-size: 14px; line-height: 1.5; }
+    .supp-empty-state .hint a { color: #2a7ae2; text-decoration: none; font-weight: 500; }
   </style>
 </head>
 <body>
@@ -384,10 +470,8 @@
 </section><!-- /settings-section -->
 
 <section id="supplements-tab-section" class="section tab-panel">
-  <div style="padding: 40px 24px; text-align: center; color: #8e8e93;">
-    <div style="font-size: 48px; margin-bottom: 16px;">💊</div>
-    <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px; color: #1c1c1e;">Добавки</div>
-    <div style="font-size: 14px; line-height: 1.5;">Раздел в разработке.<br>Пока управляй добавками через ⚙️ Настройки.</div>
+  <div id="supp-day-container">
+    <!-- Rendered by renderSupplementsDay() -->
   </div>
 </section>
 
@@ -483,14 +567,16 @@ function switchTab(tab) {
   document.querySelectorAll('.tab-panel').forEach(s => s.classList.remove('active'));
   const target = document.getElementById(sectionMap[tab]);
   if (target) target.classList.add('active');
-  // Hide global date picker on non-date-scoped tabs (settings, supplements config)
-  // Only the Diary tab is day-scoped.
+  // Show global date picker only on date-scoped tabs: Diary and Supplements log.
+  // Settings is a profile screen, not a daily log.
   const appHeader = document.querySelector('.app-header');
   if (appHeader) {
-    appHeader.style.display = (tab === 'day') ? '' : 'none';
+    appHeader.style.display = (tab === 'day' || tab === 'supplements-tab') ? '' : 'none';
   }
   // When switching to settings, reset to home sub-section
   if (tab === 'settings') go('home');
+  // When switching to supplements log tab, load the data for current date
+  if (tab === 'supplements-tab') loadSupplementsDay();
 }
 
 // ── Load settings ───────────────────────────────────────────────────────────
@@ -675,6 +761,155 @@ function toggleReminderTime() {
   const enabled = document.getElementById('reminders-toggle').checked;
   document.getElementById('reminder-time-row').style.display = enabled ? 'block' : 'none';
 }
+
+// ── Supplements daily log ───────────────────────────────────────────────────
+// Tracks which supplements the user has taken on a given date, with times.
+// Syncs the currently viewed date with window.__nutri.state.date (Diary tab).
+function currentSuppDate() {
+  // Reuse the date that Diary is viewing so calendar nav stays coherent
+  if (window.__nutri && window.__nutri.state && window.__nutri.state.date) {
+    return window.__nutri.state.date;
+  }
+  const d = new Date();
+  return d.toISOString().slice(0, 10);
+}
+
+let _suppDayCache = { date: null, data: null };
+
+async function loadSupplementsDay() {
+  const date = currentSuppDate();
+  const container = document.getElementById('supp-day-container');
+  try {
+    const r = await fetch(`/api/supplements/day?date=${date}`, {
+      headers: { Authorization: 'tma ' + tg.initData },
+    });
+    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+    const data = await r.json();
+    _suppDayCache = { date, data };
+    renderSupplementsDay(data);
+  } catch (e) {
+    console.error('loadSupplementsDay failed', e);
+    container.innerHTML = `<div class="supp-empty-state">
+      <div class="icon">⚠️</div>
+      <div class="title">Не удалось загрузить</div>
+      <div class="hint">${String(e.message || e)}</div>
+    </div>`;
+  }
+}
+
+function renderSupplementsDay(data) {
+  const container = document.getElementById('supp-day-container');
+  const { progress, slots } = data;
+
+  if (progress.total === 0) {
+    container.innerHTML = `<div class="supp-empty-state">
+      <div class="icon">💊</div>
+      <div class="title">Список пуст</div>
+      <div class="hint">Добавь свои добавки в <a href="#" onclick="switchTab('settings');return false;">⚙️ Настройки → Управление списком</a></div>
+    </div>`;
+    return;
+  }
+
+  const pct = progress.total > 0 ? Math.round(100 * progress.taken / progress.total) : 0;
+
+  let html = `
+    <div class="supp-progress-card">
+      <div class="supp-progress-head">
+        <div class="supp-progress-title">Принято сегодня</div>
+        <div class="supp-progress-count">${progress.taken} из ${progress.total} · ${pct}%</div>
+      </div>
+      <div class="supp-progress-track"><div class="supp-progress-fill" style="width:${pct}%"></div></div>
+    </div>`;
+
+  for (const slot of slots) {
+    if (!slot.items.length) continue;
+    html += `<div class="supp-slot-title">${escapeHtml(slot.label)}</div>`;
+    html += `<div class="supp-slot-group">`;
+    for (const it of slot.items) {
+      const taken = !!it.taken_at;
+      const safeName = escapeHtml(it.name);
+      const time = taken ? escapeHtml(it.taken_at) : '';
+      html += `
+        <div class="supp-row${taken ? ' taken' : ''}" data-name="${safeName.replace(/"/g, '&quot;')}">
+          <div class="supp-check"></div>
+          <div class="supp-name">${safeName}</div>
+          <div class="supp-time">${time || '—'}</div>
+        </div>`;
+    }
+    html += `</div>`;
+  }
+
+  container.innerHTML = html;
+
+  // Wire up taps
+  container.querySelectorAll('.supp-row').forEach(row => {
+    row.addEventListener('click', () => toggleSupplement(row));
+  });
+}
+
+async function toggleSupplement(row) {
+  const name = row.dataset.name;
+  const date = currentSuppDate();
+  const isTaken = row.classList.contains('taken');
+  const method = isTaken ? 'DELETE' : 'POST';
+
+  // Optimistic UI update
+  row.classList.toggle('taken');
+  const checkEl = row.querySelector('.supp-check');
+  const timeEl = row.querySelector('.supp-time');
+
+  try {
+    const r = await fetch('/api/supplements/take', {
+      method,
+      headers: { 'Content-Type': 'application/json', Authorization: 'tma ' + tg.initData },
+      body: JSON.stringify({ date, name }),
+    });
+    if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+    const data = await r.json();
+
+    // Update time display
+    if (!isTaken && data.taken_at) {
+      timeEl.textContent = data.taken_at;
+    } else {
+      timeEl.textContent = '—';
+    }
+    // Refresh progress card by re-fetching full state (keeps counts accurate)
+    loadSupplementsDay();
+  } catch (e) {
+    // Revert optimistic update on failure
+    row.classList.toggle('taken');
+    console.error('toggleSupplement failed', e);
+    showAutosavePill(false);
+  }
+}
+
+// Small helper — escape HTML to avoid XSS in names
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// When the Diary tab changes date, refresh the supplements log too (if its tab is active).
+// day.js handles the raw nav (prev-day / next-day / date-picker); we piggyback with
+// a small refresh-on-date-change hook.
+function isSupplementsTabActive() {
+  return document.querySelector('.tab-item[data-tab="supplements-tab"]')?.classList.contains('active');
+}
+['prev-day', 'next-day'].forEach(id => {
+  const btn = document.getElementById(id);
+  if (btn) btn.addEventListener('click', () => {
+    // Run after day.js handler (microtask order): reload supp list if visible
+    setTimeout(() => { if (isSupplementsTabActive()) loadSupplementsDay(); }, 50);
+  });
+});
+const picker = document.getElementById('date-picker');
+if (picker) picker.addEventListener('change', () => {
+  setTimeout(() => { if (isSupplementsTabActive()) loadSupplementsDay(); }, 50);
+});
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 load();
