@@ -1,4 +1,4 @@
-from core.description_parser import parse_meal_description
+from core.food.description_parser import parse_meal_description
 
 
 def test_fruit_quantity_estimation():
@@ -11,7 +11,7 @@ def test_fruit_quantity_estimation():
     description = "1 киви, 1 мандарин, 6 томатов черри"
 
     # Mock get_openai_api_key to return None, forcing Regex parser
-    with patch("core.chatgpt_vision.get_openai_api_key", return_value=None):
+    with patch("core.vision.chatgpt_vision.get_openai_api_key", return_value=None):
         products = parse_meal_description(description)
 
     product_map = {p["name"]: p for p in products}
@@ -47,7 +47,7 @@ def test_half_fruit_regression():
     from unittest.mock import patch
 
     description = "половина груши и половина банана"
-    with patch("core.chatgpt_vision.get_openai_api_key", return_value=None):
+    with patch("core.vision.chatgpt_vision.get_openai_api_key", return_value=None):
         products = parse_meal_description(description)
 
     product_map = {p["name"]: p for p in products}

@@ -15,7 +15,7 @@ import pytest
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.llm_router import analyze_message
+from core.llm.router import analyze_message
 
 logging.basicConfig(level=logging.INFO)
 

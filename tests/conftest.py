@@ -33,10 +33,10 @@ def test_db():
 def mock_session_local(test_db):
     """Patches SessionLocal in all modules that use it in tests"""
     patches = [
-        patch("core.supplements.SessionLocal", return_value=test_db),
+        patch("core.health.supplements.SessionLocal", return_value=test_db),
         patch("services.nutrition_service.SessionLocal", return_value=test_db),
-        patch("core.weekly_nutrition.SessionLocal", return_value=test_db),
-        patch("core.garmin_data.SessionLocal", return_value=test_db),
+        patch("core.health.weekly_nutrition.SessionLocal", return_value=test_db),
+        patch("core.health.garmin_data.SessionLocal", return_value=test_db),
     ]
 
     for p in patches:

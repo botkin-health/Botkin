@@ -18,7 +18,7 @@ from dotenv import load_dotenv
 
 load_dotenv(project_root / ".env")
 
-from core.garmin_data import sync_garmin_data
+from core.health.garmin_data import sync_garmin_data
 
 
 def backfill_garmin_data(days: int = 30, user_id: int = 895655):

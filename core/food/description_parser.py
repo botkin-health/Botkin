@@ -11,12 +11,9 @@ from typing import List, Dict, Optional
 try:
     from core.vision.weight_extraction import extract_weights_from_photos
 except ImportError:
-    try:
-        from core.weight_extraction import extract_weights_from_photos
-    except ImportError:
 
-        def extract_weights_from_photos(*args, **kwargs):
-            return []
+    def extract_weights_from_photos(*args, **kwargs):
+        return []
 
 
 # Вес одной штуки продукта (для оценки, если вес не указан)

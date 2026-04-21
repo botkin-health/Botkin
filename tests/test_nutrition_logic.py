@@ -1,5 +1,9 @@
-from core.description_parser import apply_portion_multiplier, extract_products_from_description, normalize_product_name
-from core.nutrition import calculate_nutrition
+from core.food.description_parser import (
+    apply_portion_multiplier,
+    extract_products_from_description,
+    normalize_product_name,
+)
+from core.food.nutrition import calculate_nutrition
 
 
 # 1. Test for "Pizza Weight Bug" (Double Multiplication)
