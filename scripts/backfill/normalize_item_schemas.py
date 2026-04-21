@@ -28,14 +28,21 @@ from database.models import NutritionLog
 from helpers.db_save import normalize_item_to_canonical
 
 
-def _items_equal(a: list, b: list) -> bool:
-    """Conservative equality check — differs if any canonical field differs."""
-    if len(a) != len(b):
-        return False
-    for x, y in zip(a, b):
-        if dict(x) != dict(y):
-            return False
-    return True
+def _is_non_canonical_item(item: dict) -> bool:
+    """
+    True only if item's SCHEMA is not canonical (wrong key names).
+    Canonical requires both "food" and "amount" and no legacy weight_g/weight/name/product keys.
+
+    We do NOT count value-level differences (e.g. 250.5 → 250 from int rounding)
+    as reason to rewrite — that would churn every historical row unnecessarily.
+    """
+    has_canonical_keys = "food" in item and "amount" in item
+    has_legacy_keys = any(k in item for k in ("weight_g", "weight", "name", "product"))
+    return not has_canonical_keys or has_legacy_keys
+
+
+def _row_needs_normalization(items: list) -> bool:
+    return any(_is_non_canonical_item(dict(it)) for it in items)
 
 
 def main(apply: bool, user_filter: int | None) -> None:
@@ -57,11 +64,11 @@ def main(apply: bool, user_filter: int | None) -> None:
                 unchanged += 1
                 continue
 
-            new_items = [normalize_item_to_canonical(dict(it)) for it in old_items]
-
-            if _items_equal(old_items, new_items):
+            if not _row_needs_normalization(old_items):
                 unchanged += 1
                 continue
+
+            new_items = [normalize_item_to_canonical(dict(it)) for it in old_items]
 
             changed += 1
             first_old = dict(old_items[0])
@@ -69,7 +76,7 @@ def main(apply: bool, user_filter: int | None) -> None:
             diff_keys = sorted(set(first_old) ^ set(first_new))
             print(
                 f"[{'APPLY' if apply else 'DRY '}] id={row.id} uid={row.user_id} "
-                f"{row.date} {row.meal_name!r} items={len(old_items)} diff={diff_keys or 'values'}"
+                f"{row.date} {row.meal_name!r} items={len(old_items)} diff={diff_keys}"
             )
 
             if apply:
