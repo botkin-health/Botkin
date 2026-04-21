@@ -31,7 +31,7 @@ async def safe_edit_text(message: Message, text: str, **kwargs):
 
 from services.state import UserState, state_manager
 from services.state_helpers import create_photo_state
-from core.menu_parser import parse_menu_photo
+from core.vision.menu_parser import parse_menu_photo
 
 router = Router()
 
@@ -74,7 +74,7 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
 
     # Получаем API ключ для OCR
     try:
-        from core.api_key_loader import get_google_vision_api_key
+        from core.infra.api_key_loader import get_google_vision_api_key
 
         api_key = get_google_vision_api_key()
     except ImportError:
@@ -86,7 +86,7 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
     if user_state and user_state.data.get("caption"):
         caption = user_state.data.get("caption")
 
-    from core.ocr_weight import parse_weight_screenshot
+    from core.vision.ocr_weight import parse_weight_screenshot
 
     recognized_weights = []
     remaining_photos = []  # Фото, которые не распознались как весы
@@ -161,7 +161,7 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
     # Сначала пробуем лучшую модель (LLM) по фото — единый путь для распознавания
     menu_data = None
     router_result = None
-    from core.llm_router import analyze_message
+    from core.llm.router import analyze_message
 
     try:
         paths_for_llm = [Path(p) for p in photo_paths] if isinstance(photo_paths[0], str) else photo_paths
@@ -206,7 +206,7 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
             data = router_result.get("data", {})
             items = data.get("items", [])
             if items:
-                from core.supplements import save_supplements
+                from core.health.supplements import save_supplements
 
                 telegram_user_id = int(message.from_user.id)
                 saved = save_supplements(items, user_id=telegram_user_id)
@@ -273,7 +273,7 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
         logger.info(f"Распознано меню/еда: {menu_data.get('dish_name')}, КБЖУ: {menu_data.get('calories')} ккал")
 
         # Если LLM вернул 0 ккал для не-напитка (например салат) — пересчитываем через БД/оценку
-        from core.description_parser import is_zero_calorie_drink
+        from core.food.description_parser import is_zero_calorie_drink
 
         dish_name = menu_data.get("dish_name") or ""
         if (
@@ -283,7 +283,7 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
             and router_result
             and router_result.get("type") == "food"
         ):
-            from core.nutrition import process_llm_food_data
+            from core.food.nutrition import process_llm_food_data
 
             meal_items, meal_totals = process_llm_food_data(router_result, caption or "")
             if meal_items and (meal_totals.get("calories") or 0) > 0:
@@ -331,7 +331,7 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
             dish_name = menu_data.get("dish_name", "")
             logger.info(f"💊 Распознаны добавки по фото: {dish_name}")
 
-            # from core.supplements import supplement_service
+            # from core.health.supplements import supplement_service
             # logged_items, remaining_items = supplement_service.log_intake(dish_name)
             pass
 
@@ -396,7 +396,7 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
         # КБЖУ не найдены, но есть текст - пробуем найти продукт в базе по названию
         logger.info("КБЖУ не найдены в меню, ищем продукт в базе по OCR тексту...")
 
-        from core.product_search import find_product_in_text
+        from core.food.product_search import find_product_in_text
 
         found_product = find_product_in_text(menu_data["raw_text"])
 
@@ -742,8 +742,8 @@ async def handle_description(
             logger.info(f"Извлечена дата из описания: {custom_date}, очищенное описание: '{clean_description[:50]}...'")
 
     # --- LLM Router Logic ---
-    from core.llm_router import analyze_message
-    from core.nutrition import process_llm_food_data
+    from core.llm.router import analyze_message
+    from core.food.nutrition import process_llm_food_data
 
     # ИСПРАВЛЕНИЕ: Если menu_data уже распознаны (parse_menu_photo или LLM извлек КБЖУ),
     # используем их напрямую. Учитываем и 0 ккал (напитки типа Cola Zero).
@@ -805,7 +805,7 @@ async def handle_description(
             action = data.get("action")
 
             # Сохраняем реально
-            from core.supplements import save_supplements
+            from core.health.supplements import save_supplements
 
             telegram_user_id = int(message.from_user.id)
             saved = save_supplements(items, user_id=telegram_user_id)
@@ -1134,7 +1134,7 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
             totals = user_state.data.get("meal_totals", {})
             meal_kcal = totals.get("calories", 0)
 
-            from core.caloric_budget import format_budget_line
+            from core.health.caloric_budget import format_budget_line
             from datetime import date as date_type
             from database import SessionLocal as _SessionLocal
             from database.crud import get_user_settings as _get_user_settings

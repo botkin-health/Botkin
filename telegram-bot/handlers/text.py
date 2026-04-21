@@ -417,8 +417,8 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
         return
 
     # --- LLM Router Logic ---
-    from core.llm_router import analyze_message
-    from core.nutrition import process_llm_food_data
+    from core.llm.router import analyze_message
+    from core.food.nutrition import process_llm_food_data
     import html
     import logging
 
@@ -527,7 +527,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
 
     if not router_result:
         # Fallback: Regex for Vitamins
-        # from core.supplements import supplement_service (DEPRECATED)
+        # from core.health.supplements import supplement_service (DEPRECATED)
 
         # Simple keywords mapping
         vitamin_map = {
@@ -650,7 +650,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             items = normalized
 
             # Сохраняем реально
-            from core.supplements import save_supplements
+            from core.health.supplements import save_supplements
 
             telegram_user_id = int(message.from_user.id)
             saved = save_supplements(items, user_id=telegram_user_id, date_str=custom_date)
@@ -703,7 +703,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                 if canonical not in normalized_supp:
                     normalized_supp.append(canonical)
 
-            from core.supplements import save_supplements
+            from core.health.supplements import save_supplements
 
             telegram_user_id = int(message.from_user.id)
             supp_saved = (

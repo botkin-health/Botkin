@@ -10,9 +10,9 @@ from datetime import datetime, timezone, timedelta
 
 MSK = timezone(timedelta(hours=3))
 
-from core.garmin_data import get_garmin_data_for_date, sync_today_garmin
-from core.weekly_nutrition import analyze_weekly_nutrition
-from core.nutrition_targets import check_feasibility
+from core.health.garmin_data import get_garmin_data_for_date, sync_today_garmin
+from core.health.weekly_nutrition import analyze_weekly_nutrition
+from core.health.nutrition_targets import check_feasibility
 # NOTE: SupplementService imported per-request to support multi-user
 
 router = Router()
@@ -135,7 +135,7 @@ async def cmd_day(message: Message, user_id: int):
             active_calories = garmin_data.get("activeKilocalories", 0.0) or 0.0 if garmin_data else 0.0
 
         # Supplements Status - create per-user instance
-        from core.supplements import SupplementService
+        from core.health.supplements import SupplementService
 
         user_supplement_service = SupplementService(user_id=user_id)
         supplements_text = user_supplement_service.get_brief_status(for_date=today_str)
@@ -152,7 +152,7 @@ async def cmd_day(message: Message, user_id: int):
 
         # --- Energy balance (14-day averages → consistent with target calculation) ---
         from database.crud import get_average_activity_stats
-        from core.caloric_budget import make_block_bar
+        from core.health.caloric_budget import make_block_bar
 
         avg_stats = get_average_activity_stats(db, user_id, days=14)
         avg_bmr = round(avg_stats.get("bmr_calories", 0)) if avg_stats else 0
@@ -255,7 +255,7 @@ async def cmd_vitamins(message: Message, user_id: int):
     """Чек-лист приема витаминов и добавок"""
     try:
         # Create per-user supplement service
-        from core.supplements import SupplementService
+        from core.health.supplements import SupplementService
 
         user_supplement_service = SupplementService(user_id=user_id)
         status = user_supplement_service.get_detailed_schedule()

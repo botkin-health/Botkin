@@ -16,7 +16,7 @@ from database import (
     get_average_activity_stats,
     get_user_by_telegram_id,
 )
-from core.nutrition_targets import calculate_targets
+from core.health.nutrition_targets import calculate_targets
 
 logger = logging.getLogger(__name__)
 

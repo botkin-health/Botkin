@@ -111,7 +111,7 @@ class TestDayResponseHTMLSafety:
 
     def test_macro_lines_no_html_tags(self):
         """Строки макросов (Б/Ж/У) не содержат никаких тегов вообще."""
-        from core.caloric_budget import make_block_bar
+        from core.health.caloric_budget import make_block_bar
 
         p_bar, _ = make_block_bar(45, 150, invert=True)
         f_bar, _ = make_block_bar(20, 60)

@@ -1,7 +1,7 @@
 from pathlib import Path
 from aiogram import Router, F, Bot
 from aiogram.types import Message
-from core.voice_service import voice_service
+from core.infra.voice_service import voice_service
 from services.state import state_manager, UserState
 from handlers.photo import handle_description
 
