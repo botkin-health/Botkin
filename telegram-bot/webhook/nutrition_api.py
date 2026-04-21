@@ -31,6 +31,7 @@ from webhook.nutrition_slots import SLOTS, slot_center_time, slot_from_meal, slo
 from webhook.nutrition_goals import compute_goals
 from core.food.nutrition import process_meal_description
 from core.food.fiber_table import enrich_items_with_fiber, sum_fiber
+from helpers.db_save import normalize_item_to_canonical
 
 router = APIRouter()
 
@@ -203,6 +204,8 @@ async def add_meal_item(
     new_item = _scale_to_weight(base, base_w or payload.weight, payload.weight)
     # Override product name to what the user typed (not what LLM echoed)
     new_item["product"] = payload.name
+    # Normalize to canonical schema {food, amount, unit, ...} — single source of truth
+    new_item = normalize_item_to_canonical(new_item)
 
     db = SessionLocal()
     try:
