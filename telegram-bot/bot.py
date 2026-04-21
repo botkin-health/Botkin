@@ -236,12 +236,13 @@ async def main():
     register_handlers(dp)
 
     # Set bot commands in menu
+    # NB: /my_products removed from menu — zero usage across all users
+    # (see user_products table, 0 rows). Handler still exists for back-compat.
     commands = [
         BotCommand(command="start", description="Начать работу"),
         BotCommand(command="day", description="Итоги дня"),
         BotCommand(command="week", description="Анализ недели"),
         BotCommand(command="vitamins", description="Чек-лист витаминов"),
-        BotCommand(command="my_products", description="Мои продукты"),
         BotCommand(command="help", description="Помощь"),
     ]
 
