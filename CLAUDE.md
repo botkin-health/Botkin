@@ -38,7 +38,7 @@ FAMILY_HEALTH = Path.home() / "Library/CloudStorage/GoogleDrive-lyskovsky@gmail.
 | `knowledge_base.json` | Структурированные данные анализов (JSON) — источник истины |
 | `KNOWLEDGE_BASE.md` | Человекочитаемый каталог анализов (дублирует JSON для удобства) |
 | `todo.md` | Техдолг и роадмап проекта (без личных целей здоровья — они в HEALTH.md) |
-| `docs/ai_context/` | Контекст для AI: архитектура, источники данных, схема БД, потоки |
+| `docs/ai_context/` | Контекст для AI. **Начни с `README.md`** — там навигация. 01 архитектура · 02 источники данных · 03 схема БД · 04 workflows · 05 помощь с едой · `AI_CHANGELOG.md` |
 
 ## Данные здоровья — источники и пайплайн
 

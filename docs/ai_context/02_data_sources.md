@@ -1,6 +1,17 @@
-# Реестр Источников Данных (Data Sources)
+# 02 · Реестр источников данных
 
-В этом файле описаны все интеграции HealthVault, методы получения данных, статус их актуальности и инструкции (SOP) по тому, как ИИ или пользователь могут подтянуть свежие данные.
+> **Last verified (SQL примеры):** 2026-04-21
+> **Last verified (источники):** 2026-04-02 (некоторые таблицы метрик могут отставать на 2-3 недели)
+
+В этом файле описаны все интеграции HealthVault, методы получения данных, статус актуальности и SOP «как подтянуть свежие данные».
+
+> [!IMPORTANT]
+> **Канонические имена полей** (часто путаются):
+> - `nutrition_log.totals` → `calories`, `protein`, `fats` (мн.ч.!), `carbs`, `fiber`, `drinks`. Поля `fat` нет.
+> - `weights` → `weight`, `body_fat`, `muscle_mass`, `water`, `bmi`. Полей `weight_kg`, `fat_percent`, `muscle_kg` нет — это старая дока врала.
+> - `supplements_log` → `supplement_name` (не `name`), `time`, `date`.
+> - FK на пользователя — всегда `users.telegram_id` (не `users.id`).
+> Подробности → `03_database_schema.md`.
 
 ---
 
@@ -40,7 +51,7 @@ result = subprocess.run([
     'SELECT date, '
     'ROUND(SUM((totals->>\'\'calories\'\')::numeric),0) as kcal, '
     'ROUND(SUM((totals->>\'\'protein\'\')::numeric),1) as protein, '
-    'ROUND(SUM((totals->>\'\'fat\'\')::numeric),1) as fat, '
+    'ROUND(SUM((totals->>\'\'fats\'\')::numeric),1) as fats, '
     'ROUND(SUM((totals->>\'\'carbs\'\')::numeric),1) as carbs '
     'FROM nutrition_log '
     'WHERE date >= \'\'2026-01-06\'\' AND user_id = 895655 '
@@ -54,8 +65,9 @@ ssh root@116.203.213.137 "docker exec healthvault_postgres psql -U healthvault -
 SELECT date,
   ROUND(SUM((totals->>'calories')::numeric), 0) as kcal,
   ROUND(SUM((totals->>'protein')::numeric), 1) as protein,
-  ROUND(SUM((totals->>'fat')::numeric), 1) as fat,
-  ROUND(SUM((totals->>'carbs')::numeric), 1) as carbs
+  ROUND(SUM((totals->>'fats')::numeric), 1) as fats,
+  ROUND(SUM((totals->>'carbs')::numeric), 1) as carbs,
+  ROUND(SUM(COALESCE((totals->>'fiber')::numeric, 0)), 1) as fiber
 FROM nutrition_log
 WHERE date >= '2026-01-06' AND user_id = 895655
 GROUP BY date ORDER BY date;\""
@@ -65,7 +77,10 @@ GROUP BY date ORDER BY date;\""
 
 ```bash
 ssh root@116.203.213.137 "docker exec healthvault_postgres psql -U healthvault -d healthvault -c \"
-SELECT date, AVG(weight_kg) as weight_kg, AVG(fat_percent) as fat_pct
+SELECT measured_at::date as date,
+       AVG(weight) as weight_kg,
+       AVG(body_fat) as body_fat_pct,
+       AVG(muscle_mass) as muscle_kg
 FROM weights WHERE user_id = 895655
 GROUP BY date ORDER BY date;\""
 ```
