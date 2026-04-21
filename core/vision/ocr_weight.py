@@ -65,7 +65,7 @@ def parse_weight_screenshot(
     # 2. Try OpenAI GPT-4o
     # Use centralized loader to find key in files/.env
     try:
-        from core.chatgpt_vision import get_openai_api_key
+        from core.vision.chatgpt_vision import get_openai_api_key
 
         openai_key = get_openai_api_key()
     except ImportError:

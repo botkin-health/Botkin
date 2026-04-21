@@ -11,8 +11,8 @@ import sys
 # Добавляем telegram-bot в путь для импорта services
 sys.path.insert(0, str(Path(__file__).parent.parent / "telegram-bot"))
 
-from core.nutrition import calculate_nutrition
-from core.description_parser import extract_products_from_description
+from core.food.nutrition import calculate_nutrition
+from core.food.description_parser import extract_products_from_description
 
 
 class TestTextParsing:
@@ -222,7 +222,7 @@ class TestBombbar:
 
     def test_bombbar_found_in_db(self):
         """Продукт 'батончик bombbar' находится в products.json с правильными данными"""
-        from core.product_search import find_product
+        from core.food.product_search import find_product
 
         product = find_product("батончик bombbar")
 
@@ -233,7 +233,7 @@ class TestBombbar:
 
     def test_bombbar_aliases(self):
         """Все варианты написания Bombbar находят продукт в БД"""
-        from core.product_search import find_product
+        from core.food.product_search import find_product
 
         aliases = [
             "bombbar",

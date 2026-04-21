@@ -13,7 +13,7 @@ sys.path.insert(0, "/Users/alexlyskovsky/HealthVault")
 
 from database import SessionLocal, get_nutrition_logs_by_period, get_last_activity_date
 from datetime import date, timedelta
-from core.weekly_nutrition import analyze_weekly_nutrition
+from core.health.weekly_nutrition import analyze_weekly_nutrition
 
 pytestmark = pytest.mark.integration
 

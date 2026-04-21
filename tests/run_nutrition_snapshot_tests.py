@@ -6,7 +6,7 @@ from unittest.mock import patch
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.nutrition import process_meal_description
+from core.food.nutrition import process_meal_description
 
 
 def mock_chatgpt_response(description, key):
@@ -154,13 +154,13 @@ def run_tests():
     # Mocking ChatGPT and Network calls (patch at core.* where they are used)
 
     with (
-        patch("core.chatgpt_vision.parse_text_description_with_chatgpt", side_effect=mock_chatgpt_response),
-        patch("core.chatgpt_vision.parse_menu_with_chatgpt", side_effect=mock_menu_photo_response),
-        patch("core.menu_parser.parse_menu_photo", side_effect=mock_menu_photo_response),
-        patch("core.description_parser.extract_weights_from_photos", side_effect=mock_extract_weights),
-        patch("core.chatgpt_vision.get_openai_api_key", return_value="fake_key"),
-        patch("core.product_search.search_product_online", return_value=None),
-        patch("core.product_search.find_product", return_value=None),
+        patch("core.vision.chatgpt_vision.parse_text_description_with_chatgpt", side_effect=mock_chatgpt_response),
+        patch("core.vision.chatgpt_vision.parse_menu_with_chatgpt", side_effect=mock_menu_photo_response),
+        patch("core.vision.menu_parser.parse_menu_photo", side_effect=mock_menu_photo_response),
+        patch("core.food.description_parser.extract_weights_from_photos", side_effect=mock_extract_weights),
+        patch("core.vision.chatgpt_vision.get_openai_api_key", return_value="fake_key"),
+        patch("core.food.product_search.search_product_online", return_value=None),
+        patch("core.food.product_search.find_product", return_value=None),
     ):
         for case in inputs:
             case_id = case["id"]

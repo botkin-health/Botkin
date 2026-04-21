@@ -99,7 +99,7 @@ class TestMacroLinesBarToggle:
 
     def test_macro_lines_show_bar_false_no_squares(self):
         """При show_bar=False строки Б/Ж/У не содержат прогресс-баров."""
-        from core.caloric_budget import make_block_bar
+        from core.health.caloric_budget import make_block_bar
 
         p_bar, _ = make_block_bar(45, 150, invert=True)
         f_bar, _ = make_block_bar(20, 60)
@@ -124,7 +124,7 @@ class TestMacroLinesBarToggle:
 
     def test_macro_lines_show_bar_true_has_squares(self):
         """При show_bar=True строки Б/Ж/У содержат прогресс-бары."""
-        from core.caloric_budget import make_block_bar
+        from core.health.caloric_budget import make_block_bar
 
         p_bar, _ = make_block_bar(45, 150, invert=True)
         f_bar, _ = make_block_bar(20, 60)
@@ -145,7 +145,7 @@ class TestMacroLinesBarToggle:
 
     def test_macro_values_always_present(self):
         """Числовые значения макросов всегда в строке, независимо от show_bar."""
-        from core.caloric_budget import make_block_bar
+        from core.health.caloric_budget import make_block_bar
 
         p_bar, _ = make_block_bar(75, 150, invert=True)
 

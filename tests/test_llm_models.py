@@ -8,10 +8,8 @@
 4. Интеграция с process_llm_food_data (pipeline без вызова API)
 """
 
-from core.llm_models import parse_llm_response
-
-# process_llm_food_data живёт в core.nutrition (circular import исправлен 22.03.2026)
-from core.nutrition import process_llm_food_data
+from core.llm.models import parse_llm_response
+from core.food.nutrition import process_llm_food_data
 
 
 # ===========================================================================
@@ -522,7 +520,7 @@ class TestFoodProcessorIntegration:
             },
         }
         validated = parse_llm_response(raw)
-        with patch("core.nutrition.find_product", return_value=None):
+        with patch("core.food.nutrition.find_product", return_value=None):
             meal_items, totals = process_llm_food_data(validated)
         assert len(meal_items) == 1
         assert meal_items[0]["calories"] == 14

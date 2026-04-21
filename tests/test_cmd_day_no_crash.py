@@ -88,7 +88,7 @@ class TestCmdDayResponseConstruction:
     def test_macro_lines_with_show_bar_false_no_bars(self):
         """При show_bar=False строки макросов не содержат progress-bars."""
         # Симулируем логику из commands.py напрямую
-        from core.caloric_budget import make_block_bar
+        from core.health.caloric_budget import make_block_bar
 
         totals_protein = 45.0
         totals_fats = 20.0
@@ -124,7 +124,7 @@ class TestCmdDayResponseConstruction:
 
     def test_macro_lines_with_show_bar_true_has_bars(self):
         """При show_bar=True строки макросов содержат progress-bars."""
-        from core.caloric_budget import make_block_bar
+        from core.health.caloric_budget import make_block_bar
 
         totals_protein = 45.0
         targets = {"protein": 150, "fats": 60, "carbs": 200}
@@ -141,7 +141,7 @@ class TestCmdDayResponseConstruction:
 
     def test_zero_macros_no_crash(self):
         """Нулевые значения макросов (пустой день) не вызывают деления на ноль."""
-        from core.caloric_budget import make_block_bar
+        from core.health.caloric_budget import make_block_bar
 
         # Нулевые значения — типичная ситуация для нового дня
         p_bar, p_pct = make_block_bar(0, 150, invert=True)
