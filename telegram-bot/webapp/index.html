@@ -93,17 +93,17 @@
     .saved-toast { text-align: center; color: #34c759; font-size: 13px; margin-top: 8px;
                    display: none; }
 
-    .help-block { margin-bottom: 20px; }
-    .help-block h3 { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
-    .help-block p, .help-block li { font-size: 13px; color: #555; line-height: 1.7; }
+    .help-block { margin-bottom: 10px; }
+    .help-block h3 { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+    .help-block p, .help-block li { font-size: 12px; color: #555; line-height: 1.4; }
     .help-block ul { list-style: none; padding: 0; }
-    .help-block ul li { display: flex; gap: 8px; margin-bottom: 6px; }
-    .help-block ul li .emoji { flex-shrink: 0; }
+    .help-block ul li { display: flex; gap: 6px; margin-bottom: 2px; align-items: baseline; }
+    .help-block ul li .emoji { flex-shrink: 0; font-size: 11px; }
     code { background: #f0f0f0; border-radius: 4px; padding: 1px 6px;
            font-size: 12px; font-family: monospace; }
-    .cmd-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    .cmd-table td { padding: 5px 0; border-bottom: 1px solid #f5f5f5; }
-    .cmd-table td:first-child { color: #2a7ae2; font-family: monospace; width: 90px; }
+    .cmd-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .cmd-table td { padding: 2px 0; border-bottom: 1px solid #f5f5f5; line-height: 1.4; }
+    .cmd-table td:first-child { color: #2a7ae2; font-family: monospace; width: 78px; }
     .disabled-notice { font-size: 11px; color: #aaa; margin-top: 3px; }
 
     /* ── iOS-style grouped settings list ── */
@@ -285,16 +285,23 @@
 
     /* iOS-style section header for drill-down screens */
     .drill-header {
-      padding: 8px 16px 16px;
-      font-size: 22px; font-weight: 700;
+      padding: 4px 16px 10px;
+      font-size: 18px; font-weight: 700;
     }
     .back-btn-ios {
       background: none; border: none;
-      color: #2a7ae2; font-size: 16px;
-      padding: 12px 16px 0; cursor: pointer;
+      color: #2a7ae2; font-size: 15px;
+      padding: 8px 16px 0; cursor: pointer;
       display: flex; align-items: center; gap: 2px;
     }
     .back-btn-ios:active { opacity: .6; }
+
+    /* Tab-bar clearance — content below ~50px tab-bar + safe-area would clip.
+       Applied to all tab panels so nothing hides behind the fixed nav. */
+    .tab-panel { padding-bottom: 70px; }
+    @supports (padding-bottom: env(safe-area-inset-bottom)) {
+      .tab-panel { padding-bottom: calc(70px + env(safe-area-inset-bottom)); }
+    }
   </style>
 </head>
 <body>
@@ -474,8 +481,7 @@
 
   <div class="help-block">
     <h3>💊 Как отметить добавки</h3>
-    <p>Напишите названия в чат: <code>Витамин Д, Омега, Метилфолат</code><br>
-    Список добавок настраивается в разделе Добавки.</p>
+    <p>Напишите названия в чат: <code>Витамин Д, Омега</code> или тапните в табе 💊 Добавки.</p>
   </div>
 
   <div class="help-block">
@@ -489,9 +495,8 @@
   </div>
 
   <div class="help-block">
-    <h3>⚖️ Как считается лимит калорий</h3>
-    <p>Средний расход за 14 дней по Garmin × 0.85 (дефицит 15%).<br>
-    Нет Garmin — используется BMR из раздела Питание.</p>
+    <h3>⚖️ Лимит калорий</h3>
+    <p>Средний расход за 14 дней по Garmin × 0.85 (−15%). Нет Garmin — BMR из Настроек.</p>
   </div>
   </div><!-- /padding wrapper -->
 </div>
