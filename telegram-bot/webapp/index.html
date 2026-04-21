@@ -784,9 +784,14 @@ function currentSuppDate() {
 }
 
 let _suppDayCache = { date: null, data: null };
+// Generation counter: each call to loadSupplementsDay() increments this.
+// A response that arrives after a newer request was fired is discarded —
+// prevents stale innerHTML from overwriting a fresher render (toggle race).
+let _suppLoadGen = 0;
 
 async function loadSupplementsDay() {
   const date = currentSuppDate();
+  const gen = ++_suppLoadGen;
   const container = document.getElementById('supp-day-container');
   try {
     const r = await fetch(`/api/supplements/day?date=${date}`, {
@@ -794,9 +799,11 @@ async function loadSupplementsDay() {
     });
     if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
     const data = await r.json();
+    if (gen !== _suppLoadGen) return; // stale response — a newer load is in flight
     _suppDayCache = { date, data };
     renderSupplementsDay(data);
   } catch (e) {
+    if (gen !== _suppLoadGen) return; // stale error — ignore
     console.error('loadSupplementsDay failed', e);
     container.innerHTML = `<div class="supp-empty-state">
       <div class="icon">⚠️</div>
