@@ -10,6 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from database import SessionLocal
 from database.models import SupplementLog, NutritionLog
 from core.health.supplements import SUPPLEMENT_NUTRITION, _canonical_supplement_name
+from helpers.db_save import normalize_item_to_canonical
 
 
 def main(apply: bool) -> None:
@@ -45,9 +46,11 @@ def main(apply: bool) -> None:
 
             print(f"[{'APPLY' if apply else 'DRY '}] uid={row.user_id} {row.date} {row.time} → {nutri['display']}")
             if apply:
-                item = {k: nutri[k] for k in ("calories", "protein", "fats", "carbs", "fiber")}
-                item["name"] = nutri["display"]
-                item["weight_g"] = nutri["weight_g"]
+                raw = {k: nutri[k] for k in ("calories", "protein", "fats", "carbs", "fiber")}
+                raw["name"] = nutri["display"]
+                raw["weight_g"] = nutri["weight_g"]
+                # Route through single canonical normaliser — no bypass writes
+                item = normalize_item_to_canonical(raw)
                 totals = {k: nutri[k] for k in ("calories", "protein", "fats", "carbs", "fiber")}
                 log = NutritionLog(
                     user_id=row.user_id,
