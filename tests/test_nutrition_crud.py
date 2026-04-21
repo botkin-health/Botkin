@@ -43,7 +43,9 @@ def test_update_nutrition_item_weight_scales_proportionally(test_db, sample_meal
     updated_item, new_totals = update_nutrition_item_weight(
         db=test_db, meal_id=sample_meal.id, user_id=895655, idx=0, new_weight=200
     )
-    assert updated_item["weight_g"] == 200
+    # Function writes canonical "amount" and strips legacy "weight_g"
+    assert updated_item["amount"] == 200
+    assert "weight_g" not in updated_item
     assert updated_item["calories"] == pytest.approx(330, abs=1)
     assert updated_item["protein"] == pytest.approx(62, abs=0.1)
     assert new_totals["calories"] == pytest.approx(525, abs=1)

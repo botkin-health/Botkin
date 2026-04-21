@@ -610,15 +610,22 @@ def update_nutrition_item_weight(db: Session, meal_id: int, user_id: int, idx: i
         raise IndexError(f"idx {idx} out of range (have {len(items)} items)")
 
     old = dict(items[idx])
-    old_w = float(old.get("weight_g") or 0)
+    # Read from canonical "amount" first, fall back to legacy "weight_g" / "weight"
+    old_w = float(old.get("amount") or old.get("weight_g") or old.get("weight") or 0)
     if old_w <= 0:
-        old["weight_g"] = new_weight
+        old["amount"] = new_weight
     else:
         factor = new_weight / old_w
-        old["weight_g"] = new_weight
+        old["amount"] = new_weight
         for k in ("calories", "protein", "fats", "carbs", "fiber"):
             if old.get(k) is not None:
                 old[k] = round(float(old[k]) * factor, 1)
+    # Strip legacy weight keys to prevent hybrid {amount, weight_g} rows
+    old.pop("weight_g", None)
+    old.pop("weight", None)
+    # Ensure canonical unit marker
+    if "unit" not in old:
+        old["unit"] = "г"
 
     items[idx] = old
     row.items = items
