@@ -270,6 +270,31 @@
     }
     .supp-empty-state .hint { font-size: 14px; line-height: 1.5; }
     .supp-empty-state .hint a { color: #2a7ae2; text-decoration: none; font-weight: 500; }
+
+    /* Compact round delete button for management list */
+    .del-btn-round {
+      background: #ff3b30; color: #fff; border: none;
+      width: 22px; height: 22px; border-radius: 50%;
+      font-size: 12px; font-weight: 700; line-height: 1;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; flex-shrink: 0;
+      transition: opacity .15s;
+      opacity: .85;
+    }
+    .del-btn-round:active { opacity: 1; transform: scale(.92); }
+
+    /* iOS-style section header for drill-down screens */
+    .drill-header {
+      padding: 8px 16px 16px;
+      font-size: 22px; font-weight: 700;
+    }
+    .back-btn-ios {
+      background: none; border: none;
+      color: #2a7ae2; font-size: 16px;
+      padding: 12px 16px 0; cursor: pointer;
+      display: flex; align-items: center; gap: 2px;
+    }
+    .back-btn-ios:active { opacity: .6; }
   </style>
 </head>
 <body>
@@ -410,29 +435,32 @@
   <div class="version-footer">NutriLogBot · mini-app</div>
 </div>
 
-<!-- SUPPLEMENTS -->
-<div id="supplements" class="section">
-  <button class="back-btn" onclick="go('home')">← Назад</button>
-  <div class="section-title">💊 Добавки</div>
+<!-- SUPPLEMENTS (management list — drill-down from Profile) -->
+<div id="supplements" class="section" style="padding:0">
+  <button class="back-btn-ios" onclick="go('home')">‹ Назад</button>
+  <div class="drill-header">💊 Управление списком</div>
   <div id="supp-slots"></div>
-  <button class="add-open-btn" onclick="toggleAddPanel()">+ Добавить добавку</button>
-  <div class="add-panel" id="add-panel">
-    <input type="text" id="new-supp-name" placeholder="Название добавки" style="flex:1;min-width:120px">
-    <select id="new-supp-slot">
-      <option value="morning_before">☀️ Утро (до еды)</option>
-      <option value="morning_with" selected>🌅 Утро (с завтраком)</option>
-      <option value="evening">🌙 Вечер</option>
-    </select>
-    <button class="add-confirm-btn" onclick="addSupplement()">Добавить</button>
+  <div style="padding: 16px;">
+    <button class="add-open-btn" onclick="toggleAddPanel()">+ Добавить добавку</button>
+    <div class="add-panel" id="add-panel" style="margin-top:10px">
+      <input type="text" id="new-supp-name" placeholder="Название добавки" style="flex:1;min-width:120px">
+      <select id="new-supp-slot">
+        <option value="morning_before">☀️ Утро (до еды)</option>
+        <option value="morning_with" selected>🌅 Утро (с завтраком)</option>
+        <option value="evening">🌙 Вечер</option>
+      </select>
+      <button class="add-confirm-btn" onclick="addSupplement()">Добавить</button>
+    </div>
   </div>
 </div>
 
 <!-- NOTIFICATIONS moved inline into #home (Phase 2) -->
 
 <!-- HELP -->
-<div id="help" class="section">
-  <button class="back-btn" onclick="go('home')">← Назад</button>
-  <div class="section-title">📖 Справка</div>
+<div id="help" class="section" style="padding:0">
+  <button class="back-btn-ios" onclick="go('home')">‹ Назад</button>
+  <div class="drill-header">📖 Справка</div>
+  <div style="padding:0 16px">
 
   <div class="help-block">
     <h3>🍽 Как логировать еду</h3>
@@ -465,6 +493,7 @@
     <p>Средний расход за 14 дней по Garmin × 0.85 (дефицит 15%).<br>
     Нет Garmin — используется BMR из раздела Питание.</p>
   </div>
+  </div><!-- /padding wrapper -->
 </div>
 
 </section><!-- /settings-section -->
@@ -698,18 +727,29 @@ function renderSupplements() {
   for (const [slot, label] of Object.entries(SLOTS)) {
     const items = supps.filter(s => s.slot === slot);
     const div = document.createElement('div');
-    div.className = 'slot-group';
-    div.innerHTML = `<div class="slot-title">${label}</div>
-      <div class="supp-list" id="slot-${slot}">
-        ${items.length === 0 ? '<div class="supp-item" style="color:#aaa;font-size:12px">— пусто —</div>' :
-          items.map(s => `
-            <div class="supp-item">
-              <span>${s.name}</span>
-              <button class="del-btn" onclick="deleteSupplement('${slot}','${s.name.replace(/'/g, "\\'")}')">✕</button>
-            </div>`).join('')}
+    div.innerHTML = `<div class="group-title">${escapeHtml(label)}</div>
+      <div class="settings-group">
+        ${items.length === 0
+          ? '<div class="settings-row" style="color:#c7c7cc;font-style:italic;font-size:13px">— пусто —</div>'
+          : items.map(s => {
+              const safeName = escapeHtml(s.name);
+              const attrName = safeName.replace(/"/g, '&quot;');
+              return `
+            <div class="settings-row">
+              <div class="row-label">${safeName}</div>
+              <button class="del-btn-round" data-slot="${slot}" data-name="${attrName}" aria-label="Удалить">✕</button>
+            </div>`;
+            }).join('')}
       </div>`;
     container.appendChild(div);
   }
+  // Wire delete buttons (event delegation would also work, but per-element is simpler here)
+  container.querySelectorAll('.del-btn-round').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteSupplement(btn.dataset.slot, btn.dataset.name);
+    });
+  });
 }
 
 function deleteSupplement(slot, name) {
@@ -766,12 +806,14 @@ function toggleReminderTime() {
 // Tracks which supplements the user has taken on a given date, with times.
 // Syncs the currently viewed date with window.__nutri.state.date (Diary tab).
 function currentSuppDate() {
-  // Reuse the date that Diary is viewing so calendar nav stays coherent
-  if (window.__nutri && window.__nutri.state && window.__nutri.state.date) {
-    return window.__nutri.state.date;
-  }
-  const d = new Date();
-  return d.toISOString().slice(0, 10);
+  // Reuse the date that Diary is viewing so calendar nav stays coherent.
+  // day.js keeps state.date as a Date OBJECT — convert to YYYY-MM-DD (local, not UTC).
+  const src = window.__nutri && window.__nutri.state && window.__nutri.state.date;
+  const d = (src instanceof Date) ? src : new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 let _suppDayCache = { date: null, data: null };
