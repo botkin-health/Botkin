@@ -17,6 +17,74 @@ from database import SessionLocal, create_nutrition_log, create_weight, create_s
 logger = logging.getLogger(__name__)
 
 
+# ── Canonical item schema for nutrition_log.items JSONB ──────────────────────
+# The storage format is {food, amount, unit, calories, protein, fats, carbs, fiber}.
+# Internal domain code uses {product, weight_g, ...}.
+# Historical data also contains {name, weight_g, ...} and {name, weight, ...}.
+# This normaliser is the SINGLE source of truth for translation — every writer
+# into nutrition_log.items MUST go through it.
+
+
+def normalize_item_to_canonical(item: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Translate any known input dialect to the canonical DB item schema.
+
+    Accepted input keys (first non-empty wins):
+        name       : "product" | "name" | "food"
+        weight     : "weight_g" | "amount" | "weight"
+        kcal/macros: "calories" | "protein" | "fats" | "fat" | "carbs" | "fiber"
+        note       : "note"  (optional, pass-through)
+        drinks     : "drinks"  (optional, pass-through)
+
+    Returns:
+        Canonical dict:
+            {
+              "food":     str,
+              "amount":   float,
+              "unit":     "г",
+              "calories": int,
+              "protein": int,
+              "fats": int,
+              "carbs": int,
+              "fiber":    float (1 decimal),
+              # optional:
+              "note":     str,
+              "drinks":   float,
+            }
+    """
+    food = item.get("product") or item.get("name") or item.get("food") or "Неизвестный продукт"
+    amount = (
+        item.get("weight_g")
+        if item.get("weight_g") is not None
+        else item.get("amount")
+        if item.get("amount") is not None
+        else item.get("weight")
+    )
+    amount = float(amount or 0.0)
+
+    # Tolerate both "fat" (singular, old schema) and "fats" (plural, canonical)
+    fats_raw = item.get("fats") if item.get("fats") is not None else item.get("fat", 0)
+
+    canonical = {
+        "food": str(food),
+        "amount": amount,
+        "unit": "г",
+        "calories": int(round(float(item.get("calories") or 0))),
+        "protein": int(round(float(item.get("protein") or 0))),
+        "fats": int(round(float(fats_raw or 0))),
+        "carbs": int(round(float(item.get("carbs") or 0))),
+        "fiber": round(float(item.get("fiber") or 0), 1),
+    }
+
+    # Pass-through optional fields (preserve if present & non-empty)
+    if item.get("note"):
+        canonical["note"] = str(item["note"])
+    if item.get("drinks") is not None:
+        canonical["drinks"] = float(item["drinks"])
+
+    return canonical
+
+
 def save_meal_to_db(meal_data: dict, meal_name: str = None, user_id: int = 895655) -> bool:
     """
     Сохраняет приём пищи в PostgreSQL
@@ -60,20 +128,8 @@ def save_meal_to_db(meal_data: dict, meal_name: str = None, user_id: int = 89565
         meal_items = meal_data.get("meal_items", [])
         enrich_items_with_fiber(meal_items)
 
-        items = []
-        for item in meal_items:
-            items.append(
-                {
-                    "food": item.get("product", "Неизвестный продукт"),
-                    "amount": item.get("weight_g", 0.0),
-                    "unit": "г",
-                    "calories": int(round(item.get("calories", 0.0))),
-                    "protein": int(round(item.get("protein", 0.0))),
-                    "fats": int(round(item.get("fats", 0.0))),
-                    "carbs": int(round(item.get("carbs", 0.0))),
-                    "fiber": round(float(item.get("fiber") or 0), 1),
-                }
-            )
+        # Single normalisation path — all writers of nutrition_log.items go through this
+        items = [normalize_item_to_canonical(item) for item in meal_items]
 
         # Totals — recompute fiber from enriched items to avoid drift.
         meal_totals = meal_data.get("meal_totals", {})
