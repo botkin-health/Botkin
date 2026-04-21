@@ -446,47 +446,8 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
     if custom_date:
         text = clean_text
 
-    # Сначала проверяем "мои продукты" — без вызова нейросети
+    # /my_products feature removed — no early-exit product matching, LLM handles all.
     router_result = None
-    from database import SessionLocal, match_user_product
-
-    db = SessionLocal()
-    try:
-        telegram_id = int(message.from_user.id)
-        matched = match_user_product(db, telegram_id, text)
-        if matched:
-            # Напитки без калорий: по названию продукта или по тексту ("coca-cola zero") — принудительно 0
-            from core.description_parser import is_zero_calorie_drink
-
-            if is_zero_calorie_drink(matched["name"]) or is_zero_calorie_drink(text):
-                matched = {**matched, "calories": 0, "protein": 0, "fats": 0, "carbs": 0}
-            router_result = {
-                "type": "food",
-                "data": {
-                    "dish_name": matched["name"],
-                    "meal_type": "snack",
-                    "items": [
-                        {
-                            "name": matched["name"],
-                            "weight": matched["weight_g"],
-                            "quantity": None,
-                            "calories": matched["calories"],
-                            "protein": matched["protein"],
-                            "fats": matched["fats"],
-                            "carbs": matched["carbs"],
-                        }
-                    ],
-                    "total_nutrition": {
-                        "calories": matched["calories"],
-                        "protein": matched["protein"],
-                        "fats": matched["fats"],
-                        "carbs": matched["carbs"],
-                    },
-                },
-            }
-            debug_logger.info(f"✅ Найден свой продукт: {matched['name']} {matched['weight_g']}г")
-    finally:
-        db.close()
 
     if not router_result:
         # Предварительная проверка экей витаминов ДО вызова LLM — если все слова входят в словарь, не зовём LLM
