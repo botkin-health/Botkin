@@ -36,6 +36,32 @@
 
 ---
 
+## 2026-04-21 — Fix #5: race condition в supplements toggle (generation counter)
+
+**Что:** быстрые тапы по двум разным добавкам запускали два конкурирующих `loadSupplementsDay()`. Тот что финишировал позже перезаписывал `innerHTML` со стейл-данными — пользователь видел мигание и думал что тап не сработал.
+
+**Решение:** generation counter `_suppLoadGen`. Каждый вызов `loadSupplementsDay()` инкрементирует счётчик и захватывает текущее значение в `gen`. Ответ выбрасывается если `gen !== _suppLoadGen` (т.е. пока летел запрос, стартовал более свежий). Проверка и на успех, и на ошибку.
+
+**Файлы:** `telegram-bot/webapp/index.html`. Коммит `68067df`. — Claude Opus 4.7
+
+---
+
+## 2026-04-21 — Pass 2 #1: унификация схем nutrition_log.items (schema unification)
+
+**Что:** в `nutrition_log.items` JSONB сосуществовали 3 несовместимых диалекта: `{food, amount, unit}` (основной бот), `{name, weight}` (LLM legacy), `{product, weight_g}` (psyllium/internal). Функция `get_recent_product_names` читала только `product`/`weight_g` → «Часто используемое» в мини-аппе было пусто для 90% записей.
+
+**Что сделано:**
+- `telegram-bot/webhook/nutrition_api.py` — POST `/api/meal/item` теперь нормализует через `normalize_item_to_canonical()` перед записью в БД
+- `database/crud.py:update_nutrition_item_weight` — исправлен: читал `weight_g`, писал гибрид `{amount, weight_g}`. Теперь читает `amount|weight_g|weight`, пишет только `amount`, удаляет legacy-ключи
+- `tests/test_nutrition_crud.py` — тест обновлён под канон (`amount`, нет `weight_g`)
+- `scripts/backfill_psyllium_nutrition.py` — роутит через `normalize_item_to_canonical()` вместо прямой записи
+- `scripts/backfill/normalize_item_schemas.py` — новый DRY/--apply скрипт: сканирует все строки, нормализует только по структуре ключей (не по значениям), идемпотентный
+- В продакшене нормализовано **79 из 700** строк (остальные уже канонические). Проверена целостность: месячные суммы КБЖУ для user_id=895655 и 485132 байт-идентичны с pre-migration бэкапом
+
+**Файлы:** `telegram-bot/webhook/nutrition_api.py`, `database/crud.py`, `tests/test_nutrition_crud.py`, `scripts/backfill_psyllium_nutrition.py`, `scripts/backfill/normalize_item_schemas.py`. — Claude Opus 4.7
+
+---
+
 ## 2026-04-21 — Архитектурный аудит: top-10 проблем (3 параллельных агента)
 
 **Что:** мульти-агентное ревью кода после серии быстрых фич (фибро-пайплайн, мини-апп редизайн, supplements daily log). 3 параллельных агента с разными ролями (Backend/Data, Frontend/UX, Pragmatic engineer) + личная SQL-проба 100 дней реальных данных.
