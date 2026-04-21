@@ -550,6 +550,7 @@ function go(section) {
 }
 
 function switchTab(tab) {
+  flushDirtyInputs(); // save any typed-but-not-blurred inputs before leaving settings
   // Update tab bar active state
   document.querySelectorAll('.tab-item').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.tab === tab);
@@ -618,29 +619,49 @@ function populate() {
 
 // ── Autosave infrastructure ─────────────────────────────────────────────────
 let autosaveTimer = null;
-function showAutosavePill(ok = true) {
+let _retryTimer = null;       // scheduled retry after network error
+const _dirtyInputs = new Set(); // text inputs modified but not yet blurred (tab-switch guard)
+
+function showAutosavePill(ok, retrying = false) {
   const pill = document.getElementById('autosave-pill');
-  pill.textContent = ok ? '✓ Сохранено' : '⚠ Ошибка';
+  pill.textContent = ok ? '✓ Сохранено' : (retrying ? '⚠ Ошибка — повтор...' : '⚠ Не сохранено');
   pill.classList.toggle('error', !ok);
   pill.classList.add('show');
   clearTimeout(autosaveTimer);
-  autosaveTimer = setTimeout(() => pill.classList.remove('show'), 1500);
+  // On success: hide after 1.5s. On persistent error: keep visible so user sees it.
+  if (ok) autosaveTimer = setTimeout(() => pill.classList.remove('show'), 1500);
 }
 
 async function autosave(patch) {
   Object.assign(settings, patch);
+  clearTimeout(_retryTimer);
+  const send = () => fetch(API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'tma ' + tg.initData },
+    body: JSON.stringify(settings),
+  }).then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); });
   try {
-    await fetch(API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'tma ' + tg.initData },
-      body: JSON.stringify(settings),
-    });
+    await send();
     showAutosavePill(true);
   } catch (e) {
-    console.error('Autosave failed', e);
-    showAutosavePill(false);
+    console.error('Autosave failed, retrying in 5s', e);
+    showAutosavePill(false, true);
+    _retryTimer = setTimeout(async () => {
+      try { await send(); showAutosavePill(true); }
+      catch (e2) { console.error('Autosave retry failed', e2); showAutosavePill(false, false); }
+    }, 5000);
   }
 }
+
+// Flush any text inputs typed-in but not yet blurred (e.g. before tab switch on iOS Safari).
+function flushDirtyInputs() {
+  _dirtyInputs.forEach(el => el.blur());
+  _dirtyInputs.clear();
+}
+// Also flush when Telegram WebApp goes to background (home button, notification, etc.)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') flushDirtyInputs();
+});
 
 function wireAutosave() {
   // Prevent double-binding if populate() is called twice
@@ -648,24 +669,30 @@ function wireAutosave() {
   if (root.dataset.autosaveWired === '1') return;
   root.dataset.autosaveWired = '1';
 
-  // BMR (number input — debounce on change, save on blur)
+  // BMR (number input — save on blur; track dirty so tab-switch can flush)
   const bmr = document.getElementById('bmr-input');
+  bmr.addEventListener('input', () => _dirtyInputs.add(bmr));
   bmr.addEventListener('blur', () => {
+    _dirtyInputs.delete(bmr);
     const v = parseInt(bmr.value) || null;
     autosave({ bmr_override: v });
   });
 
-  // Target weight
+  // Target weight (same pattern)
   const tw = document.getElementById('target-weight');
+  tw.addEventListener('input', () => _dirtyInputs.add(tw));
   tw.addEventListener('blur', () => {
+    _dirtyInputs.delete(tw);
     const v = parseFloat(tw.value) || null;
     autosave({ target_weight_kg: v });
   });
 
-  // Target date
+  // Target date — validate before saving (bad date → POST 400 → silent error)
   const td = document.getElementById('target-date');
   td.addEventListener('change', () => {
-    autosave({ target_weight_date: td.value || null });
+    const val = td.value;
+    if (val && isNaN(Date.parse(val))) return; // malformed date, ignore
+    autosave({ target_weight_date: val || null });
   });
 
   // Show calorie bar
