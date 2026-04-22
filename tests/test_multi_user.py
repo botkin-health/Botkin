@@ -7,23 +7,22 @@ import pytest
 from datetime import date, time
 from database.models import NutritionLog
 from database.crud import ensure_user_exists, get_nutrition_logs_by_period
-from config.users import is_user_allowed, ALLOWED_USERS
+from config.users import ADMIN_USER_ID, is_admin
 
 
 class TestMultiUserAuth:
     """Tests for multi-user authorization"""
 
-    def test_whitelist_contains_main_user(self):
-        """Test that main user is in whitelist"""
-        assert 895655 in ALLOWED_USERS
-        assert is_user_allowed(895655) is True
+    def test_admin_user_is_admin(self):
+        """Test that main admin user has admin privileges"""
+        assert is_admin(ADMIN_USER_ID) is True
 
-    def test_unauthorized_user_rejected(self):
-        """Test that unauthorized users are rejected"""
-        assert is_user_allowed(999999999) is False
+    def test_random_user_is_not_admin(self):
+        """Test that random users don't have admin privileges"""
+        assert is_admin(999999999) is False
 
     def test_ensure_user_creates_new_user(self, test_db):
-        """Test that ensure_user_exists creates new users"""
+        """Test that ensure_user_exists creates new users — open registration"""
         test_user_id = 123456789
 
         user = ensure_user_exists(test_db, telegram_id=test_user_id, username="test_user", first_name="Test")
@@ -46,6 +45,18 @@ class TestMultiUserAuth:
 
         assert user1.telegram_id == user2.telegram_id
         assert user2.last_active is not None
+
+    def test_new_user_gets_default_settings(self, test_db):
+        """Test that new users get UserSettings with sane defaults"""
+        from database.crud import get_user_settings
+
+        test_user_id = 777000111
+        ensure_user_exists(test_db, telegram_id=test_user_id, username="newbie")
+
+        settings = get_user_settings(test_db, test_user_id)
+        assert settings is not None
+        assert settings.calorie_goal_pct == -15
+        assert settings.show_calorie_budget_bar is True
 
 
 class TestDataIsolation:
@@ -94,9 +105,9 @@ class TestDataIsolation:
         today = date.today()
 
         # Both users log food on same date
-        for user_id in [user1_id, user2_id]:
+        for uid in [user1_id, user2_id]:
             log = NutritionLog(
-                user_id=user_id,
+                user_id=uid,
                 date=today,
                 meal_time=time(12, 0),
                 meal_name="обед",

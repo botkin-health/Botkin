@@ -13,6 +13,7 @@ MSK = timezone(timedelta(hours=3))
 from core.health.garmin_data import get_garmin_data_for_date, sync_today_garmin
 from core.health.weekly_nutrition import analyze_weekly_nutrition
 from core.health.nutrition_targets import check_feasibility
+from config.users import ADMIN_USER_ID, is_admin
 # NOTE: SupplementService imported per-request to support multi-user
 
 router = Router()
@@ -21,29 +22,43 @@ router = Router()
 @router.message(Command("start"))
 async def cmd_start(message: Message, user_id: int, username: str, first_name: str):
     """Обработчик команды /start - регистрация и приветствие"""
-    # Register user in database
     from database import SessionLocal
-    from database.crud import ensure_user_exists
+    from database.crud import ensure_user_exists, get_average_activity_stats
 
     db = SessionLocal()
     try:
         user = ensure_user_exists(db, telegram_id=user_id, username=username, first_name=first_name)
-        db.close()
+        # Check if user has any Garmin/activity data for calorie targets
+        has_activity = bool(get_average_activity_stats(db, user_id, days=30))
+        has_manual_bmr = bool(user.bmr)
     except Exception as e:
         db.close()
         await message.answer(f"❌ Error registering user: {e}")
         return
+    finally:
+        db.close()
+
+    setup_hint = ""
+    if not has_activity and not has_manual_bmr:
+        setup_hint = (
+            "\n⚙️ <b>Нет данных о калориях?</b> Введи /setup BMR 1400 активные 250 "
+            "— бот сразу начнёт считать твой бюджет. Или просто логируй еду, "
+            "цели подстроятся по мере накопления данных.\n"
+        )
 
     await message.answer(
-        f"👋 Привет, {first_name}! Я HealthVault Tracker - бот для учёта питания и здоровья.\n\n"
-        "📸 Отправь фото еды/таблеток с описанием.\n"
-        "🗣 Или просто скажи голосом: 'Выпил витамины', 'Съел яблоко'.\n\n"
+        f"👋 Привет, {first_name}! Я трекер питания и здоровья.\n\n"
+        "📸 Отправь фото еды — распознаю состав и КБЖУ.\n"
+        "🗣 Или голосом: «Съел яблоко», «Выпил витамины».\n"
+        "📝 Или текстом: «Завтрак: овсянка 200г, кофе».\n"
+        f"{setup_hint}\n"
         "Команды:\n"
-        "/day — итоги дня (еда + витамины)\n"
+        "/day — итоги дня\n"
         "/vitamins — чек-лист добавок\n"
         "/week — анализ недели\n"
-        "/setup — BMR и калории (без Garmin)\n"
-        "/help — справка"
+        "/setup — настройка калорий (без Garmin)\n"
+        "/help — справка",
+        parse_mode="HTML",
     )
 
 
@@ -519,3 +534,94 @@ async def cmd_burn(message: Message, user_id: int):
 async def cmd_targets(message: Message):
     """Redirect to /setup"""
     await message.answer("Используй /setup для настройки BMR и активных калорий.")
+
+
+# ── Admin commands ────────────────────────────────────────────────────────────
+
+
+@router.message(Command("block"))
+async def cmd_block(message: Message, user_id: int):
+    """/block <telegram_id> — заблокировать пользователя (только admin)"""
+    if not is_admin(user_id):
+        return
+    parts = (message.text or "").split()
+    if len(parts) < 2 or not parts[1].isdigit():
+        await message.answer("Использование: /block <telegram_id>")
+        return
+    target_id = int(parts[1])
+    if target_id == ADMIN_USER_ID:
+        await message.answer("❌ Нельзя заблокировать себя.")
+        return
+
+    from database import SessionLocal
+    from database.models import User
+
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.telegram_id == target_id).first()
+        if not user:
+            await message.answer(f"❌ Пользователь {target_id} не найден в БД.")
+            return
+        user.is_active = False
+        db.commit()
+        name = f"@{user.username}" if user.username else user.first_name or str(target_id)
+        await message.answer(f"🚫 Пользователь {name} ({target_id}) заблокирован.")
+    finally:
+        db.close()
+
+
+@router.message(Command("unblock"))
+async def cmd_unblock(message: Message, user_id: int):
+    """/unblock <telegram_id> — разблокировать пользователя (только admin)"""
+    if not is_admin(user_id):
+        return
+    parts = (message.text or "").split()
+    if len(parts) < 2 or not parts[1].isdigit():
+        await message.answer("Использование: /unblock <telegram_id>")
+        return
+    target_id = int(parts[1])
+
+    from database import SessionLocal
+    from database.models import User
+
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.telegram_id == target_id).first()
+        if not user:
+            await message.answer(f"❌ Пользователь {target_id} не найден в БД.")
+            return
+        user.is_active = True
+        db.commit()
+        name = f"@{user.username}" if user.username else user.first_name or str(target_id)
+        await message.answer(f"✅ Пользователь {name} ({target_id}) разблокирован.")
+    finally:
+        db.close()
+
+
+@router.message(Command("users"))
+async def cmd_users(message: Message, user_id: int):
+    """/users — список всех пользователей (только admin)"""
+    if not is_admin(user_id):
+        return
+
+    from database import SessionLocal
+    from database.models import User
+
+    db = SessionLocal()
+    try:
+        users = db.query(User).order_by(User.registered_at.desc()).all()
+    finally:
+        db.close()
+
+    if not users:
+        await message.answer("Нет зарегистрированных пользователей.")
+        return
+
+    lines = [f"👥 <b>Пользователи ({len(users)}):</b>\n"]
+    for u in users:
+        status = "✅" if u.is_active else "🚫"
+        name = f"@{u.username}" if u.username else u.first_name or "—"
+        reg = u.registered_at.strftime("%d.%m.%Y") if u.registered_at else "?"
+        lines.append(f"{status} <code>{u.telegram_id}</code> {name} · с {reg}")
+
+    await message.answer("\n".join(lines), parse_mode="HTML")
