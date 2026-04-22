@@ -7,6 +7,30 @@
 
 ---
 
+## 2026-04-23 — Фикс UserSettings для новых пользователей + deploy.sh
+
+**Баг:** Новые пользователи регистрировались, но `UserSettings` не создавались — `get_user_settings()` возвращал `None`. Симптом: `calorie_goal_pct=None` в бюджете, хотя дефолт должен быть -15%.
+
+**Причина:** Сервер деплоился без пересборки образа. Docker-контейнер работал со старым `/app/database/models.py` (без поля `calorie_goal_pct`) и `crud.py` (без создания UserSettings). `git pull` обновлял только `/opt/healthvault/`, но не контейнер — `COPY . .` в Dockerfile не работал без `docker compose build`.
+
+**Решение:**
+- `docker cp` обновлённых файлов в работающий контейнер (быстрая hotfix)
+- `scripts/util/deploy.sh` — новый деплой-скрипт с двумя режимами:
+  - **fast** (default): rsync → docker cp → restart (~10с)
+  - **--full-rebuild**: rsync → docker compose build → force-recreate (~2 мин)
+  - Встроенный smoke test: регистрация пользователя + проверка UserSettings
+
+**Проверено:**
+```
+USER:     999888000 is_active=True             ✅
+SETTINGS: calorie_goal_pct=-15, show_bar=True  ✅
+BUDGET:   target=1828, has_garmin=False, goal_pct=-15  ✅
+```
+
+Коммит `42caea8`. — Claude Sonnet 4.6
+
+---
+
 ## 2026-04-22 — Открытая регистрация + admin /block /unblock /users
 
 **Что:** убран статический whitelist, бот стал открытым для всех Telegram-пользователей.
