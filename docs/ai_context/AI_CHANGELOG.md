@@ -7,6 +7,20 @@
 
 ---
 
+## 2026-04-22 — Открытая регистрация + admin /block /unblock /users
+
+**Что:** убран статический whitelist, бот стал открытым для всех Telegram-пользователей.
+
+**Изменения:**
+- `telegram-bot/middlewares/auth.py`: `is_user_allowed()` → проверка `users.is_active` из БД. `ensure_user_exists()` вызывается на каждом сообщении — новые пользователи регистрируются автоматически.
+- `config/users.py`: удалены `ALLOWED_USERS` и `is_user_allowed()`. Остались `ADMIN_USER_ID=895655` и `is_admin()`.
+- `telegram-bot/handlers/commands.py`: добавлены admin-команды `/block <id>`, `/unblock <id>`, `/users`. `/start` теперь показывает подсказку `/setup` для новых пользователей без Garmin.
+- `tests/test_multi_user.py`: тесты обновлены под open-registration модель. Добавлен `test_new_user_gets_default_settings`.
+
+**331 тест проходит.** Задеплоено на сервер. Коммит `a1f1921`. — Claude Sonnet 4.6
+
+---
+
 ## 2026-04-22 — Аудит мультиюзер-готовности + hardening user_id isolation
 
 **Что:** полный аудит хардкода `user_id=895655` в продакшн-коде перед разработкой мультиюзера (запланировано на 25–26 апр). Найдено и исправлено:
