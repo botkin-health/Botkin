@@ -11,8 +11,10 @@ import json
 import os
 from datetime import datetime
 
-API_KEY = "CLEARSPACE_API_KEY_REDACTED"
-HANDLE = "alexlyskovsky"
+API_KEY = os.environ.get("CLEARSPACE_API_KEY") or ""
+if not API_KEY:
+    raise SystemExit("CLEARSPACE_API_KEY env variable not set. Add it to .env")
+HANDLE = os.environ.get("CLEARSPACE_HANDLE", "alexlyskovsky")
 BASE_URL = "https://api.thescreentimenetwork.com/v1"
 OUTPUT_FILE = "data/activities/clearspace_iphone_screentime.json"
 
