@@ -216,6 +216,7 @@ class UserSettingsSchema(BaseModel):
     bmr_override: Optional[int] = None
     target_weight_kg: Optional[float] = None
     target_weight_date: Optional[str] = None  # YYYY-MM-DD string
+    calorie_goal_pct: int = -15  # signed %: -15 = deficit, 0 = maintain, +10 = surplus
     supplement_reminders_enabled: bool = False
     supplement_reminder_time: str = "08:00"  # HH:MM string
     supplements: List[SupplementItem] = []
@@ -255,6 +256,7 @@ async def get_settings(tg_user: dict = Depends(get_tg_user)):
             "bmr_override": s.bmr_override,
             "target_weight_kg": s.target_weight_kg,
             "target_weight_date": s.target_weight_date.isoformat() if s.target_weight_date else None,
+            "calorie_goal_pct": s.calorie_goal_pct if s.calorie_goal_pct is not None else -15,
             "supplement_reminders_enabled": s.supplement_reminders_enabled,
             "supplement_reminder_time": s.supplement_reminder_time.strftime("%H:%M")
             if s.supplement_reminder_time
@@ -305,6 +307,7 @@ async def save_settings(payload: UserSettingsSchema, tg_user: dict = Depends(get
             bmr_override=payload.bmr_override,
             target_weight_kg=payload.target_weight_kg,
             target_weight_date=twd,
+            calorie_goal_pct=payload.calorie_goal_pct,
             supplement_reminders_enabled=payload.supplement_reminders_enabled,
             supplement_reminder_time=reminder_time,
             supplements=supplements_list,

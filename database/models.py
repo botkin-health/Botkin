@@ -222,6 +222,9 @@ class UserSettings(Base):
     bmr_override: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     target_weight_kg: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     target_weight_date: Mapped[Optional[datetime.date]] = mapped_column(Date, nullable=True)
+    # Calorie goal: signed % relative to maintenance.
+    # -15 = 15% deficit (lose weight), 0 = maintenance, +10 = 10% surplus (gain).
+    calorie_goal_pct: Mapped[int] = mapped_column(Integer, default=-15, server_default="-15")
     supplement_reminders_enabled: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     supplement_reminder_time: Mapped[datetime.time] = mapped_column(Time, server_default="08:00:00")
     supplements: Mapped[list] = mapped_column(JSON, default=list, server_default="[]")

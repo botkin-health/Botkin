@@ -434,7 +434,7 @@ def test_goals_activity_today_null_when_no_data(client, monkeypatch):
 
 
 def test_goals_exposes_bmr_and_deficit_when_budget_available(client, monkeypatch):
-    """When caloric budget is computed, goals must expose bmr/activity_avg/deficit_pct."""
+    """When caloric budget is computed, goals must expose bmr/activity_avg/calorie_goal_pct."""
     # Patch in nutrition_goals where it's actually called from
     from webhook import nutrition_goals
 
@@ -450,6 +450,7 @@ def test_goals_exposes_bmr_and_deficit_when_budget_available(client, monkeypatch
             "has_garmin": True,
             "bmr_avg": 1650,
             "activity_avg": 350,
+            "calorie_goal_pct": -15,
         },
     )
 
@@ -459,7 +460,7 @@ def test_goals_exposes_bmr_and_deficit_when_budget_available(client, monkeypatch
     assert g["kcal"] == 2000
     assert g["bmr"] == 1650
     assert g["activity_avg"] == 350
-    assert g["deficit_pct"] == 15
+    assert g["calorie_goal_pct"] == -15
     # Macros derived from kcal
     assert g["protein"] == round(2000 * 0.30 / 4)
     assert g["fats"] == round(2000 * 0.30 / 9)
