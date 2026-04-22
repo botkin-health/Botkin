@@ -19,6 +19,7 @@ def test_compute_goals_full_budget():
         "has_garmin": True,
         "bmr_avg": 1650,
         "activity_avg": 350,
+        "calorie_goal_pct": -15,
     }
     with patch("webhook.nutrition_goals.get_daily_budget", return_value=fake_budget):
         g = compute_goals(user_id=895655, for_date=date(2026, 4, 17))
@@ -30,23 +31,31 @@ def test_compute_goals_full_budget():
         "fiber": 30,
         "bmr": 1650,
         "activity_avg": 350,
-        "deficit_pct": 15,
+        "calorie_goal_pct": -15,
     }
 
 
 def test_compute_goals_handles_missing_bmr_activity():
     """Older budget payloads without bmr_avg/activity_avg must still work."""
-    fake_budget = {"target": 2000, "consumed": 0, "remaining": 2000, "pct": 0, "warn": False, "has_garmin": True}
+    fake_budget = {
+        "target": 2000,
+        "consumed": 0,
+        "remaining": 2000,
+        "pct": 0,
+        "warn": False,
+        "has_garmin": True,
+        "calorie_goal_pct": -15,
+    }
     with patch("webhook.nutrition_goals.get_daily_budget", return_value=fake_budget):
         g = compute_goals(user_id=895655, for_date=date(2026, 4, 17))
     assert g["kcal"] == 2000
     assert g["bmr"] is None
     assert g["activity_avg"] is None
-    assert g["deficit_pct"] == 15
+    assert g["calorie_goal_pct"] == -15
 
 
 def test_compute_goals_missing_target_returns_none_kcal():
     fake_budget = {"target": None, "consumed": 0, "remaining": 0, "pct": 0, "warn": False, "has_garmin": False}
     with patch("webhook.nutrition_goals.get_daily_budget", return_value=fake_budget):
         g = compute_goals(user_id=895655, for_date=date(2026, 4, 17))
-    assert g == {"kcal": None, "protein": None, "fats": None, "carbs": None, "fiber": 30}
+    assert g == {"kcal": None, "protein": None, "fats": None, "carbs": None, "fiber": 30, "calorie_goal_pct": -15}

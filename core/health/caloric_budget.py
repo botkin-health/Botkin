@@ -9,18 +9,26 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-DEFICIT_RATIO = 0.85  # 15% deficit target
 WARN_THRESHOLD = 0.80  # warn when consumed ≥ 80% of target
 DEFAULT_TOTAL = 2150  # fallback if no Garmin data (≈ avg from analysis)
+DEFAULT_GOAL_PCT = -15  # default calorie goal: 15% deficit
 
 
-def get_daily_budget(user_id: int, for_date: Optional[date_type] = None) -> dict:
+def get_daily_budget(
+    user_id: int,
+    for_date: Optional[date_type] = None,
+    calorie_goal_pct: Optional[int] = None,
+) -> dict:
     """
     Returns caloric budget for the day.
 
+    calorie_goal_pct: signed % vs maintenance.
+        -15 = 15% deficit (default), 0 = maintenance, +10 = 10% surplus.
+        If None, reads from user_settings (falls back to DEFAULT_GOAL_PCT).
+
     Keys:
         consumed   – kcal eaten so far
-        target     – daily limit with 15% deficit
+        target     – daily limit adjusted for goal
         remaining  – target - consumed (can be negative)
         pct        – consumed / target * 100
         warn       – True if consumed >= 80% of target
@@ -43,7 +51,13 @@ def get_daily_budget(user_id: int, for_date: Optional[date_type] = None) -> dict
             total_burned = DEFAULT_TOTAL
             has_garmin = False
 
-        target = round(total_burned * DEFICIT_RATIO)
+        if calorie_goal_pct is None:
+            from database.crud import get_user_settings
+
+            s = get_user_settings(db, user_id)
+            calorie_goal_pct = s.calorie_goal_pct if s and s.calorie_goal_pct is not None else DEFAULT_GOAL_PCT
+        ratio = 1.0 + calorie_goal_pct / 100.0  # -15 → 0.85, 0 → 1.0, +10 → 1.10
+        target = round(total_burned * ratio)
 
         # --- Consumed: today's nutrition_log ---
         totals = get_nutrition_totals_by_date(db, user_id, today)
@@ -61,6 +75,7 @@ def get_daily_budget(user_id: int, for_date: Optional[date_type] = None) -> dict
             "has_garmin": has_garmin,
             "bmr_avg": round(avg_stats.get("bmr_calories", 0)) if avg_stats else None,
             "activity_avg": round(avg_stats.get("active_calories", 0)) if avg_stats else None,
+            "calorie_goal_pct": calorie_goal_pct,
         }
     except Exception as e:
         logger.warning(f"get_daily_budget failed: {e}")
