@@ -14,14 +14,20 @@ CARBS_SHARE = 0.40
 FIBER_GOAL_G = 30
 
 
-DEFICIT_PCT = 15
-
-
 def compute_goals(user_id: int, for_date: Optional[date_type] = None) -> dict:
+    # calorie_goal_pct is read inside get_daily_budget from user_settings
     budget = get_daily_budget(user_id=user_id, for_date=for_date)
     kcal = budget.get("target")
+    goal_pct = budget.get("calorie_goal_pct", -15)
     if not kcal:
-        return {"kcal": None, "protein": None, "fats": None, "carbs": None, "fiber": FIBER_GOAL_G}
+        return {
+            "kcal": None,
+            "protein": None,
+            "fats": None,
+            "carbs": None,
+            "fiber": FIBER_GOAL_G,
+            "calorie_goal_pct": goal_pct,
+        }
     return {
         "kcal": int(kcal),
         "protein": round(kcal * PROTEIN_SHARE / 4),
@@ -30,5 +36,5 @@ def compute_goals(user_id: int, for_date: Optional[date_type] = None) -> dict:
         "fiber": FIBER_GOAL_G,
         "bmr": budget.get("bmr_avg"),
         "activity_avg": budget.get("activity_avg"),
-        "deficit_pct": DEFICIT_PCT,
+        "calorie_goal_pct": goal_pct,
     }
