@@ -16,6 +16,7 @@ Endpoints:
 All endpoints require a valid Telegram WebApp initData via `get_tg_user`.
 """
 
+from collections import defaultdict, deque
 from datetime import date as date_type, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -72,15 +73,15 @@ async def get_supplements_day(
         planned = (s.supplements or []) if s else []
         taken_logs = get_supplements_by_date(db, user_id=user_id, date=for_date)
 
-        # Build a map of name (case-insensitive) → earliest taken_at time string
-        # so duplicates in log (if any) collapse to the first recorded time.
-        taken_map: dict[str, tuple[str, int]] = {}
-        for log in taken_logs:
+        # Build a map: name → deque of (time_str, log_id) sorted ascending by time.
+        # Each scheduled occurrence consumes one log entry (FIFO), so a supplement
+        # scheduled twice (morning + evening) requires two log entries to show both
+        # as taken — one log entry only marks the first scheduled occurrence.
+        taken_by_name: dict[str, deque] = defaultdict(deque)
+        for log in sorted(taken_logs, key=lambda l: l.time or datetime.min.time()):
             key = log.supplement_name.lower().strip()
             tstr = log.time.strftime("%H:%M") if log.time else ""
-            # Keep the earliest time per name
-            if key not in taken_map or tstr < taken_map[key][0]:
-                taken_map[key] = (tstr, log.id)
+            taken_by_name[key].append((tstr, log.id))
 
         slots: dict[str, list[dict]] = {k: [] for k in SLOTS}
         total = 0
@@ -91,16 +92,17 @@ async def get_supplements_day(
             if slot not in slots:
                 slot = "morning_with"
             key = name.lower()
-            taken = taken_map.get(key)
+            # Consume one log entry per scheduled occurrence (FIFO by time).
+            entry = taken_by_name[key].popleft() if taken_by_name[key] else None
             slots[slot].append(
                 {
                     "name": name,
-                    "taken_at": taken[0] if taken else None,
-                    "log_id": taken[1] if taken else None,
+                    "taken_at": entry[0] if entry else None,
+                    "log_id": entry[1] if entry else None,
                 }
             )
             total += 1
-            if taken:
+            if entry:
                 taken_count += 1
 
         return {
@@ -127,22 +129,32 @@ async def take_supplement(
 
     db = SessionLocal()
     try:
-        # Idempotency check — avoid dupes if user double-taps
-        existing = (
+        s = get_user_settings(db, user_id=user_id)
+        planned = (s.supplements or []) if s else []
+
+        # How many times is this supplement scheduled today?
+        name_lower = payload.name.strip().lower()
+        scheduled_count = sum(1 for item in planned if (item.get("name") or "").strip().lower() == name_lower)
+        scheduled_count = max(scheduled_count, 1)  # at least 1 even if not in settings
+
+        # How many times already logged today?
+        logged_rows = (
             db.query(SupplementLog)
             .filter(
                 SupplementLog.user_id == user_id,
                 SupplementLog.date == for_date,
                 SupplementLog.supplement_name.ilike(payload.name.strip()),
             )
-            .order_by(SupplementLog.time.desc())
-            .first()
+            .order_by(SupplementLog.time.asc())
+            .all()
         )
-        if existing:
+        # Idempotency: if already logged as many times as scheduled, don't add more
+        if len(logged_rows) >= scheduled_count:
+            last = logged_rows[-1]
             return {
                 "status": "already_taken",
-                "log_id": existing.id,
-                "taken_at": existing.time.strftime("%H:%M") if existing.time else None,
+                "log_id": last.id,
+                "taken_at": last.time.strftime("%H:%M") if last.time else None,
             }
 
         now_msk = datetime.now(MSK).time().replace(microsecond=0)
