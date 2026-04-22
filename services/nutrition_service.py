@@ -29,7 +29,7 @@ class NutritionService:
         Initialize service for specific user
 
         Args:
-            user_id: Telegram ID of the user (default: 895655)
+            user_id: Telegram ID of the user
         """
         self.user_id = user_id
 
