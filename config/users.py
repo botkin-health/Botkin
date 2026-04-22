@@ -1,31 +1,14 @@
 """
-User authorization configuration for HealthVault bot.
+User configuration for HealthVault bot.
 
-This module contains the whitelist of allowed Telegram users
-and authorization logic.
+Open registration: any Telegram user can sign up.
+Authorization is handled via users.is_active in the database (AuthMiddleware).
 """
 
-# Whitelist of allowed Telegram IDs
-ALLOWED_USERS = {
-    895655,  # Alex Lyskovsky
-    REDACTED_ID,  # Nika Selezneva
-    REDACTED_ID,  # Andrey
-}
+# Admin Telegram ID — can use /block, /unblock, /users commands
+ADMIN_USER_ID = 895655  # Alex Lyskovsky
 
 
-def is_user_allowed(telegram_id: int) -> bool:
-    """
-    Check if user is authorized to use the bot.
-
-    Args:
-        telegram_id: Telegram user ID
-
-    Returns:
-        True if user is in whitelist, False otherwise
-    """
-    return telegram_id in ALLOWED_USERS
-
-
-def get_allowed_users_count() -> int:
-    """Get number of allowed users"""
-    return len(ALLOWED_USERS)
+def is_admin(telegram_id: int) -> bool:
+    """Check if user has admin privileges."""
+    return telegram_id == ADMIN_USER_ID

@@ -1,58 +1,64 @@
 """
 Authorization middleware for Telegram bot.
 
-Checks if users are in the whitelist before allowing access to bot commands.
+Open registration: any Telegram user can sign up via /start.
+Blocked users (is_active=False) are rejected. Admin can block via /block.
 """
 
 from typing import Callable, Dict, Any, Awaitable
 from aiogram import BaseMiddleware
 from aiogram.types import Message, TelegramObject
 import sys
+import logging
 from pathlib import Path
 
-# Add project root to path for config import
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from config.users import is_user_allowed
+logger = logging.getLogger(__name__)
+
+ADMIN_USER_ID = 895655  # only admin can use /block, /unblock, /users
 
 
 class AuthMiddleware(BaseMiddleware):
     """
-    Middleware to check if user is authorized to use the bot.
+    Middleware for open-registration bot.
 
-    Validates user against whitelist and passes user_id to all handlers.
+    - Any user can start; ensure_user_exists() registers them on first message.
+    - Blocked users (is_active=False) are rejected with a friendly message.
+    - Passes user_id / username / first_name to all handlers.
     """
 
     async def __call__(
         self, handler: Callable[[TelegramObject, Dict[str, Any]], Awaitable[Any]], event: Message, data: Dict[str, Any]
     ) -> Any:
-        """
-        Process message and check authorization.
-
-        Args:
-            handler: Next handler in chain
-            event: Incoming message
-            data: Handler data dictionary
-
-        Returns:
-            Handler result or None if unauthorized
-        """
-        # Skip authorization for non-message updates
+        # Skip non-message updates (inline queries, etc.)
         if not isinstance(event, Message):
             return await handler(event, data)
 
         user_id = event.from_user.id
-        username = event.from_user.username or "Unknown"
+        username = event.from_user.username or ""
         first_name = event.from_user.first_name or "User"
 
-        # Check if user is allowed
-        if not is_user_allowed(user_id):
+        # Register user if new, update last_active if existing.
+        # Returns User ORM object with is_active field.
+        try:
+            from database import SessionLocal
+            from database.crud import ensure_user_exists
+
+            db = SessionLocal()
+            try:
+                user = ensure_user_exists(db, telegram_id=user_id, username=username, first_name=first_name)
+                is_active = user.is_active
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"AuthMiddleware DB error for user {user_id}: {e}", exc_info=True)
+            await event.answer("⚠️ Временная ошибка сервера. Попробуй ещё раз через минуту.")
+            return
+
+        if not is_active:
             await event.answer(
-                f"❌ Unauthorized Access\n\n"
-                f"Sorry {first_name}, you are not authorized to use this bot.\n"
-                f"Contact the administrator for access.\n\n"
-                f"Your Telegram ID: `{user_id}`",
-                parse_mode="Markdown",
+                "🚫 Ваш аккаунт заблокирован.\nЕсли вы считаете, что это ошибка — напишите администратору."
             )
             return
 
@@ -61,5 +67,4 @@ class AuthMiddleware(BaseMiddleware):
         data["username"] = username
         data["first_name"] = first_name
 
-        # Continue to handler
         return await handler(event, data)
