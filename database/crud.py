@@ -24,6 +24,7 @@ from database.models import (
     ActivityLog,
     BloodTest,
     BodyMeasurement,
+    UserSettings,
 )
 
 logger = logging.getLogger(__name__)
@@ -308,6 +309,12 @@ def ensure_user_exists(
             role="user",
         )
         db.add(user)
+        db.flush()  # получаем PK до создания settings
+
+        # Создаём дефолтные настройки: calorie_goal_pct=-15, show_calorie_budget_bar=True
+        settings = UserSettings(user_id=telegram_id)
+        db.add(settings)
+
         db.commit()
         db.refresh(user)
         logger.info(f"✅ New user registered: {telegram_id} (@{username})")
