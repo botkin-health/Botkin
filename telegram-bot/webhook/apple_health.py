@@ -22,7 +22,9 @@ app = FastAPI(title="HealthVault Apple Health Webhook", docs_url=None, redoc_url
 
 APPLE_HEALTH_TOKEN = os.getenv("APPLE_HEALTH_TOKEN", "")
 BOT_TOKEN = os.getenv("BOT_TOKEN") or os.getenv("TELEGRAM_BOT_TOKEN", "")
-PRIMARY_USER_ID = int(os.getenv("TELEGRAM_USER_ID", "895655"))
+# Fallback user for backward compat (single-user setup).
+# In multi-user setup each user has their own health_token in users.health_token.
+_target_user_id = int(os.getenv("TELEGRAM_USER_ID", "895655"))
 
 
 # ── Telegram WebApp Auth ──────────────────────────────────────────────────────
@@ -34,12 +36,21 @@ from webhook.tg_auth import get_tg_user, verify_telegram_init_data  # noqa: F401
 
 
 def verify_token(authorization: str = Header(...)):
-    """Bearer token auth."""
+    """Bearer token auth.
+
+    Returns the raw token string so the endpoint can resolve which user sent the data.
+    """
     if not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing Bearer token")
     token = authorization.removeprefix("Bearer ").strip()
-    if not APPLE_HEALTH_TOKEN or token != APPLE_HEALTH_TOKEN:
+    if not token:
         raise HTTPException(status_code=403, detail="Invalid token")
+    # Accept either the global APPLE_HEALTH_TOKEN (backward compat / single-user)
+    # OR any per-user token stored in users.health_token (multi-user).
+    # Actual user resolution happens in the endpoint after DB lookup.
+    if APPLE_HEALTH_TOKEN and token == APPLE_HEALTH_TOKEN:
+        return token  # global token — will resolve to _target_user_id
+    # Per-user tokens are validated inside the endpoint against the DB.
     return token
 
 
@@ -100,11 +111,14 @@ async def health_check():
 @app.post("/apple_health")
 async def receive_apple_health(
     payload: AppleHealthPayload,
-    _token: str = Depends(verify_token),
+    bearer_token: str = Depends(verify_token),
 ):
     """
     Принимает JSON от iPhone Shortcuts и пишет в БД.
-    Возвращает summary что было сохранено.
+
+    Роутинг пользователя:
+    - Если bearer == APPLE_HEALTH_TOKEN (global) → _target_user_id (backward compat)
+    - Иначе → ищем по users.health_token → получаем user_id из БД
     """
     try:
         record_date = date.fromisoformat(payload.date)
@@ -121,7 +135,21 @@ async def receive_apple_health(
         sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
         from database import SessionLocal
-        from database.crud import create_or_update_activity, create_weight
+        from database.crud import create_or_update_activity, create_weight, get_user_by_health_token
+
+        # ── Resolve user ──────────────────────────────────────────────────────
+        if APPLE_HEALTH_TOKEN and bearer_token == APPLE_HEALTH_TOKEN:
+            target_user_id = _target_user_id
+        else:
+            # Per-user token: look up in DB
+            _db_auth = SessionLocal()
+            try:
+                _user = get_user_by_health_token(_db_auth, bearer_token)
+            finally:
+                _db_auth.close()
+            if not _user:
+                raise HTTPException(status_code=403, detail="Unknown token")
+            target_user_id = _user.telegram_id
 
         db = SessionLocal()
         try:
@@ -157,7 +185,7 @@ async def receive_apple_health(
 
             activity = create_or_update_activity(
                 db=db,
-                user_id=PRIMARY_USER_ID,
+                user_id=target_user_id,
                 date=record_date,
                 steps=payload.steps,
                 active_calories=payload.active_energy_kcal,
@@ -172,7 +200,7 @@ async def receive_apple_health(
             if payload.weight_kg and payload.weight_kg > 30:
                 weight_entry = create_weight(
                     db=db,
-                    user_id=PRIMARY_USER_ID,
+                    user_id=target_user_id,
                     date=record_date,
                     weight=payload.weight_kg,
                     body_fat=payload.body_fat_pct,

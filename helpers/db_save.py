@@ -85,7 +85,7 @@ def normalize_item_to_canonical(item: Dict[str, Any]) -> Dict[str, Any]:
     return canonical
 
 
-def save_meal_to_db(meal_data: dict, meal_name: str = None, user_id: int = 895655) -> bool:
+def save_meal_to_db(meal_data: dict, meal_name: str = None, user_id: int = None) -> bool:
     """
     Сохраняет приём пищи в PostgreSQL
 
@@ -97,6 +97,8 @@ def save_meal_to_db(meal_data: dict, meal_name: str = None, user_id: int = 89565
     Returns:
         True if successful
     """
+    if user_id is None:
+        raise ValueError("save_meal_to_db: user_id is required")
     try:
         # Определяем дату
         custom_date = meal_data.get("date")
@@ -171,7 +173,7 @@ def save_meal_to_db(meal_data: dict, meal_name: str = None, user_id: int = 89565
         return False
 
 
-def save_weight_to_db(data: Dict[str, Any], user_id: int = 895655) -> str:
+def save_weight_to_db(data: Dict[str, Any], user_id: int = None) -> str:
     """
     Saves a weight measurement to PostgreSQL
 
@@ -182,6 +184,8 @@ def save_weight_to_db(data: Dict[str, Any], user_id: int = 895655) -> str:
     Returns:
         String confirmation or empty string on error
     """
+    if user_id is None:
+        raise ValueError("save_weight_to_db: user_id is required")
     try:
         # Определяем дату и время
         date_input = data.get("date")
@@ -241,7 +245,7 @@ def save_weight_to_db(data: Dict[str, Any], user_id: int = 895655) -> str:
         return ""
 
 
-def save_supplements_to_db(items: list, user_id: int = 895655, date_str: Optional[str] = None) -> bool:
+def save_supplements_to_db(items: list, user_id: int = None, date_str: Optional[str] = None) -> bool:
     """
     Сохраняет добавки в PostgreSQL
 
@@ -253,6 +257,8 @@ def save_supplements_to_db(items: list, user_id: int = 895655, date_str: Optiona
     Returns:
         True if successful
     """
+    if user_id is None:
+        raise ValueError("save_supplements_to_db: user_id is required")
     if not items:
         return False
 
@@ -283,10 +289,12 @@ def save_supplements_to_db(items: list, user_id: int = 895655, date_str: Optiona
         return False
 
 
-def save_body_measurement_to_db(data: Dict[str, Any], user_id: int = 895655) -> bool:
+def save_body_measurement_to_db(data: Dict[str, Any], user_id: int = None) -> bool:
     """
     Сохраняет замеры тела в PostgreSQL и JSON
     """
+    if user_id is None:
+        raise ValueError("save_body_measurement_to_db: user_id is required")
     try:
         # 1. Сначала сохраняем в JSON (как исторически сложилось)
         save_body_measurement_to_json(data)
