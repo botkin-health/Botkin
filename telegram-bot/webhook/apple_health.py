@@ -354,6 +354,10 @@ from webhook.supplements_api import router as supplements_router
 app.include_router(nutrition_router)
 app.include_router(supplements_router)
 
+from webhook.dashboard import router as dashboard_router
+
+app.include_router(dashboard_router)
+
 
 # ── Static webapp ─────────────────────────────────────────────────────────────
 
