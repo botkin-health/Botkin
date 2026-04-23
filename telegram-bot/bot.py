@@ -241,6 +241,7 @@ async def main():
         BotCommand(command="day", description="Итоги дня"),
         BotCommand(command="week", description="Анализ недели"),
         BotCommand(command="vitamins", description="Чек-лист витаминов"),
+        BotCommand(command="share", description="Поделиться дашбордом здоровья"),
         BotCommand(command="help", description="Помощь"),
     ]
 
