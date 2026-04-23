@@ -97,6 +97,41 @@ def generate_health_token(db: Session, telegram_id: int) -> str:
     return token
 
 
+def get_user_by_share_token(db: Session, share_token: str) -> Optional[User]:
+    """Get user by share dashboard token"""
+    return db.query(User).filter(User.share_token == share_token).first()
+
+
+def generate_share_token(db: Session, telegram_id: int) -> str:
+    """Generate and save a unique share token for user's public dashboard.
+
+    Idempotent: if user already has a token, returns it unchanged.
+    Call reset_share_token() to force-regenerate.
+    """
+    import uuid
+
+    user = get_user_by_telegram_id(db, telegram_id)
+    if not user:
+        raise ValueError(f"User {telegram_id} not found")
+    if user.share_token:
+        return user.share_token
+    user.share_token = str(uuid.uuid4())
+    db.commit()
+    return user.share_token
+
+
+def reset_share_token(db: Session, telegram_id: int) -> str:
+    """Regenerate share token — old URL immediately stops working."""
+    import uuid
+
+    user = get_user_by_telegram_id(db, telegram_id)
+    if not user:
+        raise ValueError(f"User {telegram_id} not found")
+    user.share_token = str(uuid.uuid4())
+    db.commit()
+    return user.share_token
+
+
 # ==================== NUTRITION LOG OPERATIONS ====================
 
 

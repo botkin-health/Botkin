@@ -57,6 +57,9 @@ class User(Base):
     # Apple Health token for API authentication
     health_token: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, unique=True)
 
+    # Share token for public dashboard (security by obscurity)
+    share_token: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, unique=True)
+
     # Garmin credentials (encrypted in production)
     garmin_email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     garmin_password: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
