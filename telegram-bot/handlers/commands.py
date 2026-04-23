@@ -625,3 +625,45 @@ async def cmd_users(message: Message, user_id: int):
         lines.append(f"{status} <code>{u.telegram_id}</code> {name} · с {reg}")
 
     await message.answer("\n".join(lines), parse_mode="HTML")
+
+
+@router.message(Command("share"))
+async def cmd_share(message: Message, user_id: int):
+    """/share — создаёт/показывает секретную ссылку на персональный дашборд.
+
+    /share        — показать/создать ссылку
+    /share reset  — пересоздать ссылку (старая перестаёт работать)
+    """
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+
+    from database import SessionLocal
+    from database.crud import generate_share_token, reset_share_token
+
+    args = message.text.split()[1:] if message.text else []
+    do_reset = bool(args) and args[0].lower() == "reset"
+
+    db = SessionLocal()
+    try:
+        if do_reset:
+            token = reset_share_token(db, user_id)
+            action_text = "🔁 Ссылка пересоздана — старая больше не работает."
+        else:
+            token = generate_share_token(db, user_id)
+            action_text = "📊 Твой персональный дашборд здоровья:"
+    except Exception as e:
+        await message.answer(f"❌ Ошибка: {e}")
+        return
+    finally:
+        db.close()
+
+    url = f"https://health.orangegate.cc/mc/{token}"
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔗 Открыть дашборд", url=url)]])
+
+    await message.answer(
+        f"{action_text}\n\n"
+        f"<code>{url}</code>\n\n"
+        "Кидай ссылку друзьям — дашборд обновляется автоматически при каждом открытии.\n"
+        "Хочешь сменить ссылку (старая перестанет работать)? Напиши /share reset",
+        parse_mode="HTML",
+        reply_markup=keyboard,
+    )
