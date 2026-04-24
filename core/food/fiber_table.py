@@ -256,6 +256,12 @@ _FIBER_PER_100G = [
     # Confectionery / grains misc
     ("гречнев хлебц", 7.0),
     ("отруб", 24.0),
+    # Fiber supplements (БАД) — almost pure soluble fiber.
+    # Users log these as "Псиллиум", "Псиллиум (БАД)", "Psyllium husk", etc.
+    # The LLM sometimes leaves fiber=0 when the name lacks a "(БАД)" hint.
+    ("псиллиум", 85.0),
+    ("псилиум", 85.0),  # common misspelling
+    ("psyllium", 85.0),
     ("мюсли", 7.0),
     ("гранол", 6.0),
     # Каша (generic, обобщённо для варёных круп) — after specific оатсян/греч/рис/etc

@@ -32,6 +32,24 @@ def test_fiber_per_100g_known_foods():
     assert fiber_per_100g("семена чиа") == 34.4
 
 
+def test_fiber_per_100g_psyllium_variants():
+    """Псиллиум — почти чистая клетчатка (~85%). LLM иногда забывает про fiber
+    когда название без скобок «(БАД)» — fiber_table должен подстраховать."""
+    assert fiber_per_100g("Псиллиум") == 85.0
+    assert fiber_per_100g("Псиллиум (БАД)") == 85.0
+    assert fiber_per_100g("псилиум") == 85.0  # misspelling
+    assert fiber_per_100g("Psyllium husk") == 85.0
+
+
+def test_estimate_fiber_psyllium_for_nika_case():
+    """Регрессия: Ника залогала «Псиллиум 3г», LLM вернул fiber=0,
+    enrich_items_with_fiber должен дать ~2.5г клетчатки.
+    Python round() использует банковское округление: 2.55 → 2.5."""
+    assert estimate_fiber("Псиллиум", 3) == 2.5  # 85 × 3 / 100 = 2.55 → 2.5
+    assert estimate_fiber("Псиллиум (БАД)", 5) == 4.2  # 85 × 5 / 100 = 4.25 → 4.2
+    assert estimate_fiber("Псиллиум", 10) == 8.5  # 8.5 точно
+
+
 def test_fiber_per_100g_unknown_returns_none():
     assert fiber_per_100g("говядина тушёная") is None
     assert fiber_per_100g("") is None
