@@ -196,7 +196,31 @@ async def receive_apple_health(
             )
             saved.append(f"activity_log: steps={payload.steps}, HR={heart_rate}, dist={payload.distance_walking_km}km")
 
-            # ── 2. weights (если пришёл вес от Zepp через Apple Health) ─────
+            # ── 2. blood_pressure_logs (BP в отдельную таблицу — не затирается Garmin) ──
+            if payload.blood_pressure_systolic and payload.blood_pressure_diastolic:
+                from sqlalchemy import text as _text
+
+                measured_at = datetime.combine(record_date, datetime.min.time().replace(hour=8))
+                db.execute(
+                    _text(
+                        """INSERT INTO blood_pressure_logs
+                           (user_id, measured_at, systolic, diastolic, heart_rate, source)
+                           VALUES (:uid, :ts, :sys, :dia, :hr, 'apple_health_shortcut')
+                           ON CONFLICT (user_id, measured_at) DO UPDATE
+                             SET systolic = EXCLUDED.systolic,
+                                 diastolic = EXCLUDED.diastolic"""
+                    ),
+                    {
+                        "uid": target_user_id,
+                        "ts": measured_at,
+                        "sys": payload.blood_pressure_systolic,
+                        "dia": payload.blood_pressure_diastolic,
+                        "hr": heart_rate,
+                    },
+                )
+                saved.append(f"blood_pressure: {payload.blood_pressure_systolic}/{payload.blood_pressure_diastolic}")
+
+            # ── 3. weights (если пришёл вес от Zepp через Apple Health) ─────
             if payload.weight_kg and payload.weight_kg > 30:
                 weight_entry = create_weight(
                     db=db,
