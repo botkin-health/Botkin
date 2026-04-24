@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>HealthVault · Mission Control</title>
+<meta name="viewport" content="width=1440">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0a0e17;
+  --bg2: #0f1420;
+  --card: #141a28;
+  --card-hi: #1a2234;
+  --border: #1f2940;
+  --text: #e8eef7;
+  --muted: #7a879f;
+  --dim: #4a556b;
+  --g: #00ff9d;
+  --g2: #00c878;
+  --y: #ffb800;
+  --r: #ff3b6d;
+  --b: #3b82f6;
+  --p: #a855f7;
+}
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'SF Pro Display','Inter',-apple-system,sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  padding: 20px;
+  box-sizing: border-box;
+  background-image: radial-gradient(circle at 20% 0%, rgba(0,255,157,0.03) 0%, transparent 50%),
+                    radial-gradient(circle at 80% 100%, rgba(168,85,247,0.03) 0%, transparent 50%);
+}
+.mono { font-family: 'SF Mono','JetBrains Mono',monospace; }
+.topbar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 20px; background: var(--card);
+  border: 1px solid var(--border); border-radius: 12px;
+  margin-bottom: 16px; position: relative; overflow: hidden;
+}
+.topbar::before {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(0,255,157,0.06) 50%, transparent 100%);
+  animation: scan 8s linear infinite;
+}
+@keyframes scan { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+.logo { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+.logo .accent { color: var(--g); }
+.live {
+  display: flex; align-items: center; gap: 8px; color: var(--g);
+  font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+}
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--g);
+       box-shadow: 0 0 12px var(--g); animation: pulse 2s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+.countdown {
+  display: flex; gap: 18px; align-items: center;
+}
+.countdown .big { font-size: 28px; font-weight: 800; color: var(--g); }
+.countdown .lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; }
+
+.grid { display: grid; gap: 16px; }
+.hero-grid { grid-template-columns: 1.5fr minmax(0,1fr) minmax(0,1fr) minmax(0,1fr); margin-bottom: 16px; }
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+  position: relative;
+  overflow: hidden;
+}
+.card.hero-main {
+  background: linear-gradient(135deg, rgba(0,255,157,0.08) 0%, rgba(0,200,120,0.02) 100%);
+  border-color: rgba(0,255,157,0.3);
+}
+.card-label {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 1.8px;
+  color: var(--muted); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
+}
+.card-label .status { width: 6px; height: 6px; border-radius: 50%; }
+.status.ok { background: var(--g); box-shadow: 0 0 6px var(--g); }
+.status.warn { background: var(--y); box-shadow: 0 0 6px var(--y); }
+.status.crit { background: var(--r); box-shadow: 0 0 6px var(--r); }
+.big-number { font-size: 48px; font-weight: 800; line-height: 1; letter-spacing: -1.5px; }
+.big-number.g { color: var(--g); }
+.big-number.y { color: var(--y); }
+.big-number.r { color: var(--r); }
+.sub { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.delta-pill {
+  display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 8px;
+  border-radius: 20px; margin-left: 8px;
+}
+.delta-pill.down { background: rgba(0,255,157,0.12); color: var(--g); }
+.delta-pill.up { background: rgba(255,59,109,0.12); color: var(--r); }
+
+.grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.grid-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.grid-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+
+.stream {
+  background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+  padding: 12px 14px; position: relative;
+}
+.stream .name { font-size: 11px; color: var(--muted); text-transform: uppercase;
+                letter-spacing: 1px; margin-bottom: 4px;
+                display: flex; justify-content: space-between; align-items: center; }
+.stream .val { font-size: 24px; font-weight: 700; line-height: 1.1; }
+.stream .unit { font-size: 11px; color: var(--muted); margin-left: 4px; font-weight: 400; }
+.stream .trend { font-size: 10px; color: var(--muted); margin-top: 4px; }
+.stream .spark { height: 28px; margin-top: 6px; }
+
+.chart-wrap { height: 360px; }
+.chart-wrap.tall { height: 420px; }
+.chart-wrap.short { height: 220px; }
+
+.section-title {
+  font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px;
+  color: var(--text); margin: 32px 0 14px; display: flex; align-items: center; gap: 10px;
+}
+.section-title::before {
+  content: ''; width: 4px; height: 16px; background: var(--g); border-radius: 2px;
+}
+.section-title .hint { font-size: 10px; font-weight: 400; color: var(--muted);
+                       text-transform: none; letter-spacing: 0.3px; margin-left: 10px; }
+
+/* Heatmap */
+.heatmap { display: flex; gap: 3px; flex-wrap: wrap; }
+.hm-week { display: flex; flex-direction: column; gap: 3px; }
+.hm-cell { width: 12px; height: 12px; border-radius: 2px;
+           background: var(--bg2); position: relative; }
+.hm-cell.lvl1 { background: rgba(0,255,157,0.15); }
+.hm-cell.lvl2 { background: rgba(0,255,157,0.4); }
+.hm-cell.lvl3 { background: rgba(0,255,157,0.7); }
+.hm-cell.lvl4 { background: var(--g); box-shadow: 0 0 3px rgba(0,255,157,0.5); }
+.hm-cell.alco::after { content: ''; position: absolute; inset: 0;
+  border: 1.5px solid var(--r); border-radius: 2px; }
+.hm-legend { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+.hm-legend .hm-cell { width: 10px; height: 10px; }
+
+/* Biomarker table */
+.biotable { width: 100%; border-collapse: collapse; font-size: 13px; }
+.biotable th { text-align: left; font-size: 10px; text-transform: uppercase;
+               letter-spacing: 1.5px; color: var(--muted); padding: 6px 8px;
+               border-bottom: 1px solid var(--border); font-weight: 600; }
+.biotable td { padding: 9px 8px; border-bottom: 1px solid var(--border); }
+.biotable td.val { font-weight: 700; text-align: right; }
+.biotable td.d { color: var(--muted); font-size: 11px; }
+.biotable .bar { width: 80px; height: 4px; background: var(--bg2); border-radius: 2px;
+                 overflow: hidden; display: inline-block; vertical-align: middle;
+                 margin-right: 8px; }
+.biotable .bar div { height: 100%; border-radius: 2px; }
+
+.ach-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.ach {
+  background: linear-gradient(135deg, var(--card-hi) 0%, var(--card) 100%);
+  border: 1px solid var(--border); border-radius: 10px; padding: 14px;
+  display: flex; align-items: center; gap: 12px;
+}
+.ach .emoji { font-size: 28px; }
+.ach .tt { font-size: 13px; font-weight: 700; }
+.ach .dd { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+.score-ring { position: relative; width: 180px; height: 180px; margin: 0 auto; }
+.score-num { position: absolute; inset: 0; display: flex;
+             flex-direction: column; align-items: center; justify-content: center; }
+.score-num .big { font-size: 52px; font-weight: 800; color: var(--g); line-height: 1; }
+.score-num .lbl { font-size: 10px; color: var(--muted); letter-spacing: 2px;
+                  text-transform: uppercase; margin-top: 4px; }
+
+.footer { text-align: center; color: var(--dim); font-size: 11px;
+          margin-top: 30px; padding: 20px; letter-spacing: 0.5px; }
+.footer .accent { color: var(--g); }
+
+/* Biomarker panel tabs */
+.panel-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border);
+              margin-bottom: 14px; overflow-x: auto; scrollbar-width: none; }
+.panel-tabs::-webkit-scrollbar { display: none; }
+.panel-tab { padding: 8px 14px; font-size: 11px; font-weight: 600; color: var(--muted);
+             border: none; border-bottom: 2px solid transparent; cursor: pointer;
+             white-space: nowrap; transition: color .2s, border-color .2s;
+             letter-spacing: 0.4px; background: none; font-family: inherit; }
+.panel-tab:hover { color: var(--text); }
+.panel-tab.active { color: var(--g); border-bottom-color: var(--g); }
+.panel-content { display: none; }
+.panel-content.active { display: block; }
+.panel-source { font-size: 10px; color: var(--dim); margin-bottom: 10px; line-height: 1.6; }
+.panel-source a { color: var(--muted); text-decoration: none; }
+.panel-source a:hover { color: var(--g); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div style="display:flex; align-items:center; gap:18px;">
+    <div class="logo">HealthVault<span class="accent"> · Mission Control</span></div>
+    <div class="live"><div class="dot"></div> LIVE DATA</div>
+  </div>
+  <div class="countdown">
+    <div>
+      <div class="lbl">Потоков данных</div>
+      <div class="big mono">18</div>
+    </div>
+    <div>
+      <div class="lbl">Параметров</div>
+      <div class="big mono">635</div>
+    </div>
+    <div>
+      <div class="lbl">Лет истории</div>
+      <div class="big mono">17</div>
+    </div>
+    <div style="border-left:1px solid var(--border); padding-left:18px; display:flex; flex-direction:column; justify-content:center;">
+      <div class="lbl" style="margin-bottom:6px;">Период наблюдения</div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <input type="date" id="range-start" style="background:var(--card-hi); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:4px 8px; font-size:13px; font-family:inherit; cursor:pointer; outline:none; color-scheme:dark;">
+        <span style="color:var(--muted); font-size:13px;">—</span>
+        <input type="date" id="range-end" style="background:var(--card-hi); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:4px 8px; font-size:13px; font-family:inherit; cursor:pointer; outline:none; color-scheme:dark;">
+        <span id="range-days" style="color:var(--muted); font-size:12px; white-space:nowrap;"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HERO -->
+<div class="grid hero-grid">
+  <div class="card hero-main">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
+      <div class="card-label" style="margin-bottom:0;"><span class="status ok"></span>Вес · кг</div>
+      <div style="background:rgba(0,255,157,0.1); border:1px solid rgba(0,255,157,0.25); border-radius:20px; padding:4px 12px; font-size:11px; color:var(--g); letter-spacing:0.5px; white-space:nowrap;">
+        T−<span id="cd-days">—</span> дн &nbsp;·&nbsp; цель 75 кг
+      </div>
+    </div>
+    <div style="display:flex; align-items:baseline; gap:14px;">
+      <div class="big-number g" id="h-weight">—</div>
+      <div>
+        <div style="font-size:22px; font-weight:700; color:var(--g2);"><span id="h-delta">—</span> кг</div>
+        <div class="sub">от <span id="h-start-w">—</span> кг &nbsp;·&nbsp; <span id="h-start-d">—</span></div>
+      </div>
+    </div>
+    <div style="margin-top:16px;">
+      <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-bottom:5px;">
+        <span>Прогресс к цели</span>
+        <span>осталось <span id="h-remain" style="color:var(--text); font-weight:600;">—</span></span>
+      </div>
+      <div style="height:6px; background:var(--bg2); border-radius:3px; overflow:hidden;">
+        <div id="h-progress" style="height:100%; background:linear-gradient(90deg,var(--g) 0%,var(--g2) 100%); border-radius:3px; box-shadow: 0 0 8px rgba(0,255,157,0.4); transition: width 1s ease;"></div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-label"><span class="status ok"></span>% Жира · Zepp</div>
+    <div class="big-number g" id="h-fat">—</div>
+    <div class="sub"><span id="h-fat-delta">—</span> · висцеральный <span id="h-visc">—</span></div>
+  </div>
+  <div class="card">
+    <div class="card-label"><span class="status ok"></span>HbA1c · Глик. гемоглобин</div>
+    <div class="big-number g" id="h-hba1c">—</div>
+    <div class="sub">было 6.5% · преддиабет → <span style="color:var(--g);">норма</span></div>
+  </div>
+  <div class="card">
+    <div class="card-label"><span class="status ok"></span>Health Score · Radar</div>
+    <div class="big-number g" id="h-score">—</div>
+    <div class="sub">6 систем организма · май-26 будет выше</div>
+  </div>
+</div>
+
+<!-- TIMELINE -->
+<div class="section-title">Траектория трансформации <span class="hint">вес · жир% · <span style="color:rgba(59,130,246,0.9)">█</span> калории · <span style="color:rgba(255,59,109,0.9)">█</span> алкоголь · ▼ тренировки</span></div>
+<div class="card">
+  <div class="chart-wrap tall"><canvas id="timeline"></canvas></div>
+</div>
+
+<!-- DATA STREAMS -->
+<div class="section-title">Потоки данных <span class="hint">18 источников · обновляется ежедневно</span></div>
+<div class="grid grid-6" id="streams"></div>
+
+<!-- BIOMARKERS + RADAR -->
+<div class="section-title">Биомаркеры & Radar Health <span class="hint">последние замеры крови · radar = близость к оптимуму</span></div>
+<div class="grid" style="grid-template-columns: 1fr 1.5fr; gap: 16px;">
+  <div class="card">
+    <div class="card-label">Health Score по системам</div>
+    <div style="display:flex; flex-direction: column; align-items: center;">
+      <div class="score-ring">
+        <canvas id="scoreRing" width="180" height="180"></canvas>
+        <div class="score-num">
+          <div class="big" id="ring-score">—</div>
+          <div class="lbl">Overall</div>
+        </div>
+      </div>
+      <div style="width: 100%; margin-top: 20px;">
+        <canvas id="radar" style="max-height:260px;"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="overflow: hidden;">
+    <div class="panel-tabs">
+      <button class="panel-tab active" onclick="switchPanel(0)">Мониторинг</button>
+      <button class="panel-tab" onclick="switchPanel(1)">Longevity · Attia</button>
+      <button class="panel-tab" onclick="switchPanel(2)">Метаболизм</button>
+      <button class="panel-tab" onclick="switchPanel(3)">ССЗ-риск SCORE2</button>
+      <button class="panel-tab" onclick="switchPanel(4)">PhenoAge</button>
+    </div>
+
+    <!-- Panel 0: Мониторинг -->
+    <div class="panel-content active" id="panel-0">
+      <div class="panel-source">HealthVault · 12 ключевых биомаркеров · последние данные крови</div>
+      <table class="biotable" id="biotable"></table>
+    </div>
+
+    <!-- Panel 1: Longevity · Attia -->
+    <div class="panel-content" id="panel-1">
+      <div class="panel-source">Источник: <a href="https://peterattiamd.com/outlive" target="_blank">peterattiamd.com/outlive</a> &nbsp;·&nbsp; Peter Attia «Outlive» (2023)</div>
+      <table class="biotable" id="attia-table"></table>
+    </div>
+
+    <!-- Panel 2: Метаболизм -->
+    <div class="panel-content" id="panel-2">
+      <div class="panel-source">Источник: <a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2654873/" target="_blank">NCEP ATP III 2001</a> &nbsp;·&nbsp; Метаболический синдром: 3+ критерия из 5</div>
+      <table class="biotable" id="metabolic-table"></table>
+    </div>
+
+    <!-- Panel 3: SCORE2 -->
+    <div class="panel-content" id="panel-3">
+      <div class="panel-source">Источник: <a href="https://academic.oup.com/eurheartj/article/42/25/2439/6243835" target="_blank">ESC Cardiovascular Risk Guidelines 2021 · SCORE2</a> &nbsp;·&nbsp; 10-летний риск фатального и нефатального ССЗ-события</div>
+      <div id="score2-panel"></div>
+    </div>
+
+    <!-- Panel 4: PhenoAge -->
+    <div class="panel-content" id="panel-4">
+      <div class="panel-source">Источник: <a href="https://doi.org/10.18632/aging.101414" target="_blank">Levine et al. 2018, Aging Cell</a> &nbsp;·&nbsp; 9-маркерные биологические часы PhenoAge</div>
+      <div id="phenoage-panel"></div>
+    </div>
+  </div>
+</div>
+
+<!-- HEATMAP -->
+<div class="section-title">Консистентность <span class="hint">зелёный = день закрыт (вес + сон + КБЖУ) · ярче = + тренировка · красная рамка = алкоголь</span></div>
+<div class="card">
+  <div class="heatmap" id="heatmap"></div>
+  <div style="margin-top: 14px; display: flex; gap: 16px; align-items: center; font-size: 11px; color: var(--muted);">
+    <div class="hm-legend">Консистентность:</div>
+    <div class="hm-legend"><div class="hm-cell"></div>нет</div>
+    <div class="hm-legend"><div class="hm-cell lvl1"></div>1 поток</div>
+    <div class="hm-legend"><div class="hm-cell lvl2"></div>2 потока</div>
+    <div class="hm-legend"><div class="hm-cell lvl3"></div>3 потока</div>
+    <div class="hm-legend"><div class="hm-cell lvl4"></div>+ тренировка</div>
+    <div class="hm-legend"><div class="hm-cell" style="border:1.5px solid var(--r); background: var(--bg2);"></div>алкоголь</div>
+  </div>
+</div>
+
+<!-- MINI CHARTS ROW -->
+<div class="section-title">Тренды ключевых метрик <span class="hint">скользящее среднее 7 дней</span></div>
+<div class="grid grid-3">
+  <div class="card"><div class="card-label">😴 Сон (часы)</div><div class="chart-wrap short"><canvas id="ch-sleep"></canvas></div></div>
+  <div class="card"><div class="card-label">💗 HRV (мс)</div><div class="chart-wrap short"><canvas id="ch-hrv"></canvas></div></div>
+  <div class="card"><div class="card-label">😰 Стресс (Garmin)</div><div class="chart-wrap short"><canvas id="ch-stress"></canvas></div></div>
+  <div class="card"><div class="card-label">🩺 Давление (сист / диаст)</div><div class="chart-wrap short"><canvas id="ch-bp"></canvas></div></div>
+  <div class="card"><div class="card-label">👣 Шаги в день</div><div class="chart-wrap short"><canvas id="ch-steps"></canvas></div></div>
+  <div class="card"><div class="card-label">🏠 Воздух спальни (CO₂ ppm)</div><div class="chart-wrap short"><canvas id="ch-co2"></canvas></div></div>
+</div>
+
+<!-- ACHIEVEMENTS -->
+<div class="section-title">Достижения <span class="hint">автоматически посчитано на основе данных</span></div>
+<div class="ach-grid" id="achievements"></div>
+
+<div class="footer">
+  Data sources: Garmin · Zepp Life · Apple Health · Omron · Netatmo · NutriLogBot · Лаборатории · Claude Code<br>
+  <span class="accent">HealthVault</span> · Alexander Lyskovsky · 48 y.o. · 635 params · 17 years of history
+</div>
+
+<script id="payload" type="application/json">{{PAYLOAD}}</script>
+<script>
+const D = JSON.parse(document.getElementById('payload').textContent);
+const COLOR = { g:'#00ff9d', g2:'#00c878', y:'#ffb800', r:'#ff3b6d', b:'#3b82f6', p:'#a855f7',
+                muted:'#7a879f', grid:'#1f2940', text:'#e8eef7' };
+
+Chart.defaults.color = COLOR.muted;
+Chart.defaults.borderColor = COLOR.grid;
+Chart.defaults.font.family = "'SF Pro Display','Inter',sans-serif";
+Chart.defaults.font.size = 11;
+
+// === HERO FILL ===
+document.getElementById('cd-days').textContent = D.meta.days_to_target;
+// Date range init
+const rsEl = document.getElementById('range-start');
+const reEl = document.getElementById('range-end');
+const rdEl = document.getElementById('range-days');
+rsEl.value = D.meta.start;
+reEl.value = D.meta.today;
+function updateRangeDays() {
+  const d1 = new Date(rsEl.value), d2 = new Date(reEl.value);
+  if (!isNaN(d1) && !isNaN(d2) && d2 >= d1) {
+    const n = Math.round((d2-d1)/86400000)+1;
+    rdEl.textContent = n + ' дн';
+  }
+}
+updateRangeDays();
+rsEl.addEventListener('change', () => { updateRangeDays(); renderHeatmap(); });
+reEl.addEventListener('change', () => { updateRangeDays(); renderHeatmap(); });
+const sw = D.stats_weight, sf = D.stats_fat;
+document.getElementById('h-weight').textContent = sw.last.toFixed(2);
+document.getElementById('h-delta').textContent = sw.delta.toFixed(2);
+document.getElementById('h-start-w').textContent = sw.first;
+document.getElementById('h-start-d').textContent = sw.first_date;
+document.getElementById('h-remain').textContent = (sw.last - 75).toFixed(2) + ' кг';
+const pct = Math.min(100, 100 * Math.max(0, (sw.first - sw.last) / (sw.first - 75)));
+document.getElementById('h-progress').style.width = pct.toFixed(1) + '%';
+document.getElementById('h-fat').textContent = sf.last.toFixed(1) + '%';
+document.getElementById('h-fat-delta').textContent = (sf.delta >= 0 ? '+' : '') + sf.delta.toFixed(1) + ' п.п.';
+const vlast = Object.values(D.visceral).pop();
+document.getElementById('h-visc').textContent = vlast != null ? vlast : '—';
+document.getElementById('h-hba1c').textContent = (D.biomarkers_latest.HbA1c.val || '—') + '%';
+document.getElementById('h-score').textContent = D.overall_score + '/100';
+
+// === TIMELINE ===
+const dates = D.meta.dates;
+const wArr = dates.map(d => D.weight[d] != null ? D.weight[d] : null);
+const fArr = dates.map(d => D.fat[d] != null ? D.fat[d] : null);
+const kArr = dates.map(d => D.kcal[d] != null ? D.kcal[d] : null);
+const alcoSet = new Set(D.alco_days);
+const workoutSet = new Set(D.activities.map(a => a.date));
+
+function smooth(arr, win=7) {
+  const out = []; const valid = [];
+  for (let i=0; i<arr.length; i++) {
+    if (arr[i] != null) valid.push(arr[i]);
+    while (valid.length > win) valid.shift();
+    out.push(valid.length ? valid.reduce((a,b)=>a+b,0)/valid.length : null);
+  }
+  return out;
+}
+const wSmooth = smooth(wArr, 7);
+const fSmooth = smooth(fArr, 7);
+
+new Chart(document.getElementById('timeline'), {
+  type: 'line',
+  data: {
+    labels: dates,
+    datasets: [
+      { type:'bar', label:'Калории (ккал)', data: kArr.map((v,i) => alcoSet.has(dates[i]) ? null : v), yAxisID: 'yK',
+        backgroundColor: 'rgba(59,130,246,0.28)',
+        borderColor: 'transparent', barThickness: 5, order: 3 },
+      { type:'bar', label:'🍷 Алкоголь', data: kArr.map((v,i) => alcoSet.has(dates[i]) ? v : null), yAxisID: 'yK',
+        backgroundColor: 'rgba(255,59,109,0.65)',
+        borderColor: 'rgba(255,59,109,0.9)', borderWidth: 1, barThickness: 5, order: 3 },
+      { label:'Вес (факт)', data: wArr, borderColor: 'rgba(0,255,157,0.35)',
+        backgroundColor:'rgba(0,255,157,0.05)', yAxisID:'yW', pointRadius: 2,
+        pointBackgroundColor: COLOR.g, tension: 0.1, borderWidth: 1, order: 2 },
+      { label:'Вес (7d avg)', data: wSmooth, borderColor: COLOR.g,
+        backgroundColor: 'rgba(0,255,157,0.08)', yAxisID:'yW', pointRadius: 0,
+        fill: true, tension: 0.4, borderWidth: 2.5, order: 1 },
+      { label:'Жир %', data: fSmooth, borderColor: COLOR.y, yAxisID:'yF',
+        pointRadius: 0, tension: 0.4, borderWidth: 2, borderDash: [6,3], order: 1 },
+      { label:'Тренировки', data: dates.map(d => workoutSet.has(d) ? 77 : null),
+        yAxisID:'yW', pointRadius: 6, pointStyle: 'triangle', pointRotation: 180,
+        pointBackgroundColor: COLOR.g, pointBorderColor: COLOR.g2,
+        showLine: false, order: 0 }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false, interaction: {mode:'index', intersect:false},
+    scales: {
+      x: { type:'time', time:{unit:'week', displayFormats:{week:'dd.MM'}}, grid:{display:false} },
+      yW: { position:'left', title:{text:'Вес, кг', display:true}, min: 74, max: 84, grid:{color:COLOR.grid} },
+      yF: { position:'right', title:{text:'Жир, %', display:true}, min: 25, max: 31, grid:{display:false} },
+      yK: { position:'right', title:{text:'Ккал', display:true}, min: 0, max: 4500,
+            grid:{display:false}, ticks:{display:false}, display: false }
+    },
+    plugins: {
+      legend: { position:'top', labels:{boxWidth:12, font:{size:11}} },
+      tooltip: { backgroundColor:'#0a0e17', borderColor: COLOR.grid, borderWidth: 1 }
+    }
+  }
+});
+
+// === DATA STREAMS ===
+const T = D.totals;
+const last = (o) => { const s = Object.entries(o).sort(); return s.length ? s[s.length-1][1] : '—'; };
+const streams = [
+  { name: '😴 Сон', val: T.sleep_avg, unit: 'ч ср', last_: last(D.sleep_h), data: D.sleep_h, color: COLOR.p },
+  { name: '💗 HRV', val: T.hrv_avg, unit: 'мс ср', last_: last(D.hrv), data: D.hrv, color: COLOR.r },
+  { name: '😰 Стресс', val: T.stress_avg, unit: '/100', last_: last(D.stress), data: D.stress, color: COLOR.y },
+  { name: '💓 Пульс покоя', val: T.rhr_avg, unit: 'уд/мин', last_: last(D.rhr), data: D.rhr, color: COLOR.r },
+  { name: '👣 Шаги', val: T.steps_avg.toLocaleString(), unit: '/день ср', last_: last(D.steps), data: D.steps, color: COLOR.g },
+  { name: '🔋 Body Battery', val: T.bb_avg, unit: 'max ср', last_: last(D.body_battery), data: D.body_battery, color: COLOR.g },
+  { name: '🏋️ Тренировки', val: T.activities_total, unit: 'всего', last_: T.activity_hours + ' ч · ' + T.activity_km + ' км', data: null, color: COLOR.g, custom: 'workout' },
+  { name: '🍽️ КБЖУ дней', val: T.kcal_days_n, unit: '/' + D.meta.total_days, last_: T.kcal_avg + ' ккал ср', data: D.kcal, color: COLOR.b },
+  { name: '🥩 Белок', val: T.prot_avg, unit: 'г/день ср', last_: Math.round(T.prot_avg) + 'г', data: D.prot, color: COLOR.y },
+  { name: '💊 Добавки', val: T.supp_days_n, unit: 'дней', last_: '85%', data: null, color: COLOR.p },
+  { name: '🍷 Алкоголь', val: T.alco_days_n, unit: '/' + D.meta.total_days + ' дн', last_: Math.round(T.alco_days_n/D.meta.total_days*100) + '%', data: null, color: COLOR.r },
+  { name: '🩺 Давление', val: T.bp_last, unit: '', last_: 'последнее', data: D.bp_sys, color: COLOR.r },
+  { name: '⚖️ Вес сегодня', val: sw.last.toFixed(2), unit: 'кг', last_: 'цель 75', data: D.weight, color: COLOR.g },
+  { name: '🏠 CO₂ дома', val: T.co2_avg, unit: 'ppm ср', last_: last(D.co2) + ' сейчас', data: D.co2, color: COLOR.b },
+  { name: '🌡️ T° дома', val: T.temp_home_avg, unit: '°C ср', last_: last(D.temp_home) + '°C', data: D.temp_home, color: COLOR.y },
+  { name: '🏃 Минут спорта', val: T.activity_min.toLocaleString(), unit: 'мин всего', last_: Math.round(T.activity_min/D.meta.total_days) + ' мин/день', data: null, color: COLOR.g },
+  { name: '📏 Дистанция', val: T.activity_km, unit: 'км', last_: 'всего', data: null, color: COLOR.g },
+  { name: '🧬 Биомаркеров', val: Object.keys(D.biomarkers_latest).length, unit: 'ключевых', last_: '635 всего', data: null, color: COLOR.p }
+];
+
+const sEl = document.getElementById('streams');
+streams.forEach((s, i) => {
+  const div = document.createElement('div');
+  div.className = 'stream';
+
+  if (s.custom === 'workout') {
+    const maxN = Math.max(...T.activity_breakdown.map(b => b.n));
+    const rows = T.activity_breakdown.map(b => {
+      const pct = Math.round(b.n / maxN * 100);
+      const extra = b.km > 0 ? `<span style="color:var(--muted);font-size:10px;margin-left:4px;">${b.km} км</span>` : '';
+      return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+        <span style="font-size:10px;color:var(--muted);width:44px;text-align:right;flex-shrink:0;">${b.label}</span>
+        <div style="flex:1;height:4px;background:var(--bg2);border-radius:2px;overflow:hidden;">
+          <div style="width:${pct}%;height:100%;background:${s.color};border-radius:2px;opacity:0.85;"></div>
+        </div>
+        <span style="font-size:11px;font-weight:600;color:var(--text);width:20px;text-align:right;flex-shrink:0;">${b.n}</span>
+        ${extra}
+      </div>`;
+    }).join('');
+    div.innerHTML = `
+      <div class="name">${s.name}<span style="color:${s.color};">●</span></div>
+      <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:10px;">
+        <span class="val">${s.val}</span><span class="unit">${s.unit}</span>
+        <span style="font-size:11px;color:var(--muted);margin-left:4px;">${s.last_}</span>
+      </div>
+      ${rows}`;
+  } else {
+    div.innerHTML = `<div class="name">${s.name}<span style="color:${s.color};">●</span></div>
+                     <div class="val">${s.val}<span class="unit">${s.unit}</span></div>
+                     <div class="trend">${s.last_}</div>
+                     ${s.data ? `<div class="spark"><canvas id="sp-${i}"></canvas></div>` : ''}`;
+  }
+  sEl.appendChild(div);
+  if (s.data) {
+    const sorted = Object.entries(s.data).sort();
+    new Chart(document.getElementById(`sp-${i}`), {
+      type: 'line',
+      data: { labels: sorted.map(x=>x[0]), datasets: [{ data: sorted.map(x=>x[1]),
+        borderColor: s.color, backgroundColor: s.color+'20', borderWidth: 1.5,
+        pointRadius: 0, fill: true, tension: 0.4 }]},
+      options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false},tooltip:{enabled:false}},
+                 scales:{x:{display:false},y:{display:false}} }
+    });
+  }
+});
+
+// === RADAR ===
+new Chart(document.getElementById('radar'), {
+  type: 'radar',
+  data: {
+    labels: Object.keys(D.radar),
+    datasets: [{
+      label: 'Score',
+      data: Object.values(D.radar),
+      backgroundColor: 'rgba(0,255,157,0.15)',
+      borderColor: COLOR.g,
+      borderWidth: 2,
+      pointBackgroundColor: COLOR.g,
+      pointRadius: 4
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    scales: { r: { min:0, max:100, ticks:{display:false, stepSize:25},
+                   angleLines:{color:COLOR.grid}, grid:{color:COLOR.grid},
+                   pointLabels:{color: COLOR.text, font:{size:11, weight:'600'}}} },
+    plugins: { legend:{display:false} }
+  }
+});
+
+// === SCORE RING ===
+(function() {
+  const ctx = document.getElementById('scoreRing').getContext('2d');
+  const score = D.overall_score;
+  document.getElementById('ring-score').textContent = score;
+  const cx = 90, cy = 90, r = 72;
+  ctx.lineWidth = 12;
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = COLOR.grid;
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, 2*Math.PI); ctx.stroke();
+  const grad = ctx.createLinearGradient(0,0,180,180);
+  grad.addColorStop(0, COLOR.g); grad.addColorStop(1, COLOR.g2);
+  ctx.strokeStyle = grad;
+  ctx.shadowColor = COLOR.g; ctx.shadowBlur = 12;
+  ctx.beginPath(); ctx.arc(cx, cy, r, -Math.PI/2, -Math.PI/2 + 2*Math.PI*(score/100)); ctx.stroke();
+})();
+
+// === PANEL TAB SWITCHER ===
+function switchPanel(idx) {
+  document.querySelectorAll('.panel-tab').forEach((t, i) => t.classList.toggle('active', i === idx));
+  document.querySelectorAll('.panel-content').forEach((c, i) => c.classList.toggle('active', i === idx));
+}
+
+// === PANEL 0: Мониторинг (biotable — 12 ключевых биомаркеров) ===
+const bioRefs = [
+  ['HbA1c','Гликированный Hb', 4.5, 5.6, 'Метаболизм'],
+  ['glucose','Глюкоза натощак', 3.9, 5.6, 'Метаболизм'],
+  ['cholesterol','Холестерин общий', 3.5, 5.2, 'Липиды'],
+  ['LDL','ЛПНП', 1.5, 3.0, 'Липиды'],
+  ['HDL','ЛПВП', 1.2, 2.5, 'Липиды'],
+  ['testosterone','Тестостерон', 12.1, 30, 'Гормоны'],
+  ['TSH','ТТГ', 0.4, 4.0, 'Гормоны'],
+  ['vitamin_D','Витамин D', 30, 80, 'Витамины'],
+  ['ferritin','Ферритин', 30, 300, 'Мин. статус'],
+  ['ALT','АЛТ', 0, 40, 'Печень'],
+  ['creatinine','Креатинин', 60, 110, 'Почки'],
+  ['uric_acid','Мочевая кислота', 200, 420, 'Почки']
+];
+const tableEl = document.getElementById('biotable');
+tableEl.innerHTML = '<thead><tr><th>Показатель</th><th>Значение</th><th>Норма</th><th>Статус</th><th>Дата</th></tr></thead><tbody>' +
+bioRefs.map(([k, nm, lo, hi, sys]) => {
+  const info = D.biomarkers_latest[k];
+  if (!info || info.val == null) return '';
+  const v = info.val;
+  let color = COLOR.g, status = '✓ опт';
+  if (k === 'HDL' || k === 'vitamin_D' || k === 'testosterone') {
+    if (v < lo) { color = COLOR.y; status = '↓ ниже'; }
+  } else {
+    if (v > hi) { color = COLOR.y; status = '↑ выше'; }
+    if (v < lo && k !== 'ALT') { color = COLOR.b; status = '↓ ниже'; }
+  }
+  const pct = Math.min(100, Math.max(5, 100 * (v - lo*0.5) / (hi*1.5 - lo*0.5)));
+  return `<tr>
+    <td><b>${nm}</b><br><span style="color:${COLOR.muted};font-size:10px;">${sys}</span></td>
+    <td class="val"><span style="color:${color};">${v}</span> <span style="color:${COLOR.muted};font-size:10px;">${info.unit}</span></td>
+    <td style="color:${COLOR.muted};font-size:11px;">${lo}–${hi}</td>
+    <td><span class="bar"><div style="width:${pct}%; background:${color};"></div></span><span style="color:${color};font-size:11px;">${status}</span></td>
+    <td class="d">${info.date}</td>
+  </tr>`;
+}).join('') + '</tbody>';
+
+// === PANEL 1: Longevity · Attia ===
+(function() {
+  const pd = D.panels_data; if (!pd) return;
+  const attia = pd.attia;
+  const tbl = document.getElementById('attia-table');
+  if (!tbl || !attia) return;
+  const statusColor = { ok: COLOR.g, warn: COLOR.y, risk: COLOR.r, missing: COLOR.muted };
+  const statusLabel = { ok: '✓ цель', warn: '⚠ внимание', risk: '✕ выше цели', missing: '— нет данных' };
+  tbl.innerHTML = '<thead><tr><th>Маркер</th><th>Значение</th><th>Цель Attia</th><th>Статус</th><th>Дата</th></tr></thead><tbody>' +
+  attia.markers.map(m => {
+    const c = statusColor[m.status] || COLOR.muted;
+    const sl = statusLabel[m.status] || '—';
+    const valStr = m.val !== null && m.val !== undefined ? m.val : '—';
+    return `<tr>
+      <td><b>${m.name}</b><br><span style="color:${COLOR.muted};font-size:10px;">${m.category}</span></td>
+      <td class="val"><span style="color:${c};">${valStr}</span> <span style="color:${COLOR.muted};font-size:10px;">${m.unit}</span></td>
+      <td style="color:${COLOR.muted};font-size:11px;">${m.target}</td>
+      <td><span style="color:${c};font-size:11px;">${sl}</span>${m.note ? `<br><span style="color:${COLOR.dim};font-size:10px;">${m.note}</span>` : ''}</td>
+      <td class="d">${m.date || '—'}</td>
+    </tr>`;
+  }).join('') + '</tbody>';
+})();
+
+// === PANEL 2: Метаболизм (NCEP ATP III) ===
+(function() {
+  const pd = D.panels_data; if (!pd) return;
+  const met = pd.metabolic;
+  const tbl = document.getElementById('metabolic-table');
+  if (!tbl || !met) return;
+  const failCount = met.criteria.filter(c => !c.pass).length;
+  const diagColor = failCount >= 3 ? COLOR.r : failCount >= 1 ? COLOR.y : COLOR.g;
+  const diagLabel = failCount >= 3
+    ? `⚠ MetSyn ЕСТЬ (${failCount}/5 критериев нарушено)`
+    : `✓ MetSyn нет — ${failCount}/5 критериев нарушено`;
+  tbl.innerHTML = `<thead><tr><th colspan="5" style="color:${diagColor};font-size:12px;padding:4px 8px 10px;">${diagLabel}</th></tr>` +
+    `<tr><th>Критерий</th><th>Значение</th><th>Порог</th><th>Статус</th><th>Примечание</th></tr></thead><tbody>` +
+  met.criteria.map(c => {
+    const color = c.pass ? COLOR.g : COLOR.r;
+    return `<tr>
+      <td><b>${c.name}</b></td>
+      <td class="val"><span style="color:${color};">${c.val !== null && c.val !== undefined ? c.val : '—'}</span> <span style="color:${COLOR.muted};font-size:10px;">${c.unit}</span></td>
+      <td style="color:${COLOR.muted};font-size:11px;">${c.threshold}</td>
+      <td><span style="color:${color};font-size:11px;">${c.pass ? '✓ норма' : '✕ нарушен'}</span></td>
+      <td class="d" style="font-size:10px;">${c.note || ''}</td>
+    </tr>`;
+  }).join('') +
+  `<tr style="border-top:2px solid var(--border);">
+    <td colspan="2" style="padding-top:10px;"><b>TG/HDL ratio</b> <span style="color:${COLOR.muted};font-size:10px;">инсулинорезистентность</span></td>
+    <td style="color:${COLOR.muted};font-size:11px;">&lt;1.5</td>
+    <td colspan="2"><span style="color:${COLOR.g};font-size:14px;font-weight:700;">${met.tg_hdl_ratio}</span> <span style="color:${COLOR.g};font-size:11px;">✓ отлично</span></td>
+  </tr>` + '</tbody>';
+})();
+
+// === PANEL 3: ССЗ-риск SCORE2 ===
+(function() {
+  const pd = D.panels_data; if (!pd) return;
+  const s2 = pd.score2;
+  const el = document.getElementById('score2-panel');
+  if (!el || !s2) return;
+  const riskColor = s2.risk_pct >= 10 ? COLOR.r : s2.risk_pct >= 5 ? COLOR.y : COLOR.g;
+  const catRu = {low:'низкий',moderate:'умеренный',high:'высокий',very_high:'очень высокий'}[s2.risk_cat] || s2.risk_cat;
+  el.innerHTML = `
+    <div style="display:flex;align-items:flex-start;gap:24px;margin-bottom:16px;">
+      <div style="text-align:center;flex-shrink:0;">
+        <div style="font-size:56px;font-weight:800;color:${riskColor};line-height:1;">${s2.risk_pct}%</div>
+        <div style="font-size:10px;color:${COLOR.muted};margin-top:4px;text-transform:uppercase;letter-spacing:1px;">10-летний риск</div>
+        <div style="font-size:11px;font-weight:700;color:${riskColor};margin-top:6px;">${catRu}</div>
+      </div>
+      <div style="flex:1;">
+        <div style="font-size:11px;color:${COLOR.muted};line-height:2;background:var(--bg2);border-radius:8px;padding:10px 14px;">
+          Регион: Россия (очень высокий риск ССЗ) &nbsp;·&nbsp; LP = ${s2.lp}<br>
+          Пол: мужской &nbsp;·&nbsp; Возраст: ${s2.age} лет &nbsp;·&nbsp; Курение: нет<br>
+          АД: ${s2.sbp} мм рт.ст. &nbsp;·&nbsp; non-HDL: ${s2.non_hdl} ммоль/л
+        </div>
+      </div>
+    </div>
+    <div style="background:var(--bg2);border-radius:8px;padding:12px 14px;font-size:11px;color:${COLOR.muted};line-height:1.9;border-left:3px solid ${riskColor};">
+      <b style="color:var(--text);">Контекст:</b> ${s2.context}<br>
+      <b style="color:var(--text);">Интерпретация:</b> ${s2.interpretation}
+    </div>`;
+})();
+
+// === PANEL 4: PhenoAge ===
+(function() {
+  const pd = D.panels_data; if (!pd) return;
+  const pa = pd.phenoage;
+  const el = document.getElementById('phenoage-panel');
+  if (!el || !pa) return;
+  const diff = pa.chrono_age - pa.bio_age_est;
+  const diffColor = diff > 0 ? COLOR.g : COLOR.y;
+  const dirColor = { younger: COLOR.g, older: COLOR.r, unknown: COLOR.muted };
+  const dirIcon  = { younger: '↓', older: '↑', unknown: '?' };
+  el.innerHTML = `
+    <div style="display:flex;align-items:flex-start;gap:24px;margin-bottom:16px;">
+      <div style="text-align:center;flex-shrink:0;">
+        <div style="font-size:56px;font-weight:800;color:${COLOR.g};line-height:1;">~${pa.bio_age_est}</div>
+        <div style="font-size:10px;color:${COLOR.muted};margin-top:4px;text-transform:uppercase;letter-spacing:1px;">биологических лет</div>
+        <div style="font-size:12px;font-weight:700;color:${diffColor};margin-top:6px;">−${diff} лет от паспортного</div>
+      </div>
+      <div style="flex:1;">
+        <div style="font-size:11px;color:${COLOR.muted};line-height:2;background:var(--bg2);border-radius:8px;padding:10px 14px;">
+          Паспортный возраст: ${pa.chrono_age} лет &nbsp;·&nbsp; Оценка: ${pa.bio_age_range} лет<br>
+          Маркеров «моложе» медианы: <span style="color:${COLOR.g};font-weight:700;">${pa.younger_count}/9</span>
+        </div>
+      </div>
+    </div>
+    <div style="margin-bottom:12px;">
+      <div style="font-size:10px;color:${COLOR.muted};text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;">9 маркеров PhenoAge clock</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;">
+        ${pa.markers.map(m => {
+          const c = dirColor[m.direction] || COLOR.muted;
+          const ic = dirIcon[m.direction] || '?';
+          const valStr = m.val !== null && m.val !== undefined ? m.val : '—';
+          const noteStr = m.note ? ` <span style="color:${COLOR.dim};font-size:9px;">${m.note}</span>` : '';
+          return `<div style="background:var(--bg2);border-radius:6px;padding:5px 10px;font-size:11px;border-left:2px solid ${c};">
+            <span style="color:${COLOR.muted};">${m.name}</span>&nbsp;<span style="color:${c};font-weight:700;">${ic}&nbsp;${valStr}</span>${m.unit ? `<span style="color:${COLOR.dim};font-size:9px;"> ${m.unit}</span>` : ''}${noteStr}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+    <div style="background:var(--bg2);border-radius:8px;padding:12px 14px;font-size:11px;color:${COLOR.muted};line-height:1.9;border-left:3px solid ${COLOR.y};">
+      <b style="color:var(--text);">Примечание:</b> ${pa.note}
+    </div>`;
+})();
+
+// === HEATMAP ===
+const hmEl = document.getElementById('heatmap');
+function renderHeatmap() {
+  hmEl.innerHTML = '';
+  const s = rsEl ? rsEl.value : D.meta.start;
+  const e = reEl ? reEl.value : D.meta.today;
+  const hm = D.heatmap.filter(c => c.d >= s && c.d <= e);
+  const weeks = [];
+  let curr = [];
+  hm.forEach(c => {
+    const day = new Date(c.d).getDay();
+    const dow = day === 0 ? 6 : day - 1;
+    if (curr.length === 0 && dow > 0) {
+      for (let i=0; i<dow; i++) curr.push(null);
+    }
+    curr.push(c);
+    if (dow === 6) { weeks.push(curr); curr = []; }
+  });
+  if (curr.length) weeks.push(curr);
+  weeks.forEach(w => {
+    const wEl = document.createElement('div'); wEl.className = 'hm-week';
+    for (let i=0; i<7; i++) {
+      const c = w[i];
+      const cEl = document.createElement('div');
+      cEl.className = 'hm-cell';
+      if (c) {
+        cEl.classList.add('lvl' + c.lvl);
+        if (c.alco) cEl.classList.add('alco');
+        cEl.title = `${c.d}\nУровень: ${c.lvl}/4${c.workout ? ' · тренировка' : ''}${c.alco ? ' · алкоголь 🍷' : ''}`;
+      }
+      wEl.appendChild(cEl);
+    }
+    hmEl.appendChild(wEl);
+  });
+}
+renderHeatmap();
+
+// === MINI CHARTS ===
+function miniLine(id, data, color, label) {
+  const sorted = Object.entries(data).sort();
+  new Chart(document.getElementById(id), {
+    type: 'line',
+    data: { labels: sorted.map(x=>x[0]),
+      datasets: [{ label, data: sorted.map(x=>x[1]), borderColor: color,
+        backgroundColor: color+'15', borderWidth: 1.8, pointRadius: 0,
+        fill: true, tension: 0.4 }]},
+    options: { responsive:true, maintainAspectRatio:false,
+      scales:{x:{type:'time', time:{unit:'month', displayFormats:{month:'MMM'}}, grid:{display:false}},
+              y:{grid:{color:COLOR.grid}, ticks:{font:{size:10}}}},
+      plugins:{legend:{display:false},
+               tooltip:{backgroundColor:'#0a0e17', borderColor:COLOR.grid, borderWidth:1}}}
+  });
+}
+miniLine('ch-sleep', D.sleep_h, COLOR.p, 'Часы сна');
+miniLine('ch-hrv', D.hrv, COLOR.r, 'HRV');
+miniLine('ch-stress', D.stress, COLOR.y, 'Стресс');
+miniLine('ch-steps', D.steps, COLOR.g, 'Шаги');
+miniLine('ch-co2', D.co2, COLOR.b, 'CO₂');
+
+// BP — две линии
+(function() {
+  const dates_ = Object.keys(D.bp_sys).sort();
+  new Chart(document.getElementById('ch-bp'), {
+    type: 'line',
+    data: { labels: dates_,
+      datasets: [
+        { label:'сист', data: dates_.map(d=>D.bp_sys[d]), borderColor: COLOR.r,
+          backgroundColor:'rgba(255,59,109,0.08)', borderWidth: 1.8, pointRadius: 1.5,
+          fill: true, tension: 0.3 },
+        { label:'диаст', data: dates_.map(d=>D.bp_dia[d]), borderColor: COLOR.b,
+          backgroundColor:'rgba(59,130,246,0.05)', borderWidth: 1.5, pointRadius: 1.5,
+          fill: true, tension: 0.3 }
+      ]},
+    options: { responsive:true, maintainAspectRatio:false,
+      scales:{x:{type:'time', time:{unit:'month', displayFormats:{month:'MMM'}}, grid:{display:false}},
+              y:{grid:{color:COLOR.grid}, ticks:{font:{size:10}}}},
+      plugins:{legend:{display:true, labels:{boxWidth:10, font:{size:10}}},
+               tooltip:{backgroundColor:'#0a0e17', borderColor:COLOR.grid, borderWidth:1, mode:'index', intersect:false}}}
+  });
+})();
+
+// === ACHIEVEMENTS ===
+const aEl = document.getElementById('achievements');
+D.achievements.forEach(([emoji, tt, dd]) => {
+  const div = document.createElement('div');
+  div.className = 'ach';
+  div.innerHTML = `<div class="emoji">${emoji}</div><div><div class="tt">${tt}</div><div class="dd">${dd}</div></div>`;
+  aEl.appendChild(div);
+});
+</script>
+</body>
+</html>
