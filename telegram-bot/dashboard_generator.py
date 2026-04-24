@@ -147,13 +147,7 @@ def _build_payload(db: Session, user_id: int) -> dict:
         if bb:
             body_battery[d] = int(bb)
 
-        # Blood pressure from Apple Health Shortcut (if present)
-        sys_val = raw.get("blood_pressure_systolic")
-        dia_val = raw.get("blood_pressure_diastolic")
-        if sys_val:
-            bp_sys[d] = int(sys_val)
-        if dia_val:
-            bp_dia[d] = int(dia_val)
+        # NOTE: blood_pressure is read exclusively from blood_pressure_logs table below.
 
     # ── nutrition ──────────────────────────────────────────────────────────────
     nut_rows = _rows(
@@ -280,9 +274,11 @@ def _build_payload(db: Session, user_id: int) -> dict:
         e=datetime.combine(today, datetime.max.time()),
     )
     for row in bp_rows:
-        if row.systolic and row.d not in bp_sys:  # keep earliest reading per day
+        # Take the last reading of each day (rows ordered by measured_at ASC,
+        # so later readings overwrite earlier ones — same behaviour as before)
+        if row.systolic:
             bp_sys[row.d] = row.systolic
-        if row.diastolic and row.d not in bp_dia:
+        if row.diastolic:
             bp_dia[row.d] = row.diastolic
 
     # ── activities (workouts) ─────────────────────────────────────────────────
