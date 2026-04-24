@@ -1,0 +1,214 @@
+{
+  "HbA1c": {
+    "value": 5.4,
+    "date": "2026-03-19"
+  },
+  "glucose": {
+    "value": 4.8,
+    "date": "2026-03-19"
+  },
+  "insulin": {
+    "value": 8.1,
+    "date": "2026-03-19"
+  },
+  "HOMA_index": {
+    "value": 1.7,
+    "date": "2026-03-19"
+  },
+  "cholesterol_total": {
+    "value": 5.24,
+    "date": "2026-03-19"
+  },
+  "HDL": {
+    "value": 1.49,
+    "date": "2026-03-19"
+  },
+  "LDL": {
+    "value": 3.1,
+    "date": "2026-03-19"
+  },
+  "triglycerides": {
+    "value": 0.73,
+    "date": "2026-03-19"
+  },
+  "ApoB": {
+    "value": 1.07,
+    "date": "2026-03-19"
+  },
+  "ApoA1": {
+    "value": 1.48,
+    "date": "2026-03-19"
+  },
+  "lipoprotein_a": {
+    "value": 0.07,
+    "date": "2026-03-19"
+  },
+  "ALT": {
+    "value": 13.8,
+    "date": "2026-03-19"
+  },
+  "AST": {
+    "value": 14.3,
+    "date": "2026-03-19"
+  },
+  "GGT": {
+    "value": 26.0,
+    "date": "2025-08-10"
+  },
+  "ALP": {
+    "value": 60.0,
+    "date": "2025-08-10"
+  },
+  "bilirubin_total": {
+    "value": 17.8,
+    "date": "2026-01-07"
+  },
+  "hs_CRP": {
+    "value": 0.11,
+    "date": "2026-03-19"
+  },
+  "testosterone": {
+    "value": 15.98,
+    "date": "2026-03-19"
+  },
+  "TSH": {
+    "value": 1.6,
+    "date": "2026-03-19"
+  },
+  "FT3": {
+    "value": 5.74,
+    "date": "2026-03-19"
+  },
+  "FT4": {
+    "value": 16.6,
+    "date": "2026-03-19"
+  },
+  "cortisol": {
+    "value": 531.7,
+    "date": "2026-03-19"
+  },
+  "SHBG": {
+    "value": 26.5,
+    "date": "2026-03-19"
+  },
+  "prolactin": {
+    "value": 192.0,
+    "date": "2026-03-19"
+  },
+  "LH": {
+    "value": 2.55,
+    "date": "2026-03-19"
+  },
+  "FSH": {
+    "value": 4.56,
+    "date": "2026-03-19"
+  },
+  "vitamin_D": {
+    "value": 35.6,
+    "date": "2026-03-19"
+  },
+  "ferritin": {
+    "value": 245.01,
+    "date": "2026-03-19"
+  },
+  "folic_acid": {
+    "value": 9.8,
+    "date": "2026-03-19"
+  },
+  "magnesium": {
+    "value": 0.86,
+    "date": "2025-08-10"
+  },
+  "zinc": {
+    "value": 14.68,
+    "date": "2025-08-10"
+  },
+  "iron": {
+    "value": 17.3,
+    "date": "2025-08-10"
+  },
+  "creatinine": {
+    "value": 81,
+    "date": "2026-01-07"
+  },
+  "egfr": {
+    "value": 98,
+    "date": "2026-01-07"
+  },
+  "uric_acid": {
+    "value": 399.2,
+    "date": "2025-08-10"
+  },
+  "urea": {
+    "value": 5.8,
+    "date": "2025-08-10"
+  },
+  "WBC": {
+    "value": 5.23,
+    "date": "2026-03-19"
+  },
+  "RBC": {
+    "value": 5.49,
+    "date": "2026-03-19"
+  },
+  "Hb": {
+    "value": 154.0,
+    "date": "2026-03-19"
+  },
+  "lymphocytes": {
+    "value": 35.0,
+    "date": "2026-03-19"
+  },
+  "MCV": {
+    "value": 83.2,
+    "date": "2026-03-19"
+  },
+  "RDW_CV": {
+    "value": 13.6,
+    "date": "2026-03-19"
+  },
+  "PLT": {
+    "value": 239.0,
+    "date": "2026-03-19"
+  },
+  "ESR": {
+    "value": 5.0,
+    "date": "2026-03-19"
+  },
+  "albumin_g_l": {
+    "value": 46.5,
+    "date": "2016-09-16"
+  },
+  "homocysteine": {
+    "value": 9.26,
+    "date": "2026-01-07"
+  },
+  "PSA_total": {
+    "value": 2.466,
+    "date": "2025-08-10"
+  },
+  "CRP": {
+    "value": 3.0,
+    "date": "2025-01-23"
+  },
+  "atherogenic_index": {
+    "value": 2.52,
+    "date": "2026-03-19"
+  },
+  "FAI": {
+    "value": 60.3,
+    "date": "2026-03-19"
+  },
+  "calcium": {
+    "value": 2.3,
+    "date": "2025-08-10"
+  },
+  "potassium": {
+    "value": 4.4,
+    "date": "2025-08-10"
+  },
+  "sodium": {
+    "value": 142,
+    "date": "2025-08-10"
+  }
+}
