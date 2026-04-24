@@ -142,13 +142,12 @@ def _build_payload(db: Session, user_id: int) -> dict:
             steps[d] = row.steps
 
         raw = row.raw_data or {}
-        # Body Battery: prefer stats.bodyBatteryAtWakeTime, fallback bodyBatteryHighest
-        stats_sub = raw.get("stats") or {}
-        bb = stats_sub.get("bodyBatteryAtWakeTime") or raw.get("body_battery_max")
+        # Body Battery: Garmin daily-summary has these fields at top level of raw_data
+        bb = raw.get("bodyBatteryHighestValue") or raw.get("bodyBatteryAtWakeTime") or raw.get("body_battery_max")
         if bb:
             body_battery[d] = int(bb)
 
-        # Blood pressure (from Apple Health Shortcut)
+        # Blood pressure from Apple Health Shortcut (if present)
         sys_val = raw.get("blood_pressure_systolic")
         dia_val = raw.get("blood_pressure_diastolic")
         if sys_val:
@@ -267,8 +266,27 @@ def _build_payload(db: Session, user_id: int) -> dict:
         except Exception:
             pass
 
+    # ── blood pressure from dedicated table ──────────────────────────────────
+    bp_rows = _rows(
+        db,
+        """
+        SELECT DATE(measured_at)::text as d, systolic, diastolic
+        FROM blood_pressure_logs
+        WHERE user_id=:uid AND measured_at >= :s AND measured_at <= :e
+        ORDER BY measured_at
+        """,
+        uid=user_id,
+        s=datetime.combine(start, datetime.min.time()),
+        e=datetime.combine(today, datetime.max.time()),
+    )
+    for row in bp_rows:
+        if row.systolic and row.d not in bp_sys:  # keep earliest reading per day
+            bp_sys[row.d] = row.systolic
+        if row.diastolic and row.d not in bp_dia:
+            bp_dia[row.d] = row.diastolic
+
     # ── activities (workouts) ─────────────────────────────────────────────────
-    act_rows = _rows(
+    wk_rows = _rows(
         db,
         """
         SELECT date::text as d, workout_type, duration_minutes, calories_burned
@@ -281,7 +299,7 @@ def _build_payload(db: Session, user_id: int) -> dict:
         e=today,
     )
     activities: list = []
-    for row in act_rows:
+    for row in wk_rows:
         activities.append(
             {
                 "date": row.d,
