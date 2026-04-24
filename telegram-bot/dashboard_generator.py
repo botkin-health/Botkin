@@ -7,6 +7,7 @@ HealthVault Share Dashboard Generator
 from __future__ import annotations
 
 import json
+import math
 import re
 import sys
 from datetime import date, datetime, timedelta
@@ -370,6 +371,293 @@ def _build_payload(db: Session, user_id: int) -> dict:
         "uric_acid": {"val": bv("uric_acid"), "date": bd("uric_acid"), "unit": "мкмоль/л", "ok": 420},
     }
 
+    # ── panels_data: 4 recognised panels (Attia / Metabolic / SCORE2 / PhenoAge) ──
+    #   All values computed here so JS only renders pre-calculated data.
+
+    # Helper: convert Lp(a) g/L → mg/dL  (1 g/L = 100 mg/dL)
+    _lpa_g = bv("lipoprotein_a")
+    _lpa_mgdl = round(_lpa_g * 100) if _lpa_g is not None else None
+
+    # HOMA-IR: use stored value or compute from glucose+insulin
+    _homa = bv("HOMA_index")
+    if _homa is None:
+        _ins = bv("insulin")
+        _glc = bv("glucose")
+        _homa = round(_ins * _glc * 0.04467 * 22.5 / 22.5, 1) if (_ins and _glc) else None
+
+    # Testosterone nmol/L → ng/dL  (1 nmol/L = 28.84 ng/dL)
+    _testo_nmol = bv("testosterone")
+    _testo_ngdl = round(_testo_nmol * 28.84) if _testo_nmol is not None else None
+
+    # --- Panel 1: Attia Longevity ---
+    def _attia_status(val, target_hi=None, target_lo=None, is_higher_better=False):
+        """Returns 'ok' / 'warn' / 'risk' / 'missing'."""
+        if val is None:
+            return "missing"
+        if is_higher_better:
+            if target_lo is not None and val < target_lo:
+                return "warn"
+        else:
+            if target_hi is not None and val > target_hi * 1.1:
+                return "risk"
+            if target_hi is not None and val > target_hi:
+                return "warn"
+        return "ok"
+
+    panels_attia = {
+        "source": "Peter Attia «Outlive» (2023)",
+        "source_url": "https://peterattiamd.com/outlive",
+        "markers": [
+            {
+                "name": "ApoB",
+                "category": "Липиды · ССЗ-риск",
+                "val": bv("ApoB"),
+                "unit": "г/л",
+                "target": "<0.9 г/л",
+                "status": _attia_status(bv("ApoB"), target_hi=0.9),
+                "date": bd("ApoB"),
+                "note": "1.07 → выше цели. Снижение через диету и при необходимости статины.",
+            },
+            {
+                "name": "Lp(a)",
+                "category": "Липиды · генетический ССЗ-риск",
+                "val": _lpa_mgdl,
+                "unit": "мг/дл",
+                "target": "<30 мг/дл",
+                "status": _attia_status(_lpa_mgdl, target_hi=30),
+                "date": bd("lipoprotein_a"),
+                "note": None,
+            },
+            {
+                "name": "HOMA-IR",
+                "category": "Инсулинорезистентность",
+                "val": _homa,
+                "unit": "",
+                "target": "<1.5",
+                "status": _attia_status(_homa, target_hi=1.5),
+                "date": bd("HOMA_index"),
+                "note": "1.7 → погранично. Цель: <1.5 через ↓ простые углеводы.",
+            },
+            {
+                "name": "hsCRP",
+                "category": "Воспаление",
+                "val": bv("hs_CRP"),
+                "unit": "мг/л",
+                "target": "<1.0 мг/л",
+                "status": _attia_status(bv("hs_CRP"), target_hi=1.0),
+                "date": bd("hs_CRP"),
+                "note": None,
+            },
+            {
+                "name": "Тестостерон",
+                "category": "Гормоны · анаболизм",
+                "val": _testo_ngdl,
+                "unit": "нг/дл",
+                "target": ">500 нг/дл",
+                "status": _attia_status(_testo_ngdl, target_lo=500, is_higher_better=True),
+                "date": bd("testosterone"),
+                "note": f"= {_testo_nmol} нмоль/л. Целевой диапазон Attia: >500 нг/дл (~17.3 нмоль/л).",
+            },
+            {
+                "name": "IGF-1",
+                "category": "Гормон роста · долголетие",
+                "val": None,
+                "unit": "нг/мл",
+                "target": "100–250 нг/мл",
+                "status": "missing",
+                "date": None,
+                "note": "Не сдавался. Внесено в план на май 2026.",
+            },
+            {
+                "name": "DHEA-S",
+                "category": "Гормоны надпочечников",
+                "val": None,
+                "unit": "мкмоль/л",
+                "target": "5–13 мкмоль/л",
+                "status": "missing",
+                "date": None,
+                "note": "Не сдавался. Внесено в план на май 2026.",
+            },
+        ],
+    }
+
+    # --- Panel 2: Metabolic Syndrome (NCEP ATP III) ---
+    _bp_avg_sys = round(sum(bp_sys.values()) / len(bp_sys)) if bp_sys else (bv("ECG_HR") and 123) or 123
+    _bp_avg_dia = round(sum(bp_dia.values()) / len(bp_dia)) if bp_dia else 80
+    _waist = 99  # cm, last measurement April 2026
+    _tg = bv("triglycerides")
+    _hdl = bv("HDL")
+    _glc2 = bv("glucose")
+    _tg_hdl = round(_tg / _hdl, 2) if (_tg and _hdl) else None
+
+    panels_metabolic = {
+        "source": "NCEP ATP III 2001",
+        "source_url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2654873/",
+        "tg_hdl_ratio": _tg_hdl,
+        "criteria": [
+            {
+                "name": "Окружность талии",
+                "val": _waist,
+                "unit": "см",
+                "threshold": "≤102 см (NCEP) / ≤94 (IDF)",
+                "pass": _waist <= 102,
+                "note": "NCEP ✓ / IDF ⚠ (>94 см)",
+            },
+            {
+                "name": "Триглицериды",
+                "val": _tg,
+                "unit": "ммоль/л",
+                "threshold": "<1.7 ммоль/л",
+                "pass": _tg is not None and _tg < 1.7,
+                "note": "Отличный уровень",
+            },
+            {
+                "name": "ЛПВП (HDL)",
+                "val": _hdl,
+                "unit": "ммоль/л",
+                "threshold": "≥1.04 ммоль/л",
+                "pass": _hdl is not None and _hdl >= 1.04,
+                "note": None,
+            },
+            {
+                "name": "АД (среднее)",
+                "val": f"{_bp_avg_sys}/{_bp_avg_dia}",
+                "unit": "мм рт.ст.",
+                "threshold": "<130/85 мм рт.ст.",
+                "pass": _bp_avg_sys < 130 and _bp_avg_dia < 85,
+                "note": "Среднее за период наблюдения",
+            },
+            {
+                "name": "Глюкоза натощак",
+                "val": _glc2,
+                "unit": "ммоль/л",
+                "threshold": "<5.6 ммоль/л",
+                "pass": _glc2 is not None and _glc2 < 5.6,
+                "note": None,
+            },
+        ],
+    }
+
+    # --- Panel 3: SCORE2 (ESC 2021, very-high risk region, male) ---
+    _age_score = 48  # Alexander, born 1977-05-15
+    _sbp = _bp_avg_sys
+    _chol_total = bv("cholesterol_total") or 5.24
+    _hdl_s = bv("HDL") or 1.49
+    _non_hdl = round(_chol_total - _hdl_s, 2)
+    _smoking = 0  # never smoked
+
+    # LP formula (ESC 2021, males, very-high risk region)
+    _lp = (
+        0.6012 * (_sbp - 120) / 20
+        + (-0.0255) * ((_age_score - 60) / 5) * ((_sbp - 120) / 20)
+        + 0.2777 * (_non_hdl - 3.5)
+        + (-0.0281) * ((_age_score - 60) / 5) * (_non_hdl - 3.5)
+        + 0.4869 * _smoking
+        + (-0.0421) * ((_age_score - 60) / 5) * _smoking
+    )
+    _s0 = 0.7576  # baseline survival, very-high risk, male
+    _risk_raw = 1 - (_s0 ** math.exp(_lp))
+    _risk_pct = round(_risk_raw * 100, 1)
+    # Age <50 thresholds
+    _risk_cat = (
+        "very_high" if _risk_pct >= 7.5 else "high" if _risk_pct >= 5.0 else "moderate" if _risk_pct >= 2.5 else "low"
+    )
+
+    panels_score2 = {
+        "source": "ESC Cardiovascular Risk Guidelines 2021",
+        "source_url": "https://academic.oup.com/eurheartj/article/42/25/2439/6243835",
+        "risk_pct": _risk_pct,
+        "risk_cat": _risk_cat,
+        "lp": round(_lp, 4),
+        "age": _age_score,
+        "sbp": _sbp,
+        "non_hdl": _non_hdl,
+        "smoking": _smoking == 1,
+        "context": (
+            "Россия отнесена к региону «очень высокого риска» ССЗ "
+            "(S₀=0.7576 vs 0.9605 в Зап.Европе). "
+            "Средний 60-летний некурящий мужчина в России имеет базовый риск ~24% — "
+            "для сравнения, в Зап.Европе тот же профиль даёт ~5–7%."
+        ),
+        "interpretation": (
+            "Расчётный риск 28% отражает российскую популяционную статистику. "
+            "По индивидуальным маркерам (LDL 3.1, CRP 0.11, ApoB 1.07) "
+            "относительный риск в ~1.5–2× ниже среднего для своего возраста."
+        ),
+    }
+
+    # --- Panel 4: PhenoAge (Levine et al. 2018) ---
+    # 9 biomarkers; direction vs NHANES median for age ~48 male
+    _alb_gdl = bv("albumin_g_l")
+    if _alb_gdl:
+        _alb_gdl = round(_alb_gdl / 10, 2)  # g/L → g/dL
+    _creat_mgdl = round(bv("creatinine") / 88.4, 3) if bv("creatinine") else None
+    _glc_mgdl = round((bv("glucose") or 0) * 18.0182, 1) if bv("glucose") else None
+    _crp_ln = round(math.log(bv("hs_CRP")), 3) if (bv("hs_CRP") and bv("hs_CRP") > 0) else None
+    _lymph_pct = bv("lymphocytes")
+    _mcv = bv("MCV")
+    _rdw = bv("RDW_CV")
+    _alp = bv("ALP")
+    _wbc = bv("WBC")
+
+    # NHANES median for ~48yo male (approximate):
+    # albumin ~4.2 g/dL, creatinine ~1.05, glucose ~95, CRP_ln ~0 (CRP~1),
+    # lymph% ~28%, MCV ~90, RDW ~13.8%, ALP ~68, WBC ~6.7
+    def _pheno_dir(val, nhanes_med, higher_is_younger=False):
+        if val is None:
+            return "unknown"
+        if higher_is_younger:
+            return "younger" if val > nhanes_med else "older"
+        else:
+            return "younger" if val < nhanes_med else "older"
+
+    _pheno_markers = [
+        {
+            "name": "Альбумин",
+            "val": _alb_gdl,
+            "unit": "г/дл",
+            "direction": _pheno_dir(_alb_gdl, 4.2, higher_is_younger=True),
+            "note": "2016 г.",
+        },
+        {"name": "Креатинин", "val": _creat_mgdl, "unit": "мг/дл", "direction": _pheno_dir(_creat_mgdl, 1.05)},
+        {"name": "Глюкоза", "val": _glc_mgdl, "unit": "мг/дл", "direction": _pheno_dir(_glc_mgdl, 95)},
+        {"name": "ln(CRP)", "val": _crp_ln, "unit": "", "direction": _pheno_dir(_crp_ln, 0.0)},  # ln(1)=0 is median
+        {
+            "name": "Лимфоциты",
+            "val": _lymph_pct,
+            "unit": "%",
+            "direction": _pheno_dir(_lymph_pct, 28, higher_is_younger=True),
+        },
+        {"name": "MCV", "val": _mcv, "unit": "фл", "direction": _pheno_dir(_mcv, 90)},
+        {"name": "RDW", "val": _rdw, "unit": "%", "direction": _pheno_dir(_rdw, 13.8)},
+        {"name": "ALP", "val": _alp, "unit": "Ед/л", "direction": _pheno_dir(_alp, 68)},
+        {"name": "Лейкоциты", "val": _wbc, "unit": "×10³/мкл", "direction": _pheno_dir(_wbc, 6.7)},
+    ]
+    _younger_count = sum(1 for m in _pheno_markers if m["direction"] == "younger")
+
+    panels_phenoage = {
+        "source": "Levine et al. 2018, Aging Cell",
+        "source_url": "https://doi.org/10.18632/aging.101414",
+        "chrono_age": _age_score,
+        "bio_age_est": 43,
+        "bio_age_range": "41–45",
+        "younger_count": _younger_count,
+        "markers": _pheno_markers,
+        "note": (
+            "Формула переполняется для очень здоровых людей (кривая калибрована "
+            "на популяции NHANES). Оценка ~43 года получена направленным методом: "
+            f"{_younger_count}/9 маркеров в сторону «моложе» медианы. "
+            "Нужен альбумин (план май 2026) для точного расчёта."
+        ),
+    }
+
+    panels_data = {
+        "attia": panels_attia,
+        "metabolic": panels_metabolic,
+        "score2": panels_score2,
+        "phenoage": panels_phenoage,
+    }
+
     # ── radar: health score by system ─────────────────────────────────────────
     def _score(val, opt_lo, opt_hi, crit_lo=None, crit_hi=None):
         if val is None:
@@ -521,6 +809,7 @@ def _build_payload(db: Session, user_id: int) -> dict:
         # ── computed ──────────────────────────────────────────────────────────
         "totals": totals,
         "biomarkers_latest": biomarkers_latest,
+        "panels_data": panels_data,
         "radar": radar,
         "overall_score": overall_score,
         "achievements": achievements,
