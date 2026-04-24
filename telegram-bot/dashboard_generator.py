@@ -7,6 +7,7 @@ HealthVault Share Dashboard Generator
 from __future__ import annotations
 
 import json
+import re
 import sys
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -168,13 +169,10 @@ def _build_payload(db: Session, user_id: int) -> dict:
     carb: dict[str, float] = {}
     alco_days: list[str] = []
 
-    _alco_kw = [
-        "вин",
+    # Substring-safe keywords (long enough to avoid false positives)
+    _alco_kw_substr = [
         "виски",
         "шампан",
-        "джин",
-        "негрон",
-        "пив",
         "коньяк",
         "водк",
         "текил",
@@ -189,18 +187,29 @@ def _build_payload(db: Session, user_id: int) -> dict:
         "каберне",
         "саперав",
         "мохито",
-        "сидр",
         "глинтвейн",
         "бренди",
-        "ром",
+        "негрон",
+        "джин",  # "джин" safe — no common food false positives
         "wine",
-        "beer",
         "whisky",
         "vodka",
-        "gin",
-        "rum",
         "champagne",
     ]
+    # Short words requiring word-boundary matching to avoid false positives:
+    # "ром"  → catches "сыром", "кальмаром", "гарниром", "сахаром" (Russian -ром ending)
+    # "вин"  → catches "свинина", "винегрет" (not wine)
+    # "пив"  → could catch non-alcohol words
+    # Use \bром\w{0,3}\b → catches ром/рома/ромом/рому but NOT кальмаром/сыром
+    _alco_kw_word_re = re.compile(
+        r"\bром\w{0,3}\b"  # ром (rum) and its inflections — NOT сыром/кальмаром
+        r"|\bвин[оаеыу]\b"  # вино/вина/вине/вины/вину — NOT свинина/винегрет
+        r"|\bпив[оа]?\b"  # пиво/пива/пив
+        r"|\bсидр\w{0,3}\b"  # сидр (cider)
+        r"|\bbeer\b"
+        r"|\bgin\b"
+        r"|\brum\b"
+    )
 
     for row in nut_rows:
         d = row.date.isoformat()
@@ -222,7 +231,8 @@ def _build_payload(db: Session, user_id: int) -> dict:
         if isinstance(items, list):
             for item in items:
                 name_lower = str(item.get("food", "")).lower()
-                if any(kw in name_lower for kw in _alco_kw):
+                is_alco = any(kw in name_lower for kw in _alco_kw_substr) or bool(_alco_kw_word_re.search(name_lower))
+                if is_alco:
                     if d not in alco_days:
                         alco_days.append(d)
                     break
