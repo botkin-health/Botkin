@@ -172,10 +172,8 @@ async def receive_apple_health(
                 raw["heart_rate_min"] = payload.heart_rate_min
             if payload.heart_rate_max is not None:
                 raw["heart_rate_max"] = payload.heart_rate_max
-            if payload.blood_pressure_systolic is not None:
-                raw["blood_pressure_systolic"] = payload.blood_pressure_systolic
-            if payload.blood_pressure_diastolic is not None:
-                raw["blood_pressure_diastolic"] = payload.blood_pressure_diastolic
+            # NOTE: blood_pressure_systolic/diastolic НЕ идут в raw_data —
+            # они пишутся только в blood_pressure_logs (см. ниже).
             if payload.vo2_max is not None:
                 raw["vo2_max"] = payload.vo2_max
             if payload.respiratory_rate is not None:
