@@ -417,7 +417,9 @@ def create_or_update_activity(
         if stress_level is not None:
             existing.stress_level = stress_level
         if raw_data is not None:
-            existing.raw_data = raw_data
+            # Merge instead of replace — prevents Garmin sync from wiping
+            # Apple Health fields (blood pressure, gait, etc.)
+            existing.raw_data = {**(existing.raw_data or {}), **raw_data}
 
         existing.synced_at = datetime.now()
         db.commit()
