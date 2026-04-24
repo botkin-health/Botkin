@@ -371,8 +371,10 @@ def _build_payload(db: Session, user_id: int) -> dict:
         "uric_acid": {"val": bv("uric_acid"), "date": bd("uric_acid"), "unit": "мкмоль/л", "ok": 420},
     }
 
-    # ── panels_data: 4 recognised panels (Attia / Metabolic / SCORE2 / PhenoAge) ──
+    # ── panels_data: 4 recognised panels (Attia / Metabolic / LE8 / PhenoAge) ──
     #   All values computed here so JS only renders pre-calculated data.
+
+    _age_score = 48  # Alexander Lyskovsky, born 1977-05-15
 
     # Helper: convert Lp(a) g/L → mg/dL  (1 g/L = 100 mg/dL)
     _lpa_g = bv("lipoprotein_a")
@@ -538,52 +540,185 @@ def _build_payload(db: Session, user_id: int) -> dict:
         ],
     }
 
-    # --- Panel 3: SCORE2 (ESC 2021, very-high risk region, male) ---
-    _age_score = 48  # Alexander, born 1977-05-15
-    _sbp = _bp_avg_sys
-    _chol_total = bv("cholesterol_total") or 5.24
-    _hdl_s = bv("HDL") or 1.49
-    _non_hdl = round(_chol_total - _hdl_s, 2)
-    _smoking = 0  # never smoked
+    # --- Panel 3: AHA Life's Essential 8 (2022) ---
+    # Source: https://www.ahajournals.org/doi/10.1161/CIR.0000000000001081
+    # Each of 8 components scored 0-100, then averaged → overall 0-100.
 
-    # LP formula (ESC 2021, males, very-high risk region)
-    _lp = (
-        0.6012 * (_sbp - 120) / 20
-        + (-0.0255) * ((_age_score - 60) / 5) * ((_sbp - 120) / 20)
-        + 0.2777 * (_non_hdl - 3.5)
-        + (-0.0281) * ((_age_score - 60) / 5) * (_non_hdl - 3.5)
-        + 0.4869 * _smoking
-        + (-0.0421) * ((_age_score - 60) / 5) * _smoking
-    )
-    _s0 = 0.7576  # baseline survival, very-high risk, male
-    _risk_raw = 1 - (_s0 ** math.exp(_lp))
-    _risk_pct = round(_risk_raw * 100, 1)
-    # Age <50 thresholds
-    _risk_cat = (
-        "very_high" if _risk_pct >= 7.5 else "high" if _risk_pct >= 5.0 else "moderate" if _risk_pct >= 2.5 else "low"
-    )
+    _total_weeks = max(1.0, total_days / 7)
 
-    panels_score2 = {
-        "source": "ESC Cardiovascular Risk Guidelines 2021",
-        "source_url": "https://academic.oup.com/eurheartj/article/42/25/2439/6243835",
-        "risk_pct": _risk_pct,
-        "risk_cat": _risk_cat,
-        "lp": round(_lp, 4),
-        "age": _age_score,
-        "sbp": _sbp,
-        "non_hdl": _non_hdl,
-        "smoking": _smoking == 1,
-        "context": (
-            "Россия отнесена к региону «очень высокого риска» ССЗ "
-            "(S₀=0.7576 vs 0.9605 в Зап.Европе). "
-            "Средний 60-летний некурящий мужчина в России имеет базовый риск ~24% — "
-            "для сравнения, в Зап.Европе тот же профиль даёт ~5–7%."
-        ),
-        "interpretation": (
-            "Расчётный риск 28% отражает российскую популяционную статистику. "
-            "По индивидуальным маркерам (LDL 3.1, CRP 0.11, ApoB 1.07) "
-            "относительный риск в ~1.5–2× ниже среднего для своего возраста."
-        ),
+    # 1. Diet (approximate — NutriLogBot has kcal/prot/fat/carb, not food categories)
+    #    AHA diet score requires fruit/veg/fiber/sodium detail we don't have.
+    #    Approximation: protein ratio + calorie tracking consistency.
+    _prot_avg_le8 = round(sum(prot.values()) / len(prot), 1) if prot else 0
+    _kcal_avg_le8 = round(sum(kcal.values()) / len(kcal)) if kcal else 0
+    _prot_pct_le8 = round((_prot_avg_le8 * 4) / max(_kcal_avg_le8, 1) * 100, 1)
+    _diet_score: int | None
+    if _kcal_avg_le8 > 0:
+        _diet_score = 50
+        if _prot_pct_le8 >= 25:
+            _diet_score += 15
+        elif _prot_pct_le8 >= 20:
+            _diet_score += 8
+        if 1400 <= _kcal_avg_le8 <= 2300:
+            _diet_score += 15
+        _diet_score = min(100, _diet_score)
+    else:
+        _diet_score = None
+
+    # 2. Physical activity (moderate-to-vigorous min/week)
+    #    AHA: 0→0, 1-149→scale 20-79, 150+→80-100 (300+ = 100)
+    _act_min_week = sum(a.get("duration_min", 0) for a in activities) / _total_weeks
+    if _act_min_week >= 300:
+        _pa_score = 100
+    elif _act_min_week >= 150:
+        _pa_score = round(80 + 20 * (_act_min_week - 150) / 150)
+    elif _act_min_week >= 1:
+        _pa_score = max(20, round(80 * _act_min_week / 150))
+    else:
+        _pa_score = 0
+
+    # 3. Nicotine: never smoked → 100
+    _smoking_score = 100
+
+    # 4. Sleep (hours/night)
+    #    AHA: 7-9h → 100, 6-6.9 or 9-9.9 → 70, <6 → scale to 0
+    _sleep_avg_le8 = round(sum(sleep_h.values()) / len(sleep_h), 1) if sleep_h else None
+    if _sleep_avg_le8 is None:
+        _sleep_score: int | None = None
+    elif 7.0 <= _sleep_avg_le8 <= 8.9:
+        _sleep_score = 100
+    elif 6.0 <= _sleep_avg_le8 < 7.0 or 9.0 <= _sleep_avg_le8 <= 9.9:
+        _sleep_score = 70
+    else:
+        _sleep_score = max(0, round(40 * min(_sleep_avg_le8, 6) / 6))
+
+    # 5. BMI — use latest weight
+    _height_m = 1.70  # Alexander: 170 cm
+    _w_last = stats_weight.get("last")
+    _bmi_le8 = round(_w_last / (_height_m**2), 1) if _w_last else None
+    if _bmi_le8 is None:
+        _bmi_score: int | None = None
+    elif _bmi_le8 < 25.0:
+        _bmi_score = 100
+    elif _bmi_le8 < 30.0:
+        _bmi_score = 74
+    elif _bmi_le8 < 35.0:
+        _bmi_score = 48
+    elif _bmi_le8 < 40.0:
+        _bmi_score = 22
+    else:
+        _bmi_score = 0
+
+    # 6. Blood glucose — HbA1c primary metric
+    _hba1c_le8 = bv("HbA1c")
+    if _hba1c_le8 is None:
+        _glc_score: int | None = None
+    elif _hba1c_le8 < 5.7:
+        _glc_score = 100
+    elif _hba1c_le8 < 6.0:
+        _glc_score = 90
+    elif _hba1c_le8 < 6.5:
+        _glc_score = 50
+    else:
+        _glc_score = 0
+
+    # 7. Blood lipids — non-HDL cholesterol (mmol/L)
+    _ct = bv("cholesterol_total")
+    _hdl_le8 = bv("HDL")
+    _non_hdl_le8 = round(_ct - _hdl_le8, 2) if (_ct and _hdl_le8) else None
+    if _non_hdl_le8 is None:
+        _lip_score: int | None = None
+    elif _non_hdl_le8 < 2.6:
+        _lip_score = 100
+    elif _non_hdl_le8 < 3.4:
+        _lip_score = 79
+    elif _non_hdl_le8 < 4.2:
+        _lip_score = 50
+    elif _non_hdl_le8 < 4.9:
+        _lip_score = 22
+    else:
+        _lip_score = 0
+
+    # 8. Blood pressure — systolic/diastolic average
+    _sbp_le8 = _bp_avg_sys
+    _dbp_le8 = _bp_avg_dia
+    if _sbp_le8 < 120 and _dbp_le8 < 80:
+        _bp_score_le8 = 100
+    elif _sbp_le8 < 130 and _dbp_le8 < 80:
+        _bp_score_le8 = 90
+    elif _sbp_le8 < 140 or _dbp_le8 < 90:
+        _bp_score_le8 = 50
+    else:
+        _bp_score_le8 = 0
+
+    _le8_components = {
+        "diet": {
+            "score": _diet_score,
+            "val": f"~{_prot_pct_le8}% белка, {_kcal_avg_le8} ккал/д",
+            "target": "Больше овощей, цельных злаков, рыбы · меньше насыщенных жиров",
+            "note": "приблизительно — нет разбора по продуктам",
+            "date": None,
+        },
+        "activity": {
+            "score": _pa_score,
+            "val": f"~{round(_act_min_week)} мин/нед",
+            "target": "≥150 мин умеренной нагрузки / ≥75 мин интенсивной",
+            "note": f"{len(activities)} тренировок за период",
+            "date": None,
+        },
+        "smoking": {
+            "score": _smoking_score,
+            "val": "Никогда",
+            "target": "Не курить",
+            "note": None,
+            "date": None,
+        },
+        "sleep": {
+            "score": _sleep_score,
+            "val": f"{_sleep_avg_le8} ч/ночь" if _sleep_avg_le8 else "—",
+            "target": "7–9 часов",
+            "note": "Garmin sleep tracking",
+            "date": None,
+        },
+        "bmi": {
+            "score": _bmi_score,
+            "val": f"ИМТ {_bmi_le8}  ({_w_last} кг)" if _bmi_le8 else "—",
+            "target": "ИМТ <25  (≈72 кг при росте 170 см)",
+            "note": None,
+            "date": bd("ApoB"),  # use latest blood-draw date as proxy
+        },
+        "glucose": {
+            "score": _glc_score,
+            "val": f"HbA1c {_hba1c_le8}%",
+            "target": "HbA1c <5.7%",
+            "note": None,
+            "date": bd("HbA1c"),
+        },
+        "lipids": {
+            "score": _lip_score,
+            "val": f"non-HDL {_non_hdl_le8} ммоль/л",
+            "target": "non-HDL <2.6 ммоль/л  (ApoB <0.9 — приоритет)",
+            "note": None,
+            "date": bd("cholesterol_total"),
+        },
+        "bp": {
+            "score": _bp_score_le8,
+            "val": f"{_sbp_le8}/{_dbp_le8} мм рт.ст.",
+            "target": "<120/80 мм рт.ст.",
+            "note": "среднее за период наблюдения",
+            "date": None,
+        },
+    }
+    _le8_valid = [c["score"] for c in _le8_components.values() if c["score"] is not None]
+    _le8_total = round(sum(_le8_valid) / len(_le8_valid)) if _le8_valid else None
+    _le8_cat = "high" if (_le8_total or 0) >= 80 else "moderate" if (_le8_total or 0) >= 50 else "low"
+
+    panels_le8 = {
+        "source": "American Heart Association · Life's Essential 8 (2022)",
+        "source_url": "https://www.ahajournals.org/doi/10.1161/CIR.0000000000001081",
+        "total": _le8_total,
+        "category": _le8_cat,
+        "components": _le8_components,
     }
 
     # --- Panel 4: PhenoAge (Levine et al. 2018) ---
@@ -654,7 +789,7 @@ def _build_payload(db: Session, user_id: int) -> dict:
     panels_data = {
         "attia": panels_attia,
         "metabolic": panels_metabolic,
-        "score2": panels_score2,
+        "le8": panels_le8,
         "phenoage": panels_phenoage,
     }
 
