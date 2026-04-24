@@ -305,8 +305,14 @@ def _build_payload(db: Session, user_id: int) -> dict:
         s=start,
         e=today,
     )
+    # Deduplicate activities: same (date, type, duration_min) = same workout
+    seen_acts: set = set()
     activities: list = []
     for row in wk_rows:
+        key = (row.d, row.workout_type or "other", row.duration_minutes or 0)
+        if key in seen_acts:
+            continue
+        seen_acts.add(key)
         activities.append(
             {
                 "date": row.d,
@@ -324,6 +330,40 @@ def _build_payload(db: Session, user_id: int) -> dict:
         v = sum(d.values()) / len(d)
         return round(v, rnd) if rnd else round(v)
 
+    # Activity breakdown by type (for workout card bars)
+    _WORKOUT_LABELS = {
+        "hiit": "HIIT",
+        "yoga": "Йога",
+        "running": "Бег",
+        "walking": "Ходьба",
+        "cycling": "Велосипед",
+        "swimming": "Плавание",
+        "strength": "Силовая",
+        "cardio": "Кардио",
+        "other": "Прочее",
+    }
+    # Only running/walking/cycling/swimming have meaningful distance
+    _DISTANCE_TYPES = {"running", "walking", "cycling", "swimming"}
+    _breakdown: dict = {}
+    for a in activities:
+        t = a["type"]
+        if t not in _breakdown:
+            _breakdown[t] = {"n": 0, "km": 0.0}
+        _breakdown[t]["n"] += 1
+        if t in _DISTANCE_TYPES and a.get("distance_km"):
+            _breakdown[t]["km"] += a["distance_km"]
+    activity_breakdown = sorted(
+        [
+            {
+                "label": _WORKOUT_LABELS.get(t, t.capitalize()),
+                "n": v["n"],
+                "km": round(v["km"], 1) if v["km"] > 0 else 0,
+            }
+            for t, v in _breakdown.items()
+        ],
+        key=lambda x: -x["n"],
+    )
+
     bp_sys_sorted = sorted(bp_sys.items())
     bp_last_str = f"{bp_sys_sorted[-1][1]}/{bp_dia.get(bp_sys_sorted[-1][0], '?')}" if bp_sys_sorted else "—"
 
@@ -340,9 +380,12 @@ def _build_payload(db: Session, user_id: int) -> dict:
         "temp_home_avg": _davg(temp_home, 1),
         "activities_total": len(activities),
         "activity_min": sum(a.get("duration_min", 0) for a in activities),
-        "activity_km": round(sum(a.get("distance_km", 0) or 0 for a in activities), 1),
+        "activity_km": round(
+            sum((a.get("distance_km") or 0) for a in activities if a["type"] in _DISTANCE_TYPES),
+            1,
+        ),
         "activity_hours": round(sum(a.get("duration_min", 0) for a in activities) / 60),
-        "activity_breakdown": [],
+        "activity_breakdown": activity_breakdown,
         "bp_last": bp_last_str,
         "alco_days_n": len(alco_days),
         "supp_days_n": len(supp_days),
