@@ -302,7 +302,7 @@ body {
       <button class="panel-tab active" onclick="switchPanel(0)">Мониторинг</button>
       <button class="panel-tab" onclick="switchPanel(1)">Longevity · Attia</button>
       <button class="panel-tab" onclick="switchPanel(2)">Метаболизм</button>
-      <button class="panel-tab" onclick="switchPanel(3)">ССЗ-риск SCORE2</button>
+      <button class="panel-tab" onclick="switchPanel(3)">Life's Essential 8</button>
       <button class="panel-tab" onclick="switchPanel(4)">PhenoAge</button>
     </div>
 
@@ -324,10 +324,10 @@ body {
       <table class="biotable" id="metabolic-table"></table>
     </div>
 
-    <!-- Panel 3: SCORE2 -->
+    <!-- Panel 3: Life's Essential 8 -->
     <div class="panel-content" id="panel-3">
-      <div class="panel-source">Источник: <a href="https://academic.oup.com/eurheartj/article/42/25/2439/6243835" target="_blank">ESC Cardiovascular Risk Guidelines 2021 · SCORE2</a> &nbsp;·&nbsp; 10-летний риск фатального и нефатального ССЗ-события</div>
-      <div id="score2-panel"></div>
+      <div class="panel-source">Источник: <a href="https://www.ahajournals.org/doi/10.1161/CIR.0000000000001081" target="_blank">American Heart Association · Life's Essential 8 (2022)</a> &nbsp;·&nbsp; Индекс здоровья ССС по 8 компонентам · шкала 0–100</div>
+      <div id="le8-panel"></div>
     </div>
 
     <!-- Panel 4: PhenoAge -->
@@ -686,32 +686,66 @@ bioRefs.map(([k, nm, lo, hi, sys]) => {
   </tr>` + '</tbody>';
 })();
 
-// === PANEL 3: ССЗ-риск SCORE2 ===
+// === PANEL 3: Life's Essential 8 (AHA 2022) ===
 (function() {
   const pd = D.panels_data; if (!pd) return;
-  const s2 = pd.score2;
-  const el = document.getElementById('score2-panel');
-  if (!el || !s2) return;
-  const riskColor = s2.risk_pct >= 10 ? COLOR.r : s2.risk_pct >= 5 ? COLOR.y : COLOR.g;
-  const catRu = {low:'низкий',moderate:'умеренный',high:'высокий',very_high:'очень высокий'}[s2.risk_cat] || s2.risk_cat;
+  const le8 = pd.le8;
+  const el = document.getElementById('le8-panel');
+  if (!el || !le8) return;
+
+  const totalColor = le8.total >= 80 ? COLOR.g : le8.total >= 50 ? COLOR.y : COLOR.r;
+  const catRu = {high:'Высокий уровень здоровья', moderate:'Умеренный уровень', low:'Низкий уровень'}[le8.category] || '';
+
+  const comps = [
+    ['diet',     '🥗', 'Диета'],
+    ['activity', '🏋️', 'Физактивность'],
+    ['smoking',  '🚬', 'Курение'],
+    ['sleep',    '😴', 'Сон'],
+    ['bmi',      '⚖️', 'ИМТ'],
+    ['glucose',  '🩸', 'Глюкоза'],
+    ['lipids',   '💊', 'Липиды'],
+    ['bp',       '🩺', 'Давление'],
+  ];
+
+  const bars = comps.map(([key, emoji, label]) => {
+    const c = le8.components[key];
+    if (!c) return '';
+    const s = c.score;
+    const barC = s === null ? COLOR.muted : s >= 80 ? COLOR.g : s >= 60 ? COLOR.y : COLOR.r;
+    const valStr = s !== null ? s : '—';
+    const subtext = [c.val, c.note].filter(Boolean).join(' · ');
+    return `<div style="margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px;">
+        <span style="font-size:12px;">${emoji} <b>${label}</b>
+          <span style="color:${COLOR.dim};font-size:10px;margin-left:6px;">${subtext}</span>
+        </span>
+        <span style="font-size:14px;font-weight:800;color:${barC};flex-shrink:0;margin-left:8px;">${valStr}</span>
+      </div>
+      <div style="height:5px;background:var(--bg2);border-radius:3px;overflow:hidden;">
+        <div style="width:${s || 0}%;height:100%;background:${barC};border-radius:3px;transition:width 0.8s ease;"></div>
+      </div>
+      ${s !== null && s < 90 ? `<div style="font-size:10px;color:${COLOR.dim};margin-top:2px;">Цель: ${c.target}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  // Compute weakest links for action summary
+  const sorted = comps
+    .map(([key, , label]) => ({ label, score: (le8.components[key] || {}).score }))
+    .filter(x => x.score !== null)
+    .sort((a, b) => a.score - b.score);
+  const weakest = sorted.slice(0, 3).map(x => `${x.label} (${x.score})`).join(' · ');
+
   el.innerHTML = `
-    <div style="display:flex;align-items:flex-start;gap:24px;margin-bottom:16px;">
+    <div style="display:flex;align-items:flex-start;gap:24px;margin-bottom:20px;">
       <div style="text-align:center;flex-shrink:0;">
-        <div style="font-size:56px;font-weight:800;color:${riskColor};line-height:1;">${s2.risk_pct}%</div>
-        <div style="font-size:10px;color:${COLOR.muted};margin-top:4px;text-transform:uppercase;letter-spacing:1px;">10-летний риск</div>
-        <div style="font-size:11px;font-weight:700;color:${riskColor};margin-top:6px;">${catRu}</div>
+        <div style="font-size:64px;font-weight:800;color:${totalColor};line-height:1;">${le8.total}</div>
+        <div style="font-size:10px;color:${COLOR.muted};margin-top:2px;text-transform:uppercase;letter-spacing:1.5px;">из 100</div>
+        <div style="font-size:11px;font-weight:700;color:${totalColor};margin-top:6px;">${catRu}</div>
       </div>
-      <div style="flex:1;">
-        <div style="font-size:11px;color:${COLOR.muted};line-height:2;background:var(--bg2);border-radius:8px;padding:10px 14px;">
-          Регион: Россия (очень высокий риск ССЗ) &nbsp;·&nbsp; LP = ${s2.lp}<br>
-          Пол: мужской &nbsp;·&nbsp; Возраст: ${s2.age} лет &nbsp;·&nbsp; Курение: нет<br>
-          АД: ${s2.sbp} мм рт.ст. &nbsp;·&nbsp; non-HDL: ${s2.non_hdl} ммоль/л
-        </div>
-      </div>
+      <div style="flex:1;">${bars}</div>
     </div>
-    <div style="background:var(--bg2);border-radius:8px;padding:12px 14px;font-size:11px;color:${COLOR.muted};line-height:1.9;border-left:3px solid ${riskColor};">
-      <b style="color:var(--text);">Контекст:</b> ${s2.context}<br>
-      <b style="color:var(--text);">Интерпретация:</b> ${s2.interpretation}
+    <div style="background:var(--bg2);border-radius:8px;padding:10px 14px;font-size:11px;color:${COLOR.muted};line-height:1.8;border-left:3px solid ${totalColor};">
+      <b style="color:var(--text);">Точки роста:</b> ${weakest}
     </div>`;
 })();
 
