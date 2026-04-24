@@ -942,6 +942,40 @@ async def handle_description(
     await safe_edit_text(processing_message, response, parse_mode="HTML", reply_markup=builder.as_markup())
 
 
+def build_menu_meal_item(menu_data: dict) -> dict:
+    """Собирает canonical meal item из результата распознавания меню/чека.
+
+    Главное: НЕ теряем вес. GPT-vision возвращает weight/weight_grams —
+    если его проигнорировать, в БД записывается amount=0 и мини-апп
+    показывает "0 г". Если LLM не вернул вес (или вернул 0/None) —
+    ставим 100г как стандартную порцию, а не теряем данные.
+    """
+    dish_name = menu_data.get("dish_name", "Блюдо из меню")
+    weight_raw = menu_data.get("weight") or menu_data.get("weight_grams")
+    try:
+        weight_val = float(weight_raw) if weight_raw else 0.0
+    except (TypeError, ValueError):
+        weight_val = 0.0
+
+    if weight_val > 0:
+        weight_g = weight_val
+        weight_source = "llm"
+    else:
+        weight_g = 100.0
+        weight_source = "default_100g"
+
+    return {
+        "product": dish_name,
+        "weight_g": weight_g,
+        "weight_source": weight_source,
+        "calories": menu_data.get("calories", 0),
+        "protein": menu_data.get("protein", 0),
+        "fats": menu_data.get("fats", 0),
+        "carbs": menu_data.get("carbs", 0),
+        "source": "menu_ocr",
+    }
+
+
 async def handle_menu_photo(message: Message, menu_data: dict, photo_path: Path, processing_message: Message = None):
     """Обработка распознанной по фото еды/продукта с КБЖУ"""
 
@@ -979,17 +1013,7 @@ async def handle_menu_photo(message: Message, menu_data: dict, photo_path: Path,
         state="waiting_confirmation",
         data={
             "dish_name": dish_name,
-            "meal_items": [
-                {
-                    "product": dish_name,
-                    "weight_g": None,
-                    "calories": calories,
-                    "protein": protein,
-                    "fats": fats,
-                    "carbs": carbs,
-                    "source": "menu_ocr",
-                }
-            ],
+            "meal_items": [build_menu_meal_item(menu_data)],
             "meal_totals": {
                 "calories": calories,
                 "protein": protein,
