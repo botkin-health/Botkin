@@ -199,15 +199,20 @@ _TYPE_MAP = {
 def backfill_workouts(dry_run: bool):
     print("\n=== 2. ТРЕНИРОВКИ (Garmin JSON) ===")
 
-    # Существующие в БД
+    # Существующие в БД (включая distance_km для UPDATE)
     existing_raw = run_sql(
-        f"SELECT date::text FROM workouts WHERE user_id={USER_ID} AND date >= '{START_DATE}'",
+        f"SELECT date::text, distance_km::text FROM workouts WHERE user_id={USER_ID} AND date >= '{START_DATE}'",
         dry_run=False,
     )
-    existing_dates = set(line.strip() for line in existing_raw.splitlines() if line.strip())
+    existing_dates: dict[str, str | None] = {}
+    for line in existing_raw.splitlines():
+        parts = [p.strip() for p in line.split("|")]
+        if parts[0]:
+            existing_dates[parts[0]] = parts[1] if len(parts) > 1 else None
     print(f"Уже в БД: {len(existing_dates)} записей (по датам)")
 
     rows_to_insert = []
+    rows_to_update = []  # (date, distance_km) — обновляем дистанцию у существующих
     files = sorted([f for f in GARMIN_ACTS.glob("*.json") if "detail" not in f.name])
     for f in files:
         dt_prefix = f.name[:10]  # YYYY-MM-DD
@@ -227,6 +232,7 @@ def backfill_workouts(dry_run: bool):
         duration_sec = data.get("duration") or data.get("elapsedDuration") or 0
         duration_min = max(1, round(duration_sec / 60))
         distance_m = data.get("distance") or 0
+        distance_km = round(distance_m / 1000, 3) if distance_m else None
         calories = int(data.get("calories") or 0)
 
         try:
@@ -238,38 +244,53 @@ def backfill_workouts(dry_run: bool):
 
         work_date = start_local[:10]
 
-        rows_to_insert.append(
-            (
-                work_date,
-                workout_type,
-                duration_min,
-                start_dt.isoformat(),
-                end_dt.isoformat(),
-                calories,
-                data.get("activityId", ""),
+        if work_date in existing_dates:
+            # Строка уже есть — обновляем дистанцию если она появилась
+            if distance_km and (existing_dates[work_date] in (None, "", "None")):
+                rows_to_update.append((work_date, distance_km))
+        else:
+            rows_to_insert.append(
+                (
+                    work_date,
+                    workout_type,
+                    duration_min,
+                    start_dt.isoformat(),
+                    end_dt.isoformat(),
+                    calories,
+                    distance_km,
+                    data.get("activityId", ""),
+                )
             )
-        )
+            existing_dates[work_date] = str(distance_km)
 
-    print(f"Файлов активностей (2026+): {len(rows_to_insert)}")
-    if not rows_to_insert:
-        print("Нечего вставлять")
+    print(f"Новых для вставки: {len(rows_to_insert)}, обновить дистанцию: {len(rows_to_update)}")
+    if not rows_to_insert and not rows_to_update:
+        print("Нечего делать")
         return
 
-    vals = []
-    for work_date, wtype, dur_min, sdt, edt, cal, src_id in rows_to_insert:
-        vals.append(
-            f"({USER_ID}, '{work_date}', '{wtype}', {dur_min}, "
-            f"'{sdt}', '{edt}', {cal if cal else 'NULL'}, 'garmin_{src_id}')"
+    sqls = []
+
+    if rows_to_insert:
+        vals = []
+        for work_date, wtype, dur_min, sdt, edt, cal, dist_km, src_id in rows_to_insert:
+            dist_str = str(dist_km) if dist_km else "NULL"
+            vals.append(
+                f"({USER_ID}, '{work_date}', '{wtype}', {dur_min}, "
+                f"'{sdt}', '{edt}', {cal if cal else 'NULL'}, {dist_str}, 'garmin_{src_id}')"
+            )
+        sqls.append(
+            "INSERT INTO workouts (user_id, date, workout_type, duration_minutes, start_time, end_time, calories_burned, distance_km, source) VALUES\n"
+            + ",\n".join(vals)
+            + "\nON CONFLICT DO NOTHING;"
         )
 
-    sql = (
-        "INSERT INTO workouts (user_id, date, workout_type, duration_minutes, start_time, end_time, calories_burned, source) VALUES\n"
-        + ",\n".join(vals)
-        + "\nON CONFLICT DO NOTHING;"
-    )
+    for work_date, dist_km in rows_to_update:
+        sqls.append(f"UPDATE workouts SET distance_km={dist_km} WHERE user_id={USER_ID} AND date='{work_date}';")
+
+    sql = "\n".join(sqls)
     out = run_sql_file(sql, dry_run)
     if not dry_run:
-        print(f"✅ Вставлено тренировок: {len(rows_to_insert)}")
+        print(f"✅ Вставлено: {len(rows_to_insert)}, обновлено дистанций: {len(rows_to_update)}")
         print(f"   Ответ psql: {out[:80]}")
 
 
@@ -353,7 +374,61 @@ ON CONFLICT (user_id, date) DO UPDATE
         print(f"   Ответ psql (первые 150 символов): {out[:150]}")
 
 
-# ── 4. Итоговый отчёт ─────────────────────────────────────────────────────────
+# ── 4. HRV (Garmin HRV JSON) ─────────────────────────────────────────────────
+
+GARMIN_HRV = BASE / "data" / "garmin" / "hrv"
+
+
+def backfill_hrv(dry_run: bool):
+    print("\n=== 4. HRV (Garmin HRV JSON) ===")
+
+    existing_raw = run_sql(
+        f"SELECT date::text FROM activity_log WHERE user_id={USER_ID} AND date >= '{START_DATE}' AND hrv IS NOT NULL",
+        dry_run=False,
+    )
+    existing_dates = set(line.strip() for line in existing_raw.splitlines() if line.strip())
+    print(f"Уже есть HRV в activity_log: {len(existing_dates)} дней")
+
+    hrv_data: dict[str, int] = {}  # date → lastNightAvg
+    for f in sorted(GARMIN_HRV.glob("2026*.json")):
+        try:
+            raw = json.loads(f.read_text())
+        except Exception:
+            continue
+        if raw is None:
+            continue
+        summ = raw.get("hrvSummary") or {}
+        cal_date = summ.get("calendarDate", "")
+        if not cal_date or cal_date < START_DATE:
+            continue
+        hrv_val = summ.get("lastNightAvg")
+        if hrv_val and int(hrv_val) > 0:
+            hrv_data[cal_date] = int(hrv_val)
+
+    print(f"Garmin HRV файлов с данными: {len(hrv_data)}")
+    new_dates = {d: v for d, v in hrv_data.items() if d not in existing_dates}
+    print(f"Новых дней HRV для загрузки: {len(new_dates)}")
+
+    if not new_dates:
+        print("Нечего обновлять")
+        return
+
+    sqls = []
+    for cal_date, hrv_val in sorted(new_dates.items()):
+        sqls.append(
+            f"""INSERT INTO activity_log (user_id, date, hrv, source)
+VALUES ({USER_ID}, '{cal_date}', {hrv_val}, 'garmin_hrv')
+ON CONFLICT (user_id, date) DO UPDATE
+  SET hrv = EXCLUDED.hrv;"""
+        )
+
+    out = run_sql_file("\n".join(sqls), dry_run)
+    if not dry_run:
+        print(f"✅ Обновлено/вставлено дней HRV: {len(new_dates)}")
+        print(f"   Ответ psql (первые 100 символов): {out[:100]}")
+
+
+# ── 5. Итоговый отчёт ─────────────────────────────────────────────────────────
 
 
 def print_report():
@@ -387,7 +462,9 @@ def print_report():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true", help="Не пишем в БД, только показываем что будет")
-    parser.add_argument("--only", choices=["weights", "workouts", "sleep"], help="Синхронизировать только один тип")
+    parser.add_argument(
+        "--only", choices=["weights", "workouts", "sleep", "hrv"], help="Синхронизировать только один тип"
+    )
     args = parser.parse_args()
 
     if args.dry_run:
@@ -400,6 +477,8 @@ if __name__ == "__main__":
             backfill_workouts(args.dry_run)
         if not args.only or args.only == "sleep":
             backfill_sleep(args.dry_run)
+        if not args.only or args.only == "hrv":
+            backfill_hrv(args.dry_run)
 
         if not args.dry_run:
             print_report()

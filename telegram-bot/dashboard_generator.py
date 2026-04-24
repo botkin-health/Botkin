@@ -289,7 +289,7 @@ def _build_payload(db: Session, user_id: int) -> dict:
     wk_rows = _rows(
         db,
         """
-        SELECT date::text as d, workout_type, duration_minutes, calories_burned
+        SELECT date::text as d, workout_type, duration_minutes, calories_burned, distance_km
         FROM workouts
         WHERE user_id=:uid AND date >= :s AND date <= :e
         ORDER BY date
@@ -306,7 +306,7 @@ def _build_payload(db: Session, user_id: int) -> dict:
                 "type": row.workout_type or "other",
                 "duration_min": row.duration_minutes or 0,
                 "calories": row.calories_burned or 0,
-                "distance_km": None,
+                "distance_km": float(row.distance_km) if row.distance_km else None,
             }
         )
 
