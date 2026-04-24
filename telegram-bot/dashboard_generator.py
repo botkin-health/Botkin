@@ -305,14 +305,8 @@ def _build_payload(db: Session, user_id: int) -> dict:
         s=start,
         e=today,
     )
-    # Deduplicate activities: same (date, type, duration_min) = same workout
-    seen_acts: set = set()
     activities: list = []
     for row in wk_rows:
-        key = (row.d, row.workout_type or "other", row.duration_minutes or 0)
-        if key in seen_acts:
-            continue
-        seen_acts.add(key)
         activities.append(
             {
                 "date": row.d,
