@@ -85,6 +85,7 @@
 
 .slot-title { font-weight: 700; font-size: 20px; }
 .slot-meta { font-size: 20px; font-weight: 700; white-space: nowrap; }
+.slot-fiber { font-size: 12px; color: var(--muted); white-space: nowrap; margin-top: 2px; }
 
 /* Color kcal to match slot */
 .slot[data-slot="breakfast"] .slot-meta { color: var(--slot-breakfast); }

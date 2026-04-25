@@ -149,6 +149,7 @@
       const isExpanded = sessionStorage.getItem(expandedKey) === '1';
       const hdrExtra = isExpanded ? '⌄' : '›';
       const totalKcal = meals.reduce((s, m) => s + (m.totals.kcal || 0), 0);
+      const totalFib  = meals.reduce((s, m) => s + (m.totals.fib  || 0), 0);
       const allItems = meals.flatMap(m => m.items);
       const previewText = allItems.map(it => it.name).join(' · ');
       const itemsHtml = isExpanded ? renderMergedItems(slot, meals) : '';
@@ -159,8 +160,9 @@
               <div class="slot-title">${SLOT_LABEL[slot]}</div>
               ${!isExpanded ? `<div class="slot-preview">${escapeHtml(previewText)}</div>` : ''}
             </div>
-            <div class="slot-right" style="flex-shrink:0;padding-left:8px;">
+            <div class="slot-right" style="flex-shrink:0;padding-left:8px;text-align:right;">
               <div class="slot-meta">${Math.round(totalKcal)}</div>
+              ${totalFib > 0 ? `<div class="slot-fiber">Кл ${Math.round(totalFib)} г</div>` : ''}
             </div>
           </div>
           ${isExpanded ? itemsHtml : ''}
