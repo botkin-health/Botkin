@@ -384,6 +384,8 @@ def _build_payload(db: Session, user_id: int) -> dict:
         "alco_days_n": len(alco_days),
         "supp_days_n": len(supp_days),
         "kcal_days_n": len(kcal),
+        "prot_target": 140,  # g/day — 56 kg lean mass × 2.5
+        "prot_avg_7d": round(sum(v for _, v in sorted(prot.items())[-7:]) / min(7, max(len(prot), 1))) if prot else 0,
     }
 
     # ── biomarkers_latest: structured for biotable JS ─────────────────────────
