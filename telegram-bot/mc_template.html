@@ -219,15 +219,15 @@ body {
   <div class="countdown">
     <div>
       <div class="lbl">Потоков данных</div>
-      <div class="big mono">18</div>
+      <div class="big mono" id="stat-streams">—</div>
     </div>
     <div>
       <div class="lbl">Параметров</div>
-      <div class="big mono">635</div>
+      <div class="big mono" id="stat-params">—</div>
     </div>
     <div>
       <div class="lbl">Лет истории</div>
-      <div class="big mono">17</div>
+      <div class="big mono" id="stat-years">—</div>
     </div>
     <div style="border-left:1px solid var(--border); padding-left:18px; display:flex; flex-direction:column; justify-content:center;">
       <div class="lbl" style="margin-bottom:6px;">Период наблюдения</div>
@@ -441,13 +441,21 @@ if (!CAP.has_medical) {
   if (_medEl) _medEl.style.display = 'none';
 }
 
+// === DYNAMIC META STATS ===
+const _ss = document.getElementById('stat-streams');
+const _sp = document.getElementById('stat-params');
+const _sy = document.getElementById('stat-years');
+if (_ss) _ss.textContent = D.meta.streams_count || '—';
+if (_sp) _sp.textContent = D.meta.total_params > 0 ? D.meta.total_params : '—';
+if (_sy) _sy.textContent = D.meta.history_years > 0 ? D.meta.history_years : '—';
+
 // === HERO FILL ===
 document.getElementById('cd-days').textContent = D.meta.days_to_target;
 // Date range init
 const rsEl = document.getElementById('range-start');
 const reEl = document.getElementById('range-end');
 const rdEl = document.getElementById('range-days');
-rsEl.value = D.meta.start;
+rsEl.value = D.meta.first_data_date || D.meta.start;
 reEl.value = D.meta.today;
 function updateRangeDays() {
   const d1 = new Date(rsEl.value), d2 = new Date(reEl.value);
@@ -474,7 +482,7 @@ document.getElementById('h-fat-delta').textContent = hasFat ? (sf.delta >= 0 ? '
 const vlast = Object.values(D.visceral).pop();
 document.getElementById('h-visc').textContent = vlast != null ? vlast : '—';
 document.getElementById('h-hba1c').textContent = (D.biomarkers_latest.HbA1c.val || '—') + '%';
-document.getElementById('h-score').textContent = D.overall_score + '/100';
+document.getElementById('h-score').textContent = D.overall_score > 0 ? D.overall_score + '/100' : '?';
 
 // === TIMELINE ===
 const dates = D.meta.dates;
@@ -564,7 +572,7 @@ const streams = [
   { name: '🌡️ T° дома', val: T.temp_home_avg, unit: '°C ср', last_: last(D.temp_home) + '°C', data: D.temp_home, color: COLOR.y },
   { name: '🏃 Минут спорта', val: T.activity_min.toLocaleString(), unit: 'мин всего', last_: Math.round(T.activity_min/D.meta.total_days) + ' мин/день', data: null, color: COLOR.g },
   { name: '📏 Дистанция', val: T.activity_km, unit: 'км', last_: 'всего', data: null, color: COLOR.g },
-  { name: '🧬 Биомаркеров', val: Object.keys(D.biomarkers_latest).length, unit: 'ключевых', last_: '635 всего', data: null, color: COLOR.p }
+  { name: '🧬 Биомаркеров', val: D.meta.bio_key_count > 0 ? D.meta.bio_key_count : '—', unit: D.meta.bio_key_count > 0 ? 'ключевых' : '', last_: D.meta.total_params > 0 ? D.meta.total_params + ' всего' : 'нет данных', data: null, color: COLOR.p }
 ];
 
 const sEl = document.getElementById('streams');
