@@ -916,8 +916,10 @@ def _build_payload(db: Session, user_id: int) -> dict:
     if hba1c and hba1c < 5.7:
         _ach_t1.append(("🎯", "Нет преддиабета", f"HbA1c {hba1c}% — ниже порога 5.7%"))
     vd = bv("vitamin_D")
-    if vd and vd >= 30:
-        _ach_t1.append(("☀️", "Витамин D в оптимуме", f"{vd} нг/мл ({bd('vitamin_D')})"))
+    if vd and vd >= 50:
+        _ach_t1.append(("☀️", "Витамин D в оптимуме", f"{vd} нг/мл — цель достигнута"))
+    elif vd and vd >= 30:
+        _ach_t1.append(("🌤️", "Витамин D почти в норме", f"{vd} нг/мл — цель 50+ нг/мл"))
     ldl = bv("LDL")
     if ldl and ldl <= 3.1:
         _ach_t1.append(("❤️", "ЛПНП — исторический минимум", f"{ldl} ммоль/л ({bd('LDL')})"))
