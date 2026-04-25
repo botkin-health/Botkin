@@ -599,7 +599,9 @@ const streams = [
   { name: '🏃 Минут спорта', val: T.activity_min.toLocaleString(), unit: 'мин всего', last_: Math.round(T.activity_min/D.meta.total_days) + ' мин/день', data: null, color: COLOR.g },
   { name: '📏 Дистанция', val: T.activity_km, unit: 'км', last_: 'всего', data: null, color: COLOR.g },
   { name: '🍽️ КБЖУ дней', val: T.kcal_days_n, unit: '/' + D.meta.total_days, last_: T.kcal_avg + ' ккал ср', data: D.kcal, color: COLOR.b },
-  { name: '🥩 Белок', val: T.prot_avg, unit: 'г/день ср', last_: Math.round(T.prot_avg) + 'г', data: D.prot, color: COLOR.y },
+  { name: '🥩 Белок', val: T.prot_avg, unit: 'г/день ср',
+    last_: T.prot_target ? 'цель ' + T.prot_target + 'г · ' + (T.prot_avg >= T.prot_target ? '✓' : '−' + (T.prot_target - Math.round(T.prot_avg)) + 'г') : Math.round(T.prot_avg) + 'г',
+    data: D.prot, color: T.prot_target && T.prot_avg < T.prot_target ? COLOR.r : COLOR.y },
   // ── Строка 3: Контекст и прогресс (Body, Environment, Medical) ────────────
   { name: '⚖️ Вес сегодня', val: hasWeight ? sw.last.toFixed(2) : '—', unit: 'кг', last_: 'цель ' + (D.meta.target_weight || '—'), data: D.weight, color: COLOR.g },
   { name: '💊 Добавки', val: T.supp_days_n, unit: 'дней', last_: '85%', data: null, color: COLOR.p },
