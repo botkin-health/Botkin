@@ -507,8 +507,25 @@ const fSmooth = smooth(fArr, 7);
 const _wVals = wArr.filter(v => v != null), _fVals = fArr.filter(v => v != null);
 const wYMin = _wVals.length ? Math.floor(Math.min(..._wVals)) - 1 : 60;
 const wYMax = _wVals.length ? Math.ceil(Math.max(..._wVals)) + 1 : 90;
-const fYMin = _fVals.length ? Math.floor(Math.min(..._fVals)) - 1 : 10;
-const fYMax = _fVals.length ? Math.ceil(Math.max(..._fVals)) + 1 : 40;
+// Fat% Y-axis: scale proportionally to weight axis so curves visually track together.
+// Compute slope (fat% per kg) from actual data, then map wYMin/wYMax → fYMin/fYMax.
+let fYMin, fYMax;
+if (_fVals.length >= 2 && _wVals.length >= 2) {
+  // Use smoothed series for stable slope: find first/last non-null pair
+  const _fwPairs = dates.map((_, i) => [wSmooth[i], fSmooth[i]]).filter(([w,f]) => w!=null && f!=null);
+  const [fw0, ff0] = _fwPairs[0] || [_wVals[0], _fVals[0]];
+  const [fw1, ff1] = _fwPairs[_fwPairs.length-1] || [_wVals[_wVals.length-1], _fVals[_fVals.length-1]];
+  const slope = (fw1 !== fw0) ? (ff1 - ff0) / (fw1 - fw0) : 0;  // fat% per kg
+  const fCenter = (ff0 + ff1) / 2;
+  const wCenter = (fw0 + fw1) / 2;
+  // Map weight axis extremes to fat axis using slope, add small padding
+  const pad = Math.abs(slope) * 1.5 + 0.5;
+  fYMin = Math.round((fCenter + slope * (wYMin - wCenter) - pad) * 2) / 2;
+  fYMax = Math.round((fCenter + slope * (wYMax - wCenter) + pad) * 2) / 2;
+} else {
+  fYMin = _fVals.length ? Math.floor(Math.min(..._fVals)) - 1 : 10;
+  fYMax = _fVals.length ? Math.ceil(Math.max(..._fVals)) + 1 : 40;
+}
 const wMarkerY = _wVals.length ? wYMin + (wYMax - wYMin) * 0.15 : wYMin + 3;
 new Chart(document.getElementById('timeline'), {
   type: 'line',
