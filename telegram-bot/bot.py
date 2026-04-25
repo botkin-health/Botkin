@@ -148,6 +148,17 @@ def register_handlers(dp: Dispatcher):
         errors.append(f"Обработчик текста: {e}")
         logger.error(f"❌ Ошибка регистрации обработчика текста: {e}")
 
+    try:
+        from handlers.setup import router as setup_router
+
+        dp.include_router(setup_router)
+        count = len(setup_router.observers) if hasattr(setup_router, "observers") else 0
+        handlers_count += count
+        registered_modules.append("профиля")
+    except Exception as e:
+        errors.append(f"Обработчик профиля: {e}")
+        logger.error(f"❌ Ошибка регистрации обработчика профиля: {e}")
+
     # Apple Health handlers removed
     pass
 
@@ -242,6 +253,7 @@ async def main():
         BotCommand(command="week", description="Анализ недели"),
         BotCommand(command="vitamins", description="Чек-лист витаминов"),
         BotCommand(command="share", description="Поделиться дашбордом здоровья"),
+        BotCommand(command="profile", description="Настроить профиль (рост, возраст, цель)"),
         BotCommand(command="help", description="Помощь"),
     ]
 
