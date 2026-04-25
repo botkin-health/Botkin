@@ -909,35 +909,27 @@ def _build_payload(db: Session, user_id: int) -> dict:
     radar_vals = [v for v in radar.values() if v > 0]
     overall_score = round(sum(radar_vals) / len(radar_vals)) if radar_vals else 0
 
-    # ── achievements: rule-based, works for every user tier ──────────────────
-    achievements = []
+    # ── achievements: collected in priority tiers, capped at 8 (2 rows × 4) ──
+    # Tier 1 — medical wins (highest health signal, most impressive to show)
+    _ach_t1: list[tuple] = []
+    hba1c = bv("HbA1c")
+    if hba1c and hba1c < 5.7:
+        _ach_t1.append(("🎯", "Вышел из зоны риска", f"HbA1c {hba1c}% ({bd('HbA1c')})"))
+    vd = bv("vitamin_D")
+    if vd and vd >= 30:
+        _ach_t1.append(("☀️", "Витамин D в оптимуме", f"{vd} нг/мл ({bd('vitamin_D')})"))
+    ldl = bv("LDL")
+    if ldl and ldl <= 3.1:
+        _ach_t1.append(("❤️", "ЛПНП — исторический минимум", f"{ldl} ммоль/л ({bd('LDL')})"))
 
-    # --- Nutrition: total logged days milestone ---
-    if kcal:
-        n_kcal = len(kcal)
-        for milestone in [108, 100, 90, 60, 30, 21, 14, 7]:
-            if n_kcal >= milestone:
-                achievements.append(("🍽️", f"{n_kcal} дней питания", "Каждый приём в NutriLogBot"))
-                break
-
-        # Current logging streak (consecutive days back from today, 1-day gap ok)
-        streak = 0
-        check = today if today.isoformat() in kcal else today - timedelta(days=1)
-        while check.isoformat() in kcal:
-            streak += 1
-            check -= timedelta(days=1)
-        if streak >= 14:
-            achievements.append(("🔥", f"{streak} дней подряд", "Трекинг питания без пропусков"))
-        elif streak >= 7:
-            achievements.append(("🔥", f"{streak} дней подряд", "Неделя без пропусков в трекинге"))
-
-    # --- Weight loss milestones ---
+    # Tier 2 — body composition changes
+    _ach_t2: list[tuple] = []
     if stats_weight.get("delta"):
-        delta_w = stats_weight["delta"]  # negative = lost
+        delta_w = stats_weight["delta"]
         lost = abs(delta_w)
         for kg in [10, 7, 5, 3, 1]:
             if lost >= kg and delta_w < 0:
-                achievements.append(
+                _ach_t2.append(
                     (
                         "🔥",
                         f"−{round(lost, 1)} кг за {total_days} дн",
@@ -945,42 +937,50 @@ def _build_payload(db: Session, user_id: int) -> dict:
                     )
                 )
                 break
+    if stats_fat.get("delta") and stats_fat["delta"] <= -1:
+        _ach_t2.append(("💪", f"Жир −{abs(stats_fat['delta'])}%", f"{stats_fat['first']}% → {stats_fat['last']}%"))
 
-    # --- Fat % loss milestone ---
-    if stats_fat.get("delta"):
-        delta_f = stats_fat["delta"]
-        if delta_f <= -1:
-            achievements.append(("💪", f"Жир −{abs(delta_f)}%", f"{stats_fat['first']}% → {stats_fat['last']}%"))
-
-    # --- Workouts milestone ---
+    # Tier 3 — activity volume
+    _ach_t3: list[tuple] = []
     if activities:
         n_act = len(activities)
         for milestone in [100, 70, 50, 25, 10]:
             if n_act >= milestone:
-                achievements.append(("🏋️", f"{n_act} тренировок", "с начала трекинга"))
+                _ach_t3.append(("🏋️", f"{n_act} тренировок", "с начала трекинга"))
                 break
 
-    # --- Sleep: N days of 7+ hours in last 30 days ---
-    if sleep_h:
-        recent_dates = sorted(sleep_h.keys())[-30:]
-        good_sleep = sum(1 for d in recent_dates if sleep_h[d] >= 7)
-        if good_sleep >= 20:
-            achievements.append(("😴", f"{good_sleep} дней сна 7h+", "за последние 30 дней"))
-
-    # --- Medical biomarker wins ---
-    hba1c = bv("HbA1c")
-    if hba1c and hba1c < 5.7:
-        achievements.append(("🎯", "Вышел из зоны риска", f"HbA1c {hba1c}% ({bd('HbA1c')})"))
-    vd = bv("vitamin_D")
-    if vd and vd >= 30:
-        achievements.append(("☀️", "Витамин D в оптимуме", f"{vd} нг/мл ({bd('vitamin_D')})"))
-    ldl = bv("LDL")
-    if ldl and ldl <= 3.1:
-        achievements.append(("❤️", "ЛПНП — исторический минимум", f"{ldl} ммоль/л ({bd('LDL')})"))
-
-    # --- Supplements streak ---
+    # Tier 4 — supplements consistency
+    _ach_t4: list[tuple] = []
     if len(supp_days) >= 60:
-        achievements.append(("💊", f"{len(supp_days)} дней добавок", "Стабильный приём витаминов"))
+        _ach_t4.append(("💊", f"{len(supp_days)} дней добавок", "Стабильный приём витаминов"))
+
+    # Tier 5 — nutrition quantity + quality
+    _ach_t5: list[tuple] = []
+    if kcal:
+        n_kcal = len(kcal)
+        for milestone in [108, 100, 90, 60, 30, 21, 14, 7]:
+            if n_kcal >= milestone:
+                _ach_t5.append(("🍽️", f"{n_kcal} дней питания", "Каждый приём в NutriLogBot"))
+                break
+        # Protein average — only shown for nutrition-basic tier (no weight/activity data)
+        if prot and not (stats_weight or activities):
+            prot_avg = round(sum(prot.values()) / len(prot))
+            if prot_avg >= 60:
+                _ach_t5.append(("🥩", f"Белок {prot_avg} г/день", f"среднее за {n_kcal} залогированных дней"))
+
+    # Tier 6 — streaks (lowest: nice-to-have, cut first if over limit)
+    _ach_t6: list[tuple] = []
+    if kcal:
+        streak = 0
+        check = today if today.isoformat() in kcal else today - timedelta(days=1)
+        while check.isoformat() in kcal:
+            streak += 1
+            check -= timedelta(days=1)
+        if streak >= 14:
+            _ach_t6.append(("🔥", f"{streak} дней подряд", "Трекинг питания без пропусков"))
+
+    # Merge in priority order and cap at 8 (fills exactly 2 rows of 4)
+    achievements = (_ach_t1 + _ach_t2 + _ach_t3 + _ach_t4 + _ach_t5 + _ach_t6)[:8]
 
     # ── heatmap: per-day consistency ──────────────────────────────────────────
     alco_set = set(alco_days)
@@ -1005,10 +1005,65 @@ def _build_payload(db: Session, user_id: int) -> dict:
             level = 0
         heatmap_data.append({"d": d_str, "lvl": level, "workout": has_workout, "alco": is_alco})
 
+    # ── dashboard stats: streams / parameters / history ──────────────────────
+    # Active data streams = count of enabled capabilities
+    _cap_flags = [
+        bool(weight),
+        bool(sleep_h or hrv or steps),
+        bool(activities),
+        bool(co2),
+        bool(bp_sys),
+        bool(kcal),
+        any(v.get("val") is not None for v in biomarkers_latest.values()),
+    ]
+    _streams_count = sum(_cap_flags)
+
+    # Total biomarker values ever recorded (across all blood test panels)
+    _total_params = (
+        _one(
+            db,
+            "SELECT COALESCE(SUM(jsonb_array_length(ARRAY(SELECT jsonb_object_keys(values))::jsonb)), 0) FROM blood_tests WHERE user_id=:uid",
+            uid=user_id,
+        )
+        or 0
+    )
+    # Fallback: count test rows × avg markers if jsonb_array_length not available
+    if _total_params == 0:
+        _test_count = _one(db, "SELECT COUNT(*) FROM blood_tests WHERE user_id=:uid", uid=user_id) or 0
+        _total_params = _test_count * 12  # rough estimate
+
+    # History in years — from earliest data point we have
+    _early_dates = []
+    if weight:
+        _early_dates.append(min(weight.keys()))
+    if kcal:
+        _early_dates.append(min(kcal.keys()))
+    _earliest_bt = _one(db, "SELECT MIN(test_date) FROM blood_tests WHERE user_id=:uid", uid=user_id)
+    if _earliest_bt:
+        _early_dates.append(_earliest_bt.isoformat() if hasattr(_earliest_bt, "isoformat") else str(_earliest_bt))
+    _earliest_all = min(_early_dates) if _early_dates else today.isoformat()
+    _history_years = (today - date.fromisoformat(_earliest_all[:10])).days // 365
+
+    # First date with actual data — used as default range start in the UI
+    _first_data_dates = [
+        d
+        for d in [
+            min(kcal.keys()) if kcal else None,
+            min(weight.keys()) if weight else None,
+            min(sleep_h.keys()) if sleep_h else None,
+        ]
+        if d
+    ]
+    _first_data_date = min(_first_data_dates) if _first_data_dates else start.isoformat()
+
+    # Count biomarker keys with actual non-null values
+    _bio_key_count = sum(1 for v in biomarkers_latest.values() if v.get("val") is not None)
+
     return {
         "meta": {
             "today": today.isoformat(),
             "start": start.isoformat(),
+            "first_data_date": _first_data_date,
             "target_date": target_date,
             "target_weight": target_weight,
             "total_days": total_days,
@@ -1019,6 +1074,11 @@ def _build_payload(db: Session, user_id: int) -> dict:
             "age": _age_score,
             "height_cm": user.height_cm,
             "sex": user.sex,
+            # Dashboard stats
+            "streams_count": _streams_count,
+            "total_params": int(_total_params),
+            "history_years": _history_years,
+            "bio_key_count": _bio_key_count,
             # ── capabilities: auto-detected from data presence ──────────────────
             # Tiers: basic (nutrition) → wearable (garmin/watch) → full (medical)
             # Template uses these to show/hide sections rather than showing zeros.
