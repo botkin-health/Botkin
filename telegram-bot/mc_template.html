@@ -584,29 +584,49 @@ new Chart(document.getElementById('timeline'), {
 // === DATA STREAMS ===
 const T = D.totals;
 const last = (o) => { const s = Object.entries(o).sort(); return s.length ? s[s.length-1][1] : '—'; };
+// Группировка: строка 1 — Recovery & Readiness, строка 2 — Activity & Nutrition, строка 3 — Context & Progress
 const streams = [
-  { name: '😴 Сон', val: T.sleep_avg, unit: 'ч ср', last_: last(D.sleep_h), data: D.sleep_h, color: COLOR.p },
-  { name: '💗 HRV', val: T.hrv_avg, unit: 'мс ср', last_: last(D.hrv), data: D.hrv, color: COLOR.r },
-  { name: '😰 Стресс', val: T.stress_avg, unit: '/100', last_: last(D.stress), data: D.stress, color: COLOR.y },
-  { name: '💓 Пульс покоя', val: T.rhr_avg, unit: 'уд/мин', last_: last(D.rhr), data: D.rhr, color: COLOR.r },
-  { name: '👣 Шаги', val: T.steps_avg.toLocaleString(), unit: '/день ср', last_: last(D.steps), data: D.steps, color: COLOR.g },
+  // ── Строка 1: Как я сейчас (Recovery & Readiness) ─────────────────────────
   { name: '🔋 Body Battery', val: T.bb_avg, unit: 'max ср', last_: last(D.body_battery), data: D.body_battery, color: COLOR.g },
-  { name: '🏋️ Тренировки', val: T.activities_total, unit: 'всего', last_: T.activity_hours + ' ч · ' + T.activity_km + ' км', data: null, color: COLOR.g, custom: 'workout' },
-  { name: '🍽️ КБЖУ дней', val: T.kcal_days_n, unit: '/' + D.meta.total_days, last_: T.kcal_avg + ' ккал ср', data: D.kcal, color: COLOR.b },
-  { name: '🥩 Белок', val: T.prot_avg, unit: 'г/день ср', last_: Math.round(T.prot_avg) + 'г', data: D.prot, color: COLOR.y },
-  { name: '💊 Добавки', val: T.supp_days_n, unit: 'дней', last_: '85%', data: null, color: COLOR.p },
-  { name: '🍷 Алкоголь', val: T.alco_days_n, unit: '/' + D.meta.total_days + ' дн', last_: Math.round(T.alco_days_n/D.meta.total_days*100) + '%', data: null, color: COLOR.r },
+  { name: '💗 HRV', val: T.hrv_avg, unit: 'мс ср', last_: last(D.hrv), data: D.hrv, color: COLOR.r },
+  { name: '😴 Сон', val: T.sleep_avg, unit: 'ч ср', last_: last(D.sleep_h), data: D.sleep_h, color: COLOR.p },
+  { name: '💓 Пульс покоя', val: T.rhr_avg, unit: 'уд/мин', last_: last(D.rhr), data: D.rhr, color: COLOR.r },
+  { name: '😰 Стресс', val: T.stress_avg, unit: '/100', last_: last(D.stress), data: D.stress, color: COLOR.y },
   { name: '🩺 Давление', val: T.bp_last, unit: '', last_: 'последнее', data: D.bp_sys, color: COLOR.r },
-  { name: '⚖️ Вес сегодня', val: hasWeight ? sw.last.toFixed(2) : '—', unit: 'кг', last_: 'цель ' + (D.meta.target_weight || '—'), data: D.weight, color: COLOR.g },
-  { name: '🏠 CO₂ дома', val: T.co2_avg, unit: 'ppm ср', last_: last(D.co2) + ' сейчас', data: D.co2, color: COLOR.b },
-  { name: '🌡️ T° дома', val: T.temp_home_avg, unit: '°C ср', last_: last(D.temp_home) + '°C', data: D.temp_home, color: COLOR.y },
+  // ── Строка 2: Что я делал (Activity & Nutrition) ───────────────────────────
+  { name: '🏋️ Тренировки', val: T.activities_total, unit: 'всего', last_: T.activity_hours + ' ч · ' + T.activity_km + ' км', data: null, color: COLOR.g, custom: 'workout' },
+  { name: '👣 Шаги', val: T.steps_avg.toLocaleString(), unit: '/день ср', last_: last(D.steps), data: D.steps, color: COLOR.g },
   { name: '🏃 Минут спорта', val: T.activity_min.toLocaleString(), unit: 'мин всего', last_: Math.round(T.activity_min/D.meta.total_days) + ' мин/день', data: null, color: COLOR.g },
   { name: '📏 Дистанция', val: T.activity_km, unit: 'км', last_: 'всего', data: null, color: COLOR.g },
+  { name: '🍽️ КБЖУ дней', val: T.kcal_days_n, unit: '/' + D.meta.total_days, last_: T.kcal_avg + ' ккал ср', data: D.kcal, color: COLOR.b },
+  { name: '🥩 Белок', val: T.prot_avg, unit: 'г/день ср', last_: Math.round(T.prot_avg) + 'г', data: D.prot, color: COLOR.y },
+  // ── Строка 3: Контекст и прогресс (Body, Environment, Medical) ────────────
+  { name: '⚖️ Вес сегодня', val: hasWeight ? sw.last.toFixed(2) : '—', unit: 'кг', last_: 'цель ' + (D.meta.target_weight || '—'), data: D.weight, color: COLOR.g },
+  { name: '💊 Добавки', val: T.supp_days_n, unit: 'дней', last_: '85%', data: null, color: COLOR.p },
+  { name: '🍷 Алкоголь', val: T.alco_days_n, unit: '/' + D.meta.total_days + ' дн', last_: Math.round(T.alco_days_n/D.meta.total_days*100) + '%', data: null, color: COLOR.r },
+  { name: '🏠 CO₂ дома', val: T.co2_avg, unit: 'ppm ср', last_: last(D.co2) + ' сейчас', data: D.co2, color: COLOR.b },
+  { name: '🌡️ T° дома', val: T.temp_home_avg, unit: '°C ср', last_: last(D.temp_home) + '°C', data: D.temp_home, color: COLOR.y },
   { name: '🧬 Биомаркеров', val: D.meta.bio_key_count > 0 ? D.meta.bio_key_count : '—', unit: D.meta.bio_key_count > 0 ? 'ключевых' : '', last_: D.meta.total_params > 0 ? D.meta.total_params + ' всего' : 'нет данных', data: null, color: COLOR.p }
 ];
 
+// Group labels inserted before index 0, 6, 12
+const _streamGroups = {
+  0: { label: 'Восстановление и готовность', hint: 'как я сейчас' },
+  6: { label: 'Активность и питание', hint: 'что я делал' },
+  12: { label: 'Контекст и прогресс', hint: 'среда, тело, биомаркеры' }
+};
+
 const sEl = document.getElementById('streams');
 streams.forEach((s, i) => {
+  if (_streamGroups[i]) {
+    const g = _streamGroups[i];
+    const sep = document.createElement('div');
+    sep.style.cssText = 'grid-column:1/-1; display:flex; align-items:center; gap:10px; padding: 6px 0 2px;';
+    sep.innerHTML = `<span style="font-size:10px;text-transform:uppercase;letter-spacing:1.8px;color:var(--muted);font-weight:600;">${g.label}</span>`
+      + `<span style="font-size:10px;color:var(--dim);">· ${g.hint}</span>`
+      + `<div style="flex:1;height:1px;background:var(--border);"></div>`;
+    sEl.appendChild(sep);
+  }
   const div = document.createElement('div');
   div.className = 'stream';
 
