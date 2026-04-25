@@ -120,6 +120,14 @@ def build_biomarkers(kb: dict) -> dict:
     add("potassium", ["K", "potassium"])
     add("sodium", ["Na", "sodium"])
 
+    # Add meta: earliest test date and total marker count (for history display)
+    all_dates = sorted(t.get("date", "") for t in tests if t.get("date"))
+    bio["_meta"] = {
+        "earliest_test_date": all_dates[0] if all_dates else None,
+        "total_tests": len(tests),
+        "total_markers": len(bio),
+    }
+
     return bio
 
 
