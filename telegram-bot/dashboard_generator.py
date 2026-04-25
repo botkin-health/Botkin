@@ -411,7 +411,11 @@ def _build_payload(db: Session, user_id: int) -> dict:
     # ── panels_data: 4 recognised panels (Attia / Metabolic / LE8 / PhenoAge) ──
     #   All values computed here so JS only renders pre-calculated data.
 
-    _age_score = 48  # Alexander Lyskovsky, born 1977-05-15
+    # Age — computed from user.birth_date; falls back to None if not set.
+    if user.birth_date:
+        _age_score: int | None = (today - user.birth_date).days // 365
+    else:
+        _age_score = None
 
     # Helper: convert Lp(a) g/L → mg/dL  (1 g/L = 100 mg/dL)
     _lpa_g = bv("lipoprotein_a")
@@ -523,7 +527,14 @@ def _build_payload(db: Session, user_id: int) -> dict:
     # --- Panel 2: Metabolic Syndrome (NCEP ATP III) ---
     _bp_avg_sys = round(sum(bp_sys.values()) / len(bp_sys)) if bp_sys else (bv("ECG_HR") and 123) or 123
     _bp_avg_dia = round(sum(bp_dia.values()) / len(bp_dia)) if bp_dia else 80
-    _waist = 99  # cm, last measurement April 2026
+    # Waist — latest measurement from body_measurements table (IDF/NCEP criterion)
+    _waist: int | None = _one(
+        db,
+        "SELECT waist_cm FROM body_measurements "
+        "WHERE user_id=:uid AND waist_cm IS NOT NULL "
+        "ORDER BY measured_at DESC NULLS LAST LIMIT 1",
+        uid=user_id,
+    )
     _tg = bv("triglycerides")
     _hdl = bv("HDL")
     _glc2 = bv("glucose")
@@ -539,7 +550,7 @@ def _build_payload(db: Session, user_id: int) -> dict:
                 "val": _waist,
                 "unit": "см",
                 "threshold": "≤102 см (NCEP) / ≤94 (IDF)",
-                "pass": _waist <= 102,
+                "pass": _waist is not None and _waist <= 102,
                 "note": "NCEP ✓ / IDF ⚠ (>94 см)",
             },
             {
@@ -630,9 +641,9 @@ def _build_payload(db: Session, user_id: int) -> dict:
         _sleep_score = max(0, round(40 * min(_sleep_avg_le8, 6) / 6))
 
     # 5. BMI — use latest weight
-    _height_m = 1.70  # Alexander: 170 cm
+    _height_m = (user.height_cm / 100) if user.height_cm else None
     _w_last = stats_weight.get("last")
-    _bmi_le8 = round(_w_last / (_height_m**2), 1) if _w_last else None
+    _bmi_le8 = round(_w_last / (_height_m**2), 1) if (_w_last and _height_m) else None
     if _bmi_le8 is None:
         _bmi_score: int | None = None
     elif _bmi_le8 < 25.0:
@@ -951,7 +962,23 @@ def _build_payload(db: Session, user_id: int) -> dict:
             "total_days": total_days,
             "days_to_target": days_to_target,
             "dates": dates,
+            # Profile
             "display_name": user.first_name or user.username or f"User {user_id}",
+            "age": _age_score,
+            "height_cm": user.height_cm,
+            "sex": user.sex,
+            # ── capabilities: auto-detected from data presence ──────────────────
+            # Tiers: basic (nutrition) → wearable (garmin/watch) → full (medical)
+            # Template uses these to show/hide sections rather than showing zeros.
+            "capabilities": {
+                "has_weight": bool(weight),  # Zepp / Apple Watch / Withings
+                "has_garmin": bool(sleep_h or hrv or steps),  # Garmin or compatible
+                "has_activity": bool(activities),  # workout data
+                "has_netatmo": bool(co2),  # air quality sensor
+                "has_bp": bool(bp_sys),  # blood pressure device
+                "has_medical": bool(biomarkers_latest),  # blood tests uploaded
+                "has_nutrition": bool(kcal),  # NutriLogBot in use
+            },
         },
         "weight": weight,
         "fat": fat,
