@@ -504,7 +504,14 @@ function smooth(arr, win=7) {
 const wSmooth = smooth(wArr, 7);
 const fSmooth = smooth(fArr, 7);
 
-const _wVals = wArr.filter(v => v != null), _fVals = fArr.filter(v => v != null);
+// Trim chart to first_data_date — hide leading empty dates before user started tracking
+const _chartStart = D.meta.first_data_date || D.meta.start;
+const _startIdx = Math.max(0, dates.findIndex(d => d >= _chartStart));
+const chartDates = dates.slice(_startIdx);
+const chartW = wArr.slice(_startIdx), chartF = fArr.slice(_startIdx), chartK = kArr.slice(_startIdx);
+const chartWSmooth = wSmooth.slice(_startIdx), chartFSmooth = fSmooth.slice(_startIdx);
+
+const _wVals = chartW.filter(v => v != null), _fVals = chartF.filter(v => v != null);
 const wYMin = _wVals.length ? Math.floor(Math.min(..._wVals)) - 1 : 60;
 const wYMax = _wVals.length ? Math.ceil(Math.max(..._wVals)) + 1 : 90;
 // Fat% Y-axis: scale proportionally to weight axis so curves visually track together.
@@ -530,23 +537,23 @@ const wMarkerY = _wVals.length ? wYMin + (wYMax - wYMin) * 0.15 : wYMin + 3;
 new Chart(document.getElementById('timeline'), {
   type: 'line',
   data: {
-    labels: dates,
+    labels: chartDates,
     datasets: [
-      { type:'bar', label:'Калории (ккал)', data: kArr.map((v,i) => alcoSet.has(dates[i]) ? null : v), yAxisID: 'yK',
+      { type:'bar', label:'Калории (ккал)', data: chartK.map((v,i) => alcoSet.has(chartDates[i]) ? null : v), yAxisID: 'yK',
         backgroundColor: 'rgba(59,130,246,0.28)',
         borderColor: 'transparent', barThickness: 5, order: 3 },
-      { type:'bar', label:'🍷 Алкоголь', data: kArr.map((v,i) => alcoSet.has(dates[i]) ? v : null), yAxisID: 'yK',
+      { type:'bar', label:'🍷 Алкоголь', data: chartK.map((v,i) => alcoSet.has(chartDates[i]) ? v : null), yAxisID: 'yK',
         backgroundColor: 'rgba(255,59,109,0.65)',
         borderColor: 'rgba(255,59,109,0.9)', borderWidth: 1, barThickness: 5, order: 3 },
-      { label:'Вес (факт)', data: wArr, borderColor: 'rgba(0,255,157,0.35)',
+      { label:'Вес (факт)', data: chartW, borderColor: 'rgba(0,255,157,0.35)',
         backgroundColor:'rgba(0,255,157,0.05)', yAxisID:'yW', pointRadius: 2,
         pointBackgroundColor: COLOR.g, tension: 0.1, borderWidth: 1, order: 2 },
-      { label:'Вес (7d avg)', data: wSmooth, borderColor: COLOR.g,
+      { label:'Вес (7d avg)', data: chartWSmooth, borderColor: COLOR.g,
         backgroundColor: 'rgba(0,255,157,0.08)', yAxisID:'yW', pointRadius: 0,
         fill: true, tension: 0.4, borderWidth: 2.5, order: 1 },
-      { label:'Жир %', data: fSmooth, borderColor: COLOR.y, yAxisID:'yF',
+      { label:'Жир %', data: chartFSmooth, borderColor: COLOR.y, yAxisID:'yF',
         pointRadius: 0, tension: 0.4, borderWidth: 2, borderDash: [6,3], order: 1 },
-      { label:'Тренировки', data: dates.map(d => workoutSet.has(d) ? wMarkerY : null),
+      { label:'Тренировки', data: chartDates.map(d => workoutSet.has(d) ? wMarkerY : null),
         yAxisID:'yW', pointRadius: 6, pointStyle: 'triangle', pointRotation: 180,
         pointBackgroundColor: COLOR.g, pointBorderColor: COLOR.g2,
         showLine: false, order: 0 }
