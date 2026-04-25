@@ -1019,15 +1019,18 @@ def _build_payload(db: Session, user_id: int) -> dict:
     _streams_count = sum(_cap_flags)
 
     # Total biomarker values ever recorded (across all blood test panels)
-    _total_params = (
-        _one(
-            db,
-            "SELECT COALESCE(SUM(jsonb_array_length(ARRAY(SELECT jsonb_object_keys(values))::jsonb)), 0) FROM blood_tests WHERE user_id=:uid",
-            uid=user_id,
+    # Count keys per row via subquery, sum across all panels
+    try:
+        _total_params = (
+            _one(
+                db,
+                "SELECT COALESCE(SUM((SELECT COUNT(*) FROM jsonb_object_keys(bt.values))), 0) FROM blood_tests bt WHERE bt.user_id=:uid",
+                uid=user_id,
+            )
+            or 0
         )
-        or 0
-    )
-    # Fallback: count test rows × avg markers if jsonb_array_length not available
+    except Exception:
+        _total_params = 0
     if _total_params == 0:
         _test_count = _one(db, "SELECT COUNT(*) FROM blood_tests WHERE user_id=:uid", uid=user_id) or 0
         _total_params = _test_count * 12  # rough estimate
