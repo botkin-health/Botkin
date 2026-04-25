@@ -214,6 +214,7 @@ body {
   <div style="display:flex; align-items:center; gap:18px;">
     <div class="logo">HealthVault<span class="accent"> · Mission Control</span></div>
     <div class="live"><div class="dot"></div> LIVE DATA</div>
+    <div id="topbar-name" style="font-size:13px; color:var(--muted); font-weight:500;"></div>
   </div>
   <div class="countdown">
     <div>
@@ -412,6 +413,9 @@ const _metaName = document.getElementById('meta-name');
 const _metaAgePart = document.getElementById('meta-age-part');
 if (_metaName) _metaName.textContent = D.meta.display_name;
 if (_metaAgePart && D.meta.age) _metaAgePart.textContent = ' · ' + D.meta.age + ' y.o.';
+// Name in topbar
+const _topbarName = document.getElementById('topbar-name');
+if (_topbarName && D.meta.display_name) _topbarName.textContent = D.meta.display_name;
 // Populate weight goal
 const _metaGoal = document.getElementById('meta-goal');
 if (_metaGoal) _metaGoal.textContent = D.meta.target_weight || '—';
