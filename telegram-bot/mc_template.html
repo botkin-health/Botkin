@@ -166,6 +166,20 @@ body {
 .ach .tt { font-size: 13px; font-weight: 700; }
 .ach .dd { font-size: 11px; color: var(--muted); margin-top: 3px; }
 
+/* Invitation cards — shown when capabilities are missing */
+.invite-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.invite-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+  padding: 14px 16px; display: flex; align-items: flex-start; gap: 12px;
+  border-left: 3px solid rgba(0,255,157,0.25);
+  transition: border-color 0.2s;
+}
+.invite-card:hover { border-left-color: rgba(0,255,157,0.6); }
+.invite-icon { font-size: 26px; line-height: 1; flex-shrink: 0; margin-top: 1px; }
+.invite-title { font-size: 13px; font-weight: 700; color: var(--text); }
+.invite-what { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.invite-sources { font-size: 10px; color: var(--dim); margin-top: 5px; letter-spacing: 0.3px; }
+
 .score-ring { position: relative; width: 180px; height: 180px; margin: 0 auto; }
 .score-num { position: absolute; inset: 0; display: flex;
              flex-direction: column; align-items: center; justify-content: center; }
@@ -279,6 +293,16 @@ body {
 <div class="section-title">Потоки данных <span class="hint" id="streams-hint">обновляется ежедневно</span></div>
 <div class="grid grid-6" id="streams"></div>
 
+<!-- ACHIEVEMENTS (moved to top for visibility) -->
+<div class="section-title">Достижения <span class="hint">автоматически посчитано на основе данных</span></div>
+<div class="ach-grid" id="achievements"></div>
+
+<!-- INVITE CARDS — shown for capabilities that are not yet connected (filled by JS) -->
+<div id="invite-section" style="display:none">
+  <div class="section-title">Расширить дашборд <span class="hint">подключи источники — появятся новые блоки</span></div>
+  <div class="invite-grid" id="invite-grid"></div>
+</div>
+
 <!-- BIOMARKERS + RADAR -->
 <div id="medical-section">
 <div class="section-title">Биомаркеры & Radar Health <span class="hint">последние замеры крови · radar = близость к оптимуму</span></div>
@@ -365,10 +389,6 @@ body {
   <div class="card"><div class="card-label">👣 Шаги в день</div><div class="chart-wrap short"><canvas id="ch-steps"></canvas></div></div>
   <div class="card"><div class="card-label">🏠 Воздух спальни (CO₂ ppm)</div><div class="chart-wrap short"><canvas id="ch-co2"></canvas></div></div>
 </div>
-
-<!-- ACHIEVEMENTS -->
-<div class="section-title">Достижения <span class="hint">автоматически посчитано на основе данных</span></div>
-<div class="ach-grid" id="achievements"></div>
 
 <div class="footer">
   Data sources: Garmin · Zepp Life · Apple Health · Omron · Netatmo · NutriLogBot · Лаборатории · Claude Code<br>
@@ -922,6 +942,73 @@ D.achievements.forEach(([emoji, tt, dd]) => {
   div.innerHTML = `<div class="emoji">${emoji}</div><div><div class="tt">${tt}</div><div class="dd">${dd}</div></div>`;
   aEl.appendChild(div);
 });
+if (D.achievements.length === 0) {
+  // Hide the section title too when no achievements
+  const achTitle = aEl.previousElementSibling;
+  if (achTitle && achTitle.classList.contains('section-title')) achTitle.style.display = 'none';
+}
+
+// === INVITE CARDS ===
+// Show cards for capabilities that are not yet connected.
+(function() {
+  const invites = [];
+
+  if (!CAP.has_weight) {
+    const goal = D.meta.target_weight ? ` · прогресс к цели ${D.meta.target_weight} кг` : '';
+    invites.push({
+      icon: '⚖️',
+      title: 'Добавь данные о весе',
+      what: `Появится: динамика веса, % жира, состав тела${goal}`,
+      sources: 'Zepp Life · Withings Body+ · Apple Health · Garmin Index · вручную в боте'
+    });
+  }
+
+  if (!CAP.has_garmin) {
+    invites.push({
+      icon: '📊',
+      title: 'Подключи трекер активности',
+      what: 'Появится: сон · HRV · шаги · пульс · тренировки · Body Battery',
+      sources: 'Garmin · Apple Watch · Apple Health · Polar · Whoop · Strava'
+    });
+  }
+
+  if (!CAP.has_bp) {
+    invites.push({
+      icon: '🩺',
+      title: 'Измерь давление',
+      what: 'Появится: история АД и анализ сердечно-сосудистого риска',
+      sources: 'Omron → Apple Health Shortcut · любой тонометр с ручным вводом'
+    });
+  }
+
+  if (!CAP.has_medical) {
+    invites.push({
+      icon: '🩸',
+      title: 'Загрузи анализы крови',
+      what: 'Появится: биомаркеры, панели Attia · LE8 · PhenoAge · Framingham',
+      sources: 'Фото бланка или PDF в NutriLogBot · Helix · Инвитро · Гемотест · ЛДЦ'
+    });
+  }
+
+  if (invites.length === 0) return;
+
+  const section = document.getElementById('invite-section');
+  const grid = document.getElementById('invite-grid');
+  section.style.display = '';
+
+  invites.forEach(inv => {
+    const card = document.createElement('div');
+    card.className = 'invite-card';
+    card.innerHTML = `
+      <div class="invite-icon">${inv.icon}</div>
+      <div class="invite-body">
+        <div class="invite-title">${inv.title}</div>
+        <div class="invite-what">${inv.what}</div>
+        <div class="invite-sources">${inv.sources}</div>
+      </div>`;
+    grid.appendChild(card);
+  });
+})();
 </script>
 </body>
 </html>

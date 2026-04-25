@@ -909,26 +909,78 @@ def _build_payload(db: Session, user_id: int) -> dict:
     radar_vals = [v for v in radar.values() if v > 0]
     overall_score = round(sum(radar_vals) / len(radar_vals)) if radar_vals else 0
 
-    # ── achievements ──────────────────────────────────────────────────────────
+    # ── achievements: rule-based, works for every user tier ──────────────────
     achievements = []
-    if stats_weight.get("delta", 0) <= -5:
-        d = abs(stats_weight["delta"])
-        achievements.append(
-            ("🔥", f"{d} кг сброшено", f"{stats_weight['first']} → {stats_weight['last']} кг за {total_days} дн")
-        )
+
+    # --- Nutrition: total logged days milestone ---
+    if kcal:
+        n_kcal = len(kcal)
+        for milestone in [108, 100, 90, 60, 30, 21, 14, 7]:
+            if n_kcal >= milestone:
+                achievements.append(("🍽️", f"{n_kcal} дней питания", "Каждый приём в NutriLogBot"))
+                break
+
+        # Current logging streak (consecutive days back from today, 1-day gap ok)
+        streak = 0
+        check = today if today.isoformat() in kcal else today - timedelta(days=1)
+        while check.isoformat() in kcal:
+            streak += 1
+            check -= timedelta(days=1)
+        if streak >= 14:
+            achievements.append(("🔥", f"{streak} дней подряд", "Трекинг питания без пропусков"))
+        elif streak >= 7:
+            achievements.append(("🔥", f"{streak} дней подряд", "Неделя без пропусков в трекинге"))
+
+    # --- Weight loss milestones ---
+    if stats_weight.get("delta"):
+        delta_w = stats_weight["delta"]  # negative = lost
+        lost = abs(delta_w)
+        for kg in [10, 7, 5, 3, 1]:
+            if lost >= kg and delta_w < 0:
+                achievements.append(
+                    (
+                        "🔥",
+                        f"−{round(lost, 1)} кг за {total_days} дн",
+                        f"{stats_weight['first']} → {stats_weight['last']} кг",
+                    )
+                )
+                break
+
+    # --- Fat % loss milestone ---
+    if stats_fat.get("delta"):
+        delta_f = stats_fat["delta"]
+        if delta_f <= -1:
+            achievements.append(("💪", f"Жир −{abs(delta_f)}%", f"{stats_fat['first']}% → {stats_fat['last']}%"))
+
+    # --- Workouts milestone ---
+    if activities:
+        n_act = len(activities)
+        for milestone in [100, 70, 50, 25, 10]:
+            if n_act >= milestone:
+                achievements.append(("🏋️", f"{n_act} тренировок", "с начала трекинга"))
+                break
+
+    # --- Sleep: N days of 7+ hours in last 30 days ---
+    if sleep_h:
+        recent_dates = sorted(sleep_h.keys())[-30:]
+        good_sleep = sum(1 for d in recent_dates if sleep_h[d] >= 7)
+        if good_sleep >= 20:
+            achievements.append(("😴", f"{good_sleep} дней сна 7h+", "за последние 30 дней"))
+
+    # --- Medical biomarker wins ---
     hba1c = bv("HbA1c")
     if hba1c and hba1c < 5.7:
-        achievements.append(("🎯", "Ушёл из преддиабета", f"HbA1c → {hba1c}% ({bd('HbA1c')})"))
+        achievements.append(("🎯", "Вышел из зоны риска", f"HbA1c {hba1c}% ({bd('HbA1c')})"))
     vd = bv("vitamin_D")
     if vd and vd >= 30:
         achievements.append(("☀️", "Витамин D в оптимуме", f"{vd} нг/мл ({bd('vitamin_D')})"))
     ldl = bv("LDL")
     if ldl and ldl <= 3.1:
         achievements.append(("❤️", "ЛПНП — исторический минимум", f"{ldl} ммоль/л ({bd('LDL')})"))
-    if len(kcal) >= 90:
-        achievements.append(("🍽️", f"{len(kcal)} дней КБЖУ", "Каждый приём в NutriLogBot"))
-    if len(supp_days) >= 70:
-        achievements.append(("💊", f"{len(supp_days)} дней добавок", "D3, Mg, Omega-3, фолат"))
+
+    # --- Supplements streak ---
+    if len(supp_days) >= 60:
+        achievements.append(("💊", f"{len(supp_days)} дней добавок", "Стабильный приём витаминов"))
 
     # ── heatmap: per-day consistency ──────────────────────────────────────────
     alco_set = set(alco_days)
@@ -976,7 +1028,9 @@ def _build_payload(db: Session, user_id: int) -> dict:
                 "has_activity": bool(activities),  # workout data
                 "has_netatmo": bool(co2),  # air quality sensor
                 "has_bp": bool(bp_sys),  # blood pressure device
-                "has_medical": bool(biomarkers_latest),  # blood tests uploaded
+                "has_medical": any(  # True only if at least one biomarker has actual data
+                    v.get("val") is not None for v in biomarkers_latest.values()
+                ),
                 "has_nutrition": bool(kcal),  # NutriLogBot in use
             },
         },
