@@ -567,7 +567,8 @@ new Chart(document.getElementById('timeline'), {
   options: {
     responsive: true, maintainAspectRatio: false, interaction: {mode:'index', intersect:false},
     scales: {
-      x: { type:'time', time:{unit:'week', displayFormats:{week:'dd.MM'}}, grid:{display:false} },
+      x: { type:'time', time:{unit:'week', displayFormats:{week:'dd.MM'}}, grid:{display:false},
+           min: chartDates[0], max: chartDates[chartDates.length-1], offset: false },
       yW: { position:'left', title:{text:'Вес, кг', display:true}, min: wYMin, max: wYMax, grid:{color:COLOR.grid} },
       yF: { position:'right', title:{text:'Жир, %', display:true}, min: fYMin, max: fYMax, grid:{display:false} },
       yK: { position:'right', title:{text:'Ккал', display:true}, min: 0, max: 4500,
