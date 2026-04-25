@@ -1006,46 +1006,50 @@ def _build_payload(db: Session, user_id: int) -> dict:
         heatmap_data.append({"d": d_str, "lvl": level, "workout": has_workout, "alco": is_alco})
 
     # ── dashboard stats: streams / parameters / history ──────────────────────
-    # Active data streams = count of enabled capabilities
-    _cap_flags = [
-        bool(weight),
-        bool(sleep_h or hrv or steps),
-        bool(activities),
-        bool(co2),
-        bool(bp_sys),
-        bool(kcal),
-        any(v.get("val") is not None for v in biomarkers_latest.values()),
+    # Count each distinct data stream independently (not grouped into capability buckets)
+    _has_medical = any(v.get("val") is not None for v in biomarkers_latest.values())
+    _stream_flags = [
+        bool(weight),  # вес
+        bool(fat),  # % жира
+        bool(sleep_h),  # сон
+        bool(hrv),  # HRV
+        bool(stress),  # стресс
+        bool(steps),  # шаги
+        bool(activities),  # тренировки
+        bool(kcal),  # питание (ккал)
+        bool(prot),  # белок
+        bool(supp_days),  # добавки
+        bool(bp_sys),  # давление
+        bool(co2),  # воздух дома
+        _has_medical,  # биомаркеры
     ]
-    _streams_count = sum(_cap_flags)
+    _streams_count = sum(_stream_flags)
 
-    # Total biomarker values ever recorded (across all blood test panels)
-    # Count keys per row via subquery, sum across all panels
-    try:
-        _total_params = (
-            _one(
-                db,
-                "SELECT COALESCE(SUM((SELECT COUNT(*) FROM jsonb_object_keys(bt.values))), 0) FROM blood_tests bt WHERE bt.user_id=:uid",
-                uid=user_id,
-            )
-            or 0
-        )
-    except Exception:
-        _total_params = 0
-    if _total_params == 0:
-        _test_count = _one(db, "SELECT COUNT(*) FROM blood_tests WHERE user_id=:uid", uid=user_id) or 0
-        _total_params = _test_count * 12  # rough estimate
+    # Total data points across key tables for this user
+    _nut_count = _one(db, "SELECT COUNT(*) FROM nutrition_log WHERE user_id=:uid", uid=user_id) or 0
+    _act_count = _one(db, "SELECT COUNT(*) FROM activity_log WHERE user_id=:uid", uid=user_id) or 0
+    _sup_count = _one(db, "SELECT COUNT(*) FROM supplements_log WHERE user_id=:uid", uid=user_id) or 0
+    _total_params = int(_nut_count) + int(_act_count) + int(_sup_count)
 
-    # History in years — from earliest data point we have
+    # History: earliest data — include blood tests from biomarkers _meta
     _early_dates = []
     if weight:
         _early_dates.append(min(weight.keys()))
     if kcal:
         _early_dates.append(min(kcal.keys()))
-    _earliest_bt = _one(db, "SELECT MIN(test_date) FROM blood_tests WHERE user_id=:uid", uid=user_id)
-    if _earliest_bt:
-        _early_dates.append(_earliest_bt.isoformat() if hasattr(_earliest_bt, "isoformat") else str(_earliest_bt))
+    if sleep_h:
+        _early_dates.append(min(sleep_h.keys()))
+    _bio_meta = biomarkers.get("_meta", {}) if isinstance(biomarkers, dict) else {}
+    if _bio_meta.get("earliest_test_date"):
+        _early_dates.append(str(_bio_meta["earliest_test_date"])[:10])
     _earliest_all = min(_early_dates) if _early_dates else today.isoformat()
-    _history_years = (today - date.fromisoformat(_earliest_all[:10])).days // 365
+    _history_days = (today - date.fromisoformat(_earliest_all[:10])).days
+    _history_years = _history_days // 365
+    # Display: years if ≥1, months otherwise
+    if _history_years >= 1:
+        _history_label = str(_history_years) + " лет"
+    else:
+        _history_label = str(max(1, _history_days // 30)) + " мес"
 
     # First date with actual data — used as default range start in the UI
     _first_data_dates = [
@@ -1081,6 +1085,7 @@ def _build_payload(db: Session, user_id: int) -> dict:
             "streams_count": _streams_count,
             "total_params": int(_total_params),
             "history_years": _history_years,
+            "history_label": _history_label,
             "bio_key_count": _bio_key_count,
             # ── capabilities: auto-detected from data presence ──────────────────
             # Tiers: basic (nutrition) → wearable (garmin/watch) → full (medical)
