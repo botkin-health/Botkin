@@ -162,6 +162,11 @@ body {
   border: 1px solid var(--border); border-radius: 10px; padding: 14px;
   display: flex; align-items: center; gap: 12px;
 }
+.ach.warn {
+  background: linear-gradient(135deg, rgba(255,184,0,0.08) 0%, var(--card) 100%);
+  border-color: rgba(255,184,0,0.35);
+}
+.ach.warn .tt { color: #ffb800; }
 .ach .emoji { font-size: 28px; }
 .ach .tt { font-size: 13px; font-weight: 700; }
 .ach .dd { font-size: 11px; color: var(--muted); margin-top: 3px; }
@@ -972,9 +977,9 @@ miniLine('ch-co2', D.co2, COLOR.b, 'CO₂');
 
 // === ACHIEVEMENTS ===
 const aEl = document.getElementById('achievements');
-D.achievements.forEach(([emoji, tt, dd]) => {
+D.achievements.forEach(([emoji, tt, dd, is_warn]) => {
   const div = document.createElement('div');
-  div.className = 'ach';
+  div.className = 'ach' + (is_warn ? ' warn' : '');
   div.innerHTML = `<div class="emoji">${emoji}</div><div><div class="tt">${tt}</div><div class="dd">${dd}</div></div>`;
   aEl.appendChild(div);
 });

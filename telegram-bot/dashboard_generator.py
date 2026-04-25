@@ -910,6 +910,41 @@ def _build_payload(db: Session, user_id: int) -> dict:
     overall_score = round(sum(radar_vals) / len(radar_vals)) if radar_vals else 0
 
     # ── achievements: collected in priority tiers, capped at 8 (2 rows × 4) ──
+    # Tuples: (emoji, title, subtitle) or (emoji, title, subtitle, is_warn)
+    # Warnings (is_warn=True) are amber cards and always shown first.
+
+    # Tier 0 — warnings (shown before any positive achievements)
+    _ach_warn: list[tuple] = []
+
+    # Protein: 7-day average vs target (~140g = lean_mass * 2.5)
+    if prot:
+        _recent_prot = [v for k, v in sorted(prot.items())[-7:]]
+        _prot_avg_7d = round(sum(_recent_prot) / len(_recent_prot)) if _recent_prot else 0
+        _prot_target = 140  # g/day — 56 kg lean mass × 2.5
+        if _prot_avg_7d < round(_prot_target * 0.85):  # <119g — consistently below target
+            _ach_warn.append(
+                (
+                    "⚠️",
+                    f"Мало белка — {_prot_avg_7d} г/день",
+                    f"цель {_prot_target}+ г · нужно +{_prot_target - _prot_avg_7d} г ежедневно",
+                    True,
+                )
+            )
+
+    # No workouts in last 5+ days (only warn if user has activity history)
+    if activities:
+        _last_workout = max((a["date"] for a in activities), default=None)
+        _days_no_workout = (today - date.fromisoformat(_last_workout)).days if _last_workout else 99
+        if _days_no_workout >= 5:
+            _ach_warn.append(
+                (
+                    "🏃",
+                    f"Нет тренировок {_days_no_workout} дней",
+                    "CrossFit или домашняя тренировка до отказа",
+                    True,
+                )
+            )
+
     # Tier 1 — medical wins (highest health signal, most impressive to show)
     _ach_t1: list[tuple] = []
     hba1c = bv("HbA1c")
@@ -981,8 +1016,8 @@ def _build_payload(db: Session, user_id: int) -> dict:
         if streak >= 14:
             _ach_t6.append(("🔥", f"{streak} дней подряд", "Трекинг питания без пропусков"))
 
-    # Merge in priority order and cap at 8 (fills exactly 2 rows of 4)
-    achievements = (_ach_t1 + _ach_t2 + _ach_t3 + _ach_t4 + _ach_t5 + _ach_t6)[:8]
+    # Merge: warnings first, then positive tiers; cap at 8 (2 rows × 4)
+    achievements = (_ach_warn + _ach_t1 + _ach_t2 + _ach_t3 + _ach_t4 + _ach_t5 + _ach_t6)[:8]
 
     # ── heatmap: per-day consistency ──────────────────────────────────────────
     alco_set = set(alco_days)
