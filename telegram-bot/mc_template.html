@@ -226,7 +226,7 @@ body {
       <div class="big mono" id="stat-params">—</div>
     </div>
     <div>
-      <div class="lbl">Лет истории</div>
+      <div class="lbl">История</div>
       <div class="big mono" id="stat-years">—</div>
     </div>
     <div style="border-left:1px solid var(--border); padding-left:18px; display:flex; flex-direction:column; justify-content:center;">
@@ -447,7 +447,7 @@ const _sp = document.getElementById('stat-params');
 const _sy = document.getElementById('stat-years');
 if (_ss) _ss.textContent = D.meta.streams_count || '—';
 if (_sp) _sp.textContent = D.meta.total_params > 0 ? D.meta.total_params : '—';
-if (_sy) _sy.textContent = D.meta.history_years > 0 ? D.meta.history_years : '—';
+if (_sy) _sy.textContent = D.meta.history_label || (D.meta.history_years > 0 ? D.meta.history_years : '—');
 
 // === HERO FILL ===
 document.getElementById('cd-days').textContent = D.meta.days_to_target;
