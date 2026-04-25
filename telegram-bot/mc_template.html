@@ -260,12 +260,12 @@ body {
   <div class="card">
     <div class="card-label"><span class="status ok"></span>HbA1c · Глик. гемоглобин</div>
     <div class="big-number g" id="h-hba1c">—</div>
-    <div class="sub">было 6.5% · преддиабет → <span style="color:var(--g);">норма</span></div>
+    <div class="sub" id="h-hba1c-sub"></div>
   </div>
   <div class="card">
     <div class="card-label"><span class="status ok"></span>Health Score · Radar</div>
     <div class="big-number g" id="h-score">—</div>
-    <div class="sub">6 систем организма · май-26 будет выше</div>
+    <div class="sub">6 систем организма</div>
   </div>
 </div>
 
@@ -276,7 +276,7 @@ body {
 </div>
 
 <!-- DATA STREAMS -->
-<div class="section-title">Потоки данных <span class="hint">18 источников · обновляется ежедневно</span></div>
+<div class="section-title">Потоки данных <span class="hint" id="streams-hint">обновляется ежедневно</span></div>
 <div class="grid grid-6" id="streams"></div>
 
 <!-- BIOMARKERS + RADAR -->
@@ -402,16 +402,17 @@ function updateRangeDays() {
 updateRangeDays();
 rsEl.addEventListener('change', () => { updateRangeDays(); renderHeatmap(); });
 reEl.addEventListener('change', () => { updateRangeDays(); renderHeatmap(); });
-const sw = D.stats_weight, sf = D.stats_fat;
-document.getElementById('h-weight').textContent = sw.last.toFixed(2);
-document.getElementById('h-delta').textContent = sw.delta.toFixed(2);
-document.getElementById('h-start-w').textContent = sw.first;
-document.getElementById('h-start-d').textContent = sw.first_date;
-document.getElementById('h-remain').textContent = (sw.last - 75).toFixed(2) + ' кг';
-const pct = Math.min(100, 100 * Math.max(0, (sw.first - sw.last) / (sw.first - 75)));
+const sw = D.stats_weight || {}, sf = D.stats_fat || {};
+const hasWeight = sw.last != null, hasFat = sf.last != null;
+document.getElementById('h-weight').textContent = hasWeight ? sw.last.toFixed(2) : '—';
+document.getElementById('h-delta').textContent = hasWeight ? sw.delta.toFixed(2) : '—';
+document.getElementById('h-start-w').textContent = hasWeight ? sw.first : '—';
+document.getElementById('h-start-d').textContent = hasWeight ? sw.first_date : '—';
+document.getElementById('h-remain').textContent = hasWeight ? (sw.last - 75).toFixed(2) + ' кг' : '—';
+const pct = (hasWeight && sw.first !== 75) ? Math.min(100, 100 * Math.max(0, (sw.first - sw.last) / (sw.first - 75))) : 0;
 document.getElementById('h-progress').style.width = pct.toFixed(1) + '%';
-document.getElementById('h-fat').textContent = sf.last.toFixed(1) + '%';
-document.getElementById('h-fat-delta').textContent = (sf.delta >= 0 ? '+' : '') + sf.delta.toFixed(1) + ' п.п.';
+document.getElementById('h-fat').textContent = hasFat ? sf.last.toFixed(1) + '%' : '—';
+document.getElementById('h-fat-delta').textContent = hasFat ? (sf.delta >= 0 ? '+' : '') + sf.delta.toFixed(1) + ' п.п.' : '—';
 const vlast = Object.values(D.visceral).pop();
 document.getElementById('h-visc').textContent = vlast != null ? vlast : '—';
 document.getElementById('h-hba1c').textContent = (D.biomarkers_latest.HbA1c.val || '—') + '%';
@@ -437,6 +438,12 @@ function smooth(arr, win=7) {
 const wSmooth = smooth(wArr, 7);
 const fSmooth = smooth(fArr, 7);
 
+const _wVals = wArr.filter(v => v != null), _fVals = fArr.filter(v => v != null);
+const wYMin = _wVals.length ? Math.floor(Math.min(..._wVals)) - 1 : 60;
+const wYMax = _wVals.length ? Math.ceil(Math.max(..._wVals)) + 1 : 90;
+const fYMin = _fVals.length ? Math.floor(Math.min(..._fVals)) - 1 : 10;
+const fYMax = _fVals.length ? Math.ceil(Math.max(..._fVals)) + 1 : 40;
+const wMarkerY = _wVals.length ? wYMin + (wYMax - wYMin) * 0.15 : wYMin + 3;
 new Chart(document.getElementById('timeline'), {
   type: 'line',
   data: {
@@ -456,7 +463,7 @@ new Chart(document.getElementById('timeline'), {
         fill: true, tension: 0.4, borderWidth: 2.5, order: 1 },
       { label:'Жир %', data: fSmooth, borderColor: COLOR.y, yAxisID:'yF',
         pointRadius: 0, tension: 0.4, borderWidth: 2, borderDash: [6,3], order: 1 },
-      { label:'Тренировки', data: dates.map(d => workoutSet.has(d) ? 77 : null),
+      { label:'Тренировки', data: dates.map(d => workoutSet.has(d) ? wMarkerY : null),
         yAxisID:'yW', pointRadius: 6, pointStyle: 'triangle', pointRotation: 180,
         pointBackgroundColor: COLOR.g, pointBorderColor: COLOR.g2,
         showLine: false, order: 0 }
@@ -466,8 +473,8 @@ new Chart(document.getElementById('timeline'), {
     responsive: true, maintainAspectRatio: false, interaction: {mode:'index', intersect:false},
     scales: {
       x: { type:'time', time:{unit:'week', displayFormats:{week:'dd.MM'}}, grid:{display:false} },
-      yW: { position:'left', title:{text:'Вес, кг', display:true}, min: 74, max: 84, grid:{color:COLOR.grid} },
-      yF: { position:'right', title:{text:'Жир, %', display:true}, min: 25, max: 31, grid:{display:false} },
+      yW: { position:'left', title:{text:'Вес, кг', display:true}, min: wYMin, max: wYMax, grid:{color:COLOR.grid} },
+      yF: { position:'right', title:{text:'Жир, %', display:true}, min: fYMin, max: fYMax, grid:{display:false} },
       yK: { position:'right', title:{text:'Ккал', display:true}, min: 0, max: 4500,
             grid:{display:false}, ticks:{display:false}, display: false }
     },
@@ -494,7 +501,7 @@ const streams = [
   { name: '💊 Добавки', val: T.supp_days_n, unit: 'дней', last_: '85%', data: null, color: COLOR.p },
   { name: '🍷 Алкоголь', val: T.alco_days_n, unit: '/' + D.meta.total_days + ' дн', last_: Math.round(T.alco_days_n/D.meta.total_days*100) + '%', data: null, color: COLOR.r },
   { name: '🩺 Давление', val: T.bp_last, unit: '', last_: 'последнее', data: D.bp_sys, color: COLOR.r },
-  { name: '⚖️ Вес сегодня', val: sw.last.toFixed(2), unit: 'кг', last_: 'цель 75', data: D.weight, color: COLOR.g },
+  { name: '⚖️ Вес сегодня', val: hasWeight ? sw.last.toFixed(2) : '—', unit: 'кг', last_: 'цель 75', data: D.weight, color: COLOR.g },
   { name: '🏠 CO₂ дома', val: T.co2_avg, unit: 'ppm ср', last_: last(D.co2) + ' сейчас', data: D.co2, color: COLOR.b },
   { name: '🌡️ T° дома', val: T.temp_home_avg, unit: '°C ср', last_: last(D.temp_home) + '°C', data: D.temp_home, color: COLOR.y },
   { name: '🏃 Минут спорта', val: T.activity_min.toLocaleString(), unit: 'мин всего', last_: Math.round(T.activity_min/D.meta.total_days) + ' мин/день', data: null, color: COLOR.g },
@@ -508,7 +515,7 @@ streams.forEach((s, i) => {
   div.className = 'stream';
 
   if (s.custom === 'workout') {
-    const maxN = Math.max(...T.activity_breakdown.map(b => b.n));
+    const maxN = T.activity_breakdown.length ? Math.max(...T.activity_breakdown.map(b => b.n)) : 1;
     const rows = T.activity_breakdown.map(b => {
       const pct = Math.round(b.n / maxN * 100);
       const extra = b.km > 0 ? `<span style="color:var(--muted);font-size:10px;margin-left:4px;">${b.km} км</span>` : '';
