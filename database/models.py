@@ -1,10 +1,11 @@
 # Database Models for HealthVault Multi-user
 
-from datetime import datetime
+from datetime import date, datetime, time
 from typing import Optional, List
 from sqlalchemy import (
     String,
     Integer,
+    SmallInteger,
     BigInteger,
     Float,
     Boolean,
@@ -64,6 +65,12 @@ class User(Base):
     garmin_email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     garmin_password: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
+    # Biometric profile — needed for medical calculations (BMI, PhenoAge, LE8, Framingham)
+    # Set once during /setup; required for panels to show meaningful scores.
+    birth_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    height_cm: Mapped[Optional[int]] = mapped_column(SmallInteger, nullable=True)
+    sex: Mapped[str] = mapped_column(String(10), default="male", server_default="male")
+
     # Manual calorie targets (for users without Garmin)
     bmr: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # Базовый метаболизм, ккал/день
     avg_active_calories: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # Средние активные калории
@@ -92,8 +99,8 @@ class NutritionLog(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"))
-    date: Mapped[datetime.date] = mapped_column(Date, nullable=False)
-    meal_time: Mapped[Optional[datetime.time]] = mapped_column(Time, nullable=True)
+    date: Mapped[date] = mapped_column(Date, nullable=False)
+    meal_time: Mapped[Optional[time]] = mapped_column(Time, nullable=True)
     meal_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     items: Mapped[dict] = mapped_column(JSON, nullable=False)  # JSONB in PostgreSQL
     totals: Mapped[dict] = mapped_column(JSON, nullable=False)
@@ -139,8 +146,8 @@ class SupplementLog(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"))
-    date: Mapped[datetime.date] = mapped_column(Date, nullable=False)
-    time: Mapped[Optional[datetime.time]] = mapped_column(Time, nullable=True)
+    date: Mapped[date] = mapped_column(Date, nullable=False)
+    time: Mapped[Optional[time]] = mapped_column(Time, nullable=True)
     supplement_name: Mapped[str] = mapped_column(String(255), nullable=False)
     dosage: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -158,7 +165,7 @@ class ActivityLog(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"))
-    date: Mapped[datetime.date] = mapped_column(Date, nullable=False)
+    date: Mapped[date] = mapped_column(Date, nullable=False)
     steps: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     active_calories: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     total_calories: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
@@ -184,7 +191,7 @@ class BloodTest(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"))
-    test_date: Mapped[datetime.date] = mapped_column(Date, nullable=False)
+    test_date: Mapped[date] = mapped_column(Date, nullable=False)
     test_type: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # "Биохимия", "Гормоны"
     values: Mapped[dict] = mapped_column(JSON, nullable=False)  # {"cholesterol": 5.66, "LDL": 3.2, ...}
     file_path: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Path to PDF file
@@ -201,7 +208,7 @@ class BodyMeasurement(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"))
-    date: Mapped[datetime.date] = mapped_column(Date, nullable=False)
+    date: Mapped[date] = mapped_column(Date, nullable=False)
     waist_cm: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     neck_cm: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     hips_cm: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
@@ -224,12 +231,12 @@ class UserSettings(Base):
     show_calorie_budget_bar: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     bmr_override: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     target_weight_kg: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    target_weight_date: Mapped[Optional[datetime.date]] = mapped_column(Date, nullable=True)
+    target_weight_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     # Calorie goal: signed % relative to maintenance.
     # -15 = 15% deficit (lose weight), 0 = maintenance, +10 = 10% surplus (gain).
     calorie_goal_pct: Mapped[int] = mapped_column(Integer, default=-15, server_default="-15")
     supplement_reminders_enabled: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
-    supplement_reminder_time: Mapped[datetime.time] = mapped_column(Time, server_default="08:00:00")
+    supplement_reminder_time: Mapped[time] = mapped_column(Time, server_default="08:00:00")
     supplements: Mapped[list] = mapped_column(JSON, default=list, server_default="[]")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
