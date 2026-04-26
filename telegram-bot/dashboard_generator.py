@@ -80,10 +80,12 @@ def _build_sport_block(user_id: int) -> dict:
         except Exception:
             return None
 
-    # ── окна: 7 дней (acute), 28 дней (chronic), 30 дней (отображение) ───────
+    # ── окна: 7 дней (acute), 90 дней (главное окно — учёт отпусков/перерывов) ─
+    # 90 дней даёт устойчивые средние (≈12.86 недель), не искажаемые поездками
+    WINDOW_DAYS = 90
+    WINDOW_WEEKS = WINDOW_DAYS / 7  # 12.857
     w7 = [w for w in workouts if _to_date(w["date"]) and (today - _to_date(w["date"])).days <= 7]
-    w28 = [w for w in workouts if _to_date(w["date"]) and (today - _to_date(w["date"])).days <= 28]
-    w30 = [w for w in workouts if _to_date(w["date"]) and (today - _to_date(w["date"])).days <= 30]
+    w90 = [w for w in workouts if _to_date(w["date"]) and (today - _to_date(w["date"])).days <= WINDOW_DAYS]
 
     def _sum_zone(ws, zone_key):
         return round(sum(w.get("hr_zones", {}).get(zone_key, 0) for w in ws))
@@ -91,15 +93,15 @@ def _build_sport_block(user_id: int) -> dict:
     def _sum_load(ws):
         return sum(w.get("training_load") or 0 for w in ws)
 
-    # KPI: Z2 минут в неделю (среднее за 28 дней)
-    z2_per_week = round(_sum_zone(w28, "z2_min") / 4) if w28 else 0
-    # KPI: HIIT минут (Z4+Z5) в неделю
-    hiit_per_week = round((_sum_zone(w28, "z4_min") + _sum_zone(w28, "z5_min")) / 4) if w28 else 0
-    # KPI: тренировок в неделю (среднее за 28 дней)
-    workouts_per_week = round(len(w28) / 4, 1) if w28 else 0
-    # KPI: A:C ratio (acute load 7d / chronic avg load per 7d)
+    # KPI: Z2 минут в неделю (среднее за 90 дней — сглаживает отпуска)
+    z2_per_week = round(_sum_zone(w90, "z2_min") / WINDOW_WEEKS) if w90 else 0
+    # KPI: Z4+Z5 высокая интенсивность (не зависит от тега тренировки)
+    hiit_per_week = round((_sum_zone(w90, "z4_min") + _sum_zone(w90, "z5_min")) / WINDOW_WEEKS) if w90 else 0
+    # KPI: тренировок в неделю (среднее за 90 дней)
+    workouts_per_week = round(len(w90) / WINDOW_WEEKS, 1) if w90 else 0
+    # KPI: A:C ratio (acute load 7d / chronic avg load per 7d за 90 дней)
     acute_load = _sum_load(w7)
-    chronic_load_per_7d = _sum_load(w28) / 4 if w28 else 0
+    chronic_load_per_7d = _sum_load(w90) / WINDOW_WEEKS if w90 else 0
     ac_ratio = round(acute_load / chronic_load_per_7d, 2) if chronic_load_per_7d > 0 else None
 
     # Status indicators for KPIs
@@ -149,7 +151,7 @@ def _build_sport_block(user_id: int) -> dict:
         return monday.isoformat()
 
     weeks_dict: dict = {}
-    for w in w30:
+    for w in w90:
         wk = _iso_monday(w["date"])
         if not wk:
             continue
@@ -179,11 +181,11 @@ def _build_sport_block(user_id: int) -> dict:
         b["total_min"] = total
 
     # ── polarized verdict ────────────────────────────────────────────────────
-    total30_z = {z: _sum_zone(w30, f"{z}_min") for z in ("z1", "z2", "z3", "z4", "z5")}
-    total30_sum = sum(total30_z.values()) or 1
-    easy_pct = (total30_z["z1"] + total30_z["z2"]) / total30_sum * 100
-    mid_pct = total30_z["z3"] / total30_sum * 100
-    hard_pct = (total30_z["z4"] + total30_z["z5"]) / total30_sum * 100
+    total90_z = {z: _sum_zone(w90, f"{z}_min") for z in ("z1", "z2", "z3", "z4", "z5")}
+    total90_sum = sum(total90_z.values()) or 1
+    easy_pct = (total90_z["z1"] + total90_z["z2"]) / total90_sum * 100
+    mid_pct = total90_z["z3"] / total90_sum * 100
+    hard_pct = (total90_z["z4"] + total90_z["z5"]) / total90_sum * 100
 
     if easy_pct >= 75 and hard_pct >= 10 and mid_pct < 15:
         verdict = "polarized"
@@ -241,28 +243,35 @@ def _build_sport_block(user_id: int) -> dict:
         )
     if hiit_per_week < 8:
         recs.append(
-            f"Добавь настоящий HIIT: Z4+Z5 сейчас {hiit_per_week} мин/нед, цель 16. "
-            "Норвежский протокол: 4×4 мин на 90% maxHR (≥155 bpm) с 3 мин восстановления."
+            f"Добавь острые интервалы: Z4+Z5 сейчас {hiit_per_week} мин/нед, цель 16. "
+            "Норвежский протокол 4×4: четыре повтора по 4 мин на 90% maxHR (≥155 bpm) "
+            "с 3 мин восстановления между. Раз в неделю."
         )
     if misnamed_count > 0:
         recs.append(
-            f"Переназови {misnamed_count} «HIIT» в Garmin → Strength Training. "
-            "Это силовые/функционалка, не интервалы — Garmin корректнее посчитает Body Battery и Training Status."
+            f"Переназови {misnamed_count} «ВИИТ» в Garmin → «Сил. трен.». "
+            "Это силовые/функционалка, не интервалы — Garmin корректнее посчитает "
+            "Body Battery, Training Status и оценку VO2max."
         )
     if ac_ratio is not None and ac_ratio < 0.8:
-        recs.append("Acute load низкий — можно безопасно увеличить объём на 15–20% эту неделю.")
+        recs.append(
+            "Острая нагрузка (за 7 дней) ниже базовой (среднее за 90 дней) — "
+            "есть запас, можно безопасно прибавить 15–20% объёма эту неделю."
+        )
     if ac_ratio is not None and ac_ratio > 1.3:
-        recs.append("Acute load высокий — снизь интенсивность 1–2 дня для восстановления.")
+        recs.append(
+            "Острая нагрузка (за 7 дней) выше базовой — риск перегруза. Снизь интенсивность 1–2 дня для восстановления."
+        )
     if not recs:
         recs.append("Тренировочный план сбалансирован. Держи ритм.")
 
     # ── what's working (positive observations) ───────────────────────────────
     works = []
     if workouts_per_week >= 2.5:
-        works.append(f"Стабильный ритм: {workouts_per_week} тренировок/нед за последний месяц")
+        works.append(f"Стабильный ритм: {workouts_per_week} тренировок/нед в среднем за 90 дней")
     # Detect well-tagged Z2 sessions (running/cycling with >70% in Z2)
     z2_quality = [
-        w for w in w30 if w.get("type") in ("running", "cycling") and w.get("hr_zones", {}).get("z2_min", 0) > 0
+        w for w in w90 if w.get("type") in ("running", "cycling") and w.get("hr_zones", {}).get("z2_min", 0) > 0
     ]
     if z2_quality:
         # Check if these have >70% in Z2
@@ -307,14 +316,14 @@ def _build_sport_block(user_id: int) -> dict:
             "verdict": verdict,
             "verdict_label": verdict_label,
             "ideal": {"easy": 80, "mid": 5, "hard": 15},
-            "total_min": round(total30_sum),
+            "total_min": round(total90_sum),
         },
         "workouts": workout_list,
         "misnamed_count": misnamed_count,
         "works": works,
         "recommendations": recs,
-        "window_days": 30,
-        "window_workouts": len(w30),
+        "window_days": WINDOW_DAYS,
+        "window_workouts": len(w90),
     }
 
 
