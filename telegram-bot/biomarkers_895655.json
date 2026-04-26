@@ -210,5 +210,10 @@
   "sodium": {
     "value": 142,
     "date": "2025-08-10"
+  },
+  "_meta": {
+    "earliest_test_date": "2014-04-28",
+    "total_tests": 39,
+    "total_markers": 53
   }
 }
