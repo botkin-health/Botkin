@@ -127,13 +127,11 @@ def parse_activity(filepath: Path):
     classification = type_key  # по умолчанию — оставляем
     if type_key == "hiit" and high_zone_pct < 10:
         is_misnamed = True
-        # Если средний пульс низкий (<130) — силовая. Если выше — кардио/функционалка.
-        if avg_hr and avg_hr < 130:
-            suggested_type = "strength_training"
-            classification = "strength_training"
-        else:
-            suggested_type = "cardio"
-            classification = "cardio"
+        # Для пользователя (CrossFit/функционалка) всё подобное = силовая.
+        # Garmin не принимает "cardio" через API (HTTP 500), а strength_training
+        # точнее отражает реальность: смешанная нагрузка с весами, не интервалы.
+        suggested_type = "strength_training"
+        classification = "strength_training"
 
     return {
         "date": date,
