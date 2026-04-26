@@ -53,6 +53,8 @@ $PY scripts/util/parse_workouts.py
 
 echo "3/4 🌬 Загрузка данных климата в спальне из Netatmo..."
 $PY scripts/import/netatmo.py
+echo "3.5/4 🌬 Пуш Netatmo → контейнер (env_data для дашборда)..."
+$PY scripts/import/push_netatmo_to_container.py
 
 echo "4/4 📱 Загрузка экранного времени (iPhone, Mac)..."
 # Требует Full Disk Access у терминала!
