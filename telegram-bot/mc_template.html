@@ -1194,9 +1194,10 @@ renderHeatmap();
       const dt = new Date(w.date).toLocaleDateString('ru-RU', {day:'numeric', month:'short'});
       const typeLabel = TYPE_LABELS[w.type] || w.type;
       const suggested = w.is_misnamed && w.suggested_type ? TYPE_LABELS[w.suggested_type] || w.suggested_type : null;
+      const synthPrefix = w.is_synthesized ? '<span title="Восстановлено из данных ЧСС" style="color:var(--muted);margin-right:3px;">ψ</span>' : '';
       const typeHtml = suggested
-        ? `<span class="wo-type-strike">${typeLabel}</span> → <span class="wo-type-suggest">${suggested}</span>`
-        : `<span>${typeLabel}</span>`;
+        ? `${synthPrefix}<span class="wo-type-strike">${typeLabel}</span> → <span class="wo-type-suggest">${suggested}</span>`
+        : `${synthPrefix}<span>${typeLabel}</span>`;
       const zonesHtml = ['z1', 'z2', 'z3', 'z4', 'z5'].map(z => {
         const pct = w[z + '_pct'] || 0;
         return pct > 0 ? `<div class="wo-zone-seg wo-zone-${z}" style="width:${pct}%" title="${z.toUpperCase()}: ${pct}%"></div>` : '';

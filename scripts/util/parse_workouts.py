@@ -14,6 +14,7 @@ from datetime import datetime
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 ACTIVITIES_DIR = BASE_DIR / "data" / "garmin" / "activities"
 OUTPUT_FILE = BASE_DIR / "data" / "garmin" / "workouts_log.json"
+PHANTOM_FILE = BASE_DIR / "data" / "garmin" / "phantom_workouts.json"
 
 # Маппинг typeKey → читаемое название
 ACTIVITY_LABELS = {
@@ -184,13 +185,39 @@ def main():
     print(f"📂 Найдено {len(files)} файлов активностей")
 
     workouts = []
+    seen_ids: set = set()
     skipped = 0
     for f in files:
         workout = parse_activity(f)
         if workout and workout["date"] != "unknown":
+            aid = workout.get("activity_id")
+            if aid and aid in seen_ids:
+                skipped += 1  # дубликат (old + new filename format)
+                continue
+            if aid:
+                seen_ids.add(aid)
             workouts.append(workout)
         else:
             skipped += 1
+
+    # Мёрджим синтезированные тренировки (phantom_workouts.json)
+    if PHANTOM_FILE.exists():
+        try:
+            phantom_data = json.loads(PHANTOM_FILE.read_text())
+            phantoms = phantom_data.get("workouts", [])
+            # Исключаем даты, у которых уже есть реальная тренировка
+            existing_dates = {w["date"] for w in workouts}
+            added = 0
+            for p in phantoms:
+                if p.get("date") not in existing_dates:
+                    # Дефолтные поля на случай если чего-то нет
+                    p.setdefault("is_synthesized", True)
+                    workouts.append(p)
+                    added += 1
+            if added:
+                print(f"👻 Добавлено {added} восстановленных тренировок из {PHANTOM_FILE.name}")
+        except Exception as e:
+            print(f"⚠️  Не удалось загрузить phantom_workouts.json: {e}")
 
     # Сортируем по дате
     workouts.sort(key=lambda x: x["date"])

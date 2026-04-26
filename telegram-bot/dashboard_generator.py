@@ -228,6 +228,7 @@ def _build_sport_block(user_id: int) -> dict:
             "is_misnamed": w.get("is_misnamed", False),
             "suggested_type": w.get("suggested_type"),
             "high_zone_pct": w.get("high_zone_pct", 0),
+            "is_synthesized": w.get("is_synthesized", False),
         }
         if item["is_misnamed"]:
             misnamed_count += 1
