@@ -3,6 +3,7 @@
 # Запускается как часть sync_all_data.sh после скачивания данных Garmin.
 #
 # Источник: data/garmin/daily-summary/YYYY-MM-DD.json (stats.activeKilocalories и др.)
+#           data/garmin/hrv/YYYY-MM-DD.json (hrvSummary.lastNightAvg)
 # Цель:     activity_log на сервере (healthvault_postgres) через SSH psql
 #
 # НЕ логинится в Garmin API — только читает уже скачанные файлы.
@@ -11,6 +12,7 @@ SERVER="root@116.203.213.137"
 PASS="SERVER_PASSWORD_REDACTED"
 DIR="$(cd "$(dirname "$0")/.." && pwd)"
 SUMMARY_DIR="$DIR/data/garmin/daily-summary"
+HRV_DIR="$DIR/data/garmin/hrv"
 USER_ID=895655
 
 if [ ! -d "$SUMMARY_DIR" ]; then
@@ -18,7 +20,7 @@ if [ ! -d "$SUMMARY_DIR" ]; then
     exit 1
 fi
 
-echo "📤 Пуш Garmin daily-summary → activity_log на сервере..."
+echo "📤 Пуш Garmin daily-summary + HRV → activity_log на сервере..."
 
 pushed=0
 skipped=0
@@ -27,14 +29,31 @@ for json_file in "$SUMMARY_DIR"/2026-*.json; do
     [ -f "$json_file" ] || continue
     date_str=$(basename "$json_file" .json)
 
-    # Читаем поля из JSON через python
-    read -r active bmr total steps dist hr stress <<< $(python3 -c "
+    # HRV-файл для той же даты (может отсутствовать)
+    hrv_file="$HRV_DIR/$date_str.json"
+
+    # Читаем поля из JSON через python (daily-summary + hrv)
+    read -r active bmr total steps dist hr stress hrv <<< $(python3 -c "
 import json, sys
 try:
     d = json.load(open('$json_file'))
     s = d.get('stats', {})
     def iv(x): return int(x) if x is not None else 'NULL'
     def fv(x): return round(x/1000.0, 3) if x else 'NULL'
+
+    # HRV from separate file
+    hrv = 'NULL'
+    import os
+    hrv_path = '$hrv_file'
+    if os.path.exists(hrv_path):
+        try:
+            hd = json.load(open(hrv_path))
+            v = hd.get('hrvSummary', {}).get('lastNightAvg')
+            if v is not None:
+                hrv = int(v)
+        except Exception:
+            pass
+
     print(
         iv(s.get('activeKilocalories')),
         iv(s.get('bmrKilocalories')),
@@ -42,10 +61,11 @@ try:
         s.get('totalSteps') or 'NULL',
         fv(s.get('totalDistanceMeters')),
         s.get('restingHeartRate') or 'NULL',
-        s.get('averageStressLevel') or 'NULL'
+        s.get('averageStressLevel') or 'NULL',
+        hrv
     )
 except Exception as e:
-    print('NULL NULL NULL NULL NULL NULL NULL')
+    print('NULL NULL NULL NULL NULL NULL NULL NULL')
 " 2>/dev/null)
 
     # Пропускаем строки где все NULL
@@ -60,9 +80,9 @@ except Exception as e:
         continue
     fi
 
-    # Upsert в activity_log
-    SQL="INSERT INTO activity_log (user_id, date, active_calories, bmr_calories, total_calories, steps, distance_km, heart_rate_avg, stress_level, source)
-VALUES ($USER_ID, '$date_str', ${active}, ${bmr}, ${total}, ${steps}, ${dist}, ${hr}, ${stress}, 'garmin_json')
+    # Upsert в activity_log (включая hrv)
+    SQL="INSERT INTO activity_log (user_id, date, active_calories, bmr_calories, total_calories, steps, distance_km, heart_rate_avg, stress_level, hrv, source)
+VALUES ($USER_ID, '$date_str', ${active}, ${bmr}, ${total}, ${steps}, ${dist}, ${hr}, ${stress}, ${hrv}, 'garmin_json')
 ON CONFLICT (user_id, date) DO UPDATE SET
     active_calories  = COALESCE(EXCLUDED.active_calories,  activity_log.active_calories),
     bmr_calories     = COALESCE(EXCLUDED.bmr_calories,     activity_log.bmr_calories),
@@ -71,6 +91,7 @@ ON CONFLICT (user_id, date) DO UPDATE SET
     distance_km      = COALESCE(EXCLUDED.distance_km,      activity_log.distance_km),
     heart_rate_avg   = COALESCE(EXCLUDED.heart_rate_avg,   activity_log.heart_rate_avg),
     stress_level     = COALESCE(EXCLUDED.stress_level,     activity_log.stress_level),
+    hrv              = COALESCE(EXCLUDED.hrv,              activity_log.hrv),
     source           = 'garmin_json'
 WHERE activity_log.source != 'manual';"
 
