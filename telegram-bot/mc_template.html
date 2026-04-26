@@ -211,6 +211,79 @@ body {
 .panel-source { font-size: 10px; color: var(--dim); margin-bottom: 10px; line-height: 1.6; }
 .panel-source a { color: var(--muted); text-decoration: none; }
 .panel-source a:hover { color: var(--g); }
+
+/* ── SPORT BLOCK ────────────────────────────────────────────────────────── */
+.sport-card { padding: 18px 20px; }
+.sport-kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 22px; }
+.sport-kpi { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+.sport-kpi.kpi-g { border-color: rgba(0,255,157,0.35); background: rgba(0,255,157,0.05); }
+.sport-kpi.kpi-y { border-color: rgba(255,184,0,0.35); background: rgba(255,184,0,0.06); }
+.sport-kpi.kpi-r { border-color: rgba(255,59,109,0.35); background: rgba(255,59,109,0.06); }
+.kpi-label { font-size: 11px; color: var(--muted); margin-bottom: 6px; letter-spacing: 0.3px; }
+.kpi-value { font-size: 26px; font-weight: 600; color: var(--text); line-height: 1.1; }
+.kpi-target { font-size: 13px; color: var(--muted); font-weight: 400; }
+.kpi-hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.sport-kpi.kpi-g .kpi-hint { color: var(--g); }
+.sport-kpi.kpi-y .kpi-hint { color: var(--y); }
+.sport-kpi.kpi-r .kpi-hint { color: var(--r); }
+
+.sport-section { margin-bottom: 22px; }
+.sport-section-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+.sport-section-title { font-size: 13px; font-weight: 600; color: var(--text); letter-spacing: 0.3px; text-transform: uppercase; }
+.sport-section-verdict { font-size: 12px; color: var(--muted); }
+
+.polarized-bars { display: flex; flex-direction: column; gap: 6px; }
+.polar-row { display: grid; grid-template-columns: 130px 1fr 200px; align-items: center; gap: 12px; font-size: 11px; }
+.polar-row.polar-ideal { color: var(--muted); padding-bottom: 8px; border-bottom: 1px dashed var(--border); margin-bottom: 4px; }
+.polar-row.polar-total { padding-top: 8px; border-top: 1px solid var(--border); margin-top: 4px; font-weight: 600; }
+.polar-label { color: var(--muted); font-size: 11px; white-space: nowrap; }
+.polar-row.polar-total .polar-label { color: var(--text); }
+.polar-bar { display: flex; height: 22px; background: var(--bg2); border-radius: 4px; overflow: hidden; border: 1px solid var(--border); }
+.polar-row.polar-total .polar-bar { height: 26px; }
+.polar-seg { height: 100%; display: flex; align-items: center; justify-content: center; font-size: 10px; color: rgba(0,0,0,0.85); font-weight: 600; overflow: hidden; white-space: nowrap; transition: width 0.4s; }
+.seg-easy { background: linear-gradient(90deg, #00c878, #00ff9d); }
+.seg-mid { background: var(--y); }
+.seg-hard { background: var(--r); }
+.polar-meta { font-size: 10px; color: var(--muted); text-align: right; white-space: nowrap; }
+
+.workout-list { display: flex; flex-direction: column; gap: 6px; }
+.workout-row { display: grid; grid-template-columns: 70px 130px 1fr 60px 50px 180px; align-items: center; gap: 10px; padding: 8px 12px; background: var(--bg2); border-radius: 8px; border: 1px solid var(--border); font-size: 12px; }
+.workout-row.misnamed { border-color: rgba(255,184,0,0.4); background: rgba(255,184,0,0.04); }
+.wo-date { color: var(--muted); font-size: 11px; }
+.wo-type { color: var(--text); display: flex; align-items: center; gap: 6px; }
+.wo-type-strike { color: var(--muted); text-decoration: line-through; font-size: 11px; }
+.wo-type-suggest { color: var(--y); font-weight: 600; font-size: 11px; }
+.wo-zones { display: flex; height: 14px; border-radius: 3px; overflow: hidden; background: var(--bg); }
+.wo-zone-seg { height: 100%; transition: width 0.3s; }
+.wo-zone-z1 { background: rgba(0,200,120,0.3); }
+.wo-zone-z2 { background: var(--g); }
+.wo-zone-z3 { background: var(--y); }
+.wo-zone-z4 { background: var(--r); }
+.wo-zone-z5 { background: #c81d3f; }
+.wo-mins { color: var(--muted); text-align: right; font-size: 11px; }
+.wo-hr { color: var(--muted); text-align: right; font-size: 11px; font-variant-numeric: tabular-nums; }
+.wo-verdict { font-size: 11px; color: var(--muted); text-align: right; }
+.wo-verdict.ok { color: var(--g); }
+.wo-verdict.warn { color: var(--y); }
+.workout-legend { display: flex; gap: 14px; margin-top: 10px; font-size: 10px; color: var(--muted); align-items: center; flex-wrap: wrap; }
+.workout-legend span { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+
+.sport-verdict-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.sport-verdict-col { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; }
+.sport-verdict-ok { border-left: 3px solid var(--g); }
+.sport-verdict-todo { border-left: 3px solid var(--y); }
+.sport-verdict-head { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 8px; letter-spacing: 0.3px; }
+.sport-verdict-col ul { margin: 0; padding-left: 18px; font-size: 12px; color: var(--text); line-height: 1.55; }
+.sport-verdict-col li { margin-bottom: 6px; }
+
+@media (max-width: 900px) {
+  .sport-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .polar-row { grid-template-columns: 90px 1fr; }
+  .polar-meta { display: none; }
+  .workout-row { grid-template-columns: 60px 1fr 80px; row-gap: 4px; }
+  .workout-row .wo-zones, .workout-row .wo-hr, .workout-row .wo-mins { grid-column: 1 / -1; }
+  .sport-verdict-grid { grid-template-columns: 1fr; }
+}
 </style>
 </head>
 <body>
@@ -382,6 +455,87 @@ body {
     <div class="hm-legend"><div class="hm-cell lvl3"></div>3 потока</div>
     <div class="hm-legend"><div class="hm-cell lvl4"></div>+ тренировка</div>
     <div class="hm-legend"><div class="hm-cell" style="border:1.5px solid var(--r); background: var(--bg2);"></div>алкоголь</div>
+  </div>
+</div>
+
+<!-- SPORT BLOCK -->
+<div class="section-title" id="sport-section-title">🏃 Спорт и тренировки <span class="hint" id="sport-hint">последние 30 дней · сравнение с канонами Seiler/Attia</span></div>
+<div class="card sport-card" id="sport-card" style="display:none;">
+  <!-- Row 1: KPI cards -->
+  <div class="sport-kpi-grid">
+    <div class="sport-kpi" id="kpi-wpw">
+      <div class="kpi-label">Тренировок / нед</div>
+      <div class="kpi-value"><span id="kpi-wpw-val">—</span></div>
+      <div class="kpi-hint" id="kpi-wpw-hint"></div>
+    </div>
+    <div class="sport-kpi" id="kpi-z2">
+      <div class="kpi-label">Z2 база · мин/нед</div>
+      <div class="kpi-value"><span id="kpi-z2-val">—</span> <span class="kpi-target">/ 150</span></div>
+      <div class="kpi-hint" id="kpi-z2-hint"></div>
+    </div>
+    <div class="sport-kpi" id="kpi-hiit">
+      <div class="kpi-label">HIIT (Z4+Z5) · мин/нед</div>
+      <div class="kpi-value"><span id="kpi-hiit-val">—</span> <span class="kpi-target">/ 16</span></div>
+      <div class="kpi-hint" id="kpi-hiit-hint"></div>
+    </div>
+    <div class="sport-kpi" id="kpi-ac">
+      <div class="kpi-label">Acute / Chronic load</div>
+      <div class="kpi-value"><span id="kpi-ac-val">—</span></div>
+      <div class="kpi-hint" id="kpi-ac-hint"></div>
+    </div>
+  </div>
+
+  <!-- Row 2: Polarized pyramid -->
+  <div class="sport-section">
+    <div class="sport-section-head">
+      <div class="sport-section-title">Распределение по зонам ЧСС</div>
+      <div class="sport-section-verdict" id="polarized-verdict">—</div>
+    </div>
+    <div class="polarized-bars">
+      <div class="polar-row polar-ideal">
+        <div class="polar-label">Идеал 80/20</div>
+        <div class="polar-bar">
+          <div class="polar-seg seg-easy" style="width:80%">80% Z1+Z2</div>
+          <div class="polar-seg seg-mid" style="width:5%">5%</div>
+          <div class="polar-seg seg-hard" style="width:15%">15% Z4+Z5</div>
+        </div>
+        <div class="polar-meta">~ Seiler/Attia</div>
+      </div>
+      <div id="polar-weeks"></div>
+      <div class="polar-row polar-total">
+        <div class="polar-label">За 30 дней</div>
+        <div class="polar-bar" id="polar-total-bar"></div>
+        <div class="polar-meta" id="polar-total-meta">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 3: Workout list -->
+  <div class="sport-section">
+    <div class="sport-section-head">
+      <div class="sport-section-title">Тренировки последних 14 дней</div>
+      <div class="sport-section-verdict" id="misnamed-badge"></div>
+    </div>
+    <div class="workout-list" id="workout-list"></div>
+    <div class="workout-legend">
+      <span class="seg-easy"></span> Z1 восст
+      <span class="seg-easy" style="background:var(--g)"></span> Z2 база
+      <span class="seg-mid"></span> Z3 темп
+      <span class="seg-hard"></span> Z4 порог
+      <span class="seg-hard" style="background:#c81d3f"></span> Z5 макс
+    </div>
+  </div>
+
+  <!-- Row 4: Verdict + actions -->
+  <div class="sport-verdict-grid">
+    <div class="sport-verdict-col sport-verdict-ok">
+      <div class="sport-verdict-head">✅ Что работает</div>
+      <ul id="sport-works"></ul>
+    </div>
+    <div class="sport-verdict-col sport-verdict-todo">
+      <div class="sport-verdict-head">🎯 Что менять</div>
+      <ul id="sport-recs"></ul>
+    </div>
   </div>
 </div>
 
@@ -568,7 +722,9 @@ new Chart(document.getElementById('timeline'), {
     responsive: true, maintainAspectRatio: false, interaction: {mode:'index', intersect:false},
     scales: {
       x: { type:'time', time:{unit:'week', displayFormats:{week:'dd.MM'}}, grid:{display:false},
-           min: chartDates[0], max: chartDates[chartDates.length-1], offset: false },
+           min: chartDates[0],
+           max: new Date(new Date(chartDates[chartDates.length-1]).getTime() + 2*86400000).toISOString().slice(0,10),
+           offset: false },
       yW: { position:'left', title:{text:'Вес, кг', display:true}, min: wYMin, max: wYMax, grid:{color:COLOR.grid} },
       yF: { position:'right', title:{text:'Жир, %', display:true}, min: fYMin, max: fYMax, grid:{display:false} },
       yK: { position:'right', title:{text:'Ккал', display:true}, min: 0, max: 4500,
@@ -953,6 +1109,108 @@ function renderHeatmap() {
   });
 }
 renderHeatmap();
+
+// === SPORT BLOCK ===
+(function renderSportBlock() {
+  const S = D.sport;
+  if (!S || !S.available) return;
+  document.getElementById('sport-card').style.display = 'block';
+
+  const TYPE_LABELS = {
+    'hiit': 'HIIT', 'strength_training': 'Силовая', 'running': 'Бег',
+    'yoga': 'Йога', 'walking': 'Ходьба', 'cycling': 'Велик',
+    'swimming': 'Плавание', 'cardio': 'Кардио', 'fitness_equipment': 'Тренажёр',
+  };
+
+  // ── KPI cards ──
+  const k = S.kpis;
+  const fillKpi = (id, val, hint, color) => {
+    document.getElementById(id + '-val').textContent = val;
+    document.getElementById(id + '-hint').textContent = hint;
+    const card = document.getElementById('kpi-' + id.split('-')[1]);
+    if (card) card.classList.add('kpi-' + color);
+  };
+  fillKpi('kpi-wpw', k.workouts_per_week, k.workouts_per_week_hint, k.workouts_per_week_color);
+  fillKpi('kpi-z2', k.z2_per_week, k.z2_hint, k.z2_color);
+  fillKpi('kpi-hiit', k.hiit_per_week, k.hiit_hint, k.hiit_color);
+  fillKpi('kpi-ac', k.ac_ratio !== null ? k.ac_ratio.toFixed(2) : '—', k.ac_hint, k.ac_color);
+
+  // ── Polarized pyramid ──
+  document.getElementById('polarized-verdict').textContent = S.polarized.verdict_label;
+
+  const weeksEl = document.getElementById('polar-weeks');
+  weeksEl.innerHTML = '';
+  S.weeks.forEach(w => {
+    const easy = w.easy_pct, mid = w.mid_pct, hard = w.hard_pct;
+    const segs = [];
+    if (easy > 0) segs.push(`<div class="polar-seg seg-easy" style="width:${easy}%">${easy >= 8 ? easy + '%' : ''}</div>`);
+    if (mid > 0) segs.push(`<div class="polar-seg seg-mid" style="width:${mid}%">${mid >= 8 ? mid + '%' : ''}</div>`);
+    if (hard > 0) segs.push(`<div class="polar-seg seg-hard" style="width:${hard}%">${hard >= 8 ? hard + '%' : ''}</div>`);
+    const wkLabel = w.week ? new Date(w.week).toLocaleDateString('ru-RU', {day:'numeric', month:'short'}) : '—';
+    const row = document.createElement('div');
+    row.className = 'polar-row';
+    row.innerHTML = `
+      <div class="polar-label">с ${wkLabel}</div>
+      <div class="polar-bar">${segs.join('')}</div>
+      <div class="polar-meta">${w.n} трен · ${w.mins} мин · load ${w.load}</div>`;
+    weeksEl.appendChild(row);
+  });
+
+  const tot = S.polarized;
+  const totSegs = [];
+  if (tot.easy_pct > 0) totSegs.push(`<div class="polar-seg seg-easy" style="width:${tot.easy_pct}%">${tot.easy_pct}%</div>`);
+  if (tot.mid_pct > 0) totSegs.push(`<div class="polar-seg seg-mid" style="width:${tot.mid_pct}%">${tot.mid_pct}%</div>`);
+  if (tot.hard_pct > 0) totSegs.push(`<div class="polar-seg seg-hard" style="width:${tot.hard_pct}%">${tot.hard_pct}%</div>`);
+  document.getElementById('polar-total-bar').innerHTML = totSegs.join('');
+  document.getElementById('polar-total-meta').textContent = `${S.window_workouts} трен · ${tot.total_min} мин`;
+
+  // ── Workout list ──
+  const woEl = document.getElementById('workout-list');
+  woEl.innerHTML = '';
+  if (S.workouts.length === 0) {
+    woEl.innerHTML = '<div style="color:var(--muted); font-size:12px; text-align:center; padding:20px;">Нет тренировок за последние 14 дней</div>';
+  } else {
+    S.workouts.slice().reverse().forEach(w => {
+      const dt = new Date(w.date).toLocaleDateString('ru-RU', {day:'numeric', month:'short'});
+      const typeLabel = TYPE_LABELS[w.type] || w.type;
+      const suggested = w.is_misnamed && w.suggested_type ? TYPE_LABELS[w.suggested_type] || w.suggested_type : null;
+      const typeHtml = suggested
+        ? `<span class="wo-type-strike">${typeLabel}</span> → <span class="wo-type-suggest">${suggested}</span>`
+        : `<span>${typeLabel}</span>`;
+      const zonesHtml = ['z1', 'z2', 'z3', 'z4', 'z5'].map(z => {
+        const pct = w[z + '_pct'] || 0;
+        return pct > 0 ? `<div class="wo-zone-seg wo-zone-${z}" style="width:${pct}%" title="${z.toUpperCase()}: ${pct}%"></div>` : '';
+      }).join('');
+      const verdictText = w.is_misnamed
+        ? `${w.high_zone_pct}% Z4+Z5 — это не HIIT`
+        : (w.type === 'hiit' && w.high_zone_pct >= 25) ? '✓ настоящий HIIT'
+        : (w.type === 'running' && w.z2_pct >= 70) ? '✓ Z2 база'
+        : '';
+      const verdictClass = w.is_misnamed ? 'warn' : verdictText.startsWith('✓') ? 'ok' : '';
+      const row = document.createElement('div');
+      row.className = 'workout-row' + (w.is_misnamed ? ' misnamed' : '');
+      row.innerHTML = `
+        <div class="wo-date">${dt}</div>
+        <div class="wo-type">${typeHtml}</div>
+        <div class="wo-zones">${zonesHtml}</div>
+        <div class="wo-mins">${w.duration_min}мин</div>
+        <div class="wo-hr">${w.avg_hr ? w.avg_hr + 'bpm' : '—'}</div>
+        <div class="wo-verdict ${verdictClass}">${verdictText}</div>`;
+      woEl.appendChild(row);
+    });
+  }
+  if (S.misnamed_count > 0) {
+    document.getElementById('misnamed-badge').innerHTML = `<span style="color:var(--y)">⚠ ${S.misnamed_count} тренировок названо «HIIT» неверно</span>`;
+  }
+
+  // ── Verdict lists ──
+  const worksEl = document.getElementById('sport-works');
+  worksEl.innerHTML = S.works.map(t => `<li>${t}</li>`).join('');
+  const recsEl = document.getElementById('sport-recs');
+  recsEl.innerHTML = S.recommendations.map(t => `<li>${t}</li>`).join('');
+
+  document.getElementById('sport-hint').textContent = `последние ${S.window_days} дней · ${S.window_workouts} трен · сравнение с канонами Seiler/Attia`;
+})();
 
 // === MINI CHARTS ===
 function miniLine(id, data, color, label) {

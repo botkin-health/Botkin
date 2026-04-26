@@ -37,6 +37,287 @@ def _one(db: Session, sql: str, **params):
     return row[0] if row else None
 
 
+# ── sport block (HR-zones, polarized training analysis) ──────────────────────
+
+
+def _build_sport_block(user_id: int) -> dict:
+    """Анализ тренировок по канонам Seiler/Attia/Whoop.
+
+    Источник: workouts_log_{user_id}.json (Garmin activities → parse_workouts.py).
+    Считает:
+      - 4 KPI: тренировок/нед, Z2 мин/нед, HIIT мин/нед, A:C load ratio
+      - распределение по зонам за последние 4 недели (для polarized pyramid)
+      - список тренировок с детектом неправильного тега «HIIT»
+      - вердикт + рекомендации
+
+    Каноны:
+      - Polarized 80/20 (Seiler): 80% Z1+Z2, 5% Z3, 15-20% Z4+Z5
+      - Z2 цель: 150 мин/нед (Attia, базовая аэробка)
+      - Z4+Z5 цель: 16 мин/нед (4x4 норвежский протокол VO2max)
+      - A:C ratio: 0.8-1.3 = sweet spot, >1.5 = риск травмы (Гарвард sports med)
+    """
+    from datetime import date, timedelta
+
+    wk_path = Path(__file__).parent / f"workouts_log_{user_id}.json"
+    if not wk_path.exists():
+        return {"available": False}
+
+    try:
+        wd = json.loads(wk_path.read_text())
+    except Exception:
+        return {"available": False}
+
+    workouts = wd.get("workouts", [])
+    if not workouts:
+        return {"available": False}
+
+    today = date.today()
+
+    def _to_date(s: str):
+        try:
+            y, m, d = s.split("-")
+            return date(int(y), int(m), int(d))
+        except Exception:
+            return None
+
+    # ── окна: 7 дней (acute), 28 дней (chronic), 30 дней (отображение) ───────
+    w7 = [w for w in workouts if _to_date(w["date"]) and (today - _to_date(w["date"])).days <= 7]
+    w28 = [w for w in workouts if _to_date(w["date"]) and (today - _to_date(w["date"])).days <= 28]
+    w30 = [w for w in workouts if _to_date(w["date"]) and (today - _to_date(w["date"])).days <= 30]
+
+    def _sum_zone(ws, zone_key):
+        return round(sum(w.get("hr_zones", {}).get(zone_key, 0) for w in ws))
+
+    def _sum_load(ws):
+        return sum(w.get("training_load") or 0 for w in ws)
+
+    # KPI: Z2 минут в неделю (среднее за 28 дней)
+    z2_per_week = round(_sum_zone(w28, "z2_min") / 4) if w28 else 0
+    # KPI: HIIT минут (Z4+Z5) в неделю
+    hiit_per_week = round((_sum_zone(w28, "z4_min") + _sum_zone(w28, "z5_min")) / 4) if w28 else 0
+    # KPI: тренировок в неделю (среднее за 28 дней)
+    workouts_per_week = round(len(w28) / 4, 1) if w28 else 0
+    # KPI: A:C ratio (acute load 7d / chronic avg load per 7d)
+    acute_load = _sum_load(w7)
+    chronic_load_per_7d = _sum_load(w28) / 4 if w28 else 0
+    ac_ratio = round(acute_load / chronic_load_per_7d, 2) if chronic_load_per_7d > 0 else None
+
+    # Status indicators for KPIs
+    def _kpi_status(value, target, low_warn=0.5, high_warn=1.3):
+        """Returns (color_code, hint). g=green, y=yellow, r=red."""
+        if target == 0:
+            return ("muted", "—")
+        ratio = value / target
+        if ratio >= 1.0:
+            return ("g", "цель ✓")
+        elif ratio >= low_warn:
+            return ("y", f"{round(ratio * 100)}% от цели")
+        else:
+            return ("r", f"{round(ratio * 100)}% от цели · мало")
+
+    z2_color, z2_hint = _kpi_status(z2_per_week, 150)
+    hiit_color, hiit_hint = _kpi_status(hiit_per_week, 16)
+
+    # Workouts/week status: 3-5 = green, 1-2 = yellow, 0 or 6+ = red
+    if workouts_per_week >= 3 and workouts_per_week <= 5:
+        wpw_color, wpw_hint = "g", "оптимально 3–5"
+    elif workouts_per_week >= 2:
+        wpw_color, wpw_hint = "y", "цель 3–5"
+    elif workouts_per_week > 0:
+        wpw_color, wpw_hint = "r", "слишком мало"
+    else:
+        wpw_color, wpw_hint = "r", "перерыв"
+
+    # A:C ratio status
+    if ac_ratio is None:
+        ac_color, ac_hint = "muted", "нет данных"
+    elif 0.8 <= ac_ratio <= 1.3:
+        ac_color, ac_hint = "g", "sweet spot"
+    elif ac_ratio < 0.8:
+        ac_color, ac_hint = "y", "недогруз"
+    elif ac_ratio <= 1.5:
+        ac_color, ac_hint = "y", "перегруз"
+    else:
+        ac_color, ac_hint = "r", "риск травмы"
+
+    # ── per-week buckets (last 4 weeks for polarized pyramid) ────────────────
+    def _iso_monday(d_str: str) -> str:
+        d = _to_date(d_str)
+        if not d:
+            return ""
+        monday = d - timedelta(days=d.weekday())
+        return monday.isoformat()
+
+    weeks_dict: dict = {}
+    for w in w30:
+        wk = _iso_monday(w["date"])
+        if not wk:
+            continue
+        b = weeks_dict.setdefault(
+            wk,
+            {"week": wk, "z1": 0, "z2": 0, "z3": 0, "z4": 0, "z5": 0, "n": 0, "load": 0, "mins": 0},
+        )
+        z = w.get("hr_zones", {})
+        b["z1"] += z.get("z1_min", 0)
+        b["z2"] += z.get("z2_min", 0)
+        b["z3"] += z.get("z3_min", 0)
+        b["z4"] += z.get("z4_min", 0)
+        b["z5"] += z.get("z5_min", 0)
+        b["n"] += 1
+        b["load"] += w.get("training_load") or 0
+        b["mins"] += w.get("duration_min") or 0
+
+    weeks = sorted(weeks_dict.values(), key=lambda x: x["week"])
+    # round
+    for b in weeks:
+        for k in ("z1", "z2", "z3", "z4", "z5", "mins"):
+            b[k] = round(b[k])
+        total = b["z1"] + b["z2"] + b["z3"] + b["z4"] + b["z5"] or 1
+        b["easy_pct"] = round((b["z1"] + b["z2"]) / total * 100)
+        b["mid_pct"] = round(b["z3"] / total * 100)
+        b["hard_pct"] = round((b["z4"] + b["z5"]) / total * 100)
+        b["total_min"] = total
+
+    # ── polarized verdict ────────────────────────────────────────────────────
+    total30_z = {z: _sum_zone(w30, f"{z}_min") for z in ("z1", "z2", "z3", "z4", "z5")}
+    total30_sum = sum(total30_z.values()) or 1
+    easy_pct = (total30_z["z1"] + total30_z["z2"]) / total30_sum * 100
+    mid_pct = total30_z["z3"] / total30_sum * 100
+    hard_pct = (total30_z["z4"] + total30_z["z5"]) / total30_sum * 100
+
+    if easy_pct >= 75 and hard_pct >= 10 and mid_pct < 15:
+        verdict = "polarized"
+        verdict_label = "✅ Polarized 80/20 — оптимально"
+    elif mid_pct >= 25:
+        verdict = "z3_trap"
+        verdict_label = "⚠ Z3-trap — слишком много темповой"
+    elif hard_pct < 5:
+        verdict = "all_easy"
+        verdict_label = "⚠ Всё в базе — нет острых сессий для VO2max"
+    elif easy_pct < 60:
+        verdict = "too_hard"
+        verdict_label = "⚠ Слишком много high-intensity — мало базы"
+    else:
+        verdict = "pyramidal"
+        verdict_label = "≈ Pyramidal — рабочий вариант, но polarized эффективнее"
+
+    # ── workout list (last 14 days) ──────────────────────────────────────────
+    cutoff14 = (today - timedelta(days=14)).isoformat()
+    recent14 = [w for w in workouts if w.get("date", "") >= cutoff14]
+    recent14.sort(key=lambda x: x["date"])
+
+    workout_list = []
+    misnamed_count = 0
+    for w in recent14:
+        z = w.get("hr_zones", {})
+        total = sum(z.values()) or 1
+        item = {
+            "date": w.get("date"),
+            "type": w.get("type"),
+            "type_label": w.get("type_label", w.get("type", "")),
+            "duration_min": round(w.get("duration_min") or 0),
+            "avg_hr": round(w.get("avg_hr") or 0),
+            "z1_pct": round(z.get("z1_min", 0) / total * 100),
+            "z2_pct": round(z.get("z2_min", 0) / total * 100),
+            "z3_pct": round(z.get("z3_min", 0) / total * 100),
+            "z4_pct": round(z.get("z4_min", 0) / total * 100),
+            "z5_pct": round(z.get("z5_min", 0) / total * 100),
+            "load": w.get("training_load") or 0,
+            "is_misnamed": w.get("is_misnamed", False),
+            "suggested_type": w.get("suggested_type"),
+            "high_zone_pct": w.get("high_zone_pct", 0),
+        }
+        if item["is_misnamed"]:
+            misnamed_count += 1
+        workout_list.append(item)
+
+    # ── recommendations ──────────────────────────────────────────────────────
+    recs = []
+    if z2_per_week < 75:
+        deficit = 150 - z2_per_week
+        recs.append(
+            f"Добавь Z2: сейчас {z2_per_week} мин/нед, цель 150. "
+            f"2 пробежки/велик по 30–45 мин на пульсе 110–120 закроют дефицит {deficit} мин."
+        )
+    if hiit_per_week < 8:
+        recs.append(
+            f"Добавь настоящий HIIT: Z4+Z5 сейчас {hiit_per_week} мин/нед, цель 16. "
+            "Норвежский протокол: 4×4 мин на 90% maxHR (≥155 bpm) с 3 мин восстановления."
+        )
+    if misnamed_count > 0:
+        recs.append(
+            f"Переназови {misnamed_count} «HIIT» в Garmin → Strength Training. "
+            "Это силовые/функционалка, не интервалы — Garmin корректнее посчитает Body Battery и Training Status."
+        )
+    if ac_ratio is not None and ac_ratio < 0.8:
+        recs.append("Acute load низкий — можно безопасно увеличить объём на 15–20% эту неделю.")
+    if ac_ratio is not None and ac_ratio > 1.3:
+        recs.append("Acute load высокий — снизь интенсивность 1–2 дня для восстановления.")
+    if not recs:
+        recs.append("Тренировочный план сбалансирован. Держи ритм.")
+
+    # ── what's working (positive observations) ───────────────────────────────
+    works = []
+    if workouts_per_week >= 2.5:
+        works.append(f"Стабильный ритм: {workouts_per_week} тренировок/нед за последний месяц")
+    # Detect well-tagged Z2 sessions (running/cycling with >70% in Z2)
+    z2_quality = [
+        w for w in w30 if w.get("type") in ("running", "cycling") and w.get("hr_zones", {}).get("z2_min", 0) > 0
+    ]
+    if z2_quality:
+        # Check if these have >70% in Z2
+        good_z2 = []
+        for w in z2_quality:
+            z = w.get("hr_zones", {})
+            total = sum(z.values()) or 1
+            if z.get("z2_min", 0) / total > 0.7:
+                good_z2.append(w)
+        if good_z2:
+            works.append(
+                f"Беговые/велик в правильной Z2: {len(good_z2)} сессий, средне {round(sum(w.get('duration_min', 0) for w in good_z2) / len(good_z2))} мин"
+            )
+    if not works:
+        works.append("Нет данных для позитивных выводов — нужно больше тренировок")
+
+    return {
+        "available": True,
+        "kpis": {
+            "workouts_per_week": workouts_per_week,
+            "workouts_per_week_color": wpw_color,
+            "workouts_per_week_hint": wpw_hint,
+            "z2_per_week": z2_per_week,
+            "z2_target": 150,
+            "z2_color": z2_color,
+            "z2_hint": z2_hint,
+            "hiit_per_week": hiit_per_week,
+            "hiit_target": 16,
+            "hiit_color": hiit_color,
+            "hiit_hint": hiit_hint,
+            "ac_ratio": ac_ratio,
+            "ac_color": ac_color,
+            "ac_hint": ac_hint,
+            "acute_load": round(acute_load),
+            "chronic_load_per_7d": round(chronic_load_per_7d),
+        },
+        "weeks": weeks,
+        "polarized": {
+            "easy_pct": round(easy_pct),
+            "mid_pct": round(mid_pct),
+            "hard_pct": round(hard_pct),
+            "verdict": verdict,
+            "verdict_label": verdict_label,
+            "ideal": {"easy": 80, "mid": 5, "hard": 15},
+            "total_min": round(total30_sum),
+        },
+        "workouts": workout_list,
+        "misnamed_count": misnamed_count,
+        "works": works,
+        "recommendations": recs,
+        "window_days": 30,
+        "window_workouts": len(w30),
+    }
+
+
 # ── payload builder ───────────────────────────────────────────────────────────
 
 
@@ -1044,6 +1325,12 @@ def _build_payload(db: Session, user_id: int) -> dict:
             level = 0
         heatmap_data.append({"d": d_str, "lvl": level, "workout": has_workout, "alco": is_alco})
 
+    # ── SPORT BLOCK ──────────────────────────────────────────────────────────
+    # Reads workouts_log_{user_id}.json (pushed from local parse_workouts.py).
+    # Computes: HR-zone distribution per week, A:C load ratio, Z2/HIIT vs targets,
+    # detection of misnamed HIIT sessions, polarized verdict, recommendations.
+    sport_block = _build_sport_block(user_id)
+
     # ── dashboard stats: streams / parameters / history ──────────────────────
     # Count each distinct data stream independently (not grouped into capability buckets)
     _has_medical = any(v.get("val") is not None for v in biomarkers_latest.values())
@@ -1174,6 +1461,7 @@ def _build_payload(db: Session, user_id: int) -> dict:
         "overall_score": overall_score,
         "achievements": achievements,
         "heatmap": heatmap_data,
+        "sport": sport_block,
     }
 
 
