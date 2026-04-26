@@ -3,12 +3,13 @@
 Импорт данных с умных весов (Zepp Life / Xiaomi) из CSV в PostgreSQL.
 
 Что делает:
-  - Читает data/zepp_export_latest.csv (генерируется SmartScaleConnect)
-  - Для каждой даты находит zepp_life записи в БД с NULL body_fat
-  - Обновляет их данными состава тела (жир, мышцы, висцеральный жир и т.д.)
-  - Все UPDATE выполняются за один SSH-вызов (батч)
+  - Читает data/zepp_export_latest.csv (генерируется zepp_api.py)
+  - Для каждой записи:
+      * INSERT ... WHERE NOT EXISTS — вставляет вес + состав, если дня ещё нет
+      * UPDATE ... WHERE body_fat IS NULL — дописывает состав тела к уже существующей строке
+  - Все операции выполняются за один SSH-вызов (батч)
 
-Запускается автоматически из sync_all_data.sh после SmartScaleConnect.
+Запускается автоматически из sync_all_data.sh после zepp_api.py.
 """
 
 import csv
@@ -32,15 +33,20 @@ def main():
 
     sql_statements = []
     for row in rows:
-        date_str = row.get("Date", "")[:10]
+        date_raw = row.get("Date", "")
+        date_str = date_raw[:10]
+        time_str = date_raw[11:19] if len(date_raw) > 10 else "07:00:00"
+        measured_at = f"{date_str} {time_str}"
+
         if date_str < MIN_DATE:
             continue
 
         try:
-            body_fat = float(row["BodyFat"]) if row.get("BodyFat", "").strip() else None
-            if body_fat is None:
+            weight = float(row["Weight"]) if row.get("Weight", "").strip() else None
+            if weight is None:
                 continue
 
+            body_fat = float(row["BodyFat"]) if row.get("BodyFat", "").strip() else None
             visceral_fat = int(float(row["VisceralFat"])) if row.get("VisceralFat", "").strip() else None
             muscle_mass = float(row["MuscleMass"]) if row.get("MuscleMass", "").strip() else None
             water = float(row["BodyWater"]) if row.get("BodyWater", "").strip() else None
@@ -49,30 +55,64 @@ def main():
         except (ValueError, TypeError):
             continue
 
-        set_parts = [f"body_fat={body_fat}"]
+        # 1. INSERT если нет записи за эту дату от zepp_life
+        cols = ["user_id", "measured_at", "weight", "source"]
+        vals = [str(USER_ID), f"'{measured_at}'", str(weight), "'zepp_life'"]
+        if body_fat is not None:
+            cols.append("body_fat")
+            vals.append(str(body_fat))
         if visceral_fat is not None:
-            set_parts.append(f"visceral_fat={visceral_fat}")
+            cols.append("visceral_fat")
+            vals.append(str(visceral_fat))
         if muscle_mass is not None:
-            set_parts.append(f"muscle_mass={muscle_mass}")
+            cols.append("muscle_mass")
+            vals.append(str(muscle_mass))
         if water is not None:
-            set_parts.append(f"water={water}")
+            cols.append("water")
+            vals.append(str(water))
         if bmi is not None:
-            set_parts.append(f"bmi={bmi}")
+            cols.append("bmi")
+            vals.append(str(bmi))
         if bone_mass is not None:
-            set_parts.append(f"bone_mass={bone_mass}")
+            cols.append("bone_mass")
+            vals.append(str(bone_mass))
 
-        sql = (
-            f"UPDATE weights SET {', '.join(set_parts)} "
-            f"WHERE user_id={USER_ID} AND source='zepp_life' AND body_fat IS NULL "
-            f"AND (measured_at AT TIME ZONE 'UTC')::date='{date_str}';"
+        insert_sql = (
+            f"INSERT INTO weights ({', '.join(cols)}) "
+            f"SELECT {', '.join(vals)} "
+            f"WHERE NOT EXISTS ("
+            f"  SELECT 1 FROM weights "
+            f"  WHERE user_id={USER_ID} AND source='zepp_life' "
+            f"  AND (measured_at AT TIME ZONE 'UTC')::date='{date_str}'"
+            f");"
         )
-        sql_statements.append(sql)
+        sql_statements.append(insert_sql)
+
+        # 2. UPDATE если запись есть, но без состава тела
+        if body_fat is not None:
+            update_parts = [f"body_fat={body_fat}"]
+            if visceral_fat is not None:
+                update_parts.append(f"visceral_fat={visceral_fat}")
+            if muscle_mass is not None:
+                update_parts.append(f"muscle_mass={muscle_mass}")
+            if water is not None:
+                update_parts.append(f"water={water}")
+            if bmi is not None:
+                update_parts.append(f"bmi={bmi}")
+            if bone_mass is not None:
+                update_parts.append(f"bone_mass={bone_mass}")
+
+            update_sql = (
+                f"UPDATE weights SET {', '.join(update_parts)} "
+                f"WHERE user_id={USER_ID} AND source='zepp_life' AND body_fat IS NULL "
+                f"AND (measured_at AT TIME ZONE 'UTC')::date='{date_str}';"
+            )
+            sql_statements.append(update_sql)
 
     if not sql_statements:
-        print("   ✅ Zepp: нет новых данных для импорта")
+        print("   ✅ Zepp: нет данных в CSV")
         return
 
-    # Всё одним SSH-вызовом через stdin — никаких проблем с экранированием
     batch_sql = "\n".join(sql_statements)
     env = {**os.environ, "SSHPASS": "SERVER_PASSWORD_REDACTED"}
 
@@ -96,15 +136,20 @@ def main():
         print(f"   ⚠️  Zepp: ошибка SQL: {result.stderr[:300]}")
         return
 
+    inserted = sum(1 for line in result.stdout.splitlines() if line.strip() == "INSERT 0 1")
     updated = sum(
         1 for line in result.stdout.splitlines() if line.strip().startswith("UPDATE") and line.strip() != "UPDATE 0"
     )
-    skipped = result.stdout.count("UPDATE 0")
 
-    if updated > 0:
-        print(f"   ✅ Zepp: обновлено {updated} дней с новыми данными состава тела")
+    if inserted > 0 or updated > 0:
+        parts = []
+        if inserted:
+            parts.append(f"вставлено {inserted} новых дней")
+        if updated:
+            parts.append(f"обновлено {updated} дней (состав тела)")
+        print(f"   ✅ Zepp: {', '.join(parts)}")
     else:
-        print("   ✅ Zepp: все данные актуальны (нет новых zepp_life записей без body_fat)")
+        print("   ✅ Zepp: все данные актуальны")
 
 
 if __name__ == "__main__":
