@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 from datetime import datetime
 
-BASE_DIR = Path(__file__).parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 ACTIVITIES_DIR = BASE_DIR / "data" / "garmin" / "activities"
 OUTPUT_FILE = BASE_DIR / "data" / "garmin" / "workouts_log.json"
 
@@ -116,6 +116,25 @@ def parse_activity(filepath: Path):
     # Флаг вечерней тренировки (после 18:00)
     evening_workout = start_hour is not None and start_hour >= 18
 
+    # ── Детектор неправильного тега «HIIT» ────────────────────────────────────
+    # Настоящий HIIT — >25% времени в Z4+Z5 при avg_hr ≥ 80% maxHR (~140 bpm).
+    # Если тег "hiit" но Z4+Z5 < 10% — это силовая/функционалка, не HIIT.
+    total_zone_min = sum(hr_zones.values()) or 1
+    high_zone_pct = (hr_zones["z4_min"] + hr_zones["z5_min"]) / total_zone_min * 100
+
+    is_misnamed = False
+    suggested_type = None
+    classification = type_key  # по умолчанию — оставляем
+    if type_key == "hiit" and high_zone_pct < 10:
+        is_misnamed = True
+        # Если средний пульс низкий (<130) — силовая. Если выше — кардио/функционалка.
+        if avg_hr and avg_hr < 130:
+            suggested_type = "strength_training"
+            classification = "strength_training"
+        else:
+            suggested_type = "cardio"
+            classification = "cardio"
+
     return {
         "date": date,
         "time": time_of_day,
@@ -124,6 +143,10 @@ def parse_activity(filepath: Path):
         "activity_name": data.get("activityName", type_label),
         "type": type_key,
         "type_label": type_label,
+        "classification": classification,  # реальный тип тренировки (после переклассификации)
+        "is_misnamed": is_misnamed,
+        "suggested_type": suggested_type,  # null если тег корректен
+        "high_zone_pct": round(high_zone_pct, 1),
         # Нагрузка
         "duration_min": duration_min,
         "calories_total": round(calories),
