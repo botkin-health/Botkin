@@ -417,6 +417,10 @@ function openEditSheet(el) {
       tg?.showAlert?.(`Ошибка: ${e.message}`);
     }
   };
+  document.getElementById('edit-delete').onclick = async () => {
+    document.getElementById('edit-sheet').classList.remove('open');
+    await deleteItem(el);
+  };
 }
 
 document.getElementById('edit-sheet-close').addEventListener('click', () =>
