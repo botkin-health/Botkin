@@ -267,11 +267,9 @@ body {
 .wo-type-suggest { color: var(--y); font-weight: 600; font-size: 11px; }
 .wo-zones { display: flex; height: 14px; border-radius: 3px; overflow: hidden; background: var(--bg); }
 .wo-zone-seg { height: 100%; transition: width 0.3s; }
-.wo-zone-z1 { background: rgba(0,200,120,0.3); }
-.wo-zone-z2 { background: var(--g); }
-.wo-zone-z3 { background: var(--y); }
-.wo-zone-z4 { background: var(--r); }
-.wo-zone-z5 { background: #c81d3f; }
+.wo-zone-easy { background: linear-gradient(90deg, #00c878, #00ff9d); }
+.wo-zone-mid { background: var(--y); }
+.wo-zone-hard { background: var(--r); }
 .wo-mins { color: var(--muted); text-align: right; font-size: 11px; }
 .wo-hr { color: var(--muted); text-align: right; font-size: 11px; font-variant-numeric: tabular-nums; }
 .wo-verdict { font-size: 11px; color: var(--muted); text-align: right; }
@@ -494,40 +492,38 @@ body {
       <div class="kpi-explain">высокий пульс &gt;80% макс (≥140 bpm) — для VO2max</div>
     </div>
     <div class="sport-kpi" id="kpi-ac">
-      <div class="kpi-label">Острая / базовая нагрузка</div>
+      <div class="kpi-label">Неделя / 90 дней</div>
       <div class="kpi-value"><span id="kpi-ac-val">—</span></div>
       <div class="kpi-hint" id="kpi-ac-hint"></div>
-      <div class="kpi-explain">7-дн. нагрузка ÷ средняя за 90 дн. · норма 0.8–1.3</div>
+      <div class="kpi-explain">нагрузка за 7 дн. ÷ средняя за 90 дн. · норма 0.8–1.3</div>
     </div>
   </div>
 
-  <!-- Zones legend (always visible, explains colors) -->
+  <!-- Zones legend (3 groups by Seiler polarized model) -->
   <div class="zones-legend">
     <span class="zl-title">Зоны пульса:</span>
-    <span class="zl-item"><span class="zl-dot zl-z1"></span><b>Z1</b> восст · &lt;60% макс</span>
-    <span class="zl-item"><span class="zl-dot zl-z2"></span><b>Z2</b> база · 60–70% · 🔥 главное для аэробики</span>
-    <span class="zl-item"><span class="zl-dot zl-z3"></span><b>Z3</b> темп · 70–80% · «ловушка треш-холда»</span>
-    <span class="zl-item"><span class="zl-dot zl-z4"></span><b>Z4</b> порог · 80–90% · VO2max-зона</span>
-    <span class="zl-item"><span class="zl-dot zl-z5"></span><b>Z5</b> макс · &gt;90% · спринт</span>
+    <span class="zl-item"><span class="zl-dot zl-z2"></span><b>Лёгкое</b> Z1+Z2 · &lt;70% макс (≤120 bpm) · аэробная база 🔥</span>
+    <span class="zl-item"><span class="zl-dot zl-z3"></span><b>Темп</b> Z3 · 70–80% (120–137 bpm) · «ловушка треш-холда»</span>
+    <span class="zl-item"><span class="zl-dot zl-z4"></span><b>Высокое</b> Z4+Z5 · &gt;80% (≥137 bpm) · VO2max</span>
   </div>
 
   <!-- Row 2: Polarized pyramid -->
   <div class="sport-section">
     <div class="sport-section-head">
-      <div class="sport-section-title">Распределение по зонам ЧСС <span style="color:var(--muted); font-weight:400; text-transform:none; font-size:11px;">— по неделям</span></div>
+      <div class="sport-section-title">Распределение по зонам ЧСС <span style="color:var(--muted); font-weight:400; text-transform:none; font-size:11px;">— по месяцам</span></div>
       <div class="sport-section-verdict" id="polarized-verdict">—</div>
     </div>
     <div class="polarized-bars">
       <div class="polar-row polar-ideal">
         <div class="polar-label">Идеал 80/20</div>
         <div class="polar-bar">
-          <div class="polar-seg seg-easy" style="width:80%">80% Z1+Z2</div>
+          <div class="polar-seg seg-easy" style="width:80%">80% лёгкое</div>
           <div class="polar-seg seg-mid" style="width:5%">5%</div>
-          <div class="polar-seg seg-hard" style="width:15%">15% Z4+Z5</div>
+          <div class="polar-seg seg-hard" style="width:15%">15% высокое</div>
         </div>
         <div class="polar-meta">~ Seiler/Attia</div>
       </div>
-      <div id="polar-weeks"></div>
+      <div id="polar-months"></div>
       <div class="polar-row polar-total">
         <div class="polar-label">За 90 дней</div>
         <div class="polar-bar" id="polar-total-bar"></div>
@@ -1158,22 +1154,21 @@ renderHeatmap();
   // ── Polarized pyramid ──
   document.getElementById('polarized-verdict').textContent = S.polarized.verdict_label;
 
-  const weeksEl = document.getElementById('polar-weeks');
-  weeksEl.innerHTML = '';
-  S.weeks.forEach(w => {
-    const easy = w.easy_pct, mid = w.mid_pct, hard = w.hard_pct;
+  const monthsEl = document.getElementById('polar-months');
+  monthsEl.innerHTML = '';
+  (S.months || []).forEach(m => {
+    const easy = m.easy_pct, mid = m.mid_pct, hard = m.hard_pct;
     const segs = [];
     if (easy > 0) segs.push(`<div class="polar-seg seg-easy" style="width:${easy}%">${easy >= 8 ? easy + '%' : ''}</div>`);
     if (mid > 0) segs.push(`<div class="polar-seg seg-mid" style="width:${mid}%">${mid >= 8 ? mid + '%' : ''}</div>`);
     if (hard > 0) segs.push(`<div class="polar-seg seg-hard" style="width:${hard}%">${hard >= 8 ? hard + '%' : ''}</div>`);
-    const wkLabel = w.week ? new Date(w.week).toLocaleDateString('ru-RU', {day:'numeric', month:'short'}) : '—';
     const row = document.createElement('div');
     row.className = 'polar-row';
     row.innerHTML = `
-      <div class="polar-label">с ${wkLabel}</div>
+      <div class="polar-label">${m.label}</div>
       <div class="polar-bar">${segs.join('')}</div>
-      <div class="polar-meta">${w.n} трен · ${w.mins} мин · load ${w.load}</div>`;
-    weeksEl.appendChild(row);
+      <div class="polar-meta">${m.n} трен · ${m.mins} мин · load ${m.load}</div>`;
+    monthsEl.appendChild(row);
   });
 
   const tot = S.polarized;
@@ -1198,14 +1193,18 @@ renderHeatmap();
       const typeHtml = suggested
         ? `${synthPrefix}<span class="wo-type-strike">${typeLabel}</span> → <span class="wo-type-suggest">${suggested}</span>`
         : `${synthPrefix}<span>${typeLabel}</span>`;
-      const zonesHtml = ['z1', 'z2', 'z3', 'z4', 'z5'].map(z => {
-        const pct = w[z + '_pct'] || 0;
-        return pct > 0 ? `<div class="wo-zone-seg wo-zone-${z}" style="width:${pct}%" title="${z.toUpperCase()}: ${pct}%"></div>` : '';
-      }).join('');
+      const zoneMap = [
+        ['easy', w.easy_pct || 0, 'Лёгкое (Z1+Z2)'],
+        ['mid', w.mid_pct || 0, 'Темп (Z3)'],
+        ['hard', w.hard_pct || 0, 'Высокое (Z4+Z5)'],
+      ];
+      const zonesHtml = zoneMap.map(([cls, pct, label]) =>
+        pct > 0 ? `<div class="wo-zone-seg wo-zone-${cls}" style="width:${pct}%" title="${label}: ${pct}%"></div>` : ''
+      ).join('');
       const verdictText = w.is_misnamed
         ? `${w.high_zone_pct}% Z4+Z5 — это не интервалы, это силовая`
         : (w.type === 'hiit' && w.high_zone_pct >= 25) ? '✓ настоящие интервалы'
-        : (w.type === 'running' && w.z2_pct >= 70) ? '✓ правильная Z2 база'
+        : (w.type === 'running' && w.easy_pct >= 70) ? '✓ правильная аэробная база'
         : '';
       const verdictClass = w.is_misnamed ? 'warn' : verdictText.startsWith('✓') ? 'ok' : '';
       const row = document.createElement('div');

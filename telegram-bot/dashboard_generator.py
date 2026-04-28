@@ -142,22 +142,80 @@ def _build_sport_block(user_id: int) -> dict:
     else:
         ac_color, ac_hint = "r", "риск травмы"
 
-    # ── per-week buckets (last 4 weeks for polarized pyramid) ────────────────
-    def _iso_monday(d_str: str) -> str:
+    # ── per-month buckets (last 3 calendar months for polarized pyramid) ─────
+    RU_MONTHS = [
+        "январь",
+        "февраль",
+        "март",
+        "апрель",
+        "май",
+        "июнь",
+        "июль",
+        "август",
+        "сентябрь",
+        "октябрь",
+        "ноябрь",
+        "декабрь",
+    ]
+
+    def _month_key(d_str: str) -> str:
         d = _to_date(d_str)
         if not d:
             return ""
-        monday = d - timedelta(days=d.weekday())
-        return monday.isoformat()
+        return f"{d.year}-{d.month:02d}"
 
-    weeks_dict: dict = {}
+    def _normalize_to_100(easy: int, mid: int, hard: int) -> tuple[int, int, int]:
+        """Корректируем округление чтобы сумма была ровно 100 (или 0 если данных нет)."""
+        s = easy + mid + hard
+        if s == 0:
+            return 0, 0, 0
+        if s == 100:
+            return easy, mid, hard
+        # Дельту прибавляем к самой большой компоненте
+        delta = 100 - s
+        parts = [("easy", easy), ("mid", mid), ("hard", hard)]
+        idx = max(range(3), key=lambda i: parts[i][1])
+        adjusted = [easy, mid, hard]
+        adjusted[idx] += delta
+        return adjusted[0], adjusted[1], adjusted[2]
+
+    window_start = today - timedelta(days=WINDOW_DAYS)
+
+    months_dict: dict = {}
     for w in w90:
-        wk = _iso_monday(w["date"])
-        if not wk:
+        mk = _month_key(w["date"])
+        if not mk:
             continue
-        b = weeks_dict.setdefault(
-            wk,
-            {"week": wk, "z1": 0, "z2": 0, "z3": 0, "z4": 0, "z5": 0, "n": 0, "load": 0, "mins": 0},
+        d = _to_date(w["date"])
+        # Первый день месяца и последний день месяца
+        first_of_month = d.replace(day=1)
+        if d.month == 12:
+            last_of_month = date(d.year + 1, 1, 1) - timedelta(days=1)
+        else:
+            last_of_month = date(d.year, d.month + 1, 1) - timedelta(days=1)
+        # Месяц частичный если окно начинается ПОЗЖЕ первого числа
+        # или если последний день месяца ПОЗЖЕ сегодня (текущий месяц)
+        partial_from = max(window_start, first_of_month) if window_start > first_of_month else None
+        partial_to = today if last_of_month > today else None
+        label = RU_MONTHS[d.month - 1]
+        if partial_from:
+            label = f"{label} · с {partial_from.day}"
+        elif partial_to:
+            label = f"{label} · по {partial_to.day}"
+        b = months_dict.setdefault(
+            mk,
+            {
+                "month": mk,
+                "label": label,
+                "z1": 0,
+                "z2": 0,
+                "z3": 0,
+                "z4": 0,
+                "z5": 0,
+                "n": 0,
+                "load": 0,
+                "mins": 0,
+            },
         )
         z = w.get("hr_zones", {})
         b["z1"] += z.get("z1_min", 0)
@@ -169,15 +227,16 @@ def _build_sport_block(user_id: int) -> dict:
         b["load"] += w.get("training_load") or 0
         b["mins"] += w.get("duration_min") or 0
 
-    weeks = sorted(weeks_dict.values(), key=lambda x: x["week"])
-    # round
-    for b in weeks:
+    months = sorted(months_dict.values(), key=lambda x: x["month"])
+    # round + нормализуем до 100% ровно
+    for b in months:
         for k in ("z1", "z2", "z3", "z4", "z5", "mins"):
             b[k] = round(b[k])
         total = b["z1"] + b["z2"] + b["z3"] + b["z4"] + b["z5"] or 1
-        b["easy_pct"] = round((b["z1"] + b["z2"]) / total * 100)
-        b["mid_pct"] = round(b["z3"] / total * 100)
-        b["hard_pct"] = round((b["z4"] + b["z5"]) / total * 100)
+        e = round((b["z1"] + b["z2"]) / total * 100)
+        m = round(b["z3"] / total * 100)
+        h = round((b["z4"] + b["z5"]) / total * 100)
+        b["easy_pct"], b["mid_pct"], b["hard_pct"] = _normalize_to_100(e, m, h)
         b["total_min"] = total
 
     # ── polarized verdict ────────────────────────────────────────────────────
@@ -195,7 +254,7 @@ def _build_sport_block(user_id: int) -> dict:
         verdict_label = "⚠ Z3-trap — слишком много темповой"
     elif hard_pct < 5:
         verdict = "all_easy"
-        verdict_label = "⚠ Всё в базе — нет острых сессий для VO2max"
+        verdict_label = "⚠ Мало интервалов на высоком пульсе"
     elif easy_pct < 60:
         verdict = "too_hard"
         verdict_label = "⚠ Слишком много high-intensity — мало базы"
@@ -213,17 +272,19 @@ def _build_sport_block(user_id: int) -> dict:
     for w in recent14:
         z = w.get("hr_zones", {})
         total = sum(z.values()) or 1
+        e = round((z.get("z1_min", 0) + z.get("z2_min", 0)) / total * 100)
+        m = round(z.get("z3_min", 0) / total * 100)
+        h = round((z.get("z4_min", 0) + z.get("z5_min", 0)) / total * 100)
+        easy_p, mid_p, hard_p = _normalize_to_100(e, m, h)
         item = {
             "date": w.get("date"),
             "type": w.get("type"),
             "type_label": w.get("type_label", w.get("type", "")),
             "duration_min": round(w.get("duration_min") or 0),
             "avg_hr": round(w.get("avg_hr") or 0),
-            "z1_pct": round(z.get("z1_min", 0) / total * 100),
-            "z2_pct": round(z.get("z2_min", 0) / total * 100),
-            "z3_pct": round(z.get("z3_min", 0) / total * 100),
-            "z4_pct": round(z.get("z4_min", 0) / total * 100),
-            "z5_pct": round(z.get("z5_min", 0) / total * 100),
+            "easy_pct": easy_p,
+            "mid_pct": mid_p,
+            "hard_pct": hard_p,
             "load": w.get("training_load") or 0,
             "is_misnamed": w.get("is_misnamed", False),
             "suggested_type": w.get("suggested_type"),
@@ -309,11 +370,11 @@ def _build_sport_block(user_id: int) -> dict:
             "acute_load": round(acute_load),
             "chronic_load_per_7d": round(chronic_load_per_7d),
         },
-        "weeks": weeks,
+        "months": months,
         "polarized": {
-            "easy_pct": round(easy_pct),
-            "mid_pct": round(mid_pct),
-            "hard_pct": round(hard_pct),
+            "easy_pct": _normalize_to_100(round(easy_pct), round(mid_pct), round(hard_pct))[0],
+            "mid_pct": _normalize_to_100(round(easy_pct), round(mid_pct), round(hard_pct))[1],
+            "hard_pct": _normalize_to_100(round(easy_pct), round(mid_pct), round(hard_pct))[2],
             "verdict": verdict,
             "verdict_label": verdict_label,
             "ideal": {"easy": 80, "mid": 5, "hard": 15},
