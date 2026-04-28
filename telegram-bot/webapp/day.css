@@ -186,6 +186,12 @@
   padding: 12px 16px; font-size: 15px; font-weight: 600; width: 100%; cursor: pointer;
 }
 .primary-btn:disabled { opacity: .5; cursor: wait; }
+.danger-btn {
+  background: none; color: #ff3b30; border: none; border-radius: 10px;
+  padding: 12px 16px; font-size: 15px; font-weight: 500; width: 100%;
+  cursor: pointer; margin-top: 4px;
+}
+.danger-btn:active { opacity: .7; }
 
 .snackbar {
   position: fixed; bottom: 62px; left: 16px; right: 16px; max-width: 480px; margin: 0 auto;
