@@ -118,9 +118,10 @@ STEP 3 — FOR PROTEIN PRODUCTS specifically:
   - NOT like a regular nut/chocolate bar: ~200+ kcal, protein ~3-5g, fats ~15-20g
 
 EXAMPLES of known brands (use if macros not visible):
-  - Bombbar Slim (35g): 116 kcal, Б:10г, Ж:3г, У:4г
+  - Bombbar Original glazed bar (40g, "в шоколаде", any flavor — Coconut Cake, Banana Pudding, etc.): 142 kcal, Б:10г, Ж:6.9г, У:2.6г, клетчатка:15г. Все вкусы Original glazed line имеют почти одинаковые КБЖУ.
   - Bombbar Pro (60g): 240 kcal, Б:20г, Ж:9г, У:20г
   - Fit Kit Chocolate Bar (50g): 173 kcal, Б:14г, Ж:5г, У:18г
+  - DEFAULT for unidentified Bombbar protein bar 35-40g — use Original glazed values above (142 kcal / 40g), NOT 116 kcal. Прежний шаблон "116 kcal, 10/3/4" был некорректным — не используй его.
 
 CRITICAL FOR FOOD:
 - Use USER provided weights if present (e.g. "100g carrot" -> weight: 100).

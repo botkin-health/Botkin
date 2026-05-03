@@ -43,6 +43,10 @@ TMP_DB = "/tmp/knowledgeC_healthvault.db"
 
 AW_BASE_URL = "http://localhost:5600/api/0"
 AW_BUCKET = "aw-watcher-window_MacBook-Air-M4.local"
+# AFK bucket = source of truth для РЕАЛЬНОГО времени за маком (мышь/клавиатура).
+# Window даёт распределение по приложениям, но завышает суммарное время в 2-3 раза
+# из-за перекрывающихся событий. Пользуемся AFK как «сколько», window как «что».
+AW_AFK_BUCKET = "aw-watcher-afk_MacBook-Air-M4.local"
 
 # Moscow time UTC+3
 UTC_OFFSET = timedelta(hours=3)
@@ -79,6 +83,30 @@ BUNDLE_NAMES = {
     "com.jetbrains.pycharm": "PyCharm",
     "com.microsoft.VSCode": "VS Code",
     "com.sublimetext.4": "Sublime Text",
+}
+
+
+# Системные процессы и фоновые помощники, которые НЕ отражают реальное использование.
+# loginwindow доминирует когда мак залогинен (~22ч/день), искажает все аналитики.
+# Фильтруется и по bundle ID (knowledgeC), и по человеческому имени (ActivityWatch).
+EXCLUDED_APPS = {
+    # Bundle IDs
+    "com.apple.loginwindow",
+    "com.apple.dock",
+    "com.apple.WindowManager",
+    "com.apple.controlcenter",
+    "com.apple.notificationcenterui",
+    "com.apple.systemuiserver",
+    "com.apple.spotlight",
+    # Human-readable names from ActivityWatch
+    "loginwindow",
+    "Dock",
+    "WindowManager",
+    "Control Center",
+    "NotificationCenter",
+    "SystemUIServer",
+    "Spotlight",
+    "screencaptureui",
 }
 
 
@@ -181,7 +209,65 @@ def read_activitywatch() -> dict[str, dict]:
     return dict(result)
 
 
-def build_output(kc_data: dict, aw_data: dict) -> dict:
+def read_afk_events() -> list:
+    """Читает события AFK-tracker (статус мышь/клавиатура). Источник истины
+    о том, действительно ли я был за маком."""
+    if not check_aw_running():
+        return []
+    try:
+        resp = requests.get(
+            f"{AW_BASE_URL}/buckets/{AW_AFK_BUCKET}/events",
+            params={"limit": 100_000},
+            timeout=30,
+        )
+        if resp.status_code != 200:
+            return []
+        return resp.json()
+    except Exception:
+        return []
+
+
+def compute_active_minutes(afk_events: list) -> dict[str, float]:
+    """Возвращает { 'YYYY-MM-DD': minutes_active } по AFK not-afk событиям.
+    Это РЕАЛЬНОЕ время за маком (мышь/клавиатура за последние ~3 минуты)."""
+    out: dict[str, float] = defaultdict(float)
+    for e in afk_events:
+        if e.get("data", {}).get("status") != "not-afk":
+            continue
+        ts = datetime.fromisoformat(e["timestamp"]) + UTC_OFFSET
+        date_str = ts.strftime("%Y-%m-%d")
+        out[date_str] += e.get("duration", 0.0) / 60  # секунды → минуты
+    return {k: round(v, 1) for k, v in out.items()}
+
+
+def compute_late_minutes(afk_events: list) -> dict[str, float]:
+    """
+    Возвращает { 'YYYY-MM-DD': minutes_late } — реальная активность за маком
+    в окне 22:00–06:00 МСК. Ночь относится к предыдущему дню (это «вечер→ночь»
+    того дня). Источник: AFK not-afk (а не window) — даёт точное физическое
+    присутствие.
+    """
+    out: dict[str, float] = defaultdict(float)
+    for e in afk_events:
+        if e.get("data", {}).get("status") != "not-afk":
+            continue
+        ts_start_msk = datetime.fromisoformat(e["timestamp"]) + UTC_OFFSET
+        dur = e.get("duration", 0.0)
+        if dur <= 0:
+            continue
+        ts_end_msk = ts_start_msk + timedelta(seconds=dur)
+        cur = ts_start_msk
+        while cur < ts_end_msk:
+            h = cur.hour
+            is_late = (h >= 22) or (h < 6)
+            if is_late:
+                owner_date = (cur - timedelta(hours=6)).strftime("%Y-%m-%d") if h < 6 else cur.strftime("%Y-%m-%d")
+                out[owner_date] += 1  # 1 минута
+            cur += timedelta(minutes=1)
+    return {k: round(v, 1) for k, v in out.items()}
+
+
+def build_output(kc_data: dict, aw_data: dict, late_data: dict | None = None, active_data: dict | None = None) -> dict:
     """
     Объединяет данные из двух источников.
     - Если день есть только в knowledgeC → source="knowledgec"
@@ -212,8 +298,14 @@ def build_output(kc_data: dict, aw_data: dict) -> dict:
             apps_raw = kc_data[date_str]
             source = "knowledgec"
 
+        # Фильтруем системные процессы (loginwindow, Dock и т.п.)
+        # Проверяем и bundle id, и читаемое имя — для обоих источников.
+        apps_filtered = {
+            k: v for k, v in apps_raw.items() if k not in EXCLUDED_APPS and bundle_to_name(k) not in EXCLUDED_APPS
+        }
+
         # Строим список приложений
-        sorted_apps = sorted(apps_raw.items(), key=lambda x: x[1], reverse=True)
+        sorted_apps = sorted(apps_filtered.items(), key=lambda x: x[1], reverse=True)
         total_sec = sum(v for _, v in sorted_apps)
 
         if source == "activitywatch":
@@ -229,8 +321,23 @@ def build_output(kc_data: dict, aw_data: dict) -> dict:
                 if sec > 0
             ]
 
+        # ИСТИННОЕ total_minutes = AFK not-afk (реальное присутствие за маком).
+        # window-tracker завышает в 2-3 раза из-за перекрывающихся событий.
+        # Поэтому если есть active_data (AFK), берём её; иначе fallback на window-сумму.
+        true_total = (active_data or {}).get(date_str)
+        window_total = total_sec / 60
+        if true_total is not None and true_total > 0:
+            # Масштабируем минуты приложений пропорционально, чтобы сумма = AFK total
+            scale = true_total / window_total if window_total > 0 else 1
+            apps_list = [{**a, "minutes": round(a["minutes"] * scale, 1)} for a in apps_list]
+            total_minutes = true_total
+        else:
+            total_minutes = window_total
+
         result[date_str] = {
-            "total_minutes": round(total_sec / 60, 1),
+            "total_minutes": round(total_minutes, 1),
+            "window_minutes": round(window_total, 1),  # для отладки/сравнения
+            "late_minutes": (late_data or {}).get(date_str, 0.0),
             "source": source,
             "apps": apps_list,
         }
@@ -268,8 +375,22 @@ def main():
         print("❌ Нет данных ни из одного источника. Выход.")
         exit(1)
 
+    # AFK = source of truth для реального времени за маком (мышь/клавиатура)
+    print("   👀 Читаю AFK-tracker (реальное присутствие)...")
+    afk_events = read_afk_events()
+    active_data = compute_active_minutes(afk_events)
+    if active_data:
+        avg_h = sum(active_data.values()) / 60 / len(active_data)
+        print(f"   ✅ AFK active: {len(active_data)} дней, среднее {avg_h:.1f}ч/день")
+
+    # «Поздний Mac»: AFK активность в окне 22:00–06:00, ночь = предыдущему дню
+    print("   🌙 Считаю поздний Mac (22:00-06:00) по AFK...")
+    late_data = compute_late_minutes(afk_events)
+    if late_data:
+        print(f"   ✅ Поздний Mac: данные за {len(late_data)} ночей")
+
     # Объединяем
-    output = build_output(kc_data, aw_data)
+    output = build_output(kc_data, aw_data, late_data, active_data)
 
     # Сохраняем
     os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
