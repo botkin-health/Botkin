@@ -183,20 +183,20 @@
 
     /* ── Supplements daily tracking screen ── */
     .supp-progress-card {
-      margin: 12px 16px 16px; padding: 14px 16px;
-      background: #f2f2f7; border-radius: 14px;
+      margin: 8px 16px 10px; padding: 8px 12px;
+      background: #f2f2f7; border-radius: 10px;
     }
     @media (prefers-color-scheme: dark) {
       .supp-progress-card { background: #1c1c1e; }
     }
     .supp-progress-head {
       display: flex; justify-content: space-between; align-items: baseline;
-      margin-bottom: 8px;
+      margin-bottom: 5px;
     }
-    .supp-progress-title { font-size: 14px; font-weight: 600; }
-    .supp-progress-count { font-size: 13px; color: #8e8e93; }
+    .supp-progress-title { font-size: 13px; font-weight: 600; }
+    .supp-progress-count { font-size: 12px; color: #8e8e93; }
     .supp-progress-track {
-      height: 8px; background: #e5e5ea; border-radius: 4px; overflow: hidden;
+      height: 5px; background: #e5e5ea; border-radius: 3px; overflow: hidden;
     }
     @media (prefers-color-scheme: dark) {
       .supp-progress-track { background: #2c2c2e; }
@@ -206,44 +206,39 @@
       transition: width .3s ease;
     }
     .supp-slot-title {
-      font-size: 12px; color: #8e8e93; font-weight: 500;
-      text-transform: uppercase; letter-spacing: .5px;
-      padding: 8px 16px 6px; margin: 0;
+      font-size: 11px; color: #8e8e93; font-weight: 500;
+      text-transform: uppercase; letter-spacing: .4px;
+      padding: 6px 16px 2px; margin: 0;
     }
     .supp-row {
-      display: flex; align-items: center; gap: 14px;
-      padding: 14px 16px; min-height: 52px;
-      border-top: 1px solid #e5e5ea;
+      display: flex; align-items: center; gap: 12px;
+      padding: 8px 16px;
       background: #fff; cursor: pointer;
       -webkit-tap-highlight-color: transparent;
     }
     @media (prefers-color-scheme: dark) {
-      .supp-row { border-color: #2c2c2e; background: #1c1c1e; }
+      .supp-row { background: #1c1c1e; }
     }
-    .supp-row:first-child { border-top: none; }
     .supp-row:active { background: #f2f2f7; }
     @media (prefers-color-scheme: dark) {
       .supp-row:active { background: #2c2c2e; }
     }
     .supp-check {
-      flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
+      flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%;
       border: 2px solid #c7c7cc; display: flex; align-items: center; justify-content: center;
-      font-size: 16px; color: #fff; transition: all .2s;
+      font-size: 13px; color: #fff; transition: all .2s;
     }
     .supp-row.taken .supp-check {
       background: #34c759; border-color: #34c759;
     }
     .supp-row.taken .supp-check::before { content: '✓'; font-weight: 700; }
-    .supp-name { flex: 1; font-size: 15px; line-height: 1.2; }
+    .supp-name { flex: 1; font-size: 14px; line-height: 1.25; }
+    .supp-dose { color: #8e8e93; font-weight: 400; }
     .supp-row.taken .supp-name { color: #8e8e93; text-decoration: line-through; text-decoration-thickness: 1px; }
-    .supp-time {
-      font-size: 13px; color: #34c759; font-weight: 500; min-width: 44px; text-align: right;
-    }
-    .supp-row:not(.taken) .supp-time { color: #c7c7cc; }
     .supp-slot-group {
       background: #fff;
       border-top: 1px solid #e5e5ea; border-bottom: 1px solid #e5e5ea;
-      margin-bottom: 20px;
+      margin-bottom: 12px;
     }
     @media (prefers-color-scheme: dark) {
       .supp-slot-group { background: #1c1c1e; border-color: #2c2c2e; }
@@ -448,7 +443,8 @@
   <div style="padding: 16px;">
     <button class="add-open-btn" onclick="toggleAddPanel()">+ Добавить добавку</button>
     <div class="add-panel" id="add-panel" style="margin-top:10px">
-      <input type="text" id="new-supp-name" placeholder="Название добавки" style="flex:1;min-width:120px">
+      <input type="text" id="new-supp-name" placeholder="Название" style="flex:1;min-width:100px">
+      <input type="text" id="new-supp-dose" placeholder="Доза (напр. 2 капс)" style="flex:1;min-width:100px">
       <select id="new-supp-slot">
         <option value="morning_before">☀️ Утро (до еды)</option>
         <option value="morning_with" selected>🌅 Утро (с завтраком)</option>
@@ -801,9 +797,11 @@ function renderSupplements() {
           : items.map(s => {
               const safeName = escapeHtml(s.name);
               const attrName = safeName.replace(/"/g, '&quot;');
+              const safeDose = s.dose ? escapeHtml(s.dose) : '';
+              const doseSpan = safeDose ? ` <span class="supp-dose">(${safeDose})</span>` : '';
               return `
             <div class="settings-row">
-              <div class="row-label">${safeName}</div>
+              <div class="row-label">${safeName}${doseSpan}</div>
               <button class="del-btn-round" data-slot="${slot}" data-name="${attrName}" aria-label="Удалить">✕</button>
             </div>`;
             }).join('')}
@@ -836,11 +834,15 @@ function toggleAddPanel() {
 
 function addSupplement() {
   const name = document.getElementById('new-supp-name').value.trim();
+  const dose = document.getElementById('new-supp-dose').value.trim();
   const slot = document.getElementById('new-supp-slot').value;
   if (!name) return;
   settings.supplements = settings.supplements || [];
-  settings.supplements.push({ name, slot });
+  const entry = { name, slot };
+  if (dose) entry.dose = dose;
+  settings.supplements.push(entry);
   document.getElementById('new-supp-name').value = '';
+  document.getElementById('new-supp-dose').value = '';
   document.getElementById('add-panel').classList.remove('open');
   renderSupplements();
   document.getElementById('supp-count').textContent = settings.supplements.length + ' активных';
@@ -944,12 +946,11 @@ function renderSupplementsDay(data) {
     for (const it of slot.items) {
       const taken = !!it.taken_at;
       const safeName = escapeHtml(it.name);
-      const time = taken ? escapeHtml(it.taken_at) : '';
+      const safeDose = it.dose ? escapeHtml(it.dose) : '';
       html += `
         <div class="supp-row${taken ? ' taken' : ''}" data-name="${safeName.replace(/"/g, '&quot;')}">
           <div class="supp-check"></div>
-          <div class="supp-name">${safeName}</div>
-          <div class="supp-time">${time || '—'}</div>
+          <div class="supp-name">${safeName}${safeDose ? ` <span class="supp-dose">(${safeDose})</span>` : ''}</div>
         </div>`;
     }
     html += `</div>`;
@@ -971,8 +972,6 @@ async function toggleSupplement(row) {
 
   // Optimistic UI update
   row.classList.toggle('taken');
-  const checkEl = row.querySelector('.supp-check');
-  const timeEl = row.querySelector('.supp-time');
 
   try {
     const r = await fetch('/api/supplements/take', {
@@ -981,14 +980,7 @@ async function toggleSupplement(row) {
       body: JSON.stringify({ date, name }),
     });
     if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
-    const data = await r.json();
-
-    // Update time display
-    if (!isTaken && data.taken_at) {
-      timeEl.textContent = data.taken_at;
-    } else {
-      timeEl.textContent = '—';
-    }
+    await r.json();
     // Refresh progress card by re-fetching full state (keeps counts accurate)
     loadSupplementsDay();
   } catch (e) {

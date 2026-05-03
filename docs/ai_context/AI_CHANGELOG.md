@@ -7,6 +7,25 @@
 
 ---
 
+## 2026-05-02 — Автоматический экспорт Apple Health через Health Auto Export
+
+**Проблема:** Старый Shortcut на iPhone (`HealthVault_Daily`) был ненадёжен: требовал ручного запуска, регулярно падал на ошибках, пользователь забывал. Apple Health-данные обновлялись только раз в 2-4 недели через ручной ZIP-экспорт.
+
+**Решение:** Перешли на iOS-приложение [Health Auto Export – JSON+CSV](https://apps.apple.com/app/health-auto-export-json-csv/id1115567069) ($24.99 lifetime). Поддерживает REST API automation с Bearer-auth, JSON формат v2, daily schedule в фоне.
+
+**Что сделано:**
+1. Добавлен endpoint `POST /apple_health_v2` в `telegram-bot/webhook/apple_health.py` — функция `_hae_to_daily_payloads()` парсит нативный HAE-формат (`data.metrics[]`), группирует по дням, упсертит в `activity_log` / `blood_pressure_logs` / `weights`.
+2. Маппинг 17 имён метрик HAE на нашу схему: `step_count`, `walking_running_distance`, `walking_speed`, `walking_step_length`, `walking_double_support_percentage`, `walking_asymmetry_percentage`, `heart_rate`, `resting_heart_rate`, `blood_pressure` (combined), `weight_body_mass`, `body_fat_percentage`, `lean_body_mass`, `active_energy`, `flights_climbed`, `vo2_max`, `respiratory_rate`, `apple_sleeping_wrist_temperature`.
+3. UPSERT для `weights` через прямой SQL `ON CONFLICT (user_id, measured_at) DO UPDATE` — `create_weight()` без upsert падал на повторных запусках.
+4. Старый `/apple_health` (v1) оставлен для обратной совместимости.
+5. Документация — обновлён `CLAUDE.md` (раздел «Ежедневный автоэкспорт через Health Auto Export»).
+
+**Проверено:** ручной экспорт за неделю прошёл — 6 дней (26.04–01.05) с шагами, BP, весом, %жира, мышцами, походкой, активной энергией, этажами. Ночью 03.05 в 01:34 МСК прошёл первый автозапуск с данными за 02.05.
+
+**Файлы:** `telegram-bot/webhook/apple_health.py`, `CLAUDE.md`.
+
+---
+
 ## 2026-04-28 — Фича: кнопка «Удалить» в sheet редактирования (мини-апп)
 
 **Проблема:** удаление item было только свайпом влево — не очевидно. Зашедший впервые пользователь не мог найти как удалить запись.

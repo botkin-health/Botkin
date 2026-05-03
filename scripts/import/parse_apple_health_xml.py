@@ -158,6 +158,7 @@ out_wseq = {"measurements": w_seq, "source": "Apple Health XML export", "generat
 (BASE / "data/apple_health_weight.json").write_text(json.dumps(out_wseq, ensure_ascii=False, indent=2))
 
 print("\n=== Готово ===")
+all_ok = True
 for name, data_list, last_key in [
     ("blood_pressure", bp_pairs, "date"),
     ("steps_daily", steps_list, "date"),
@@ -167,3 +168,23 @@ for name, data_list, last_key in [
 ]:
     if data_list:
         print(f"  apple_health_{name:18s}: {len(data_list):,} recs, last = {data_list[-1][last_key]}")
+    else:
+        all_ok = False
+
+# Уборка: zip из ~/Downloads и распакованная папка /tmp/apple_health.
+# Удаляем только если все пять датасетов успешно записаны.
+if all_ok:
+    print("\n=== Уборка ===")
+    downloads = Path.home() / "Downloads"
+    for name in ("экспорт.zip", "export.zip"):
+        zf = downloads / name
+        if zf.exists():
+            size_mb = zf.stat().st_size / 1024 / 1024
+            zf.unlink()
+            print(f"  удалён {zf} ({size_mb:.1f} МБ)")
+    tmp_dir = Path("/tmp/apple_health")
+    if tmp_dir.exists():
+        shutil.rmtree(tmp_dir)
+        print(f"  удалён {tmp_dir}")
+else:
+    print("\n⚠️  Часть датасетов пуста — оставляю zip и /tmp/apple_health для разбора")

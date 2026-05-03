@@ -19,40 +19,223 @@ logger = logging.getLogger(__name__)
 # Supplements that also have nutritional value → auto-logged to nutrition_log
 # Keyed by canonical lowercase name. Values are per one serving.
 SUPPLEMENT_NUTRITION = {
+    # Plan dose = 2 ч.л. ≈ 10 г порошка psyllium husk.
     "псиллиум": {
         "display": "Псиллиум (БАД)",
-        "weight_g": 5,
-        "calories": 18,
+        "weight_g": 10,
+        "calories": 36,
         "protein": 0.0,
         "fats": 0.0,
-        "carbs": 5.0,
-        "fiber": 4.0,
+        "carbs": 10.0,
+        "fiber": 8.0,
+    },
+    # Bombbar PRO whey: 1 порция = 30 г = 2 мерные ложки. Per 30 g по этикетке.
+    "whey": {
+        "display": "Whey (БАД)",
+        "weight_g": 30,
+        "calories": 107,
+        "protein": 20.4,
+        "fats": 5.5,
+        "carbs": 2.0,
+        "fiber": 0.0,
     },
 }
 
-# Normalize raw supplement name → canonical key in SUPPLEMENT_NUTRITION.
-_NAME_TO_CANONICAL = {
+# Synonyms → canonical lowercase key. Used both for SUPPLEMENT_NUTRITION lookup
+# and for matching planned vs. logged names (voice ASR often drops doubled
+# letters: «Псилиум» вместо «Псиллиум», «Омега-3» vs «Омега 3» и т.п.).
+_NAME_SYNONYMS = {
     "псиллиум": "псиллиум",
     "псилиум": "псиллиум",
     "psyllium": "псиллиум",
+    "омега 3": "омега 3",
+    "омега-3": "омега 3",
+    "омега3": "омега 3",
+    "витамин d3": "витамин d3",
+    "витамин д3": "витамин d3",
+    "vitamin d3": "витамин d3",
+    "d3": "витамин d3",
+    "магний": "магний",
+    "magnesium": "магний",
+    "креатин": "креатин",
+    "creatine": "креатин",
+    "метилфолат": "метилфолат",
+    "methylfolate": "метилфолат",
+    "plant sterols": "plant sterols",
+    "фитостеролы": "plant sterols",
+    "k2": "k2 mk 7",
+    "k2 mk 7": "k2 mk 7",
+    "k2 mk7": "k2 mk 7",
+    "витамин k2": "k2 mk 7",
+    "mk 7": "k2 mk 7",
+    "mk7": "k2 mk 7",
+    "whey": "whey",
+    "сывороточный протеин": "whey",
+    "протеин": "whey",
 }
 
 
-def _canonical_supplement_name(raw: str) -> Optional[str]:
+def normalize_supplement_name(raw: str) -> str:
+    """Return canonical lowercase key for matching, falling back to lower/strip."""
     key = (raw or "").strip().lower()
-    return _NAME_TO_CANONICAL.get(key)
+    # Collapse hyphens to spaces for synonym lookup, then exact lookup.
+    normalized = key.replace("-", " ")
+    normalized = " ".join(normalized.split())
+    return _NAME_SYNONYMS.get(normalized, normalized)
 
 
-# Default supplement schedule — used for new users and migration
+def _canonical_supplement_name(raw: str) -> Optional[str]:
+    key = normalize_supplement_name(raw)
+    return key if key in SUPPLEMENT_NUTRITION else None
+
+
+# Display names of all supplements that auto-mirror to nutrition_log.
+# Used by the food editor to detect "this meal is a supplement mirror" and
+# delete the parent supplements_log entry too.
+SUPPLEMENT_DISPLAY_NAMES = {v["display"] for v in SUPPLEMENT_NUTRITION.values()}
+
+
+def supplement_canonical_from_display(meal_name: str) -> Optional[str]:
+    """Reverse lookup: given a nutrition_log.meal_name like 'Whey (БАД)',
+    return the canonical supplement key ('whey'). None if not a mirror."""
+    if not meal_name:
+        return None
+    target = meal_name.strip()
+    for canon, info in SUPPLEMENT_NUTRITION.items():
+        if info["display"] == target:
+            return canon
+    return None
+
+
+def mirror_supplement_to_nutrition(db, user_id: int, target_date, current_time, supplement_name: str) -> None:
+    """If `supplement_name` matches a known nutritional supplement, create a
+    paired nutrition_log entry with the SAME `current_time`, so the food
+    editor and supplements panel can find each other by (date, time, name)."""
+    canonical = _canonical_supplement_name(supplement_name)
+    nutri = SUPPLEMENT_NUTRITION.get(canonical) if canonical else None
+    if not nutri:
+        return
+    food_item = {
+        "name": nutri["display"],
+        "weight_g": nutri["weight_g"],
+        "calories": nutri["calories"],
+        "protein": nutri["protein"],
+        "fats": nutri["fats"],
+        "carbs": nutri["carbs"],
+        "fiber": nutri["fiber"],
+    }
+    totals = {
+        "calories": nutri["calories"],
+        "protein": nutri["protein"],
+        "fats": nutri["fats"],
+        "carbs": nutri["carbs"],
+        "fiber": nutri["fiber"],
+    }
+    create_nutrition_log(
+        db,
+        user_id=user_id,
+        date=target_date,
+        meal_time=current_time,
+        meal_name=nutri["display"],
+        items=[food_item],
+        totals=totals,
+    )
+
+
+def delete_mirror_nutrition_for(db, user_id: int, target_date, supplement_time, supplement_name: str) -> None:
+    """Inverse of `mirror_supplement_to_nutrition`: remove the paired
+    nutrition_log entry (matched by date + meal_time + display name)."""
+    from database.models import NutritionLog
+
+    canonical = _canonical_supplement_name(supplement_name)
+    nutri = SUPPLEMENT_NUTRITION.get(canonical) if canonical else None
+    if not nutri or supplement_time is None:
+        return
+    row = (
+        db.query(NutritionLog)
+        .filter(
+            NutritionLog.user_id == user_id,
+            NutritionLog.date == target_date,
+            NutritionLog.meal_time == supplement_time,
+            NutritionLog.meal_name == nutri["display"],
+        )
+        .first()
+    )
+    if row:
+        db.delete(row)
+        db.commit()
+
+
+def delete_mirror_supplement_for(db, user_id: int, target_date, meal_time, meal_name: str) -> None:
+    """When a nutrition_log row that is a supplement mirror is deleted from
+    the food editor, also remove its parent supplements_log entry (matched
+    by date + time + canonical name)."""
+    from database.models import SupplementLog
+
+    canonical = supplement_canonical_from_display(meal_name)
+    if not canonical or meal_time is None:
+        return
+    rows = (
+        db.query(SupplementLog)
+        .filter(
+            SupplementLog.user_id == user_id,
+            SupplementLog.date == target_date,
+            SupplementLog.time == meal_time,
+        )
+        .all()
+    )
+    for row in rows:
+        if normalize_supplement_name(row.supplement_name) == canonical:
+            db.delete(row)
+    db.commit()
+
+
+def needs_legacy_migration(supplements: list) -> bool:
+    """True if user_settings.supplements look like the old format and should be replaced
+    with DEFAULT_SUPPLEMENTS. Triggered for: missing doses, длинные дозы старого формата,
+    отсутствующие K2/Whey/post_workout."""
+    if not supplements:
+        return True
+    names = {(it.get("name") or "").strip().lower() for it in supplements if isinstance(it, dict)}
+    slots = {(it.get("slot") or "") for it in supplements if isinstance(it, dict)}
+    has_long_dose = any(isinstance(it, dict) and it.get("dose") and len(it["dose"]) > 12 for it in supplements)
+    no_dose = not any(isinstance(it, dict) and it.get("dose") for it in supplements)
+    missing_new = "k2 mk-7" not in names or "whey" not in names
+    # post_workout slot deprecated — Whey moved to evening (daily, 2 ложки).
+    has_deprecated_slot = "post_workout" in slots
+    # Креатин переехал из morning_with в evening (одна привычка с Whey).
+    creatine_in_morning = any(
+        isinstance(it, dict)
+        and (it.get("name") or "").strip().lower() == "креатин"
+        and it.get("slot") == "morning_with"
+        for it in supplements
+    )
+    return no_dose or has_long_dose or missing_new or has_deprecated_slot or creatine_in_morning
+
+
+def default_dose_for(name: str) -> Optional[str]:
+    """Return the planned `dose` string for a supplement name from DEFAULT_SUPPLEMENTS.
+    Matches by normalized canonical name; first occurrence wins (utro по умолчанию)."""
+    target = normalize_supplement_name(name)
+    for item in DEFAULT_SUPPLEMENTS:
+        if normalize_supplement_name(item.get("name", "")) == target:
+            return item.get("dose")
+    return None
+
+
+# Default supplement schedule — used for new users and migration.
+# `dose` — короткая строка для UI и для записи в supplements_log.dosage.
 DEFAULT_SUPPLEMENTS = [
-    {"name": "Псиллиум", "slot": "morning_before"},
-    {"name": "Витамин D3", "slot": "morning_with"},
-    {"name": "Омега 3", "slot": "morning_with"},
-    {"name": "Plant Sterols", "slot": "morning_with"},
-    {"name": "Метилфолат", "slot": "morning_with"},
-    {"name": "Plant Sterols", "slot": "evening"},
-    {"name": "Магний", "slot": "evening"},
-    {"name": "Креатин", "slot": "evening"},
+    {"name": "Псиллиум", "slot": "morning_before", "dose": "2 ч.л."},
+    {"name": "Витамин D3", "slot": "morning_with", "dose": "5000 IU"},
+    {"name": "Омега 3", "slot": "morning_with", "dose": "2 капс"},
+    {"name": "Plant Sterols", "slot": "morning_with", "dose": "2 капс"},
+    {"name": "Метилфолат", "slot": "morning_with", "dose": "400 мкг"},
+    {"name": "K2 MK-7", "slot": "morning_with", "dose": "100 мкг"},
+    {"name": "Plant Sterols", "slot": "evening", "dose": "2 капс"},
+    {"name": "Магний", "slot": "evening", "dose": "2 табл"},
+    {"name": "Креатин", "slot": "evening", "dose": "5 г"},
+    {"name": "Whey", "slot": "evening", "dose": "2 ложки"},
 ]
 
 # Maps internal slot names → display labels
@@ -89,39 +272,18 @@ def save_supplements(items: List[str], user_id: int, date_str: Optional[str] = N
         # Add new items with timestamp
         for item in items:
             create_supplement_log(
-                db, user_id=user_id, date=target_date, time=current_time, supplement_name=item, dosage=None
+                db,
+                user_id=user_id,
+                date=target_date,
+                time=current_time,
+                supplement_name=item,
+                dosage=default_dose_for(item),
             )
 
             # If this supplement has known nutritional value — also log it as food
-            # so fiber/calories are counted in the daily budget (e.g. psyllium → fiber).
-            canonical = _canonical_supplement_name(item)
-            nutri = SUPPLEMENT_NUTRITION.get(canonical) if canonical else None
-            if nutri:
-                food_item = {
-                    "name": nutri["display"],
-                    "weight_g": nutri["weight_g"],
-                    "calories": nutri["calories"],
-                    "protein": nutri["protein"],
-                    "fats": nutri["fats"],
-                    "carbs": nutri["carbs"],
-                    "fiber": nutri["fiber"],
-                }
-                totals = {
-                    "calories": nutri["calories"],
-                    "protein": nutri["protein"],
-                    "fats": nutri["fats"],
-                    "carbs": nutri["carbs"],
-                    "fiber": nutri["fiber"],
-                }
-                create_nutrition_log(
-                    db,
-                    user_id=user_id,
-                    date=target_date,
-                    meal_time=current_time,
-                    meal_name=nutri["display"],
-                    items=[food_item],
-                    totals=totals,
-                )
+            # so fiber/calories/protein are counted in the daily budget
+            # (e.g. psyllium → fiber, whey → protein).
+            mirror_supplement_to_nutrition(db, user_id, target_date, current_time, item)
 
         return True
     except Exception as e:
@@ -230,6 +392,9 @@ class SupplementService:
                 raw = DEFAULT_SUPPLEMENTS
             else:
                 raw = settings.supplements
+                if needs_legacy_migration(raw):
+                    upsert_user_settings(db, self.user_id, supplements=DEFAULT_SUPPLEMENTS)
+                    raw = DEFAULT_SUPPLEMENTS
         finally:
             db.close()
 
@@ -239,7 +404,9 @@ class SupplementService:
             name = item.get("name", "")
             label = _SLOT_LABELS.get(slot)
             if label and name:
-                result[label].append(name)
+                # Per-item dose from settings, fallback to canonical default for legacy entries.
+                dose = item.get("dose") or default_dose_for(name)
+                result[label].append({"name": name, "dose": dose})
         return result
 
     def get_detailed_schedule(self, for_date: Optional[str] = None) -> str:
@@ -287,10 +454,17 @@ class SupplementService:
         lines = ["💊 <b>Чек-лист витаминов на сегодня:</b>\n"]
 
         for time_of_day, items in self.schedule.items():
+            if not items:
+                continue
             lines.append(f"<b>{time_of_day}</b>")
             for item in items:
-                status = "✅" if is_taken(item) else "⬜"
-                lines.append(f"{status} {item}")
+                name = item["name"] if isinstance(item, dict) else item
+                dose = item.get("dose") if isinstance(item, dict) else None
+                status = "✅" if is_taken(name) else "⬜"
+                if dose:
+                    lines.append(f"{status} <b>{name}</b> — <i>{dose}</i>")
+                else:
+                    lines.append(f"{status} {name}")
             lines.append("")  # Empty line between blocks
 
         return "\n".join(lines)

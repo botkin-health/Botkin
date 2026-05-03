@@ -57,18 +57,41 @@ FAMILY_HEALTH = Path.home() / "Library/CloudStorage/GoogleDrive-lyskovsky@gmail.
 | iPhone Screen Time | ActivityWatch + Biome | `data/activities/iphone_screentime_perapp.json` | `aw-import-screentime` + `scripts/import/activitywatch.py` |
 | Mac Screen Time | ActivityWatch | `data/activities/mac_screentime_perapp.json` | `scripts/import/mac_screentime.py` |
 
-### Только через Apple Health Shortcut (ежедневная автоматизация на iPhone)
+### Ежедневный автоэкспорт через Health Auto Export (iOS)
 
-**Эти метрики недоступны через Garmin/Zepp API — только iPhone/Omron → Apple Health → Shortcuts webhook:**
+**С мая 2026 — основной канал для всех Apple Health метрик.** Заменяет старый Shortcut, который был ненадёжный (требовал ручного запуска и часто падал на ошибках). Ставится один раз, дальше работает в фоне без участия пользователя.
 
-| Метрика | Источник устройства | Куда пишется |
-|---|---|---|
-| Давление (систолическое, диастолическое) | Omron → Apple Health | PostgreSQL: `activity_log.raw_data` |
-| Походка: скорость, длина шага, асимметрия, двойная опора | iPhone motion sensors → Apple Health | PostgreSQL: `activity_log.raw_data` |
+**Метрики, которые приходят через этот канал** (все с iPhone/Apple Watch/Omron/Mi-весов через Apple Health):
 
-**Shortcut:** `HealthVault_Daily` на iPhone (запускать вручную или по автоматизации)
-**Webhook:** `POST https://health.orangegate.cc/apple_health` (Bearer token в `.env`)
-**Чтение в дашборде:** SSH → PostgreSQL → `SELECT raw_data FROM activity_log WHERE user_id=895655`
+| Метрика | Куда пишется |
+|---|---|
+| Шаги, дистанция ходьбы, активные ккал, этажи | `activity_log` (steps, distance_km, active_calories) |
+| Пульс (avg/min/max), пульс покоя | `activity_log` + `raw_data` |
+| Давление систолическое/диастолическое (Omron) | `blood_pressure_logs` |
+| Походка: скорость, длина шага, двойная опора, асимметрия | `activity_log.raw_data` |
+| Вес, % жира, мышечная масса (Mi-весы → Apple Health) | `weights` |
+| VO2 Max, частота дыхания, температура запястья | `activity_log.raw_data` |
+
+**Стек:**
+- **iOS-приложение:** [Health Auto Export – JSON+CSV](https://apps.apple.com/app/health-auto-export-json-csv/id1115567069) (Lybron Sobers, $24.99 lifetime)
+- **Webhook:** `POST https://health.orangegate.cc/apple_health_v2` (Bearer token из `.env: APPLE_HEALTH_TOKEN`)
+- **Серверный адаптер:** `telegram-bot/webhook/apple_health.py` — функция `_hae_to_daily_payloads()` парсит формат `data.metrics[]`, группирует по дням, упсертит в БД
+
+**Настройки в HAE (важные):**
+- Тип: REST API · Формат: JSON · Версия: v2 · Диапазон: «Вчера» · Суммировать: ON · Группировка: «День» · Частота: 1 / Дни
+- Header: `Authorization: Bearer <APPLE_HEALTH_TOKEN>`
+- 17 метрик выбрано (см. таблицу выше)
+
+**Когда срабатывает:** iOS-планировщик решает сам (~1 раз в сутки, обычно ночью когда iPhone на зарядке). Точное время не задаётся — разброс ±1-2 часа. Требования: iPhone разблокирован, Background App Refresh для HAE включён, Low Power Mode выключен.
+
+**Ручной экспорт:** в HAE → автоматизация HealthVault → внизу зелёная кнопка «Ручной экспорт» → выбрать диапазон → POST уйдёт сразу. Полезно для проверки свежей тренировки/замера на дашборде, не дожидаясь ночного автозапуска.
+
+**Старый endpoint `/apple_health` (v1)** — оставлен для обратной совместимости со старыми Shortcuts (если их ещё кто-то использует). Принимает плоский JSON. Рабочий, но новые автоматизации делать на v2.
+
+**Документация HAE:**
+- [Help Center — REST API automation](https://help.healthyapps.dev/en/health-auto-export/automations/rest-api/)
+- [GitHub: Lybron/health-auto-export](https://github.com/Lybron/health-auto-export) — спецификация JSON формата
+- [Wiki: API Export JSON Format](https://github.com/Lybron/health-auto-export/wiki/API-Export---JSON-Format) — структура `data.metrics[]`
 
 ### Apple Health XML экспорт (ручной, редко)
 
