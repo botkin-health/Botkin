@@ -27,8 +27,17 @@ from database.crud import (
     create_supplement_log,
     get_supplements_by_date,
     get_user_settings,
+    upsert_user_settings,
 )
 from database.models import SupplementLog
+from core.health.supplements import (
+    DEFAULT_SUPPLEMENTS,
+    default_dose_for,
+    delete_mirror_nutrition_for,
+    mirror_supplement_to_nutrition,
+    needs_legacy_migration,
+    normalize_supplement_name,
+)
 from webhook.tg_auth import get_tg_user
 
 router = APIRouter()
@@ -71,6 +80,9 @@ async def get_supplements_day(
     try:
         s = get_user_settings(db, user_id=user_id)
         planned = (s.supplements or []) if s else []
+        if needs_legacy_migration(planned):
+            upsert_user_settings(db, user_id, supplements=DEFAULT_SUPPLEMENTS)
+            planned = DEFAULT_SUPPLEMENTS
         taken_logs = get_supplements_by_date(db, user_id=user_id, date=for_date)
 
         # Build a map: name → deque of (time_str, log_id) sorted ascending by time.
@@ -79,7 +91,7 @@ async def get_supplements_day(
         # as taken — one log entry only marks the first scheduled occurrence.
         taken_by_name: dict[str, deque] = defaultdict(deque)
         for log in sorted(taken_logs, key=lambda l: l.time or datetime.min.time()):
-            key = log.supplement_name.lower().strip()
+            key = normalize_supplement_name(log.supplement_name)
             tstr = log.time.strftime("%H:%M") if log.time else ""
             taken_by_name[key].append((tstr, log.id))
 
@@ -91,12 +103,15 @@ async def get_supplements_day(
             slot = item.get("slot") or "morning_with"
             if slot not in slots:
                 slot = "morning_with"
-            key = name.lower()
+            key = normalize_supplement_name(name)
             # Consume one log entry per scheduled occurrence (FIFO by time).
             entry = taken_by_name[key].popleft() if taken_by_name[key] else None
+            # Prefer per-item dose from user settings; fall back to canonical default.
+            dose = item.get("dose") or default_dose_for(name)
             slots[slot].append(
                 {
                     "name": name,
+                    "dose": dose,
                     "taken_at": entry[0] if entry else None,
                     "log_id": entry[1] if entry else None,
                 }
@@ -158,13 +173,27 @@ async def take_supplement(
             }
 
         now_msk = datetime.now(MSK).time().replace(microsecond=0)
+        # Look up dose: per-item from settings if present, else canonical default.
+        target_key = normalize_supplement_name(payload.name)
+        dose = None
+        for it in planned:
+            if normalize_supplement_name(it.get("name") or "") == target_key:
+                dose = it.get("dose")
+                if dose:
+                    break
+        if not dose:
+            dose = default_dose_for(payload.name)
         log = create_supplement_log(
             db,
             user_id=user_id,
             date=for_date,
             time=now_msk,
             supplement_name=payload.name.strip(),
+            dosage=dose,
         )
+        # Auto-log nutritional supplements (psyllium → fiber, whey → protein, etc.)
+        # so they show up in the daily food budget. Paired by (date, time).
+        mirror_supplement_to_nutrition(db, user_id, for_date, now_msk, payload.name)
         return {
             "status": "created",
             "log_id": log.id,
@@ -199,8 +228,12 @@ async def untake_supplement(
         )
         if not row:
             return {"status": "not_found"}
+        # Capture before delete — needed for paired nutrition_log cleanup.
+        log_id, supp_time, supp_name = row.id, row.time, row.supplement_name
         db.delete(row)
         db.commit()
-        return {"status": "deleted", "log_id": row.id}
+        # Remove the mirrored nutrition_log entry, if any.
+        delete_mirror_nutrition_for(db, user_id, for_date, supp_time, supp_name)
+        return {"status": "deleted", "log_id": log_id}
     finally:
         db.close()
