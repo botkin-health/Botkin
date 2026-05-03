@@ -77,7 +77,7 @@ class User(Base):
     timezone: str = "Europe/Moscow"
 
     # Apple Health webhook auth
-    health_token: str?           # bearer token из .env iPhone Shortcut
+    health_token: str?           # Bearer token для Apple Health webhook (Health Auto Export, ранее iPhone Shortcut). Используется в /apple_health и /apple_health_v2
 
     # Garmin (без шифрования сейчас — в проде нужно)
     garmin_email: str?
