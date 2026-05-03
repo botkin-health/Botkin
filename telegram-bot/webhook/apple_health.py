@@ -12,7 +12,7 @@ import logging
 from datetime import date, datetime
 from typing import Optional, List
 
-from fastapi import FastAPI, HTTPException, Depends, Header
+from fastapi import FastAPI, HTTPException, Depends, Header, Request
 from pydantic import BaseModel, Field
 import uvicorn
 
@@ -247,6 +247,274 @@ async def receive_apple_health(
         "status": "ok",
         "date": payload.date,
         "saved": saved,
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+
+
+# ── /apple_health_v2 — приёмник нативного формата Health Auto Export ─────────
+#
+# HAE присылает вложенную структуру:
+#   {"data": {"metrics": [
+#       {"name": "step_count", "units": "count",
+#        "data": [{"date": "2026-05-01 00:00:00 +0300", "qty": 12345}]},
+#       {"name": "heart_rate", "units": "count/min",
+#        "data": [{"date": "...", "Avg": 72, "Min": 55, "Max": 130}]},
+#       ...
+#   ]}}
+# Адаптер группирует записи по датам и переиспользует ту же логику записи в БД.
+
+
+def _hae_pick(rec: dict, *keys, default=None):
+    """Достать первое не-None поле из записи (qty / Avg / Min / Max)."""
+    for k in keys:
+        if k in rec and rec[k] is not None:
+            return rec[k]
+    return default
+
+
+def _hae_to_daily_payloads(metrics: list[dict]) -> dict[str, AppleHealthPayload]:
+    """Сгруппировать HAE metrics → {YYYY-MM-DD: AppleHealthPayload}."""
+    by_date: dict[str, dict] = {}
+
+    for m in metrics:
+        name = (m.get("name") or "").lower()
+        units = (m.get("units") or "").lower()
+        for rec in m.get("data") or []:
+            d = (rec.get("date") or "")[:10]
+            if not d or len(d) != 10 or d[4] != "-":
+                continue
+            slot = by_date.setdefault(d, {"date": d})
+
+            if name == "step_count":
+                slot["steps"] = int(_hae_pick(rec, "qty", "Avg", default=0))
+            elif name in ("walking_running_distance", "walking_distance", "distance_walking_running"):
+                qty = float(_hae_pick(rec, "qty", "Avg", default=0))
+                if units == "m":
+                    qty /= 1000
+                elif units == "mi":
+                    qty *= 1.60934
+                slot["distance_walking_km"] = round(qty, 3)
+            elif name == "flights_climbed":
+                slot["flights_climbed"] = int(_hae_pick(rec, "qty", "Avg", default=0))
+            elif name in ("active_energy", "active_energy_burned"):
+                slot["active_energy_kcal"] = float(_hae_pick(rec, "qty", "Avg", default=0))
+            elif name == "heart_rate":
+                if "Avg" in rec and rec["Avg"] is not None:
+                    slot["heart_rate_avg"] = int(round(float(rec["Avg"])))
+                if "Min" in rec and rec["Min"] is not None:
+                    slot["heart_rate_min"] = int(round(float(rec["Min"])))
+                if "Max" in rec and rec["Max"] is not None:
+                    slot["heart_rate_max"] = int(round(float(rec["Max"])))
+                if "qty" in rec and rec["qty"] is not None and "heart_rate_avg" not in slot:
+                    slot["heart_rate_avg"] = int(round(float(rec["qty"])))
+            elif name == "resting_heart_rate":
+                slot["resting_heart_rate"] = int(round(float(_hae_pick(rec, "qty", "Avg", default=0))))
+            elif name == "blood_pressure_systolic":
+                slot["blood_pressure_systolic"] = int(round(float(_hae_pick(rec, "qty", "Avg", default=0))))
+            elif name == "blood_pressure_diastolic":
+                slot["blood_pressure_diastolic"] = int(round(float(_hae_pick(rec, "qty", "Avg", default=0))))
+            elif name == "blood_pressure":
+                if rec.get("systolic") is not None:
+                    slot["blood_pressure_systolic"] = int(round(float(rec["systolic"])))
+                if rec.get("diastolic") is not None:
+                    slot["blood_pressure_diastolic"] = int(round(float(rec["diastolic"])))
+            elif name == "walking_speed":
+                qty = float(_hae_pick(rec, "qty", "Avg", default=0))
+                if units == "m/s":
+                    qty *= 3.6
+                slot["walking_speed_km_h"] = round(qty, 2)
+            elif name == "walking_step_length":
+                qty = float(_hae_pick(rec, "qty", "Avg", default=0))
+                if units == "m":
+                    qty *= 100
+                slot["walking_step_length_cm"] = round(qty, 1)
+            elif name in ("walking_double_support_percentage", "walking_double_support"):
+                qty = float(_hae_pick(rec, "qty", "Avg", default=0))
+                # HAE может прислать как 0–1, так и 0–100 — нормализуем к процентам.
+                if 0 < qty <= 1.5:
+                    qty *= 100
+                slot["walking_double_support_pct"] = round(qty, 2)
+            elif name in ("walking_asymmetry_percentage", "walking_asymmetry"):
+                qty = float(_hae_pick(rec, "qty", "Avg", default=0))
+                if 0 < qty <= 1.5:
+                    qty *= 100
+                slot["walking_asymmetry_pct"] = round(qty, 2)
+            elif name in ("weight_body_mass", "body_mass", "weight"):
+                slot["weight_kg"] = round(float(_hae_pick(rec, "qty", "Avg", default=0)), 2)
+            elif name == "body_fat_percentage":
+                qty = float(_hae_pick(rec, "qty", "Avg", default=0))
+                if 0 < qty <= 1.5:
+                    qty *= 100
+                slot["body_fat_pct"] = round(qty, 1)
+            elif name == "lean_body_mass":
+                slot["muscle_mass_kg"] = round(float(_hae_pick(rec, "qty", "Avg", default=0)), 2)
+            elif name == "vo2_max":
+                slot["vo2_max"] = round(float(_hae_pick(rec, "qty", "Avg", default=0)), 1)
+            elif name == "respiratory_rate":
+                slot["respiratory_rate"] = round(float(_hae_pick(rec, "qty", "Avg", default=0)), 1)
+            elif name in ("apple_sleeping_wrist_temperature", "wrist_temperature"):
+                slot["wrist_temperature"] = round(float(_hae_pick(rec, "qty", "Avg", default=0)), 2)
+
+    # Преобразуем dict-ы в pydantic AppleHealthPayload (для валидации)
+    return {d: AppleHealthPayload(**fields) for d, fields in by_date.items()}
+
+
+@app.post("/apple_health_v2")
+async def receive_apple_health_v2(
+    request: Request,
+    bearer_token: str = Depends(verify_token),
+):
+    """Приёмник нативного формата Health Auto Export (data.metrics[]).
+
+    Парсит HAE JSON, группирует по дням, и для каждого дня вызывает ту же
+    логику записи в БД, что и /apple_health (v1).
+    """
+    try:
+        raw = await request.json()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid JSON: {e}")
+
+    # Debug: logнём имена всех метрик чтобы понять какие HAE на самом деле шлёт.
+    try:
+        names_seen = sorted({(m.get("name") or "?") for m in (raw.get("data") or {}).get("metrics") or []})
+        logger.warning(f"HAE_v2 metrics received ({len(names_seen)}): {', '.join(names_seen)}")
+    except Exception:
+        pass
+
+    data_block = raw.get("data") if isinstance(raw, dict) else None
+    if not isinstance(data_block, dict):
+        raise HTTPException(status_code=400, detail="Expected {'data': {'metrics': [...]}}")
+    metrics = data_block.get("metrics") or []
+    if not isinstance(metrics, list):
+        raise HTTPException(status_code=400, detail="'data.metrics' must be a list")
+
+    daily = _hae_to_daily_payloads(metrics)
+    if not daily:
+        return {"status": "ok", "days": 0, "details": []}
+
+    # Resolve target user (та же логика, что в v1)
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
+    from database import SessionLocal
+    from database.crud import create_or_update_activity, get_user_by_health_token
+    from sqlalchemy import text as _text
+
+    if APPLE_HEALTH_TOKEN and bearer_token == APPLE_HEALTH_TOKEN:
+        target_user_id = _target_user_id
+    else:
+        _db_auth = SessionLocal()
+        try:
+            _user = get_user_by_health_token(_db_auth, bearer_token)
+        finally:
+            _db_auth.close()
+        if not _user:
+            raise HTTPException(status_code=403, detail="Unknown token")
+        target_user_id = _user.telegram_id
+
+    details = []
+    db = SessionLocal()
+    try:
+        for d_str, payload in sorted(daily.items()):
+            record_date = date.fromisoformat(d_str)
+            saved = []
+
+            heart_rate = payload.resting_heart_rate or payload.heart_rate_avg
+            raw_extra = {}
+            for k in (
+                "walking_speed_km_h",
+                "walking_step_length_cm",
+                "walking_double_support_pct",
+                "walking_asymmetry_pct",
+                "flights_climbed",
+                "heart_rate_min",
+                "heart_rate_max",
+                "vo2_max",
+                "respiratory_rate",
+                "wrist_temperature",
+            ):
+                v = getattr(payload, k, None)
+                if v is not None:
+                    raw_extra[k] = v
+
+            create_or_update_activity(
+                db=db,
+                user_id=target_user_id,
+                date=record_date,
+                steps=payload.steps,
+                active_calories=payload.active_energy_kcal,
+                distance_km=payload.distance_walking_km,
+                heart_rate_avg=heart_rate,
+                source="apple_health_v2",
+                raw_data=raw_extra if raw_extra else None,
+            )
+            saved.append(f"activity (steps={payload.steps}, HR={heart_rate})")
+
+            if payload.blood_pressure_systolic and payload.blood_pressure_diastolic:
+                measured_at = datetime.combine(record_date, datetime.min.time().replace(hour=8))
+                db.execute(
+                    _text(
+                        """INSERT INTO blood_pressure_logs
+                           (user_id, measured_at, systolic, diastolic, heart_rate, source)
+                           VALUES (:uid, :ts, :sys, :dia, :hr, 'apple_health_v2')
+                           ON CONFLICT (user_id, measured_at) DO UPDATE
+                             SET systolic = EXCLUDED.systolic,
+                                 diastolic = EXCLUDED.diastolic"""
+                    ),
+                    {
+                        "uid": target_user_id,
+                        "ts": measured_at,
+                        "sys": payload.blood_pressure_systolic,
+                        "dia": payload.blood_pressure_diastolic,
+                        "hr": heart_rate,
+                    },
+                )
+                saved.append(f"BP {payload.blood_pressure_systolic}/{payload.blood_pressure_diastolic}")
+
+            if payload.weight_kg and payload.weight_kg > 30:
+                weight_ts = datetime.combine(record_date, datetime.min.time().replace(hour=8))
+                # Прямой UPSERT — create_weight не имеет ON CONFLICT, и при повторных
+                # вызовах (manual export второй раз) валится на UniqueViolation.
+                db.execute(
+                    _text(
+                        """INSERT INTO weights
+                           (user_id, measured_at, weight, body_fat, muscle_mass, water, source)
+                           VALUES (:uid, :ts, :w, :bf, :mm, :wt, 'apple_health_v2')
+                           ON CONFLICT (user_id, measured_at) DO UPDATE
+                             SET weight = EXCLUDED.weight,
+                                 body_fat = EXCLUDED.body_fat,
+                                 muscle_mass = EXCLUDED.muscle_mass,
+                                 water = EXCLUDED.water,
+                                 source = EXCLUDED.source"""
+                    ),
+                    {
+                        "uid": target_user_id,
+                        "ts": weight_ts,
+                        "w": payload.weight_kg,
+                        "bf": payload.body_fat_pct,
+                        "mm": payload.muscle_mass_kg,
+                        "wt": payload.water_pct,
+                    },
+                )
+                saved.append(f"weight {payload.weight_kg}kg")
+
+            details.append({"date": d_str, "saved": saved})
+
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Apple Health v2 error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"DB error: {e}")
+    finally:
+        db.close()
+
+    logger.info(f"✅ Apple Health v2 import: {len(daily)} day(s)")
+    return {
+        "status": "ok",
+        "days": len(daily),
+        "details": details,
         "timestamp": datetime.utcnow().isoformat(),
     }
 

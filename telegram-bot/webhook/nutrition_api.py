@@ -45,7 +45,7 @@ def _item_to_wire(idx: int, it: dict) -> dict:
         "p": round(float(it.get("protein") or 0), 1),
         "f": round(float(it.get("fats") or 0), 1),
         "c": round(float(it.get("carbs") or 0), 1),
-        "fib": round(float(it.get("fiber") or 0), 1),
+        "fib": int(round(float(it.get("fiber") or 0))),
     }
 
 
@@ -55,7 +55,7 @@ def _totals_to_wire(t: dict) -> dict:
         "p": round(float(t.get("protein") or 0), 1),
         "f": round(float(t.get("fats") or 0), 1),
         "c": round(float(t.get("carbs") or 0), 1),
-        "fib": round(float(t.get("fiber") or 0), 1),
+        "fib": int(round(float(t.get("fiber") or 0))),
     }
 
 
@@ -359,9 +359,20 @@ async def delete_meal(
         raise HTTPException(status_code=400, detail="No user id in initData")
     db = SessionLocal()
     try:
+        # Snapshot before delete — if this meal is a supplement mirror,
+        # the paired supplements_log row needs to go too.
+        from database.models import NutritionLog
+        from core.health.supplements import delete_mirror_supplement_for
+
+        meal = db.query(NutritionLog).filter(NutritionLog.id == meal_id, NutritionLog.user_id == user_id).first()
+        snapshot = (meal.date, meal.meal_time, meal.meal_name) if meal else None
+
         ok = delete_nutrition_log(db=db, log_id=meal_id, user_id=user_id)
         if not ok:
             raise HTTPException(status_code=404, detail="meal not found")
+        if snapshot:
+            d, t, name = snapshot
+            delete_mirror_supplement_for(db, user_id, d, t, name)
     finally:
         db.expire_all()
         db.close()
