@@ -7,6 +7,28 @@
 
 ---
 
+## 2026-05-03 — Security audit, history rewrite, repo публичный
+
+**Проблема:** Перед публикацией репозитория нужно убедиться, что в истории нет утечки секретов.
+
+**Аудит:** gitleaks нашёл 615 находок (OpenAI API key, GCP key, Garmin OAuth consumer key, Clearspace API key, 609 в log-файлах). Все — в старых коммитах, в рабочей копии уже были плейсхолдеры.
+
+**Что сделано:**
+1. `git-filter-repo` переписал историю (228 коммитов):
+   - Удалены из всех коммитов: `.openai_api_key`, `logs/bot.log`, `telegram-bot/logs/bot.log`
+   - Редактированы строки: OpenAI key → `sk-proj-OPENAI_KEY_REDACTED_FROM_HISTORY`, GCP key → `AIzaSy_GCP_KEY_REDACTED`, Clearspace key → `CLEARSPACE_API_KEY_REDACTED`, Garmin OAuth consumer key/secret → плейсхолдеры
+2. После очистки `gitleaks detect` → **0 findings**.
+3. `git push --force origin main` — переписанная история залита на GitHub.
+4. Репозиторий переведён из private → **public** (`PATCH /repos/Lyskovsky/HealthVault {private: false}`).
+5. Branch protection на `main`: force-push и удаление ветки запрещены; требуется PR для не-admin-коллабораторов; владелец (Lyskovsky, admin) может пушить напрямую.
+6. Коллабораторы: `pohodnyandrey-creator` (read), `rsvbitrix` (write → пуш только через PR).
+
+**Важно:** OpenAI API key `sk-proj-ONPI6KyF65z3...` был в коммитах Jan 10 и Jan 31 2026 — необходимо его ОТОЗВАТЬ в https://platform.openai.com/api-keys и сгенерировать новый!
+
+**Файлы:** git history (все коммиты), `.gitignore` уже корректный.
+
+---
+
 ## 2026-05-02 — Автоматический экспорт Apple Health через Health Auto Export
 
 **Проблема:** Старый Shortcut на iPhone (`HealthVault_Daily`) был ненадёжен: требовал ручного запуска, регулярно падал на ошибках, пользователь забывал. Apple Health-данные обновлялись только раз в 2-4 недели через ручной ZIP-экспорт.
