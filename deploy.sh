@@ -5,7 +5,10 @@ set -e  # Exit on error
 SERVER_IP="116.203.213.137"
 SERVER_USER="root"
 SERVER_PATH="/opt/healthvault"
-SERVER_PASSWORD="SERVER_PASSWORD_REDACTED"
+SERVER_PASSWORD="${SERVER_PASSWORD:-$(grep '^SERVER_PASSWORD=' .env 2>/dev/null | cut -d= -f2)}"
+if [ -z "$SERVER_PASSWORD" ]; then
+  echo "❌ SERVER_PASSWORD not set. Add to .env or export before running." && exit 1
+fi
 
 echo "==================================="
 echo "🚀 HealthVault Deployment Script"
