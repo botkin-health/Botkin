@@ -62,7 +62,13 @@ $PY scripts/import/push_netatmo_to_container.py
 
 echo "4/4 📱 Загрузка экранного времени (iPhone, Mac)..."
 # Требует Full Disk Access у терминала!
+# 1. Подкачать свежие события iPhone из iCloud Sync DB → ActivityWatch
+#    (без этого activitywatch.py видит только старые события)
+/Users/alexlyskovsky/.local/bin/aw-import-screentime events import \
+    --device D2727389-2B2E-4E31-88FE-7BF0E925C580 2>&1 | tail -3
+# 2. Конвертировать события из ActivityWatch в JSON
 $PY scripts/import/activitywatch.py
+# 3. Mac Screen Time из knowledgeC.db + ActivityWatch Mac watcher
 $PY scripts/import/mac_screentime.py
 
 echo "5/4 🍎 Apple Health (шаги, ходьба, АД, вес, пульс)..."

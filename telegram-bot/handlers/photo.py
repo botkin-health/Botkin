@@ -453,6 +453,9 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
             response += (
                 f"Б: {int(meal_totals['protein'])} | Ж: {int(meal_totals['fats'])} | У: {int(meal_totals['carbs'])}"
             )
+            from core.food.nutrition import format_kcal_warning
+
+            response += format_kcal_warning(meal_totals)
 
             # Buttons
             builder = InlineKeyboardBuilder()

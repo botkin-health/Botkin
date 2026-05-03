@@ -783,6 +783,9 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             response += (
                 f"Б: {int(meal_totals['protein'])} | Ж: {int(meal_totals['fats'])} | У: {int(meal_totals['carbs'])}"
             )
+            from core.food.nutrition import format_kcal_warning
+
+            response += format_kcal_warning(meal_totals)
 
             from handlers.callbacks import MealConfirmationCallback
             from aiogram.utils.keyboard import InlineKeyboardBuilder
@@ -910,6 +913,9 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             response += (
                 f"Б: {int(meal_totals['protein'])} | Ж: {int(meal_totals['fats'])} | У: {int(meal_totals['carbs'])}"
             )
+            from core.food.nutrition import format_kcal_warning
+
+            response += format_kcal_warning(meal_totals)
 
             # Buttons
             from handlers.callbacks import MealConfirmationCallback
