@@ -80,3 +80,9 @@ data/analysis/
 
 # macOS
 **/.DS_Store
+
+# Personal health data — never commit
+data/
+HEALTH.md
+KNOWLEDGE_BASE.md
+knowledge_base.json
