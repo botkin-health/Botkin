@@ -36,7 +36,7 @@ def run_sql(sql: str) -> str:
 
 
 def fetch_rows() -> list[dict[str, Any]]:
-    """Fetch all nutrition_log rows for user 895655 + Nika REDACTED_ID."""
+    """Fetch nutrition_log rows for user 895655 + REDACTED_ID."""
     sql = (
         "SELECT json_agg(t) FROM ("
         "  SELECT id, user_id, date::text, meal_time::text, meal_name, items, totals "
