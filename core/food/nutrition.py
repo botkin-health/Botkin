@@ -250,6 +250,61 @@ def calculate_nutrition(
     return result
 
 
+def check_kcal_consistency(items: List[Dict], threshold: float = 0.25) -> List[Dict]:
+    """Find items where stated calories deviate from macro-derived calories
+    (4·P + 9·F + 4·C) by more than `threshold` (relative to stated kcal).
+
+    Skips alcoholic items (alcohol = 7 kcal/g, not captured by macro formula).
+    Skips items with stated_kcal < 30 or macro_kcal < 20 (noise floor).
+
+    Returns a list of warning dicts: [{name, stated, macro, diff}, ...]
+    Caller can attach to meal_totals['kcal_warnings'] and surface to user.
+    """
+    warnings = []
+    for it in items:
+        # Skip alcoholic — formula doesn't account for ethanol (7 kcal/g).
+        if it.get("is_alcohol") or it.get("alcohol"):
+            continue
+        try:
+            stated = float(it.get("calories") or 0)
+            p = float(it.get("protein") or 0)
+            f = float(it.get("fats") or 0)
+            c = float(it.get("carbs") or 0)
+        except (TypeError, ValueError):
+            continue
+        macro = 4 * p + 9 * f + 4 * c
+        if stated < 30 or macro < 20:
+            continue
+        if abs(stated - macro) / max(stated, 1) > threshold:
+            warnings.append(
+                {
+                    "name": it.get("product") or it.get("name") or it.get("food") or "?",
+                    "stated": round(stated, 1),
+                    "macro": round(macro, 1),
+                    "diff": round(stated - macro, 1),
+                }
+            )
+    return warnings
+
+
+def format_kcal_warning(meal_totals: Dict) -> str:
+    """Build a user-facing warning string from meal_totals['kcal_warnings'].
+    Returns empty string if no warnings. Use in bot confirmation messages."""
+    warns = meal_totals.get("kcal_warnings") if isinstance(meal_totals, dict) else None
+    if not warns:
+        return ""
+    lines = ["\n\n⚠️ <b>Расхождение ккал и БЖУ</b> (возможна ошибка распознавания):"]
+    for w in warns[:3]:  # cap at 3 to keep the message short
+        sign = "+" if w["diff"] > 0 else ""
+        lines.append(
+            f"• {w['name']}: записано {int(w['stated'])} ккал, по БЖУ ≈ {int(w['macro'])} ({sign}{int(w['diff'])})"
+        )
+    if len(warns) > 3:
+        lines.append(f"… и ещё {len(warns) - 3}")
+    lines.append("Проверь значения перед сохранением.")
+    return "\n".join(lines)
+
+
 def calculate_meal_totals(meal_items: List[Dict]) -> Dict[str, float]:
     """
     Рассчитывает общие КБЖУ для всех продуктов в блюде.
@@ -446,6 +501,16 @@ def process_meal_description(
     # Если drinks не посчитан из items (старый код) — оставляем 0
     if "drinks" not in meal_totals:
         meal_totals["drinks"] = 0.0
+    # Sanity-check: ккал должны соответствовать БЖУ (4·P+9·F+4·C). Если LLM
+    # галлюцинирует — записываем предупреждение для последующего показа юзеру.
+    if not meal_totals.get("has_alcohol"):
+        warns = check_kcal_consistency(meal_items)
+        if warns:
+            meal_totals["kcal_warnings"] = warns
+            for w in warns:
+                logger.warning(
+                    f"⚠️ kcal mismatch for '{w['name']}': stated {w['stated']} vs macro {w['macro']} (diff {w['diff']:+})"
+                )
     return meal_items, meal_totals
 
 
@@ -899,4 +964,13 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
                 f"⚠️  Ignoring total_nutrition for multi-item meal (len={len(meal_items)}), using computed totals: {computed_totals}"
             )
 
+    # Sanity-check ккал↔БЖУ (см. process_meal_description).
+    if not computed_totals.get("has_alcohol"):
+        warns = check_kcal_consistency(meal_items)
+        if warns:
+            computed_totals["kcal_warnings"] = warns
+            for w in warns:
+                logger.warning(
+                    f"⚠️ kcal mismatch for '{w['name']}': stated {w['stated']} vs macro {w['macro']} (diff {w['diff']:+})"
+                )
     return meal_items, computed_totals

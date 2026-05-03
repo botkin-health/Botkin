@@ -74,10 +74,25 @@ def aggregate_by_day(events):
     """
     Агрегируем события по дням (московское время) и приложениям.
     Возвращает dict: { "YYYY-MM-DD": { app_id: {"name": ..., "seconds": ...} } }
+
+    ВАЖНО: ранний Biome (до ~15.03.2026) импортировал каждое событие 3-6 раз —
+    одинаковые (timestamp, app, duration) приходят дублями. Дедуплицируем
+    по этому ключу перед агрегацией. Без этого 08.03 показывает 38 часов
+    «экранного времени» при реальных 6.3.
     """
+    # Дедупликация: ключ = (timestamp, app, duration)
+    seen = set()
+    unique_events = []
+    for event in events:
+        key = (event["timestamp"], event["data"].get("app", ""), event.get("duration", 0.0))
+        if key in seen:
+            continue
+        seen.add(key)
+        unique_events.append(event)
+
     daily_apps: dict[str, dict[str, dict]] = defaultdict(lambda: defaultdict(lambda: {"name": "", "seconds": 0.0}))
 
-    for event in events:
+    for event in unique_events:
         # Парсим UTC timestamp
         ts_str = event["timestamp"]
         ts = datetime.fromisoformat(ts_str)
@@ -96,6 +111,7 @@ def aggregate_by_day(events):
         elif not daily_apps[date_str][app_id]["name"]:
             daily_apps[date_str][app_id]["name"] = app_id
 
+    print(f"   Дедупликация: {len(events)} → {len(unique_events)} событий")
     return daily_apps
 
 
