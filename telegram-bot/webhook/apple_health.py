@@ -329,23 +329,16 @@ def _hae_to_daily_payloads(metrics: list[dict]) -> dict[str, AppleHealthPayload]
                     qty *= 100
                 slot["walking_step_length_cm"] = round(qty, 1)
             elif name in ("walking_double_support_percentage", "walking_double_support"):
-                qty = float(_hae_pick(rec, "qty", "Avg", default=0))
-                # HAE может прислать как 0–1, так и 0–100 — нормализуем к процентам.
-                if 0 < qty <= 1.5:
-                    qty *= 100
-                slot["walking_double_support_pct"] = round(qty, 2)
+                # HAE для *_percentage метрик всегда шлёт в %, не во фракции.
+                # Не множим — реальные значения асимметрии 0.5-3% и попадали в фолс-ветвь ×100.
+                slot["walking_double_support_pct"] = round(float(_hae_pick(rec, "qty", "Avg", default=0)), 2)
             elif name in ("walking_asymmetry_percentage", "walking_asymmetry"):
-                qty = float(_hae_pick(rec, "qty", "Avg", default=0))
-                if 0 < qty <= 1.5:
-                    qty *= 100
-                slot["walking_asymmetry_pct"] = round(qty, 2)
+                slot["walking_asymmetry_pct"] = round(float(_hae_pick(rec, "qty", "Avg", default=0)), 2)
             elif name in ("weight_body_mass", "body_mass", "weight"):
                 slot["weight_kg"] = round(float(_hae_pick(rec, "qty", "Avg", default=0)), 2)
             elif name == "body_fat_percentage":
-                qty = float(_hae_pick(rec, "qty", "Avg", default=0))
-                if 0 < qty <= 1.5:
-                    qty *= 100
-                slot["body_fat_pct"] = round(qty, 1)
+                # HAE шлёт уже в процентах (например 27.4), не во фракции.
+                slot["body_fat_pct"] = round(float(_hae_pick(rec, "qty", "Avg", default=0)), 1)
             elif name == "lean_body_mass":
                 slot["muscle_mass_kg"] = round(float(_hae_pick(rec, "qty", "Avg", default=0)), 2)
             elif name == "vo2_max":
