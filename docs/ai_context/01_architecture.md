@@ -78,7 +78,7 @@ Routers подключаются к одному FastAPI `app` в `apple_health.
 
 | Файл | Назначение |
 |---|---|
-| `apple_health.py` | Главный FastAPI app. POST `/apple_health` — приём данных с iPhone Shortcut (давление, gait). GET/POST `/api/settings`. Раздача статики мини-аппа `/webapp/*` с auto-versioning. |
+| `apple_health.py` | Главный FastAPI app. POST `/apple_health_v2` — приём данных от Health Auto Export (iOS, ежедневно автоматически). POST `/apple_health` (v1) — legacy endpoint для старых Shortcuts с плоским JSON. GET/POST `/api/settings`. Раздача статики мини-аппа `/webapp/*` с auto-versioning. |
 | `nutrition_api.py` | Endpoints мини-аппа для дневника еды: GET `/api/day`, POST/PATCH/DELETE `/api/meal/item`, GET `/api/favorites`. |
 | `supplements_api.py` | Endpoints для daily-log таба добавок: GET `/api/supplements/day`, POST/DELETE `/api/supplements/take`. |
 | `nutrition_goals.py` | `compute_goals()` — БЖУ-цели на день из настроек+Garmin. |
@@ -186,12 +186,21 @@ core/
 6. day.js → re-renders bars                   [client-side recompute]
 ```
 
-## Поток данных: «Запустил Apple Health Shortcut на iPhone (давление + gait)»
+## Поток данных: «Health Auto Export → ежедневный автоэкспорт Apple Health»
 
 ```
-1. iPhone Shortcut → POST /apple_health       [bearer token из .env]
-2. apple_health.py:_save_payload()            [пишет в activity_log.raw_data + blood_pressure_logs]
-3. /sync команда забирает потом                [scripts/sync_all_data.sh → fetch_remote_nutrition.sh + push]
+1. iOS-приложение Health Auto Export ($24.99 lifetime)
+   → раз в сутки в фоне POST /apple_health_v2  [Bearer APPLE_HEALTH_TOKEN]
+   → формат: {"data":{"metrics":[{"name":"step_count","data":[{"qty":18000,"date":"..."}]}, ...]}}
+2. apple_health.py:_hae_to_daily_payloads()    [маппит 17 метрик HAE → нашу схему по дням]
+3. Группировка по дате, UPSERT в:
+   - activity_log (steps, distance, active_calories, HR, gait в raw_data)
+   - blood_pressure_logs (systolic/diastolic от Omron)
+   - weights (вес, %жира, мышцы от Mi-весов через Apple Health)
+4. /sync команда подтягивает свежие данные  [scripts/sync_all_data.sh + fetch_remote_nutrition.sh]
+
+Legacy путь: POST /apple_health (v1) — плоский JSON от старых Shortcuts.
+Endpoint оставлен для обратной совместимости, но новые автоматизации — на v2.
 ```
 
 ---
