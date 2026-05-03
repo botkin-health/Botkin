@@ -7,6 +7,50 @@
 
 ---
 
+## 2026-05-03 — Privacy cleanup: анонимизация личных данных в публичных файлах
+
+**Задача:** Убрать из публичного репозитория реальные имена (Ника Селезнёва, сыновья), диагнозы, Telegram username и user_id из комментариев/документации.
+
+**Что сделано:**
+1. `config/scout/profile.yaml` — `family_context` заменён на обезличенные описания (возраст и проблема без имён).
+2. `docs/MULTI_USER_PLAN.md` — «Ника Селезнёва» и `485132` → «Пользователь 2».
+3. `docs/ai_context/AI_CHANGELOG.md`, `README.md`, `03_database_schema.md` — Telegram usernames и user_id → `user_2`, `user3`.
+4. `scripts/mcp/healthvault_mcp.py`, `scripts/audit/nutrition_schema_scan.py` — убраны персональные имена из комментариев.
+5. `todo.md` — анонимизированы упоминания конкретных диагнозов и историй.
+6. `CLAUDE.md` (проектный) — убрана таблица с Telegram ID и данными семьи; перенесено в приватный `~/.claude/projects/.../memory/reference_health_context.md` (не в git).
+7. Создан `~/.claude/projects/.../memory/reference_health_context.md` — 63 строки, приватный, Claude читает при каждой сессии в проекте (содержит bot users, семья+диагнозы, папки Google Drive, подключение к серверу).
+
+**Правило:** Имена, диагнозы, Telegram ID реальных людей — только в `~/.claude/` (не в git). Репозиторий публичный — только архитектура и код.
+
+**Файлы:** `config/scout/profile.yaml`, `todo.md`, `docs/MULTI_USER_PLAN.md`, `docs/ai_context/AI_CHANGELOG.md`, `docs/ai_context/README.md`, `docs/ai_context/03_database_schema.md`, `scripts/mcp/healthvault_mcp.py`, `scripts/audit/nutrition_schema_scan.py`, `CLAUDE.md`.
+
+---
+
+## 2026-05-03 — Kcal consistency check + исправление Bombbar
+
+**Задача:** Бот иногда записывал неверные калории из-за рассинхрона stated kcal vs БЖУ.
+
+**Что сделано:**
+1. `core/food/nutrition.py` — добавлены `check_kcal_consistency()` и `format_kcal_warning()`: если указанные ккал расходятся с формулой (4·Б + 9·Ж + 4·У) более чем на 25% — выводится предупреждение перед сохранением.
+2. `telegram-bot/handlers/photo.py`, `text.py` — предупреждение вставлено в подтверждение приёма пищи (до кнопок).
+3. `core/llm/router.py` — исправлены данные Bombbar Original glazed bar: `142 kcal / 40g` вместо некорректных `116 kcal / 35g` (в шоколаде = Original glazed line, не Slim).
+
+**Файлы:** `core/food/nutrition.py`, `core/llm/router.py`, `telegram-bot/handlers/photo.py`, `telegram-bot/handlers/text.py`.
+
+---
+
+## 2026-05-03 — ActivityWatch: дедупликация + mac_screentime улучшения
+
+**Задача:** `scripts/import/activitywatch.py` показывал 38 часов экранного времени 08.03 вместо реальных 6.3 из-за Biome-дублей.
+
+**Что сделано:**
+1. `scripts/import/activitywatch.py` — дедупликация по `(timestamp, app, duration)` перед агрегацией. Biome до ~15.03.2026 импортировал каждое событие 3-6 раз.
+2. `scripts/import/mac_screentime.py` — добавлен `EXCLUDED_APPS` (loginwindow, Dock, WindowManager и др. системные процессы), добавлена константа `AW_AFK_BUCKET` с комментарием (AFK = источник истины о реальном времени за маком, window = распределение по приложениям).
+
+**Файлы:** `scripts/import/activitywatch.py`, `scripts/import/mac_screentime.py`.
+
+---
+
 ## 2026-05-03 — Security audit, history rewrite, repo публичный
 
 **Проблема:** Перед публикацией репозитория нужно убедиться, что в истории нет утечки секретов.
