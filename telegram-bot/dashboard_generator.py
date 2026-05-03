@@ -684,31 +684,57 @@ def _build_payload(db: Session, user_id: int) -> dict:
         "walking": "Ходьба",
         "cycling": "Велосипед",
         "swimming": "Плавание",
+        "open_water_swimming": "Плавание",
+        "indoor_running": "Бег",
+        "treadmill_running": "Бег",
         "strength": "Силовая",
+        "strength_training": "Силовая",
         "cardio": "Кардио",
+        "fitness_equipment": "Тренажёр",
         "other": "Прочее",
     }
     # Only running/walking/cycling/swimming have meaningful distance
-    _DISTANCE_TYPES = {"running", "walking", "cycling", "swimming"}
+    _DISTANCE_TYPES = {
+        "running",
+        "walking",
+        "cycling",
+        "swimming",
+        "open_water_swimming",
+        "indoor_running",
+        "treadmill_running",
+    }
     _breakdown: dict = {}
     for a in activities:
-        t = a["type"]
-        if t not in _breakdown:
-            _breakdown[t] = {"n": 0, "km": 0.0}
-        _breakdown[t]["n"] += 1
-        if t in _DISTANCE_TYPES and a.get("distance_km"):
-            _breakdown[t]["km"] += a["distance_km"]
-    activity_breakdown = sorted(
+        # Нормализуем тип в человеческий лейбл, чтобы 'strength' и 'strength_training'
+        # схлопывались в одну строку «Силовая».
+        t_raw = a["type"]
+        label = _WORKOUT_LABELS.get(t_raw, t_raw.replace("_", " ").capitalize())
+        if label not in _breakdown:
+            _breakdown[label] = {"n": 0, "km": 0.0, "is_dist": t_raw in _DISTANCE_TYPES}
+        _breakdown[label]["n"] += 1
+        if t_raw in _DISTANCE_TYPES and a.get("distance_km"):
+            _breakdown[label]["km"] += a["distance_km"]
+    # Сортируем по частоте
+    sorted_breakdown = sorted(
         [
             {
-                "label": _WORKOUT_LABELS.get(t, t.capitalize()),
+                "label": label,
                 "n": v["n"],
                 "km": round(v["km"], 1) if v["km"] > 0 else 0,
             }
-            for t, v in _breakdown.items()
+            for label, v in _breakdown.items()
         ],
         key=lambda x: -x["n"],
     )
+    # Топ-3 + «Остальное» (агрегат всего что не вошло)
+    if len(sorted_breakdown) <= 4:
+        activity_breakdown = sorted_breakdown
+    else:
+        top3 = sorted_breakdown[:3]
+        rest = sorted_breakdown[3:]
+        rest_n = sum(item["n"] for item in rest)
+        rest_km = round(sum(item["km"] for item in rest), 1)
+        activity_breakdown = top3 + [{"label": "Остальное", "n": rest_n, "km": rest_km if rest_km > 0 else 0}]
 
     bp_sys_sorted = sorted(bp_sys.items())
     bp_last_str = f"{bp_sys_sorted[-1][1]}/{bp_dia.get(bp_sys_sorted[-1][0], '?')}" if bp_sys_sorted else "—"

@@ -162,7 +162,6 @@
             </div>
             <div class="slot-right" style="flex-shrink:0;padding-left:8px;text-align:right;">
               <div class="slot-meta">${Math.round(totalKcal)}</div>
-              ${totalFib > 0 ? `<div class="slot-fiber">Кл ${Math.round(totalFib)} г</div>` : ''}
             </div>
           </div>
           ${isExpanded ? itemsHtml : ''}
@@ -200,13 +199,7 @@
         <div class="item-row">
           <div class="item-name">${warn}${escapeHtml(it.name)}</div>
           <div class="item-weight">${Math.round(it.weight)} г</div>
-          <div class="item-macros">
-            <span>Б <b>${it.p}</b></span>
-            <span>Ж <b>${it.f}</b></span>
-            <span>У <b>${it.c}</b></span>
-            <span>Кл <b>${it.fib}</b></span>
-            <span>${Math.round(it.kcal)} ккал</span>
-          </div>
+          <div class="item-macros">Ккал <b>${Math.round(it.kcal)}</b> · Б <b>${it.p}</b> · Ж <b>${it.f}</b> · У <b>${it.c}</b> · Кл <b>${it.fib}</b></div>
         </div>
       </div>`;
     }).join('');

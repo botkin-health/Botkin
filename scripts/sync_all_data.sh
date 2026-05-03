@@ -52,6 +52,8 @@ echo "2.5/4 🏋️  Агрегация тренировок в workouts_log.jso
 $PY scripts/util/parse_workouts.py
 echo "2.6/4 🏋️  Пуш workouts_log → контейнер (для блока «Спорт» в дашборде)..."
 $PY scripts/import/push_workouts_to_container.py
+echo "2.7/4 🏋️  Бэкфилл тренировок → workouts table (треугольники на главном графике)..."
+$PY scripts/backfill_to_postgres.py 2>&1 | grep -E "ТРЕНИРОВКИ|Вставлено|Нечего|Новых|ИТОГОВОЕ|Тренировки \(" || true
 
 echo "3/4 🌬 Загрузка данных климата в спальне из Netatmo..."
 $PY scripts/import/netatmo.py
