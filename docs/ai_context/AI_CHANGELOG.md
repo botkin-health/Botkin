@@ -7,6 +7,25 @@
 
 ---
 
+## 2026-05-04 — Sprint 1a Task 9: New User Onboarding Wizard
+
+**Задача:** 5-шаговый онбординг-визард для новых пользователей бота.
+
+**Что сделано:**
+1. `database/migrations/add_onboarding_step.sql` — миграция: добавлены колонки `onboarding_step VARCHAR(30)` и `onboarding_data JSONB` в таблицу `users`. Применена на сервере.
+2. `database/models.py` — добавлены поля `onboarding_step` и `onboarding_data` в класс `User`.
+3. `telegram-bot/handlers/onboarding.py` (новый) — FSM-визард: `name → age → sex → height → has_garmin → done`.
+   - При завершении генерирует `health_token` формата `hvt_{telegram_id}_{32hex}` и отправляет инструкции для настройки Health Auto Export.
+   - `send_message()` — прямой вызов Telegram Bot API (httpx), не через aiogram.
+   - `start_wizard()` — точка входа из `telegram_router`.
+4. `tests/integration/test_onboarding_wizard.py` (новый) — 4 теста: создание нового пользователя, валидный возраст, невалидный возраст, завершение онбординга с генерацией токена. Все PASS.
+
+**Файлы:** `database/migrations/add_onboarding_step.sql`, `database/models.py`, `telegram-bot/handlers/onboarding.py`, `tests/integration/test_onboarding_wizard.py`.
+
+**Коммит:** `7a15025`
+
+---
+
 ## 2026-05-04 — Sprint 1a Task 8: Telegram Webhook Router
 
 **Задача:** Маршрутизатор входящих Telegram-апдейтов через FastAPI webhook.
