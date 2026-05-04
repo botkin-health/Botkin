@@ -17,6 +17,7 @@ from sqlalchemy import (
     ARRAY,
     ForeignKey,
     UniqueConstraint,
+    CheckConstraint,
     Index,
     TypeDecorator,
 )
@@ -42,6 +43,10 @@ class SafeArray(TypeDecorator):
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = (
+        CheckConstraint("cohort IN ('owner','family','early_user','external')", name="ck_users_cohort"),
+        CheckConstraint("pack_name IN ('generic','cardiac','bariatric','female-cycle')", name="ck_users_pack_name"),
+    )
 
     telegram_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     username: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
