@@ -7,6 +7,26 @@
 
 ---
 
+## 2026-05-04 — Sprint 1a Task 10: Adaptive Dashboard — Skip Empty Blocks
+
+**Задача:** Дашборд должен пропускать пустые блоки для пользователей без данных (Андрей, Элен — нет Garmin, нет анализов, нет Netatmo).
+
+**Что сделано:**
+1. `telegram-bot/dashboard_blocks.py` (новый) — хелперы для проверки наличия данных по блокам:
+   - `has_garmin_data(db, user)` — garmin_email OR активность за 30 дней
+   - `has_apple_health_data(db, user)` — есть ли строки в `blood_pressure_logs` (raw SQL, таблица не в models.py)
+   - `has_blood_test_data(db, user)` — owner + ненулевые `values` в `knowledge_base.json`
+   - `has_nutrition_data(db, user)`, `has_weight_data(db, user)` — ORM-запросы
+   - `get_available_blocks(db, user)` — сводный dict `block → bool` для всего дашборда
+2. `telegram-bot/dashboard_generator.py` — `generate_dashboard_html()` теперь вызывает `get_available_blocks()` и дополняет `meta.capabilities` lifetime-проверками (OR-merge). Шаблон уже читает `capabilities` для show/hide секций.
+3. `tests/test_dashboard_blocks.py` (новый) — 5 unit-тестов с mock-DB. Все PASS.
+
+**Файлы:** `telegram-bot/dashboard_blocks.py`, `telegram-bot/dashboard_generator.py`, `tests/test_dashboard_blocks.py`.
+
+**Коммит:** `076ca1f`
+
+---
+
 ## 2026-05-04 — Sprint 1a Task 9: New User Onboarding Wizard
 
 **Задача:** 5-шаговый онбординг-визард для новых пользователей бота.
