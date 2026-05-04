@@ -90,6 +90,11 @@ class User(Base):
     encrypted_openai_key: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     encrypted_anthropic_key: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
+    # Onboarding state machine (Sprint 1a Task 9)
+    # Steps: name → age → sex → height → has_garmin → done
+    onboarding_step: Mapped[str] = mapped_column(String(30), default="done", server_default="done")
+    onboarding_data: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")
+
     # Relationships
     nutrition_logs: Mapped[List["NutritionLog"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     weights: Mapped[List["Weight"]] = relationship(back_populates="user", cascade="all, delete-orphan")
