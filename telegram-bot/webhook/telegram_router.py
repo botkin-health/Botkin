@@ -91,6 +91,11 @@ async def telegram_webhook(payload: dict):
             await handle_onboarding(payload)
             return {"status": "ok", "action": "onboarding"}
 
+        # User exists but onboarding not complete — continue wizard
+        if user.onboarding_step != "done":
+            await handle_onboarding(payload)
+            return {"status": "ok", "action": "onboarding_continue"}
+
         # Existing user but no container yet (Sprint 1a state)
         if not user.container_id or not user.container_port:
             logger.info(f"User {from_id} has no container yet — no-op in Sprint 1a")

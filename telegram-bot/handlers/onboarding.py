@@ -10,6 +10,7 @@ This wizard is replaced by agent-driven onboarding in Sprint 2.
 import logging
 import os
 import secrets
+import uuid
 from typing import Optional
 
 import httpx
@@ -18,8 +19,6 @@ from database import SessionLocal
 from database.models import User
 
 logger = logging.getLogger(__name__)
-
-STEPS = ["name", "age", "sex", "height", "has_garmin", "done"]
 
 
 async def send_message(chat_id: int, text: str, reply_markup: Optional[dict] = None) -> None:
@@ -140,6 +139,8 @@ async def process_onboarding_message(payload: dict) -> None:
             user.onboarding_data = data
             user.onboarding_step = "done"
             user.health_token = f"hvt_{user.telegram_id}_{secrets.token_hex(16)}"
+            if not user.share_token:
+                user.share_token = str(uuid.uuid4()).replace("-", "")[:32]
             db.commit()
 
             await send_message(
