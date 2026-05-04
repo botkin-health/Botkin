@@ -7,6 +7,20 @@
 
 ---
 
+## 2026-05-04 — Sprint 1a Task 1: cohort/container/pack/jwt/byok columns in users
+
+**Задача:** Добавить поддержку мульти-пользовательских когорт — колонки для разделения пользователей по типу (owner/family/early_user/external), pack-профилю и изолированным контейнерам.
+
+**Что сделано:**
+1. `database/migrations/add_cohort_columns.sql` — SQL-миграция: 7 новых колонок + backfill для 3 существующих пользователей.
+2. `database/models.py` — класс `User` расширен: `cohort`, `container_id`, `container_port`, `pack_name`, `jwt_secret`, `encrypted_openai_key`, `encrypted_anthropic_key`.
+3. `tests/test_user_model.py` — TDD-тест (SQLite in-memory): проверяет наличие когортных полей и их nullable/default поведение.
+4. Миграция применена к production DB; backfill: owner/bariatric (895655), family/female-cycle (485132), early_user/cardiac (836757955).
+
+**Файлы:** `database/migrations/add_cohort_columns.sql`, `database/models.py`, `tests/test_user_model.py`.
+
+---
+
 ## 2026-05-03 — Privacy cleanup: анонимизация личных данных в публичных файлах
 
 **Задача:** Убрать из публичного репозитория реальные имена (Ника Селезнёва, сыновья), диагнозы, Telegram username и user_id из комментариев/документации.
