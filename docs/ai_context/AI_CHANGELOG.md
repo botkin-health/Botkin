@@ -7,6 +7,24 @@
 
 ---
 
+## 2026-05-04 — Sprint 1a Task 2: PostgreSQL RLS + hv_app role (session-variable isolation)
+
+**Задача:** Добавить Row Level Security в PostgreSQL, чтобы контейнеры NanoClaw (роль hv_app) видели только данные своего пользователя через сессионную переменную `app.user_id`.
+
+**Что сделано:**
+1. `database/migrations/add_rls_policies.sql` — SQL-миграция: создаёт роль `hv_app` (NULLIF-safe политики), включает RLS на 6 таблицах (`nutrition_log`, `supplements_log`, `weights`, `activity_log`, `blood_pressure_logs`, `user_settings`), политики `user_isolation` с `SET LOCAL app.user_id`.
+2. `database/crud.py` — добавлена функция `set_user_session_var(db, user_id)`: выполняет `SET LOCAL app.user_id = :uid` для RLS-фильтрации.
+3. `tests/integration/test_rls_isolation.py` — 4 интеграционных теста через SSH-туннель: блокировка чужих строк, доступ к своим, нет var = 0 строк, проверка supplements.
+4. Миграция применена на сервере. Все 4 теста PASS.
+
+**Важный баг-фикс:** `isolation_level="AUTOCOMMIT"` на engine делает `conn.begin()` savepoint-ом, и `SET LOCAL` не работает. Исправлено — engine без AUTOCOMMIT, `conn.begin()` создаёт реальный BEGIN.
+
+**Файлы:** `database/migrations/add_rls_policies.sql`, `database/crud.py`, `tests/integration/test_rls_isolation.py`.
+
+**Коммит:** `162f23f`
+
+---
+
 ## 2026-05-04 — Sprint 1a Task 1: cohort/container/pack/jwt/byok columns in users
 
 **Задача:** Добавить поддержку мульти-пользовательских когорт — колонки для разделения пользователей по типу (owner/family/early_user/external), pack-профилю и изолированным контейнерам.
