@@ -7,6 +7,25 @@
 
 ---
 
+## 2026-05-04 — Sprint 1a Task 11: Telegram Webhook Registration & Deploy
+
+**Задача:** Зарегистрировать Telegram webhook для `@HealthVault_bot` и создать deploy-доку Sprint 1a.
+
+**Что сделано:**
+1. Webhook зарегистрирован через Bot API: `https://health.orangegate.cc/telegram/webhook` — подтверждено `"ok":true`.
+2. `telegram-bot/webhook/apple_health.py` — добавлен `POST /telegram/webhook` endpoint, который передаёт обновления в aiogram dispatcher через `dp.feed_update()`; добавлена функция `set_telegram_dispatcher(bot, dp)`.
+3. `telegram-bot/bot.py` — удалён вызов `delete_webhook` при старте; переход с polling на webhook-режим (FastAPI-сервер теперь единственная точка входа для Telegram-обновлений).
+4. Задеплоено на сервер: загружены недостающие модули (`agent_tools_api.py`, `telegram_router.py`, `jwt_auth.py`), обновлён `requirements.txt` (добавлен `pyjwt==2.8.0`), пересобран и перезапущен Docker-контейнер.
+5. `docs/SPRINT_1A_DEPLOY.md` — создан, содержит: что сделано, endpoint-карта, инструкции по деплою/логам/проверке.
+
+**Проверка:** `POST /telegram/webhook` возвращает `{"status":"ok",...}`, `GET /health` → `{"status":"ok"}`, `getWebhookInfo` → `pending_update_count: 0`.
+
+**Файлы:** `telegram-bot/bot.py`, `telegram-bot/webhook/apple_health.py`, `docs/SPRINT_1A_DEPLOY.md`.
+
+**Коммит:** `9dcd048`
+
+---
+
 ## 2026-05-04 — Sprint 1a Task 10: Adaptive Dashboard — Skip Empty Blocks
 
 **Задача:** Дашборд должен пропускать пустые блоки для пользователей без данных (Андрей, Элен — нет Garmin, нет анализов, нет Netatmo).
