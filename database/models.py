@@ -263,3 +263,14 @@ class UserSettings(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     user: Mapped["User"] = relationship(back_populates="settings")
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_log"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    db_user: Mapped[str] = mapped_column(Text)
+    query_type: Mapped[str] = mapped_column(Text)
+    table_name: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    query_excerpt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
