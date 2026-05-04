@@ -12,9 +12,21 @@ import os
 from datetime import datetime, timedelta, timezone
 
 import jwt
-from fastapi import Header, HTTPException
+from fastapi import Depends, Header, HTTPException
+from sqlalchemy.orm import Session
 
 JWT_TTL_HOURS = int(os.getenv("AGENT_JWT_TTL_HOURS", "1"))
+
+
+def get_db():
+    """FastAPI dependency: yield a DB session and always close it on exit."""
+    from database import SessionLocal
+
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 def generate_agent_jwt(user_id: int, container_id: str, secret: str) -> str:
@@ -33,7 +45,7 @@ def generate_agent_jwt(user_id: int, container_id: str, secret: str) -> str:
 
 async def get_agent_user(
     authorization: str = Header(...),
-    db=None,
+    db: Session = Depends(get_db),
 ):
     """FastAPI dependency: validate agent JWT, return User row.
 
@@ -47,7 +59,6 @@ async def get_agent_user(
         403: container_id mismatch (impersonation attempt)
     """
     # Import here to avoid circular imports and to support testing with mocks
-    from database import SessionLocal
     from database.models import User
     from database.crud import set_user_session_var
 
@@ -64,9 +75,6 @@ async def get_agent_user(
     user_id = unverified.get("user_id")
     if not user_id:
         raise HTTPException(status_code=401, detail="JWT missing user_id claim")
-
-    if db is None:
-        db = SessionLocal()
 
     user = db.query(User).filter_by(telegram_id=user_id).first()
     if not user or not user.is_active:
