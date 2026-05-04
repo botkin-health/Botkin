@@ -31,10 +31,46 @@
     .calc-btn { background: #f0f7ff; border: 1px solid #b3d4f5; border-radius: 8px;
                 padding: 6px 10px; font-size: 12px; color: #2a7ae2; cursor: pointer;
                 white-space: nowrap; }
-    .calc-panel { background: #f8f9fa; border-radius: 10px; padding: 12px;
-                  margin-top: 8px; display: none; }
+    .calc-panel { background: #f8f9fa; border-top: 1px solid #e5e5ea; padding: 0;
+                  display: none; }
     .calc-panel.open { display: block; }
     .calc-panel .field-row { margin-bottom: 8px; }
+    @media (prefers-color-scheme: dark) {
+      .calc-panel { background: #2c2c2e; border-color: #3a3a3c; }
+    }
+
+    /* ── BMR mode pillbox ── */
+    .bmr-mode-pillbox {
+      display: flex; gap: 6px; background: #e5e5ea; border-radius: 9px; padding: 3px;
+    }
+    @media (prefers-color-scheme: dark) { .bmr-mode-pillbox { background: #3a3a3c; } }
+    .bmr-mode-opt {
+      flex: 1; text-align: center; padding: 7px 8px; font-size: 13px;
+      border-radius: 7px; cursor: pointer; transition: background .15s;
+    }
+    .bmr-mode-opt input { display: none; }
+    .bmr-mode-opt input:checked + span { font-weight: 600; }
+    .bmr-mode-opt:has(input:checked) {
+      background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.1);
+    }
+    @media (prefers-color-scheme: dark) {
+      .bmr-mode-opt:has(input:checked) { background: #1c1c1e; }
+    }
+    .bmr-info-block {
+      background: #fff; border: 1px solid #e5e5ea; border-radius: 8px;
+      padding: 10px 12px; font-size: 13px; line-height: 1.5; margin-top: 12px;
+    }
+    @media (prefers-color-scheme: dark) {
+      .bmr-info-block { background: #1c1c1e; border-color: #3a3a3c; }
+    }
+    .bmr-info-block .bmr-big { font-size: 22px; font-weight: 700; line-height: 1.1; display: block; }
+    .bmr-info-block .bmr-sub { font-size: 12px; color: #8e8e93; margin-top: 4px; display: block; }
+    .bmr-info-block.unavailable { opacity: 0.55; }
+    .bmr-form-label { font-size: 13px; color: #555; min-width: 80px; }
+    @media (prefers-color-scheme: dark) { .bmr-form-label { color: #aeaeb2; } }
+    .bmr-radio { display: inline-flex; align-items: center; gap: 4px; font-size: 13px;
+                 padding: 4px 8px; border: 1px solid #ddd; border-radius: 7px; cursor: pointer; }
+    .bmr-radio input { margin: 0; }
 
     /* ── Calorie goal slider ── */
     .goal-slider-row { flex-direction: column; align-items: stretch; gap: 8px; padding: 12px 16px 14px; }
@@ -328,26 +364,54 @@
   <!-- ЦЕЛИ -->
   <div class="group-title">Цели</div>
   <div class="settings-group">
-    <div class="settings-row">
+    <div class="settings-row clickable" onclick="toggleBmrPanel()">
       <div class="row-label">
-        BMR
-        <div class="row-sub" id="bmr-hint">Пусто — используется Garmin</div>
+        Базовый расход
+        <div class="row-sub" id="bmr-source-text">…</div>
       </div>
-      <input type="number" id="bmr-input" class="row-input" placeholder="1950" min="800" max="4000">
-      <span class="row-suffix">ккал</span>
+      <div class="row-value" id="bmr-value">…</div>
+      <div class="row-chevron" id="bmr-chevron">›</div>
     </div>
-    <div class="settings-row clickable" onclick="toggleCalc()">
-      <div class="row-label">Рассчитать по параметрам</div>
-      <div class="row-value">Миффлин</div>
-      <div class="row-chevron">›</div>
-    </div>
-    <div id="calc-panel" class="calc-panel">
-      <div class="field-label" style="padding:0 16px 6px">Формула Миффлина-Сан Жеора</div>
-      <div style="padding:0 16px 12px">
-        <div class="field-row" style="margin-bottom:8px"><input type="number" id="calc-height" placeholder="Рост, см" style="width:110px"><span class="unit">см</span></div>
-        <div class="field-row" style="margin-bottom:8px"><input type="number" id="calc-weight" placeholder="Вес, кг" style="width:110px"><span class="unit">кг</span></div>
-        <div class="field-row" style="margin-bottom:10px"><input type="number" id="calc-age" placeholder="Возраст" style="width:110px"><span class="unit">лет</span></div>
-        <button class="calc-btn" onclick="calcBMR()">Рассчитать →</button>
+    <div id="bmr-panel" class="calc-panel">
+      <div style="padding:8px 16px 14px">
+        <div class="field-label" style="margin-bottom:8px">Источник значения</div>
+        <div class="bmr-mode-pillbox">
+          <label class="bmr-mode-opt"><input type="radio" name="bmr-mode" value="auto" id="bmr-mode-auto"><span>Авто (с часов)</span></label>
+          <label class="bmr-mode-opt"><input type="radio" name="bmr-mode" value="manual" id="bmr-mode-manual"><span>Ручной (формула)</span></label>
+        </div>
+        <div id="bmr-auto-info" class="bmr-info-block">…</div>
+
+        <div id="bmr-manual-form" style="display:none">
+          <div class="field-label" style="margin:14px 0 6px">Параметры — формула Mifflin-St Jeor</div>
+          <div class="field-row" style="margin-bottom:8px">
+            <span class="bmr-form-label">Пол</span>
+            <label class="bmr-radio"><input type="radio" name="bmr-sex" value="male" checked> муж</label>
+            <label class="bmr-radio"><input type="radio" name="bmr-sex" value="female"> жен</label>
+          </div>
+          <div class="field-row" style="margin-bottom:8px">
+            <span class="bmr-form-label">Возраст</span>
+            <input type="number" id="bmr-age" min="14" max="100" style="width:80px"><span class="unit">лет</span>
+          </div>
+          <div class="field-row" style="margin-bottom:8px">
+            <span class="bmr-form-label">Рост</span>
+            <input type="number" id="bmr-height" min="120" max="220" style="width:80px"><span class="unit">см</span>
+          </div>
+          <div class="field-row" style="margin-bottom:8px">
+            <span class="bmr-form-label">Вес</span>
+            <input type="number" id="bmr-weight" step="0.1" min="30" max="200" style="width:80px"><span class="unit">кг</span>
+          </div>
+          <div class="field-row" style="margin-bottom:10px">
+            <span class="bmr-form-label">Активность</span>
+            <select id="bmr-activity" style="flex:1; max-width:240px; border:1px solid #ddd; border-radius:8px; padding:8px 10px; font-size:13px; background:#fff">
+              <option value="sedentary">Сидячая (×1.2)</option>
+              <option value="light" selected>Лёгкая — бытовая ходьба (×1.375)</option>
+              <option value="moderate">Умеренная — 3–5 трен/нед (×1.55)</option>
+              <option value="high">Высокая — ежедневный спорт (×1.725)</option>
+            </select>
+          </div>
+          <div id="bmr-preview" class="bmr-info-block" style="margin-top:10px"></div>
+          <button class="calc-btn" id="bmr-save-btn" onclick="saveBmrManual()" style="margin-top:10px; padding:8px 14px; background:#34c759; color:#fff; border:none">💾 Сохранить</button>
+        </div>
       </div>
     </div>
     <div class="settings-row">
@@ -648,8 +712,8 @@ function updateGoalSlider(pct) {
 }
 
 function populate() {
-  // Nutrition
-  if (settings.bmr_override) document.getElementById('bmr-input').value = settings.bmr_override;
+  // BMR is loaded separately via /api/profile/bmr (richer data than /api/settings)
+  loadBmr();
   if (settings.target_weight_kg) document.getElementById('target-weight').value = settings.target_weight_kg;
   if (settings.target_weight_date) document.getElementById('target-date').value = settings.target_weight_date;
   document.getElementById('show-bar').checked = settings.show_calorie_budget_bar !== false;
@@ -731,13 +795,19 @@ function wireAutosave() {
   if (root.dataset.autosaveWired === '1') return;
   root.dataset.autosaveWired = '1';
 
-  // BMR (number input — save on blur; track dirty so tab-switch can flush)
-  const bmr = document.getElementById('bmr-input');
-  bmr.addEventListener('input', () => _dirtyInputs.add(bmr));
-  bmr.addEventListener('blur', () => {
-    _dirtyInputs.delete(bmr);
-    const v = parseInt(bmr.value) || null;
-    autosave({ bmr_override: v });
+  // BMR — handled by /api/profile/bmr (separate POST). Wire mode toggle + live preview.
+  document.querySelectorAll('input[name="bmr-mode"]').forEach(el => {
+    el.addEventListener('change', () => {
+      toggleBmrModeUI();
+      if (el.value === 'auto' && el.checked) saveBmrSourceAuto();
+    });
+  });
+  ['bmr-age', 'bmr-height', 'bmr-weight', 'bmr-activity'].forEach(id => {
+    const node = document.getElementById(id);
+    if (node) node.addEventListener('input', recomputeBmrPreview);
+  });
+  document.querySelectorAll('input[name="bmr-sex"]').forEach(el => {
+    el.addEventListener('change', recomputeBmrPreview);
   });
 
   // Target weight (same pattern)
@@ -849,20 +919,153 @@ function addSupplement() {
   autosave({ supplements: settings.supplements });
 }
 
-// ── BMR calculator ──────────────────────────────────────────────────────────
-function toggleCalc() {
-  document.getElementById('calc-panel').classList.toggle('open');
+// ── BMR section ─────────────────────────────────────────────────────────────
+const PAL = { sedentary: 1.2, light: 1.375, moderate: 1.55, high: 1.725 };
+const SOURCE_LABEL = {
+  garmin: 'из Garmin · обновляется ежедневно по часам',
+  apple_health: 'из Apple Health · обновляется ежедневно с часов / телефона',
+  manual: 'формула Mifflin-St Jeor по твоим параметрам',
+  default: 'оценка по умолчанию · введи параметры для точности',
+};
+let bmrState = null;  // last fetched /api/profile/bmr
+
+async function loadBmr() {
+  try {
+    const r = await fetch('/api/profile/bmr', { headers: { Authorization: 'tma ' + tg.initData } });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    bmrState = await r.json();
+    renderBmrSummary();
+    populateBmrForm();
+  } catch (e) {
+    console.error('loadBmr failed', e);
+    document.getElementById('bmr-value').textContent = '—';
+    document.getElementById('bmr-source-text').textContent = 'не удалось загрузить';
+  }
 }
 
-function calcBMR() {
-  const h = parseFloat(document.getElementById('calc-height').value);
-  const w = parseFloat(document.getElementById('calc-weight').value);
-  const a = parseFloat(document.getElementById('calc-age').value);
-  if (!h || !w || !a) { alert('Введите рост, вес и возраст'); return; }
-  // Mifflin-St Jeor for male (BMR only, no activity multiplier)
-  const bmr = Math.round(10 * w + 6.25 * h - 5 * a + 5);
-  document.getElementById('bmr-input').value = bmr;
-  document.getElementById('calc-panel').classList.remove('open');
+function renderBmrSummary() {
+  const r = bmrState?.resolved;
+  const valEl = document.getElementById('bmr-value');
+  const subEl = document.getElementById('bmr-source-text');
+  if (!r || !r.bmr) {
+    valEl.textContent = '—';
+    subEl.textContent = SOURCE_LABEL.default;
+    return;
+  }
+  valEl.textContent = `${r.bmr} ккал`;
+  subEl.textContent = SOURCE_LABEL[r.source] || '';
+}
+
+function populateBmrForm() {
+  if (!bmrState) return;
+  const sel = bmrState.selected_source || 'auto';
+  document.getElementById('bmr-mode-auto').checked = (sel === 'auto');
+  document.getElementById('bmr-mode-manual').checked = (sel === 'manual');
+
+  // Auto info block — show what's available
+  const av = bmrState.available;
+  const r = bmrState.resolved;
+  const lines = [];
+  if (av.garmin) {
+    const tag = (r.source === 'garmin') ? '✓ используется' : 'доступно';
+    lines.push(`<div><strong>Garmin</strong> — ${tag}${r.source === 'garmin' && r.bmr ? ` · ${r.bmr} ккал` : ''}</div>`);
+  }
+  if (av.apple_health) {
+    const tag = (r.source === 'apple_health') ? '✓ используется' : (av.garmin ? 'резерв' : 'доступно');
+    lines.push(`<div><strong>Apple Health</strong> — ${tag}${r.source === 'apple_health' && r.bmr ? ` · ${r.bmr} ккал` : ''}</div>`);
+  }
+  if (!av.garmin && !av.apple_health) {
+    lines.push(`<div style="color:#8e8e93">Нет данных с часов. Используется среднее по умолчанию (~2150 ккал).</div>`);
+    lines.push(`<div style="color:#8e8e93; margin-top:6px">Подключи Garmin или Apple Health, либо переключи на «Ручной» и введи параметры.</div>`);
+  }
+  document.getElementById('bmr-auto-info').innerHTML = lines.join('');
+
+  // Manual form prefill
+  const m = bmrState.manual || {};
+  if (m.sex) {
+    document.querySelectorAll('input[name="bmr-sex"]').forEach(el => el.checked = (el.value === m.sex));
+  }
+  if (m.age) document.getElementById('bmr-age').value = m.age;
+  if (m.height_cm) document.getElementById('bmr-height').value = m.height_cm;
+  if (m.weight_kg) document.getElementById('bmr-weight').value = m.weight_kg;
+  if (m.activity_level) document.getElementById('bmr-activity').value = m.activity_level;
+
+  toggleBmrModeUI();
+  recomputeBmrPreview();
+}
+
+function toggleBmrPanel() {
+  const panel = document.getElementById('bmr-panel');
+  const chevron = document.getElementById('bmr-chevron');
+  panel.classList.toggle('open');
+  chevron.textContent = panel.classList.contains('open') ? '⌄' : '›';
+}
+
+function toggleBmrModeUI() {
+  const mode = document.querySelector('input[name="bmr-mode"]:checked')?.value || 'auto';
+  document.getElementById('bmr-auto-info').style.display = (mode === 'auto') ? 'block' : 'none';
+  document.getElementById('bmr-manual-form').style.display = (mode === 'manual') ? 'block' : 'none';
+}
+
+function recomputeBmrPreview() {
+  const sex = document.querySelector('input[name="bmr-sex"]:checked')?.value || 'male';
+  const age = parseFloat(document.getElementById('bmr-age').value);
+  const h = parseFloat(document.getElementById('bmr-height').value);
+  const w = parseFloat(document.getElementById('bmr-weight').value);
+  const act = document.getElementById('bmr-activity').value || 'light';
+  const preview = document.getElementById('bmr-preview');
+  if (!age || !h || !w) {
+    preview.innerHTML = '<div style="color:#8e8e93">Заполни все поля для расчёта</div>';
+    return;
+  }
+  const base = 10 * w + 6.25 * h - 5 * age;
+  const bmr = Math.round(sex === 'male' ? base + 5 : base - 161);
+  const tdee = Math.round(bmr * PAL[act]);
+  const activity = tdee - bmr;
+  preview.innerHTML = `
+    <span class="bmr-big">${bmr} ккал</span>
+    <span class="bmr-sub">базовый расход (BMR)</span>
+    <div style="margin-top:8px; font-size:13px">
+      🏃 +${activity} ккал — активность (×${PAL[act]})<br>
+      🔥 <strong>${tdee} ккал/день</strong> — общий расход (TDEE)
+    </div>
+  `;
+}
+
+async function saveBmrManual() {
+  const sex = document.querySelector('input[name="bmr-sex"]:checked')?.value || 'male';
+  const age = parseInt(document.getElementById('bmr-age').value);
+  const height_cm = parseInt(document.getElementById('bmr-height').value);
+  const weight_kg = parseFloat(document.getElementById('bmr-weight').value);
+  const activity_level = document.getElementById('bmr-activity').value;
+  if (!age || !height_cm || !weight_kg) { alert('Заполни возраст, рост и вес'); return; }
+  const btn = document.getElementById('bmr-save-btn');
+  btn.disabled = true; btn.textContent = '...';
+  try {
+    const r = await fetch('/api/profile/bmr', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'tma ' + tg.initData },
+      body: JSON.stringify({ source: 'manual', manual: { sex, age, height_cm, weight_kg, activity_level } }),
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    btn.textContent = '✓ Сохранено';
+    setTimeout(() => { btn.textContent = '💾 Сохранить'; btn.disabled = false; }, 1200);
+    await loadBmr();
+  } catch (e) {
+    console.error(e);
+    btn.textContent = '⚠ Ошибка'; btn.disabled = false;
+  }
+}
+
+async function saveBmrSourceAuto() {
+  try {
+    await fetch('/api/profile/bmr', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'tma ' + tg.initData },
+      body: JSON.stringify({ source: 'auto' }),
+    });
+    await loadBmr();
+  } catch (e) { console.error(e); }
 }
 
 // ── Reminder time toggle ────────────────────────────────────────────────────

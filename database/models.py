@@ -229,7 +229,14 @@ class UserSettings(Base):
         BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), primary_key=True
     )
     show_calorie_budget_bar: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    # BMR resolution mode:
+    #   'auto'   — use Garmin → Apple Health → default (live data from wearables)
+    #   'manual' — use bmr_override + activity_avg_override (user-entered, Mifflin-St Jeor)
+    bmr_source: Mapped[str] = mapped_column(String(10), default="auto", server_default="auto")
     bmr_override: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    activity_avg_override: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # Activity level for Mifflin-St Jeor PAL multiplier (sedentary/light/moderate/high)
+    activity_level: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     target_weight_kg: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     target_weight_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     # Calorie goal: signed % relative to maintenance.

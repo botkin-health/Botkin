@@ -28,13 +28,22 @@ def compute_goals(user_id: int, for_date: Optional[date_type] = None) -> dict:
             "fiber": FIBER_GOAL_G,
             "calorie_goal_pct": goal_pct,
         }
+    bmr = budget.get("bmr_avg")
+    activity_avg = budget.get("activity_avg")
+    # tdee_avg is the canonical "total burned" from Garmin (matches Garmin app exactly).
+    # Falls back to bmr+activity for resilience, but in normal operation
+    # we trust Garmin's total_calories field as source of truth.
+    tdee = budget.get("tdee_avg") or ((bmr or 0) + (activity_avg or 0) if bmr and activity_avg else None)
+    # deficit_pct is the magnitude (always positive for display): -15 → 15, +10 → -10 (surplus)
     return {
         "kcal": int(kcal),
         "protein": round(kcal * PROTEIN_SHARE / 4),
         "fats": round(kcal * FATS_SHARE / 9),
         "carbs": round(kcal * CARBS_SHARE / 4),
         "fiber": FIBER_GOAL_G,
-        "bmr": budget.get("bmr_avg"),
-        "activity_avg": budget.get("activity_avg"),
+        "bmr": bmr,
+        "activity_avg": activity_avg,
+        "tdee": tdee,
         "calorie_goal_pct": goal_pct,
+        "deficit_pct": goal_pct,  # signed; mini-app formats sign itself
     }

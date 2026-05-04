@@ -1,0 +1,202 @@
+"""Profile API — BMR (Basal Metabolic Rate) settings.
+
+Three modes:
+  • Garmin / Apple Health (auto): live from wearable; bot shows source badge.
+  • Manual (Mifflin-St Jeor): user enters height / weight / age / sex / activity.
+  • Default fallback: 2150 ккал when nothing else available.
+
+Endpoints:
+  GET  /api/profile/bmr — resolved value + source + manual params for the form
+  POST /api/profile/bmr — save manual override or switch back to auto
+"""
+
+from datetime import date as date_cls, timedelta
+from typing import Optional, Literal
+
+from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel
+
+from webhook.tg_auth import get_tg_user
+
+router = APIRouter()
+
+
+# ── Mifflin-St Jeor + PAL ────────────────────────────────────────────────────
+
+PAL_MULTIPLIERS = {
+    "sedentary": 1.2,  # офис, минимум движения
+    "light": 1.375,  # бытовая ходьба, без спорта
+    "moderate": 1.55,  # 3–5 тренировок/неделя
+    "high": 1.725,  # ежедневные тренировки
+}
+
+
+def mifflin_st_jeor(sex: str, weight_kg: float, height_cm: float, age: int) -> int:
+    """Returns BMR in kcal/day. sex in {'male','female'}."""
+    base = 10 * weight_kg + 6.25 * height_cm - 5 * age
+    return round(base + 5) if sex == "male" else round(base - 161)
+
+
+# ── Schemas ──────────────────────────────────────────────────────────────────
+
+
+class BmrManualPayload(BaseModel):
+    sex: Literal["male", "female"]
+    height_cm: int
+    weight_kg: float
+    age: int
+    activity_level: Literal["sedentary", "light", "moderate", "high"]
+
+
+class BmrSettingsPayload(BaseModel):
+    source: Literal["auto", "manual"]
+    manual: Optional[BmrManualPayload] = None  # required if source == 'manual'
+
+
+# ── GET ──────────────────────────────────────────────────────────────────────
+
+
+@router.get("/api/profile/bmr")
+async def get_bmr(tg_user: dict = Depends(get_tg_user)):
+    """Returns current resolved BMR + the source + form prefill values."""
+    from database import SessionLocal
+    from database.crud import (
+        get_user_by_telegram_id,
+        get_user_settings,
+        get_latest_weight,
+        get_activities_by_period,
+    )
+    from core.health.caloric_budget import get_daily_budget
+
+    user_id = tg_user.get("id")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="No user id in initData")
+
+    db = SessionLocal()
+    try:
+        user = get_user_by_telegram_id(db, user_id)
+        s = get_user_settings(db, user_id)
+
+        # Resolved current values (from caloric_budget — same logic as mini-app banner)
+        budget = get_daily_budget(user_id=user_id)
+        resolved_source = budget.get("bmr_source") or "default"
+        resolved_bmr = budget.get("bmr_avg")
+        resolved_tdee = budget.get("tdee_avg")
+        resolved_activity = budget.get("activity_avg")
+
+        # What sources are *available* (for showing user's options)
+        today = date_cls.today()
+        rows = get_activities_by_period(db, user_id, today - timedelta(days=14), today)
+        garmin_available = any(r.source and "garmin" in r.source.lower() and r.total_calories for r in rows)
+        apple_available = any(
+            r.source
+            and "apple" in r.source.lower()
+            and (r.bmr_calories or (r.raw_data or {}).get("apple_basal_energy_kcal"))
+            for r in rows
+        )
+
+        # Form prefill — use existing values, or sensible defaults from User profile
+        latest_weight = get_latest_weight(db, user_id)
+        weight_kg = latest_weight.weight if latest_weight else None
+        height_cm = user.height_cm if user else None
+        sex = user.sex if user else "male"
+        age = None
+        if user and user.birth_date:
+            today_d = date_cls.today()
+            age = (
+                today_d.year
+                - user.birth_date.year
+                - ((today_d.month, today_d.day) < (user.birth_date.month, user.birth_date.day))
+            )
+        activity_level = (s.activity_level if s else None) or "light"
+
+        return {
+            "selected_source": (s.bmr_source if s else "auto"),  # 'auto' | 'manual'
+            "resolved": {
+                "source": resolved_source,  # 'garmin' | 'apple_health' | 'manual' | 'default'
+                "bmr": resolved_bmr,
+                "activity": resolved_activity,
+                "tdee": resolved_tdee,
+            },
+            "available": {
+                "garmin": garmin_available,
+                "apple_health": apple_available,
+            },
+            "manual": {
+                "sex": sex,
+                "height_cm": height_cm,
+                "weight_kg": weight_kg,
+                "age": age,
+                "activity_level": activity_level,
+                "bmr_override": s.bmr_override if s else None,
+                "activity_avg_override": s.activity_avg_override if s else None,
+            },
+        }
+    finally:
+        db.close()
+
+
+# ── POST ─────────────────────────────────────────────────────────────────────
+
+
+@router.post("/api/profile/bmr")
+async def set_bmr(payload: BmrSettingsPayload, tg_user: dict = Depends(get_tg_user)):
+    """Save BMR source preference. For 'manual' — also save Mifflin-St Jeor params + result."""
+    from database import SessionLocal
+    from database.crud import upsert_user_settings, get_user_by_telegram_id
+
+    user_id = tg_user.get("id")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="No user id in initData")
+
+    db = SessionLocal()
+    try:
+        if payload.source == "auto":
+            # Switch to auto: clear manual override (so caloric_budget falls back to wearables).
+            upsert_user_settings(
+                db,
+                user_id=user_id,
+                bmr_source="auto",
+                bmr_override=None,
+                activity_avg_override=None,
+            )
+            return {"status": "ok", "source": "auto"}
+
+        # source == 'manual'
+        if payload.manual is None:
+            raise HTTPException(status_code=400, detail="manual params required when source='manual'")
+        m = payload.manual
+
+        # Persist sex/height/age in User table (canonical home for biometrics)
+        user = get_user_by_telegram_id(db, user_id)
+        if user:
+            user.sex = m.sex
+            user.height_cm = m.height_cm
+            # Convert age → birth_date (approximate: Jan 1 of birth year)
+            today_d = date_cls.today()
+            user.birth_date = date_cls(today_d.year - m.age, 1, 1)
+            db.commit()
+
+        bmr = mifflin_st_jeor(m.sex, m.weight_kg, m.height_cm, m.age)
+        pal = PAL_MULTIPLIERS[m.activity_level]
+        tdee = round(bmr * pal)
+        activity_avg = tdee - bmr
+
+        upsert_user_settings(
+            db,
+            user_id=user_id,
+            bmr_source="manual",
+            bmr_override=bmr,
+            activity_avg_override=activity_avg,
+            activity_level=m.activity_level,
+        )
+
+        return {
+            "status": "ok",
+            "source": "manual",
+            "bmr": bmr,
+            "tdee": tdee,
+            "activity": activity_avg,
+        }
+    finally:
+        db.close()
