@@ -13,7 +13,7 @@ This module provides database operations for all tables:
 from datetime import datetime, date, time, timedelta
 from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from sqlalchemy import desc, text
 import logging
 
 from database.models import (
@@ -779,3 +779,20 @@ def get_recent_product_names(db: Session, user_id: int, limit: int = 15, lookbac
         if len(by_name) >= limit:
             break
     return list(by_name.values())
+
+
+# ==================== RLS HELPERS ====================
+
+
+def set_user_session_var(db: Session, user_id: int) -> None:
+    """Set app.user_id session variable for RLS filtering.
+
+    Must be called at the start of every hv_app-role request.
+    Use SET LOCAL inside a transaction so it auto-clears at commit/rollback.
+
+    Example:
+        with db.begin():
+            set_user_session_var(db, user_id=895655)
+            logs = db.execute(text("SELECT * FROM nutrition_log")).fetchall()
+    """
+    db.execute(text("SET LOCAL app.user_id = :uid"), {"uid": str(user_id)})
