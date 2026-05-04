@@ -1587,9 +1587,9 @@ def generate_dashboard_html(db: Session, user_id: int) -> str:
     if user:
         available = get_available_blocks(db, user)
         caps = payload["meta"]["capabilities"]
-        # AND-merge: only show a block if BOTH the window data check AND the
-        # lifetime check agree — this prevents empty-window false-positives
-        # while preserving correct True values for existing users.
+        # OR-merge: show a block if EITHER the window data check OR the
+        # lifetime check is True — this preserves correct True values for
+        # existing users even when the current window has no data.
         caps["has_weight"] = caps["has_weight"] or available["body"]
         caps["has_garmin"] = caps["has_garmin"] or available["sport"]
         caps["has_activity"] = caps["has_activity"] or available["sport"]
