@@ -171,12 +171,16 @@ ALTER TABLE users ADD COLUMN encrypted_anthropic_key TEXT NULL;
 - Ника: `cohort='family', pack_name='female-cycle'`
 - Андрей: `cohort='early_user', pack_name='cardiac'`
 
-### 5.2 Row-Level Security
+### 5.2 Row-Level Security (session-variable паттерн)
+
+Исправлено vs. ранний черновик: используем одну app-роль + session variable, не роль-на-пользователя. Контейнеры не ходят в PG напрямую (Tools API = HTTP α), поэтому PG-identity нужна только FastAPI'ю — а ему проще через `SET LOCAL app.user_id = X` per-request.
 
 ```sql
--- Создать роль для каждого активного пользователя
-CREATE ROLE hv_user_895655 LOGIN PASSWORD '<random>';
--- ... аналогично для каждого
+-- Создать app-роль (один раз)
+CREATE ROLE hv_app LOGIN PASSWORD '<random_from_env>';
+GRANT CONNECT ON DATABASE healthvault TO hv_app;
+GRANT USAGE ON SCHEMA public TO hv_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO hv_app;
 
 -- Включить RLS на data-таблицах
 ALTER TABLE nutrition_log ENABLE ROW LEVEL SECURITY;
@@ -186,13 +190,22 @@ ALTER TABLE activity_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE blood_pressure_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;
 
--- Политика: видишь только свои строки (берём user_id из имени роли)
+-- Политика: видишь только свои строки (берём user_id из session variable)
 CREATE POLICY user_isolation ON nutrition_log
-  USING (user_id = (substring(current_user, 9))::bigint);
+  FOR ALL TO hv_app
+  USING (user_id = current_setting('app.user_id', TRUE)::bigint);
 -- ... аналогично для всех таблиц
 ```
 
-Admin-роль `healthvault` (текущая) — не имеет RLS-ограничений, но любой её SELECT/UPDATE логируется в audit_log.
+**Per-request паттерн в FastAPI:**
+```python
+async def with_user_context(db: Session, user_id: int):
+    db.execute(text("SET LOCAL app.user_id = :uid"), {"uid": user_id})
+    # все последующие SELECT/UPDATE/INSERT в этой транзакции
+    # фильтруются RLS по user_id
+```
+
+Admin-роль `healthvault` (текущая, superuser) — обходит RLS, но любой её SELECT/UPDATE логируется в audit_log.
 
 ### 5.3 Audit log
 
