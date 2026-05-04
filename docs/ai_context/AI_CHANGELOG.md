@@ -7,6 +7,29 @@
 
 ---
 
+## 2026-05-04 — Sprint 1a Tasks 5-7: Agent Tools API (8 endpoints for NanoClaw containers)
+
+**Задача:** REST API для агентских контейнеров NanoClaw — запись еды, добавок, давления; чтение истории питания, профиля, дашборда метрик.
+
+**Что сделано:**
+1. `telegram-bot/webhook/agent_tools_api.py` (новый) — 8 эндпоинтов под префиксом `/api/agent`, JWT-аутентификация через `get_agent_user`:
+   - `POST /log_meal_text` — парсит текстовое описание еды (fallback-stub если парсер недоступен), пишет в `nutrition_log`
+   - `POST /log_supplement` — пишет запись в `supplements_log`
+   - `POST /log_bp` — raw SQL upsert в `blood_pressure_logs`
+   - `POST /regenerate_health_token` — генерирует новый `hvt_{uid}_{hex32}` токен, сохраняет в `users`
+   - `GET /recent_meals?days=N` — последние N дней из `nutrition_log` (1–90 дней)
+   - `GET /kb_value?key=<path>` — dot-notation доступ к `knowledge_base.json` (только cohort=owner, остальным stub)
+   - `GET /dashboard_summary` — агрегат за 7 дней: шаги, пульс, ккал сожжённых и потреблённых, последний вес
+   - `GET /user_profile` — нечувствительный профиль пользователя
+2. `telegram-bot/webhook/apple_health.py` — добавлен `include_router(agent_tools_router)`
+3. `tests/test_agent_tools_api.py` (новый) — 16 unit-тестов на TestClient + in-memory SQLite, все PASS
+
+**Файлы:** `telegram-bot/webhook/agent_tools_api.py`, `telegram-bot/webhook/apple_health.py`, `tests/test_agent_tools_api.py`.
+
+**Коммит:** `763034d`
+
+---
+
 ## 2026-05-04 — Sprint 1a Task 3: audit_log table + DML trigger on admin access
 
 **Задача:** Аудит-трейл для DML-операций admin-роли (`healthvault`) на чувствительных таблицах. PostgreSQL не поддерживает SELECT-триггеры, поэтому SELECT-логирование через `log_statement='all'` на уровне роли (идёт в PG log-файл).
