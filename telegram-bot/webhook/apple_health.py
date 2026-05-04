@@ -754,12 +754,12 @@ if _webapp_dir.exists():
 
 # ── Telegram Bot Webhook ──────────────────────────────────────────────────────
 
-from aiogram.types import Update as TgUpdate  # noqa: E402
-
 
 @app.post("/telegram/webhook")
 async def telegram_webhook(request: Request):
     """Receives Telegram updates and feeds them to the aiogram dispatcher."""
+    from aiogram.types import Update as TgUpdate  # lazy import — avoids breaking tests
+
     if _tg_bot is None or _tg_dp is None:
         logger.error("Telegram dispatcher not initialised — update dropped")
         return {"status": "not_ready"}
