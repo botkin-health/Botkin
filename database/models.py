@@ -76,6 +76,15 @@ class User(Base):
     avg_active_calories: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # Средние активные калории
     target_weight_kg: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # Целевой вес для расчёта макросов
 
+    # Multi-user cohort / container / pack / BYOK fields (Sprint 1a)
+    cohort: Mapped[str] = mapped_column(String(20), default="external", server_default="external")
+    container_id: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    container_port: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    pack_name: Mapped[str] = mapped_column(String(50), default="generic", server_default="generic")
+    jwt_secret: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    encrypted_openai_key: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    encrypted_anthropic_key: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
     # Relationships
     nutrition_logs: Mapped[List["NutritionLog"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     weights: Mapped[List["Weight"]] = relationship(back_populates="user", cascade="all, delete-orphan")
