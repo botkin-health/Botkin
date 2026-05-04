@@ -39,24 +39,26 @@ def test_unknown_user_goes_to_onboarding(MockSession, mock_onboarding):
 def test_known_user_with_container_gets_forwarded(MockSession, mock_forward):
     db = MagicMock()
     MockSession.return_value = db
-    user = MagicMock(telegram_id=895655, container_id="nc-sasha", container_port=8001, is_active=True)
+    user = MagicMock(telegram_id=111111111, container_id="nc-sasha", container_port=8001, is_active=True)
     db.query.return_value.filter_by.return_value.first.return_value = user
 
-    r = client.post("/telegram/webhook", json=_tg_payload(from_id=895655, text="выпил витамины"))
+    r = client.post("/telegram/webhook", json=_tg_payload(from_id=111111111, text="выпил витамины"))
     assert r.status_code == 200
     mock_forward.assert_awaited_once()
 
 
+@patch("webhook.telegram_router.forward_to_container", new_callable=AsyncMock)
 @patch("webhook.telegram_router.SessionLocal")
-def test_photo_returns_ok_without_forward(MockSession):
+def test_photo_returns_ok_without_forward(MockSession, mock_forward):
     db = MagicMock()
     MockSession.return_value = db
-    user = MagicMock(telegram_id=895655, container_id="nc-sasha", container_port=8001, is_active=True)
+    user = MagicMock(telegram_id=111111111, container_id="nc-sasha", container_port=8001, is_active=True)
     db.query.return_value.filter_by.return_value.first.return_value = user
 
-    r = client.post("/telegram/webhook", json=_tg_payload(from_id=895655, has_photo=True))
+    r = client.post("/telegram/webhook", json=_tg_payload(from_id=111111111, has_photo=True))
     assert r.status_code == 200
     # Photo should NOT be forwarded to container (handled by legacy aiogram)
+    mock_forward.assert_not_awaited()
 
 
 @patch("webhook.telegram_router.SessionLocal")

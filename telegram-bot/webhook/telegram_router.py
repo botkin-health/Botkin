@@ -83,7 +83,7 @@ async def telegram_webhook(payload: dict):
 
         # Photo or voice — handled by legacy aiogram long-poll process
         if "photo" in msg or "voice" in msg:
-            logger.info(f"Media message from {from_id} — handled by legacy bot")
+            logger.info("Media message received — handled by legacy bot")
             return {"status": "ok", "action": "legacy_media"}
 
         # New user — start onboarding wizard
