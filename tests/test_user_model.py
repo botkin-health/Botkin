@@ -29,7 +29,10 @@ def db():
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
     Session = sessionmaker(bind=engine)
-    yield Session()
+    session = Session()
+    yield session
+    session.close()
+    Base.metadata.drop_all(bind=engine)
 
 
 def test_user_has_cohort_field(db):
