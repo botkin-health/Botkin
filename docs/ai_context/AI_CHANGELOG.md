@@ -7,6 +7,26 @@
 
 ---
 
+## 2026-05-04 — Sprint 1a Task 8: Telegram Webhook Router
+
+**Задача:** Маршрутизатор входящих Telegram-апдейтов через FastAPI webhook.
+
+**Что сделано:**
+1. `telegram-bot/webhook/telegram_router.py` (новый) — `POST /telegram/webhook`:
+   - Новые пользователи (нет в БД) → `handle_onboarding()`
+   - Пользователи с контейнером (`container_id` + `container_port`) → `forward_to_container()` (POST на `/agent/process` контейнера)
+   - Пользователи без контейнера (Sprint 1a state) → no-op, 200 OK
+   - Фото/голосовые → no-op (обрабатывает legacy aiogram long-poll)
+   - Fallback при недоступности контейнера — отправляет сообщение пользователю через Bot API
+2. `telegram-bot/webhook/apple_health.py` — добавлен `include_router(telegram_router)`
+3. `tests/integration/test_telegram_router.py` (новый) — 4 теста на TestClient + mock SessionLocal, все PASS
+
+**Файлы:** `telegram-bot/webhook/telegram_router.py`, `telegram-bot/webhook/apple_health.py`, `tests/integration/test_telegram_router.py`.
+
+**Коммит:** `4977ed8`
+
+---
+
 ## 2026-05-04 — Sprint 1a Tasks 5-7: Agent Tools API (8 endpoints for NanoClaw containers)
 
 **Задача:** REST API для агентских контейнеров NanoClaw — запись еды, добавок, давления; чтение истории питания, профиля, дашборда метрик.
