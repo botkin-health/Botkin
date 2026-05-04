@@ -7,6 +7,34 @@
 
 ---
 
+## 2026-05-04 — Sprint 1a Task 12: Smoke Tests & Regression Verification
+
+**Задача:** Запустить все smoke-тесты Sprint 1a, исправить найденные баги, подтвердить что система работает end-to-end.
+
+**Результаты smoke-тестов:**
+1. ✅ `/health` endpoint — `{"status":"ok","service":"apple_health_webhook"}`
+2. ✅ `/telegram/webhook` — `{"status":"ok","action":"onboarding"}` (после фикса)
+3. ✅ `/api/agent/user_profile` с JWT — возвращает cohort=owner, pack=bariatric
+4. ✅ `/apple_health_v2` HAE webhook — 200 OK, steps=1234 записаны
+5. ✅ Dashboard `/mc/<share_token>` — HTML без ошибок
+6. ✅ Unit-тесты: **349 passed**, 0 failures (5 aiogram-зависимых тестов запускаются только в контейнере)
+7. ✅ Integration-тесты: **5/5 passed** (RLS-изоляция, audit_log trigger)
+
+**Баги найдены и исправлены:**
+- `telegram_router.py` — `handle_onboarding()` падал с `ModuleNotFoundError: No module named 'handlers.onboarding'`. Исправлено: lazy import с graceful fallback (Sprint 1b реализует wizard).
+- `apple_health.py` — `from aiogram.types import Update` на top-level ломал импорт в тестах. Исправлено: moved inside function (lazy import).
+- `tests/test_nutrition_goals.py` — тест не включал новые поля `tdee` и `deficit_pct` в expected dict. Исправлено.
+- `tests/test_nutrition_api.py::FakeActRow` — не имел атрибутов `total_calories`/`bmr_calories`, код упал при AttributeError. Исправлено: добавлены `None` атрибуты в mock.
+
+**Файлы:**
+- `telegram-bot/webhook/telegram_router.py` — lazy onboarding import
+- `telegram-bot/webhook/apple_health.py` — lazy aiogram import
+- `tests/test_nutrition_goals.py` — updated expected dict
+- `tests/test_nutrition_api.py` — FakeActRow + total_calories/bmr_calories attrs
+- `todo.md` — Sprint 1a отмечен как выполненный
+
+---
+
 ## 2026-05-04 — Sprint 1a Task 11: Telegram Webhook Registration & Deploy
 
 **Задача:** Зарегистрировать Telegram webhook для `@HealthVault_bot` и создать deploy-доку Sprint 1a.

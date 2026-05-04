@@ -31,7 +31,9 @@ def test_compute_goals_full_budget():
         "fiber": 30,
         "bmr": 1650,
         "activity_avg": 350,
+        "tdee": 2000,  # bmr(1650) + activity_avg(350) since tdee_avg not in budget
         "calorie_goal_pct": -15,
+        "deficit_pct": -15,
     }
 
 
