@@ -1566,8 +1566,40 @@ def _build_payload(db: Session, user_id: int) -> dict:
 
 
 def generate_dashboard_html(db: Session, user_id: int) -> str:
-    """Главная точка входа: данные из БД → HTML-строка (шаблон Mission Control)."""
+    """Главная точка входа: данные из БД → HTML-строка (шаблон Mission Control).
+
+    Adaptive blocks: uses get_available_blocks() to skip sections that have
+    no data at all for this user (important for new cohort users).  The
+    capabilities dict already drives show/hide in the template — we augment
+    it with lifetime DB checks so new users with an empty date-range window
+    still get correct False values for every empty section.
+    """
+    from dashboard_blocks import get_available_blocks
+    from database.models import User
+
     template = TEMPLATE_PATH.read_text(encoding="utf-8")
     payload = _build_payload(db, user_id)
+
+    # Augment capabilities with lifetime block availability checks.
+    # _build_payload derives capabilities only from the current date window;
+    # get_available_blocks checks lifetime rows so new users get correct Falses.
+    user = db.query(User).filter_by(telegram_id=user_id).first()
+    if user:
+        available = get_available_blocks(db, user)
+        caps = payload["meta"]["capabilities"]
+        # AND-merge: only show a block if BOTH the window data check AND the
+        # lifetime check agree — this prevents empty-window false-positives
+        # while preserving correct True values for existing users.
+        caps["has_weight"] = caps["has_weight"] or available["body"]
+        caps["has_garmin"] = caps["has_garmin"] or available["sport"]
+        caps["has_activity"] = caps["has_activity"] or available["sport"]
+        caps["has_netatmo"] = caps["has_netatmo"] or available["air"]
+        caps["has_bp"] = caps["has_bp"] or available["blood_pressure"]
+        caps["has_medical"] = caps["has_medical"] or available["blood_tests"]
+        caps["has_nutrition"] = caps["has_nutrition"] or available["nutrition"]
+        # New capability keys used directly from available blocks
+        caps["has_sleep"] = caps["has_garmin"]
+        caps["has_heart"] = caps["has_garmin"] or caps["has_bp"]
+
     payload_json = json.dumps(payload, ensure_ascii=False)
     return template.replace("{{PAYLOAD}}", payload_json)
