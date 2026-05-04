@@ -43,10 +43,19 @@ async def forward_to_container(container_id: str, port: int, payload: dict) -> N
 
 
 async def handle_onboarding(payload: dict) -> None:
-    """Dispatch new user to the onboarding wizard."""
-    from handlers.onboarding import process_onboarding_message
+    """Dispatch new user to the onboarding wizard.
 
-    await process_onboarding_message(payload)
+    Sprint 1a stub: onboarding wizard (handlers.onboarding) is not yet implemented.
+    Logs the new user and returns gracefully. Sprint 1b will add the full wizard.
+    """
+    try:
+        from handlers.onboarding import process_onboarding_message
+
+        await process_onboarding_message(payload)
+    except ModuleNotFoundError:
+        chat_id = (payload.get("message") or {}).get("chat", {}).get("id")
+        from_id = (payload.get("message") or {}).get("from", {}).get("id")
+        logger.info(f"Onboarding stub: new user {from_id} in chat {chat_id} — wizard not yet implemented (Sprint 1b)")
 
 
 async def _send_fallback(chat_id: int, text: str) -> None:

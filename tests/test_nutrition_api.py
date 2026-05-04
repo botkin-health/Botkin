@@ -406,6 +406,9 @@ def test_goals_activity_today_uses_db_for_past(client, api_db, monkeypatch):
     from webhook import nutrition_api
 
     class FakeActRow:
+        # Code first tries total_calories - bmr_calories; if missing, falls back to active_calories
+        total_calories = None
+        bmr_calories = None
         active_calories = 312.0
 
     def should_not_be_called(*args, **kwargs):
