@@ -257,31 +257,34 @@ async def main():
         BotCommand(command="help", description="Помощь"),
     ]
 
+    # Register dispatcher in the webhook server (for /telegram/webhook endpoint)
     try:
-        # Удаляем вебхук, если он был установлен (не сбрасываем апдейты, чтобы не терять сообщения)
-        await bot.delete_webhook(drop_pending_updates=False)
-        await bot.set_my_commands(commands, scope=BotCommandScopeAllPrivateChats())
-        logger.info("✅ Команды бота установлены")
-    except Exception as e:
-        logger.error(f"❌ Не удалось установить команды: {e}")
+        from webhook.apple_health import set_telegram_dispatcher, start_webhook_server
 
-    # Start polling + Apple Health webhook (параллельно)
-    try:
-        from webhook.apple_health import start_webhook_server
-
+        set_telegram_dispatcher(bot, dp)
         webhook_enabled = True
+        logger.info("✅ Telegram dispatcher registered in webhook server")
     except ImportError:
         webhook_enabled = False
         logger.warning("⚠️ Apple Health webhook не загружен (webhook/apple_health.py не найден)")
 
     try:
+        # Do NOT delete_webhook — Telegram delivers updates via /telegram/webhook.
+        # We only set bot commands here.
+        await bot.set_my_commands(commands, scope=BotCommandScopeAllPrivateChats())
+        logger.info("✅ Команды бота установлены")
+    except Exception as e:
+        logger.error(f"❌ Не удалось установить команды: {e}")
+
+    # Start FastAPI server (serves /telegram/webhook + /apple_health + /webapp).
+    # No polling — Telegram updates arrive via webhook.
+    try:
         if webhook_enabled:
-            logger.info("🌐 Запуск Apple Health webhook на порту 8080...")
-            await asyncio.gather(
-                dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types()),
-                start_webhook_server(),
-            )
+            logger.info("🌐 Запуск webhook-сервера на порту 8081...")
+            await start_webhook_server()
         else:
+            # Fallback: polling if FastAPI server not available
+            logger.warning("⚠️ Webhook-сервер не доступен, запускаем polling...")
             await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
     except Exception as e:
         error_msg = "❌ ⚠️ 🚨 HealthVault Tracker НЕ ЗАПУЩЕН!\n\n"
