@@ -70,6 +70,7 @@ class AppleHealthPayload(BaseModel):
     distance_walking_km: Optional[float] = None
     flights_climbed: Optional[int] = None
     active_energy_kcal: Optional[float] = None
+    basal_energy_kcal: Optional[float] = None  # Apple's RMR — used as BMR for non-Garmin users
 
     # Пульс
     resting_heart_rate: Optional[int] = None
@@ -135,7 +136,12 @@ async def receive_apple_health(
         sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
         from database import SessionLocal
-        from database.crud import create_or_update_activity, create_weight, get_user_by_health_token
+        from database.crud import (
+            create_or_update_activity,
+            create_weight,
+            get_user_by_health_token,
+            get_activity_by_date,
+        )
 
         # ── Resolve user ──────────────────────────────────────────────────────
         if APPLE_HEALTH_TOKEN and bearer_token == APPLE_HEALTH_TOKEN:
@@ -181,12 +187,33 @@ async def receive_apple_health(
             if payload.wrist_temperature is not None:
                 raw["wrist_temperature"] = payload.wrist_temperature
 
+            # NOTE: do NOT pass active_calories — Apple Health's "active energy" is
+            # computed differently than Garmin's and breaks the (total = bmr + active)
+            # invariant. Garmin remains the source of truth for the calories triple.
+            # Apple's value is preserved in raw_data for archival.
+            if payload.active_energy_kcal is not None:
+                raw = raw or {}
+                raw["apple_active_energy_kcal"] = payload.active_energy_kcal
+            if payload.basal_energy_kcal is not None:
+                raw = raw or {}
+                raw["apple_basal_energy_kcal"] = payload.basal_energy_kcal
+            # BMR (basal): write to bmr_calories ONLY if not yet set (Garmin > Apple priority).
+            # If Garmin already populated this row, do not overwrite.
+            existing_row = get_activity_by_date(db, target_user_id, record_date)
+            apple_bmr_for_db = (
+                payload.basal_energy_kcal
+                if (
+                    payload.basal_energy_kcal is not None
+                    and (existing_row is None or existing_row.bmr_calories is None)
+                )
+                else None
+            )
             activity = create_or_update_activity(
                 db=db,
                 user_id=target_user_id,
                 date=record_date,
                 steps=payload.steps,
-                active_calories=payload.active_energy_kcal,
+                bmr_calories=apple_bmr_for_db,
                 distance_km=payload.distance_walking_km,
                 heart_rate_avg=heart_rate,
                 source="apple_health_shortcut",
@@ -298,6 +325,8 @@ def _hae_to_daily_payloads(metrics: list[dict]) -> dict[str, AppleHealthPayload]
                 slot["flights_climbed"] = int(_hae_pick(rec, "qty", "Avg", default=0))
             elif name in ("active_energy", "active_energy_burned"):
                 slot["active_energy_kcal"] = float(_hae_pick(rec, "qty", "Avg", default=0))
+            elif name in ("basal_energy_burned", "resting_energy"):
+                slot["basal_energy_kcal"] = float(_hae_pick(rec, "qty", "Avg", default=0))
             elif name == "heart_rate":
                 if "Avg" in rec and rec["Avg"] is not None:
                     slot["heart_rate_avg"] = int(round(float(rec["Avg"])))
@@ -392,7 +421,7 @@ async def receive_apple_health_v2(
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
     from database import SessionLocal
-    from database.crud import create_or_update_activity, get_user_by_health_token
+    from database.crud import create_or_update_activity, get_user_by_health_token, get_activity_by_date
     from sqlalchemy import text as _text
 
     if APPLE_HEALTH_TOKEN and bearer_token == APPLE_HEALTH_TOKEN:
@@ -432,12 +461,30 @@ async def receive_apple_health_v2(
                 if v is not None:
                     raw_extra[k] = v
 
+            # See note above: Apple's active_energy_kcal is NOT written to active_calories.
+            # Stored in raw_data only — Garmin remains source of truth for calories triple.
+            if payload.active_energy_kcal is not None:
+                raw_extra = raw_extra or {}
+                raw_extra["apple_active_energy_kcal"] = payload.active_energy_kcal
+            if payload.basal_energy_kcal is not None:
+                raw_extra = raw_extra or {}
+                raw_extra["apple_basal_energy_kcal"] = payload.basal_energy_kcal
+            # Apple's basal → bmr_calories ONLY if Garmin hasn't populated it (Garmin > Apple).
+            existing_row_v2 = get_activity_by_date(db, target_user_id, record_date)
+            apple_bmr_v2 = (
+                payload.basal_energy_kcal
+                if (
+                    payload.basal_energy_kcal is not None
+                    and (existing_row_v2 is None or existing_row_v2.bmr_calories is None)
+                )
+                else None
+            )
             create_or_update_activity(
                 db=db,
                 user_id=target_user_id,
                 date=record_date,
                 steps=payload.steps,
-                active_calories=payload.active_energy_kcal,
+                bmr_calories=apple_bmr_v2,
                 distance_km=payload.distance_walking_km,
                 heart_rate_avg=heart_rate,
                 source="apple_health_v2",
@@ -543,7 +590,6 @@ async def get_settings(tg_user: dict = Depends(get_tg_user)):
 
     from database import SessionLocal
     from database.crud import get_user_settings
-    from core.health.supplements import DEFAULT_SUPPLEMENTS
 
     user_id = tg_user.get("id")
     if not user_id:
@@ -560,7 +606,7 @@ async def get_settings(tg_user: dict = Depends(get_tg_user)):
                 "target_weight_date": None,
                 "supplement_reminders_enabled": False,
                 "supplement_reminder_time": "08:00",
-                "supplements": DEFAULT_SUPPLEMENTS,
+                "supplements": [],  # new users start with empty list, not owner's supplements
             }
         return {
             "show_calorie_budget_bar": s.show_calorie_budget_bar,
@@ -640,6 +686,10 @@ app.include_router(supplements_router)
 from webhook.dashboard import router as dashboard_router
 
 app.include_router(dashboard_router)
+
+from webhook.profile_api import router as profile_router
+
+app.include_router(profile_router)
 
 
 # ── Static webapp ─────────────────────────────────────────────────────────────

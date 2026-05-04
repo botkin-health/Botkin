@@ -105,14 +105,20 @@ async def get_day(
         totals_day = _totals_to_wire(totals_raw)
         goals = compute_goals(user_id=user_id, for_date=for_date)
 
-        # Today's actual activity from Garmin (same logic as /day bot command)
+        # Today's actual activity. Compute as (total - bmr) for math consistency
+        # — DO NOT trust active_calories field directly (Apple Health may overwrite it).
         real_today = date_type.today()
         if for_date == real_today:
-            # sync_today_garmin has its own DB session + 15-min cache
+            # sync_today_garmin pulls fresh Garmin data (15-min cache). Returns active_calories,
+            # but for past days we recompute from total-bmr; for today we use this directly
+            # since Garmin sync just wrote consistent values.
             activity_today, _ = sync_today_garmin(user_id, for_date)
         else:
             act_row = get_activity_by_date(db, user_id, for_date)
-            activity_today = float(act_row.active_calories or 0) if act_row else None
+            if act_row and act_row.total_calories and act_row.bmr_calories:
+                activity_today = max(0, float(act_row.total_calories) - float(act_row.bmr_calories))
+            else:
+                activity_today = float(act_row.active_calories or 0) if act_row else None
         goals["activity_today"] = round(activity_today) if activity_today is not None else None
     finally:
         db.close()

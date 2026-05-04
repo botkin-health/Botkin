@@ -98,18 +98,35 @@
       ? `перебор · съедено ${consumed} из ${goal}`
       : `осталось · съедено ${consumed} из ${goal}`;
 
-    // Right column: BMR / activity / deficit (show only if data available)
+    // Right column: 3-line readout (no duplication with hero text).
+    //   Line 1: 💤 БМР {bmr}                   — base
+    //   Line 2: 🏃 {today} сег · {avg} ср      — actual vs average activity
+    //   Line 3: 🎯 −15% дефицит / поддержание / +N% профицит
+    // Goal in kcal is already visible in the hero ("съедено X из Y"), no need to repeat.
     let infoCol = '';
-    if (g.bmr || g.activity_today != null || g.activity_avg || g.deficit_pct) {
+    const bmr = g.bmr;
+    const actToday = g.activity_today;  // null if no Garmin sync for that day
+    const actAvg = g.activity_avg;       // 14-day average
+    const goalPct = g.deficit_pct ?? g.calorie_goal_pct;
+    if (bmr || actToday != null || actAvg || goalPct != null) {
       const lines = [];
-      if (g.bmr) lines.push(`💤 БМР ${g.bmr}`);
-      if (g.activity_today != null) {
-        const avgSuffix = g.activity_avg ? ` · ${g.activity_avg} ср.` : '';
-        lines.push(`🏃 ${g.activity_today} сег.${avgSuffix}`);
-      } else if (g.activity_avg) {
-        lines.push(`🏃 ${g.activity_avg} ккал`);
+      if (bmr) lines.push(`💤 БМР ${bmr}`);
+
+      // Activity line — show today + avg if both, else whichever is available.
+      if (actToday != null && actAvg) {
+        lines.push(`🏃 ${actToday} сег · ${actAvg} ср`);
+      } else if (actToday != null) {
+        lines.push(`🏃 ${actToday} сег`);
+      } else if (actAvg) {
+        lines.push(`🏃 ${actAvg} ср`);
       }
-      if (g.deficit_pct) lines.push(`🎯 −${g.deficit_pct}% дефицит`);
+
+      // Goal line — pure mode label, no kcal duplication.
+      if (goalPct != null) {
+        if (goalPct < 0) lines.push(`🎯 −${Math.abs(goalPct)}% дефицит`);
+        else if (goalPct > 0) lines.push(`🎯 +${goalPct}% профицит`);
+        else lines.push(`🎯 поддержание`);
+      }
       infoCol = `<div class="budget-info-col">${lines.join('<br>')}</div>`;
     }
 
