@@ -35,26 +35,61 @@ def get_daily_budget(
         has_garmin – True if Garmin 14-day average data was found
     """
     from database import SessionLocal
-    from database.crud import get_nutrition_totals_by_date, get_average_activity_stats
+    from database.crud import (
+        get_nutrition_totals_by_date,
+        get_average_activity_stats,
+        get_user_settings,
+        get_activities_by_period,
+    )
+    from datetime import timedelta
 
     today = for_date or date_type.today()
     db = SessionLocal()
     try:
-        # --- Burned: 14-day average total_calories (same source as /day command) ---
-        # Using average instead of today's partial Garmin sync to avoid mid-day discrepancies
-        avg_stats = get_average_activity_stats(db, user_id, days=14)
-        avg_total = avg_stats.get("total_calories") if avg_stats else None
-        if avg_total and avg_total > 1500:
-            total_burned = avg_total
-            has_garmin = True
+        s = get_user_settings(db, user_id)
+        bmr_source_setting = s.bmr_source if s and s.bmr_source else "auto"
+
+        # ── Resolve BMR + activity by source priority ──────────────────────────
+        # 'manual'    → user's Mifflin-St Jeor params (bmr_override + activity_avg_override)
+        # 'auto'      → Garmin (14-day avg) > Apple Health (14-day avg) > default
+        bmr_avg = None
+        total_avg = None
+        source_label = None  # 'garmin' | 'apple_health' | 'manual' | 'default'
+
+        if bmr_source_setting == "manual" and s and s.bmr_override:
+            bmr_avg = s.bmr_override
+            activity_avg_manual = s.activity_avg_override or 0
+            total_avg = bmr_avg + activity_avg_manual
+            source_label = "manual"
         else:
+            # Auto mode: try Garmin first (most accurate), then Apple Health.
+            avg_stats = get_average_activity_stats(db, user_id, days=14)
+            if avg_stats and avg_stats.get("total_calories", 0) > 1500:
+                # Garmin path — has full triple (bmr + active + total).
+                # Determine if data is from Garmin or Apple by checking source field
+                # of recent activity rows. Garmin pushes total_calories;
+                # Apple-only users have total_calories = NULL but bmr_calories filled.
+                start = today - timedelta(days=14)
+                rows = get_activities_by_period(db, user_id, start, today)
+                garmin_rows = [r for r in rows if r.source and "garmin" in r.source.lower() and r.total_calories]
+                apple_rows = [r for r in rows if r.source and "apple" in r.source.lower()]
+                if len(garmin_rows) >= len(apple_rows):
+                    source_label = "garmin"
+                else:
+                    source_label = "apple_health"
+                bmr_avg = round(avg_stats.get("bmr_calories", 0))
+                total_avg = round(avg_stats.get("total_calories", 0))
+
+        # ── Default fallback (no wearable, no manual setup) ─────────────────────
+        if not total_avg:
             total_burned = DEFAULT_TOTAL
+            source_label = source_label or "default"
             has_garmin = False
+        else:
+            total_burned = total_avg
+            has_garmin = source_label in ("garmin", "apple_health")
 
         if calorie_goal_pct is None:
-            from database.crud import get_user_settings
-
-            s = get_user_settings(db, user_id)
             calorie_goal_pct = s.calorie_goal_pct if s and s.calorie_goal_pct is not None else DEFAULT_GOAL_PCT
         ratio = 1.0 + calorie_goal_pct / 100.0  # -15 → 0.85, 0 → 1.0, +10 → 1.10
         target = round(total_burned * ratio)
@@ -66,6 +101,12 @@ def get_daily_budget(
         remaining = target - consumed
         pct = round(consumed / target * 100) if target else 0
 
+        # Activity = total − bmr. Derived (NOT from active_calories field) because
+        # Apple Health may overwrite that field, breaking the (total = bmr + active)
+        # invariant. Keeps display math internally consistent.
+        activity_avg = (total_avg - bmr_avg) if (bmr_avg and total_avg) else None
+        if activity_avg is not None and activity_avg < 0:
+            activity_avg = 0
         return {
             "consumed": consumed,
             "target": target,
@@ -73,8 +114,10 @@ def get_daily_budget(
             "pct": pct,
             "warn": pct >= WARN_THRESHOLD * 100,
             "has_garmin": has_garmin,
-            "bmr_avg": round(avg_stats.get("bmr_calories", 0)) if avg_stats else None,
-            "activity_avg": round(avg_stats.get("active_calories", 0)) if avg_stats else None,
+            "bmr_avg": bmr_avg,
+            "activity_avg": activity_avg,
+            "tdee_avg": total_avg,
+            "bmr_source": source_label,  # 'garmin' | 'apple_health' | 'manual' | 'default'
             "calorie_goal_pct": calorie_goal_pct,
         }
     except Exception as e:
