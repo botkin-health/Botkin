@@ -193,9 +193,13 @@ def delete_mirror_supplement_for(db, user_id: int, target_date, meal_time, meal_
 def needs_legacy_migration(supplements: list) -> bool:
     """True if user_settings.supplements look like the old format and should be replaced
     with DEFAULT_SUPPLEMENTS. Triggered for: missing doses, длинные дозы старого формата,
-    отсутствующие K2/Whey/post_workout."""
+    отсутствующие K2/Whey/post_workout.
+
+    NOTE: empty list [] means the user explicitly cleared their supplements — do NOT migrate.
+    Only migrate non-empty lists that are in old format.
+    """
     if not supplements:
-        return True
+        return False  # empty = user intentionally has no supplements, respect it
     names = {(it.get("name") or "").strip().lower() for it in supplements if isinstance(it, dict)}
     slots = {(it.get("slot") or "") for it in supplements if isinstance(it, dict)}
     has_long_dose = any(isinstance(it, dict) and it.get("dose") and len(it["dose"]) > 12 for it in supplements)
