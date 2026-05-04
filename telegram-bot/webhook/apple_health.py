@@ -20,6 +20,20 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="HealthVault Apple Health Webhook", docs_url=None, redoc_url=None)
 
+# ── Telegram webhook dispatcher (set by bot.py at startup) ───────────────────
+# These are populated by set_telegram_dispatcher() so the /telegram/webhook
+# endpoint can feed updates to aiogram without circular imports.
+_tg_bot = None
+_tg_dp = None
+
+
+def set_telegram_dispatcher(bot, dp):
+    """Called from bot.py after Bot/Dispatcher are created."""
+    global _tg_bot, _tg_dp
+    _tg_bot = bot
+    _tg_dp = dp
+
+
 APPLE_HEALTH_TOKEN = os.getenv("APPLE_HEALTH_TOKEN", "")
 BOT_TOKEN = os.getenv("BOT_TOKEN") or os.getenv("TELEGRAM_BOT_TOKEN", "")
 # Fallback user for backward compat (single-user setup).
@@ -736,6 +750,23 @@ if _webapp_dir.exists():
     app.get("/webapp/index.html")(_serve_index)
     # Everything else (day.js, api.js, day.css, etc.) served as static.
     app.mount("/webapp", StaticFiles(directory=str(_webapp_dir), html=True), name="webapp")
+
+
+# ── Telegram Bot Webhook ──────────────────────────────────────────────────────
+
+from aiogram.types import Update as TgUpdate  # noqa: E402
+
+
+@app.post("/telegram/webhook")
+async def telegram_webhook(request: Request):
+    """Receives Telegram updates and feeds them to the aiogram dispatcher."""
+    if _tg_bot is None or _tg_dp is None:
+        logger.error("Telegram dispatcher not initialised — update dropped")
+        return {"status": "not_ready"}
+    data = await request.json()
+    update = TgUpdate(**data)
+    await _tg_dp.feed_update(_tg_bot, update)
+    return {"status": "ok"}
 
 
 def start_webhook_server(host: str = "0.0.0.0", port: int = 8081):
