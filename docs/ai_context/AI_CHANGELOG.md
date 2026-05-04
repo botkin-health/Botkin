@@ -7,6 +7,22 @@
 
 ---
 
+## 2026-05-04 — Sprint 1a Task 3: audit_log table + DML trigger on admin access
+
+**Задача:** Аудит-трейл для DML-операций admin-роли (`healthvault`) на чувствительных таблицах. PostgreSQL не поддерживает SELECT-триггеры, поэтому SELECT-логирование через `log_statement='all'` на уровне роли (идёт в PG log-файл).
+
+**Что сделано:**
+1. `database/migrations/add_audit_log.sql` — SQL-миграция: таблица `audit_log` (BIGSERIAL PK, ts, db_user, query_type, table_name, query_excerpt), два индекса (ts DESC, db_user+table_name). Триггер `audit_admin_access()` с `SECURITY DEFINER` срабатывает на INSERT/UPDATE/DELETE по 7 таблицам только если `current_user = 'healthvault'`. RLS + политика `audit_admin_only` блокирует `hv_app` от чтения audit_log. `ALTER ROLE healthvault SET log_statement='all'`.
+2. `database/models.py` — добавлен класс `AuditLog` (BigInteger PK, DateTime(tz), Text поля).
+3. `tests/integration/test_audit_trail.py` — интеграционный тест: INSERT в nutrition_log → проверяет +1 запись в audit_log с корректными полями (db_user, query_type, table_name).
+4. Миграция применена на сервере. Тест PASS.
+
+**Файлы:** `database/migrations/add_audit_log.sql`, `database/models.py`, `tests/integration/test_audit_trail.py`.
+
+**Коммит:** `4f4d684`
+
+---
+
 ## 2026-05-04 — Sprint 1a Task 2: PostgreSQL RLS + hv_app role (session-variable isolation)
 
 **Задача:** Добавить Row Level Security в PostgreSQL, чтобы контейнеры NanoClaw (роль hv_app) видели только данные своего пользователя через сессионную переменную `app.user_id`.
