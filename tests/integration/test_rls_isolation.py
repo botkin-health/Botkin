@@ -98,12 +98,18 @@ def test_rls_blocks_other_users_meals(hv_app_engine):
 
 
 def test_rls_allows_own_user_meals(hv_app_engine):
-    """When session.app.user_id = Sasha (895655), can see Sasha's nutrition_log rows."""
+    """When session.app.user_id = Sasha, can see Sasha's nutrition_log rows.
+
+    Requires user 895655 to have at least one row in nutrition_log.
+    This is always true in production but may fail in empty test DBs.
+    """
     with hv_app_engine.connect() as conn:
         with conn.begin():
             conn.execute(text("SET LOCAL app.user_id = '895655'"))
             rows = conn.execute(text("SELECT user_id FROM nutrition_log WHERE user_id = 895655 LIMIT 5")).fetchall()
-    assert len(rows) > 0, "Sasha's session should see Sasha's own rows"
+    assert len(rows) > 0, (
+        "Sasha's session should see her own rows. If this fails, user 895655 has no nutrition_log rows in this DB."
+    )
 
 
 def test_rls_no_session_var_returns_nothing(hv_app_engine):

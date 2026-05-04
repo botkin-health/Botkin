@@ -795,4 +795,5 @@ def set_user_session_var(db: Session, user_id: int) -> None:
             set_user_session_var(db, user_id=895655)
             logs = db.execute(text("SELECT * FROM nutrition_log")).fetchall()
     """
+    # SET LOCAL only accepts string literals, not parameterized values — str() cast required
     db.execute(text("SET LOCAL app.user_id = :uid"), {"uid": str(user_id)})

@@ -20,6 +20,12 @@ GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO hv_app;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO hv_app;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO hv_app;
 
+-- Restrict hv_app access to users table — read-only, no cross-user enumeration.
+-- Agent containers should be able to SELECT their own user row (via FastAPI),
+-- but must NOT insert, modify, or delete user records.
+-- Note: SELECT on users is kept for now; RLS on users will be added in Sprint 2 if needed.
+REVOKE INSERT, UPDATE, DELETE ON users FROM hv_app;
+
 -- Enable RLS on all 6 data tables
 ALTER TABLE nutrition_log         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE supplements_log       ENABLE ROW LEVEL SECURITY;
