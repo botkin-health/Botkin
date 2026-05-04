@@ -691,6 +691,10 @@ from webhook.profile_api import router as profile_router
 
 app.include_router(profile_router)
 
+from webhook.agent_tools_api import router as agent_tools_router
+
+app.include_router(agent_tools_router)
+
 
 # ── Static webapp ─────────────────────────────────────────────────────────────
 
