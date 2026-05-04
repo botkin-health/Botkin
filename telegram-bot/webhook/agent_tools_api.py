@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 # Ensure project root on path for database imports
@@ -47,9 +47,9 @@ class LogSupplementRequest(BaseModel):
 
 
 class LogBPRequest(BaseModel):
-    systolic: int
-    diastolic: int
-    pulse: Optional[int] = None
+    systolic: int = Field(..., ge=50, le=300, description="Systolic pressure mmHg")
+    diastolic: int = Field(..., ge=30, le=200, description="Diastolic pressure mmHg")
+    pulse: Optional[int] = Field(None, ge=30, le=250, description="Pulse bpm")
     measured_at: Optional[str] = None  # ISO datetime; defaults to now
 
 
@@ -419,7 +419,8 @@ async def user_profile(
         "cohort": user.cohort,
         "container_id": user.container_id,
         "pack_name": user.pack_name,
-        "garmin_email": user.garmin_email,
+        "garmin_email": user.garmin_email,  # intentionally included: agent needs to label data sources
+        # NOTE: garmin_password is intentionally excluded
         "health_token": user.health_token,
         "timezone": getattr(user, "timezone", "Europe/Moscow"),
         "sex": getattr(user, "sex", None),
