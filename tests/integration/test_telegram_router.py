@@ -39,7 +39,9 @@ def test_unknown_user_goes_to_onboarding(MockSession, mock_onboarding):
 def test_known_user_with_container_gets_forwarded(MockSession, mock_forward):
     db = MagicMock()
     MockSession.return_value = db
-    user = MagicMock(telegram_id=111111111, container_id="nc-sasha", container_port=8001, is_active=True)
+    user = MagicMock(
+        telegram_id=111111111, container_id="nc-sasha", container_port=8001, is_active=True, onboarding_step="done"
+    )
     db.query.return_value.filter_by.return_value.first.return_value = user
 
     r = client.post("/telegram/webhook", json=_tg_payload(from_id=111111111, text="выпил витамины"))
@@ -52,7 +54,9 @@ def test_known_user_with_container_gets_forwarded(MockSession, mock_forward):
 def test_photo_returns_ok_without_forward(MockSession, mock_forward):
     db = MagicMock()
     MockSession.return_value = db
-    user = MagicMock(telegram_id=111111111, container_id="nc-sasha", container_port=8001, is_active=True)
+    user = MagicMock(
+        telegram_id=111111111, container_id="nc-sasha", container_port=8001, is_active=True, onboarding_step="done"
+    )
     db.query.return_value.filter_by.return_value.first.return_value = user
 
     r = client.post("/telegram/webhook", json=_tg_payload(from_id=111111111, has_photo=True))
@@ -66,8 +70,28 @@ def test_user_without_container_returns_ok(MockSession):
     """User exists but no container yet — returns 200, no forward."""
     db = MagicMock()
     MockSession.return_value = db
-    user = MagicMock(telegram_id=836757955, container_id=None, container_port=None, is_active=True)
+    user = MagicMock(
+        telegram_id=836757955, container_id=None, container_port=None, is_active=True, onboarding_step="done"
+    )
     db.query.return_value.filter_by.return_value.first.return_value = user
 
     r = client.post("/telegram/webhook", json=_tg_payload(from_id=836757955, text="привет"))
     assert r.status_code == 200
+    assert r.json()["action"] == "no_container"
+
+
+@patch("webhook.telegram_router.handle_onboarding", new_callable=AsyncMock)
+@patch("webhook.telegram_router.SessionLocal")
+def test_user_in_onboarding_continues_wizard(MockSession, mock_onboarding):
+    """User with onboarding_step != 'done' routes to onboarding, not no_container."""
+    db = MagicMock()
+    MockSession.return_value = db
+    user = MagicMock(
+        telegram_id=222222222, container_id=None, container_port=None, is_active=True, onboarding_step="age"
+    )
+    db.query.return_value.filter_by.return_value.first.return_value = user
+
+    r = client.post("/telegram/webhook", json=_tg_payload(from_id=222222222, text="35"))
+    assert r.status_code == 200
+    assert r.json()["action"] == "onboarding_continue"
+    mock_onboarding.assert_awaited_once()
