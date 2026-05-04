@@ -695,6 +695,10 @@ from webhook.agent_tools_api import router as agent_tools_router
 
 app.include_router(agent_tools_router)
 
+from webhook.telegram_router import router as telegram_router
+
+app.include_router(telegram_router)
+
 
 # ── Static webapp ─────────────────────────────────────────────────────────────
 
