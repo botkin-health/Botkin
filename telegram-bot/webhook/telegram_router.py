@@ -3,8 +3,7 @@
 Routes incoming Telegram updates to:
 - handle_onboarding(): new users (not in DB)
 - forward_to_container(): existing users with a provisioned NanoClaw container
-- no-op: existing users without container (Sprint 1a state for Andrey/Elen)
-- no-op: photo/voice messages (handled by legacy aiogram long-poll process)
+- legacy aiogram dispatcher: users without container (Sprint 1a fallback) + all media
 
 IMPORTANT: This router does NOT parse message text. It only looks at:
 - message.from.id → identify user
@@ -58,6 +57,26 @@ async def handle_onboarding(payload: dict) -> None:
         logger.info(f"Onboarding stub: new user {from_id} in chat {chat_id} — wizard not yet implemented (Sprint 1b)")
 
 
+async def _feed_legacy_bot(payload: dict) -> bool:
+    """Feed a Telegram update to the legacy aiogram dispatcher.
+
+    Returns True if the dispatcher was available, False otherwise.
+    """
+    try:
+        from aiogram.types import Update as TgUpdate
+        from webhook.apple_health import _tg_bot, _tg_dp
+
+        if _tg_bot is None or _tg_dp is None:
+            logger.warning("Legacy aiogram dispatcher not initialised — cannot fall back")
+            return False
+        update = TgUpdate(**payload)
+        await _tg_dp.feed_update(_tg_bot, update)
+        return True
+    except Exception as e:
+        logger.error(f"Failed to feed update to legacy bot: {e}")
+        return False
+
+
 async def _send_fallback(chat_id: int, text: str) -> None:
     """Send a fallback message via Telegram Bot API."""
     bot_token = os.getenv("BOT_TOKEN") or os.getenv("TELEGRAM_BOT_TOKEN", "")
@@ -78,6 +97,14 @@ async def _send_fallback(chat_id: int, text: str) -> None:
 @router.post("/telegram/webhook")
 async def telegram_webhook(payload: dict):
     """Main Telegram webhook handler."""
+    # callback_query (button press) — always forward to legacy aiogram dispatcher
+    if "callback_query" in payload:
+        cb = payload["callback_query"]
+        from_id = cb.get("from", {}).get("id")
+        logger.info(f"Callback query from {from_id} — forwarding to legacy bot")
+        await _feed_legacy_bot(payload)
+        return {"status": "ok", "action": "legacy_callback"}
+
     msg = payload.get("message") or payload.get("edited_message") or {}
     if not msg:
         return {"status": "ok", "action": "ignored_no_message"}
@@ -90,9 +117,10 @@ async def telegram_webhook(payload: dict):
     try:
         user = db.query(User).filter_by(telegram_id=from_id).first()
 
-        # Photo or voice — handled by legacy aiogram long-poll process
+        # Photo or voice — forward to legacy aiogram dispatcher
         if "photo" in msg or "voice" in msg:
-            logger.info("Media message received — handled by legacy bot")
+            logger.info("Media message received — forwarding to legacy bot")
+            await _feed_legacy_bot(payload)
             return {"status": "ok", "action": "legacy_media"}
 
         # New user — start onboarding wizard
@@ -105,10 +133,11 @@ async def telegram_webhook(payload: dict):
             await handle_onboarding(payload)
             return {"status": "ok", "action": "onboarding_continue"}
 
-        # Existing user but no container yet (Sprint 1a state)
+        # Existing user but no container yet — fall back to legacy aiogram bot (Sprint 1a)
         if not user.container_id or not user.container_port:
-            logger.info(f"User {from_id} has no container yet — no-op in Sprint 1a")
-            return {"status": "ok", "action": "no_container"}
+            logger.info(f"User {from_id} has no container yet — falling back to legacy bot")
+            await _feed_legacy_bot(payload)
+            return {"status": "ok", "action": "legacy_fallback"}
 
         # Route to user's NanoClaw container
         await forward_to_container(user.container_id, user.container_port, payload)
