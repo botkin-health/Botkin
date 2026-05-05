@@ -762,7 +762,9 @@ def _build_payload(db: Session, user_id: int) -> dict:
         "alco_days_n": len(alco_days),
         "supp_days_n": len(supp_days),
         "kcal_days_n": len(kcal),
-        "prot_target": 140,  # g/day — 56 kg lean mass × 2.5
+        "prot_target": {"bariatric": 140, "cardiac": 100, "female-cycle": 75, "generic": 80}.get(
+            user.pack_name or "generic", 80
+        ),  # g/day, pack-specific
         "prot_avg_7d": round(sum(v for _, v in sorted(prot.items())[-7:]) / min(7, max(len(prot), 1))) if prot else 0,
     }
 
@@ -839,7 +841,11 @@ def _build_payload(db: Session, user_id: int) -> dict:
                 "target": "<0.9 г/л",
                 "status": _attia_status(bv("ApoB"), target_hi=0.9),
                 "date": bd("ApoB"),
-                "note": "1.07 → выше цели. Снижение через диету и при необходимости статины.",
+                "note": (
+                    f"{bv('ApoB')} → выше цели. Снижение через диету и при необходимости статины."
+                    if bv("ApoB") and bv("ApoB") > 0.9
+                    else None
+                ),
             },
             {
                 "name": "Lp(a)",
@@ -859,7 +865,11 @@ def _build_payload(db: Session, user_id: int) -> dict:
                 "target": "<1.5",
                 "status": _attia_status(_homa, target_hi=1.5),
                 "date": bd("HOMA_index"),
-                "note": "1.7 → погранично. Цель: <1.5 через ↓ простые углеводы.",
+                "note": (
+                    f"{_homa} → погранично. Цель: <1.5 через ↓ простые углеводы."
+                    if _homa and 1.5 <= _homa < 2.5
+                    else (f"{_homa} → выше нормы. Риск инсулинорезистентности." if _homa and _homa >= 2.5 else None)
+                ),
             },
             {
                 "name": "hsCRP",
@@ -879,7 +889,11 @@ def _build_payload(db: Session, user_id: int) -> dict:
                 "target": ">500 нг/дл",
                 "status": _attia_status(_testo_ngdl, target_lo=500, is_higher_better=True),
                 "date": bd("testosterone"),
-                "note": f"= {_testo_nmol} нмоль/л. Целевой диапазон Attia: >500 нг/дл (~17.3 нмоль/л).",
+                "note": (
+                    f"= {_testo_nmol} нмоль/л. Целевой диапазон Attia: >500 нг/дл (~17.3 нмоль/л)."
+                    if _testo_nmol is not None
+                    else None
+                ),
             },
             {
                 "name": "IGF-1",
@@ -889,7 +903,7 @@ def _build_payload(db: Session, user_id: int) -> dict:
                 "target": "100–250 нг/мл",
                 "status": "missing",
                 "date": None,
-                "note": "Не сдавался. Внесено в план на май 2026.",
+                "note": None,
             },
             {
                 "name": "DHEA-S",
@@ -899,14 +913,14 @@ def _build_payload(db: Session, user_id: int) -> dict:
                 "target": "5–13 мкмоль/л",
                 "status": "missing",
                 "date": None,
-                "note": "Не сдавался. Внесено в план на май 2026.",
+                "note": None,
             },
         ],
     }
 
     # --- Panel 2: Metabolic Syndrome (NCEP ATP III) ---
-    _bp_avg_sys = round(sum(bp_sys.values()) / len(bp_sys)) if bp_sys else (bv("ECG_HR") and 123) or 123
-    _bp_avg_dia = round(sum(bp_dia.values()) / len(bp_dia)) if bp_dia else 80
+    _bp_avg_sys = round(sum(bp_sys.values()) / len(bp_sys)) if bp_sys else None
+    _bp_avg_dia = round(sum(bp_dia.values()) / len(bp_dia)) if bp_dia else None
     # Waist — latest measurement from body_measurements table (IDF/NCEP criterion)
     _waist: int | None = _one(
         db,
@@ -931,7 +945,7 @@ def _build_payload(db: Session, user_id: int) -> dict:
                 "unit": "см",
                 "threshold": "≤102 см (NCEP) / ≤94 (IDF)",
                 "pass": _waist is not None and _waist <= 102,
-                "note": "NCEP ✓ / IDF ⚠ (>94 см)",
+                "note": ("NCEP ✓ / IDF ⚠ (>94 см)" if _waist is not None and _waist > 94 else None),
             },
             {
                 "name": "Триглицериды",
@@ -939,7 +953,7 @@ def _build_payload(db: Session, user_id: int) -> dict:
                 "unit": "ммоль/л",
                 "threshold": "<1.7 ммоль/л",
                 "pass": _tg is not None and _tg < 1.7,
-                "note": "Отличный уровень",
+                "note": ("Отличный уровень" if _tg is not None else None),
             },
             {
                 "name": "ЛПВП (HDL)",
@@ -951,11 +965,11 @@ def _build_payload(db: Session, user_id: int) -> dict:
             },
             {
                 "name": "АД (среднее)",
-                "val": f"{_bp_avg_sys}/{_bp_avg_dia}",
+                "val": f"{_bp_avg_sys}/{_bp_avg_dia}" if _bp_avg_sys is not None else None,
                 "unit": "мм рт.ст.",
                 "threshold": "<130/85 мм рт.ст.",
-                "pass": _bp_avg_sys < 130 and _bp_avg_dia < 85,
-                "note": "Среднее за период наблюдения",
+                "pass": bool(_bp_avg_sys and _bp_avg_dia and _bp_avg_sys < 130 and _bp_avg_dia < 85),
+                "note": "Среднее за период наблюдения" if _bp_avg_sys is not None else None,
             },
             {
                 "name": "Глюкоза натощак",
@@ -1005,8 +1019,8 @@ def _build_payload(db: Session, user_id: int) -> dict:
     else:
         _pa_score = 0
 
-    # 3. Nicotine: never smoked → 100
-    _smoking_score = 100
+    # 3. Nicotine: no data → None (not scored). Will be replaced with nicotine_log query in Sprint 3.
+    _smoking_score: int | None = None
 
     # 4. Sleep (hours/night)
     #    AHA: 7-9h → 100, 6-6.9 or 9-9.9 → 70, <6 → scale to 0
@@ -1070,7 +1084,9 @@ def _build_payload(db: Session, user_id: int) -> dict:
     # 8. Blood pressure — systolic/diastolic average
     _sbp_le8 = _bp_avg_sys
     _dbp_le8 = _bp_avg_dia
-    if _sbp_le8 < 120 and _dbp_le8 < 80:
+    if _sbp_le8 is None or _dbp_le8 is None:
+        _bp_score_le8 = None
+    elif _sbp_le8 < 120 and _dbp_le8 < 80:
         _bp_score_le8 = 100
     elif _sbp_le8 < 130 and _dbp_le8 < 80:
         _bp_score_le8 = 90
@@ -1096,7 +1112,7 @@ def _build_payload(db: Session, user_id: int) -> dict:
         },
         "smoking": {
             "score": _smoking_score,
-            "val": "Никогда",
+            "val": "нет данных",
             "target": "Не курить",
             "note": None,
             "date": None,
@@ -1111,29 +1127,29 @@ def _build_payload(db: Session, user_id: int) -> dict:
         "bmi": {
             "score": _bmi_score,
             "val": f"ИМТ {_bmi_le8}  ({_w_last} кг)" if _bmi_le8 else "—",
-            "target": "ИМТ <25  (≈72 кг при росте 170 см)",
+            "target": f"ИМТ <25{('  (≈' + str(round(25 * (user.height_cm / 100) ** 2)) + ' кг при росте ' + str(user.height_cm) + ' см)') if user.height_cm else ''}",
             "note": None,
             "date": bd("ApoB"),  # use latest blood-draw date as proxy
         },
         "glucose": {
             "score": _glc_score,
-            "val": f"HbA1c {_hba1c_le8}%",
+            "val": f"HbA1c {_hba1c_le8}%" if _hba1c_le8 is not None else None,
             "target": "HbA1c <5.7%",
             "note": None,
             "date": bd("HbA1c"),
         },
         "lipids": {
             "score": _lip_score,
-            "val": f"non-HDL {_non_hdl_le8} ммоль/л",
+            "val": f"non-HDL {_non_hdl_le8} ммоль/л" if _non_hdl_le8 is not None else None,
             "target": "non-HDL <2.6 ммоль/л  (ApoB <0.9 — приоритет)",
             "note": None,
             "date": bd("cholesterol_total"),
         },
         "bp": {
             "score": _bp_score_le8,
-            "val": f"{_sbp_le8}/{_dbp_le8} мм рт.ст.",
+            "val": f"{_sbp_le8}/{_dbp_le8} мм рт.ст." if _sbp_le8 is not None else None,
             "target": "<120/80 мм рт.ст.",
-            "note": "среднее за период наблюдения",
+            "note": "среднее за период наблюдения" if _sbp_le8 is not None else None,
             "date": None,
         },
     }
@@ -1180,7 +1196,7 @@ def _build_payload(db: Session, user_id: int) -> dict:
             "val": _alb_gdl,
             "unit": "г/дл",
             "direction": _pheno_dir(_alb_gdl, 4.2, higher_is_younger=True),
-            "note": "2016 г.",
+            "note": None,
         },
         {"name": "Креатинин", "val": _creat_mgdl, "unit": "мг/дл", "direction": _pheno_dir(_creat_mgdl, 1.05)},
         {"name": "Глюкоза", "val": _glc_mgdl, "unit": "мг/дл", "direction": _pheno_dir(_glc_mgdl, 95)},
@@ -1202,15 +1218,14 @@ def _build_payload(db: Session, user_id: int) -> dict:
         "source": "Levine et al. 2018, Aging Cell",
         "source_url": "https://doi.org/10.18632/aging.101414",
         "chrono_age": _age_score,
-        "bio_age_est": 43,
-        "bio_age_range": "41–45",
+        "bio_age_est": None,
+        "bio_age_range": None,
         "younger_count": _younger_count,
         "markers": _pheno_markers,
         "note": (
-            "Формула переполняется для очень здоровых людей (кривая калибрована "
-            "на популяции NHANES). Оценка ~43 года получена направленным методом: "
-            f"{_younger_count}/9 маркеров в сторону «моложе» медианы. "
-            "Нужен альбумин (план май 2026) для точного расчёта."
+            "Направленная оценка: "
+            f"{_younger_count}/9 маркеров в сторону «моложе» медианы NHANES. "
+            "Для точного расчёта биовозраста нужен альбумин."
         ),
     }
 
@@ -1289,6 +1304,20 @@ def _build_payload(db: Session, user_id: int) -> dict:
     radar_vals = [v for v in radar.values() if v > 0]
     overall_score = round(sum(radar_vals) / len(radar_vals)) if radar_vals else 0
 
+    # ── chronic-conditions cap: lower ceiling based on pack ─────────────────
+    # Biomarker scores reflect current lab values but can't capture structural
+    # diagnoses (AFib, post-surgical anatomy, chronic metabolic disorders).
+    # We apply a conservative cap so the score doesn't mislead.
+    _chronic_caps = {
+        "cardiac": 75,  # POAF/AFib history, ICM implant, structural cardiac risk
+        "bariatric": 85,  # Post-bariatric metabolism, malabsorption risk
+        "female-cycle": 95,  # Mild cycle-related variance, generally healthy
+        "generic": 95,
+    }
+    _cap = _chronic_caps.get(user.pack_name or "generic", 95)
+    if overall_score > _cap:
+        overall_score = _cap
+
     # ── achievements: collected in priority tiers, capped at 8 (2 rows × 4) ──
     # Tuples: (emoji, title, subtitle) or (emoji, title, subtitle, is_warn)
     # Warnings (is_warn=True) are amber cards and always shown first.
@@ -1300,7 +1329,9 @@ def _build_payload(db: Session, user_id: int) -> dict:
     if prot:
         _recent_prot = [v for k, v in sorted(prot.items())[-7:]]
         _prot_avg_7d = round(sum(_recent_prot) / len(_recent_prot)) if _recent_prot else 0
-        _prot_target = 140  # g/day — 56 kg lean mass × 2.5
+        _prot_target = {"bariatric": 140, "cardiac": 100, "female-cycle": 75, "generic": 80}.get(
+            user.pack_name or "generic", 80
+        )  # pack-specific
         if _prot_avg_7d < round(_prot_target * 0.85):  # <119g — consistently below target
             _ach_warn.append(
                 (
@@ -1468,9 +1499,18 @@ def _build_payload(db: Session, user_id: int) -> dict:
     _earliest_all = min(_early_dates) if _early_dates else today.isoformat()
     _history_days = (today - date.fromisoformat(_earliest_all[:10])).days
     _history_years = _history_days // 365
-    # Display: years if ≥1, months otherwise
+    # Display: years if ≥1, months otherwise (Russian declension: 1 год, 2-4 года, 5+ лет)
     if _history_years >= 1:
-        _history_label = str(_history_years) + " лет"
+        _y = _history_years
+        if 11 <= (_y % 100) <= 14:
+            _year_word = "лет"
+        elif _y % 10 == 1:
+            _year_word = "год"
+        elif 2 <= _y % 10 <= 4:
+            _year_word = "года"
+        else:
+            _year_word = "лет"
+        _history_label = str(_y) + " " + _year_word
     else:
         _history_label = str(max(1, _history_days // 30)) + " мес"
 
