@@ -779,7 +779,7 @@ const streams = [
   { name: '🍷 Алкоголь', val: T.alco_days_n, unit: '/' + D.meta.total_days + ' дн', last_: Math.round(T.alco_days_n/D.meta.total_days*100) + '%', data: null, color: COLOR.r },
   { name: '🏠 CO₂ дома', val: T.co2_avg, unit: 'ppm ср', last_: last(D.co2) + ' сейчас', data: D.co2, color: COLOR.b },
   { name: '🌡️ T° дома', val: T.temp_home_avg, unit: '°C ср', last_: last(D.temp_home) + '°C', data: D.temp_home, color: COLOR.y },
-  { name: '🧬 Биомаркеров', val: D.meta.bio_key_count > 0 ? D.meta.bio_key_count : '—', unit: D.meta.bio_key_count > 0 ? 'ключевых' : '', last_: D.meta.total_params > 0 ? D.meta.total_params + ' всего' : 'нет данных', data: null, color: COLOR.p }
+  { name: '🧬 Биомаркеров', val: D.meta.bio_key_count > 0 ? D.meta.bio_key_count : '—', unit: D.meta.bio_key_count > 0 ? 'ключевых' : '', last_: D.meta.bio_key_count > 0 ? D.meta.bio_key_count + ' из 12' : 'нет данных', data: null, color: COLOR.p }
 ];
 
 // Group labels inserted before index 0, 6, 12
@@ -958,28 +958,34 @@ bioRefs.map(([k, nm, lo, hi, sys]) => {
   const met = pd.metabolic;
   const tbl = document.getElementById('metabolic-table');
   if (!tbl || !met) return;
-  const failCount = met.criteria.filter(c => !c.pass).length;
+  // Only count criteria where we have actual data AND it's violated
+  const failCount = met.criteria.filter(c => c.val !== null && c.val !== undefined && !c.pass).length;
+  const hasDataCount = met.criteria.filter(c => c.val !== null && c.val !== undefined).length;
   const diagColor = failCount >= 3 ? COLOR.r : failCount >= 1 ? COLOR.y : COLOR.g;
-  const diagLabel = failCount >= 3
-    ? `⚠ MetSyn ЕСТЬ (${failCount}/5 критериев нарушено)`
-    : `✓ MetSyn нет — ${failCount}/5 критериев нарушено`;
+  const diagLabel = hasDataCount === 0
+    ? `— MetSyn: нет данных`
+    : failCount >= 3
+      ? `⚠ MetSyn ЕСТЬ (${failCount}/${hasDataCount} критериев нарушено)`
+      : `✓ MetSyn нет — ${failCount}/${hasDataCount} критериев нарушено`;
   tbl.innerHTML = `<thead><tr><th colspan="5" style="color:${diagColor};font-size:12px;padding:4px 8px 10px;">${diagLabel}</th></tr>` +
     `<tr><th>Критерий</th><th>Значение</th><th>Порог</th><th>Статус</th><th>Примечание</th></tr></thead><tbody>` +
   met.criteria.map(c => {
-    const color = c.pass ? COLOR.g : COLOR.r;
+    const hasVal = c.val !== null && c.val !== undefined;
+    const color = !hasVal ? COLOR.muted : c.pass ? COLOR.g : COLOR.r;
+    const statusText = !hasVal ? '— нет данных' : c.pass ? '✓ норма' : '✕ нарушен';
     return `<tr>
       <td><b>${c.name}</b></td>
-      <td class="val"><span style="color:${color};">${c.val !== null && c.val !== undefined ? c.val : '—'}</span> <span style="color:${COLOR.muted};font-size:10px;">${c.unit}</span></td>
+      <td class="val"><span style="color:${color};">${hasVal ? c.val : '—'}</span> <span style="color:${COLOR.muted};font-size:10px;">${c.unit}</span></td>
       <td style="color:${COLOR.muted};font-size:11px;">${c.threshold}</td>
-      <td><span style="color:${color};font-size:11px;">${c.pass ? '✓ норма' : '✕ нарушен'}</span></td>
+      <td><span style="color:${color};font-size:11px;">${statusText}</span></td>
       <td class="d" style="font-size:10px;">${c.note || ''}</td>
     </tr>`;
   }).join('') +
-  `<tr style="border-top:2px solid var(--border);">
+  (met.tg_hdl_ratio !== null && met.tg_hdl_ratio !== undefined ? `<tr style="border-top:2px solid var(--border);">
     <td colspan="2" style="padding-top:10px;"><b>TG/HDL ratio</b> <span style="color:${COLOR.muted};font-size:10px;">инсулинорезистентность</span></td>
     <td style="color:${COLOR.muted};font-size:11px;">&lt;1.5</td>
-    <td colspan="2"><span style="color:${COLOR.g};font-size:14px;font-weight:700;">${met.tg_hdl_ratio}</span> <span style="color:${COLOR.g};font-size:11px;">✓ отлично</span></td>
-  </tr>` + '</tbody>';
+    <td colspan="2"><span style="color:${met.tg_hdl_ratio < 1.5 ? COLOR.g : COLOR.r};font-size:14px;font-weight:700;">${met.tg_hdl_ratio}</span> <span style="color:${met.tg_hdl_ratio < 1.5 ? COLOR.g : COLOR.r};font-size:11px;">${met.tg_hdl_ratio < 1.5 ? '✓ отлично' : '✕ выше цели'}</span></td>
+  </tr>` : '') + '</tbody>';
 })();
 
 // === PANEL 3: Life's Essential 8 (AHA 2022) ===
@@ -1051,20 +1057,26 @@ bioRefs.map(([k, nm, lo, hi, sys]) => {
   const pa = pd.phenoage;
   const el = document.getElementById('phenoage-panel');
   if (!el || !pa) return;
-  const diff = pa.chrono_age - pa.bio_age_est;
-  const diffColor = diff > 0 ? COLOR.g : COLOR.y;
+  const hasBioAge = pa.bio_age_est !== null && pa.bio_age_est !== undefined;
+  const diff = hasBioAge ? pa.chrono_age - pa.bio_age_est : null;
+  const diffColor = diff !== null && diff > 0 ? COLOR.g : COLOR.y;
   const dirColor = { younger: COLOR.g, older: COLOR.r, unknown: COLOR.muted };
   const dirIcon  = { younger: '↓', older: '↑', unknown: '?' };
   el.innerHTML = `
     <div style="display:flex;align-items:flex-start;gap:24px;margin-bottom:16px;">
       <div style="text-align:center;flex-shrink:0;">
-        <div style="font-size:56px;font-weight:800;color:${COLOR.g};line-height:1;">~${pa.bio_age_est}</div>
-        <div style="font-size:10px;color:${COLOR.muted};margin-top:4px;text-transform:uppercase;letter-spacing:1px;">биологических лет</div>
-        <div style="font-size:12px;font-weight:700;color:${diffColor};margin-top:6px;">−${diff} лет от паспортного</div>
+        ${hasBioAge
+          ? `<div style="font-size:56px;font-weight:800;color:${COLOR.g};line-height:1;">~${pa.bio_age_est}</div>
+             <div style="font-size:10px;color:${COLOR.muted};margin-top:4px;text-transform:uppercase;letter-spacing:1px;">биологических лет</div>
+             <div style="font-size:12px;font-weight:700;color:${diffColor};margin-top:6px;">−${diff} лет от паспортного</div>`
+          : `<div style="font-size:32px;font-weight:800;color:${COLOR.muted};line-height:1;">—</div>
+             <div style="font-size:10px;color:${COLOR.muted};margin-top:4px;text-transform:uppercase;letter-spacing:1px;">биологических лет</div>
+             <div style="font-size:11px;color:${COLOR.muted};margin-top:6px;">нет данных</div>`
+        }
       </div>
       <div style="flex:1;">
         <div style="font-size:11px;color:${COLOR.muted};line-height:2;background:var(--bg2);border-radius:8px;padding:10px 14px;">
-          Паспортный возраст: ${pa.chrono_age} лет &nbsp;·&nbsp; Оценка: ${pa.bio_age_range} лет<br>
+          Паспортный возраст: ${pa.chrono_age} лет${hasBioAge ? ` &nbsp;·&nbsp; Оценка: ${pa.bio_age_est} лет` : ''}<br>
           Маркеров «моложе» медианы: <span style="color:${COLOR.g};font-weight:700;">${pa.younger_count}/9</span>
         </div>
       </div>
