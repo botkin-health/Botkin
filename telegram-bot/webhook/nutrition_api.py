@@ -107,7 +107,10 @@ async def get_day(
 
         # Today's actual activity. Compute as (total - bmr) for math consistency
         # — DO NOT trust active_calories field directly (Apple Health may overwrite it).
-        real_today = date_type.today()
+        # Use MSK (matches db_save.py date logic; server runs UTC by default).
+        from datetime import datetime as _dt, timezone as _tz, timedelta as _td
+
+        real_today = _dt.now(_tz(_td(hours=3))).date()
         if for_date == real_today:
             # sync_today_garmin pulls fresh Garmin data (15-min cache). Returns active_calories,
             # but for past days we recompute from total-bmr; for today we use this directly

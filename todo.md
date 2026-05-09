@@ -655,7 +655,7 @@
   - [ ] Миграция Postgres: таблица `daily_journal` (поля выше).
   - [ ] Handler `/journal` в `telegram-bot/handlers/` — принимает голосовое или текст. Запускает Whisper → Haiku.
   - [ ] APScheduler-job: 21:00 ежедневно отправляет напоминалку с inline-кнопкой «🎙 записать».
-  - [ ] LLM-промпт + Pydantic схема для извлечения структуры (опираться на паттерн NutriLogBot Structured Outputs).
+  - [ ] LLM-промпт + Pydantic схема для извлечения структуры (опираться на паттерн NutriLogBot Structured Outputs). В схему включить поле `city` — если в тексте упомянут другой город («я в Челябинске», «прилетел в Питер»), LLM извлекает название. При сохранении записи: если `city != Москва` → добавлять в `LOCATION_OVERRIDES` в `weather.py` и перезапускать погодный скрипт для этой даты. Это решает проблему командировок без VPN/GPS.
   - [ ] Скрипт корреляции `scripts/analysis/correlate_journal_with_objective.py`.
   - [ ] Mission Control: новый iframe-блок «Дневник».
   - [ ] Опционально: команды `/journal show YYYY-MM-DD`, `/journal delete YYYY-MM-DD`, `/journal month <month>` (текущий месяц как digest).
