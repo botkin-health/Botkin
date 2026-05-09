@@ -48,9 +48,11 @@ def sync_data():
             json.dump(supps_records, f, ensure_ascii=False, indent=2, cls=CustomJSONEncoder)
         print(f"✅ Сохранено {len(supps_records)} записей добавок/витаминов")
 
-        # 3. Zepp / OCR Weights & Body composition
+        # 3. Weights — ВСЕ источники (apple_health_v2 от HAE, zepp_life от Zepp API,
+        # screenshot_ocr/manual от бота, исторические импорты). Фильтрация по дате
+        # делается на стороне дашборда — здесь забираем всё, чтобы не терять записи.
         cur.execute(
-            "SELECT * FROM weights WHERE user_id = %s AND source IN ('screenshot_ocr', 'manual', 'zepp') ORDER BY measured_at",
+            "SELECT * FROM weights WHERE user_id = %s ORDER BY measured_at",
             (ALEX_USER_ID,),
         )
         weight_records = []
@@ -60,9 +62,22 @@ def sync_data():
         os.makedirs("data/weights", exist_ok=True)
         with open("data/weights/weights_remote.json", "w", encoding="utf-8") as f:
             json.dump(weight_records, f, ensure_ascii=False, indent=2, cls=CustomJSONEncoder)
-        print(f"✅ Сохранено {len(weight_records)} записей замеров тела (состав)")
+        print(f"✅ Сохранено {len(weight_records)} записей веса/состава тела (все источники)")
 
-        # 4. Garmin Activity Log
+        # 4. Blood pressure logs — ручные Omron замеры через Apple Health → HAE → сервер
+        cur.execute(
+            "SELECT * FROM blood_pressure_logs WHERE user_id = %s ORDER BY measured_at",
+            (ALEX_USER_ID,),
+        )
+        bp_records = []
+        for row in cur.fetchall():
+            bp_records.append(dict(row))
+
+        with open("data/weights/blood_pressure_remote.json", "w", encoding="utf-8") as f:
+            json.dump(bp_records, f, ensure_ascii=False, indent=2, cls=CustomJSONEncoder)
+        print(f"✅ Сохранено {len(bp_records)} замеров АД (Omron → Apple Health → HAE)")
+
+        # 5. Garmin Activity Log + HAE-обогащение (steps, RHR, walking, weight, BP raw_data)
         cur.execute("SELECT * FROM activity_log WHERE user_id = %s ORDER BY date", (ALEX_USER_ID,))
         activity_records = []
         for row in cur.fetchall():
@@ -71,7 +86,7 @@ def sync_data():
         os.makedirs("data/activities", exist_ok=True)
         with open("data/activities/activities_remote.json", "w", encoding="utf-8") as f:
             json.dump(activity_records, f, ensure_ascii=False, indent=2, cls=CustomJSONEncoder)
-        print(f"✅ Сохранено {len(activity_records)} записей активности (Garmin)")
+        print(f"✅ Сохранено {len(activity_records)} записей activity_log (Garmin + HAE)")
 
         cur.close()
         conn.close()

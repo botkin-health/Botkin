@@ -4,10 +4,20 @@ Used to show remaining calories after each meal save.
 """
 
 import logging
-from datetime import date as date_type
+from datetime import date as date_type, datetime, timezone, timedelta
 from typing import Optional
 
 logger = logging.getLogger(__name__)
+
+# All date math must use MSK to match meal save (db_save.py uses datetime.now(MSK).date()).
+# Server runs in UTC (Docker default) — without this, budget shows yesterday's totals
+# when user logs a meal between 21:00–24:00 UTC (i.e. midnight MSK).
+MSK = timezone(timedelta(hours=3))
+
+
+def _today_msk() -> date_type:
+    return datetime.now(MSK).date()
+
 
 WARN_THRESHOLD = 0.80  # warn when consumed ≥ 80% of target
 DEFAULT_TOTAL = 2150  # fallback if no Garmin data (≈ avg from analysis)
@@ -41,9 +51,8 @@ def get_daily_budget(
         get_user_settings,
         get_activities_by_period,
     )
-    from datetime import timedelta
 
-    today = for_date or date_type.today()
+    today = for_date or _today_msk()
     db = SessionLocal()
     try:
         s = get_user_settings(db, user_id)
@@ -205,9 +214,7 @@ def format_budget_line(user_id: int, for_date: Optional[date_type] = None, show_
         tail = f"осталось {remaining} ккал"
 
     hint = "" if b["has_garmin"] else " (≈ среднее)"
-    from datetime import timedelta
-
-    today = date_type.today()
+    today = _today_msk()
     yesterday = today - timedelta(days=1)
     if for_date is None or for_date == today:
         day_label = "Сегодня"

@@ -32,21 +32,51 @@ SSH_PASS = os.environ.get("SSH_PASS", "SERVER_PASSWORD_REDACTED")
 def build_biomarkers(kb: dict) -> dict:
     tests = sorted(kb.get("blood_tests", []), key=lambda x: x.get("date", ""), reverse=True)
 
+    # Самое свежее значение по каждому ключу (для основной выдачи)
     seen: dict[str, dict] = {}
+    # Полная история значений по каждому ключу (для peak/min/тренд анализа)
+    history: dict[str, list[dict]] = {}
     for t in tests:
         date = t.get("date", "")
         vals = t.get("values") or t.get("results") or {}
         for k, v in vals.items():
-            if k not in seen and isinstance(v, (int, float)):
-                seen[k] = {"value": v, "date": date}
+            if isinstance(v, (int, float)):
+                if k not in seen:
+                    seen[k] = {"value": v, "date": date}
+                history.setdefault(k, []).append({"value": v, "date": date})
 
     bio: dict = {}
 
     def add(bio_key: str, kb_keys: list[str]) -> None:
+        """Среди всех алиасов берём САМОЕ СВЕЖЕЕ значение по дате,
+        а не первое попавшееся из списка. Иначе устаревший анализ с одним именем
+        может перекрыть свежий с другим именем.
+
+        Также собирает peak/min историю — нужна для дашборда чтобы показать
+        прогресс «было X (дата) → стало Y».
+        """
+        candidates = [seen[k] for k in kb_keys if k in seen]
+        if not candidates:
+            return
+        candidates.sort(key=lambda x: x.get("date", ""), reverse=True)
+        record = dict(candidates[0])
+
+        # Объединяем историю по всем алиасам (для маркеров где имена менялись со временем)
+        all_history: list[dict] = []
         for k in kb_keys:
-            if k in seen:
-                bio[bio_key] = seen[k]
-                return
+            all_history.extend(history.get(k, []))
+        # Сортируем по дате
+        all_history.sort(key=lambda x: x.get("date", ""))
+        if len(all_history) >= 2:
+            # Самое раннее, самое большое и самое маленькое значения с датами
+            earliest = all_history[0]
+            peak_max = max(all_history, key=lambda x: x["value"])
+            peak_min = min(all_history, key=lambda x: x["value"])
+            record["earliest"] = earliest
+            record["peak_max"] = peak_max
+            record["peak_min"] = peak_min
+            record["n_history"] = len(all_history)
+        bio[bio_key] = record
 
     # Core metabolic
     add("HbA1c", ["HbA1c"])
@@ -107,8 +137,10 @@ def build_biomarkers(kb: dict) -> dict:
     add("PLT", ["PLT"])
     add("ESR", ["ESR"])
 
-    # albumin in g/L; dashboard_generator.py converts /10 → g/dL for PhenoAge
-    add("albumin_g_l", ["albumin_g_l"])
+    # albumin in g/L; dashboard_generator.py converts /10 → g/dL for PhenoAge.
+    # Поддерживаем оба алиаса: новый "albumin_g_l" и старый просто "albumin"
+    # (в анализах 2015 года было записано как albumin без суффикса).
+    add("albumin_g_l", ["albumin_g_l", "albumin"])
 
     # Extra
     add("homocysteine", ["homocysteine"])
