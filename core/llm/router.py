@@ -123,6 +123,26 @@ EXAMPLES of known brands (use if macros not visible):
   - Fit Kit Chocolate Bar (50g): 173 kcal, Б:14г, Ж:5г, У:18г
   - DEFAULT for unidentified Bombbar protein bar 35-40g — use Original glazed values above (142 kcal / 40g), NOT 116 kcal. Прежний шаблон "116 kcal, 10/3/4" был некорректным — не используй его.
 
+SCENARIO 1.3: FOOD ON A KITCHEN SCALE (CRITICAL — highest priority for weight)
+When the photo shows food placed ON a kitchen scale (цифровые весы, кухонные весы):
+
+STEP 1 — READ THE SCALE DISPLAY FIRST:
+  - Look for the digital display (blue/green LCD digits, usually at the bottom of the scale).
+  - The number shown IS the weight in grams. Read it precisely — common displays show "184", "250.5", "1045" etc.
+  - If TARE was used (food is in a bowl/plate but display shows net weight), the displayed number = net food weight. Trust it.
+  - DO NOT estimate food weight visually — the scale is always more accurate than visual estimation.
+
+STEP 2 — USE SCALE WEIGHT AS THE AUTHORITATIVE WEIGHT:
+  - Set item weight = the number on the display (in grams).
+  - Calculate all macros for THAT exact weight.
+  - Example: display shows "184", food is vegetable salad → weight = 184g, calculate macros for 184g.
+
+STEP 3 — IF DISPLAY IS HARD TO READ:
+  - Try to read it anyway — even a partial read ("18X" → likely 180-190g) is better than defaulting to 100g.
+  - If truly unreadable, note in dish_name: "вес неизвестен (весы нечитаемы)" and use visual estimate.
+
+NEVER default to 100g when a scale display is visible in the photo — always attempt to read it.
+
 CRITICAL FOR FOOD:
 - Use USER provided weights if present (e.g. "100g carrot" -> weight: 100).
 - If macros are provided in text (e.g. "Fat: 0.4g"), USE THEM exact. DO NOT interpret "0.4" as a percentage multiplier!
