@@ -208,9 +208,11 @@ body {
 .panel-tab.active { color: var(--g); border-bottom-color: var(--g); }
 .panel-content { display: none; }
 .panel-content.active { display: block; }
-.panel-source { font-size: 10px; color: var(--dim); margin-bottom: 10px; line-height: 1.6; }
+.panel-source { font-size: 10px; color: var(--dim); margin-bottom: 6px; line-height: 1.6; }
 .panel-source a { color: var(--muted); text-decoration: none; }
 .panel-source a:hover { color: var(--g); }
+.panel-explainer { font-size: 11px; color: var(--muted); margin-bottom: 12px; line-height: 1.6;
+                   background: var(--bg2); border-radius: 6px; padding: 8px 12px; border-left: 2px solid var(--g); }
 
 /* ── SPORT BLOCK ────────────────────────────────────────────────────────── */
 .sport-card { padding: 18px 20px; }
@@ -233,11 +235,11 @@ body {
 .zl-item { display: inline-flex; align-items: center; gap: 5px; }
 .zl-item b { color: var(--text); font-weight: 600; }
 .zl-dot { width: 11px; height: 11px; border-radius: 2px; display: inline-block; }
-.zl-z1 { background: rgba(0,200,120,0.35); }
+.zl-z1 { background: #5d6d7e; }
 .zl-z2 { background: var(--g); }
-.zl-z3 { background: var(--y); }
-.zl-z4 { background: var(--r); }
-.zl-z5 { background: #c81d3f; }
+.zl-z3 { background: #f1c40f; }
+.zl-z4 { background: #e67e22; }
+.zl-z5 { background: #e74c3c; }
 
 .sport-section { margin-bottom: 22px; }
 .sport-section-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
@@ -253,6 +255,15 @@ body {
 .polar-bar { display: flex; height: 22px; background: var(--bg2); border-radius: 4px; overflow: hidden; border: 1px solid var(--border); }
 .polar-row.polar-total .polar-bar { height: 26px; }
 .polar-seg { height: 100%; display: flex; align-items: center; justify-content: center; font-size: 10px; color: rgba(0,0,0,0.85); font-weight: 600; overflow: hidden; white-space: nowrap; transition: width 0.4s; }
+/* 5 зон по схеме Garmin/Strava: Z1 серый (recovery, не тренирует),
+   Z2 зелёный (sweet spot аэробной базы), Z3 жёлтый (темп-ловушка),
+   Z4 оранжевый, Z5 красный (VO2max). */
+.seg-z1 { background: #5d6d7e; color: rgba(255,255,255,0.9); }
+.seg-z2 { background: linear-gradient(90deg, #00c878, #00ff9d); }
+.seg-z3 { background: #f1c40f; }
+.seg-z4 { background: #e67e22; color: rgba(255,255,255,0.9); }
+.seg-z5 { background: #e74c3c; color: rgba(255,255,255,0.9); }
+/* Backward compat для старого кода — если ещё где-то используется */
 .seg-easy { background: linear-gradient(90deg, #00c878, #00ff9d); }
 .seg-mid { background: var(--y); }
 .seg-hard { background: var(--r); }
@@ -270,6 +281,12 @@ body {
 .wo-zone-easy { background: linear-gradient(90deg, #00c878, #00ff9d); }
 .wo-zone-mid { background: var(--y); }
 .wo-zone-hard { background: var(--r); }
+/* 5 зон Garmin/Strava */
+.wo-zone-z1 { background: #5d6d7e; }
+.wo-zone-z2 { background: linear-gradient(90deg, #00c878, #00ff9d); }
+.wo-zone-z3 { background: #f1c40f; }
+.wo-zone-z4 { background: #e67e22; }
+.wo-zone-z5 { background: #e74c3c; }
 .wo-mins { color: var(--muted); text-align: right; font-size: 11px; }
 .wo-hr { color: var(--muted); text-align: right; font-size: 11px; font-variant-numeric: tabular-nums; }
 .wo-verdict { font-size: 11px; color: var(--muted); text-align: right; }
@@ -356,19 +373,19 @@ body {
     </div>
   </div>
   <div class="card">
-    <div class="card-label"><span class="status ok"></span>% Жира · Zepp</div>
+    <div class="card-label"><span class="status ok"></span>% Жира · биоимпеданс</div>
     <div class="big-number g" id="h-fat">—</div>
-    <div class="sub"><span id="h-fat-delta">—</span> · висцеральный <span id="h-visc">—</span></div>
+    <div class="sub"><span id="h-fat-delta">—</span> · висцеральный <span id="h-visc">—</span> · мышцы <span id="h-muscle">—</span> кг</div>
+  </div>
+  <div class="card" id="hero-priority-card">
+    <div class="card-label"><span class="status ok" id="hp-status"></span><span id="hp-title" style="text-transform:none; letter-spacing:0.3px; font-size:11px;">Биомаркеры</span></div>
+    <div class="big-number g" id="hp-value">—</div>
+    <div class="sub" id="hp-sub"></div>
   </div>
   <div class="card">
-    <div class="card-label"><span class="status ok"></span>HbA1c · Глик. гемоглобин</div>
-    <div class="big-number g" id="h-hba1c">—</div>
-    <div class="sub" id="h-hba1c-sub"></div>
-  </div>
-  <div class="card">
-    <div class="card-label"><span class="status ok"></span>Health Score · Radar</div>
+    <div class="card-label"><span class="status ok"></span>Баланс биомаркеров</div>
     <div class="big-number g" id="h-score">—</div>
-    <div class="sub">6 систем организма</div>
+    <div class="sub" id="h-score-sub">% маркеров в оптимуме</div>
   </div>
 </div>
 
@@ -383,7 +400,7 @@ body {
 <div class="grid grid-6" id="streams"></div>
 
 <!-- ACHIEVEMENTS (moved to top for visibility) -->
-<div class="section-title">Достижения <span class="hint">автоматически посчитано на основе данных</span></div>
+<div class="section-title">Достижения <span class="hint">за всё время трекинга</span></div>
 <div class="ach-grid" id="achievements"></div>
 
 <!-- INVITE CARDS — shown for capabilities that are not yet connected (filled by JS) -->
@@ -394,20 +411,21 @@ body {
 
 <!-- BIOMARKERS + RADAR -->
 <div id="medical-section">
-<div class="section-title">Биомаркеры & Radar Health <span class="hint">последние замеры крови · radar = близость к оптимуму</span></div>
-<div class="grid" style="grid-template-columns: 1fr 1.5fr; gap: 16px;">
+<div class="section-title">Биомаркеры <span class="hint">по системам · radar = близость к оптимуму · клинический риск см. вкладки справа</span></div>
+<div class="grid" style="grid-template-columns: 1.1fr 1.4fr; gap: 16px;">
   <div class="card">
-    <div class="card-label">Health Score по системам</div>
+    <div class="card-label">Баланс биомаркеров</div>
     <div style="display:flex; flex-direction: column; align-items: center;">
       <div class="score-ring">
         <canvas id="scoreRing" width="180" height="180"></canvas>
         <div class="score-num">
           <div class="big" id="ring-score">—</div>
-          <div class="lbl">Overall</div>
+          <div class="lbl">Баланс</div>
         </div>
       </div>
-      <div style="width: 100%; margin-top: 20px;">
-        <canvas id="radar" style="max-height:260px;"></canvas>
+      <div style="font-size:10px;color:var(--dim);text-align:center;margin-top:4px;">не клинический риск · см. вкладки →</div>
+      <div style="width: 100%; margin-top: 16px; min-height: 360px; display:flex; align-items:center; justify-content:center;">
+        <canvas id="radar" style="max-height:380px; max-width:100%;"></canvas>
       </div>
     </div>
   </div>
@@ -418,37 +436,59 @@ body {
       <button class="panel-tab" onclick="switchPanel(2)">Метаболизм</button>
       <button class="panel-tab" onclick="switchPanel(3)">Life's Essential 8</button>
       <button class="panel-tab" onclick="switchPanel(4)">PhenoAge</button>
+      <button class="panel-tab" onclick="switchPanel(5)">SCORE2</button>
+      <button class="panel-tab" onclick="switchPanel(6)">ASCVD Lifetime</button>
     </div>
 
     <!-- Panel 0: Мониторинг -->
     <div class="panel-content active" id="panel-0">
-      <div class="panel-source">HealthVault · 12 ключевых биомаркеров · последние данные крови</div>
+      <div class="panel-source">HealthVault · <span id="bio-count-1">—</span> ключевых биомаркеров · последние данные крови</div>
+      <div class="panel-explainer">Ключевые маркеры с цветной разметкой целей — глюкоза, липиды, гормоны, витамины, воспаление. Реальные значения за последний анализ.</div>
       <table class="biotable" id="biotable"></table>
     </div>
 
     <!-- Panel 1: Longevity · Attia -->
     <div class="panel-content" id="panel-1">
       <div class="panel-source">Источник: <a href="https://peterattiamd.com/outlive" target="_blank">peterattiamd.com/outlive</a> &nbsp;·&nbsp; Peter Attia «Outlive» (2023)</div>
+      <div class="panel-explainer">Что показывает: 7 ключевых маркеров для долголетия по Питеру Аттиа — кардиолог-визионер, автор бестселлера про продление здоровой жизни. Это чек-лист «попадаешь ли в зоны для долгой жизни».</div>
       <table class="biotable" id="attia-table"></table>
     </div>
 
     <!-- Panel 2: Метаболизм -->
     <div class="panel-content" id="panel-2">
       <div class="panel-source">Источник: <a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2654873/" target="_blank">NCEP ATP III 2001</a> &nbsp;·&nbsp; Метаболический синдром: 3+ критерия из 5</div>
+      <div class="panel-explainer">Что показывает: есть ли у тебя метаболический синдром — кластер из 5 признаков (талия, давление, ТГ, HDL, глюкоза). 3+ из 5 = диагноз, повышенный риск диабета 2 типа и ССЗ (сердечно-сосудистых заболеваний).</div>
       <table class="biotable" id="metabolic-table"></table>
     </div>
 
     <!-- Panel 3: Life's Essential 8 -->
     <div class="panel-content" id="panel-3">
       <div class="panel-source">Источник: <a href="https://www.ahajournals.org/doi/10.1161/CIR.0000000000001081" target="_blank">American Heart Association · Life's Essential 8 (2022)</a> &nbsp;·&nbsp; Индекс здоровья ССС по 8 компонентам · шкала 0–100</div>
+      <div class="panel-explainer">Что показывает: индекс здоровья сердечно-сосудистой системы по 8 факторам — 4 биомаркеров (липиды, давление, глюкоза, ИМТ) + 4 поведенческих (диета, спорт, сон, курение). Валидирован на 500к+ людей. Чем выше балл, тем ниже 10-летний риск ССЗ.</div>
       <div id="le8-panel"></div>
     </div>
 
     <!-- Panel 4: PhenoAge -->
     <div class="panel-content" id="panel-4">
       <div class="panel-source">Источник: <a href="https://doi.org/10.18632/aging.101414" target="_blank">Levine et al. 2018, Aging Cell</a> &nbsp;·&nbsp; 9-маркерные биологические часы PhenoAge</div>
+      <div class="panel-explainer">Что показывает: твой биологический возраст по 9 биомаркерам крови (vs паспортный). Откалибровано на NHANES — крупная американская популяция. Ниже паспортного = «моложе для своих лет», статистически меньше риск умереть в ближайшие 10 лет.</div>
       <div id="phenoage-panel"></div>
     </div>
+
+    <!-- Panel 5: SCORE2 -->
+    <div class="panel-content" id="panel-5">
+      <div class="panel-source">Источник: <a href="https://academic.oup.com/eurheartj/article/42/25/2439/6297709" target="_blank">European Society of Cardiology · SCORE2 (2021)</a> &nbsp;·&nbsp; 10-летний риск ССЗ для Европы</div>
+      <div class="panel-explainer">Что показывает: 10-летнюю вероятность смертельного или несмертельного инфаркта/инсульта. Учитывает возраст, пол, курение, давление, холестерин, регион. Золотой стандарт в Европе для решения «нужны ли статины». Россия относится к региону высокого риска по классификации ESC.</div>
+      <div id="score2-panel"></div>
+    </div>
+
+    <!-- Panel 6: ASCVD Lifetime Risk -->
+    <div class="panel-content" id="panel-6">
+      <div class="panel-source">Источник: <a href="https://www.ahajournals.org/doi/10.1161/CIR.0000000000000678" target="_blank">AHA/ACC ASCVD Risk Calculator</a> &nbsp;·&nbsp; Пожизненный риск ССЗ</div>
+      <div class="panel-explainer">Что показывает: вероятность (в %) что в течение оставшейся жизни случится атеросклеротическое ССЗ (инфаркт, инсульт). Это не «возраст дожития» и не «сколько лет осталось» — это «сколько шансов из 100, что когда-то будет ССЗ-событие». Полезно сильнее чем 10-летний риск, особенно для людей до 60.</div>
+      <div id="ascvd-panel"></div>
+    </div>
+
   </div>
 </div>
 
@@ -469,7 +509,7 @@ body {
 </div>
 
 <!-- SPORT BLOCK -->
-<div class="section-title" id="sport-section-title">🏃 Спорт и тренировки <span class="hint" id="sport-hint">последние 90 дней · средние за неделю · сравнение с канонами Seiler/Attia</span></div>
+<div class="section-title" id="sport-section-title">🏃 Спорт и тренировки <span class="hint" id="sport-hint">последние 90 дней · средние за неделю · сравнение с канонами <a href="https://en.wikipedia.org/wiki/Stephen_Seiler" target="_blank" style="color:inherit;text-decoration:underline dotted;" title="Стивен Зайлер — норвежский физиолог, автор модели polarized training (80/20)">Seiler</a>/<a href="https://peterattiamd.com/" target="_blank" style="color:inherit;text-decoration:underline dotted;" title="Питер Аттиа — кардиолог, автор «Outlive» (2023), концепции Zone 2 для долголетия">Attia</a></span></div>
 <div class="card sport-card" id="sport-card" style="display:none;">
   <!-- Row 1: KPI cards -->
   <div class="sport-kpi-grid">
@@ -483,13 +523,13 @@ body {
       <div class="kpi-label">Z2 база · мин/нед</div>
       <div class="kpi-value"><span id="kpi-z2-val">—</span> <span class="kpi-target">/ 150</span></div>
       <div class="kpi-hint" id="kpi-z2-hint"></div>
-      <div class="kpi-explain">аэробная база, пульс 60–70% макс (≈110–120 bpm)</div>
+      <div class="kpi-explain" id="kpi-z2-explain">аэробная база, пульс 60–70% макс</div>
     </div>
     <div class="sport-kpi" id="kpi-hiit">
       <div class="kpi-label">Z4+Z5 интервалы · мин/нед</div>
       <div class="kpi-value"><span id="kpi-hiit-val">—</span> <span class="kpi-target">/ 16</span></div>
       <div class="kpi-hint" id="kpi-hiit-hint"></div>
-      <div class="kpi-explain">высокий пульс &gt;80% макс (≥140 bpm) — для VO2max</div>
+      <div class="kpi-explain" id="kpi-hiit-explain">высокий пульс &gt;80% макс — для VO2max</div>
     </div>
     <div class="sport-kpi" id="kpi-ac">
       <div class="kpi-label">Неделя / 90 дней</div>
@@ -499,12 +539,14 @@ body {
     </div>
   </div>
 
-  <!-- Zones legend (3 groups by Seiler polarized model) -->
-  <div class="zones-legend">
+  <!-- Zones legend (5 zones по Garmin/Strava стандарту, bpm от user.age — мульти-юзерно) -->
+  <div class="zones-legend" id="zones-legend">
     <span class="zl-title">Зоны пульса:</span>
-    <span class="zl-item"><span class="zl-dot zl-z2"></span><b>Лёгкое</b> Z1+Z2 · &lt;70% макс (≤120 bpm) · аэробная база 🔥</span>
-    <span class="zl-item"><span class="zl-dot zl-z3"></span><b>Темп</b> Z3 · 70–80% (120–137 bpm) · «ловушка треш-холда»</span>
-    <span class="zl-item"><span class="zl-dot zl-z4"></span><b>Высокое</b> Z4+Z5 · &gt;80% (≥137 bpm) · VO2max</span>
+    <span class="zl-item" title="Z1 разминка · &lt;60% макс ЧСС · восстановление, не тренирующая зона"><span class="zl-dot zl-z1"></span><b>Z1</b> <span id="zl-z1-bpm">—</span> разминка · восстановление</span>
+    <span class="zl-item" title="Z2 аэробная база · 60-70% макс ЧСС · оптимум для митохондрий"><span class="zl-dot zl-z2"></span><b>Z2</b> <span id="zl-z2-bpm">—</span> аэробная база 🔥</span>
+    <span class="zl-item" title="Z3 темп · 70-80% макс ЧСС · «threshold trap» по Joe Friel / «zone 3 black hole» — много пота, мало пользы (тяжело для базы, легко для VO2max)"><span class="zl-dot zl-z3"></span><b>Z3</b> <span id="zl-z3-bpm">—</span> темп · серая зона</span>
+    <span class="zl-item" title="Z4 анаэробный · 80-90% макс ЧСС · лактатный порог"><span class="zl-dot zl-z4"></span><b>Z4</b> <span id="zl-z4-bpm">—</span> анаэроб · лактат</span>
+    <span class="zl-item" title="Z5 максимум · 90-100% макс ЧСС · VO2max"><span class="zl-dot zl-z5"></span><b>Z5</b> <span id="zl-z5-bpm">—</span> максимум · VO2max</span>
   </div>
 
   <!-- Row 2: Polarized pyramid -->
@@ -517,9 +559,11 @@ body {
       <div class="polar-row polar-ideal">
         <div class="polar-label">Идеал 80/20</div>
         <div class="polar-bar">
-          <div class="polar-seg seg-easy" style="width:80%">80% лёгкое</div>
-          <div class="polar-seg seg-mid" style="width:5%">5%</div>
-          <div class="polar-seg seg-hard" style="width:15%">15% высокое</div>
+          <div class="polar-seg seg-z1" style="width:10%">10%</div>
+          <div class="polar-seg seg-z2" style="width:70%">70% Z2</div>
+          <div class="polar-seg seg-z3" style="width:5%">5%</div>
+          <div class="polar-seg seg-z4" style="width:10%">10%</div>
+          <div class="polar-seg seg-z5" style="width:5%">5%</div>
         </div>
         <div class="polar-meta">~ Seiler/Attia</div>
       </div>
@@ -586,7 +630,15 @@ Chart.defaults.font.size = 11;
 const _metaName = document.getElementById('meta-name');
 const _metaAgePart = document.getElementById('meta-age-part');
 if (_metaName) _metaName.textContent = D.meta.display_name;
-if (_metaAgePart && D.meta.age) _metaAgePart.textContent = ' · ' + D.meta.age + ' y.o.';
+// Склонение «лет/год/года»
+function ruYearsWord(n) {
+  const mod10 = n % 10, mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 14) return 'лет';
+  if (mod10 === 1) return 'год';
+  if (mod10 >= 2 && mod10 <= 4) return 'года';
+  return 'лет';
+}
+if (_metaAgePart && D.meta.age) _metaAgePart.textContent = ' · ' + D.meta.age + ' ' + ruYearsWord(D.meta.age);
 // Name in topbar
 const _topbarName = document.getElementById('topbar-name');
 if (_topbarName && D.meta.display_name) _topbarName.textContent = D.meta.display_name;
@@ -655,8 +707,49 @@ document.getElementById('h-fat').textContent = hasFat ? sf.last.toFixed(1) + '%'
 document.getElementById('h-fat-delta').textContent = hasFat ? (sf.delta >= 0 ? '+' : '') + sf.delta.toFixed(1) + ' п.п.' : '—';
 const vlast = Object.values(D.visceral).pop();
 document.getElementById('h-visc').textContent = vlast != null ? vlast : '—';
-document.getElementById('h-hba1c').textContent = (D.biomarkers_latest.HbA1c.val || '—') + '%';
+const mlast = D.muscle_last;
+const muscleEl = document.getElementById('h-muscle');
+if (muscleEl) muscleEl.textContent = mlast != null ? mlast.toFixed(1) : '—';
+// === HERO PRIORITY (динамический главный маркер) ===
+(function() {
+  const hp = D.hero_priority || {};
+  const titleEl = document.getElementById('hp-title');
+  const valueEl = document.getElementById('hp-value');
+  const subEl = document.getElementById('hp-sub');
+  const statusEl = document.getElementById('hp-status');
+  if (!titleEl || !valueEl) return;
+  const colorClassMap = { r: 'r', y: 'y', g: 'g', muted: 'muted' };
+  const cls = colorClassMap[hp.color] || 'g';
+  // Статус-точка слева от заголовка (CSS classes: .ok / .warn / .crit)
+  const statusClassMap = { r: 'crit', y: 'warn', g: 'ok', muted: 'ok' };
+  if (statusEl) {
+    statusEl.className = 'status ' + (statusClassMap[hp.color] || 'ok');
+  }
+  titleEl.textContent = hp.title || 'Биомаркеры';
+  valueEl.textContent = (hp.value || '—') + (hp.unit ? '' : '');
+  // Меняем цвет числа
+  valueEl.classList.remove('g', 'r', 'y', 'muted');
+  valueEl.classList.add(cls);
+  // Sub-text
+  if (subEl) {
+    let sub = hp.sub || '';
+    if (hp.unit) sub = `<span style="font-size:13px;color:var(--muted);font-weight:500;margin-right:4px;">${hp.unit}</span>· ${sub}`;
+    subEl.innerHTML = sub;
+  }
+})();
 document.getElementById('h-score').textContent = D.overall_score > 0 ? D.overall_score + '/100' : '?';
+// Динамическая подпись: реальное число осей radar (биомаркеры + питание/активность/сон если есть)
+(function() {
+  const radarKeys = D.radar ? Object.keys(D.radar).filter(k => D.radar[k] > 0) : [];
+  const n = radarKeys.length;
+  const subEl = document.getElementById('h-score-sub');
+  if (subEl && n > 0) {
+    // Корректное склонение: 1 системе, 2-4 системам, 5+ системам
+    const word = (n % 10 === 1 && n % 100 !== 11) ? 'системе'
+               : ((n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14)) ? 'системам' : 'системам');
+    subEl.textContent = `% маркеров в оптимуме по ${n} ${word}`;
+  }
+})();
 
 // === TIMELINE ===
 const dates = D.meta.dates;
@@ -756,14 +849,23 @@ new Chart(document.getElementById('timeline'), {
 const T = D.totals;
 const last = (o) => { const s = Object.entries(o).sort(); return s.length ? s[s.length-1][1] : '—'; };
 // Группировка: строка 1 — Recovery & Readiness, строка 2 — Activity & Nutrition, строка 3 — Context & Progress
+// Helper: формирует подпись «посл. N» где N — последнее значение, с защитой от null
+const lastLabel = (data, suffix) => {
+  const v = last(data);
+  if (v == null || v === '') return '';
+  return `посл. ${v}${suffix ? ' · ' + suffix : ''}`;
+};
+
 const streams = [
   // ── Строка 1: Как я сейчас (Recovery & Readiness) ─────────────────────────
-  { name: '🔋 Body Battery', val: T.bb_avg, unit: 'max ср', last_: last(D.body_battery), data: D.body_battery, color: COLOR.g },
-  { name: '💗 HRV', val: T.hrv_avg, unit: 'мс ср', last_: last(D.hrv), data: D.hrv, color: COLOR.r },
-  { name: '😴 Сон', val: T.sleep_avg, unit: 'ч ср', last_: last(D.sleep_h), data: D.sleep_h, color: COLOR.p },
-  { name: '💓 Пульс покоя', val: T.rhr_avg, unit: 'уд/мин', last_: last(D.rhr), data: D.rhr, color: COLOR.r },
-  { name: '😰 Стресс', val: T.stress_avg, unit: '/100', last_: last(D.stress), data: D.stress, color: COLOR.y },
-  { name: '🩺 Давление', val: T.bp_last, unit: '', last_: 'последнее', data: D.bp_sys, color: COLOR.r },
+  // Большая цифра (val) = среднее за период наблюдения
+  // Подпись (last_) = последнее значение с контекстом ("посл. N · контекст")
+  { name: '🔋 Body Battery', val: T.bb_avg, unit: 'max ср', last_: lastLabel(D.body_battery, 'макс сегодня'), data: D.body_battery, color: COLOR.g },
+  { name: '💗 HRV', val: T.hrv_avg, unit: 'мс ср', last_: lastLabel(D.hrv, 'за прошлую ночь'), data: D.hrv, color: COLOR.r },
+  { name: '😴 Сон', val: T.sleep_avg, unit: 'ч ср', last_: lastLabel(D.sleep_h, 'прошлая ночь'), data: D.sleep_h, color: COLOR.p },
+  { name: '💓 Пульс покоя', val: T.rhr_avg, unit: 'уд/мин ср', last_: lastLabel(D.rhr, 'сегодня'), data: D.rhr, color: COLOR.r },
+  { name: '😰 Стресс', val: T.stress_avg, unit: '/100 ср', last_: lastLabel(D.stress, 'сегодня'), data: D.stress, color: COLOR.y },
+  { name: '🩺 Давление', val: T.bp_last, unit: '', last_: 'последнее измерение', data: D.bp_sys, color: COLOR.r },
   // ── Строка 2: Что я делал (Activity & Nutrition) ───────────────────────────
   { name: '🏋️ Тренировки', val: T.activities_total, unit: 'всего', last_: T.activity_hours + ' ч · ' + T.activity_km + ' км', data: null, color: COLOR.g, custom: 'workout' },
   { name: '👣 Шаги', val: T.steps_avg.toLocaleString(), unit: '/день ср', last_: last(D.steps), data: D.steps, color: COLOR.g },
@@ -901,7 +1003,7 @@ const bioRefs = [
   ['testosterone','Тестостерон', 12.1, 30, 'Гормоны'],
   ['TSH','ТТГ', 0.4, 4.0, 'Гормоны'],
   ['vitamin_D','Витамин D', 30, 80, 'Витамины'],
-  ['ferritin','Ферритин', 30, 300, 'Мин. статус'],
+  ['ferritin','Ферритин', 30, 300, 'Запасы железа'],
   ['ALT','АЛТ', 0, 40, 'Печень'],
   ['creatinine','Креатинин', 60, 110, 'Почки'],
   ['uric_acid','Мочевая кислота', 200, 420, 'Почки']
@@ -1058,17 +1160,27 @@ bioRefs.map(([k, nm, lo, hi, sys]) => {
   const el = document.getElementById('phenoage-panel');
   if (!el || !pa) return;
   const hasBioAge = pa.bio_age_est !== null && pa.bio_age_est !== undefined;
-  const diff = hasBioAge ? pa.chrono_age - pa.bio_age_est : null;
-  const diffColor = diff !== null && diff > 0 ? COLOR.g : COLOR.y;
+  // Округляем до 1 знака после запятой чтобы избежать артефактов float (49 - 34.1 = 14.899999...)
+  const diff = hasBioAge ? Math.round((pa.chrono_age - pa.bio_age_est) * 10) / 10 : null;
+  const isStale = pa.bio_age_quality === "stale";
+  const diffColor = isStale ? COLOR.y : (diff !== null && diff > 0 ? COLOR.g : COLOR.y);
+  const ageColor  = isStale ? COLOR.y : COLOR.g;
   const dirColor = { younger: COLOR.g, older: COLOR.r, unknown: COLOR.muted };
   const dirIcon  = { younger: '↓', older: '↑', unknown: '?' };
+  // Заголовок плашки в зависимости от качества данных
+  const qualityBanner = isStale
+    ? `<div style="background:rgba(255,180,40,0.12);border:1px solid ${COLOR.y};border-radius:8px;padding:8px 12px;font-size:11px;color:${COLOR.y};margin-bottom:12px;">
+        ⚠ <b>Расчёт ненадёжный:</b> устаревшие маркеры (${(pa.stale_markers||[]).join(", ")}). Цифре доверять можно только после пересдачи.
+       </div>`
+    : "";
   el.innerHTML = `
+    ${qualityBanner}
     <div style="display:flex;align-items:flex-start;gap:24px;margin-bottom:16px;">
       <div style="text-align:center;flex-shrink:0;">
         ${hasBioAge
-          ? `<div style="font-size:56px;font-weight:800;color:${COLOR.g};line-height:1;">~${pa.bio_age_est}</div>
-             <div style="font-size:10px;color:${COLOR.muted};margin-top:4px;text-transform:uppercase;letter-spacing:1px;">биологических лет</div>
-             <div style="font-size:12px;font-weight:700;color:${diffColor};margin-top:6px;">−${diff} лет от паспортного</div>`
+          ? `<div style="font-size:56px;font-weight:800;color:${ageColor};line-height:1;">~${pa.bio_age_est}</div>
+             <div style="font-size:10px;color:${COLOR.muted};margin-top:4px;text-transform:uppercase;letter-spacing:1px;">биологических лет ${isStale ? "(черновик)" : ""}</div>
+             <div style="font-size:12px;font-weight:700;color:${diffColor};margin-top:6px;">${diff > 0 ? "−" : "+"}${Math.abs(diff)} лет от паспортного</div>`
           : `<div style="font-size:32px;font-weight:800;color:${COLOR.muted};line-height:1;">—</div>
              <div style="font-size:10px;color:${COLOR.muted};margin-top:4px;text-transform:uppercase;letter-spacing:1px;">биологических лет</div>
              <div style="font-size:11px;color:${COLOR.muted};margin-top:6px;">нет данных</div>`
@@ -1088,15 +1200,91 @@ bioRefs.map(([k, nm, lo, hi, sys]) => {
           const c = dirColor[m.direction] || COLOR.muted;
           const ic = dirIcon[m.direction] || '?';
           const valStr = m.val !== null && m.val !== undefined ? m.val : '—';
-          const noteStr = m.note ? ` <span style="color:${COLOR.dim};font-size:9px;">${m.note}</span>` : '';
+          const dateStr = m.date && m.date !== '—' ? m.date : '';
+          const staleBadge = m.stale_note ? ` <span style="color:${COLOR.y};font-size:9px;font-weight:700;">${m.stale_note}</span>` : '';
           return `<div style="background:var(--bg2);border-radius:6px;padding:5px 10px;font-size:11px;border-left:2px solid ${c};">
-            <span style="color:${COLOR.muted};">${m.name}</span>&nbsp;<span style="color:${c};font-weight:700;">${ic}&nbsp;${valStr}</span>${m.unit ? `<span style="color:${COLOR.dim};font-size:9px;"> ${m.unit}</span>` : ''}${noteStr}
+            <span style="color:${COLOR.muted};">${m.name}</span>&nbsp;<span style="color:${c};font-weight:700;">${ic}&nbsp;${valStr}</span>${m.unit ? `<span style="color:${COLOR.dim};font-size:9px;"> ${m.unit}</span>` : ''}${dateStr ? `<span style="color:${COLOR.dim};font-size:9px;"> · ${dateStr}</span>` : ''}${staleBadge}
           </div>`;
         }).join('')}
       </div>
     </div>
-    <div style="background:var(--bg2);border-radius:8px;padding:12px 14px;font-size:11px;color:${COLOR.muted};line-height:1.9;border-left:3px solid ${COLOR.y};">
+    <div style="background:var(--bg2);border-radius:8px;padding:12px 14px;font-size:11px;color:${COLOR.muted};line-height:1.9;border-left:3px solid ${isStale ? COLOR.y : COLOR.g};">
       <b style="color:var(--text);">Примечание:</b> ${pa.note}
+    </div>`;
+})();
+
+// === PANEL 5: SCORE2 ===
+(function() {
+  const pd = D.panels_data; if (!pd) return;
+  const s2 = pd.score2;
+  const el = document.getElementById('score2-panel');
+  if (!el || !s2) return;
+  if (!s2.available) {
+    el.innerHTML = `<div style="background:var(--bg2);border-radius:8px;padding:14px;color:${COLOR.muted};font-size:12px;">
+      ⚠ ${s2.no_data_reason || 'Недостаточно данных для расчёта.'}
+    </div>`;
+    return;
+  }
+  const colorMap = { g: COLOR.g, y: COLOR.y, o: '#f4a460', r: COLOR.r };
+  const c = colorMap[s2.color] || COLOR.muted;
+  const inputs = s2.inputs || {};
+  el.innerHTML = `
+    <div style="display:flex;align-items:flex-start;gap:24px;margin-bottom:16px;">
+      <div style="text-align:center;flex-shrink:0;">
+        <div style="font-size:56px;font-weight:800;color:${c};line-height:1;">${s2.risk_pct}%</div>
+        <div style="font-size:10px;color:${COLOR.muted};margin-top:4px;text-transform:uppercase;letter-spacing:1px;">10-летний риск ССЗ</div>
+        <div style="font-size:12px;font-weight:700;color:${c};margin-top:6px;">${s2.category_ru}</div>
+      </div>
+      <div style="flex:1;">
+        <div style="font-size:11px;color:${COLOR.muted};line-height:2;background:var(--bg2);border-radius:8px;padding:10px 14px;">
+          Возраст ${inputs.age} · ${inputs.sex === 'male' ? 'мужчина' : 'женщина'} · ${inputs.smoking ? 'курит' : 'не курит'}<br>
+          АД ${inputs.sbp?.toFixed?.(0) ?? inputs.sbp} мм рт.ст · общий хол. ${inputs.tchol} · HDL ${inputs.hdl} ммоль/л<br>
+          Регион: ${({'low':'низкий риск','moderate':'умеренный риск','high':'высокий риск','very_high':'очень высокий риск'})[inputs.region] || inputs.region}
+        </div>
+      </div>
+    </div>
+    <div style="background:var(--bg2);border-radius:8px;padding:12px 14px;font-size:11px;color:${COLOR.muted};line-height:1.9;border-left:3px solid ${c};">
+      <b style="color:var(--text);">Что значит:</b> ${s2.interpretation}
+    </div>`;
+})();
+
+// === PANEL 6: ASCVD Lifetime Risk ===
+(function() {
+  const pd = D.panels_data; if (!pd) return;
+  const a = pd.ascvd;
+  const el = document.getElementById('ascvd-panel');
+  if (!el || !a) return;
+  if (!a.available) {
+    el.innerHTML = `<div style="background:var(--bg2);border-radius:8px;padding:14px;color:${COLOR.muted};font-size:12px;">
+      ⚠ ${a.no_data_reason || 'Недостаточно данных для расчёта.'}
+    </div>`;
+    return;
+  }
+  const colorMap = { g: COLOR.g, y: COLOR.y, o: '#f4a460', r: COLOR.r };
+  const c = colorMap[a.color] || COLOR.muted;
+  const f = a.factors || {};
+  const factorEmoji = { optimal: '✅', not_optimal: '🟡', elevated: '🟠', major: '🔴' };
+  const factorLabel = { optimal: 'оптимально', not_optimal: 'не оптим.', elevated: 'повышено', major: 'major' };
+  el.innerHTML = `
+    <div style="display:flex;align-items:flex-start;gap:24px;margin-bottom:16px;">
+      <div style="text-align:center;flex-shrink:0;">
+        <div style="font-size:56px;font-weight:800;color:${c};line-height:1;">${a.risk_pct}%</div>
+        <div style="font-size:10px;color:${COLOR.muted};margin-top:4px;text-transform:uppercase;letter-spacing:1px;">пожизненный риск ССЗ</div>
+        <div style="font-size:12px;font-weight:700;color:${c};margin-top:6px;">${a.category_ru}</div>
+      </div>
+      <div style="flex:1;">
+        <div style="font-size:11px;color:${COLOR.muted};line-height:1.9;background:var(--bg2);border-radius:8px;padding:10px 14px;">
+          <div style="margin-bottom:6px;font-weight:600;color:var(--text);">5 главных факторов риска:</div>
+          ${factorEmoji[f.sbp]} АД (${factorLabel[f.sbp]})<br>
+          ${factorEmoji[f.chol]} Общий холестерин (${factorLabel[f.chol]})<br>
+          ${factorEmoji[f.hdl]} ЛПВП (${factorLabel[f.hdl]})<br>
+          ${factorEmoji[f.smoking]} Курение (${factorLabel[f.smoking]})<br>
+          ${factorEmoji[f.diabetes]} Диабет (${factorLabel[f.diabetes]})
+        </div>
+      </div>
+    </div>
+    <div style="background:var(--bg2);border-radius:8px;padding:12px 14px;font-size:11px;color:${COLOR.muted};line-height:1.9;border-left:3px solid ${c};">
+      <b style="color:var(--text);">Что значит:</b> ${a.interpretation}
     </div>`;
 })();
 
@@ -1137,6 +1325,32 @@ function renderHeatmap() {
 }
 renderHeatmap();
 
+// === Динамическое число биомаркеров (вместо хардкода 12) ===
+(function() {
+  const n = (D.meta && D.meta.bio_key_count) || (D.biomarkers_latest ? Object.keys(D.biomarkers_latest).length : '—');
+  const el = document.getElementById('bio-count-1'); if (el) el.textContent = n;
+})();
+
+// === DYNAMIC HR ZONE LIMITS (от user.age — мульти-юзерно) ===
+(function fillHrZoneBpm() {
+  const hz = (D.meta && D.meta.hr_zones) || {};
+  if (!hz.max_hr) return;  // нет возраста — оставляем «—»
+  const z1 = `≤${hz.z1_top}`;
+  const z2 = `${hz.z1_top + 1}–${hz.z2_top}`;
+  const z3 = `${hz.z2_top + 1}–${hz.z3_top}`;
+  const z4 = `${hz.z3_top + 1}–${hz.z4_top}`;
+  const z5 = `≥${hz.z4_top + 1}`;
+  const setText = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+  setText('zl-z1-bpm', z1);
+  setText('zl-z2-bpm', z2);
+  setText('zl-z3-bpm', z3);
+  setText('zl-z4-bpm', z4);
+  setText('zl-z5-bpm', z5);
+  // KPI explain тексты с динамическими bpm
+  setText('kpi-z2-explain', `аэробная база, пульс 60–70% макс (≈${hz.z1_top + 1}–${hz.z2_top} bpm)`);
+  setText('kpi-hiit-explain', `высокий пульс >80% макс (≥${hz.z3_top + 1} bpm) — для VO2max`);
+})();
+
 // === SPORT BLOCK ===
 (function renderSportBlock() {
   const S = D.sport;
@@ -1166,29 +1380,44 @@ renderHeatmap();
   // ── Polarized pyramid ──
   document.getElementById('polarized-verdict').textContent = S.polarized.verdict_label;
 
+  // Универсальный рендер: 5 зон отдельными цветами.
+  // Если у объекта есть z1_pct..z5_pct — рисуем 5 сегментов; иначе fallback на easy/mid/hard.
+  function buildZoneSegs(o) {
+    const segs = [];
+    const has5 = o.z1_pct != null || o.z2_pct != null;
+    if (has5) {
+      [['z1', o.z1_pct], ['z2', o.z2_pct], ['z3', o.z3_pct],
+       ['z4', o.z4_pct], ['z5', o.z5_pct]].forEach(([z, pct]) => {
+        const p = pct || 0;
+        if (p > 0) {
+          segs.push(`<div class="polar-seg seg-${z}" style="width:${p}%" title="${z.toUpperCase()}: ${p}%">${p >= 6 ? p + '%' : ''}</div>`);
+        }
+      });
+    } else {
+      const easy = o.easy_pct || 0, mid = o.mid_pct || 0, hard = o.hard_pct || 0;
+      if (easy > 0) segs.push(`<div class="polar-seg seg-z2" style="width:${easy}%">${easy >= 8 ? easy + '%' : ''}</div>`);
+      if (mid > 0) segs.push(`<div class="polar-seg seg-z3" style="width:${mid}%">${mid >= 8 ? mid + '%' : ''}</div>`);
+      if (hard > 0) segs.push(`<div class="polar-seg seg-z4" style="width:${hard}%">${hard >= 8 ? hard + '%' : ''}</div>`);
+    }
+    return segs.join('');
+  }
+
   const monthsEl = document.getElementById('polar-months');
   monthsEl.innerHTML = '';
-  (S.months || []).forEach(m => {
-    const easy = m.easy_pct, mid = m.mid_pct, hard = m.hard_pct;
-    const segs = [];
-    if (easy > 0) segs.push(`<div class="polar-seg seg-easy" style="width:${easy}%">${easy >= 8 ? easy + '%' : ''}</div>`);
-    if (mid > 0) segs.push(`<div class="polar-seg seg-mid" style="width:${mid}%">${mid >= 8 ? mid + '%' : ''}</div>`);
-    if (hard > 0) segs.push(`<div class="polar-seg seg-hard" style="width:${hard}%">${hard >= 8 ? hard + '%' : ''}</div>`);
+  // UX-конвенция: новое сверху (как тренировки 14 дней, как Garmin/Strava/Apple Health).
+  // На сервере месяцы идут по возрастанию (фев→май), реверсим для дисплея.
+  (S.months || []).slice().reverse().forEach(m => {
     const row = document.createElement('div');
     row.className = 'polar-row';
     row.innerHTML = `
       <div class="polar-label">${m.label}</div>
-      <div class="polar-bar">${segs.join('')}</div>
+      <div class="polar-bar">${buildZoneSegs(m)}</div>
       <div class="polar-meta">${m.n} трен · ${m.mins} мин · load ${m.load}</div>`;
     monthsEl.appendChild(row);
   });
 
   const tot = S.polarized;
-  const totSegs = [];
-  if (tot.easy_pct > 0) totSegs.push(`<div class="polar-seg seg-easy" style="width:${tot.easy_pct}%">${tot.easy_pct}%</div>`);
-  if (tot.mid_pct > 0) totSegs.push(`<div class="polar-seg seg-mid" style="width:${tot.mid_pct}%">${tot.mid_pct}%</div>`);
-  if (tot.hard_pct > 0) totSegs.push(`<div class="polar-seg seg-hard" style="width:${tot.hard_pct}%">${tot.hard_pct}%</div>`);
-  document.getElementById('polar-total-bar').innerHTML = totSegs.join('');
+  document.getElementById('polar-total-bar').innerHTML = buildZoneSegs(tot);
   document.getElementById('polar-total-meta').textContent = `${S.window_workouts} трен · ${tot.total_min} мин`;
 
   // ── Workout list ──
@@ -1205,14 +1434,30 @@ renderHeatmap();
       const typeHtml = suggested
         ? `${synthPrefix}<span class="wo-type-strike">${typeLabel}</span> → <span class="wo-type-suggest">${suggested}</span>`
         : `${synthPrefix}<span>${typeLabel}</span>`;
-      const zoneMap = [
-        ['easy', w.easy_pct || 0, 'Лёгкое (Z1+Z2)'],
-        ['mid', w.mid_pct || 0, 'Темп (Z3)'],
-        ['hard', w.hard_pct || 0, 'Высокое (Z4+Z5)'],
-      ];
-      const zonesHtml = zoneMap.map(([cls, pct, label]) =>
-        pct > 0 ? `<div class="wo-zone-seg wo-zone-${cls}" style="width:${pct}%" title="${label}: ${pct}%"></div>` : ''
-      ).join('');
+      // 5 зон по Garmin/Strava стандарту (если есть данные); fallback на 3 группы
+      const has5 = w.z1_pct != null || w.z2_pct != null;
+      let zonesHtml;
+      if (has5) {
+        const zoneMap5 = [
+          ['z1', w.z1_pct || 0, 'Z1 разминка'],
+          ['z2', w.z2_pct || 0, 'Z2 база'],
+          ['z3', w.z3_pct || 0, 'Z3 темп'],
+          ['z4', w.z4_pct || 0, 'Z4 анаэробный'],
+          ['z5', w.z5_pct || 0, 'Z5 максимум'],
+        ];
+        zonesHtml = zoneMap5.map(([cls, pct, label]) =>
+          pct > 0 ? `<div class="wo-zone-seg wo-zone-${cls}" style="width:${pct}%" title="${label}: ${pct}%"></div>` : ''
+        ).join('');
+      } else {
+        const zoneMap3 = [
+          ['z2', w.easy_pct || 0, 'Лёгкое (Z1+Z2)'],
+          ['z3', w.mid_pct || 0, 'Темп (Z3)'],
+          ['z4', w.hard_pct || 0, 'Высокое (Z4+Z5)'],
+        ];
+        zonesHtml = zoneMap3.map(([cls, pct, label]) =>
+          pct > 0 ? `<div class="wo-zone-seg wo-zone-${cls}" style="width:${pct}%" title="${label}: ${pct}%"></div>` : ''
+        ).join('');
+      }
       const verdictText = w.is_misnamed
         ? `${w.high_zone_pct}% Z4+Z5 — это не интервалы, это силовая`
         : (w.type === 'hiit' && w.high_zone_pct >= 25) ? '✓ настоящие интервалы'
@@ -1241,10 +1486,28 @@ renderHeatmap();
   const recsEl = document.getElementById('sport-recs');
   recsEl.innerHTML = S.recommendations.map(t => `<li>${t}</li>`).join('');
 
-  document.getElementById('sport-hint').textContent = `последние ${S.window_days} дней · ${S.window_workouts} трен · сравнение с канонами Seiler/Attia`;
+  // innerHTML, чтобы ссылки на Seiler/Attia сохранились
+  document.getElementById('sport-hint').innerHTML =
+    `последние ${S.window_days} дней · ${S.window_workouts} трен · сравнение с канонами ` +
+    `<a href="https://en.wikipedia.org/wiki/Stephen_Seiler" target="_blank" style="color:inherit;text-decoration:underline dotted;" ` +
+    `title="Стивен Зайлер — норвежский физиолог, автор модели polarized training (80/20)">Seiler</a>/` +
+    `<a href="https://peterattiamd.com/" target="_blank" style="color:inherit;text-decoration:underline dotted;" ` +
+    `title="Питер Аттиа — кардиолог, автор «Outlive» (2023), концепции Zone 2 для долголетия">Attia</a>`;
 })();
 
 // === MINI CHARTS ===
+// Helper: преобразование англ. месяцев в русские (chartjs-adapter-date-fns без локали).
+// getLabelForValue возвращает полную дату «Feb 1, 2026, 12:00:00 a.m.» — извлекаем месяц.
+const _RU_MONTHS = {Jan:'янв',Feb:'фев',Mar:'мар',Apr:'апр',May:'май',Jun:'июн',
+                    Jul:'июл',Aug:'авг',Sep:'сен',Oct:'окт',Nov:'ноя',Dec:'дек'};
+function ruMonthTick(label) {
+  if (!label) return label;
+  // Если короткий формат уже — заменяем
+  if (_RU_MONTHS[label]) return _RU_MONTHS[label];
+  // Полный формат типа "Feb 1, 2026, 12:00:00 a.m." — извлекаем месяц
+  const m = String(label).match(/^([A-Z][a-z]{2})/);
+  return m && _RU_MONTHS[m[1]] ? _RU_MONTHS[m[1]] : label;
+}
 function miniLine(id, data, color, label) {
   const sorted = Object.entries(data).sort();
   new Chart(document.getElementById(id), {
@@ -1254,7 +1517,8 @@ function miniLine(id, data, color, label) {
         backgroundColor: color+'15', borderWidth: 1.8, pointRadius: 0,
         fill: true, tension: 0.4 }]},
     options: { responsive:true, maintainAspectRatio:false,
-      scales:{x:{type:'time', time:{unit:'month', displayFormats:{month:'MMM'}}, grid:{display:false}},
+      scales:{x:{type:'time', time:{unit:'month', displayFormats:{month:'MMM'}}, grid:{display:false},
+                 ticks:{callback: function(v){ return ruMonthTick(this.getLabelForValue(v)); }}},
               y:{grid:{color:COLOR.grid}, ticks:{font:{size:10}}}},
       plugins:{legend:{display:false},
                tooltip:{backgroundColor:'#0a0e17', borderColor:COLOR.grid, borderWidth:1}}}
@@ -1281,7 +1545,8 @@ miniLine('ch-co2', D.co2, COLOR.b, 'CO₂');
           fill: true, tension: 0.3 }
       ]},
     options: { responsive:true, maintainAspectRatio:false,
-      scales:{x:{type:'time', time:{unit:'month', displayFormats:{month:'MMM'}}, grid:{display:false}},
+      scales:{x:{type:'time', time:{unit:'month', displayFormats:{month:'MMM'}}, grid:{display:false},
+                 ticks:{callback: function(v){ return ruMonthTick(this.getLabelForValue(v)); }}},
               y:{grid:{color:COLOR.grid}, ticks:{font:{size:10}}}},
       plugins:{legend:{display:true, labels:{boxWidth:10, font:{size:10}}},
                tooltip:{backgroundColor:'#0a0e17', borderColor:COLOR.grid, borderWidth:1, mode:'index', intersect:false}}}

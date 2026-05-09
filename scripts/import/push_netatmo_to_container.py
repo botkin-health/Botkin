@@ -29,7 +29,11 @@ USER_ID = 895655
 SERVER = "root@116.203.213.137"
 SERVER_PASS = "SERVER_PASSWORD_REDACTED"
 CONTAINER = "healthvault_bot"
-CONTAINER_PATH = f"/app/env_data_{USER_ID}.json"
+# dashboard_generator.py читает env_data из /app/telegram-bot/env_data_{user_id}.json
+# (Path(__file__).parent), поэтому копируем именно туда. Старый путь /app/env_data_*.json
+# оставлен как fallback для обратной совместимости.
+CONTAINER_PATH = f"/app/telegram-bot/env_data_{USER_ID}.json"
+CONTAINER_PATH_LEGACY = f"/app/env_data_{USER_ID}.json"
 
 
 def build_env_data(netatmo_path: Path) -> dict:
@@ -102,7 +106,9 @@ def push_to_container(data: dict) -> bool:
                 "-o",
                 "StrictHostKeyChecking=no",
                 SERVER,
-                f"docker cp {server_tmp} {CONTAINER}:{CONTAINER_PATH} && rm -f {server_tmp}",
+                f"docker cp {server_tmp} {CONTAINER}:{CONTAINER_PATH} && "
+                f"docker cp {server_tmp} {CONTAINER}:{CONTAINER_PATH_LEGACY} && "
+                f"rm -f {server_tmp}",
             ],
             capture_output=True,
             text=True,

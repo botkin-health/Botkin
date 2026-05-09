@@ -191,30 +191,24 @@ def delete_mirror_supplement_for(db, user_id: int, target_date, meal_time, meal_
 
 
 def needs_legacy_migration(supplements: list) -> bool:
-    """True if user_settings.supplements look like the old format and should be replaced
-    with DEFAULT_SUPPLEMENTS. Triggered for: missing doses, длинные дозы старого формата,
-    отсутствующие K2/Whey/post_workout.
+    """True if the supplements list is in an OLD STRUCTURAL format and needs migration.
 
-    NOTE: empty list [] means the user explicitly cleared their supplements — do NOT migrate.
-    Only migrate non-empty lists that are in old format.
+    CRITICAL: this only triggers for FORMAT issues (missing doses, deprecated slots).
+    It MUST NOT trigger because a user lacks specific supplements like K2 or Whey —
+    those are personal choices, not format markers. Treating their absence as "legacy"
+    wipes other users' settings with the owner's DEFAULT list (multi-user breaker).
+
+    Empty list [] means the user explicitly cleared their supplements — do NOT migrate.
+    Only migrate non-empty lists that are structurally outdated.
     """
     if not supplements:
-        return False  # empty = user intentionally has no supplements, respect it
-    names = {(it.get("name") or "").strip().lower() for it in supplements if isinstance(it, dict)}
+        return False
     slots = {(it.get("slot") or "") for it in supplements if isinstance(it, dict)}
     has_long_dose = any(isinstance(it, dict) and it.get("dose") and len(it["dose"]) > 12 for it in supplements)
     no_dose = not any(isinstance(it, dict) and it.get("dose") for it in supplements)
-    missing_new = "k2 mk-7" not in names or "whey" not in names
-    # post_workout slot deprecated — Whey moved to evening (daily, 2 ложки).
+    # post_workout slot deprecated — Whey moved to evening.
     has_deprecated_slot = "post_workout" in slots
-    # Креатин переехал из morning_with в evening (одна привычка с Whey).
-    creatine_in_morning = any(
-        isinstance(it, dict)
-        and (it.get("name") or "").strip().lower() == "креатин"
-        and it.get("slot") == "morning_with"
-        for it in supplements
-    )
-    return no_dose or has_long_dose or missing_new or has_deprecated_slot or creatine_in_morning
+    return no_dose or has_long_dose or has_deprecated_slot
 
 
 def default_dose_for(name: str) -> Optional[str]:
