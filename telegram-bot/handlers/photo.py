@@ -989,11 +989,18 @@ async def handle_menu_photo(message: Message, menu_data: dict, photo_path: Path,
     protein = menu_data.get("protein", 0)
     fats = menu_data.get("fats", 0)
     carbs = menu_data.get("carbs", 0)
+    weight_raw = menu_data.get("weight") or menu_data.get("weight_grams")
+    try:
+        weight_display = float(weight_raw) if weight_raw else 0.0
+    except (TypeError, ValueError):
+        weight_display = 0.0
+    weight_str = f"{int(weight_display)} г" if weight_display > 0 else "~100 г (не определён)"
 
     # Формируем ответ
     response = (
         f"🍽️ <b>Распознано по фото</b>\n\n"
-        f"<b>{dish_name}</b>\n\n"
+        f"<b>{dish_name}</b>\n"
+        f"⚖️ Вес: {weight_str}\n\n"
         f"📊 КБЖУ:\n"
         f"• Калории: {calories:.0f} ккал\n"
         f"• Белки: {protein:.0f} г\n"
