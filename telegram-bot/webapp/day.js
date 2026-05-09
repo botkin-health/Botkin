@@ -112,11 +112,14 @@
       const lines = [];
       if (bmr) lines.push(`💤 БМР ${bmr}`);
 
-      // Activity line — show today + avg if both, else whichever is available.
+      // Activity line — primary number (what goes into the goal) is the 14-day avg.
+      // Today's actual is secondary — shown in muted style to avoid visual confusion
+      // ("777 сег" next to a 1885 goal made user think the goal should be 2218×0.85).
+      // Order: AVG first (primary, used in calc), TODAY second (informational, faded).
       if (actToday != null && actAvg) {
-        lines.push(`🏃 ${actToday} сег · ${actAvg} ср`);
+        lines.push(`🏃 ${actAvg} ср <span class="bmr-today-hint">· ${actToday} сег</span>`);
       } else if (actToday != null) {
-        lines.push(`🏃 ${actToday} сег`);
+        lines.push(`🏃 <span class="bmr-today-hint">${actToday} сег</span>`);
       } else if (actAvg) {
         lines.push(`🏃 ${actAvg} ср`);
       }

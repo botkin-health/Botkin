@@ -581,6 +581,7 @@ async def receive_apple_health_v2(
 class SupplementItem(BaseModel):
     name: str
     slot: str  # morning_before | morning_with | evening
+    dose: Optional[str] = None  # короткая строка для UI/log: "2 ч.л.", "5000 IU"
 
 
 class UserSettingsSchema(BaseModel):
@@ -667,7 +668,8 @@ async def save_settings(payload: UserSettingsSchema, tg_user: dict = Depends(get
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid supplement_reminder_time, use HH:MM")
 
-    supplements_list = [s.model_dump() for s in payload.supplements]
+    # exclude_none keeps the JSON tidy: items без дозы не несут "dose": null.
+    supplements_list = [s.model_dump(exclude_none=True) for s in payload.supplements]
 
     db = SessionLocal()
     try:

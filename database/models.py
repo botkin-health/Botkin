@@ -75,6 +75,10 @@ class User(Base):
     birth_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     height_cm: Mapped[Optional[int]] = mapped_column(SmallInteger, nullable=True)
     sex: Mapped[str] = mapped_column(String(10), default="male", server_default="male")
+    # Курительный статус для AHA Life's Essential 8.
+    # Значения: "never" / "former_5plus" / "former_1to5" / "former_lt1" / "current".
+    # NULL = неизвестно (LE8 покажет «нет данных»).
+    smoking_status: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
 
     # Manual calorie targets (for users without Garmin)
     bmr: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # Базовый метаболизм, ккал/день

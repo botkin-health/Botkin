@@ -10,8 +10,16 @@ Endpoints:
   POST /api/profile/bmr — save manual override or switch back to auto
 """
 
-from datetime import date as date_cls, timedelta
+from datetime import date as date_cls, datetime as dt_cls, timedelta, timezone
 from typing import Optional, Literal
+
+# All date/age math uses MSK (project is Moscow-only; server runs in UTC).
+MSK = timezone(timedelta(hours=3))
+
+
+def _today_msk() -> date_cls:
+    return dt_cls.now(MSK).date()
+
 
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
@@ -85,7 +93,7 @@ async def get_bmr(tg_user: dict = Depends(get_tg_user)):
         resolved_activity = budget.get("activity_avg")
 
         # What sources are *available* (for showing user's options)
-        today = date_cls.today()
+        today = _today_msk()
         rows = get_activities_by_period(db, user_id, today - timedelta(days=14), today)
         garmin_available = any(r.source and "garmin" in r.source.lower() and r.total_calories for r in rows)
         apple_available = any(
@@ -102,7 +110,7 @@ async def get_bmr(tg_user: dict = Depends(get_tg_user)):
         sex = user.sex if user else "male"
         age = None
         if user and user.birth_date:
-            today_d = date_cls.today()
+            today_d = _today_msk()
             age = (
                 today_d.year
                 - user.birth_date.year
@@ -173,7 +181,7 @@ async def set_bmr(payload: BmrSettingsPayload, tg_user: dict = Depends(get_tg_us
             user.sex = m.sex
             user.height_cm = m.height_cm
             # Convert age → birth_date (approximate: Jan 1 of birth year)
-            today_d = date_cls.today()
+            today_d = _today_msk()
             user.birth_date = date_cls(today_d.year - m.age, 1, 1)
             db.commit()
 

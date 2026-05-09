@@ -40,7 +40,7 @@ def _one(db: Session, sql: str, **params):
 # ── sport block (HR-zones, polarized training analysis) ──────────────────────
 
 
-def _build_sport_block(user_id: int) -> dict:
+def _build_sport_block(user_id: int, user_age: int | None = None) -> dict:
     """Анализ тренировок по канонам Seiler/Attia/Whoop.
 
     Источник: workouts_log_{user_id}.json (Garmin activities → parse_workouts.py).
@@ -228,14 +228,30 @@ def _build_sport_block(user_id: int) -> dict:
         b["mins"] += w.get("duration_min") or 0
 
     months = sorted(months_dict.values(), key=lambda x: x["month"])
-    # round + нормализуем до 100% ровно
+    # round + нормализуем до 100% ровно (для каждой зоны отдельно)
     for b in months:
         for k in ("z1", "z2", "z3", "z4", "z5", "mins"):
             b[k] = round(b[k])
         total = b["z1"] + b["z2"] + b["z3"] + b["z4"] + b["z5"] or 1
-        e = round((b["z1"] + b["z2"]) / total * 100)
-        m = round(b["z3"] / total * 100)
-        h = round((b["z4"] + b["z5"]) / total * 100)
+        # Сырые проценты для каждой зоны
+        raw = {z: b[z] / total * 100 for z in ("z1", "z2", "z3", "z4", "z5")}
+        rounded = {z: round(v) for z, v in raw.items()}
+        # Корректируем сумму до 100% (отдаём дельту самой большой зоне)
+        diff = 100 - sum(rounded.values())
+        if diff != 0:
+            biggest = max(rounded, key=rounded.get)
+            rounded[biggest] += diff
+        b["z1_pct"], b["z2_pct"], b["z3_pct"], b["z4_pct"], b["z5_pct"] = (
+            rounded["z1"],
+            rounded["z2"],
+            rounded["z3"],
+            rounded["z4"],
+            rounded["z5"],
+        )
+        # Backward compat: easy/mid/hard для старого кода
+        e = rounded["z1"] + rounded["z2"]
+        m = rounded["z3"]
+        h = rounded["z4"] + rounded["z5"]
         b["easy_pct"], b["mid_pct"], b["hard_pct"] = _normalize_to_100(e, m, h)
         b["total_min"] = total
 
@@ -272,9 +288,17 @@ def _build_sport_block(user_id: int) -> dict:
     for w in recent14:
         z = w.get("hr_zones", {})
         total = sum(z.values()) or 1
-        e = round((z.get("z1_min", 0) + z.get("z2_min", 0)) / total * 100)
-        m = round(z.get("z3_min", 0) / total * 100)
-        h = round((z.get("z4_min", 0) + z.get("z5_min", 0)) / total * 100)
+        # 5 зон отдельно — ключ для отрисовки полосок
+        raw5 = {f"z{i}": z.get(f"z{i}_min", 0) / total * 100 for i in range(1, 6)}
+        rounded5 = {k: round(v) for k, v in raw5.items()}
+        diff = 100 - sum(rounded5.values())
+        if diff != 0:
+            biggest = max(rounded5, key=rounded5.get)
+            rounded5[biggest] += diff
+        # Backward compat
+        e = rounded5["z1"] + rounded5["z2"]
+        m = rounded5["z3"]
+        h = rounded5["z4"] + rounded5["z5"]
         easy_p, mid_p, hard_p = _normalize_to_100(e, m, h)
         item = {
             "date": w.get("date"),
@@ -282,6 +306,11 @@ def _build_sport_block(user_id: int) -> dict:
             "type_label": w.get("type_label", w.get("type", "")),
             "duration_min": round(w.get("duration_min") or 0),
             "avg_hr": round(w.get("avg_hr") or 0),
+            "z1_pct": rounded5["z1"],
+            "z2_pct": rounded5["z2"],
+            "z3_pct": rounded5["z3"],
+            "z4_pct": rounded5["z4"],
+            "z5_pct": rounded5["z5"],
             "easy_pct": easy_p,
             "mid_pct": mid_p,
             "hard_pct": hard_p,
@@ -295,19 +324,46 @@ def _build_sport_block(user_id: int) -> dict:
             misnamed_count += 1
         workout_list.append(item)
 
+    # ── HR-zones bpm границы (мульти-юзерно: от user_age) ─────────────────
+    # Используется в текстах рекомендаций. Для юзера без birth_date — среднее 49.
+    _max_hr = (220 - user_age) if user_age else (220 - 49)
+    _z2_bottom = round(_max_hr * 0.60)
+    _z2_top = round(_max_hr * 0.70)
+    _z4_bottom = round(_max_hr * 0.80)
+    _z4_norway = round(_max_hr * 0.90)
+
     # ── recommendations ──────────────────────────────────────────────────────
+    # Флаг: была ли недавно качественная Z2-сессия (на основе good_z2 логики ниже).
+    # Считается тут заранее, чтобы избежать дубля с recs.insert(0,...) в работающей секции.
+    _last_good_z2_days = None
+    _z2_quality_pre = [
+        w for w in w90 if w.get("type") in ("running", "cycling") and w.get("hr_zones", {}).get("z2_min", 0) > 0
+    ]
+    _good_z2_pre = []
+    for w in _z2_quality_pre:
+        z = w.get("hr_zones", {}) or {}
+        if z.get("z2_min", 0) / (sum(z.values()) or 1) > 0.7:
+            _good_z2_pre.append(w)
+    if _good_z2_pre:
+        try:
+            _last_good_z2_days = (today - max(date.fromisoformat(w["date"]) for w in _good_z2_pre)).days
+        except Exception:
+            _last_good_z2_days = None
+
     recs = []
     if z2_per_week < 75:
         deficit = 150 - z2_per_week
-        recs.append(
-            f"Добавь Z2: сейчас {z2_per_week} мин/нед, цель 150. "
-            f"2 пробежки/велик по 30–45 мин на пульсе 110–120 закроют дефицит {deficit} мин."
-        )
+        # Не дублируем «Z2 пауза» если запись «возобновить Z2» уже добавится ниже.
+        if _last_good_z2_days is None or _last_good_z2_days <= 30:
+            recs.append(
+                f"Добавь Z2: сейчас {z2_per_week} мин/нед, цель 150. "
+                f"2 пробежки/велик по 30–45 мин на пульсе {_z2_bottom}–{_z2_top} закроют дефицит {deficit} мин."
+            )
     if hiit_per_week < 8:
         recs.append(
             f"Добавь острые интервалы: Z4+Z5 сейчас {hiit_per_week} мин/нед, цель 16. "
-            "Норвежский протокол 4×4: четыре повтора по 4 мин на 90% maxHR (≥155 bpm) "
-            "с 3 мин восстановления между. Раз в неделю."
+            f"Норвежский протокол 4×4: четыре повтора по 4 мин на 90% maxHR (≥{_z4_norway} bpm) "
+            f"с 3 мин восстановления между. Раз в неделю."
         )
     if misnamed_count > 0:
         recs.append(
@@ -328,9 +384,47 @@ def _build_sport_block(user_id: int) -> dict:
         recs.append("Тренировочный план сбалансирован. Держи ритм.")
 
     # ── what's working (positive observations) ───────────────────────────────
+    # ВАЖНО: только объективные факты с реальной полезностью. Не льстим, не дублируем.
+    # Каждый пункт должен показывать ОТДЕЛЬНОЕ полезное качество тренировок:
+    #   - регулярность (consistency) — отсутствие пропусков
+    #   - тип нагрузки (силовые после 45 — anti-sarcopenia)
+    #   - качество тренировок (реальный анаболический стимул)
     works = []
-    if workouts_per_week >= 2.5:
+
+    # 1. Регулярность силовых (после 45 — главное для anti-sarcopenia)
+    # Объединяем «ритм» + «без провалов» в один пункт про силовые,
+    # потому что это самое значимое по доказательной базе для возраста 45+.
+    strength_w90 = [w for w in w90 if w.get("type") in ("strength_training", "hiit")]
+    strength_per_week = round(len(strength_w90) / 13, 1)  # 90/7 = ~13 недель
+    months_with_data = [m for m in months if m.get("n", 0) > 0]
+    has_regular_strength = strength_per_week >= 2 and len(strength_w90) >= 18
+    has_no_gaps = len(months_with_data) >= 3 and all(m.get("n", 0) >= 5 for m in months_with_data)
+
+    if has_regular_strength and has_no_gaps:
+        # Лучший случай — и регулярно, и без провалов
+        works.append(
+            f"Силовые {strength_per_week}/нед, без пропусков "
+            f"({len(strength_w90)} тренировок за 90 дн, {len(months_with_data)} месяцев подряд) — "
+            f"ключевой фактор сохранения мышц после 45"
+        )
+    elif has_regular_strength:
+        works.append(
+            f"Силовые {strength_per_week}/нед ({len(strength_w90)} за 90 дн) — ключевой фактор сохранения мышц после 45"
+        )
+    elif workouts_per_week >= 2.5:
+        # Fallback: общая регулярность если нет именно силовых
         works.append(f"Стабильный ритм: {workouts_per_week} тренировок/нед в среднем за 90 дней")
+
+    # 2. Качество силовых: средний Anaerobic TE — реальный стимул для роста
+    anaer_te = [w.get("anaerobic_te") for w in strength_w90 if w.get("anaerobic_te")]
+    if anaer_te:
+        avg_anaer = round(sum(anaer_te) / len(anaer_te), 1)
+        n_improving = sum(1 for v in anaer_te if v >= 2.5)
+        if avg_anaer >= 2.5 or n_improving >= len(anaer_te) * 0.4:
+            works.append(
+                f"Силовые с реальным анаболическим стимулом: средний Anaerobic TE {avg_anaer}, "
+                f"в {n_improving}/{len(anaer_te)} тренировок попадаешь в «improving» (TE≥2.5)"
+            )
     # Detect well-tagged Z2 sessions (running/cycling with >70% in Z2)
     z2_quality = [
         w for w in w90 if w.get("type") in ("running", "cycling") and w.get("hr_zones", {}).get("z2_min", 0) > 0
@@ -344,9 +438,31 @@ def _build_sport_block(user_id: int) -> dict:
             if z.get("z2_min", 0) / total > 0.7:
                 good_z2.append(w)
         if good_z2:
-            works.append(
-                f"Беговые/велик в правильной Z2: {len(good_z2)} сессий, средне {round(sum(w.get('duration_min', 0) for w in good_z2) / len(good_z2))} мин"
-            )
+            # Динамическая подпись: только реально присутствующие типы (бег / велик / оба)
+            types_present = {w.get("type") for w in good_z2}
+            type_label_map = {"running": "Беговые", "cycling": "Велосипедные"}
+            type_str = " / ".join(type_label_map.get(t, t) for t in sorted(types_present)) or "Кардио"
+            avg_min = round(sum(w.get("duration_min", 0) for w in good_z2) / len(good_z2))
+            # Свежесть: если последняя такая сессия >30 дней назад — это уже не «работает»,
+            # а исторический факт. Переносим в «что менять».
+            try:
+                last_z2_date = max(date.fromisoformat(w["date"]) for w in good_z2)
+                days_since = (today - last_z2_date).days
+            except Exception:
+                days_since = 0
+            if days_since <= 30:
+                works.append(f"{type_str} в правильной Z2: {len(good_z2)} сессий, средне {avg_min} мин")
+            else:
+                # Не «работает», а «работало». Переносим в рекомендации (recs)
+                # с конкретным планом и цифрами дефицита.
+                _z2_deficit = max(0, 150 - z2_per_week)
+                recs.insert(
+                    0,
+                    f"Возобновить Z2-кардио: последняя качественная Z2-сессия была {days_since} дней назад "
+                    f"({last_z2_date.isoformat()}). Сейчас {z2_per_week} мин/нед при цели 150 — дефицит {_z2_deficit} мин/нед. "
+                    f"План: 2 пробежки/велик по 30-45 мин на пульсе {_z2_bottom}-{_z2_top} в неделю. "
+                    f"Раньше получалось — в среднем {avg_min} мин по {len(good_z2)} тренировкам.",
+                )
     if not works:
         works.append("Нет данных для позитивных выводов — нужно больше тренировок")
 
@@ -375,6 +491,12 @@ def _build_sport_block(user_id: int) -> dict:
             "easy_pct": _normalize_to_100(round(easy_pct), round(mid_pct), round(hard_pct))[0],
             "mid_pct": _normalize_to_100(round(easy_pct), round(mid_pct), round(hard_pct))[1],
             "hard_pct": _normalize_to_100(round(easy_pct), round(mid_pct), round(hard_pct))[2],
+            # Все 5 зон отдельно — для подробного дисплея
+            "z1_pct": round(total90_z["z1"] / total90_sum * 100),
+            "z2_pct": round(total90_z["z2"] / total90_sum * 100),
+            "z3_pct": round(total90_z["z3"] / total90_sum * 100),
+            "z4_pct": round(total90_z["z4"] / total90_sum * 100),
+            "z5_pct": round(total90_z["z5"] / total90_sum * 100),
             "verdict": verdict,
             "verdict_label": verdict_label,
             "ideal": {"easy": 80, "mid": 5, "hard": 15},
@@ -521,6 +643,8 @@ def _build_payload(db: Session, user_id: int) -> dict:
     fat_g: dict[str, float] = {}
     carb: dict[str, float] = {}
     alco_days: list[str] = []
+    # Полный плоский список продуктов с датами — для MEDAS-калькулятора (LE8 диета)
+    nutrition_items_flat: list[dict] = []
 
     # Substring-safe keywords (long enough to avoid false positives)
     _alco_kw_substr = [
@@ -583,12 +707,18 @@ def _build_payload(db: Session, user_id: int) -> dict:
         items = row.items or []
         if isinstance(items, list):
             for item in items:
+                if not isinstance(item, dict):
+                    continue
                 name_lower = str(item.get("food", "")).lower()
                 is_alco = any(kw in name_lower for kw in _alco_kw_substr) or bool(_alco_kw_word_re.search(name_lower))
                 if is_alco:
                     if d not in alco_days:
                         alco_days.append(d)
-                    break
+                # Накапливаем для MEDAS — с датой, чтобы скоринг работал по rolling window
+                food_name = (item.get("food") or item.get("name") or "").strip()
+                grams = float(item.get("amount") or item.get("weight") or 0)
+                if food_name and grams > 0:
+                    nutrition_items_flat.append({"date": d, "food": food_name, "amount": grams})
 
     alco_days.sort()
 
@@ -677,8 +807,9 @@ def _build_payload(db: Session, user_id: int) -> dict:
         return round(v, rnd) if rnd else round(v)
 
     # Activity breakdown by type (for workout card bars)
+    # Названия как в русском Garmin Connect.
     _WORKOUT_LABELS = {
-        "hiit": "HIIT",
+        "hiit": "ВИИТ",
         "yoga": "Йога",
         "running": "Бег",
         "walking": "Ходьба",
@@ -988,14 +1119,29 @@ def _build_payload(db: Session, user_id: int) -> dict:
 
     _total_weeks = max(1.0, total_days / 7)
 
-    # 1. Diet (approximate — NutriLogBot has kcal/prot/fat/carb, not food categories)
-    #    AHA diet score requires fruit/veg/fiber/sodium detail we don't have.
-    #    Approximation: protein ratio + calorie tracking consistency.
+    # 1. Diet — настоящий MEDAS (Mediterranean Diet Adherence Screener, PREDIMED 2011).
+    #    Считаем по последним 30 дням rolling window — отражает текущие пищевые привычки.
+    #    Для users с малым логом (<7 дней) — fallback на старую заглушку (kcal+protein%).
+    from core.health.medas import compute_medas
+
     _prot_avg_le8 = round(sum(prot.values()) / len(prot), 1) if prot else 0
     _kcal_avg_le8 = round(sum(kcal.values()) / len(kcal)) if kcal else 0
     _prot_pct_le8 = round((_prot_avg_le8 * 4) / max(_kcal_avg_le8, 1) * 100, 1)
+
+    # Окно MEDAS: последние 30 дней (или меньше если данных меньше)
+    _medas_window_days = 30
+    _medas_cutoff = today - timedelta(days=_medas_window_days)
+    _medas_items = [it for it in nutrition_items_flat if it["date"] >= _medas_cutoff.isoformat()]
+    _medas_unique_dates = len({it["date"] for it in _medas_items})
+
     _diet_score: int | None
-    if _kcal_avg_le8 > 0:
+    _medas_result: dict | None = None
+    if _medas_unique_dates >= 7:
+        # Достаточно данных для MEDAS
+        _medas_result = compute_medas(_medas_items, n_days=_medas_window_days, skip_wine_rule=True)
+        _diet_score = _medas_result["score_100"]
+    elif _kcal_avg_le8 > 0:
+        # Fallback на старую упрощённую формулу (мало данных в логе)
         _diet_score = 50
         if _prot_pct_le8 >= 25:
             _diet_score += 15
@@ -1008,19 +1154,52 @@ def _build_payload(db: Session, user_id: int) -> dict:
         _diet_score = None
 
     # 2. Physical activity (moderate-to-vigorous min/week)
-    #    AHA: 0→0, 1-149→scale 20-79, 150+→80-100 (300+ = 100)
-    _act_min_week = sum(a.get("duration_min", 0) for a in activities) / _total_weeks
-    if _act_min_week >= 300:
+    #    AHA LE8: vigorous активность считается ×2 от moderate.
+    #    Считаем тренировку как vigorous, если средний пульс ≥70% MaxHR (≈120 bpm для 49yo)
+    #    или явно vigorous-тип (HIIT, бег, силовая с заходом в Z3+).
+    _act_moderate_min = 0.0  # минут × 1
+    _act_vigorous_min = 0.0  # минут × 1 (потом удвоим в финальной сумме MET-эквивалента)
+    for a in activities:
+        dur = a.get("duration_min", 0) or 0
+        avg_hr = a.get("avg_hr") or a.get("averageHR") or 0
+        atype = (a.get("type") or a.get("activity_type") or "").lower()
+        # Жёсткий критерий vigorous: либо тип-маркер, либо HR ≥120 bpm в среднем
+        is_vigorous = avg_hr >= 120 or any(k in atype for k in ("hiit", "running", "виит", "бег", "interval"))
+        if is_vigorous:
+            _act_vigorous_min += dur
+        else:
+            _act_moderate_min += dur
+    # AHA эквивалент: vigorous-минуты ×2 для MET-target.
+    _act_equiv_week = (_act_moderate_min + _act_vigorous_min * 2) / _total_weeks
+    _act_min_week = (_act_moderate_min + _act_vigorous_min) / _total_weeks  # для дисплея сырая сумма
+    if _act_equiv_week >= 300:
         _pa_score = 100
-    elif _act_min_week >= 150:
-        _pa_score = round(80 + 20 * (_act_min_week - 150) / 150)
-    elif _act_min_week >= 1:
-        _pa_score = max(20, round(80 * _act_min_week / 150))
+    elif _act_equiv_week >= 150:
+        _pa_score = round(80 + 20 * (_act_equiv_week - 150) / 150)
+    elif _act_equiv_week >= 1:
+        _pa_score = max(20, round(80 * _act_equiv_week / 150))
     else:
         _pa_score = 0
 
-    # 3. Nicotine: no data → None (not scored). Will be replaced with nicotine_log query in Sprint 3.
-    _smoking_score: int | None = None
+    # 3. Nicotine — читаем User.smoking_status (мульти-юзер).
+    # AHA LE8 шкала: never→100, former_5plus→75, former_1to5→50, former_lt1→25, current→0.
+    _smoking_status = getattr(user, "smoking_status", None)
+    _smoking_score_map = {
+        "never": 100,
+        "former_5plus": 75,
+        "former_1to5": 50,
+        "former_lt1": 25,
+        "current": 0,
+    }
+    _smoking_score: int | None = _smoking_score_map.get(_smoking_status)
+    _smoking_label_map = {
+        "never": "Никогда не курил",
+        "former_5plus": "Бросил ≥5 лет назад",
+        "former_1to5": "Бросил 1-5 лет назад",
+        "former_lt1": "Бросил <1 года назад",
+        "current": "Курит сейчас",
+    }
+    _smoking_val = _smoking_label_map.get(_smoking_status, "нет данных")
 
     # 4. Sleep (hours/night)
     #    AHA: 7-9h → 100, 6-6.9 or 9-9.9 → 70, <6 → scale to 0
@@ -1082,37 +1261,80 @@ def _build_payload(db: Session, user_id: int) -> dict:
         _lip_score = 0
 
     # 8. Blood pressure — systolic/diastolic average
+    # AHA LE8 (2022) точная шкала по 5 категориям:
+    #   <120/<80 optimal → 100
+    #   120-129/<80 elevated → 75
+    #   130-139/80-89 Stage 1 → 50
+    #   140-159/90-99 Stage 2 → 25
+    #   ≥160/≥100 severe → 0
+    # Берём ХУДШУЮ из систолы/диастолы (как и AHA — категория определяется по самой плохой).
     _sbp_le8 = _bp_avg_sys
     _dbp_le8 = _bp_avg_dia
     if _sbp_le8 is None or _dbp_le8 is None:
         _bp_score_le8 = None
-    elif _sbp_le8 < 120 and _dbp_le8 < 80:
-        _bp_score_le8 = 100
-    elif _sbp_le8 < 130 and _dbp_le8 < 80:
-        _bp_score_le8 = 90
-    elif _sbp_le8 < 140 or _dbp_le8 < 90:
-        _bp_score_le8 = 50
     else:
-        _bp_score_le8 = 0
+        # Категория по систоле
+        if _sbp_le8 < 120:
+            _sbp_cat = 100
+        elif _sbp_le8 < 130:
+            _sbp_cat = 75
+        elif _sbp_le8 < 140:
+            _sbp_cat = 50
+        elif _sbp_le8 < 160:
+            _sbp_cat = 25
+        else:
+            _sbp_cat = 0
+        # Категория по диастоле
+        if _dbp_le8 < 80:
+            _dbp_cat = 100
+        elif _dbp_le8 < 90:
+            # 80-89 → ловушка: пограничная elevated/Stage 1
+            # AHA: при DBP 80-89 идёт уже Stage 1 если SBP тоже ≥130, иначе elevated
+            _dbp_cat = 50 if _sbp_le8 >= 130 else 75
+        elif _dbp_le8 < 100:
+            _dbp_cat = 25
+        else:
+            _dbp_cat = 0
+        # Берём минимум (худшую категорию)
+        _bp_score_le8 = min(_sbp_cat, _dbp_cat)
+
+    # Сборка детализации диеты для UI
+    if _medas_result is not None:
+        _diet_val = (
+            f"MEDAS {_medas_result['points']}/{_medas_result['max_points']} правил · "
+            f"{_kcal_avg_le8} ккал/д · белка {_prot_pct_le8}%"
+        )
+        # Что не выполнено — топ-3 для подсказки
+        _failed = [(label, detail) for (label, ok, detail) in _medas_result["items_for_score"] if not ok][:3]
+        _failed_str = "; ".join(label for label, _ in _failed) if _failed else "всё выполнено 🎉"
+        _diet_note = f"Mediterranean Diet Score (PREDIMED). Не дотягивает: {_failed_str}"
+    else:
+        _diet_val = f"~{_prot_pct_le8}% белка, {_kcal_avg_le8} ккал/д"
+        _diet_note = (
+            "приблизительно — мало данных в логе (нужно ≥7 дней для MEDAS)"
+            if _medas_unique_dates < 7
+            else "приблизительно — нет разбора по продуктам"
+        )
 
     _le8_components = {
         "diet": {
             "score": _diet_score,
-            "val": f"~{_prot_pct_le8}% белка, {_kcal_avg_le8} ккал/д",
-            "target": "Больше овощей, цельных злаков, рыбы · меньше насыщенных жиров",
-            "note": "приблизительно — нет разбора по продуктам",
+            "val": _diet_val,
+            "target": "Средиземноморский тип: овощи, фрукты, рыба, орехи, оливковое масло",
+            "note": _diet_note,
+            "medas_details": _medas_result,  # для возможного развёрнутого тултипа
             "date": None,
         },
         "activity": {
             "score": _pa_score,
-            "val": f"~{round(_act_min_week)} мин/нед",
-            "target": "≥150 мин умеренной нагрузки / ≥75 мин интенсивной",
-            "note": f"{len(activities)} тренировок за период",
+            "val": f"~{round(_act_min_week)} мин/нед (эквивалент {round(_act_equiv_week)} с учётом vigorous ×2)",
+            "target": "≥150 мин умеренной / ≥75 мин интенсивной",
+            "note": f"{len(activities)} тренировок за период · vigorous: ~{round(_act_vigorous_min / _total_weeks)} мин/нед",
             "date": None,
         },
         "smoking": {
             "score": _smoking_score,
-            "val": "нет данных",
+            "val": _smoking_val,
             "target": "Не курить",
             "note": None,
             "date": None,
@@ -1166,7 +1388,8 @@ def _build_payload(db: Session, user_id: int) -> dict:
     }
 
     # --- Panel 4: PhenoAge (Levine et al. 2018) ---
-    # 9 biomarkers; direction vs NHANES median for age ~48 male
+    # 9 biomarkers; direction vs NHANES median for age ~48 male.
+    # Каждый маркер хранит value + date — дата нужна для проверки свежести.
     _alb_gdl = bv("albumin_g_l")
     if _alb_gdl:
         _alb_gdl = round(_alb_gdl / 10, 2)  # g/L → g/dL
@@ -1179,6 +1402,28 @@ def _build_payload(db: Session, user_id: int) -> dict:
     _alp = bv("ALP")
     _wbc = bv("WBC")
 
+    # Даты каждого из 9 маркеров — для отображения и проверки свежести
+    _pheno_dates = {
+        "albumin": bd("albumin_g_l"),
+        "creatinine": bd("creatinine"),
+        "glucose": bd("glucose"),
+        "hs_CRP": bd("hs_CRP"),
+        "lymphocytes": bd("lymphocytes"),
+        "MCV": bd("MCV"),
+        "RDW": bd("RDW_CV"),
+        "ALP": bd("ALP"),
+        "WBC": bd("WBC"),
+    }
+
+    # Сколько дней назад был сделан замер (для алертов «> 24 мес»)
+    def _days_ago(date_str: str | None) -> int | None:
+        if not date_str or date_str == "—":
+            return None
+        try:
+            return (today - date.fromisoformat(date_str)).days
+        except Exception:
+            return None
+
     # NHANES median for ~48yo male (approximate):
     # albumin ~4.2 g/dL, creatinine ~1.05, glucose ~95, CRP_ln ~0 (CRP~1),
     # lymph% ~28%, MCV ~90, RDW ~13.8%, ALP ~68, WBC ~6.7
@@ -1190,50 +1435,356 @@ def _build_payload(db: Session, user_id: int) -> dict:
         else:
             return "younger" if val < nhanes_med else "older"
 
+    def _stale_label(days: int | None) -> str | None:
+        """Метка устаревания: если ≤ 12 мес — None, иначе подпись."""
+        if days is None or days <= 365:
+            return None
+        if days <= 730:
+            return f"⚠ {days // 30} мес назад"
+        return f"🚨 {round(days / 365, 1)} года назад"
+
     _pheno_markers = [
         {
             "name": "Альбумин",
             "val": _alb_gdl,
             "unit": "г/дл",
             "direction": _pheno_dir(_alb_gdl, 4.2, higher_is_younger=True),
+            "date": _pheno_dates["albumin"],
+            "stale_note": _stale_label(_days_ago(_pheno_dates["albumin"])),
             "note": None,
         },
-        {"name": "Креатинин", "val": _creat_mgdl, "unit": "мг/дл", "direction": _pheno_dir(_creat_mgdl, 1.05)},
-        {"name": "Глюкоза", "val": _glc_mgdl, "unit": "мг/дл", "direction": _pheno_dir(_glc_mgdl, 95)},
-        {"name": "ln(CRP)", "val": _crp_ln, "unit": "", "direction": _pheno_dir(_crp_ln, 0.0)},  # ln(1)=0 is median
+        {
+            "name": "Креатинин",
+            "val": _creat_mgdl,
+            "unit": "мг/дл",
+            "direction": _pheno_dir(_creat_mgdl, 1.05),
+            "date": _pheno_dates["creatinine"],
+            "stale_note": _stale_label(_days_ago(_pheno_dates["creatinine"])),
+        },
+        {
+            "name": "Глюкоза",
+            "val": _glc_mgdl,
+            "unit": "мг/дл",
+            "direction": _pheno_dir(_glc_mgdl, 95),
+            "date": _pheno_dates["glucose"],
+            "stale_note": _stale_label(_days_ago(_pheno_dates["glucose"])),
+        },
+        {
+            "name": "ln(CRP)",
+            "val": _crp_ln,
+            "unit": "",
+            "direction": _pheno_dir(_crp_ln, 0.0),
+            "date": _pheno_dates["hs_CRP"],
+            "stale_note": _stale_label(_days_ago(_pheno_dates["hs_CRP"])),
+        },
         {
             "name": "Лимфоциты",
             "val": _lymph_pct,
             "unit": "%",
             "direction": _pheno_dir(_lymph_pct, 28, higher_is_younger=True),
+            "date": _pheno_dates["lymphocytes"],
+            "stale_note": _stale_label(_days_ago(_pheno_dates["lymphocytes"])),
         },
-        {"name": "MCV", "val": _mcv, "unit": "фл", "direction": _pheno_dir(_mcv, 90)},
-        {"name": "RDW", "val": _rdw, "unit": "%", "direction": _pheno_dir(_rdw, 13.8)},
-        {"name": "ALP", "val": _alp, "unit": "Ед/л", "direction": _pheno_dir(_alp, 68)},
-        {"name": "Лейкоциты", "val": _wbc, "unit": "×10³/мкл", "direction": _pheno_dir(_wbc, 6.7)},
+        {
+            "name": "MCV",
+            "val": _mcv,
+            "unit": "фл",
+            "direction": _pheno_dir(_mcv, 90),
+            "date": _pheno_dates["MCV"],
+            "stale_note": _stale_label(_days_ago(_pheno_dates["MCV"])),
+        },
+        {
+            "name": "RDW",
+            "val": _rdw,
+            "unit": "%",
+            "direction": _pheno_dir(_rdw, 13.8),
+            "date": _pheno_dates["RDW"],
+            "stale_note": _stale_label(_days_ago(_pheno_dates["RDW"])),
+        },
+        {
+            "name": "ALP",
+            "val": _alp,
+            "unit": "Ед/л",
+            "direction": _pheno_dir(_alp, 68),
+            "date": _pheno_dates["ALP"],
+            "stale_note": _stale_label(_days_ago(_pheno_dates["ALP"])),
+        },
+        {
+            "name": "Лейкоциты",
+            "val": _wbc,
+            "unit": "×10³/мкл",
+            "direction": _pheno_dir(_wbc, 6.7),
+            "date": _pheno_dates["WBC"],
+            "stale_note": _stale_label(_days_ago(_pheno_dates["WBC"])),
+        },
     ]
     _younger_count = sum(1 for m in _pheno_markers if m["direction"] == "younger")
+    # Список устаревших маркеров (для пометки расчёта как ненадёжного)
+    _stale_markers = [m for m in _pheno_markers if m.get("stale_note")]
+
+    # Расчёт биовозраста по формуле Levine 2018 (Aging Cell).
+    # Требуются ВСЕ 9 маркеров + возраст. Если хоть один отсутствует — биовозраст None.
+    _bio_age = None
+    _bio_age_note_extra = ""
+    _crp_raw_mgL = bv("hs_CRP")
+    _all_markers_present = all(
+        v is not None
+        for v in [_alb_gdl, _creat_mgdl, _glc_mgdl, _crp_raw_mgL, _lymph_pct, _mcv, _rdw, _alp, _wbc, _age_score]
+    )
+    if _all_markers_present and _crp_raw_mgL > 0:
+        try:
+            # Конверсия в единицы формулы (g/L, µmol/L, mmol/L)
+            _alb_gL = _alb_gdl * 10
+            _creat_umolL = _creat_mgdl * 88.4
+            _gluc_mmolL = _glc_mgdl / 18.0182
+            # Levine использует ln(CRP в mg/dL) = ln(CRP_mgL × 0.1)
+            _lncrp = math.log(_crp_raw_mgL * 0.1)
+
+            _xb = (
+                -19.907
+                + 0.0804 * _age_score
+                + (-0.0336) * _alb_gL
+                + 0.0095 * _creat_umolL
+                + 0.1953 * _gluc_mmolL
+                + 0.0954 * _lncrp
+                + (-0.0120) * _lymph_pct
+                + 0.0268 * _mcv
+                + 0.3306 * _rdw
+                + (-0.00188) * _alp
+                + 0.0554 * _wbc
+            )
+            _mort = 1 - math.exp(-math.exp(_xb) * (math.exp(0.0076927 * 120) - 1) / 0.0076927)
+            # Защита от ln(0) если M очень близко к 0
+            if 0 < _mort < 1:
+                _bio_age = round(141.50225 + math.log(-0.00553 * math.log(1 - _mort)) / 0.090165, 1)
+        except (ValueError, OverflowError) as e:
+            _bio_age_note_extra = f" [расчёт не удался: {e}]"
+
+    # Сборка ноты с явной информацией о свежести данных
+    if _stale_markers:
+        _stale_list = ", ".join(f"{m['name']} ({m['date']})" for m in _stale_markers)
+        if _bio_age is not None:
+            _pheno_note = (
+                f"⚠ Расчёт неточный — устаревшие маркеры: {_stale_list}. "
+                f"Сейчас: ~{_bio_age} лет (паспорт {_age_score}), {_younger_count}/9 «моложе» медианы. "
+                f"Для надёжного результата сдай заново эти маркеры."
+            )
+            _bio_age_quality = "stale"
+        else:
+            _pheno_note = (
+                f"⚠ Часть маркеров устарела ({_stale_list}). Сейчас: {_younger_count}/9 «моложе» медианы. "
+                f"Для расчёта биовозраста сдай свежие маркеры."
+            )
+            _bio_age_quality = "no_data"
+    elif _bio_age is not None:
+        _pheno_note = (
+            f"Биологический возраст по 9-маркерной формуле Levine 2018: ~{_bio_age} лет "
+            f"(паспорт {_age_score}). {_younger_count}/9 маркеров «моложе» медианы NHANES."
+        )
+        _bio_age_quality = "fresh"
+    else:
+        _pheno_note = (
+            f"Направленная оценка: {_younger_count}/9 маркеров «моложе» медианы NHANES. "
+            f"Для расчёта биовозраста нужны все 9 маркеров.{_bio_age_note_extra}"
+        )
+        _bio_age_quality = "no_data"
 
     panels_phenoage = {
         "source": "Levine et al. 2018, Aging Cell",
         "source_url": "https://doi.org/10.18632/aging.101414",
         "chrono_age": _age_score,
-        "bio_age_est": None,
+        "bio_age_est": _bio_age,
+        "bio_age_quality": _bio_age_quality,  # "fresh" | "stale" | "no_data"
         "bio_age_range": None,
         "younger_count": _younger_count,
         "markers": _pheno_markers,
-        "note": (
-            "Направленная оценка: "
-            f"{_younger_count}/9 маркеров в сторону «моложе» медианы NHANES. "
-            "Для точного расчёта биовозраста нужен альбумин."
-        ),
+        "stale_markers": [m["name"] for m in _stale_markers],
+        "note": _pheno_note,
     }
+
+    # --- Panel 5: SCORE2 (ESC 2021) — 10-летний риск ССЗ ---
+    # Мульти-юзерно: пол из user.sex, возраст из user.birth_date, курение из user.smoking_status
+    from core.health.cv_risk import calc_score2, calc_ascvd_lifetime
+
+    panels_score2: dict | None = None
+    panels_ascvd: dict | None = None
+    if _age_score and user.sex and bv("cholesterol_total") and bv("HDL") and _bp_avg_sys is not None:
+        _is_smoker = user.smoking_status == "current"
+        _score2 = calc_score2(
+            age=_age_score,
+            sex=user.sex,
+            smoking=_is_smoker,
+            sbp_mmhg=_bp_avg_sys,
+            tchol_mmolL=bv("cholesterol_total"),
+            hdl_mmolL=bv("HDL"),
+            region="high",  # Россия = high-risk регион ESC. TODO: настраивать по user.country
+        )
+        if _score2:
+            panels_score2 = {
+                "available": True,
+                **_score2,
+                "no_data_reason": None,
+            }
+        # ASCVD Lifetime — также мульти-юзерно
+        # Diabetes: HbA1c >=6.5 ИЛИ глюкоза >=7.0 как proxy
+        _diabetes = bool((bv("HbA1c") and bv("HbA1c") >= 6.5) or (bv("glucose") and bv("glucose") >= 7.0))
+        _ascvd = calc_ascvd_lifetime(
+            age=_age_score,
+            sex=user.sex,
+            smoking=_is_smoker,
+            sbp_mmhg=_bp_avg_sys,
+            tchol_mmolL=bv("cholesterol_total"),
+            hdl_mmolL=bv("HDL"),
+            diabetes=_diabetes,
+            on_bp_meds=False,  # TODO: брать из user.medications когда поле появится
+        )
+        if _ascvd:
+            panels_ascvd = {
+                "available": True,
+                **_ascvd,
+                "no_data_reason": None,
+            }
+    if panels_score2 is None:
+        panels_score2 = {
+            "available": False,
+            "no_data_reason": "Нужны: возраст, пол, давление, общий холестерин, ЛПВП. "
+            "Возрастной диапазон SCORE2: 40-69 лет.",
+        }
+    if panels_ascvd is None:
+        panels_ascvd = {
+            "available": False,
+            "no_data_reason": "Нужны: возраст, пол, давление, общий холестерин, ЛПВП.",
+        }
+
+    # Свежая мышечная масса для шапки дашборда (не дублирует панели —
+    # просто дополняет плашку «% Жира» в hero-grid). Берём последний замер
+    # из weights table где muscle_mass не null.
+    muscle_last_kg: float | None = None
+    if stats_weight and stats_weight.get("last") is not None:
+        _muscle_row = _rows(
+            db,
+            """
+            SELECT muscle_mass FROM weights
+            WHERE user_id=:uid AND muscle_mass IS NOT NULL
+            ORDER BY measured_at DESC LIMIT 1
+            """,
+            uid=user_id,
+        )
+        if _muscle_row:
+            muscle_last_kg = float(_muscle_row[0].muscle_mass)
+
+    # ── HERO PRIORITY: динамический выбор ключевого маркера для шапки ────
+    # Логика: первое попадание выигрывает. Critical (красный) > Watch (жёлтый) > Win (зелёный).
+    # Мульти-юзерно: если у пользователя нет данных по конкретному маркеру — пропускаем.
+    # Идея: показывать в шапке ТО, что сейчас требует работы / является главным риском.
+    hero_priority: dict = {
+        "title": "Биомаркеры",
+        "value": "—",
+        "unit": "",
+        "sub": "сдай анализы для приоритизации",
+        "color": "muted",
+        "marker_type": "no_data",
+    }
+
+    _hba1c = bv("HbA1c")
+    _apob = bv("ApoB")
+    _ldl = bv("LDL")
+    _homa = bv("HOMA_index")
+    _visc_last = list(visceral.values())[-1] if visceral else None
+    # _bio_age и _bio_age_quality уже вычислены выше в Panel 4 (PhenoAge)
+
+    def _set_hero(title, value, unit, sub, color, mtype):
+        hero_priority.update(
+            {
+                "title": title,
+                "value": value,
+                "unit": unit,
+                "sub": sub,
+                "color": color,
+                "marker_type": mtype,
+            }
+        )
+
+    # ── 1. КРИТИЧЕСКИЕ (red) — требуют срочного внимания ──
+    if _hba1c is not None and _hba1c >= 6.5:
+        _set_hero("HbA1c · Диабет 2 типа", f"{_hba1c}", "%", "цель <5.7 · обсудить с врачом метформин", "r", "hba1c_dm")
+    elif _apob is not None and _apob >= 1.3:
+        _set_hero("ApoB · Высокий", f"{_apob}", "г/л", "цель <0.9 · обсудить статины с кардиологом", "r", "apob_high")
+    elif _ldl is not None and _ldl >= 4.0 and _apob is None:
+        _set_hero("LDL · Высокий", f"{_ldl}", "ммоль/л", "цель <3.0 · сдать ApoB и обсудить статины", "r", "ldl_high")
+    elif _bp_avg_sys is not None and _bp_avg_sys >= 140:
+        _set_hero(
+            "АД · Гипертония 2 ст.",
+            f"{round(_bp_avg_sys)}/{round(_bp_avg_dia)}",
+            "мм рт.ст.",
+            "обсудить с врачом, цель <130/80",
+            "r",
+            "bp_high",
+        )
+    elif _homa is not None and _homa >= 2.5:
+        _set_hero(
+            "HOMA-IR · Резистентность", f"{_homa}", "", "цель <1.5 · убрать сладкое + Z2-кардио", "r", "homa_high"
+        )
+    # ── 2. ПОГРАНИЧНЫЕ (yellow) — главное в работе ──
+    elif _hba1c is not None and _hba1c >= 5.7:
+        _set_hero("HbA1c · Преддиабет", f"{_hba1c}", "%", "цель <5.7 · сладкое ↓, кардио ↑", "y", "hba1c_pre")
+    elif _apob is not None and _apob >= 0.9:
+        _set_hero(
+            "ApoB · Атерогенные частицы",
+            f"{_apob}",
+            "г/л",
+            f"выше цели <0.9 · LDL {_ldl or '?'} · приоритет",
+            "y",
+            "apob_borderline",
+        )
+    elif _ldl is not None and _ldl >= 3.0 and _apob is None:
+        _set_hero("LDL · Выше цели", f"{_ldl}", "ммоль/л", "цель <3.0 · диета + Plant Sterols", "y", "ldl_borderline")
+    elif _bp_avg_sys is not None and _bp_avg_sys >= 130:
+        _set_hero(
+            "АД · Гипертония 1 ст.",
+            f"{round(_bp_avg_sys)}/{round(_bp_avg_dia)}",
+            "мм рт.ст.",
+            "цель <120/80 · вес ↓, кардио ↑",
+            "y",
+            "bp_borderline",
+        )
+    elif _homa is not None and _homa >= 1.5:
+        _set_hero(
+            "HOMA-IR · Пограничное",
+            f"{_homa}",
+            "",
+            "цель <1.5 · сладкое ↓, не есть после 20:00",
+            "y",
+            "homa_borderline",
+        )
+    elif _visc_last is not None and _visc_last >= 10:
+        _set_hero("Висцеральный жир", f"{_visc_last}", "ед.", "цель <10 · похудение работает", "y", "visceral_high")
+    # ── 3. POSITIVE (green) — мотивация ──
+    elif _bio_age is not None and _bio_age < _age_score:
+        diff = round(_age_score - _bio_age, 1)
+        diff_str = f"−{diff}"
+        sub_quality = " (черновик)" if _bio_age_quality == "stale" else ""
+        _set_hero(
+            f"Биовозраст · PhenoAge{sub_quality}",
+            f"{_bio_age}",
+            "лет",
+            f"{diff_str} от паспорта · 9 биомаркеров",
+            "g",
+            "phenoage_younger",
+        )
+    elif _hba1c is not None:
+        _set_hero(
+            "HbA1c · Глик. гемоглобин", f"{_hba1c}", "%", "норма <5.7 · метаболизм в порядке", "g", "hba1c_normal"
+        )
+    # else — fallback "no data" уже задан выше
 
     panels_data = {
         "attia": panels_attia,
         "metabolic": panels_metabolic,
         "le8": panels_le8,
         "phenoage": panels_phenoage,
+        "score2": panels_score2,
+        "ascvd": panels_ascvd,
     }
 
     # ── radar: health score by system ─────────────────────────────────────────
@@ -1300,6 +1851,23 @@ def _build_payload(db: Session, user_id: int) -> dict:
             ]
         ),
     }
+
+    # ── ДОПОЛНИТЕЛЬНЫЕ ОСИ RADAR: образ жизни (не биомаркеры) ────────────────
+    # Каждая ось 0-100, добавляется только если есть данные. Мульти-юзерно:
+    # если у пользователя нет лога питания / Garmin / тренировок — ось не покажется.
+
+    # Питание: используем уже посчитанный _diet_score из LE8 (там MEDAS встроен)
+    if _diet_score is not None:
+        radar["Питание"] = _diet_score
+
+    # Активность: используем _pa_score из LE8 (vigorous ×2 эквивалент)
+    if _pa_score:
+        radar["Активность"] = _pa_score
+
+    # Сон: используем _sleep_score из LE8
+    if _sleep_score is not None:
+        radar["Сон"] = _sleep_score
+
     # Для систем без данных — None → убираем из подсчёта overall
     radar_vals = [v for v in radar.values() if v > 0]
     overall_score = round(sum(radar_vals) / len(radar_vals)) if radar_vals else 0
@@ -1357,10 +1925,31 @@ def _build_payload(db: Session, user_id: int) -> dict:
             )
 
     # Tier 1 — medical wins (highest health signal, most impressive to show)
+    # Helper: формирует подзаголовок с прогрессом «было X (год) → стало Y», если в истории есть peak.
+    # Мульти-юзерно: если у юзера только 1 замер — показываем только текущее значение.
+    def _ach_subtitle_with_history(
+        key: str, current: float, unit: str, threshold: float, threshold_label: str, lower_is_better: bool = True
+    ) -> str:
+        """Возвращает подзаголовок достижения с историей если она есть и значимая."""
+        record = biomarkers.get(key) or {}
+        peak = record.get("peak_max" if lower_is_better else "peak_min")
+        if peak and peak.get("value") and peak.get("date"):
+            peak_v = peak["value"]
+            peak_year = peak["date"][:4]
+            # Показываем историю только если есть значимый прогресс (≥10% или пересечение порога)
+            if lower_is_better and peak_v > current * 1.05:
+                if peak_v >= threshold > current:
+                    return f"было {peak_v}{unit} в {peak_year} ({threshold_label}) → стало {current}{unit}"
+                return f"было {peak_v}{unit} в {peak_year} → стало {current}{unit}"
+            elif (not lower_is_better) and peak_v < current * 0.95:
+                return f"было {peak_v}{unit} в {peak_year} → стало {current}{unit}"
+        return f"{current}{unit} — ниже порога {threshold}{unit}" if lower_is_better else f"{current}{unit}"
+
     _ach_t1: list[tuple] = []
     hba1c = bv("HbA1c")
     if hba1c and hba1c < 5.7:
-        _ach_t1.append(("🎯", "Нет преддиабета", f"HbA1c {hba1c}% — ниже порога 5.7%"))
+        sub = _ach_subtitle_with_history("HbA1c", hba1c, "%", 5.7, "преддиабет", lower_is_better=True)
+        _ach_t1.append(("🎯", "Нет преддиабета", sub))
     vd = bv("vitamin_D")
     if vd and vd >= 50:
         _ach_t1.append(("☀️", "Витамин D в оптимуме", f"{vd} нг/мл — цель достигнута"))
@@ -1368,7 +1957,14 @@ def _build_payload(db: Session, user_id: int) -> dict:
         _ach_t1.append(("🌤️", "Витамин D почти в норме", f"{vd} нг/мл — цель 50+ нг/мл"))
     ldl = bv("LDL")
     if ldl and ldl <= 3.1:
-        _ach_t1.append(("❤️", "ЛПНП — исторический минимум", f"{ldl} ммоль/л ({bd('LDL')})"))
+        # Показать прогресс: было 3.9 в 2025-01 → стало 3.1
+        ldl_record = biomarkers.get("LDL") or {}
+        peak = ldl_record.get("peak_max")
+        if peak and peak.get("value", 0) > ldl * 1.05:
+            sub = f"было {peak['value']} ммоль/л в {peak['date'][:4]} → стало {ldl} ({bd('LDL')})"
+        else:
+            sub = f"{ldl} ммоль/л ({bd('LDL')})"
+        _ach_t1.append(("❤️", "ЛПНП — исторический минимум", sub))
 
     # Tier 2 — body composition changes
     _ach_t2: list[tuple] = []
@@ -1388,19 +1984,35 @@ def _build_payload(db: Session, user_id: int) -> dict:
     if stats_fat.get("delta") and stats_fat["delta"] <= -1:
         _ach_t2.append(("💪", f"Жир −{abs(stats_fat['delta'])}%", f"{stats_fat['first']}% → {stats_fat['last']}%"))
 
+    # Helper: склонения русских числительных (1 тренировка / 2 тренировки / 5 тренировок).
+    # Используется в достижениях и других местах где не хочется вводить отдельные русские пакеты.
+    def _ru_plural(n: int, forms: tuple[str, str, str]) -> str:
+        """forms = (one, few, many) — например ('тренировка', 'тренировки', 'тренировок')."""
+        n_abs = abs(n) % 100
+        if 11 <= n_abs <= 14:
+            return forms[2]
+        n_mod10 = n_abs % 10
+        if n_mod10 == 1:
+            return forms[0]
+        if 2 <= n_mod10 <= 4:
+            return forms[1]
+        return forms[2]
+
     # Tier 3 — activity volume
     _ach_t3: list[tuple] = []
     if activities:
         n_act = len(activities)
         for milestone in [100, 70, 50, 25, 10]:
             if n_act >= milestone:
-                _ach_t3.append(("🏋️", f"{n_act} тренировок", "с начала трекинга"))
+                _w = _ru_plural(n_act, ("тренировка", "тренировки", "тренировок"))
+                _ach_t3.append(("🏋️", f"{n_act} {_w}", "с начала трекинга"))
                 break
 
     # Tier 4 — supplements consistency
     _ach_t4: list[tuple] = []
     if len(supp_days) >= 60:
-        _ach_t4.append(("💊", f"{len(supp_days)} дней добавок", "Стабильный приём витаминов"))
+        _w_days = _ru_plural(len(supp_days), ("день", "дня", "дней"))
+        _ach_t4.append(("💊", f"{len(supp_days)} {_w_days} добавок", "Стабильный приём витаминов"))
 
     # Tier 5 — nutrition quantity + quality
     _ach_t5: list[tuple] = []
@@ -1408,7 +2020,8 @@ def _build_payload(db: Session, user_id: int) -> dict:
         n_kcal = len(kcal)
         for milestone in [108, 100, 90, 60, 30, 21, 14, 7]:
             if n_kcal >= milestone:
-                _ach_t5.append(("🍽️", f"{n_kcal} дней питания", "Каждый приём в NutriLogBot"))
+                _w_d = _ru_plural(n_kcal, ("день", "дня", "дней"))
+                _ach_t5.append(("🍽️", f"{n_kcal} {_w_d} питания", "Каждый приём в NutriLogBot"))
                 break
         # Protein average — only shown for nutrition-basic tier (no weight/activity data)
         if prot and not (stats_weight or activities):
@@ -1425,7 +2038,8 @@ def _build_payload(db: Session, user_id: int) -> dict:
             streak += 1
             check -= timedelta(days=1)
         if streak >= 14:
-            _ach_t6.append(("🔥", f"{streak} дней подряд", "Трекинг питания без пропусков"))
+            _w_s = _ru_plural(streak, ("день", "дня", "дней"))
+            _ach_t6.append(("🔥", f"{streak} {_w_s} подряд", "Трекинг питания без пропусков"))
 
     # Merge: warnings first, then positive tiers; cap at 8 (2 rows × 4)
     achievements = (_ach_warn + _ach_t1 + _ach_t2 + _ach_t3 + _ach_t4 + _ach_t5 + _ach_t6)[:8]
@@ -1457,7 +2071,7 @@ def _build_payload(db: Session, user_id: int) -> dict:
     # Reads workouts_log_{user_id}.json (pushed from local parse_workouts.py).
     # Computes: HR-zone distribution per week, A:C load ratio, Z2/HIIT vs targets,
     # detection of misnamed HIIT sessions, polarized verdict, recommendations.
-    sport_block = _build_sport_block(user_id)
+    sport_block = _build_sport_block(user_id, user_age=_age_score)
 
     # ── dashboard stats: streams / parameters / history ──────────────────────
     # Count each distinct data stream independently (not grouped into capability buckets)
@@ -1544,6 +2158,21 @@ def _build_payload(db: Session, user_id: int) -> dict:
             "age": _age_score,
             "height_cm": user.height_cm,
             "sex": user.sex,
+            # ── ЧСС-зоны: считаем границы от user.age (формула 220-age) ──
+            # Мульти-юзерно: у каждого юзера свои bpm-границы (у 30-летнего max~190, у 60-летнего max~160).
+            # Используется в спорт-блоке, легенде зон, KPI карточках, текстах рекомендаций.
+            "hr_zones": (
+                {
+                    "max_hr": (220 - _age_score) if _age_score else None,
+                    # Границы: Z1 <60% maxHR, Z2 60-70%, Z3 70-80%, Z4 80-90%, Z5 ≥90%
+                    "z1_top": round((220 - _age_score) * 0.60) if _age_score else None,
+                    "z2_top": round((220 - _age_score) * 0.70) if _age_score else None,
+                    "z3_top": round((220 - _age_score) * 0.80) if _age_score else None,
+                    "z4_top": round((220 - _age_score) * 0.90) if _age_score else None,
+                }
+                if _age_score
+                else {"max_hr": None, "z1_top": None, "z2_top": None, "z3_top": None, "z4_top": None}
+            ),
             # Dashboard stats
             "streams_count": _streams_count,
             "total_params": int(_total_params),
@@ -1568,6 +2197,8 @@ def _build_payload(db: Session, user_id: int) -> dict:
         "weight": weight,
         "fat": fat,
         "visceral": visceral,
+        "muscle_last": muscle_last_kg,  # для плашки «% Жира» в hero-grid
+        "hero_priority": hero_priority,  # динамический выбор главного маркера для шапки
         "stats_weight": stats_weight,
         "stats_fat": stats_fat,
         "sleep_h": sleep_h,
