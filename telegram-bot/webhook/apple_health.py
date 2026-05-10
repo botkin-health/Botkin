@@ -345,9 +345,23 @@ def _hae_to_daily_payloads(metrics: list[dict]) -> dict[str, AppleHealthPayload]
             elif name == "flights_climbed":
                 slot["flights_climbed"] = int(_hae_pick(rec, "qty", "Avg", default=0))
             elif name in ("active_energy", "active_energy_burned"):
-                slot["active_energy_kcal"] = float(_hae_pick(rec, "qty", "Avg", default=0))
+                qty = float(_hae_pick(rec, "qty", "Avg", default=0))
+                if units == "mj":
+                    qty = round(qty * 239.006, 1)  # MJ → kcal
+                elif units == "kj":
+                    qty = round(qty / 4.184, 1)  # kJ → kcal
+                slot["active_energy_kcal"] = qty
             elif name in ("basal_energy_burned", "resting_energy"):
-                slot["basal_energy_kcal"] = float(_hae_pick(rec, "qty", "Avg", default=0))
+                qty = float(_hae_pick(rec, "qty", "Avg", default=0))
+                if units == "mj":
+                    qty = round(qty * 239.006, 1)  # MJ → kcal
+                    logger.warning(f"ENERGY_DEBUG basal units=MJ raw={qty / 239.006:.3f} → kcal={qty}")
+                elif units == "kj":
+                    qty = round(qty / 4.184, 1)  # kJ → kcal
+                    logger.warning(f"ENERGY_DEBUG basal units=kJ raw={qty * 4.184:.3f} → kcal={qty}")
+                else:
+                    logger.warning(f"ENERGY_DEBUG basal units={units!r} qty={qty:.3f}")
+                slot["basal_energy_kcal"] = qty
             elif name == "heart_rate":
                 if "Avg" in rec and rec["Avg"] is not None:
                     slot["heart_rate_avg"] = int(round(float(rec["Avg"])))
@@ -403,15 +417,47 @@ def _hae_to_daily_payloads(metrics: list[dict]) -> dict[str, AppleHealthPayload]
                 if v is not None:
                     slot["hrv"] = int(round(float(v)))
             elif name == "sleep_analysis":
-                # HAE шлёт суммарные часы сна за день.
-                # Берём qty (суммарное значение при summarize=ON) или Avg.
-                # Значение в часах (units=hr).
-                v = _hae_pick(rec, "qty", "Avg", default=None)
+                # HAE sleep_analysis приходит в нескольких форматах:
+                # 1) summarize=ON, groupBy=Day →
+                #      {date, qty=InBed_hours, Asleep=hours, InBed=hours, Core, Deep, REM, Awake}
+                #      ИЛИ {date, qty=hours, value="Asleep"|"InBed"|stage}
+                # 2) summarize=OFF → startDate/endDate, value=stage, без qty
+                # Лог для диагностики (первые 5 записей)
+                _sleep_debug_counter = getattr(_hae_to_daily_payloads, "_sleep_log_count", 0)
+                if _sleep_debug_counter < 5:
+                    logger.warning(f"SLEEP_DEBUG keys={list(rec.keys())} rec={rec}")
+                    _hae_to_daily_payloads._sleep_log_count = _sleep_debug_counter + 1
+
+                sleep_value = (rec.get("value") or rec.get("Value") or "").lower()
+
+                # Приоритет: поле "Asleep" (фактический сон) > "qty" > "Avg"
+                # Если есть именованные поля (summarize=ON, вариант 1) — берём "Asleep"
+                if "Asleep" in rec and rec["Asleep"] is not None:
+                    v = float(rec["Asleep"])
+                else:
+                    # Вариант 2: value-стиль или одно поле qty
+                    v = _hae_pick(rec, "qty", "Avg", default=None)
+                    if v is not None:
+                        v = float(v)
+                    # Если нет qty — возможно startDate/endDate (summarize=OFF)
+                    if v is None and rec.get("startDate") and rec.get("endDate"):
+                        try:
+                            _fmt = "%Y-%m-%d %H:%M:%S %z"
+                            from datetime import datetime as _dt2
+
+                            _s = _dt2.strptime(str(rec["startDate"]), _fmt)
+                            _e = _dt2.strptime(str(rec["endDate"]), _fmt)
+                            v = (_e - _s).total_seconds() / 3600.0
+                        except Exception:
+                            pass
+
                 if v is not None:
-                    hours = round(float(v), 2)
-                    if hours > 0.5:  # фильтр шума
+                    hours = round(v, 2)
+                    # При value-стиле пропускаем InBed записи (берём только Asleep/stage)
+                    is_inbed_value = sleep_value in ("inbed", "in_bed")
+                    if hours > 0.5 and not is_inbed_value:
                         existing_sleep = slot.get("sleep_hours", 0) or 0
-                        slot["sleep_hours"] = max(existing_sleep, hours)
+                        slot["sleep_hours"] = round(max(existing_sleep, hours), 2)
             elif name == "blood_oxygen_saturation":
                 v = _hae_pick(rec, "qty", "Avg", default=None)
                 if v is not None:
@@ -745,6 +791,10 @@ app.include_router(agent_tools_router)
 from webhook.telegram_router import router as telegram_router
 
 app.include_router(telegram_router)
+
+from webhook.admin import router as admin_router
+
+app.include_router(admin_router)
 
 
 # ── Static webapp ─────────────────────────────────────────────────────────────
