@@ -7,6 +7,39 @@
 
 ---
 
+## 2026-05-10 — HAE парсер: sleep, energy, HRV-surrogate Body Battery (продолжение)
+
+**Задача:** Починить Body Battery / Stress / Sleep для не-Garmin пользователей (Apple Watch через HAE)
+
+**HRV surrogate Body Battery (dashboard_generator.py):**
+- При отсутствии Garmin BB/Stress вычисляется суррогат по HRV:
+  `BB = 50 + (hrv/median − 1) × 100`, clamped 0-100; Stress = инверсия
+- Андрей: BB=52, Stress=48 отображаются на дашборде
+- Тайлы называются «Body Battery» / «Стресс» без привязки к источнику (по просьбе пользователя)
+
+**nginx:** client_max_body_size 1m → 200m; proxy_read_timeout 30s → 300s (фикс 413 для bulk HAE upload)
+
+**Docker Claude API 401:** `docker compose up -d bot` (не restart) при смене ключей в .env
+
+**HAE sleep_analysis (apple_health.py) — расследование и фикс:**
+- Реальный формат: `{totalSleep: 4.3, core: 2.3, deep: 0.97, rem: 1.06, awake: 0, sleepStart, sleepEnd, ...}`
+- Поля `qty`/`Asleep`/`InBed` отсутствуют (причина NULL в БД)
+- Фикс: читаем `totalSleep` → `sleep_hours`, стадии deep/rem/core/awake → `raw_data`
+- Добавлены поля `sleep_deep_h`, `sleep_rem_h`, `sleep_core_h`, `sleep_awake_h` в AppleHealthPayload
+
+**HAE basal_energy_burned — фикс единиц:**
+- HAE шлёт МДж (megajoules), ошибочно маркируя как `units="kJ"` (баг HAE)
+- Признак: `value < 100` при `units=kJ` → трактуем как МДж × 239 → ккал
+- Было: `bmr_calories = 5.9` (ккал), стало: `bmr_calories ≈ 1400` (ккал)
+
+**Коммиты:**
+- `8dbf1b6` fix(apple_health): улучшить парсинг sleep_analysis и единиц энергии из HAE (debug logging)
+- `8dd4d30` fix(apple_health): исправить парсинг sleep totalSleep и конвертацию МДж в ккал
+
+**Статус:** бот задеплоен, ждём подтверждение от Андрея (ручной экспорт). Бэкфилл 4-10 мая нужен повторно — предыдущий upload был до фикса.
+
+---
+
 ## 2026-05-10 — Мультипользовательский дашборд + медданные Андрея Походни
 
 **Задача:** Подключить Андрея Походня к HealthVault, настроить HAE, загрузить исторические данные, улучшить дашборд.
