@@ -643,6 +643,7 @@ def _build_payload(db: Session, user_id: int) -> dict:
     fat_g: dict[str, float] = {}
     carb: dict[str, float] = {}
     alco_days: list[str] = []
+    alco_kcal: dict[str, int] = {}  # calories from alcohol per day
     # Полный плоский список продуктов с датами — для MEDAS-калькулятора (LE8 диета)
     nutrition_items_flat: list[dict] = []
 
@@ -714,6 +715,9 @@ def _build_payload(db: Session, user_id: int) -> dict:
                 if is_alco:
                     if d not in alco_days:
                         alco_days.append(d)
+                    item_kcal = int(item.get("calories") or 0)
+                    if item_kcal > 0:
+                        alco_kcal[d] = alco_kcal.get(d, 0) + item_kcal
                 # Накапливаем для MEDAS — с датой, чтобы скоринг работал по rolling window
                 food_name = (item.get("food") or item.get("name") or "").strip()
                 grams = float(item.get("amount") or item.get("weight") or 0)
@@ -916,9 +920,13 @@ def _build_payload(db: Session, user_id: int) -> dict:
         "vitamin_D": {"val": bv("vitamin_D"), "date": bd("vitamin_D"), "unit": "нг/мл", "ok": 30},
         "ferritin": {"val": bv("ferritin"), "date": bd("ferritin"), "unit": "мкг/л", "ok": 300},
         "ALT": {"val": bv("ALT"), "date": bd("ALT"), "unit": "Ед/л", "ok": 40},
+        "AST": {"val": bv("AST"), "date": bd("AST"), "unit": "Ед/л", "ok": 40},
+        "GGT": {"val": bv("GGT"), "date": bd("GGT"), "unit": "Ед/л", "ok": 35},
         "TSH": {"val": bv("TSH"), "date": bd("TSH"), "unit": "мМЕ/л", "ok": 4.0},
         "creatinine": {"val": bv("creatinine"), "date": bd("creatinine"), "unit": "мкмоль/л", "ok": 110},
         "uric_acid": {"val": bv("uric_acid"), "date": bd("uric_acid"), "unit": "мкмоль/л", "ok": 420},
+        "hs_CRP": {"val": bv("hs_CRP"), "date": bd("hs_CRP"), "unit": "мг/л", "ok": 1.0},
+        "NT_proBNP": {"val": bv("NT_proBNP"), "date": bd("NT_proBNP"), "unit": "пг/мл", "ok": 125},
     }
 
     # ── panels_data: 4 recognised panels (Attia / Metabolic / LE8 / PhenoAge) ──
@@ -2215,6 +2223,7 @@ def _build_payload(db: Session, user_id: int) -> dict:
         "fat_g": fat_g,
         "carb": carb,
         "alco_days": alco_days,
+        "alco_kcal": alco_kcal,
         "supp_days": supp_days,
         "bp_sys": bp_sys,
         "bp_dia": bp_dia,
