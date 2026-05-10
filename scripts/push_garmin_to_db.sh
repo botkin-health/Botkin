@@ -33,7 +33,8 @@ for json_file in "$SUMMARY_DIR"/2026-*.json; do
     hrv_file="$HRV_DIR/$date_str.json"
 
     # Читаем поля из JSON через python (daily-summary + hrv)
-    read -r active bmr total steps dist hr stress hrv <<< $(python3 -c "
+    # sleep_hours = stats.sleepingSeconds (включает и main sleep, и naps — корректно для аналитики)
+    read -r active bmr total steps dist hr stress hrv sleep_h <<< $(python3 -c "
 import json, sys
 try:
     d = json.load(open('$json_file'))
@@ -54,6 +55,10 @@ try:
         except Exception:
             pass
 
+    # sleep_hours: stats.sleepingSeconds → часы (включает main sleep + все naps)
+    sleep_sec = s.get('sleepingSeconds') or s.get('measurableAsleepDuration')
+    sleep_h = round(sleep_sec / 3600.0, 2) if sleep_sec else 'NULL'
+
     print(
         iv(s.get('activeKilocalories')),
         iv(s.get('bmrKilocalories')),
@@ -62,10 +67,11 @@ try:
         fv(s.get('totalDistanceMeters')),
         s.get('restingHeartRate') or 'NULL',
         s.get('averageStressLevel') or 'NULL',
-        hrv
+        hrv,
+        sleep_h
     )
 except Exception as e:
-    print('NULL NULL NULL NULL NULL NULL NULL NULL')
+    print('NULL NULL NULL NULL NULL NULL NULL NULL NULL')
 " 2>/dev/null)
 
     # Пропускаем строки где все NULL
@@ -80,9 +86,9 @@ except Exception as e:
         continue
     fi
 
-    # Upsert в activity_log (включая hrv)
-    SQL="INSERT INTO activity_log (user_id, date, active_calories, bmr_calories, total_calories, steps, distance_km, heart_rate_avg, stress_level, hrv, source)
-VALUES ($USER_ID, '$date_str', ${active}, ${bmr}, ${total}, ${steps}, ${dist}, ${hr}, ${stress}, ${hrv}, 'garmin_json')
+    # Upsert в activity_log (включая hrv + sleep_hours)
+    SQL="INSERT INTO activity_log (user_id, date, active_calories, bmr_calories, total_calories, steps, distance_km, heart_rate_avg, stress_level, hrv, sleep_hours, source)
+VALUES ($USER_ID, '$date_str', ${active}, ${bmr}, ${total}, ${steps}, ${dist}, ${hr}, ${stress}, ${hrv}, ${sleep_h}, 'garmin_json')
 ON CONFLICT (user_id, date) DO UPDATE SET
     active_calories  = COALESCE(EXCLUDED.active_calories,  activity_log.active_calories),
     bmr_calories     = COALESCE(EXCLUDED.bmr_calories,     activity_log.bmr_calories),
@@ -92,6 +98,7 @@ ON CONFLICT (user_id, date) DO UPDATE SET
     heart_rate_avg   = COALESCE(EXCLUDED.heart_rate_avg,   activity_log.heart_rate_avg),
     stress_level     = COALESCE(EXCLUDED.stress_level,     activity_log.stress_level),
     hrv              = COALESCE(EXCLUDED.hrv,              activity_log.hrv),
+    sleep_hours      = COALESCE(EXCLUDED.sleep_hours,      activity_log.sleep_hours),
     source           = 'garmin_json'
 WHERE activity_log.source != 'manual';"
 
