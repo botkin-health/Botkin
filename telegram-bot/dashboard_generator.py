@@ -625,6 +625,21 @@ def _build_payload(db: Session, user_id: int) -> dict:
 
         # NOTE: blood_pressure is read exclusively from blood_pressure_logs table below.
 
+    # ── HRV-based surrogate Body Battery & Stress (for non-Garmin users) ───────
+    # Only fills in the gaps — if Garmin already provided real values, skip.
+    if hrv and not body_battery:
+        _hrv_vals = sorted(hrv.values())
+        _n = len(_hrv_vals)
+        if _n >= 3:
+            # Personal median = individual baseline (robust to outliers)
+            _baseline = _hrv_vals[_n // 2]
+            for _d, _h in hrv.items():
+                _ratio = _h / _baseline  # 1.0 = exactly at baseline
+                # Body Battery surrogate: 0–100, 50 = baseline, 100 = HRV 1.5× baseline
+                body_battery[_d] = max(0, min(100, round(50 + (_ratio - 1.0) * 100)))
+                # Stress surrogate: inverse — 50 = baseline, 0 = HRV high, 100 = HRV crashed
+                stress[_d] = max(0, min(100, round(50 - (_ratio - 1.0) * 100)))
+
     # ── nutrition ──────────────────────────────────────────────────────────────
     nut_rows = _rows(
         db,
@@ -2200,6 +2215,16 @@ def _build_payload(db: Session, user_id: int) -> dict:
                     v.get("val") is not None for v in biomarkers_latest.values()
                 ),
                 "has_nutrition": bool(kcal),  # NutriLogBot in use
+                # True when BB/stress are computed from HRV (not real Garmin data).
+                # Template uses this to show "HRV Readiness" / "HRV Stress" labels.
+                "hrv_surrogate": bool(
+                    hrv
+                    and not any(
+                        raw.get("bodyBatteryHighestValue") or raw.get("bodyBatteryAtWakeTime")
+                        for row in act_rows
+                        for raw in [row.raw_data or {}]
+                    )
+                ),
             },
         },
         "weight": weight,

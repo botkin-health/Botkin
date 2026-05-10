@@ -865,11 +865,11 @@ const streams = [
   // ── Строка 1: Как я сейчас (Recovery & Readiness) ─────────────────────────
   // Большая цифра (val) = среднее за период наблюдения
   // Подпись (last_) = последнее значение с контекстом ("посл. N · контекст")
-  { name: '🔋 Body Battery', val: T.bb_avg, unit: 'max ср', last_: lastLabel(D.body_battery, 'макс сегодня'), data: D.body_battery, color: COLOR.g },
+  { name: D.meta.capabilities.hrv_surrogate ? '⚡ HRV Готовность' : '🔋 Body Battery', val: T.bb_avg, unit: D.meta.capabilities.hrv_surrogate ? '/100 ср' : 'max ср', last_: lastLabel(D.body_battery, D.meta.capabilities.hrv_surrogate ? 'сегодня' : 'макс сегодня'), data: D.body_battery, color: COLOR.g },
   { name: '💗 HRV', val: T.hrv_avg, unit: 'мс ср', last_: lastLabel(D.hrv, 'за прошлую ночь'), data: D.hrv, color: COLOR.r },
   { name: '😴 Сон', val: T.sleep_avg, unit: 'ч ср', last_: lastLabel(D.sleep_h, 'прошлая ночь'), data: D.sleep_h, color: COLOR.p },
   { name: '💓 Пульс покоя', val: T.rhr_avg, unit: 'уд/мин ср', last_: lastLabel(D.rhr, 'сегодня'), data: D.rhr, color: COLOR.r },
-  { name: '😰 Стресс', val: T.stress_avg, unit: '/100 ср', last_: lastLabel(D.stress, 'сегодня'), data: D.stress, color: COLOR.y },
+  { name: D.meta.capabilities.hrv_surrogate ? '🧘 HRV Стресс' : '😰 Стресс', val: T.stress_avg, unit: '/100 ср', last_: lastLabel(D.stress, 'сегодня'), data: D.stress, color: COLOR.y },
   { name: '🩺 Давление', val: T.bp_last, unit: '', last_: 'последнее измерение', data: D.bp_sys, color: COLOR.r },
   // ── Строка 2: Что я делал (Activity & Nutrition) ───────────────────────────
   { name: '🏋️ Тренировки', val: T.activities_total, unit: 'всего', last_: T.activity_hours + ' ч · ' + T.activity_km + ' км', data: null, color: COLOR.g, custom: 'workout' },
