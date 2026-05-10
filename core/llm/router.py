@@ -65,7 +65,7 @@ IMPORTANT: Return "name" in RUSSIAN language (e.g. "Морковь", not "Carrot
         "protein": number,
         "fats": number,
         "carbs": number,
-        "fiber": number (dietary fiber in grams — MANDATORY, never null. Estimation table: овощи/зелень ~2-3г/100г, тыква/морковь/свёкла ~2.5г, капуста ~2.5г, листовая зелень ~1.5г. Бобовые/чечевица/нут ~6-8г. Цельнозерновые/гречка/овсянка ~3-10г сухой крупы, ~1-2г варёной. Хлеб цельнозерновой ~7г, белый ~2г. Фрукты ~2-3г, ягоды ~3-5г. Орехи/семечки ~6-10г, чиа/лён 27-34г. Супы с овощами (уха, щи, борщ) ~0.5-1.5г/100г. Паста с овощами ~2г/100г. Салаты с овощами ~1.5-2.5г/100г. Мясо/рыба/молочка/сыр/масло/яйца = 0. Готовые блюда — оцени по ингредиентам),
+        "fiber": number (dietary fiber in grams — MANDATORY, never null. CRITICAL RULE: always calculate fiber per-ingredient based on THAT ingredient's weight, then SUM. NEVER apply a fiber rate to the total dish weight. Example: dish 400g = 80g bread + 165g eggs + 80g avocado + 75g greens → fiber = 80×0.07 + 165×0 + 80×0.07 + 75×0.02 = 5.6+0+5.6+1.5 = 12.7g. NOT 400×0.07=28g. Reference per 100g: мясо/рыба/яйца/молочка/масло = 0. Листовая зелень/руккола/салат ~2г. Томаты/огурцы/кабачок ~1г. Морковь/свёкла/капуста ~2.5г. Авокадо ~7г. Хлеб цельнозерновой/с семенами ~7г, белый ~2г. Хлебцы ~5г. Овсянка варёная ~1.5г, сухая ~10г. Гречка/рис варёные ~1г. Фрукты ~2г, ягоды ~3г. Бобовые ~6г. Орехи ~8г. Супы ~0.5-1г. Готовые блюда — всегда разбить на ингредиенты и сложить),
         "drinks": number (standard alcohol doses: 1 dose = 10g pure ethanol ≈ 150ml wine ≈ 50ml vodka ≈ 500ml beer ≈ 330ml 5% beer. 0 for non-alcoholic items. Бокал вина = 1.5, рюмка водки = 1, кружка пива 500мл = 2, бутылка пива 330мл = 1.3)
       }
     ],
@@ -465,11 +465,111 @@ CORRECT OUTPUT:
 """
 
 
+def analyze_message_claude(text: str = None, image_paths: List[Union[str, Path]] = None) -> Optional[Dict]:
+    """
+    Analyzes message content using Claude Sonnet with prompt caching.
+    Primary LLM — highest accuracy, ~90% cheaper on repeated system prompt via caching.
+    """
+    api_key = get_settings().anthropic_api_key
+    if not api_key:
+        logger.warning("ANTHROPIC_API_KEY missing, falling back to GPT-4o")
+        return None
+
+    headers = {
+        "Content-Type": "application/json",
+        "x-api-key": api_key,
+        "anthropic-version": "2023-06-01",
+        "anthropic-beta": "prompt-caching-2024-07-31",
+    }
+
+    # User content: text + images
+    user_content = []
+    if image_paths:
+        for p in image_paths:
+            path_obj = Path(p)
+            if path_obj.exists():
+                b64 = encode_image(path_obj)
+                user_content.append(
+                    {
+                        "type": "image",
+                        "source": {"type": "base64", "media_type": "image/jpeg", "data": b64},
+                    }
+                )
+    if text:
+        user_content.append({"type": "text", "text": f"USER MESSAGE: {text}"})
+
+    if not user_content:
+        return None
+
+    payload = {
+        "model": "claude-sonnet-4-5",
+        "max_tokens": 2000,
+        "temperature": 0.1,
+        "system": [
+            {
+                "type": "text",
+                "text": SYSTEM_PROMPT,
+                "cache_control": {"type": "ephemeral"},  # кешируем системный промпт ~5500 токенов
+            }
+        ],
+        "messages": [{"role": "user", "content": user_content}],
+    }
+
+    for attempt in range(3):
+        try:
+            response = requests.post(
+                "https://api.anthropic.com/v1/messages",
+                headers=headers,
+                json=payload,
+                timeout=45,
+            )
+            if response.status_code == 529 or response.status_code == 429:
+                time.sleep(2 ** (attempt + 1))
+                continue
+            response.raise_for_status()
+            result = response.json()
+
+            content_str = result["content"][0]["text"]
+            # Извлечь JSON если обёрнут в markdown
+            content_str = content_str.strip()
+            if content_str.startswith("```"):
+                content_str = content_str.split("\n", 1)[1]
+                content_str = content_str.rsplit("```", 1)[0]
+
+            cache_stats = result.get("usage", {})
+            cached = cache_stats.get("cache_read_input_tokens", 0)
+            created = cache_stats.get("cache_creation_input_tokens", 0)
+            if cached or created:
+                logger.info(f"Claude cache: read={cached} created={created} tokens")
+
+            return parse_llm_response(json.loads(content_str))
+
+        except requests.exceptions.HTTPError as e:
+            logger.warning(f"Claude HTTP error (attempt {attempt + 1}): {e}")
+            if attempt == 2:
+                return None
+            time.sleep(1)
+        except Exception as e:
+            logger.warning(f"Claude error (attempt {attempt + 1}): {e}")
+            if attempt == 2:
+                return None
+            time.sleep(1)
+
+    return None
+
+
 def analyze_message(text: str = None, image_paths: List[Union[str, Path]] = None) -> Optional[Dict]:
     """
-    Analyzes message content using GPT-4o.
+    Analyzes message content using Claude (primary) → GPT-4o → Gemini.
     Returns structured JSON or None on failure.
     """
+    # 1. Try Claude first
+    result = analyze_message_claude(text, image_paths)
+    if result is not None:
+        return result
+    logger.warning("Claude failed, falling back to GPT-4o...")
+
+    # 2. Try GPT-4o
     api_key = get_openai_api_key()
     if not api_key:
         print("❌ OpenAI API Key missing")
