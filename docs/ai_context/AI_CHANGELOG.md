@@ -7,6 +7,36 @@
 
 ---
 
+## 2026-05-10 — Мультипользовательский дашборд + медданные Андрея Походни
+
+**Задача:** Подключить Андрея Походня к HealthVault, настроить HAE, загрузить исторические данные, улучшить дашборд.
+
+**Данные Андрея (user_id=836757955):**
+- HAE (Health Auto Export) настроен → webhook `POST /apple_health_v2`, токен сохранён
+- Бэкфилл 60 дней из knowledge_base.json → `activity_log` (60 строк обновлено)
+- `blood_pressure_logs`: 12 пар (уже были из ранних сессий)
+- Задокументировано 122 ЭКГ-записи Apple Watch: SinusRhythm:53, AFib:66, HighHR:3 (диапазон 2021→2026)
+- **Клинически важно:** 66 эпизодов ФП до госпитализации янв 2025 → ФП предшествовала POAF, не следствие операции
+- `biomarkers_836757955.json` обновлён: 35 ключей vs 7, добавлены AST 60.3↑, GGT 18, CRP 6.31, hs_CRP, фибриноген, WBC и др.
+
+**Sprint 3 план:**
+- `docs/superpowers/plans/2026-05-10-sprint3-ecg-syncope.md` — план импорта ЭКГ в `ecg_event` + `syncope_event` (6 задач, ~787 строк)
+- Таблицы в БД пока не созданы — следующая итерация
+
+**Дашборд — мультипользовательские исправления:**
+- `dashboard_blocks.has_blood_test_data`: убран хардкод `cohort == "owner"`, теперь проверяет `biomarkers_{telegram_id}.json` для ЛЮБОГО пользователя
+- `dashboard_generator.biomarkers_latest`: добавлены AST, GGT, hs_CRP, NT_proBNP (cardiac markers для Андрея)
+- `biomarkers_836757955.json`: исправлен ключ `hsCRP` → `hs_CRP` для совместимости с панелями Attia
+- `mc_template.html`: улучшен график калорий — стековый вывод алкоголь/еда (alco_kcal split)
+- Задеплоено и проверено: обе ссылки `/mc/*` работают, все маркеры отображаются
+
+**Коммиты:**
+- `a0ffd2c` fix(router+dashboard): legacy aiogram fallback + pack-aware targets
+- `d81a972` feat(health): Sprint 3 plan — ecg_event + syncope_event tables and import
+- `4917927` feat(dashboard): multi-user blood-test support + cardiac markers
+
+---
+
 ## 2026-05-10 — Разделение API ключей по проектам + расследование расходов Anthropic
 
 **Задача:** Выяснить куда уходят деньги с Anthropic баланса, разделить ключи по сервисам.
