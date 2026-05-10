@@ -214,7 +214,7 @@ async def cmd_day(message: Message, user_id: int):
         fiber_line = ""
         if fiber_val > 0:
             fib_bar, fib_pct = make_block_bar(fiber_val, 30, invert=True)
-            fiber_line = f"🌿 {fib_bar} {fib_pct}% · {fiber_val:.0f}/30г"
+            fiber_line = f"🌿 {fib_bar} {fiber_val:.0f}/30г"
 
         # --- Response Construction ---
         if show_bar:
