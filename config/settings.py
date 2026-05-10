@@ -38,6 +38,7 @@ class Settings:
         self.openai_api_key: Optional[str] = self._get_optional("OPENAI_API_KEY")
         self.google_api_key: Optional[str] = self._get_optional("GOOGLE_API_KEY")
         self.gemini_api_key: Optional[str] = self._get_optional("GEMINI_API_KEY")
+        self.anthropic_api_key: Optional[str] = self._get_optional("ANTHROPIC_API_KEY")
 
         # Garmin (optional for sync)
         self.garmin_email: Optional[str] = self._get_optional("GARMIN_EMAIL")
