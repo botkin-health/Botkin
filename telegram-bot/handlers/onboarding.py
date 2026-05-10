@@ -1,24 +1,71 @@
-"""Throwaway onboarding wizard for Sprint 1a.
+"""Onboarding wizard — 10-step health profile setup.
 
-State machine stored in users.onboarding_step + users.onboarding_data.
-Steps: name → age → sex → height → has_garmin → done.
+State machine stored in users.onboarding_step + users.onboarding_data (jsonb).
+Steps: name → birth_date → sex → height → weight → goal → activity → smoking → chronic → wearables → done.
 
-On completion: generates health_token, sends instructions for HAE setup.
-This wizard is replaced by agent-driven onboarding in Sprint 2.
+On completion: computes BMR/TDEE/calorie goal, generates health_token, sends summary.
+
+Public API:
+- process_onboarding_message(payload) — wizard state machine entrypoint (called by router)
+- handle_setup_command(payload) — /setup command for existing users to fill missing fields
+- start_wizard(payload) — alias for process_onboarding_message (back-compat)
 """
 
 import logging
 import os
 import secrets
 import uuid
+from datetime import date, datetime
 from typing import Optional
 
 import httpx
 
 from database import SessionLocal
-from database.models import User
+from database.models import User, UserSettings, Weight
 
 logger = logging.getLogger(__name__)
+
+
+# ─── Configuration ────────────────────────────────────────────────────────
+
+WEARABLE_OPTIONS = [
+    "Garmin",
+    "Apple Watch",
+    "Oura",
+    "Whoop",
+    "Withings",
+    "Omron АД",
+    "Mi-весы",
+    "Polar",
+    "CGM",
+    "Eight Sleep",
+]
+
+GOAL_MAP = {
+    # label_match_substring: (display, calorie_goal_pct)
+    "похудеть": ("Похудеть", -15),
+    "удержать": ("Удержать форму", 0),
+    "набрать": ("Набрать мышцы", 10),
+    "долголетие": ("Долголетие/профилактика", 0),
+}
+
+ACTIVITY_MAP = {
+    # label_match_substring: (db_value, mifflin_multiplier)
+    "сидячий": ("sedentary", 1.2),
+    "лёгкий": ("light", 1.375),
+    "легкий": ("light", 1.375),
+    "умеренный": ("moderate", 1.55),
+    "высокий": ("high", 1.725),
+}
+
+SMOKING_MAP = {
+    "никогда": "never",
+    "бросил": "former",
+    "курю": "current",
+}
+
+
+# ─── Telegram helpers ─────────────────────────────────────────────────────
 
 
 async def send_message(chat_id: int, text: str, reply_markup: Optional[dict] = None) -> None:
@@ -32,19 +79,45 @@ async def send_message(chat_id: int, text: str, reply_markup: Optional[dict] = N
         body["reply_markup"] = reply_markup
     async with httpx.AsyncClient() as client:
         try:
-            await client.post(f"https://api.telegram.org/bot{bot_token}/sendMessage", json=body, timeout=10.0)
+            await client.post(
+                f"https://api.telegram.org/bot{bot_token}/sendMessage",
+                json=body,
+                timeout=10.0,
+            )
         except Exception as e:
             logger.error(f"Failed to send message to {chat_id}: {e}")
 
 
+def _kb(rows: list[list[str]], one_time: bool = True) -> dict:
+    return {"keyboard": rows, "one_time_keyboard": one_time, "resize_keyboard": True}
+
+
+KB_SEX = _kb([["М", "Ж"]])
+KB_GOAL = _kb([["🔻 Похудеть", "⚖ Удержать форму"], ["💪 Набрать мышцы", "🛡 Долголетие/профилактика"]])
+KB_ACTIVITY = _kb([["🪑 Сидячий", "🚶 Лёгкий 1-3/нед"], ["🏃 Умеренный 4-5/нед", "🏋 Высокий 6+/нед"]])
+KB_SMOKING = _kb([["Никогда", "Бросил", "Курю"]])
+KB_WEARABLE = _kb(
+    [
+        ["Garmin", "Apple Watch", "Oura"],
+        ["Whoop", "Withings", "Omron АД"],
+        ["Mi-весы", "Polar", "CGM"],
+        ["Eight Sleep", "Нет", "Готово"],
+    ],
+    one_time=False,
+)
+
+
+# ─── Public entry points ──────────────────────────────────────────────────
+
+
 async def start_wizard(payload: dict) -> None:
-    """Entry point called by telegram_router for new users."""
+    """Back-compat alias."""
     await process_onboarding_message(payload)
 
 
 async def process_onboarding_message(payload: dict) -> None:
     """Process one message in the onboarding state machine."""
-    msg = payload.get("message", {})
+    msg = payload.get("message") or payload.get("edited_message") or {}
     from_id = msg.get("from", {}).get("id")
     chat_id = msg.get("chat", {}).get("id")
     text = (msg.get("text") or "").strip()
@@ -54,11 +127,10 @@ async def process_onboarding_message(payload: dict) -> None:
         user = db.query(User).filter_by(telegram_id=from_id).first()
 
         if not user:
-            # Create new user row, start at 'name' step
             user = User(
                 telegram_id=from_id,
                 username=msg.get("from", {}).get("username"),
-                first_name=msg.get("from", {}).get("first_name", ""),
+                first_name="",
                 cohort="external",
                 pack_name="generic",
                 onboarding_step="name",
@@ -67,99 +139,452 @@ async def process_onboarding_message(payload: dict) -> None:
             )
             db.add(user)
             db.commit()
-            await send_message(chat_id, "👋 Привет! Я твой персональный health-coach.\n\nКак тебя зовут?")
-            return
-
-        step = user.onboarding_step or "name"
-        data = dict(user.onboarding_data or {})
-
-        if step == "name":
-            if not text:
-                await send_message(chat_id, "Как тебя зовут?")
-                return
-            data["name"] = text[:100]
-            user.first_name = text[:100]
-            user.onboarding_step = "age"
-            user.onboarding_data = data
-            db.commit()
-            await send_message(chat_id, f"Приятно познакомиться, {text}! Сколько тебе лет?")
-            return
-
-        if step == "age":
-            try:
-                age = int(text)
-                if not (10 <= age <= 120):
-                    raise ValueError("out of range")
-            except (ValueError, TypeError):
-                await send_message(chat_id, "Введи число от 10 до 120 — сколько тебе лет?")
-                return
-            data["age"] = age
-            user.onboarding_step = "sex"
-            user.onboarding_data = data
-            db.commit()
-            keyboard = {"keyboard": [["М", "Ж"]], "one_time_keyboard": True, "resize_keyboard": True}
-            await send_message(chat_id, "Пол?", reply_markup=keyboard)
-            return
-
-        if step == "sex":
-            normalized = text.upper().strip()
-            if normalized.startswith("М") or normalized.startswith("M"):
-                sex = "M"
-            elif normalized.startswith("Ж") or normalized.startswith("F"):
-                sex = "F"
-            else:
-                keyboard = {"keyboard": [["М", "Ж"]], "one_time_keyboard": True, "resize_keyboard": True}
-                await send_message(chat_id, "Нажми кнопку М или Ж", reply_markup=keyboard)
-                return
-            data["sex"] = sex
-            user.onboarding_step = "height"
-            user.onboarding_data = data
-            db.commit()
-            await send_message(chat_id, "Рост в см? (например: 178)")
-            return
-
-        if step == "height":
-            try:
-                height = int(text)
-                if not (100 <= height <= 230):
-                    raise ValueError("out of range")
-            except (ValueError, TypeError):
-                await send_message(chat_id, "Введи рост в см от 100 до 230")
-                return
-            data["height_cm"] = height
-            user.onboarding_step = "has_garmin"
-            user.onboarding_data = data
-            db.commit()
-            keyboard = {"keyboard": [["Да", "Нет"]], "one_time_keyboard": True, "resize_keyboard": True}
-            await send_message(chat_id, "У тебя есть Garmin?", reply_markup=keyboard)
-            return
-
-        if step == "has_garmin":
-            data["has_garmin"] = text.lower().startswith("д") or text.lower() == "yes"
-            user.onboarding_data = data
-            user.onboarding_step = "done"
-            user.health_token = f"hvt_{user.telegram_id}_{secrets.token_hex(16)}"
-            if not user.share_token:
-                user.share_token = str(uuid.uuid4()).replace("-", "")[:32]
-            db.commit()
-
             await send_message(
                 chat_id,
-                f"Готово! 🎉\n\n"
-                f"<b>Твой Apple Health токен:</b>\n"
-                f"<code>{user.health_token}</code>\n\n"
-                f"Установи приложение Health Auto Export ($24.99, есть 7 дней триала):\n"
-                f"https://apps.apple.com/app/health-auto-export-json-csv/id1115567069\n\n"
-                f"Настрой в нём:\n"
-                f"• REST API → URL: <code>https://health.orangegate.cc/apple_health_v2</code>\n"
-                f"• Header: <code>Authorization: Bearer {user.health_token}</code>\n\n"
-                f"Пиши мне еду текстом, фото или голосом — буду считать калории. "
-                f"Скоро появится твой личный агент-коуч!",
+                "👋 Привет! Я твой health-coach. Помогу с дневником питания, "
+                "приёмом лекарств и анализами здоровья.\n\n"
+                "Коротко познакомимся — 10 вопросов.\n\n"
+                "<b>1/10</b> Как тебя зовут? (одно слово)",
             )
             return
 
-        if step == "done":
-            logger.info(f"User {from_id} onboarding_step=done, router shouldn't route here")
-
+        await _run_step(user, text, chat_id, db)
     finally:
         db.close()
+
+
+async def handle_setup_command(payload: dict) -> bool:
+    """Handle /setup command for users with onboarding_step='done'.
+
+    Detects which required fields are missing and resumes the wizard from
+    the first missing step. Returns True if /setup was handled (wizard
+    started), False if everything is already filled.
+    """
+    msg = payload.get("message") or {}
+    from_id = msg.get("from", {}).get("id")
+    chat_id = msg.get("chat", {}).get("id")
+
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter_by(telegram_id=from_id).first()
+        if not user:
+            await send_message(chat_id, "Сначала напиши /start — пройдём знакомство.")
+            return True
+
+        missing = _detect_missing_steps(user, db)
+        if not missing:
+            await send_message(
+                chat_id,
+                "✅ Профиль уже заполнен полностью. Если хочешь поменять отдельные значения — напиши, какое поле.",
+            )
+            return True
+
+        # Resume from first missing step
+        user.onboarding_step = missing[0]
+        db.commit()
+        await send_message(
+            chat_id,
+            f"Догоним пропущенные поля ({len(missing)} шт.): {', '.join(missing)}.",
+        )
+        # Trigger the question for the first missing step with empty input
+        await _run_step(user, "", chat_id, db, prompt_only=True)
+        return True
+    finally:
+        db.close()
+
+
+# ─── State machine ────────────────────────────────────────────────────────
+
+
+async def _run_step(user: User, text: str, chat_id: int, db, prompt_only: bool = False) -> None:
+    """Execute one step of the wizard. If prompt_only=True, only re-prompts the question."""
+    step = user.onboarding_step or "name"
+    data = dict(user.onboarding_data or {})
+
+    # ── 1/10  NAME ────────────────────────────────────────────────
+    if step == "name":
+        if prompt_only or not text:
+            await send_message(chat_id, "<b>1/10</b> Как тебя зовут? (одно слово)")
+            return
+        if text.startswith("/"):
+            await send_message(chat_id, "Это похоже на команду. Напиши имя одним словом.")
+            return
+        name = text[:100]
+        data["name"] = name
+        user.first_name = name
+        user.onboarding_step = "birth_date"
+        user.onboarding_data = data
+        db.commit()
+        await send_message(
+            chat_id,
+            f"Приятно, {name}!\n\n<b>2/10</b> Дата рождения? (ДД.ММ.ГГГГ — например, 20.08.2001)",
+        )
+        return
+
+    # ── 2/10  BIRTH DATE ──────────────────────────────────────────
+    if step == "birth_date":
+        if prompt_only or not text:
+            await send_message(chat_id, "<b>2/10</b> Дата рождения? (ДД.ММ.ГГГГ)")
+            return
+        try:
+            bd = datetime.strptime(text.replace("/", ".").replace("-", "."), "%d.%m.%Y").date()
+        except ValueError:
+            await send_message(chat_id, "Формат ДД.ММ.ГГГГ. Например: 20.08.2001")
+            return
+        today = date.today()
+        age = today.year - bd.year - ((today.month, today.day) < (bd.month, bd.day))
+        if not (10 <= age <= 100):
+            await send_message(chat_id, "Возраст вне диапазона 10–100. Перепроверь дату.")
+            return
+        user.birth_date = bd
+        data["birth_date"] = bd.isoformat()
+        data["age"] = age
+        user.onboarding_step = "sex"
+        user.onboarding_data = data
+        db.commit()
+        await send_message(chat_id, f"Тебе {age} лет — записал.\n\n<b>3/10</b> Пол?", reply_markup=KB_SEX)
+        return
+
+    # ── 3/10  SEX ────────────────────────────────────────────────
+    if step == "sex":
+        if prompt_only:
+            await send_message(chat_id, "<b>3/10</b> Пол?", reply_markup=KB_SEX)
+            return
+        t = text.upper().strip()
+        if t.startswith("М") or t.startswith("M"):
+            sex = "male"
+        elif t.startswith("Ж") or t.startswith("F"):
+            sex = "female"
+        else:
+            await send_message(chat_id, "Нажми кнопку М или Ж", reply_markup=KB_SEX)
+            return
+        user.sex = sex
+        data["sex"] = sex
+        user.onboarding_step = "height"
+        user.onboarding_data = data
+        db.commit()
+        await send_message(chat_id, "<b>4/10</b> Рост в см? (например, 178)")
+        return
+
+    # ── 4/10  HEIGHT ─────────────────────────────────────────────
+    if step == "height":
+        if prompt_only or not text:
+            await send_message(chat_id, "<b>4/10</b> Рост в см?")
+            return
+        try:
+            h = int(text)
+            if not (100 <= h <= 230):
+                raise ValueError
+        except ValueError:
+            await send_message(chat_id, "Введи число 100–230 (см)")
+            return
+        user.height_cm = h
+        data["height_cm"] = h
+        user.onboarding_step = "weight"
+        user.onboarding_data = data
+        db.commit()
+        await send_message(
+            chat_id,
+            "<b>5/10</b> Текущий вес в кг? (если не знаешь — напиши «позже»)",
+        )
+        return
+
+    # ── 5/10  WEIGHT ─────────────────────────────────────────────
+    if step == "weight":
+        if prompt_only or not text:
+            await send_message(chat_id, "<b>5/10</b> Текущий вес в кг? (или «позже»)")
+            return
+        if text.lower() in ("позже", "не знаю", "later", "skip", "-", "пропустить"):
+            w = None
+        else:
+            try:
+                w = float(text.replace(",", "."))
+                if not (30 <= w <= 300):
+                    raise ValueError
+            except ValueError:
+                await send_message(chat_id, "Введи число 30–300 (кг) или напиши «позже»")
+                return
+        data["weight_kg"] = w
+        if w is not None:
+            # Save as a Weight measurement point
+            try:
+                from datetime import timezone as _tz
+
+                weight_entry = Weight(
+                    user_id=user.telegram_id,
+                    measured_at=datetime.now(_tz.utc),
+                    weight=w,
+                    source="onboarding",
+                )
+                db.add(weight_entry)
+            except Exception as e:
+                logger.warning(f"Could not save Weight for {user.telegram_id}: {e}")
+        user.onboarding_step = "goal"
+        user.onboarding_data = data
+        db.commit()
+        await send_message(chat_id, "<b>6/10</b> Главная цель?", reply_markup=KB_GOAL)
+        return
+
+    # ── 6/10  GOAL ───────────────────────────────────────────────
+    if step == "goal":
+        if prompt_only:
+            await send_message(chat_id, "<b>6/10</b> Главная цель?", reply_markup=KB_GOAL)
+            return
+        t = text.lower()
+        match = next(((label, pct) for key, (label, pct) in GOAL_MAP.items() if key in t), None)
+        if not match:
+            await send_message(chat_id, "Выбери одну из 4 кнопок", reply_markup=KB_GOAL)
+            return
+        goal_label, goal_pct = match
+        data["goal"] = goal_label
+        data["goal_pct"] = goal_pct
+        _ensure_user_settings(db, user.telegram_id, calorie_goal_pct=goal_pct)
+        user.onboarding_step = "activity"
+        user.onboarding_data = data
+        db.commit()
+        await send_message(chat_id, "<b>7/10</b> Уровень активности?", reply_markup=KB_ACTIVITY)
+        return
+
+    # ── 7/10  ACTIVITY ───────────────────────────────────────────
+    if step == "activity":
+        if prompt_only:
+            await send_message(chat_id, "<b>7/10</b> Уровень активности?", reply_markup=KB_ACTIVITY)
+            return
+        t = text.lower()
+        match = next(((lev, mult) for key, (lev, mult) in ACTIVITY_MAP.items() if key in t), None)
+        if not match:
+            await send_message(chat_id, "Выбери одну из 4 кнопок", reply_markup=KB_ACTIVITY)
+            return
+        level, mult = match
+        data["activity_level"] = level
+        data["activity_multiplier"] = mult
+        _ensure_user_settings(db, user.telegram_id, activity_level=level)
+        user.onboarding_step = "smoking"
+        user.onboarding_data = data
+        db.commit()
+        await send_message(chat_id, "<b>8/10</b> Куришь?", reply_markup=KB_SMOKING)
+        return
+
+    # ── 8/10  SMOKING ────────────────────────────────────────────
+    if step == "smoking":
+        if prompt_only:
+            await send_message(chat_id, "<b>8/10</b> Куришь?", reply_markup=KB_SMOKING)
+            return
+        t = text.lower().strip()
+        sm = next((v for k, v in SMOKING_MAP.items() if k in t), None)
+        if not sm:
+            await send_message(chat_id, "Выбери одну кнопку", reply_markup=KB_SMOKING)
+            return
+        user.smoking_status = sm
+        data["smoking"] = sm
+        user.onboarding_step = "chronic"
+        user.onboarding_data = data
+        db.commit()
+        await send_message(
+            chat_id,
+            "<b>9/10</b> Хронические заболевания и/или постоянные лекарства? "
+            "Свободным текстом — или просто «нет», если ничего нет.",
+        )
+        return
+
+    # ── 9/10  CHRONIC ────────────────────────────────────────────
+    if step == "chronic":
+        if prompt_only or not text:
+            await send_message(chat_id, "<b>9/10</b> Хронические заболевания / лекарства? (текстом или «нет»)")
+            return
+        chronic = text[:2000].strip()
+        data["chronic_conditions"] = "" if chronic.lower() == "нет" else chronic
+        data["wearables_picked"] = []
+        user.onboarding_step = "wearables"
+        user.onboarding_data = data
+        db.commit()
+        await send_message(
+            chat_id,
+            "<b>10/10</b> Какими устройствами пользуешься? Тапай по очереди, потом «Готово». "
+            "Или сразу «Нет», если ничего.",
+            reply_markup=KB_WEARABLE,
+        )
+        return
+
+    # ── 10/10  WEARABLES ─────────────────────────────────────────
+    if step == "wearables":
+        if prompt_only:
+            await send_message(chat_id, "<b>10/10</b> Устройства/трекеры?", reply_markup=KB_WEARABLE)
+            return
+        picked: list = list(data.get("wearables_picked", []))
+        t = text.strip()
+        tl = t.lower()
+        if tl in ("нет", "ничего"):
+            data["wearables"] = []
+            data["wearables_picked"] = []
+            user.onboarding_data = data
+            db.commit()
+            await _finish_onboarding(user, db, chat_id)
+            return
+        if tl == "готово":
+            data["wearables"] = picked
+            user.onboarding_data = data
+            db.commit()
+            await _finish_onboarding(user, db, chat_id)
+            return
+        if t in WEARABLE_OPTIONS:
+            if t not in picked:
+                picked.append(t)
+            data["wearables_picked"] = picked
+            user.onboarding_data = data
+            db.commit()
+            await send_message(
+                chat_id,
+                f"✓ {', '.join(picked)}\nЕщё или нажми «Готово».",
+                reply_markup=KB_WEARABLE,
+            )
+            return
+        await send_message(
+            chat_id,
+            "Тапни кнопку устройства, или «Готово»/«Нет»",
+            reply_markup=KB_WEARABLE,
+        )
+        return
+
+    # already done
+    if step == "done":
+        logger.info(f"User {user.telegram_id} already done; router shouldn't route here")
+        return
+
+
+# ─── Finalisation ─────────────────────────────────────────────────────────
+
+
+async def _finish_onboarding(user: User, db, chat_id: int) -> None:
+    """Compute BMR/TDEE/goal kcal, generate health_token, send summary."""
+    data = dict(user.onboarding_data or {})
+
+    # Compute age
+    bd = user.birth_date
+    if bd:
+        today = date.today()
+        age = today.year - bd.year - ((today.month, today.day) < (bd.month, bd.day))
+    else:
+        age = data.get("age", 30)
+
+    h = user.height_cm or 170
+    w = data.get("weight_kg")
+    sex = (user.sex or "male").lower()
+    # Accept both legacy 'M'/'F' and canonical 'male'/'female'
+    is_male = sex in ("male", "m")
+    mult = data.get("activity_multiplier", 1.375)
+    goal_pct = data.get("goal_pct", 0)
+    goal_label = data.get("goal", "Удержать форму")
+
+    if w:
+        bmr = 10 * w + 6.25 * h - 5 * age + (5 if is_male else -161)
+        tdee = bmr * mult
+        goal_kcal = round(tdee * (1 + goal_pct / 100))
+        bmr = round(bmr)
+        tdee = round(tdee)
+        # Persist to users.bmr
+        try:
+            user.bmr = float(bmr)
+        except Exception:
+            pass
+        nutrition_block = (
+            f"<b>Базовая энергия (Mifflin-St Jeor):</b>\n"
+            f"• BMR — {bmr} ккал/день (минимум для жизни)\n"
+            f"• TDEE — {tdee} ккал/день (с активностью)\n"
+            f"• <b>Цель «{goal_label}» — {goal_kcal} ккал/день</b>\n\n"
+        )
+    else:
+        nutrition_block = (
+            "<i>Вес ты пока не указал.</i> Как взвесишься — напиши /weight 78 "
+            "или просто «вес 78», я посчитаю норму калорий.\n\n"
+        )
+
+    # Generate tokens
+    if not user.health_token:
+        user.health_token = f"hvt_{user.telegram_id}_{secrets.token_hex(16)}"
+    if not user.share_token:
+        user.share_token = str(uuid.uuid4()).replace("-", "")[:32]
+
+    user.onboarding_step = "done"
+    db.commit()
+
+    wearables = data.get("wearables") or []
+    wearables_str = ", ".join(wearables) if wearables else "не указаны"
+
+    msg = (
+        f"✅ Готово, {user.first_name}!\n\n"
+        f"{nutrition_block}"
+        f"<b>Что дальше:</b>\n"
+        f"• Логируй еду — фото / голос / текст\n"
+        f"• /sup — добавки и лекарства\n"
+        f"• /weight 78 — обновить вес\n"
+        f"• /help — все команды\n"
+        f"• Открой мини-аппу (кнопка снизу) для дашборда\n\n"
+        f"<b>Устройства:</b> {wearables_str}\n"
+    )
+    if "Garmin" in wearables:
+        msg += "Чтобы подключить Garmin — /garmin\n"
+    if "Apple Watch" in wearables or "Withings" in wearables or "Omron АД" in wearables:
+        msg += (
+            "\nДля автосинка с Apple Health поставь приложение Health Auto Export "
+            "($24.99) и пропиши:\n"
+            f"• URL: <code>https://health.orangegate.cc/apple_health_v2</code>\n"
+            f"• Header: <code>Authorization: Bearer {user.health_token}</code>\n"
+        )
+
+    await send_message(chat_id, msg)
+
+
+# ─── Helpers ──────────────────────────────────────────────────────────────
+
+
+def _ensure_user_settings(db, user_id: int, **fields) -> None:
+    """Upsert user_settings row with given fields."""
+    us = db.query(UserSettings).filter_by(user_id=user_id).first()
+    if us is None:
+        us = UserSettings(user_id=user_id, **fields)
+        db.add(us)
+    else:
+        for k, v in fields.items():
+            setattr(us, k, v)
+
+
+def _detect_missing_steps(user: User, db) -> list[str]:
+    """Return list of onboarding steps with missing data, in canonical order."""
+    data = user.onboarding_data or {}
+    missing = []
+
+    # name
+    if not user.first_name or user.first_name.strip().startswith("/"):
+        missing.append("name")
+    # birth_date
+    if not user.birth_date:
+        missing.append("birth_date")
+    # sex
+    if not user.sex or user.sex == "":
+        missing.append("sex")
+    # height
+    if not user.height_cm:
+        missing.append("height")
+    # weight — check if any Weight record exists
+    weight_count = db.query(Weight).filter_by(user_id=user.telegram_id).count()
+    if weight_count == 0 and "weight_kg" not in data:
+        missing.append("weight")
+    # goal — calorie_goal_pct must be in user_settings
+    us = db.query(UserSettings).filter_by(user_id=user.telegram_id).first()
+    if not data.get("goal"):
+        missing.append("goal")
+    # activity
+    if not (us and us.activity_level):
+        missing.append("activity")
+    # smoking
+    if not user.smoking_status:
+        missing.append("smoking")
+    # chronic
+    if "chronic_conditions" not in data:
+        missing.append("chronic")
+    # wearables
+    if "wearables" not in data:
+        missing.append("wearables")
+
+    return missing

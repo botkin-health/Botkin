@@ -229,6 +229,6 @@ PDF-анализы — архив. JSON — источник истины, по 
 
 ## Контакт
 
-Telegram: @alexlyskovsky. Репо: https://github.com/Lyskovsky/HealthVault
+Telegram: @lyskovsky. Репо: https://github.com/Lyskovsky/HealthVault
 
 Рад что делаем это вместе — Саша
