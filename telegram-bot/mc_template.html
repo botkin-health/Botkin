@@ -756,7 +756,11 @@ const dates = D.meta.dates;
 const wArr = dates.map(d => D.weight[d] != null ? D.weight[d] : null);
 const fArr = dates.map(d => D.fat[d] != null ? D.fat[d] : null);
 const kArr = dates.map(d => D.kcal[d] != null ? D.kcal[d] : null);
+const alcoKcal = D.alco_kcal || {};
 const alcoSet = new Set(D.alco_days);
+// Stacked: food = total - alcohol; alco = alcohol kcal (0 on non-alco days)
+const kFoodArr = dates.map(d => D.kcal[d] != null ? Math.max(0, D.kcal[d] - (alcoKcal[d] || 0)) : null);
+const kAlcoArr = dates.map(d => alcoKcal[d] ? alcoKcal[d] : null);
 const workoutSet = new Set(D.activities.map(a => a.date));
 
 function smooth(arr, win=7) {
@@ -776,6 +780,7 @@ const _chartStart = D.meta.first_data_date || D.meta.start;
 const _startIdx = Math.max(0, dates.findIndex(d => d >= _chartStart));
 const chartDates = dates.slice(_startIdx);
 const chartW = wArr.slice(_startIdx), chartF = fArr.slice(_startIdx), chartK = kArr.slice(_startIdx);
+const chartKFood = kFoodArr.slice(_startIdx), chartKAlco = kAlcoArr.slice(_startIdx);
 const chartWSmooth = wSmooth.slice(_startIdx), chartFSmooth = fSmooth.slice(_startIdx);
 
 const _wVals = chartW.filter(v => v != null), _fVals = chartF.filter(v => v != null);
@@ -806,12 +811,12 @@ new Chart(document.getElementById('timeline'), {
   data: {
     labels: chartDates,
     datasets: [
-      { type:'bar', label:'Калории (ккал)', data: chartK.map((v,i) => alcoSet.has(chartDates[i]) ? null : v), yAxisID: 'yK',
+      { type:'bar', label:'Калории (ккал)', data: chartKFood, yAxisID: 'yK',
         backgroundColor: 'rgba(59,130,246,0.28)',
-        borderColor: 'transparent', barThickness: 5, order: 3 },
-      { type:'bar', label:'🍷 Алкоголь', data: chartK.map((v,i) => alcoSet.has(chartDates[i]) ? v : null), yAxisID: 'yK',
-        backgroundColor: 'rgba(255,59,109,0.65)',
-        borderColor: 'rgba(255,59,109,0.9)', borderWidth: 1, barThickness: 5, order: 3 },
+        borderColor: 'transparent', barThickness: 5, stack: 'kcal', order: 3 },
+      { type:'bar', label:'🍷 Алкоголь', data: chartKAlco, yAxisID: 'yK',
+        backgroundColor: 'rgba(220,38,38,0.85)',
+        borderColor: 'rgba(248,113,113,0.95)', borderWidth: 1, barThickness: 5, stack: 'kcal', order: 3 },
       { label:'Вес (факт)', data: chartW, borderColor: 'rgba(0,255,157,0.35)',
         backgroundColor:'rgba(0,255,157,0.05)', yAxisID:'yW', pointRadius: 2,
         pointBackgroundColor: COLOR.g, tension: 0.1, borderWidth: 1, order: 2 },
@@ -836,7 +841,7 @@ new Chart(document.getElementById('timeline'), {
       yW: { position:'left', title:{text:'Вес, кг', display:true}, min: wYMin, max: wYMax, grid:{color:COLOR.grid} },
       yF: { position:'right', title:{text:'Жир, %', display:true}, min: fYMin, max: fYMax, grid:{display:false} },
       yK: { position:'right', title:{text:'Ккал', display:true}, min: 0, max: 4500,
-            grid:{display:false}, ticks:{display:false}, display: false }
+            grid:{display:false}, ticks:{display:false}, display: false, stacked: true }
     },
     plugins: {
       legend: { position:'top', labels:{boxWidth:12, font:{size:11}} },
