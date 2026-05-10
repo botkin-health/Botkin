@@ -157,16 +157,40 @@ CATEGORIES: list[tuple[str, str, callable | None]] = [
 ]
 
 
+def _imaging_items(kb: dict, modality: str) -> list[dict]:
+    """Возвращает список записей из imaging.{modality} (если imaging — dict) или из medical_records (fallback)."""
+    imaging = kb.get("imaging") or {}
+    if isinstance(imaging, dict):
+        entries = imaging.get(modality) or []
+        return [e for e in entries if isinstance(e, dict) and e.get("date")]
+    return []
+
+
 def build_journal(kb: dict) -> str:
     rows = []
     for label, sect, filt in CATEGORIES:
         items = kb.get(sect) or []
         if filt:
             items = [t for t in items if filt(t)]
+
+        # For КТ / МРТ: merge with imaging.ct / imaging.mri (whichever is newer wins)
+        if label == "КТ":
+            items = list(items) + _imaging_items(kb, "ct")
+        elif label == "МРТ":
+            items = list(items) + _imaging_items(kb, "mri")
+
         if not items:
             continue  # не показываем пустые категории — слишком шумно для женских позиций у мужчин и т.п.
         items.sort(key=lambda t: t.get("date", ""), reverse=True)
-        last = items[0]
+        # Deduplicate by date (keep first occurrence after sort)
+        seen_dates: set[str] = set()
+        unique_items = []
+        for it in items:
+            d_ = it.get("date", "")
+            if d_ not in seen_dates:
+                seen_dates.add(d_)
+                unique_items.append(it)
+        last = unique_items[0]
         d = last.get("date") or "—"
         da = _days_ago(d)
         age = _age_label(da)
