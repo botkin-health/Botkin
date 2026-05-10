@@ -117,6 +117,27 @@ async def telegram_webhook(payload: dict):
     try:
         user = db.query(User).filter_by(telegram_id=from_id).first()
 
+        # Auto-sync identity from Telegram payload (Telegram is source of truth
+        # for username / first_name / last_name; users can change these any time).
+        if user:
+            tg_from = msg.get("from", {}) or {}
+            tg_username = tg_from.get("username")
+            tg_first = tg_from.get("first_name")
+            tg_last = tg_from.get("last_name")
+            changed = False
+            if tg_username and tg_username != user.username:
+                logger.info(f"User {from_id} username updated: {user.username!r} -> {tg_username!r}")
+                user.username = tg_username
+                changed = True
+            if tg_first and tg_first != user.first_name and not (user.first_name or "").startswith("/"):
+                # Don't overwrite an explicitly-set name (during onboarding)
+                # with the Telegram display name unless it matches what's there.
+                # We only sync if user.first_name was the original Telegram value.
+                pass  # skip first_name sync to not overwrite onboarding answers
+            # last_active updated by main flow elsewhere; we don't touch here
+            if changed:
+                db.commit()
+
         # Photo or voice — forward to legacy aiogram dispatcher
         if "photo" in msg or "voice" in msg:
             logger.info("Media message received — forwarding to legacy bot")
@@ -132,6 +153,14 @@ async def telegram_webhook(payload: dict):
         if user.onboarding_step != "done":
             await handle_onboarding(payload)
             return {"status": "ok", "action": "onboarding_continue"}
+
+        # /setup command — resume wizard for missing fields (post-onboarding top-up)
+        text = (msg.get("text") or "").strip().lower()
+        if text == "/setup" or text.startswith("/setup "):
+            from handlers.onboarding import handle_setup_command
+
+            await handle_setup_command(payload)
+            return {"status": "ok", "action": "setup"}
 
         # Existing user but no container yet — fall back to legacy aiogram bot (Sprint 1a)
         if not user.container_id or not user.container_port:
