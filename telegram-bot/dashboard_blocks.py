@@ -53,23 +53,34 @@ def has_apple_health_data(db: Session, user: User) -> bool:
 def has_blood_test_data(db: Session, user: User) -> bool:
     """True if user has any blood test data.
 
-    For Sprint 1a the owner has data in knowledge_base.json; other cohorts
-    will have their own KB in Sprint 2.  For now, non-owners return False.
+    Checks for per-user biomarkers_{telegram_id}.json first (all cohorts),
+    then falls back to owner's knowledge_base.json for backward compatibility.
     """
-    if user.cohort != "owner":
-        return False
     import json
 
-    kb_path = Path(__file__).resolve().parents[1] / "knowledge_base.json"
-    if not kb_path.exists():
-        return False
-    try:
-        kb = json.loads(kb_path.read_text())
-        for entry in kb.get("blood_tests", []):
-            if entry.get("values"):
+    # Per-user biomarkers file — works for any cohort
+    bio_path = Path(__file__).resolve().parent / f"biomarkers_{user.telegram_id}.json"
+    if bio_path.exists():
+        try:
+            bio = json.loads(bio_path.read_text())
+            if any(isinstance(v, dict) and v.get("value") is not None for k, v in bio.items() if k != "_meta"):
                 return True
-    except Exception:
-        pass
+        except Exception:
+            pass
+
+    # Legacy: owner's knowledge_base.json
+    if user.cohort == "owner":
+        kb_path = Path(__file__).resolve().parents[1] / "knowledge_base.json"
+        if not kb_path.exists():
+            return False
+        try:
+            kb = json.loads(kb_path.read_text())
+            for entry in kb.get("blood_tests", []):
+                if entry.get("values"):
+                    return True
+        except Exception:
+            pass
+
     return False
 
 
