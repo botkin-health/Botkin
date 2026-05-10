@@ -110,6 +110,10 @@ class AppleHealthPayload(BaseModel):
 
     # Сон и восстановление
     sleep_hours: Optional[float] = None
+    sleep_deep_h: Optional[float] = None  # Глубокий сон, часы
+    sleep_rem_h: Optional[float] = None  # REM сон, часы
+    sleep_core_h: Optional[float] = None  # Core (light) сон, часы
+    sleep_awake_h: Optional[float] = None  # Пробуждения в ночь, часы
     hrv: Optional[int] = None  # HRV SDNN, мс
     spo2_pct: Optional[float] = None
 
@@ -346,21 +350,23 @@ def _hae_to_daily_payloads(metrics: list[dict]) -> dict[str, AppleHealthPayload]
                 slot["flights_climbed"] = int(_hae_pick(rec, "qty", "Avg", default=0))
             elif name in ("active_energy", "active_energy_burned"):
                 qty = float(_hae_pick(rec, "qty", "Avg", default=0))
-                if units == "mj":
+                # HAE баг: шлёт МДж (MJ), но пишет units="kJ".
+                # Признак: значение < 100 при units=kJ → трактуем как MJ.
+                # 5.858 "kJ" → 5.858 МДж × 239 = 1399 ккал (реалистично).
+                if units == "mj" or (units == "kj" and qty < 100):
                     qty = round(qty * 239.006, 1)  # MJ → kcal
                 elif units == "kj":
                     qty = round(qty / 4.184, 1)  # kJ → kcal
                 slot["active_energy_kcal"] = qty
             elif name in ("basal_energy_burned", "resting_energy"):
                 qty = float(_hae_pick(rec, "qty", "Avg", default=0))
-                if units == "mj":
+                # HAE баг: шлёт МДж (MJ), но пишет units="kJ".
+                # Признак: значение < 100 при units=kJ → трактуем как MJ.
+                # 5.858 "kJ" → 5.858 МДж × 239 = 1399 ккал (реалистично).
+                if units == "mj" or (units == "kj" and qty < 100):
                     qty = round(qty * 239.006, 1)  # MJ → kcal
-                    logger.warning(f"ENERGY_DEBUG basal units=MJ raw={qty / 239.006:.3f} → kcal={qty}")
                 elif units == "kj":
                     qty = round(qty / 4.184, 1)  # kJ → kcal
-                    logger.warning(f"ENERGY_DEBUG basal units=kJ raw={qty * 4.184:.3f} → kcal={qty}")
-                else:
-                    logger.warning(f"ENERGY_DEBUG basal units={units!r} qty={qty:.3f}")
                 slot["basal_energy_kcal"] = qty
             elif name == "heart_rate":
                 if "Avg" in rec and rec["Avg"] is not None:
@@ -417,29 +423,40 @@ def _hae_to_daily_payloads(metrics: list[dict]) -> dict[str, AppleHealthPayload]
                 if v is not None:
                     slot["hrv"] = int(round(float(v)))
             elif name == "sleep_analysis":
-                # HAE sleep_analysis приходит в нескольких форматах:
-                # 1) summarize=ON, groupBy=Day →
-                #      {date, qty=InBed_hours, Asleep=hours, InBed=hours, Core, Deep, REM, Awake}
-                #      ИЛИ {date, qty=hours, value="Asleep"|"InBed"|stage}
-                # 2) summarize=OFF → startDate/endDate, value=stage, без qty
-                # Лог для диагностики (первые 5 записей)
-                _sleep_debug_counter = getattr(_hae_to_daily_payloads, "_sleep_log_count", 0)
-                if _sleep_debug_counter < 5:
-                    logger.warning(f"SLEEP_DEBUG keys={list(rec.keys())} rec={rec}")
-                    _hae_to_daily_payloads._sleep_log_count = _sleep_debug_counter + 1
+                # HAE sleep_analysis format (Apple Watch, summarize=ON):
+                # {date: "YYYY-MM-DD 00:00:00 +TZ" (midnight of WAKING day),
+                #  totalSleep: hours, core: h, deep: h, rem: h, awake: h,
+                #  sleepStart: timestamp, sleepEnd: timestamp,
+                #  inBedStart: timestamp, inBedEnd: timestamp,
+                #  asleep: 0, inBed: 0,  ← always 0, not useful
+                #  source: "Apple Watch — Name"}
+                # Нет поля qty/Avg/Asleep! Нужно totalSleep.
+                # Резервные форматы:
+                # - {qty=hours, value="Asleep"|"InBed"} — value-стиль
+                # - {Asleep: hours, InBed: hours, qty: hours} — старый стиль
+                v = None
 
-                sleep_value = (rec.get("value") or rec.get("Value") or "").lower()
-
-                # Приоритет: поле "Asleep" (фактический сон) > "qty" > "Avg"
-                # Если есть именованные поля (summarize=ON, вариант 1) — берём "Asleep"
-                if "Asleep" in rec and rec["Asleep"] is not None:
+                if "totalSleep" in rec and rec["totalSleep"] is not None:
+                    v = float(rec["totalSleep"])
+                    # Сохраняем стадии сна в AppleHealthPayload поля
+                    if rec.get("deep") is not None:
+                        slot["sleep_deep_h"] = round(float(rec["deep"]), 2)
+                    if rec.get("rem") is not None:
+                        slot["sleep_rem_h"] = round(float(rec["rem"]), 2)
+                    if rec.get("core") is not None:
+                        slot["sleep_core_h"] = round(float(rec["core"]), 2)
+                    if rec.get("awake") is not None:
+                        slot["sleep_awake_h"] = round(float(rec["awake"]), 2)
+                elif "Asleep" in rec and rec["Asleep"] is not None:
+                    # Старый HAE формат с именованными полями
                     v = float(rec["Asleep"])
                 else:
-                    # Вариант 2: value-стиль или одно поле qty
-                    v = _hae_pick(rec, "qty", "Avg", default=None)
-                    if v is not None:
-                        v = float(v)
-                    # Если нет qty — возможно startDate/endDate (summarize=OFF)
+                    # value-стиль: {qty, value="Asleep"|"InBed"}
+                    sleep_value = (rec.get("value") or rec.get("Value") or "").lower()
+                    raw_v = _hae_pick(rec, "qty", "Avg", default=None)
+                    if raw_v is not None and sleep_value not in ("inbed", "in_bed"):
+                        v = float(raw_v)
+                    # startDate/endDate (summarize=OFF fallback)
                     if v is None and rec.get("startDate") and rec.get("endDate"):
                         try:
                             _fmt = "%Y-%m-%d %H:%M:%S %z"
@@ -453,9 +470,7 @@ def _hae_to_daily_payloads(metrics: list[dict]) -> dict[str, AppleHealthPayload]
 
                 if v is not None:
                     hours = round(v, 2)
-                    # При value-стиле пропускаем InBed записи (берём только Asleep/stage)
-                    is_inbed_value = sleep_value in ("inbed", "in_bed")
-                    if hours > 0.5 and not is_inbed_value:
+                    if hours > 0.5:
                         existing_sleep = slot.get("sleep_hours", 0) or 0
                         slot["sleep_hours"] = round(max(existing_sleep, hours), 2)
             elif name == "blood_oxygen_saturation":
@@ -543,6 +558,10 @@ async def receive_apple_health_v2(
                 "respiratory_rate",
                 "wrist_temperature",
                 "spo2_pct",
+                "sleep_deep_h",
+                "sleep_rem_h",
+                "sleep_core_h",
+                "sleep_awake_h",
             ):
                 v = getattr(payload, k, None)
                 if v is not None:
