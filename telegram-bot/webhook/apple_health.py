@@ -108,6 +108,11 @@ class AppleHealthPayload(BaseModel):
     muscle_mass_kg: Optional[float] = None
     water_pct: Optional[float] = None
 
+    # Сон и восстановление
+    sleep_hours: Optional[float] = None
+    hrv: Optional[int] = None  # HRV SDNN, мс
+    spo2_pct: Optional[float] = None
+
     # Дополнительно
     vo2_max: Optional[float] = None
     respiratory_rate: Optional[float] = None
@@ -230,6 +235,8 @@ async def receive_apple_health(
                 bmr_calories=apple_bmr_for_db,
                 distance_km=payload.distance_walking_km,
                 heart_rate_avg=heart_rate,
+                hrv=payload.hrv,
+                sleep_hours=payload.sleep_hours,
                 source="apple_health_shortcut",
                 raw_data=raw if raw else None,
             )
@@ -390,6 +397,25 @@ def _hae_to_daily_payloads(metrics: list[dict]) -> dict[str, AppleHealthPayload]
                 slot["respiratory_rate"] = round(float(_hae_pick(rec, "qty", "Avg", default=0)), 1)
             elif name in ("apple_sleeping_wrist_temperature", "wrist_temperature"):
                 slot["wrist_temperature"] = round(float(_hae_pick(rec, "qty", "Avg", default=0)), 2)
+            elif name in ("heart_rate_variability_sdnn", "heart_rate_variability"):
+                # HRV SDNN в мс (Apple Watch ночное среднее)
+                v = _hae_pick(rec, "qty", "Avg", default=None)
+                if v is not None:
+                    slot["hrv"] = int(round(float(v)))
+            elif name == "sleep_analysis":
+                # HAE шлёт суммарные часы сна за день.
+                # Берём qty (суммарное значение при summarize=ON) или Avg.
+                # Значение в часах (units=hr).
+                v = _hae_pick(rec, "qty", "Avg", default=None)
+                if v is not None:
+                    hours = round(float(v), 2)
+                    if hours > 0.5:  # фильтр шума
+                        existing_sleep = slot.get("sleep_hours", 0) or 0
+                        slot["sleep_hours"] = max(existing_sleep, hours)
+            elif name == "blood_oxygen_saturation":
+                v = _hae_pick(rec, "qty", "Avg", default=None)
+                if v is not None:
+                    slot["spo2_pct"] = round(float(v), 1)
 
     # Преобразуем dict-ы в pydantic AppleHealthPayload (для валидации)
     return {d: AppleHealthPayload(**fields) for d, fields in by_date.items()}
@@ -470,6 +496,7 @@ async def receive_apple_health_v2(
                 "vo2_max",
                 "respiratory_rate",
                 "wrist_temperature",
+                "spo2_pct",
             ):
                 v = getattr(payload, k, None)
                 if v is not None:
@@ -501,10 +528,14 @@ async def receive_apple_health_v2(
                 bmr_calories=apple_bmr_v2,
                 distance_km=payload.distance_walking_km,
                 heart_rate_avg=heart_rate,
+                hrv=payload.hrv,
+                sleep_hours=payload.sleep_hours,
                 source="apple_health_v2",
                 raw_data=raw_extra if raw_extra else None,
             )
-            saved.append(f"activity (steps={payload.steps}, HR={heart_rate})")
+            saved.append(
+                f"activity (steps={payload.steps}, HR={heart_rate}, HRV={payload.hrv}, sleep={payload.sleep_hours}h)"
+            )
 
             if payload.blood_pressure_systolic and payload.blood_pressure_diastolic:
                 measured_at = datetime.combine(record_date, datetime.min.time().replace(hour=8))
