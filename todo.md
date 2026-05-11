@@ -15,6 +15,26 @@
 - [x] Раздел **Бэкапы**: список + кнопка «Сделать бэкап сейчас»
 
 ### v1 (до 50 юзеров — июнь 2026)
+- [ ] **🏃 Sport-блок мульти-юзер: HR-сэмплы от любого источника** (контекст 11.05.2026 — после рефакторинга compute_aerobic_base.py)
+  - **Проблема:** алгоритм и формулы (`compute_zone_boundaries(age)`, Maffetone-зоны, threshold-trap detection) уже мульти-юзер ready, но execution single-user. Нужен **source-agnostic** backfill — у Александра Garmin, у **Ники и Андрея — Apple Watch** (через Apple Health → HAE → server), будут **Fitbit / Google Fitbit Air** (Google анонсировал бюджетный аналог Whoop — [wylsa.com](https://wylsa.com/google-predstavila-byudzhetnyj-analog-whoop/), массовый сегмент), Whoop, Polar
+  - **Поддерживаемые источники (приоритет):**
+    | Источник | Аудитория | API для HR-сэмплов |
+    |---|---|---|
+    | **Garmin** | Александр (готово) | `get_activity_details(aid)` — 1-сек HR |
+    | **Apple Watch** | **Ника, Андрей** | HAE webhook workouts payload — HR time-series в JSON |
+    | **Google/Fitbit Air** | будущая массовая аудитория | Fitbit Web API `/activities/heart/intraday` (1-сек / 5-сек, требует personal app scope) ИЛИ Google Health Connect (Android) |
+    | Whoop | premium-сегмент | Whoop API `/cycle/{id}/strain` |
+    | Polar | редко | Polar AccessLink API |
+  - **3 направления:**
+    1. **Per-user credentials в БД** — у `User` уже есть `garmin_email`/`garmin_password`. Для Apple Health: флаг `apple_health_enabled` + storage связи по user_id. Для **Fitbit/Google: OAuth refresh_token + access_token (`fitbit_oauth_token`, `fitbit_token_expires`)** — Fitbit OAuth2 PKCE flow с auto-refresh. Для Whoop/Polar — аналогичные поля под OAuth-токены, когда появится спрос
+    2. **Server-side scheduled backfill** — cron-задача на сервере, проходит по списку active-юзеров, для каждого вызывает соответствующий fetcher (garmin/apple/fitbit/whoop) и считает Maffetone-зоны. Сейчас `sync_all_data.sh` бежит на моём Mac под Alex'а — вынести в сервер-side scheduled job (Hetzner cron или Celery)
+    3. **Source-abstracted HR-fetcher** — интерфейс `get_workout_hr_samples(user, activity_id) → [hr_per_second]`. Реализации: `GarminFetcher` (есть), `AppleHealthFetcher` (читать из HAE workouts payload), **`FitbitFetcher`** (Fitbit Web API + OAuth refresh, поддержка Fitbit Air когда выйдет), `WhoopFetcher`, `PolarFetcher`. Storage HR-кеша: переезд с `data/garmin/activities/*.json` на `data/hr_cache/{user_id}/{source}_{activity_id}.json`
+  - **Особенности Fitbit/Google Fitbit Air:**
+    - Fitbit Air — анонсирован Google 2025, дешевле Whoop, целит в массовый сегмент → будет много пользователей
+    - HR-сэмплы доступны через Fitbit Web API endpoint `/1/user/-/activities/heart/date/{date}/1d/1sec.json` (1-second resolution, intraday)
+    - Требует пометки «Personal application» в Fitbit developer console (intraday не для public apps)
+    - Google постепенно мигрирует Fitbit на Google Health Connect — нужно следить за изменением API в течение 2026
+  - **Acceptance:** Ника и Андрей открывают `/dashboard` → видят свой sport-блок с Maffetone-зонами по своему возрасту (180-Y), HR-биннингом из их Apple Watch тренировок, и теми же предупреждениями (Z3-trap, polarized verdict, и т.п.). Пользователь с Fitbit Air подключает Fitbit аккаунт через OAuth → получает тот же dashboard. compute_aerobic_base.py больше не запускается с моего Mac.
 - [ ] **Login-форма вместо HTTP Basic** — куки-сессия, можно «выйти», красивее на мобиле
 - [ ] **Broadcast** — отправить всем active family/early_user одно сообщение через Telegram, с подтверждением
 - [ ] **Per-user view** — клик на юзера → его подробная страница (графики веса/калорий, последняя активность, лекарства, расходы)

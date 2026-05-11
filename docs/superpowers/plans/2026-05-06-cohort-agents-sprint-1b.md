@@ -1,4 +1,14 @@
-# Cohort Agents — Sprint 1b Implementation Plan (Onboarding UI + NanoClaw Containers)
+> ⚠️ **OBSOLETE — не исполнять (помечено 11.05.2026)**
+>
+> Этот план устарел по двум причинам:
+> 1. Предлагал реализацию на Python Claude Agent SDK с docker-сервисом per-user (24/7). После изучения NanoClaw (https://github.com/qwibitai/nanoclaw) выяснилось, что правильная архитектура — host-процесс + эфемерные spawn-контейнеры per session, **не** persistent containers per user.
+> 2. Дедлайн 14.05.2026 (Андрей с Withings + Libre 2) **уже закрыт без NanoClaw** — Андрей в проде через legacy путь (HAE webhook, расширенный onboarding, мультиюзер дашборд). См. коммиты 5–10.05.2026.
+>
+> Новый план — после этапа cleanup + multi-user hardening (Олег, Андрей). Сохраняю как историю мышления.
+>
+> ---
+>
+> # Cohort Agents — Sprint 1b Implementation Plan (Onboarding UI + NanoClaw Containers) [OBSOLETE]
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
