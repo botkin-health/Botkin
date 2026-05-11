@@ -281,17 +281,18 @@ body {
 .wo-zone-easy { background: linear-gradient(90deg, #00c878, #00ff9d); }
 .wo-zone-mid { background: var(--y); }
 .wo-zone-hard { background: var(--r); }
-/* 5 зон Garmin/Strava */
-.wo-zone-z1 { background: #5d6d7e; }
-.wo-zone-z2 { background: linear-gradient(90deg, #00c878, #00ff9d); }
-.wo-zone-z3 { background: #f1c40f; }
-.wo-zone-z4 { background: #e67e22; }
-.wo-zone-z5 { background: #e74c3c; }
+/* Maffetone-зоны (longevity canon) — синхронизированы с легендой вверху */
+.wo-zone-z1 { background: #5d6d7e; }                                          /* Z1 recovery — gray */
+.wo-zone-z2 { background: linear-gradient(90deg, #00c878, #00ff9d); }         /* Z2 aerobic base — green (цель!) */
+.wo-zone-z3 { background: #f1c40f; }                                          /* Z3 темп · LT1+ — yellow (gray-zone trap) */
+.wo-zone-z4 { background: #e67e22; }                                          /* Z4 порог · LT2 — orange */
+.wo-zone-z5 { background: #e74c3c; }                                          /* Z5 VO2max — red */
 .wo-mins { color: var(--muted); text-align: right; font-size: 11px; }
 .wo-hr { color: var(--muted); text-align: right; font-size: 11px; font-variant-numeric: tabular-nums; }
 .wo-verdict { font-size: 11px; color: var(--muted); text-align: right; }
 .wo-verdict.ok { color: var(--g); }
 .wo-verdict.warn { color: var(--y); }
+.wo-verdict.muted { color: var(--dim); }
 .workout-legend { display: flex; gap: 14px; margin-top: 10px; font-size: 10px; color: var(--muted); align-items: center; flex-wrap: wrap; }
 .workout-legend span { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
 
@@ -509,7 +510,7 @@ body {
 </div>
 
 <!-- SPORT BLOCK -->
-<div class="section-title" id="sport-section-title">🏃 Спорт и тренировки <span class="hint" id="sport-hint">последние 90 дней · средние за неделю · сравнение с канонами <a href="https://en.wikipedia.org/wiki/Stephen_Seiler" target="_blank" style="color:inherit;text-decoration:underline dotted;" title="Стивен Зайлер — норвежский физиолог, автор модели polarized training (80/20)">Seiler</a>/<a href="https://peterattiamd.com/" target="_blank" style="color:inherit;text-decoration:underline dotted;" title="Питер Аттиа — кардиолог, автор «Outlive» (2023), концепции Zone 2 для долголетия">Attia</a></span></div>
+<div class="section-title" id="sport-section-title">🏃 Спорт и тренировки <span class="hint" id="sport-hint">последние 90 дней · средние за неделю · сравнение с канонами <a href="https://www.fasttalklabs.com/byline/dr-stephen-seiler/" target="_blank" style="color:inherit;text-decoration:underline dotted;" title="Стивен Зайлер — норвежский физиолог, автор модели polarized training (80/20)">Seiler</a>/<a href="https://peterattiamd.com/" target="_blank" style="color:inherit;text-decoration:underline dotted;" title="Питер Аттиа — кардиолог, автор «Outlive» (2023), концепции Zone 2 для долголетия">Attia</a></span></div>
 <div class="card sport-card" id="sport-card" style="display:none;">
   <!-- Row 1: KPI cards -->
   <div class="sport-kpi-grid">
@@ -520,10 +521,10 @@ body {
       <div class="kpi-explain">среднее за 90 дней</div>
     </div>
     <div class="sport-kpi" id="kpi-z2">
-      <div class="kpi-label">Z2 база · мин/нед</div>
+      <div class="kpi-label">🏃 Z2 · мин/нед <span style="color:var(--muted);font-weight:400;font-size:10px">· aerobic base</span></div>
       <div class="kpi-value"><span id="kpi-z2-val">—</span> <span class="kpi-target">/ 150</span></div>
       <div class="kpi-hint" id="kpi-z2-hint"></div>
-      <div class="kpi-explain" id="kpi-z2-explain">аэробная база, пульс 60–70% макс</div>
+      <div class="kpi-explain" id="kpi-z2-explain">пульс 115–132 (Maffetone Z2), точно из HR-сэмплов любой тренировки</div>
     </div>
     <div class="sport-kpi" id="kpi-hiit">
       <div class="kpi-label">Z4+Z5 интервалы · мин/нед</div>
@@ -542,11 +543,11 @@ body {
   <!-- Zones legend (5 zones по Garmin/Strava стандарту, bpm от user.age — мульти-юзерно) -->
   <div class="zones-legend" id="zones-legend">
     <span class="zl-title">Зоны пульса:</span>
-    <span class="zl-item" title="Z1 разминка · &lt;60% макс ЧСС · восстановление, не тренирующая зона"><span class="zl-dot zl-z1"></span><b>Z1</b> <span id="zl-z1-bpm">—</span> разминка · восстановление</span>
-    <span class="zl-item" title="Z2 аэробная база · 60-70% макс ЧСС · оптимум для митохондрий"><span class="zl-dot zl-z2"></span><b>Z2</b> <span id="zl-z2-bpm">—</span> аэробная база 🔥</span>
-    <span class="zl-item" title="Z3 темп · 70-80% макс ЧСС · «threshold trap» по Joe Friel / «zone 3 black hole» — много пота, мало пользы (тяжело для базы, легко для VO2max)"><span class="zl-dot zl-z3"></span><b>Z3</b> <span id="zl-z3-bpm">—</span> темп · серая зона</span>
-    <span class="zl-item" title="Z4 анаэробный · 80-90% макс ЧСС · лактатный порог"><span class="zl-dot zl-z4"></span><b>Z4</b> <span id="zl-z4-bpm">—</span> анаэроб · лактат</span>
-    <span class="zl-item" title="Z5 максимум · 90-100% макс ЧСС · VO2max"><span class="zl-dot zl-z5"></span><b>Z5</b> <span id="zl-z5-bpm">—</span> максимум · VO2max</span>
+    <span class="zl-item" title="Z1 восстановление · ниже MAF floor · active recovery, не тренирующая зона"><span class="zl-dot zl-z1"></span><b>Z1</b> <span id="zl-z1-bpm">—</span> восстановление</span>
+    <span class="zl-item" title="Z2 aerobic base · Maffetone (180-возраст) · максимум митохондриогенеза и жирооксидации"><span class="zl-dot zl-z2"></span><b>Z2</b> <span id="zl-z2-bpm">—</span> аэробная база 🔥</span>
+    <span class="zl-item" title="Z3 темп · выше LT1 (1-й лактатный порог), ниже LT2 · 'threshold trap' (Friel) / 'no man's land' — высокий стресс, низкий аэробный бенефит. Цель: минимизировать (<10% времени)."><span class="zl-dot zl-z3"></span><b>Z3</b> <span id="zl-z3-bpm">—</span> темп · LT1+</span>
+    <span class="zl-item" title="Z4 порог · LT2 (2-й лактатный порог, ~90% maxHR) · anaerobic threshold work"><span class="zl-dot zl-z4"></span><b>Z4</b> <span id="zl-z4-bpm">—</span> порог · LT2</span>
+    <span class="zl-item" title="Z5 VO2max · >90% maxHR · только для интервалов (Норвежский 4×4)"><span class="zl-dot zl-z5"></span><b>Z5</b> <span id="zl-z5-bpm">—</span> VO2max</span>
   </div>
 
   <!-- Row 2: Polarized pyramid -->
@@ -1352,7 +1353,12 @@ renderHeatmap();
   setText('zl-z4-bpm', z4);
   setText('zl-z5-bpm', z5);
   // KPI explain тексты с динамическими bpm
-  setText('kpi-z2-explain', `аэробная база, пульс 60–70% макс (≈${hz.z1_top + 1}–${hz.z2_top} bpm)`);
+  // Z2 (aerobic base) — Maffetone 180-возраст. Считаем точно из HR-сэмплов
+  // для любой активности (бег / силовая / CrossFit — всё что попало в коридор).
+  const _age = D.meta.user_age || 49;
+  const _z2top = 180 - _age;
+  const _z2bot = Math.max(105, _z2top - 17);
+  setText('kpi-z2-explain', `пульс ${_z2bot}–${_z2top} (Maffetone Z2), точно из HR-сэмплов любой тренировки`);
   setText('kpi-hiit-explain', `высокий пульс >80% макс (≥${hz.z3_top + 1} bpm) — для VO2max`);
 })();
 
@@ -1439,16 +1445,17 @@ renderHeatmap();
       const typeHtml = suggested
         ? `${synthPrefix}<span class="wo-type-strike">${typeLabel}</span> → <span class="wo-type-suggest">${suggested}</span>`
         : `${synthPrefix}<span>${typeLabel}</span>`;
-      // 5 зон по Garmin/Strava стандарту (если есть данные); fallback на 3 группы
+      // Maffetone-зоны: Z1 recovery, Z2 aerobic base, Z3 темп LT1+, Z4 порог LT2, Z5 VO2max
+      // Цвета синхронизированы с легендой вверху (Z2 = зелёный, ВСЕГДА — это цель)
       const has5 = w.z1_pct != null || w.z2_pct != null;
       let zonesHtml;
       if (has5) {
         const zoneMap5 = [
-          ['z1', w.z1_pct || 0, 'Z1 разминка'],
-          ['z2', w.z2_pct || 0, 'Z2 база'],
-          ['z3', w.z3_pct || 0, 'Z3 темп'],
-          ['z4', w.z4_pct || 0, 'Z4 анаэробный'],
-          ['z5', w.z5_pct || 0, 'Z5 максимум'],
+          ['z1', w.z1_pct || 0, 'Z1 восстановление (≤113)'],
+          ['z2', w.z2_pct || 0, 'Z2 aerobic base (114-131)'],
+          ['z3', w.z3_pct || 0, 'Z3 темп · LT1+ (132-144)'],
+          ['z4', w.z4_pct || 0, 'Z4 порог · LT2 (145-154)'],
+          ['z5', w.z5_pct || 0, 'Z5 VO2max (≥155)'],
         ];
         zonesHtml = zoneMap5.map(([cls, pct, label]) =>
           pct > 0 ? `<div class="wo-zone-seg wo-zone-${cls}" style="width:${pct}%" title="${label}: ${pct}%"></div>` : ''
@@ -1463,12 +1470,26 @@ renderHeatmap();
           pct > 0 ? `<div class="wo-zone-seg wo-zone-${cls}" style="width:${pct}%" title="${label}: ${pct}%"></div>` : ''
         ).join('');
       }
-      const verdictText = w.is_misnamed
-        ? `${w.high_zone_pct}% Z4+Z5 — это не интервалы, это силовая`
-        : (w.type === 'hiit' && w.high_zone_pct >= 25) ? '✓ настоящие интервалы'
-        : (w.type === 'running' && w.easy_pct >= 70) ? '✓ правильная аэробная база'
+      // Z2 verdict: точные минуты в HR 115-132 (aerobic base) для любой активности
+      let verdictText = '';
+      if (w.is_misnamed) {
+        verdictText = `${w.high_zone_pct}% Z4+Z5 — это не интервалы, это силовая`;
+      } else if (w.type === 'hiit' && w.high_zone_pct >= 25) {
+        verdictText = '✓ настоящие интервалы';
+      } else if (w.base_min >= 15) {
+        verdictText = `✓ Z2 ${w.base_min}мин`;
+      } else if (w.base_min >= 5) {
+        verdictText = `~ Z2 ${w.base_min}мин`;
+      } else if (w.base_min > 0) {
+        verdictText = `${w.base_min}мин в Z2`;
+      } else {
+        verdictText = '— вне Z2';
+      }
+      const verdictClass = w.is_misnamed ? 'warn'
+        : verdictText.startsWith('✓') ? 'ok'
+        : verdictText.startsWith('~') ? 'warn'
+        : verdictText.startsWith('—') ? 'muted'
         : '';
-      const verdictClass = w.is_misnamed ? 'warn' : verdictText.startsWith('✓') ? 'ok' : '';
       const row = document.createElement('div');
       row.className = 'workout-row' + (w.is_misnamed ? ' misnamed' : '');
       row.innerHTML = `
@@ -1494,7 +1515,7 @@ renderHeatmap();
   // innerHTML, чтобы ссылки на Seiler/Attia сохранились
   document.getElementById('sport-hint').innerHTML =
     `последние ${S.window_days} дней · ${S.window_workouts} трен · сравнение с канонами ` +
-    `<a href="https://en.wikipedia.org/wiki/Stephen_Seiler" target="_blank" style="color:inherit;text-decoration:underline dotted;" ` +
+    `<a href="https://www.fasttalklabs.com/byline/dr-stephen-seiler/" target="_blank" style="color:inherit;text-decoration:underline dotted;" ` +
     `title="Стивен Зайлер — норвежский физиолог, автор модели polarized training (80/20)">Seiler</a>/` +
     `<a href="https://peterattiamd.com/" target="_blank" style="color:inherit;text-decoration:underline dotted;" ` +
     `title="Питер Аттиа — кардиолог, автор «Outlive» (2023), концепции Zone 2 для долголетия">Attia</a>`;

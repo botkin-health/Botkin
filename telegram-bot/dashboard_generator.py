@@ -88,13 +88,61 @@ def _build_sport_block(user_id: int, user_age: int | None = None) -> dict:
     w90 = [w for w in workouts if _to_date(w["date"]) and (today - _to_date(w["date"])).days <= WINDOW_DAYS]
 
     def _sum_zone(ws, zone_key):
-        return round(sum(w.get("hr_zones", {}).get(zone_key, 0) for w in ws))
+        """Sum по MAF-зонам если есть, fallback на Garmin hr_zones."""
+        return round(sum((w.get("maf_zones") or w.get("hr_zones") or {}).get(zone_key, 0) for w in ws))
 
     def _sum_load(ws):
         return sum(w.get("training_load") or 0 for w in ws)
 
-    # KPI: Z2 минут в неделю (среднее за 90 дней — сглаживает отпуска)
-    z2_per_week = round(_sum_zone(w90, "z2_min") / WINDOW_WEEKS) if w90 else 0
+    # ── Z2 / Aerobic base (по Maffetone/Attia/San Millan) ────────────────────
+    # Терминология longevity-community: «Z2» = HR-коридор 60-70% maxHR ≈ 180-age
+    # = 115-132 bpm для возраста 48. НЕ путать с Garmin-Z2 (139+ bpm) — там другая
+    # школа (спортивная, не лонгевити).
+    #
+    # Метрика data-source-agnostic: на входе нужны 1-сек HR-сэмплы любого источника
+    # (Garmin / Whoop / Apple Health / Polar). Сейчас заполняется из Garmin API
+    # через scripts/util/compute_aerobic_base.py. Для других источников — TODO.
+    #
+    # Засчитывается ЛЮБАЯ активность: бег / велик / силовая / CrossFit — HR не врёт.
+    # CrossFit-метконы с греблей могут давать 15-25 мин Z2 — старая логика
+    # «по типу активности» это теряла.
+    #
+    # Fallback: если aerobic_base_min не посчитан → приближение Garmin Z1 для cardio.
+    CARDIO_TYPES = {
+        "running",
+        "cycling",
+        "walking",
+        "hiking",
+        "swimming",
+        "rowing",
+        "elliptical",
+        "stepper",
+        "treadmill_running",
+        "indoor_cycling",
+        "trail_running",
+        "road_running",
+    }
+
+    def _base_min_for(w):
+        """Z2-минуты: aerobic_base_min (точно из HR-сэмплов) или MAF z2_min или 0."""
+        v = w.get("aerobic_base_min")
+        if v is not None:
+            return float(v)
+        maf = w.get("maf_zones") or {}
+        if maf.get("z2_min") is not None:
+            return float(maf["z2_min"])
+        # Совсем старые без HR-данных — 0 (нет смысла приближать без сэмплов)
+        return 0
+
+    aerobic_base_min_total = sum(_base_min_for(w) for w in w90)
+    aerobic_base_per_week = round(aerobic_base_min_total / WINDOW_WEEKS) if w90 else 0
+    cardio_w90 = [w for w in w90 if w.get("type") in CARDIO_TYPES]
+
+    # Старая Garmin-Z2 метрика — оставляем для обратной совместимости (вдруг где-то
+    # читается из payload), но в KPI показываем aerobic_base_per_week.
+    z2_per_week_garmin = round(_sum_zone(w90, "z2_min") / WINDOW_WEEKS) if w90 else 0
+    z2_per_week = aerobic_base_per_week  # ← главная цифра в KPI «Z2 база»
+
     # KPI: Z4+Z5 высокая интенсивность (не зависит от тега тренировки)
     hiit_per_week = round((_sum_zone(w90, "z4_min") + _sum_zone(w90, "z5_min")) / WINDOW_WEEKS) if w90 else 0
     # KPI: тренировок в неделю (среднее за 90 дней)
@@ -217,7 +265,8 @@ def _build_sport_block(user_id: int, user_age: int | None = None) -> dict:
                 "mins": 0,
             },
         )
-        z = w.get("hr_zones", {})
+        # Для месячных пирамид используем MAF-зоны если есть (точно), иначе Garmin
+        z = w.get("maf_zones") or w.get("hr_zones", {})
         b["z1"] += z.get("z1_min", 0)
         b["z2"] += z.get("z2_min", 0)
         b["z3"] += z.get("z3_min", 0)
@@ -262,6 +311,9 @@ def _build_sport_block(user_id: int, user_age: int | None = None) -> dict:
     mid_pct = total90_z["z3"] / total90_sum * 100
     hard_pct = (total90_z["z4"] + total90_z["z5"]) / total90_sum * 100
 
+    # Показываем verdict только когда он содержит ДЕЙСТВЕННУЮ информацию:
+    # либо ✅ заслуженная похвала за polarized, либо ⚠ конкретное предупреждение.
+    # «Pyramidal» (нейтральный fallback) — пустая строка, не засоряет UI.
     if easy_pct >= 75 and hard_pct >= 10 and mid_pct < 15:
         verdict = "polarized"
         verdict_label = "✅ Polarized 80/20 — оптимально"
@@ -276,7 +328,7 @@ def _build_sport_block(user_id: int, user_age: int | None = None) -> dict:
         verdict_label = "⚠ Слишком много high-intensity — мало базы"
     else:
         verdict = "pyramidal"
-        verdict_label = "≈ Pyramidal — рабочий вариант, но polarized эффективнее"
+        verdict_label = ""  # neutral — не показываем, нет действия
 
     # ── workout list (last 14 days) ──────────────────────────────────────────
     cutoff14 = (today - timedelta(days=14)).isoformat()
@@ -286,7 +338,8 @@ def _build_sport_block(user_id: int, user_age: int | None = None) -> dict:
     workout_list = []
     misnamed_count = 0
     for w in recent14:
-        z = w.get("hr_zones", {})
+        # MAF-зоны из HR-сэмплов (точно) → fallback на Garmin hr_zones (приближение)
+        z = w.get("maf_zones") or w.get("hr_zones", {})
         total = sum(z.values()) or 1
         # 5 зон отдельно — ключ для отрисовки полосок
         raw5 = {f"z{i}": z.get(f"z{i}_min", 0) / total * 100 for i in range(1, 6)}
@@ -300,6 +353,10 @@ def _build_sport_block(user_id: int, user_age: int | None = None) -> dict:
         m = rounded5["z3"]
         h = rounded5["z4"] + rounded5["z5"]
         easy_p, mid_p, hard_p = _normalize_to_100(e, m, h)
+        # Z2 base: точные минуты в HR 115-132 (Maffetone) из 1-сек HR-сэмплов.
+        # Активность-агностично — CrossFit-метконы получают реальный Z2 base_min.
+        is_cardio = w.get("type") in CARDIO_TYPES
+        base_min = round(_base_min_for(w))
         item = {
             "date": w.get("date"),
             "type": w.get("type"),
@@ -319,6 +376,8 @@ def _build_sport_block(user_id: int, user_age: int | None = None) -> dict:
             "suggested_type": w.get("suggested_type"),
             "high_zone_pct": w.get("high_zone_pct", 0),
             "is_synthesized": w.get("is_synthesized", False),
+            "is_cardio": is_cardio,  # для бейджа в шаблоне
+            "base_min": base_min,  # минуты в зачёт aerobic base
         }
         if item["is_misnamed"]:
             misnamed_count += 1
@@ -327,8 +386,11 @@ def _build_sport_block(user_id: int, user_age: int | None = None) -> dict:
     # ── HR-zones bpm границы (мульти-юзерно: от user_age) ─────────────────
     # Используется в текстах рекомендаций. Для юзера без birth_date — среднее 49.
     _max_hr = (220 - user_age) if user_age else (220 - 49)
-    _z2_bottom = round(_max_hr * 0.60)
-    _z2_top = round(_max_hr * 0.70)
+    # Training-Z2 (Maffetone/Attia) — формула 180 минус возраст для верхней границы.
+    # Нижняя — 115 (универсально, ниже = слишком легко, физиология не учится).
+    _age = user_age if user_age else 49
+    _z2_bottom = max(105, 180 - _age - 17)  # ≈115 для 48 лет
+    _z2_top = 180 - _age  # ≈132 для 48 лет
     _z4_bottom = round(_max_hr * 0.80)
     _z4_norway = round(_max_hr * 0.90)
 
@@ -337,11 +399,14 @@ def _build_sport_block(user_id: int, user_age: int | None = None) -> dict:
     # Считается тут заранее, чтобы избежать дубля с recs.insert(0,...) в работающей секции.
     _last_good_z2_days = None
     _z2_quality_pre = [
-        w for w in w90 if w.get("type") in ("running", "cycling") and w.get("hr_zones", {}).get("z2_min", 0) > 0
+        w
+        for w in w90
+        if w.get("type") in ("running", "cycling")
+        and (w.get("maf_zones") or w.get("hr_zones") or {}).get("z2_min", 0) > 0
     ]
     _good_z2_pre = []
     for w in _z2_quality_pre:
-        z = w.get("hr_zones", {}) or {}
+        z = w.get("maf_zones") or w.get("hr_zones") or {}
         if z.get("z2_min", 0) / (sum(z.values()) or 1) > 0.7:
             _good_z2_pre.append(w)
     if _good_z2_pre:
@@ -350,14 +415,30 @@ def _build_sport_block(user_id: int, user_age: int | None = None) -> dict:
         except Exception:
             _last_good_z2_days = None
 
+    # ── Z3 «threshold trap» detection (longevity-protocol warning) ─────────
+    # Если >25% времени в Z3 (132-144) — это «no man's land» (Friel): высокий
+    # стресс без аэробного бенефита. Типичная проблема CrossFit-метконов.
+    z3_pct_of_total = round(total90_z["z3"] / total90_sum * 100) if total90_sum else 0
+    z3_min_per_week = round(_sum_zone(w90, "z3_min") / WINDOW_WEEKS) if w90 else 0
+
     recs = []
+    if z3_pct_of_total > 15:
+        sev = "⚠ КРИТИЧНО" if z3_pct_of_total > 25 else "Снизь Z3"
+        recs.append(
+            f"{sev}: {z3_pct_of_total}% времени ({z3_min_per_week} мин/нед) в Z3 темп · LT1+ (132-144) — "
+            f"это 'threshold trap' (Joe Friel) / 'no man's land' по Seiler. Высокий стресс без "
+            f"аэробного бенефита, ускоряет фатиг и тормозит longevity-адаптации. "
+            f"План: на 1-2 CrossFit/нед держи HR ≤131 (выбирай менее интенсивные блоки или сократи), "
+            f"и/или добавь чистого Z2 cardio. Цель Seiler/Attia: <15% Z3 от общего времени тренировок."
+        )
     if z2_per_week < 75:
         deficit = 150 - z2_per_week
-        # Не дублируем «Z2 пауза» если запись «возобновить Z2» уже добавится ниже.
         if _last_good_z2_days is None or _last_good_z2_days <= 30:
             recs.append(
-                f"Добавь Z2: сейчас {z2_per_week} мин/нед, цель 150. "
-                f"2 пробежки/велик по 30–45 мин на пульсе {_z2_bottom}–{_z2_top} закроют дефицит {deficit} мин."
+                f"Добавь Z2 базу: сейчас {z2_per_week} мин/нед, цель Attia 150. "
+                f"Дефицит {deficit} мин/нед. Самый эффективный путь — 2-3 пробежки/велик по 30-45 мин на пульсе "
+                f"{_z2_bottom}-{_z2_top} (Maffetone). CrossFit-метконы тоже дают Z2 (~10-15 мин/тренировка), "
+                f"но не заменяют steady-state кардио для митохондриогенеза."
             )
     if hiit_per_week < 8:
         recs.append(
@@ -415,6 +496,17 @@ def _build_sport_block(user_id: int, user_age: int | None = None) -> dict:
         # Fallback: общая регулярность если нет именно силовых
         works.append(f"Стабильный ритм: {workouts_per_week} тренировок/нед в среднем за 90 дней")
 
+    # 1b. Polarized distribution (Seiler / Attia) — если ≥75% easy (Z1+Z2) И <15% Z3
+    # И есть VO2max работа (Z4+Z5 ≥ 5%) — классический polarized 80/20.
+    if total90_sum > 0:
+        easy_pct_int = round((total90_z["z1"] + total90_z["z2"]) / total90_sum * 100)
+        hard_pct_int = round((total90_z["z4"] + total90_z["z5"]) / total90_sum * 100)
+        if easy_pct_int >= 75 and z3_pct_of_total < 15 and hard_pct_int >= 5:
+            works.append(
+                f"Polarized 80/20: {easy_pct_int}% easy (Z1+Z2), {z3_pct_of_total}% Z3, {hard_pct_int}% hard — "
+                f"оптимальная структура по Seiler/Attia, минимум 'threshold trap'"
+            )
+
     # 2. Качество силовых: средний Anaerobic TE — реальный стимул для роста
     anaer_te = [w.get("anaerobic_te") for w in strength_w90 if w.get("anaerobic_te")]
     if anaer_te:
@@ -425,15 +517,18 @@ def _build_sport_block(user_id: int, user_age: int | None = None) -> dict:
                 f"Силовые с реальным анаболическим стимулом: средний Anaerobic TE {avg_anaer}, "
                 f"в {n_improving}/{len(anaer_te)} тренировок попадаешь в «improving» (TE≥2.5)"
             )
-    # Detect well-tagged Z2 sessions (running/cycling with >70% in Z2)
+    # Detect well-tagged Z2 sessions (running/cycling with >70% in Maffetone Z2)
     z2_quality = [
-        w for w in w90 if w.get("type") in ("running", "cycling") and w.get("hr_zones", {}).get("z2_min", 0) > 0
+        w
+        for w in w90
+        if w.get("type") in ("running", "cycling")
+        and (w.get("maf_zones") or w.get("hr_zones") or {}).get("z2_min", 0) > 0
     ]
     if z2_quality:
-        # Check if these have >70% in Z2
+        # Check if these have >70% in Z2 (Maffetone if available)
         good_z2 = []
         for w in z2_quality:
-            z = w.get("hr_zones", {})
+            z = w.get("maf_zones") or w.get("hr_zones") or {}
             total = sum(z.values()) or 1
             if z.get("z2_min", 0) / total > 0.7:
                 good_z2.append(w)
@@ -472,10 +567,13 @@ def _build_sport_block(user_id: int, user_age: int | None = None) -> dict:
             "workouts_per_week": workouts_per_week,
             "workouts_per_week_color": wpw_color,
             "workouts_per_week_hint": wpw_hint,
-            "z2_per_week": z2_per_week,
+            "z2_per_week": z2_per_week,  # = aerobic_base_per_week (training-Z2)
             "z2_target": 150,
             "z2_color": z2_color,
             "z2_hint": z2_hint,
+            "aerobic_base_per_week": aerobic_base_per_week,
+            "z2_per_week_garmin": z2_per_week_garmin,  # старая метрика для справки
+            "cardio_workouts_90d": len(cardio_w90),
             "hiit_per_week": hiit_per_week,
             "hiit_target": 16,
             "hiit_color": hiit_color,
@@ -2187,10 +2285,15 @@ def _build_payload(db: Session, user_id: int) -> dict:
             "hr_zones": (
                 {
                     "max_hr": (220 - _age_score) if _age_score else None,
-                    # Границы: Z1 <60% maxHR, Z2 60-70%, Z3 70-80%, Z4 80-90%, Z5 ≥90%
-                    "z1_top": round((220 - _age_score) * 0.60) if _age_score else None,
-                    "z2_top": round((220 - _age_score) * 0.70) if _age_score else None,
-                    "z3_top": round((220 - _age_score) * 0.80) if _age_score else None,
+                    # Maffetone-based longevity zones (НЕ Garmin/Karvonen):
+                    #   Z1 ≤(180-age)-17 — recovery, ниже MAF floor
+                    #   Z2 ≤(180-age)   — aerobic base (Maffetone)
+                    #   Z3 ≤(180-age)+13 — tempo, gray zone
+                    #   Z4 ≤90% maxHR   — anaerobic threshold
+                    #   Z5 >90% maxHR   — VO2max
+                    "z1_top": max(105, (180 - _age_score) - 18) if _age_score else None,
+                    "z2_top": (180 - _age_score) if _age_score else None,
+                    "z3_top": (180 - _age_score) + 13 if _age_score else None,
                     "z4_top": round((220 - _age_score) * 0.90) if _age_score else None,
                 }
                 if _age_score

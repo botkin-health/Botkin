@@ -86,3 +86,6 @@ data/
 HEALTH.md
 KNOWLEDGE_BASE.md
 knowledge_base.json
+
+# Claude Code session metadata
+.claude/
