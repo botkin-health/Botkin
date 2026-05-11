@@ -74,12 +74,14 @@ $PY scripts/import/sync_alcohol.py
 
 echo "2/4 🏃 Загрузка свежего сна, стресса, HRV, Body Battery и тренировок из Garmin Connect..."
 $PY scripts/garmin/download_garmin_data.py || echo "   ⚠️  Garmin пропущен (см. выше)"
-echo "2.3/4 📤 Пуш Garmin daily-summary → activity_log на сервере..."
-bash scripts/push_garmin_to_db.sh
+echo "2.3/4 📤 Пуш Garmin daily-summary → activity_log на сервере (batch, инкрементно)..."
+$PY scripts/push_garmin_to_db.py
 echo "2.4/4 🔁 Повторный дамп БД (чтобы activities_remote.json содержал свежие шаги/HRV)..."
 sync_db_again
 echo "2.5/4 🏋️  Агрегация тренировок в workouts_log.json..."
 $PY scripts/util/parse_workouts.py
+echo "2.55/4 🎯 Точный aerobic_base_min по HR-сэмплам (115-132 bpm) — для CrossFit-метконов..."
+$PY scripts/util/compute_aerobic_base.py --days 30
 echo "2.6/4 🏋️  Пуш workouts_log → контейнер (для блока «Спорт» в дашборде)..."
 $PY scripts/import/push_workouts_to_container.py
 echo "2.7/4 🏋️  Бэкфилл тренировок → workouts table (треугольники на главном графике)..."
