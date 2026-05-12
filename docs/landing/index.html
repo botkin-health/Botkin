@@ -523,51 +523,60 @@ footer .bottom {
 flowchart LR
     subgraph S["📥 ИСТОЧНИКИ"]
       direction TB
-      U[👤 Сообщения в боте]
-      IP[📱 iPhone · Apple Health]
-      GA[⌚ Garmin]
+      U[👤 Сообщения в боте — фото / голос / текст]
+      IOS[📱 iPhone · Apple Health<br>агрегирует весы, тонометр, Apple Watch]
+      AND[📱 Android · Health Connect — скоро<br>агрегирует Samsung Health, Mi, Huawei]
+      WR[⌚ Garmin / Oura / Whoop / Fitbit / Polar]
+      GD[📂 Google Drive — PDF анализов, УЗИ,<br>рецепты, заключения врачей]
     end
 
     subgraph P["⚙️ ОБРАБОТКА"]
       direction TB
       B[🤖 Telegram-бот]
-      WH[🍎 HAE webhook]
-      SY[🔄 Ночной sync]
+      WH[🪝 Webhook — HAE и Health Connect]
+      SY[🔄 Ночной sync — API устройств]
+      EX[📝 Claude — извлекает биомаркеры из PDF]
     end
 
     subgraph ST["💾 ХРАНЕНИЕ"]
       direction TB
-      DB[(🗄 PostgreSQL)]
-      KB[(📂 Knowledge Base)]
+      DB[(🗄 PostgreSQL — питание, активность, биомаркеры)]
+      KB[(📚 Knowledge Base — JSON на человека)]
     end
 
     subgraph O["📲 ИНТЕРФЕЙСЫ"]
       direction TB
-      MA[📊 Mini-app]
-      DSH[📈 Dashboard]
-      MCP[🔌 MCP → Claude / Gemini]
+      MA[📊 Mini-app — Telegram]
+      DSH[📈 Dashboard — браузер]
+      MCP[🔌 MCP-сервер → Claude / ChatGPT / Gemini / Cursor / Cline / ...]
     end
 
     U --> B
-    IP --> WH
-    GA --> SY
+    IOS --> WH
+    AND -.-> WH
+    WR --> SY
+    GD --> EX
 
     B --> DB
     WH --> DB
     SY --> DB
+    EX --> KB
     KB --> DB
 
     DB --> MA
     DB --> DSH
     DB --> MCP
+    KB --> MCP
 
     classDef sourceCls fill:#1a2234,stroke:#3b82f6,color:#e8eef7
     classDef pipeCls   fill:#1a2234,stroke:#00ff9d,color:#e8eef7
     classDef storeCls  fill:#1a2234,stroke:#ffb800,color:#e8eef7
     classDef outCls    fill:#1a2234,stroke:#a855f7,color:#e8eef7
+    classDef plannedCls fill:#1a2234,stroke:#7a879f,stroke-dasharray:5 5,color:#7a879f
 
-    class U,IP,GA sourceCls
-    class B,WH,SY pipeCls
+    class U,IOS,WR,GD sourceCls
+    class AND plannedCls
+    class B,WH,SY,EX pipeCls
     class DB,KB storeCls
     class MA,DSH,MCP outCls
       </pre>
