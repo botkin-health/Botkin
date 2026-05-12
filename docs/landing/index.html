@@ -520,27 +520,56 @@ footer .bottom {
     <h3 style="font-size: 22px; margin-bottom: 20px;">Архитектура — кто где живёт</h3>
     <div class="diagram-wrap">
       <pre class="mermaid">
-graph LR
-    U[👤 Ты] -->|сообщения| B[🤖 Telegram-бот]
-    IP[📱 iPhone] -->|Apple Health| WH[🍎 HAE webhook]
-    GA[⌚ Garmin] -->|API| SY[🔄 Sync]
+flowchart LR
+    subgraph S["📥 ИСТОЧНИКИ"]
+      direction TB
+      U[👤 Сообщения в боте]
+      IP[📱 iPhone · Apple Health]
+      GA[⌚ Garmin]
+    end
 
-    B --> DB[(🗄 PostgreSQL)]
+    subgraph P["⚙️ ОБРАБОТКА"]
+      direction TB
+      B[🤖 Telegram-бот]
+      WH[🍎 HAE webhook]
+      SY[🔄 Ночной sync]
+    end
+
+    subgraph ST["💾 ХРАНЕНИЕ"]
+      direction TB
+      DB[(🗄 PostgreSQL)]
+      KB[(📂 Knowledge Base)]
+    end
+
+    subgraph O["📲 ИНТЕРФЕЙСЫ"]
+      direction TB
+      MA[📊 Mini-app]
+      DSH[📈 Dashboard]
+      MCP[🔌 MCP → Claude / Gemini]
+    end
+
+    U --> B
+    IP --> WH
+    GA --> SY
+
+    B --> DB
     WH --> DB
     SY --> DB
+    KB --> DB
 
-    DB --> MA[📊 Mini-app]
-    DB --> DSH[📈 Dashboard]
-    DB --> MCP[🔌 MCP server]
+    DB --> MA
+    DB --> DSH
+    DB --> MCP
 
-    MA --> U
-    DSH --> U
-    MCP -->|для коллабораторов| CD[💻 Claude / Gemini Desktop]
-    CD --> U
+    classDef sourceCls fill:#1a2234,stroke:#3b82f6,color:#e8eef7
+    classDef pipeCls   fill:#1a2234,stroke:#00ff9d,color:#e8eef7
+    classDef storeCls  fill:#1a2234,stroke:#ffb800,color:#e8eef7
+    classDef outCls    fill:#1a2234,stroke:#a855f7,color:#e8eef7
 
-    KB[(📂 Google Drive KB)] --> DB
-    LKB[(📚 Longevity KB)] --> B
-    LKB --> MCP
+    class U,IP,GA sourceCls
+    class B,WH,SY pipeCls
+    class DB,KB storeCls
+    class MA,DSH,MCP outCls
       </pre>
     </div>
   </div>
