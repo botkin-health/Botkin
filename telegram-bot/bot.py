@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Главный файл для запуска HealthVault Telegram Bot
+Главный файл для запуска Botkin Telegram Bot.
 """
 
 import asyncio
@@ -20,6 +20,8 @@ from aiogram.enums import ParseMode
 from aiogram.types import Update, BotCommand, BotCommandScopeAllPrivateChats
 from dotenv import load_dotenv
 import os
+
+from core._version import __version__
 
 # Загружаем переменные окружения
 load_dotenv(override=True)
@@ -219,7 +221,7 @@ def register_handlers(dp: Dispatcher):
 
     # Если были ошибки - выводим тревожное сообщение
     if errors:
-        error_msg = "❌ ⚠️ 🚨 HealthVault Tracker НЕ ЗАПУЩЕН!\n\n"
+        error_msg = "❌ ⚠️ 🚨 Botkin НЕ ЗАПУЩЕН!\n\n"
         error_msg += "Ошибки при инициализации:\n"
         for i, error in enumerate(errors, 1):
             error_msg += f"{i}. {error}\n"
@@ -230,7 +232,7 @@ def register_handlers(dp: Dispatcher):
 
     # Если всё хорошо - одна строка успеха
     print("\n" + "=" * 50)
-    print("🚀  HealthVault Tracker v1.2")
+    print(f"🚀  Botkin v{__version__}")
     print("✅  Бот успешно запущен и готов к работе")
     print("📝  Логи пишутся в файл: logs/bot.log")
     print("=" * 50 + "\n")
@@ -269,12 +271,28 @@ async def main():
         logger.warning("⚠️ Apple Health webhook не загружен (webhook/apple_health.py не найден)")
 
     try:
-        # Do NOT delete_webhook — Telegram delivers updates via /telegram/webhook.
         # We only set bot commands here.
         await bot.set_my_commands(commands, scope=BotCommandScopeAllPrivateChats())
         logger.info("✅ Команды бота установлены")
     except Exception as e:
         logger.error(f"❌ Не удалось установить команды: {e}")
+
+    # Регистрируем webhook у Telegram. Идемпотентно: ставим только если
+    # текущий URL отличается. Без этого после смены TELEGRAM_BOT_TOKEN
+    # (или первого деплоя) Telegram не знает куда слать апдейты — сообщения
+    # копятся в очереди и бот «молчит». Прецедент: 12.05.2026 при свитче
+    # @HealthVault_bot → @Botkin_md_bot webhook не зарегистрировали вручную.
+    webhook_url = os.getenv("TELEGRAM_WEBHOOK_URL", "https://health.orangegate.cc/telegram/webhook")
+    if webhook_enabled and webhook_url:
+        try:
+            info = await bot.get_webhook_info()
+            if info.url != webhook_url:
+                await bot.set_webhook(url=webhook_url, allowed_updates=["message", "callback_query"])
+                logger.info(f"✅ Webhook зарегистрирован: {webhook_url}")
+            else:
+                logger.info(f"✅ Webhook уже актуален: {webhook_url}")
+        except Exception as e:
+            logger.error(f"❌ Не удалось установить webhook: {e}")
 
     # Start FastAPI server (serves /telegram/webhook + /apple_health + /webapp).
     # No polling — Telegram updates arrive via webhook.
@@ -287,7 +305,7 @@ async def main():
             logger.warning("⚠️ Webhook-сервер не доступен, запускаем polling...")
             await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
     except Exception as e:
-        error_msg = "❌ ⚠️ 🚨 HealthVault Tracker НЕ ЗАПУЩЕН!\n\n"
+        error_msg = "❌ ⚠️ 🚨 Botkin НЕ ЗАПУЩЕН!\n\n"
         error_msg += f"Ошибка при запуске: {e}\n"
         error_msg += "\n⚠️ Перешли это сообщение разработчику для разбора логов!"
         logger.error(error_msg, exc_info=True)
