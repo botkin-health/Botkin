@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bgGrad" cx="30%" cy="25%" r="80%">
+      <stop offset="0%" stop-color="#1f2940"/>
+      <stop offset="50%" stop-color="#141a28"/>
+      <stop offset="100%" stop-color="#0a0e17"/>
+    </radialGradient>
+
+    <linearGradient id="letterGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00ff9d"/>
+      <stop offset="100%" stop-color="#00c878"/>
+    </linearGradient>
+
+    <linearGradient id="pulseGrad" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%"   stop-color="#ff3b6d" stop-opacity="0.3"/>
+      <stop offset="20%"  stop-color="#ff3b6d" stop-opacity="1"/>
+      <stop offset="80%"  stop-color="#ff3b6d" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#ff3b6d" stop-opacity="0.3"/>
+    </linearGradient>
+
+    <filter id="pulseGlow" x="-10%" y="-100%" width="120%" height="300%">
+      <feGaussianBlur stdDeviation="4"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <circle cx="256" cy="256" r="256" fill="url(#bgGrad)"/>
+  <circle cx="256" cy="256" r="236" fill="none" stroke="#1f2940" stroke-width="2" opacity="0.7"/>
+
+  <!-- Big "Б" letter (smaller, lifted slightly to leave room for pulse below) -->
+  <text
+    x="256"
+    y="260"
+    font-family="SF Pro Display, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Inter, sans-serif"
+    font-size="300"
+    font-weight="900"
+    text-anchor="middle"
+    dominant-baseline="middle"
+    fill="url(#letterGrad)"
+    letter-spacing="-15">Б</text>
+
+  <!-- ECG / heartbeat line — РОЗОВЫЙ-КРАСНЫЙ, в самом низу круга, не пересекается с буквой -->
+  <path
+    d="M 80 430
+       L 170 430
+       L 195 410
+       L 215 460
+       L 235 360
+       L 256 470
+       L 277 430
+       L 297 440
+       L 320 430
+       L 432 430"
+    fill="none"
+    stroke="url(#pulseGrad)"
+    stroke-width="8"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    filter="url(#pulseGlow)"/>
+
+  <!-- AI indicator dot (top-right) -->
+  <circle cx="380" cy="135" r="12" fill="#00ff9d" opacity="0.95"/>
+  <circle cx="380" cy="135" r="20" fill="none" stroke="#00ff9d" stroke-width="2" opacity="0.4"/>
+</svg>

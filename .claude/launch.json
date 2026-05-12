@@ -6,6 +6,12 @@
       "runtimeExecutable": "python3",
       "runtimeArgs": ["-m", "http.server", "53660", "--directory", ".superpowers/brainstorm"],
       "port": 53660
+    },
+    {
+      "name": "botkin-site",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "53670", "--directory", "docs"],
+      "port": 53670
     }
   ]
 }

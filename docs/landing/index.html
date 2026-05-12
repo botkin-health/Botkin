@@ -1,0 +1,852 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Botkin — Персональный AI-помощник для здоровья</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Открытая платформа для трекинга здоровья: Telegram-бот, дашборд, интеграции с Apple Health/Garmin, AI-помощник через Claude и Gemini.">
+<meta property="og:title" content="Botkin — Персональный AI-помощник для здоровья">
+<meta property="og:description" content="Открытый проект Александра Лысковского для трекинга и анализа здоровья с AI.">
+<meta property="og:image" content="/landing/assets/og-cover.png">
+<link rel="icon" type="image/png" href="/landing/assets/favicon.png">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.0/dist/mermaid.min.js"></script>
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  /* Palette — same as mc-dashboard for visual continuity */
+  --bg: #0a0e17;
+  --bg2: #0f1420;
+  --card: #141a28;
+  --card-hi: #1a2234;
+  --border: #1f2940;
+  --text: #e8eef7;
+  --muted: #7a879f;
+  --dim: #4a556b;
+  --g: #00ff9d;
+  --g2: #00c878;
+  --y: #ffb800;
+  --r: #ff3b6d;
+  --b: #3b82f6;
+  --p: #a855f7;
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'SF Pro Display','Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  scroll-behavior: smooth;
+}
+body {
+  background-image:
+    radial-gradient(circle at 15% 0%, rgba(0,255,157,0.04) 0%, transparent 40%),
+    radial-gradient(circle at 85% 100%, rgba(168,85,247,0.04) 0%, transparent 40%);
+}
+.mono { font-family: 'SF Mono','JetBrains Mono',Menlo,monospace; }
+a { color: var(--g); text-decoration: none; transition: opacity .15s; }
+a:hover { opacity: 0.75; }
+
+.container { max-width: 1140px; margin: 0 auto; padding: 0 24px; }
+
+/* ─────────── Top nav ─────────── */
+nav.topnav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(10,14,23,0.85);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 0;
+}
+nav.topnav .row {
+  display: flex; justify-content: space-between; align-items: center;
+}
+nav.topnav .brand {
+  font-size: 18px; font-weight: 700; letter-spacing: -0.3px;
+  color: var(--text);
+}
+nav.topnav .brand .dot { color: var(--g); }
+nav.topnav .links { display: flex; gap: 28px; }
+nav.topnav .links a {
+  color: var(--muted); font-size: 14px; font-weight: 500;
+}
+nav.topnav .links a:hover { color: var(--text); }
+nav.topnav .cta {
+  background: var(--g);
+  color: var(--bg);
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 13px;
+}
+nav.topnav .cta:hover { background: var(--g2); opacity: 1; }
+@media (max-width: 720px) {
+  nav.topnav .links { display: none; }
+}
+
+/* ─────────── Sections ─────────── */
+section { padding: 88px 0; border-bottom: 1px solid var(--border); }
+section h2 {
+  font-size: 36px; font-weight: 700; letter-spacing: -0.6px;
+  margin-bottom: 16px; line-height: 1.15;
+}
+section .lead {
+  font-size: 18px; color: var(--muted); max-width: 720px; margin-bottom: 48px;
+  line-height: 1.6;
+}
+.eyebrow {
+  text-transform: uppercase; letter-spacing: 2px; font-size: 12px; font-weight: 600;
+  color: var(--g); margin-bottom: 16px;
+}
+
+/* ─────────── Hero ─────────── */
+.hero {
+  padding: 80px 0 100px;
+  border-bottom: 1px solid var(--border);
+}
+.hero .row {
+  display: grid; grid-template-columns: 1.3fr 1fr; gap: 64px; align-items: center;
+}
+.hero h1 {
+  font-size: 56px; line-height: 1.05; font-weight: 800;
+  letter-spacing: -1.5px;
+  margin-bottom: 24px;
+}
+.hero h1 .accent { color: var(--g); }
+.hero p.subtitle {
+  font-size: 20px; color: var(--muted); margin-bottom: 36px;
+  line-height: 1.55; max-width: 540px;
+}
+.hero .cta-row { display: flex; gap: 14px; flex-wrap: wrap; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 14px 24px; border-radius: 10px; font-weight: 600; font-size: 15px;
+  cursor: pointer; transition: transform .15s, opacity .15s;
+  border: 1px solid transparent;
+}
+.btn:hover { transform: translateY(-1px); opacity: 1; }
+.btn.primary { background: var(--g); color: var(--bg); }
+.btn.primary:hover { background: var(--g2); }
+.btn.secondary {
+  background: transparent; color: var(--text); border-color: var(--border);
+}
+.btn.secondary:hover { border-color: var(--text); background: var(--card); }
+
+.hero-photo {
+  position: relative;
+  aspect-ratio: 4/5;
+  border-radius: 16px;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--card), var(--card-hi));
+  border: 1px solid var(--border);
+}
+.hero-photo img {
+  width: 100%; height: 100%; object-fit: cover;
+  filter: brightness(0.95);
+}
+.hero-photo .placeholder {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  color: var(--dim); font-size: 13px; padding: 24px; text-align: center;
+}
+.hero-stats {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+  margin-top: 56px; padding-top: 32px; border-top: 1px solid var(--border);
+}
+.hero-stats .stat .n {
+  font-size: 28px; font-weight: 700; color: var(--text); line-height: 1; margin-bottom: 8px;
+}
+.hero-stats .stat .l { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; }
+
+@media (max-width: 880px) {
+  .hero .row { grid-template-columns: 1fr; gap: 40px; }
+  .hero h1 { font-size: 42px; }
+  .hero p.subtitle { font-size: 18px; }
+}
+
+/* ─────────── 4 пункта что это ─────────── */
+.features {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px;
+}
+.feature {
+  background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 28px 24px;
+  transition: border-color .2s, transform .2s; position: relative;
+}
+.feature:hover { border-color: var(--g); transform: translateY(-2px); }
+.feature .icon { font-size: 28px; margin-bottom: 16px; }
+.feature .soon { position: absolute; top: 30px; right: 20px; margin-left: 0; }
+.feature h3 { font-size: 17px; font-weight: 600; margin-bottom: 10px; }
+.feature p { color: var(--muted); font-size: 14px; line-height: 1.6; }
+
+/* ─────────── Personal story ─────────── */
+.story .row {
+  display: grid; grid-template-columns: 0.6fr 1.8fr; gap: 48px; align-items: start;
+}
+.story .photo-small {
+  aspect-ratio: 1; border-radius: 14px; overflow: hidden;
+  background: linear-gradient(135deg, var(--card), var(--card-hi));
+  border: 1px solid var(--border); position: sticky; top: 100px;
+}
+.story .photo-small img { width: 100%; height: 100%; object-fit: cover; }
+.story .text p { margin-bottom: 18px; font-size: 16px; line-height: 1.75; color: var(--text); }
+.story .text p strong { color: var(--text); font-weight: 600; }
+.story .text p.muted { color: var(--muted); }
+.story .signature {
+  margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--border);
+  display: flex; gap: 14px; flex-wrap: wrap; color: var(--muted); font-size: 14px;
+}
+.story .signature a { color: var(--g); }
+@media (max-width: 880px) {
+  .story .row { grid-template-columns: 1fr; }
+  .story .photo-small { position: static; max-width: 280px; }
+}
+
+/* ─────────── How it works ─────────── */
+.steps {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px;
+}
+.step {
+  background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 28px 24px;
+  position: relative;
+}
+.step .num {
+  font-family: 'SF Mono', monospace; font-size: 13px; color: var(--g);
+  background: rgba(0,255,157,0.1); padding: 4px 10px; border-radius: 6px;
+  display: inline-block; margin-bottom: 16px;
+}
+.step h3 { font-size: 17px; margin-bottom: 8px; }
+.step p { color: var(--muted); font-size: 14px; line-height: 1.6; }
+
+/* ─────────── Architecture diagram ─────────── */
+.diagram-wrap {
+  background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+  padding: 32px; overflow-x: auto;
+}
+.mermaid { color: var(--text); }
+
+/* ─────────── Screenshots gallery ─────────── */
+.gallery {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;
+}
+.shot {
+  background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+  transition: transform .2s, border-color .2s;
+}
+.shot:hover { transform: translateY(-4px); border-color: var(--g); }
+.shot .img-wrap {
+  aspect-ratio: 9/16; background: var(--bg2); display: flex; align-items: center; justify-content: center;
+  color: var(--dim); font-size: 12px; text-align: center; padding: 24px;
+}
+.shot .img-wrap img { width: 100%; height: 100%; object-fit: contain; }
+.shot .img-wrap.wide { aspect-ratio: 16/9; }
+.shot .caption { padding: 16px 20px; }
+.shot .caption h4 { font-size: 14px; margin-bottom: 4px; }
+.shot .caption p { font-size: 13px; color: var(--muted); }
+
+/* ─────────── Personas ─────────── */
+.personas {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px;
+}
+.persona {
+  background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 28px 24px;
+}
+.persona .who { color: var(--g); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+.persona h3 { font-size: 18px; margin-bottom: 12px; line-height: 1.3; }
+.persona p { color: var(--muted); font-size: 14px; line-height: 1.6; margin-bottom: 16px; }
+.persona .what { font-size: 13px; color: var(--text); font-weight: 500; padding-top: 14px; border-top: 1px solid var(--border); }
+
+/* ─────────── Open source / contribute ─────────── */
+.cta-block {
+  background: linear-gradient(135deg, var(--card) 0%, var(--card-hi) 100%);
+  border: 1px solid var(--border); border-radius: 18px;
+  padding: 56px; text-align: center;
+}
+.cta-block h2 { margin-bottom: 16px; }
+.cta-block p { color: var(--muted); margin-bottom: 32px; max-width: 600px; margin-left: auto; margin-right: auto; font-size: 17px; }
+.cta-block .cta-row { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+.cta-block .meta {
+  margin-top: 32px; display: inline-flex; gap: 14px; align-items: center; flex-wrap: wrap;
+  color: var(--muted); font-size: 13px;
+}
+.cta-block .meta .pill {
+  background: rgba(0,255,157,0.1); color: var(--g);
+  padding: 4px 10px; border-radius: 6px; font-family: 'SF Mono', monospace;
+}
+
+/* ─────────── For business ─────────── */
+.business {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;
+}
+.biz-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 28px 24px;
+}
+.biz-card h3 { font-size: 17px; margin-bottom: 12px; }
+.biz-card p { color: var(--muted); font-size: 14px; line-height: 1.6; }
+
+/* ─────────── FAQ ─────────── */
+.faq-item {
+  border-bottom: 1px solid var(--border); padding: 20px 0;
+}
+.faq-item summary {
+  cursor: pointer; font-weight: 600; font-size: 17px; padding: 4px 0;
+  display: flex; justify-content: space-between; align-items: center; gap: 16px;
+  list-style: none;
+}
+.faq-item summary::-webkit-details-marker { display: none; }
+.faq-item summary::after {
+  content: '+'; color: var(--g); font-size: 24px; font-weight: 300;
+  transition: transform .2s;
+}
+.faq-item[open] summary::after { transform: rotate(45deg); }
+.faq-item p {
+  color: var(--muted); padding-top: 14px; line-height: 1.7;
+}
+.faq-item a { color: var(--g); }
+
+/* ─────────── Footer ─────────── */
+footer {
+  padding: 56px 0 40px; color: var(--muted); font-size: 14px;
+}
+footer .row {
+  display: flex; justify-content: space-between; gap: 32px; flex-wrap: wrap; margin-bottom: 32px;
+}
+footer .brand-block .brand-name { font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+footer .brand-block p { max-width: 320px; line-height: 1.6; }
+footer .col h4 { color: var(--text); font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 14px; }
+footer .col a { display: block; color: var(--muted); margin-bottom: 8px; }
+footer .col a:hover { color: var(--text); }
+footer .bottom {
+  padding-top: 24px; border-top: 1px solid var(--border);
+  display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  font-size: 13px; color: var(--dim);
+}
+
+/* ─────────── Utilities ─────────── */
+.tag-stub {
+  display: inline-block; background: rgba(255,184,0,0.1); color: var(--y);
+  padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 1px; margin-left: 8px; vertical-align: middle;
+}
+.soon {
+  display: inline-block; background: rgba(255,184,0,0.15); color: var(--y);
+  padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1px; margin-left: 8px; vertical-align: middle;
+}
+</style>
+</head>
+
+<body>
+
+<!-- ═══════════ NAV ═══════════ -->
+<nav class="topnav">
+  <div class="container row">
+    <a href="#" class="brand">Botkin<span class="dot">.</span></a>
+    <div class="links">
+      <a href="#what">Что это</a>
+      <a href="#story">Про автора</a>
+      <a href="#how">Как работает</a>
+      <a href="#docs">Документация</a>
+      <a href="#business">Бизнесу</a>
+    </div>
+    <a href="https://t.me/Botkin_md_bot" class="cta">Подключиться →</a>
+  </div>
+</nav>
+
+<!-- ═══════════ HERO ═══════════ -->
+<section class="hero">
+<div class="container">
+  <div class="row">
+    <div>
+      <div class="eyebrow">Open Source · Personal AI · Longevity</div>
+      <h1>Твой <span class="accent">персональный AI-помощник</span> для здоровья и долголетия</h1>
+      <p class="subtitle">
+        Логируешь питание и лекарства в Telegram — фотками, голосом или текстом.
+        Часы, тонометр и весы шлют данные автоматически.
+        AI помогает разобраться, что с этим делать — в боте, в Claude или Gemini.
+      </p>
+      <div class="cta-row">
+        <a href="https://t.me/Botkin_md_bot" class="btn primary">
+          📱 Подключиться через Telegram
+        </a>
+        <a href="https://github.com/Lyskovsky/Botkin" class="btn secondary">
+          ⭐ Открыть на GitHub
+        </a>
+      </div>
+      <div class="hero-stats">
+        <div class="stat">
+          <div class="n">20+</div>
+          <div class="l">источников данных</div>
+        </div>
+        <div class="stat">
+          <div class="n">730+</div>
+          <div class="l">приёмов пищи распознано</div>
+        </div>
+        <div class="stat">
+          <div class="n">5 мин</div>
+          <div class="l">от Start до первого лога</div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="hero-photo">
+        <img src="assets/dashboard-hero.jpg" alt="Mission Control дашборд Botkin: вес, % жира, ApoB, баланс биомаркеров и траектория трансформации"
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+        <div class="placeholder" style="display:none;">
+          📈 Скриншот дашборда<br>
+          <span style="font-size:11px;">положи файл в<br>docs/landing/assets/dashboard-hero.jpg</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════ ЧТО ЭТО ═══════════ -->
+<section id="what">
+<div class="container">
+  <div class="eyebrow">Что это</div>
+  <h2>Четыре куска одной системы</h2>
+  <p class="lead">
+    Не отдельное приложение — а связанная инфраструктура: Telegram-бот для повседневного логирования,
+    мини-апп и дашборд для просмотра, AI-помощник для разбора, открытая база знаний для команды.
+  </p>
+
+  <div class="features">
+    <div class="feature">
+      <div class="icon">🤖</div>
+      <h3>Telegram-бот</h3>
+      <p>Логируй еду фоткой тарелки, голосовым «принял креатин», текстом «АД 128/72». LLM сама распознаёт и пишет в базу.</p>
+    </div>
+    <div class="feature">
+      <div class="icon">📊</div>
+      <h3>Mini-app + Dashboard</h3>
+      <p>В Telegram — ежедневный дневник и чек-лист добавок. В браузере — большая панель с биомаркерами, трендами и графиками за годы.</p>
+    </div>
+    <div class="feature">
+      <div class="icon">🧠</div>
+      <span class="soon">скоро</span>
+      <h3>AI-помощник через MCP</h3>
+      <p>Подключай Claude, ChatGPT, Gemini, Cursor и других LLM-клиентов к своим данным через MCP-сервер. Спрашивай на естественном языке — модель сама ходит в твою базу.</p>
+    </div>
+    <div class="feature">
+      <div class="icon">📂</div>
+      <h3>Knowledge Base</h3>
+      <p>PDF анализов и заключения врачей структурируются в JSON. История биомаркеров за годы — на одном экране.</p>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════ PERSONAL STORY ═══════════ -->
+<section id="story" class="story">
+<div class="container">
+  <div class="eyebrow">Об авторе</div>
+  <h2>Александр Лысковский</h2>
+
+  <div class="row">
+    <div>
+      <div class="photo-small">
+        <img src="assets/alexander-2026-05.jpg" alt="Александр Лысковский"
+             onerror="this.style.display='none';">
+      </div>
+    </div>
+    <div class="text">
+      <p>
+        48 лет, Москва. 25+ лет в технологических компаниях:
+        <strong>Alawar</strong> (игры, экзит),
+        <strong>Welltory</strong> (HealthTech, экзит),
+        <strong>iFarm</strong> (AgriTech, вертикальные фермы в 9 странах),
+        <strong>ДАО Тех</strong> (нейронки в промышленной роботизации) — исполнительный директор с января 2026.
+      </p>
+
+      <p>
+        Со времён Welltory держу в голове идею: каждый человек должен иметь персонального
+        AI-помощника по здоровью, который видит его анализы, питание, сон, тренировки —
+        и помогает думать на собственных данных, а не на общих рекомендациях.
+      </p>
+
+      <p>
+        Десять лет назад это было фантастикой. Сегодня — благодаря зрелым LLM, MCP и инструментам вайб-кодинга — это реальный проект.
+      </p>
+
+      <p>
+        <strong>Botkin сделан для себя и семьи.</strong>
+        У каждого пользователя свой ассистент, свой набор анализов, своя приватность.
+      </p>
+
+      <p class="muted">
+        Открытый исходный код — намеренно. <strong>Забирай, форкай, делай свою копию для своей семьи или клиентов.</strong>
+        Хочешь обсудить применение в клинике, в корпоративной программе wellness, в исследовании? — напиши мне.
+      </p>
+
+      <div class="signature">
+        <a href="mailto:lyskovsky@gmail.com">lyskovsky@gmail.com</a>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════ HOW IT WORKS ═══════════ -->
+<section id="how">
+<div class="container">
+  <div class="eyebrow">Как это работает</div>
+  <h2>От первой фотки тарелки до полного дашборда — четыре шага</h2>
+  <p class="lead">
+    Подключаешься через Telegram (1 минута), отвечаешь на 10 вопросов онбординга (5 минут),
+    дальше — просто пользуешься.
+  </p>
+
+  <div class="steps">
+    <div class="step">
+      <span class="num">01</span>
+      <h3>Подключаешься в Telegram</h3>
+      <p>Открываешь @Botkin_md_bot, нажимаешь /start. 10 вопросов про возраст, рост, цель — посчитает твою норму калорий.</p>
+    </div>
+    <div class="step">
+      <span class="num">02</span>
+      <h3>Логируешь данные</h3>
+      <p>Фотки еды, голосовые «принял креатин», текст «АД 128/72». Apple Health / Garmin синкаются автоматически каждую ночь.</p>
+    </div>
+    <div class="step">
+      <span class="num">03</span>
+      <h3>AI разбирает</h3>
+      <p>LLM распознаёт КБЖУ, складывает в базу, помечает выбивающиеся биомаркеры. Подтягивает твои анализы из Knowledge Base.</p>
+    </div>
+    <div class="step">
+      <span class="num">04</span>
+      <h3>Видишь картину</h3>
+      <p>Мини-апп в Telegram для дневного просмотра. Большой дашборд в браузере с графиками за месяцы и годы. AI-помощник для вопросов.</p>
+    </div>
+  </div>
+
+  <div style="margin-top: 56px;">
+    <h3 style="font-size: 22px; margin-bottom: 20px;">Архитектура — кто где живёт</h3>
+    <div class="diagram-wrap">
+      <pre class="mermaid">
+graph LR
+    U[👤 Ты] -->|сообщения| B[🤖 Telegram-бот]
+    IP[📱 iPhone] -->|Apple Health| WH[🍎 HAE webhook]
+    GA[⌚ Garmin] -->|API| SY[🔄 Sync]
+
+    B --> DB[(🗄 PostgreSQL)]
+    WH --> DB
+    SY --> DB
+
+    DB --> MA[📊 Mini-app]
+    DB --> DSH[📈 Dashboard]
+    DB --> MCP[🔌 MCP server]
+
+    MA --> U
+    DSH --> U
+    MCP -->|для коллабораторов| CD[💻 Claude / Gemini Desktop]
+    CD --> U
+
+    KB[(📂 Google Drive KB)] --> DB
+    LKB[(📚 Longevity KB)] --> B
+    LKB --> MCP
+      </pre>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════ SCREENSHOTS ═══════════ -->
+<section>
+<div class="container">
+  <div class="eyebrow">Как это выглядит</div>
+  <h2>Скриншоты</h2>
+  <p class="lead">Реальные экраны бота и mini-app.</p>
+
+  <div class="gallery">
+    <div class="shot">
+      <div class="img-wrap">
+        <img src="../user_guide/screenshots/miniapp-diary.png" alt="Mini-app: Дневник питания"
+             onerror="this.parentElement.innerHTML='📱 Mini-app — Дневник<br><span style=&quot;font-size:11px&quot;>скрин будет здесь</span>';">
+      </div>
+      <div class="caption">
+        <h4>Дневник питания</h4>
+        <p>Дневная норма, приёмы пищи, прогресс по БЖУ — всё на одном экране в Telegram.</p>
+      </div>
+    </div>
+
+    <div class="shot">
+      <div class="img-wrap">
+        <img src="../user_guide/screenshots/miniapp-supps.png" alt="Mini-app: Добавки и лекарства"
+             onerror="this.parentElement.innerHTML='💊 Mini-app — Добавки<br><span style=&quot;font-size:11px&quot;>скрин будет здесь</span>';">
+      </div>
+      <div class="caption">
+        <h4>Добавки и лекарства</h4>
+        <p>Чек-листы по слотам (утро/обед/вечер/ночь), прогресс «Принято сегодня».</p>
+      </div>
+    </div>
+
+    <div class="shot">
+      <div class="img-wrap">
+        <img src="../user_guide/screenshots/chat-food.jpg" alt="Распознавание еды по фото в чате"
+             onerror="this.parentElement.innerHTML='📸 Распознавание еды<br><span style=&quot;font-size:11px&quot;>скрин будет здесь</span>';">
+      </div>
+      <div class="caption">
+        <h4>Распознавание еды</h4>
+        <p>Скинул фото блюда — бот определяет состав, прикидывает порцию, считает КБЖУ.</p>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════ ДЛЯ КОГО ═══════════ -->
+<section id="for-whom">
+<div class="container">
+  <div class="eyebrow">Для кого</div>
+  <h2>Четыре аудитории — четыре варианта использования</h2>
+
+  <div class="personas">
+    <div class="persona">
+      <div class="who">📱 Простой юзер</div>
+      <h3>«Я хочу просто логировать»</h3>
+      <p>Уже трекаешь еду в каком-то приложении, надоело перепечатывать. Хочешь — фоткой или голосом. AI считает за тебя.</p>
+      <div class="what">→ Telegram-бот, мини-апп</div>
+    </div>
+    <div class="persona">
+      <div class="who">🏃 Здоровьем интересующийся</div>
+      <h3>«Я слежу за здоровьем системно»</h3>
+      <p>Носишь Apple Watch / Garmin, сдаёшь анализы регулярно, есть таблица KБЖУ в Excel, хочешь увидеть всё в одном дашборде с трендами.</p>
+      <div class="what">→ Бот + Apple Health/Garmin + Dashboard</div>
+    </div>
+    <div class="persona">
+      <div class="who">🧠 AI-усилитель</div>
+      <h3>«Хочу AI-помощника по своему здоровью»</h3>
+      <p>Используешь Claude Desktop или Gemini CLI. Хочешь чтобы AI видел твои реальные данные и анализы, а не отвечал общими словами.</p>
+      <div class="what">→ Бот + MCP server для Claude/Gemini</div>
+    </div>
+    <div class="persona">
+      <div class="who">⚒ Вайб-кодер</div>
+      <h3>«Хочу форкнуть и делать своё»</h3>
+      <p>Тебя зацепила идея personal health AI agent. Хочешь свою копию для семьи, для клиники, для своих пользователей.</p>
+      <div class="what">→ GitHub, документация</div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════ ОТКРЫТЫЙ КОД ═══════════ -->
+<section id="open-source">
+<div class="container">
+  <div class="cta-block">
+    <div class="eyebrow">Open Source</div>
+    <h2>Забирай код, делай свою копию</h2>
+    <p>
+      Весь код — открытый. Telegram-бот, мини-апп, дашборд, MCP server, парсеры еды.
+      Развёртываешь у себя на сервере, регистрируешь своего Telegram-бота, прописываешь свои API-ключи —
+      и у тебя свой Botkin для семьи или для клиентов.
+    </p>
+    <div class="cta-row">
+      <a href="https://github.com/Lyskovsky/Botkin" class="btn primary">⭐ Открыть GitHub</a>
+      <a href="#docs" class="btn secondary">📖 Документация для разработчиков</a>
+    </div>
+    <div class="meta">
+      <span class="pill">Python · FastAPI · Postgres</span>
+      <span class="pill">MIT License</span>
+      <span class="pill">Botkin v0.4</span>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════ ДОКУМЕНТАЦИЯ ═══════════ -->
+<section id="docs">
+<div class="container">
+  <div class="eyebrow">Документация</div>
+  <h2>Полный гайд пользователя — на русском</h2>
+  <p class="lead">9 разделов: архитектура, бот, мини-апп, дашборд, Apple Health, Claude Desktop, Knowledge Base, безопасность, FAQ.</p>
+
+  <div class="features">
+    <a href="docs/architecture" class="feature">
+      <div class="icon">🏗</div>
+      <h3>Архитектура</h3>
+      <p>Mermaid-диаграмма + объяснение «кто что хранит» и «кто кого видит».</p>
+    </a>
+    <a href="docs/telegram-bot" class="feature">
+      <div class="icon">🤖</div>
+      <h3>Telegram-бот</h3>
+      <p>Все команды, как пользоваться фото/голосом/текстом.</p>
+    </a>
+    <a href="docs/mcp-claude-desktop" class="feature">
+      <div class="icon">🔌</div>
+      <h3>Claude Desktop MCP</h3>
+      <p>Как подключить наш сервер к своему Claude или Gemini.</p>
+    </a>
+    <a href="docs/security" class="feature">
+      <div class="icon">🔒</div>
+      <h3>Безопасность</h3>
+      <p>Токены, что видит owner, что приватно, как отозвать доступы.</p>
+    </a>
+  </div>
+
+  <div style="margin-top: 32px; text-align: center;">
+    <a href="docs/" class="btn secondary">📖 Открыть полный гайд</a>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════ О НАЗВАНИИ ═══════════ -->
+<section id="about-name" class="story">
+<div class="container">
+  <div class="eyebrow">О названии</div>
+  <h2>В честь Сергея Петровича Боткина</h2>
+  <div class="row">
+    <div class="photo-small">
+      <img src="assets/botkin-portrait.jpg" alt="С.П. Боткин (1832–1889), портрет по работе И.Н. Крамского">
+    </div>
+    <div class="text">
+      <p>
+        Проект назван в честь <strong>С.П. Боткина</strong> (1832–1889) — выдающегося русского врача-терапевта,
+        основоположника клинической медицины в России. Боткин одним из первых стал лечить
+        человека <em>целиком</em>, а не отдельную болезнь, и подчёркивал решающую роль образа
+        жизни и внешней среды в здоровье.
+      </p>
+      <p style="border-left:3px solid var(--g); padding-left:18px; color:var(--text); font-style:italic;">
+        «Активно влияя на внешние факторы, можно изменить не только болезнь,
+        но и предрасположенность к ней.» — С.П. Боткин
+      </p>
+      <p class="muted">
+        Эти принципы — буквально про то, чем занимается Botkin сегодня: трекать целиком (еда,
+        сон, активность, добавки, анализы), смотреть на образ жизни, а не на симптомы по отдельности.
+      </p>
+      <div class="signature">
+        <a href="https://ru.wikipedia.org/wiki/%D0%91%D0%BE%D1%82%D0%BA%D0%B8%D0%BD,_%D0%A1%D0%B5%D1%80%D0%B3%D0%B5%D0%B9_%D0%9F%D0%B5%D1%82%D1%80%D0%BE%D0%B2%D0%B8%D1%87"
+           target="_blank" rel="noopener">Подробнее на Википедии →</a>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════ ДЛЯ БИЗНЕСА ═══════════ -->
+<section id="business">
+<div class="container">
+  <div class="eyebrow">Для бизнеса</div>
+  <h2>Партнёрства, клиники, исследования</h2>
+  <p class="lead">
+    Хочешь применить Botkin в клинике, в корпоративной wellness-программе, в исследовании? —
+    Готов обсудить. Если идея серьёзная и аудитория > 50 человек — поможем с развёртыванием.
+  </p>
+
+  <div class="business">
+    <div class="biz-card">
+      <h3>🏥 Клиники и врачи</h3>
+      <p>Дай своим пациентам персонального AI-помощника по приверженности к терапии, питанию, отслеживанию биомаркеров. Self-host или managed — обсуждаем.</p>
+    </div>
+    <div class="biz-card">
+      <h3>🏢 Корпоративный wellness</h3>
+      <p>White-label для сотрудников. Анонимная агрегация трендов команды (без личных данных), персональные AI-сессии каждому.</p>
+    </div>
+    <div class="biz-card">
+      <h3>🔬 Исследовательские проекты</h3>
+      <p>Платформа для сбора longitudinal-данных. Готов сотрудничать с университетами, медцентрами, longevity-инициативами.</p>
+    </div>
+    <div class="biz-card">
+      <h3>💼 Инвесторы</h3>
+      <p>Open-source longevity platform — рынок развивается. Если видишь возможность совместного проекта — напиши, обсудим.</p>
+    </div>
+  </div>
+
+  <div style="margin-top: 40px; text-align: center;">
+    <a href="mailto:lyskovsky@gmail.com" class="btn primary">📩 Написать на email</a>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════ FAQ ═══════════ -->
+<section id="faq">
+<div class="container">
+  <div class="eyebrow">FAQ</div>
+  <h2>Короткие ответы на главные вопросы</h2>
+  <p class="lead">Полный FAQ — в <a href="docs/faq">документации</a>.</p>
+
+  <details class="faq-item">
+    <summary>Это бесплатно?</summary>
+    <p>Сам сервис — да. Затраты: сервер ~10€/мес, LLM API ~$30–50/мес. Если станет 50+ пользователей и расходы вырастут — будем думать про BYOK или подписку. Сейчас это open-source проект без коммерции.</p>
+  </details>
+
+  <details class="faq-item">
+    <summary>Это медицинский совет?</summary>
+    <p>Нет. Это инструмент для дисциплинированного ведения дневника и обсуждения трендов с AI. AI хорошо суммирует, ищет корреляции, объясняет биомаркеры — но не заменяет врача. По всем важным решениям — к своему врачу.</p>
+  </details>
+
+  <details class="faq-item">
+    <summary>Кто видит мои данные?</summary>
+    <p>Ты сам + AI-помощник в боте. Александр как owner — видит агрегированные метрики через админ-дашборд (например, последнюю активность). Подробнее — в <a href="docs/security">разделе «Безопасность»</a>. Приватные дневники можно хранить локально на маке — сервер их не видит вообще.</p>
+  </details>
+
+  <details class="faq-item">
+    <summary>У меня Android, что делать?</summary>
+    <p>Telegram-бот работает у любого пользователя. Без iPhone не будет автоматического синка Apple Health, но всё что ты вводишь руками — работает. Если у тебя Garmin — есть прямой коннектор.</p>
+  </details>
+
+  <details class="faq-item">
+    <summary>А что если ты, Александр, бросишь поддерживать проект?</summary>
+    <p>Код открытый. Любой коллаборатор форкнет и продолжит. У ключевых пользователей (семья) есть собственные копии знаний. Этот проект — мой долгосрочный интерес, не разовое увлечение.</p>
+  </details>
+
+  <details class="faq-item">
+    <summary>Как стать коллаборатором?</summary>
+    <p>Напиши <a href="mailto:lyskovsky@gmail.com">lyskovsky@gmail.com</a>. У текущих коллабораторов — write-доступ к репозиторию, финальный merge у меня.</p>
+  </details>
+</div>
+</section>
+
+<!-- ═══════════ FOOTER ═══════════ -->
+<footer>
+<div class="container">
+  <div class="row">
+    <div class="brand-block">
+      <div class="brand-name">Botkin</div>
+      <p>Открытая платформа для трекинга здоровья и долголетия с персональным AI-помощником. Сделано Александром Лысковским и сообществом коллабораторов.</p>
+    </div>
+    <div class="col">
+      <h4>Подключиться</h4>
+      <a href="https://t.me/Botkin_md_bot">@Botkin_md_bot</a>
+      <a href="docs/">Документация</a>
+      <a href="docs/mcp-claude-desktop">MCP для Claude / Gemini</a>
+    </div>
+    <div class="col">
+      <h4>Код</h4>
+      <a href="https://github.com/Lyskovsky/Botkin">GitHub репозиторий</a>
+      <a href="https://github.com/Lyskovsky/Botkin/issues">Issues</a>
+      <a href="https://github.com/Lyskovsky/Botkin/blob/master/LICENSE">MIT License</a>
+    </div>
+    <div class="col">
+      <h4>Контакт</h4>
+      <a href="mailto:lyskovsky@gmail.com">lyskovsky@gmail.com</a>
+    </div>
+  </div>
+  <div class="bottom">
+    <span>© 2026 Александр Лысковский. MIT License.</span>
+    <span class="mono">Botkin v0.4 · обновлено 12.05.2026</span>
+  </div>
+</div>
+</footer>
+
+<script>
+mermaid.initialize({
+  startOnLoad: true,
+  theme: 'base',
+  themeVariables: {
+    primaryColor: '#141a28',
+    primaryTextColor: '#e8eef7',
+    primaryBorderColor: '#1f2940',
+    lineColor: '#7a879f',
+    secondaryColor: '#0f1420',
+    tertiaryColor: '#141a28',
+    background: '#0a0e17',
+    mainBkg: '#141a28',
+    secondBkg: '#0f1420',
+    fontFamily: 'SF Pro Display, Inter, sans-serif',
+  }
+});
+</script>
+
+</body>
+</html>
