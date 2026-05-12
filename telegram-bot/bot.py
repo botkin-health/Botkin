@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Главный файл для запуска HealthVault Telegram Bot
+Главный файл для запуска Botkin Telegram Bot.
 """
 
 import asyncio
@@ -219,7 +219,7 @@ def register_handlers(dp: Dispatcher):
 
     # Если были ошибки - выводим тревожное сообщение
     if errors:
-        error_msg = "❌ ⚠️ 🚨 HealthVault Tracker НЕ ЗАПУЩЕН!\n\n"
+        error_msg = "❌ ⚠️ 🚨 Botkin НЕ ЗАПУЩЕН!\n\n"
         error_msg += "Ошибки при инициализации:\n"
         for i, error in enumerate(errors, 1):
             error_msg += f"{i}. {error}\n"
@@ -230,7 +230,7 @@ def register_handlers(dp: Dispatcher):
 
     # Если всё хорошо - одна строка успеха
     print("\n" + "=" * 50)
-    print("🚀  HealthVault Tracker v1.2")
+    print("🚀  Botkin v1.2")
     print("✅  Бот успешно запущен и готов к работе")
     print("📝  Логи пишутся в файл: logs/bot.log")
     print("=" * 50 + "\n")
@@ -303,7 +303,7 @@ async def main():
             logger.warning("⚠️ Webhook-сервер не доступен, запускаем polling...")
             await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
     except Exception as e:
-        error_msg = "❌ ⚠️ 🚨 HealthVault Tracker НЕ ЗАПУЩЕН!\n\n"
+        error_msg = "❌ ⚠️ 🚨 Botkin НЕ ЗАПУЩЕН!\n\n"
         error_msg += f"Ошибка при запуске: {e}\n"
         error_msg += "\n⚠️ Перешли это сообщение разработчику для разбора логов!"
         logger.error(error_msg, exc_info=True)

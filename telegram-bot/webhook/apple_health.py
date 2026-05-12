@@ -18,7 +18,7 @@ import uvicorn
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="HealthVault Apple Health Webhook", docs_url=None, redoc_url=None)
+app = FastAPI(title="Botkin Apple Health Webhook", docs_url=None, redoc_url=None)
 
 # ── Telegram webhook dispatcher (set by bot.py at startup) ───────────────────
 # These are populated by set_telegram_dispatcher() so the /telegram/webhook
