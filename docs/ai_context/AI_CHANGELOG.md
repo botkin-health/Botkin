@@ -7,6 +7,24 @@
 
 ---
 
+## 2026-05-12 — Hotfix: webhook auto-register + хвосты ребрендинга
+
+**Контекст:** утром 12.05 пользователь обнаружил, что бот `@Botkin_md_bot` не отвечает на новые сообщения. `/start` срабатывал, но текст еды от 10:59 повис без ответа.
+
+**Корневая причина:** ночью 12.05 при свитче `@HealthVault_bot` → `@Botkin_md_bot` поменяли `TELEGRAM_BOT_TOKEN` в `.env`, но **не вызвали `setWebhook`** у Telegram для нового токена. Бот слушал порт 8081, но Telegram не знал куда слать апдейты. `pending_update_count: 1` (застрявший завтрак). Хотфикс: `curl setWebhook` → Telegram прокатил сообщение, бот распознал блюдо (317 ккал, 5 ингредиентов) и сохранил.
+
+**Постоянный фикс (PR #4, `telegram-bot/bot.py`):** после `set_my_commands` добавлен идемпотентный блок — `get_webhook_info()`, и если URL отличается от `TELEGRAM_WEBHOOK_URL` (env, default `https://health.orangegate.cc/telegram/webhook`) → `set_webhook()`.
+
+**Аудит после миграции — почистил остатки бренда HealthVault:**
+- `bot.py`: docstring, startup banner («🚀 HealthVault Tracker v1.2» → «🚀 Botkin v1.2»), error_msg (×2)
+- `mc_template.html` (юзерский дашборд): `<title>`, логотип, panel-source, meta accent
+- `webhook/admin.py`: Basic auth realm, `<title>`, `<h1>` админки
+- `webhook/apple_health.py`: FastAPI title
+
+**Не тронуто намеренно:** docstring внутренних модулей (`database/*.py`, `core/infra/storage.py`), путь к папке семейных медданных `~/.../HealthVault/` — папка сохраняет имя по решению.
+
+**Проверки:** `getMe` → `Botkin/Botkin_md_bot`, `getMyDescription` упоминает botkin.health, `getChatMenuButton` корректный, dashboard live с `<title>Botkin · Mission Control</title>`, все 5 юзеров в БД целы, активных 4. Логи за 24ч — без ERROR/EXCEPTION/TRACEBACK. — *Claude Code*
+
 ## 2026-05-10 — HAE парсер: sleep, energy, HRV-surrogate Body Battery (продолжение)
 
 **Задача:** Починить Body Battery / Stress / Sleep для не-Garmin пользователей (Apple Watch через HAE)
