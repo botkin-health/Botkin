@@ -221,15 +221,9 @@ section .lead {
 .diagram-wrap {
   background: var(--card); border: 1px solid var(--border); border-radius: 14px;
   padding: 32px; overflow-x: auto;
-  /* break out из 1140px container — используем больше ширины на десктопе */
-  width: calc(min(100vw - 48px, 1500px));
-  margin-left: 50%; transform: translateX(-50%);
 }
-.mermaid { color: var(--text); text-align: center; }
-.mermaid svg { display: inline-block; max-width: none !important; }
-.mermaid .nodeLabel { font-size: 14px !important; }
-.mermaid .cluster-label .nodeLabel { font-size: 16px !important; font-weight: 700 !important; letter-spacing: 1px; }
-.mermaid .edgeLabel { font-size: 12px !important; }
+.mermaid { color: var(--text); }
+.mermaid svg { display: block; margin: 0 auto; }
 
 /* ─────────── Screenshots gallery ─────────── */
 .gallery {
@@ -885,14 +879,7 @@ mermaid.initialize({
     mainBkg: '#141a28',
     secondBkg: '#0f1420',
     fontFamily: 'SF Pro Display, Inter, sans-serif',
-    fontSize: '16px',
-  },
-  flowchart: {
-    useMaxWidth: false,
-    htmlLabels: true,
-    nodeSpacing: 40,
-    rankSpacing: 60,
-    padding: 16,
+    fontSize: '15px',
   }
 });
 </script>
