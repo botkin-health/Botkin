@@ -10,7 +10,7 @@
     {
       "name": "botkin-site",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "53670", "--directory", "site"],
+      "runtimeArgs": ["-m", "http.server", "53670", "--directory", "docs"],
       "port": 53670
     }
   ]
