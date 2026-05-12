@@ -326,6 +326,11 @@ footer .bottom {
   padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;
   text-transform: uppercase; letter-spacing: 1px; margin-left: 8px; vertical-align: middle;
 }
+.soon {
+  display: inline-block; background: rgba(255,184,0,0.15); color: var(--y);
+  padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1px; margin-left: 8px; vertical-align: middle;
+}
 </style>
 </head>
 
@@ -418,8 +423,8 @@ footer .bottom {
     </div>
     <div class="feature">
       <div class="icon">🧠</div>
-      <h3>AI-помощник</h3>
-      <p>Общайся с собственными данными через Claude или Gemini. Спроси «как мне снизить ApoB» — получишь ответ с твоим контекстом.</p>
+      <h3>AI-помощник через MCP <span class="soon">скоро</span></h3>
+      <p>Подключай любую LLM к своим данным через <strong>MCP-сервер Botkin</strong> (в разработке). Поддержка Claude Desktop, Claude Code, ChatGPT, Gemini, Cursor, Windsurf и других MCP-клиентов. Спрашивай «как мне снизить ApoB», «что коррелирует с весом», «почему я плохо спал в апреле» — модель сама ходит в твою базу.</p>
     </div>
     <div class="feature">
       <div class="icon">📂</div>
@@ -448,7 +453,7 @@ footer .bottom {
         Мне 48, я предприниматель из Москвы. Уже 25+ лет запускаю и масштабирую
         технологические компании на стыке людей, данных и нового железа.
         <strong>Alawar</strong> (игры — был CEO и кофаундером 16 лет, делали «Весёлую ферму»),
-        <strong>Welltory</strong> (HealthTech — кофаундил вместе с Женей Каплуном и Павлом Правдиным; сегодня 6M+ пользователей анализируют свой стресс),
+        <strong>Welltory</strong> (HealthTech — кофаундил вместе с двумя партнёрами; сегодня 6M+ пользователей анализируют свой стресс),
         <strong>iFarm</strong> (AgriTech — вертикальные фермы в 9 странах),
         и с января 2026 — исполнительный директор <strong>ДАО Тех</strong> в группе Ростелекома
         (применение нейронок в промышленной роботизации).
@@ -468,7 +473,7 @@ footer .bottom {
 
       <p>
         <strong>Botkin — это то, что я сделал для себя и своей семьи.</strong>
-        Слежу за здоровьем мамы (Валерия), папы (Павел), жены (Катя), двух сыновей (Олег 24 и Игорь 21).
+        Слежу за здоровьем родителей, жены и двух взрослых сыновей.
         У каждого свой ассистент, свой набор анализов и врачей, своя приватность.
         Параллельно учусь вайб-кодить как инструменту мышления — этот проект мне даётся в среднем 1–2 часа в день,
         а растёт быстро.
@@ -555,8 +560,8 @@ graph LR
 <section>
 <div class="container">
   <div class="eyebrow">Как это выглядит</div>
-  <h2>Скриншоты <span class="tag-stub">скрины Александра</span></h2>
-  <p class="lead">Все скриншоты — реальные данные основателя (с его согласия).</p>
+  <h2>Скриншоты</h2>
+  <p class="lead">Реальные экраны бота и mini-app.</p>
 
   <div class="gallery">
     <div class="shot">
@@ -582,13 +587,13 @@ graph LR
     </div>
 
     <div class="shot">
-      <div class="img-wrap wide">
-        <img src="../user_guide/screenshots/dashboard.png" alt="Dashboard"
-             onerror="this.parentElement.innerHTML='📈 Dashboard<br><span style=&quot;font-size:11px&quot;>откроется на health.orangegate.cc/mc/...</span>';">
+      <div class="img-wrap">
+        <img src="../user_guide/screenshots/chat-food.jpg" alt="Распознавание еды по фото в чате"
+             onerror="this.parentElement.innerHTML='📸 Распознавание еды<br><span style=&quot;font-size:11px&quot;>скрин будет здесь</span>';">
       </div>
       <div class="caption">
-        <h4>Большой дашборд</h4>
-        <p>Биомаркеры, тренды веса, активность с часов, биологический возраст — за все годы.</p>
+        <h4>Распознавание еды</h4>
+        <p>Скинул фото блюда — бот определяет состав, прикидывает порцию, считает КБЖУ.</p>
       </div>
     </div>
   </div>
@@ -824,7 +829,7 @@ graph LR
   </div>
   <div class="bottom">
     <span>© 2026 Александр Лысковский. MIT License.</span>
-    <span class="mono">Botkin v0.4 · обновлено {{LAST_UPDATED}}</span>
+    <span class="mono">Botkin v0.4 · обновлено 12.05.2026</span>
   </div>
 </div>
 </footer>
