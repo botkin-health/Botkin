@@ -1,4 +1,4 @@
-# HealthVault — Контекст для Claude Code
+# Botkin (ex-HealthVault) — Контекст для Claude Code
 
 > Персональная система трекинга здоровья, питания, спорта и медицинских анализов.
 > Владелец: Александр Лысковский, 48 лет, Москва.
@@ -6,28 +6,28 @@
 ## Расположение проекта
 
 **Код проекта (эта папка):**
-`~/Library/CloudStorage/GoogleDrive-lyskovsky@gmail.com/Мой диск/Projects/Vibe coding/HealthVault-engine/`
+`~/Library/CloudStorage/GoogleDrive-lyskovsky@gmail.com/Мой диск/Projects/Vibe coding/Botkin/`
 
-Git remote: `git@github.com:Lyskovsky/HealthVault.git`
+Git remote: `git@github.com:Lyskovsky/Botkin.git` (переименовано 12.05.2026, было `HealthVault`)
 
 **Медицинские данные семьи (отдельная папка, не путать!):**
-`~/Library/CloudStorage/GoogleDrive-lyskovsky@gmail.com/Мой диск/HealthVault/`
+`~/Library/CloudStorage/GoogleDrive-lyskovsky@gmail.com/Мой диск/FamilyHealth/`
 
 Там лежат папки с PDF-анализами и knowledge_base.json каждого. У каждой папки свой CLAUDE.md. Это данные — не код.
 
 Если нужно обратиться к медданным из кода/скриптов — путь:
 ```python
-FAMILY_HEALTH = Path.home() / "Library/CloudStorage/GoogleDrive-lyskovsky@gmail.com/Мой диск/HealthVault"
+FAMILY_HEALTH = Path.home() / "Library/CloudStorage/GoogleDrive-lyskovsky@gmail.com/Мой диск/FamilyHealth"
 ```
 
-## Пользователи бота (NutriLogBot)
+## Пользователи бота (Botkin)
 
-⚠️ **ВНИМАНИЕ — путаница имён бота:**
-- **Display name** (то что видно в шапке чата): **NutriLogBot**
-- **Telegram username** (для ссылки): **@HealthVault_bot**
-- **Прямая ссылка для пользователей:** **t.me/HealthVault_bot**
+⚠️ **ВНИМАНИЕ — миграция бота (12.05.2026):**
+- **Активный бот:** `@Botkin_md_bot` (display name «Botkin», bot_id 8739688481)
+- **Прямая ссылка для пользователей:** **t.me/Botkin_md_bot**
+- **Старый бот `@HealthVault_bot`** (bot_id 8500310863) — архив, webhook удалён. Истории чатов у юзеров сохраняются, но новые сообщения не обрабатываются.
 
-`@NutriLogBot` БЕЗ префикса HealthVault_ — это **чужой украинский бот-двойник**, не наш. Никогда не давать пользователям ссылку `t.me/NutriLogBot` или `@NutriLogBot` — они попадут к украинцам. Только `@HealthVault_bot`. Подтверждено через `getMe` API: `{"first_name": "NutriLogBot", "username": "HealthVault_bot"}`.
+`@NutriLogBot` БЕЗ префикса — это **чужой украинский бот-двойник**, не наш. Не давать пользователям ссылку `t.me/NutriLogBot`.
 
 Telegram ID и личные данные пользователей — в `~/.claude/CLAUDE.md` (приватный, не в git).
 
@@ -168,7 +168,7 @@ python3 scripts/import/parse_apple_health_xml.py
 
 **При ЛЮБОМ вопросе о здоровье Александра (или члена семьи) — порядок чтения строго такой:**
 
-1. **`PROFILE.md`** в папке человека (`HealthVault/{Имя} — Здоровье/PROFILE.md`):
+1. **`PROFILE.md`** в папке человека (`FamilyHealth/{Имя} — Здоровье/PROFILE.md`):
    - **Сначала «🩺 Журнал обследований»** (между маркерами `<!-- EXAM_JOURNAL_START -->...END -->`) — это автогенерируемый индекс **что и когда** обследовалось. Никогда не предлагать сделать обследование, не сверившись с журналом.
    - Затем основная часть — карта диагнозов и хронических состояний.
 2. **`knowledge_base.json`** в той же папке — детали из журнала. Секции:
@@ -204,7 +204,7 @@ python3 scripts/generate_exam_journal.py "Имя — Здоровье" --update-
 
 Локальный путь (синхронизируется автоматически):
 ```
-/Users/alexlyskovsky/Library/CloudStorage/GoogleDrive-lyskovsky@gmail.com/Мой диск/HealthVault/
+/Users/alexlyskovsky/Library/CloudStorage/GoogleDrive-lyskovsky@gmail.com/Мой диск/FamilyHealth/
 ```
 
 Короткая ссылка в коде: `GD_HEALTH` (задать через переменную окружения или хардкод).
@@ -224,7 +224,7 @@ python3 scripts/generate_exam_journal.py "Имя — Здоровье" --update-
 ## Архитектура проекта (код)
 
 ```
-HealthVault/                     # ~/HealthVault/ — ТОЛЬКО КОД И OPERATIONAL DATA
+Botkin/                          # ~/Botkin/ — ТОЛЬКО КОД И OPERATIONAL DATA
 ├── config/                      # Настройки, пользователи
 ├── core/                        # Бизнес-логика (LLM, питание, парсеры)
 ├── database/                    # SQLAlchemy модели, CRUD, миграции
