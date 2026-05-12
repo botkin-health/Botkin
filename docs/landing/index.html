@@ -221,6 +221,9 @@ section .lead {
 .diagram-wrap {
   background: var(--card); border: 1px solid var(--border); border-radius: 14px;
   padding: 32px; overflow-x: auto;
+  /* break out из 1140px container — диаграмме нужно больше ширины на десктопе */
+  margin-left: calc(-1 * max(0px, (100vw - 1140px) / 2 - 24px));
+  margin-right: calc(-1 * max(0px, (100vw - 1140px) / 2 - 24px));
 }
 .mermaid { color: var(--text); }
 .mermaid svg { display: block; margin: 0 auto; }
