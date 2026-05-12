@@ -221,12 +221,15 @@ section .lead {
 .diagram-wrap {
   background: var(--card); border: 1px solid var(--border); border-radius: 14px;
   padding: 32px; overflow-x: auto;
+  /* break out из 1140px container, чтобы использовать больше горизонтальной ширины */
+  max-width: calc(min(100vw - 32px, 1500px));
+  margin-left: 50%; transform: translateX(-50%);
 }
-.mermaid { color: var(--text); font-size: 15px; }
-.mermaid svg { min-height: 720px; height: auto !important; max-width: none !important; width: auto !important; display: block; margin: 0 auto; }
-.mermaid .nodeLabel { font-size: 15px !important; }
-.mermaid .cluster-label .nodeLabel { font-size: 17px !important; font-weight: 700 !important; letter-spacing: 1px; }
-.mermaid .edgeLabel { font-size: 13px !important; }
+.mermaid { color: var(--text); }
+.mermaid svg { width: 100% !important; height: auto !important; display: block; }
+.mermaid .nodeLabel { font-size: 14px !important; }
+.mermaid .cluster-label .nodeLabel { font-size: 16px !important; font-weight: 700 !important; letter-spacing: 1px; }
+.mermaid .edgeLabel { font-size: 12px !important; }
 
 /* ─────────── Screenshots gallery ─────────── */
 .gallery {
@@ -885,11 +888,11 @@ mermaid.initialize({
     fontSize: '16px',
   },
   flowchart: {
-    useMaxWidth: false,
+    useMaxWidth: true,
     htmlLabels: true,
-    nodeSpacing: 50,
-    rankSpacing: 90,
-    padding: 20,
+    nodeSpacing: 40,
+    rankSpacing: 70,
+    padding: 16,
   }
 });
 </script>
