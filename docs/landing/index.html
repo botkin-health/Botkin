@@ -170,10 +170,11 @@ section .lead {
 }
 .feature {
   background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 28px 24px;
-  transition: border-color .2s, transform .2s;
+  transition: border-color .2s, transform .2s; position: relative;
 }
 .feature:hover { border-color: var(--g); transform: translateY(-2px); }
 .feature .icon { font-size: 28px; margin-bottom: 16px; }
+.feature .soon { position: absolute; top: 30px; right: 20px; margin-left: 0; }
 .feature h3 { font-size: 17px; font-weight: 600; margin-bottom: 10px; }
 .feature p { color: var(--muted); font-size: 14px; line-height: 1.6; }
 
@@ -423,8 +424,9 @@ footer .bottom {
     </div>
     <div class="feature">
       <div class="icon">🧠</div>
-      <h3>AI-помощник через MCP <span class="soon">скоро</span></h3>
-      <p>Подключай любую LLM к своим данным через <strong>MCP-сервер Botkin</strong> (в разработке). Поддержка Claude Desktop, Claude Code, ChatGPT, Gemini, Cursor, Windsurf и других MCP-клиентов. Спрашивай «как мне снизить ApoB», «что коррелирует с весом», «почему я плохо спал в апреле» — модель сама ходит в твою базу.</p>
+      <span class="soon">скоро</span>
+      <h3>AI-помощник через MCP</h3>
+      <p>Подключай Claude, ChatGPT, Gemini, Cursor и других LLM-клиентов к своим данным через MCP-сервер. Спрашивай на естественном языке — модель сама ходит в твою базу.</p>
     </div>
     <div class="feature">
       <div class="icon">📂</div>
