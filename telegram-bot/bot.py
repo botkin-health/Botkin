@@ -21,6 +21,8 @@ from aiogram.types import Update, BotCommand, BotCommandScopeAllPrivateChats
 from dotenv import load_dotenv
 import os
 
+from core._version import __version__
+
 # Загружаем переменные окружения
 load_dotenv(override=True)
 load_dotenv(Path(__file__).parent.parent / ".env", override=True)
@@ -230,7 +232,7 @@ def register_handlers(dp: Dispatcher):
 
     # Если всё хорошо - одна строка успеха
     print("\n" + "=" * 50)
-    print("🚀  Botkin v1.2")
+    print(f"🚀  Botkin v{__version__}")
     print("✅  Бот успешно запущен и готов к работе")
     print("📝  Логи пишутся в файл: logs/bot.log")
     print("=" * 50 + "\n")
