@@ -269,12 +269,28 @@ async def main():
         logger.warning("⚠️ Apple Health webhook не загружен (webhook/apple_health.py не найден)")
 
     try:
-        # Do NOT delete_webhook — Telegram delivers updates via /telegram/webhook.
         # We only set bot commands here.
         await bot.set_my_commands(commands, scope=BotCommandScopeAllPrivateChats())
         logger.info("✅ Команды бота установлены")
     except Exception as e:
         logger.error(f"❌ Не удалось установить команды: {e}")
+
+    # Регистрируем webhook у Telegram. Идемпотентно: ставим только если
+    # текущий URL отличается. Без этого после смены TELEGRAM_BOT_TOKEN
+    # (или первого деплоя) Telegram не знает куда слать апдейты — сообщения
+    # копятся в очереди и бот «молчит». Прецедент: 12.05.2026 при свитче
+    # @HealthVault_bot → @Botkin_md_bot webhook не зарегистрировали вручную.
+    webhook_url = os.getenv("TELEGRAM_WEBHOOK_URL", "https://health.orangegate.cc/telegram/webhook")
+    if webhook_enabled and webhook_url:
+        try:
+            info = await bot.get_webhook_info()
+            if info.url != webhook_url:
+                await bot.set_webhook(url=webhook_url, allowed_updates=["message", "callback_query"])
+                logger.info(f"✅ Webhook зарегистрирован: {webhook_url}")
+            else:
+                logger.info(f"✅ Webhook уже актуален: {webhook_url}")
+        except Exception as e:
+            logger.error(f"❌ Не удалось установить webhook: {e}")
 
     # Start FastAPI server (serves /telegram/webhook + /apple_health + /webapp).
     # No polling — Telegram updates arrive via webhook.
