@@ -53,7 +53,7 @@ def _check_auth(creds: Optional[HTTPBasicCredentials]) -> None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Auth required",
-            headers={"WWW-Authenticate": 'Basic realm="HealthVault Admin"'},
+            headers={"WWW-Authenticate": 'Basic realm="Botkin Admin"'},
         )
 
 
@@ -66,7 +66,7 @@ def admin_auth(creds: Optional[HTTPBasicCredentials] = Depends(security)) -> str
 
 ADMIN_HTML = r"""<!doctype html>
 <html lang="ru"><head>
-<meta charset="utf-8"><title>HealthVault · Admin</title>
+<meta charset="utf-8"><title>Botkin · Admin</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
 :root{--bg:#0a0e17;--bg2:#0f1420;--card:#141a28;--bd:#1f2940;--fg:#e8eef7;--mu:#7a879f;--g:#00ff9d;--y:#ffb800;--r:#ff3b6d;--b:#3b82f6;--p:#a855f7}
@@ -127,7 +127,7 @@ input.editable:focus{border-color:var(--b);outline:none;background:var(--bg2)}
 </style></head><body>
 
 <header>
-  <h1>HealthVault Admin <span class="sub mono" id="now"></span></h1>
+  <h1>Botkin Admin <span class="sub mono" id="now"></span></h1>
   <div class="tools">
     <button onclick="loadAll()">↻ Обновить</button>
   </div>
