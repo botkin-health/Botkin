@@ -110,11 +110,14 @@ python3 scripts/import/parse_apple_health_xml.py
 Это обновляет **плоские файлы, которые читают `/sync` и `/dashboard`**:
 - `data/apple_health_blood_pressure.json` → `measurements[{date, time, systolic, diastolic}]` — история АД с 2018
 - `data/apple_health_heart_rate.json` → `measurements[{date, avg, min, max, n}]` — дневная агрегация пульса
-- `data/apple_health_steps_daily.json` → `steps_by_day[{date, steps}]` — шаги с 2015
+- `data/apple_health_steps_daily.json` → `steps_by_day[{date, steps, primary_source}]` — шаги с 2015 (см. ⚠️ ниже)
+- `data/apple_health_steps_by_source.json` → `by_day[{date, primary, primary_steps, all_sources}]` — разбивка шагов по источникам (для аудита/дебага)
 - `data/apple_health_gait.json` → `gait_by_day[{date, speed_km_h, step_length_cm, double_support_pct, asymmetry_pct}]` — походка с 2020
 - `data/apple_health_weight_daily.json` + `apple_health_weight.json` — вес с 2015
 
 **ВАЖНО:** эти файлы НЕ устарели. /sync читает их, /dashboard тоже. Каждый раз когда приходит новый Apple Health экспорт — перезаписываем их через `regen_flat_files.py` и удаляем сырой XML (он 700 МБ+).
+
+⚠️ **Текущий `apple_health_steps_daily.json` ЗАДВОЕН для 2023+** (баг старого парсера: суммировал все sourceName без дедупликации; в 2026 даёт ≈ ×2.57 от Garmin). Парсер починен 14.05.2026 — теперь выбирает один primary-источник по приоритету `Garmin → Apple Watch → iPhone → fallback-max`. Чтобы исправить flat-файлы — нужен **свежий экспорт Apple Health XML** (Health → Профиль → Экспорт всех данных) и повторный запуск `parse_apple_health_xml.py`. Сравнить можно через новый `apple_health_steps_by_source.json` (там видны все источники за день). Для аналитики **2023+ года** до этого момента — использовать **только** Garmin `data/garmin/daily-summary/`, а не AH-flat. История **до 2022** в файле корректна (тогда был фактически один источник).
 
 ### Apple Health — исторический архив (не читается автоматически)
 
