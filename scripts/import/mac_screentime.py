@@ -42,11 +42,26 @@ DB_PATH = os.path.expanduser("~/Library/Application Support/Knowledge/knowledgeC
 TMP_DB = "/tmp/knowledgeC_healthvault.db"
 
 AW_BASE_URL = "http://localhost:5600/api/0"
-AW_BUCKET = "aw-watcher-window_MacBook-Air-M4.local"
+
+
+def _pick_latest_bucket(prefix: str) -> str | None:
+    """Берём самый свежий бакет по префиксу — переживает смену hostname."""
+    try:
+        import requests
+
+        r = requests.get(f"{AW_BASE_URL}/buckets/", timeout=5)
+        r.raise_for_status()
+        matches = [(info.get("last_updated", ""), name) for name, info in r.json().items() if name.startswith(prefix)]
+        return max(matches)[1] if matches else None
+    except Exception:
+        return None
+
+
+AW_BUCKET = _pick_latest_bucket("aw-watcher-window_") or "aw-watcher-window_MacBook-Air-M4.local"
 # AFK bucket = source of truth для РЕАЛЬНОГО времени за маком (мышь/клавиатура).
 # Window даёт распределение по приложениям, но завышает суммарное время в 2-3 раза
 # из-за перекрывающихся событий. Пользуемся AFK как «сколько», window как «что».
-AW_AFK_BUCKET = "aw-watcher-afk_MacBook-Air-M4.local"
+AW_AFK_BUCKET = _pick_latest_bucket("aw-watcher-afk_") or "aw-watcher-afk_MacBook-Air-M4.local"
 
 # Moscow time UTC+3
 UTC_OFFSET = timedelta(hours=3)

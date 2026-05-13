@@ -9,10 +9,7 @@ from statistics import mean
 from datetime import datetime
 
 XML = Path("/tmp/apple_health/apple_health_export/экспорт.xml")
-BASE = (
-    Path.home()
-    / "Library/CloudStorage/GoogleDrive-lyskovsky@gmail.com/Мой диск/Projects/Vibe coding/HealthVault-engine"
-)
+BASE = Path.home() / "Library/CloudStorage/GoogleDrive-lyskovsky@gmail.com/Мой диск/Projects/Vibe coding/Botkin"
 
 # бэкап старых файлов
 import shutil
@@ -23,7 +20,10 @@ for f in BASE.glob("data/apple_health_*.json"):
 
 bp_sys = []  # list of (start_date, start_time, value)
 bp_dia = []
-steps_daily = defaultdict(int)
+# Шаги: храним РАЗБИВКУ ПО ИСТОЧНИКАМ за день, чтобы потом выбрать один primary,
+# а не суммировать дубли (iPhone + Watch + Garmin Connect + HealthSync etc.)
+# steps_by_source[date][sourceName] = sum_of_values
+steps_by_source = defaultdict(lambda: defaultdict(float))
 gait_daily = defaultdict(lambda: {"speed": [], "step_len": [], "ds": [], "asym": []})
 hr_daily = defaultdict(list)
 weight_daily = defaultdict(list)
@@ -54,7 +54,10 @@ for event, elem in ET.iterparse(str(XML), events=("end",)):
     elif rtype == "HKQuantityTypeIdentifierBloodPressureDiastolic":
         bp_dia.append((date, time, v))
     elif rtype == "HKQuantityTypeIdentifierStepCount":
-        steps_daily[date] += v
+        # Сохраняем sourceName, чтобы не задваивать одни и те же шаги от разных устройств.
+        # Выбор primary-источника происходит ниже, после полного прохода XML.
+        src = elem.get("sourceName") or "unknown"
+        steps_by_source[date][src] += v
     elif rtype == "HKQuantityTypeIdentifierWalkingSpeed":
         gait_daily[date]["speed"].append(v)  # km/h
     elif rtype == "HKQuantityTypeIdentifierWalkingStepLength":
@@ -100,14 +103,70 @@ bp_pairs.sort(key=lambda x: (x["date"], x["time"]))
 out_bp = {"measurements": bp_pairs, "source": "Apple Health XML export", "generated_at": datetime.now().isoformat()}
 (BASE / "data/apple_health_blood_pressure.json").write_text(json.dumps(out_bp, ensure_ascii=False, indent=2))
 
-# 2. Steps daily
-steps_list = [{"date": d, "steps": int(s)} for d, s in sorted(steps_daily.items())]
+# 2. Steps daily — выбираем ОДИН primary-источник за день по приоритету,
+# чтобы не задваивать шаги (Apple Health KIT часто хранит одно действие
+# одновременно от iPhone, Apple Watch, Garmin Connect, HealthSync etc.)
+#
+# Приоритет: Garmin (часы на руке весь день, наиболее точно для нас)
+#         → Apple Watch
+#         → iPhone
+#         → fallback: максимум из доступных источников.
+#
+# Если в будущем будет нужна история iPhone-only (например, для периода до 2018,
+# когда Garmin Connect ещё не писал в Apple Health), достаточно поменять приоритет.
+
+PRIORITY_PATTERNS = [
+    # (имя в выводе, подстрока в sourceName, регистр игнорируется)
+    ("garmin", ("garmin", "connect")),
+    ("watch", ("apple watch", "watch")),
+    ("iphone", ("iphone",)),
+]
+
+
+def pick_primary_steps(sources: dict) -> tuple[int, str]:
+    """Возвращает (steps, source_label) выбранного источника за день."""
+    for label, patterns in PRIORITY_PATTERNS:
+        for src_name, val in sources.items():
+            sn_lower = src_name.lower()
+            if any(p in sn_lower for p in patterns):
+                return int(val), f"{label}:{src_name}"
+    # fallback: максимум из всех источников
+    if not sources:
+        return 0, "none"
+    best_name = max(sources, key=lambda k: sources[k])
+    return int(sources[best_name]), f"fallback:{best_name}"
+
+
+steps_list = []
+steps_by_source_out = []  # для дебага и аудита
+for d in sorted(steps_by_source.keys()):
+    sources = dict(steps_by_source[d])
+    steps, picked = pick_primary_steps(sources)
+    steps_list.append({"date": d, "steps": steps, "primary_source": picked})
+    steps_by_source_out.append(
+        {
+            "date": d,
+            "primary": picked,
+            "primary_steps": steps,
+            "all_sources": {k: int(v) for k, v in sources.items()},
+        }
+    )
+
 out_steps = {
     "steps_by_day": steps_list,
-    "source": "Apple Health XML export",
+    "source": "Apple Health XML export (primary-source dedup)",
+    "priority": [label for label, _ in PRIORITY_PATTERNS] + ["fallback-max"],
     "generated_at": datetime.now().isoformat(),
 }
 (BASE / "data/apple_health_steps_daily.json").write_text(json.dumps(out_steps, ensure_ascii=False, indent=2))
+
+# Также сохраняем сырую разбивку по источникам — для дебага и проверки логики дедупликации.
+out_steps_by_src = {
+    "by_day": steps_by_source_out,
+    "source": "Apple Health XML export (raw per-source breakdown)",
+    "generated_at": datetime.now().isoformat(),
+}
+(BASE / "data/apple_health_steps_by_source.json").write_text(json.dumps(out_steps_by_src, ensure_ascii=False, indent=2))
 
 # 3. Gait
 gait_list = []
