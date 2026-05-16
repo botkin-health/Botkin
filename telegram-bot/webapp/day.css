@@ -68,6 +68,20 @@
 
 #slots-container { padding: 0 0 160px; }
 
+/* Empty-state CTA shown when the day has no meals — teaches new users that
+   food is logged via the bot chat, not the mini-app. */
+.empty-hint {
+  background: var(--tg-theme-bg-color, #fff); border: 1px solid var(--border, #e5e5ea);
+  border-radius: 12px; padding: 14px 16px; margin: 10px 12px 6px;
+  font-size: 14px; line-height: 1.45;
+}
+.empty-hint-title { font-weight: 700; font-size: 16px; margin-bottom: 6px; }
+.empty-hint-body { color: var(--muted, #8e8e93); margin-bottom: 8px; }
+.empty-hint-list { list-style: none; padding: 0; margin: 0 0 8px; }
+.empty-hint-list li { padding: 4px 0; }
+.empty-hint-list b { font-weight: 600; }
+.empty-hint-foot { font-size: 12px; color: var(--muted, #8e8e93); margin-top: 4px; }
+
 /* Slots section — адаптируется к тёмной теме */
 .slots-section { background: var(--tg-theme-secondary-bg-color, #f2f2f7); padding: 8px; }
 

@@ -1,4 +1,4 @@
-/* ── NutriLogBot WebApp API client ──────────────────────────────────────────
+/* ── Botkin WebApp API client ───────────────────────────────────────────────
  *
  * Thin typed wrappers around fetch() for the /api/* endpoints.
  * Handles Telegram auth header (`Authorization: tma <initData>`) and JSON.

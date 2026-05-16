@@ -150,7 +150,22 @@
     const bySlot = { breakfast: [], lunch: [], snack: [], dinner: [] };
     for (const m of state.data.meals) bySlot[m.slot]?.push(m);
 
-    container.innerHTML = `<div class="slots-section">${SLOTS.map(slot => {
+    // Empty-state hint: when the day has no meals yet, show a CTA that explains
+    // how to log food (since the mini-app itself doesn't accept food input —
+    // bot's chat does). Without this banner new users get stuck (see Лена 16.05.2026).
+    const emptyHint = (state.data.meals.length === 0) ? `
+      <div class="empty-hint">
+        <div class="empty-hint-title">🍽 Запиши еду в чате</div>
+        <div class="empty-hint-body">Бот понимает три формата:</div>
+        <ul class="empty-hint-list">
+          <li>✍️ <b>Текст</b> — «овсянка 100г, кофе с молоком»</li>
+          <li>📸 <b>Фото</b> — тарелки или упаковки</li>
+          <li>🎤 <b>Голос</b> — наговори голосовое</li>
+        </ul>
+        <div class="empty-hint-foot">Дневник заполнится автоматически.</div>
+      </div>` : '';
+
+    container.innerHTML = `${emptyHint}<div class="slots-section">${SLOTS.map(slot => {
       const meals = bySlot[slot];
       if (meals.length === 0) {
         return `
