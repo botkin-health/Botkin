@@ -43,27 +43,30 @@ router = Router()
 _LAST_RUN: dict[str, float] = {}
 COOLDOWN_SECONDS = 300  # 5 минут между ручными синками одного источника
 
-# Карта sources: name → (script path в контейнере, человекочитаемое имя, лог-файл для status)
+# Карта sources: name → (script path в контейнере, человекочитаемое имя,
+#                       glob-pattern для freshness — mtime самого свежего матча).
+# Берём mtime data-файлов (а не log-файлов на хосте — бот их не видит изнутри
+# контейнера), это семантически эквивалентно «когда данные обновлялись».
 SOURCES = {
     "weather": (
         "/app/scripts/import/weather.py",
         "Погода (Open-Meteo)",
-        "/var/log/botkin_sync_weather.log",
+        "/app/data/weather/weather_history.json",
     ),
     "netatmo": (
         "/app/scripts/import/netatmo.py",
         "Netatmo (воздух дома)",
-        "/var/log/botkin_sync_netatmo.log",
+        "/app/data/environment/netatmo_history.json",
     ),
     "garmin": (
         "/app/scripts/garmin/download_garmin_data.py",
         "Garmin (часы)",
-        "/var/log/botkin_sync_garmin.log",
+        "/app/data/garmin/daily-summary/*.json",
     ),
     "zepp": (
         "/app/scripts/import/zepp_api.py",
         "Zepp (весы)",
-        None,  # пока нет cron — нет лога
+        "/app/data/zepp_export_latest.csv",
     ),
 }
 
@@ -98,16 +101,25 @@ async def _run_script(script_path: str, timeout: int = 300) -> tuple[bool, str]:
         return False, f"❌ Ошибка запуска: {type(e).__name__}: {e}"
 
 
-def _format_log_mtime(log_path: str | None) -> str:
-    """Возвращает 'YYYY-MM-DD HH:MM' от mtime лог-файла или '—' если нет."""
-    if not log_path:
-        return "—"
-    p = Path(log_path)
-    if not p.exists():
-        return "—"
-    import datetime
+def _format_log_mtime(pattern: str | None) -> str:
+    """Возвращает 'YYYY-MM-DD HH:MM' от mtime самого свежего файла, матчащего pattern.
 
-    mtime = datetime.datetime.fromtimestamp(p.stat().st_mtime)
+    Pattern может быть точным путём ('/app/data/weather/weather_history.json')
+    или glob-маской ('/app/data/garmin/daily-summary/*.json').
+    """
+    if not pattern:
+        return "—"
+
+    import datetime
+    import glob
+
+    matches = glob.glob(pattern)
+    if not matches:
+        return "—"
+
+    # Берём самый свежий по mtime
+    newest = max(matches, key=lambda p: Path(p).stat().st_mtime)
+    mtime = datetime.datetime.fromtimestamp(Path(newest).stat().st_mtime)
     return mtime.strftime("%Y-%m-%d %H:%M")
 
 
