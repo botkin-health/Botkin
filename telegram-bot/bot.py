@@ -161,6 +161,17 @@ def register_handlers(dp: Dispatcher):
         errors.append(f"Обработчик профиля: {e}")
         logger.error(f"❌ Ошибка регистрации обработчика профиля: {e}")
 
+    try:
+        from handlers.sync_cmd import router as sync_router
+
+        dp.include_router(sync_router)
+        count = len(sync_router.observers) if hasattr(sync_router, "observers") else 0
+        handlers_count += count
+        registered_modules.append("/sync")
+    except Exception as e:
+        errors.append(f"Обработчик /sync: {e}")
+        logger.error(f"❌ Ошибка регистрации обработчика /sync: {e}")
+
     # Apple Health handlers removed
     pass
 
@@ -256,6 +267,7 @@ async def main():
         BotCommand(command="vitamins", description="Чек-лист витаминов"),
         BotCommand(command="share", description="Поделиться дашбордом здоровья"),
         BotCommand(command="profile", description="Настроить профиль (рост, возраст, цель)"),
+        BotCommand(command="sync", description="Подтянуть свежие данные (Garmin, весы, погода)"),
         BotCommand(command="help", description="Помощь"),
     ]
 
