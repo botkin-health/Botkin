@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # PostgreSQL база данных
   postgres:
@@ -37,6 +35,18 @@ services:
     volumes:
       - ./logs:/app/logs
       - ./data:/app/data
+      # Bind-mount исходников — чтобы деплой не требовал rebuild image и
+      # docker-compose up не сбрасывал свежие правки. Источник истины — хост.
+      # Без этих маунтов любое изменение скрипта/handler'а требовало
+      # docker cp + restart; теперь — scp + restart, и .py-файлы видны сразу.
+      - ./telegram-bot:/app/telegram-bot
+      - ./core:/app/core
+      - ./database:/app/database
+      - ./scripts:/app/scripts
+      - ./config:/app/config
+      - ./services:/app/services
+      - ./helpers:/app/helpers
+      - ./domain:/app/domain
     networks:
       - healthvault_network
     restart: always
