@@ -172,25 +172,37 @@ def do_reauth() -> tuple[str, str]:
 
 
 def fetch_via_hetzner(user_id: str, app_token: str, start: str, end: str) -> list[dict]:
-    """Fetch weight records from CN3 via Hetzner SSH proxy."""
+    """Fetch weight records from CN3.
+
+    На сервере (env BOTKIN_DIRECT_API=1 либо мы внутри docker-контейнера) идём
+    напрямую через requests — мы уже в Германии, CN3 доступен. На Mac (из
+    VPN/России) — через SSH-прокси на Hetzner (старое поведение).
+    """
     url = f"{ZEPP_CN3_API}/users/{user_id}/members/-1/weightRecords?from_date={start}&to_date={end}"
+    headers = {"apptoken": app_token, "userid": user_id}
 
-    cmd = [
-        "/opt/homebrew/bin/sshpass",
-        "-p",
-        HETZNER_PASS,
-        "ssh",
-        "-o",
-        "StrictHostKeyChecking=no",
-        HETZNER_HOST,
-        f"curl -sS --max-time 30 -H 'apptoken: {app_token}' -H 'userid: {user_id}' '{url}'",
-    ]
+    if os.getenv("BOTKIN_DIRECT_API") == "1" or Path("/.dockerenv").exists():
+        # Direct mode (на сервере / в контейнере)
+        r = requests.get(url, headers=headers, timeout=30)
+        r.raise_for_status()
+        data = r.json()
+    else:
+        # SSH proxy mode (с Mac)
+        cmd = [
+            "/opt/homebrew/bin/sshpass",
+            "-p",
+            HETZNER_PASS,
+            "ssh",
+            "-o",
+            "StrictHostKeyChecking=no",
+            HETZNER_HOST,
+            f"curl -sS --max-time 30 -H 'apptoken: {app_token}' -H 'userid: {user_id}' '{url}'",
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        if result.returncode != 0:
+            raise Exception(f"SSH/curl error: {result.stderr[:200]}")
+        data = json.loads(result.stdout)
 
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-    if result.returncode != 0:
-        raise Exception(f"SSH/curl error: {result.stderr[:200]}")
-
-    data = json.loads(result.stdout)
     items = data.get("items", [])
 
     # Check for auth error (0108 = expired, 0102 = invalid token)
