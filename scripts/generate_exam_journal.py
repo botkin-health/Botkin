@@ -15,8 +15,8 @@
 
 Использование:
   # Для конкретного человека (по имени папки на Google Drive):
-  python3 scripts/generate_exam_journal.py "Александр Лысковский — Здоровье"
-  python3 scripts/generate_exam_journal.py "Андрей Лысковский — Здоровье"
+  python3 scripts/generate_exam_journal.py "<имя пользователя>"
+  python3 scripts/generate_exam_journal.py "<имя пользователя>"
 
   # Или с прямым путём к knowledge_base.json:
   python3 scripts/generate_exam_journal.py --kb /path/to/knowledge_base.json
@@ -236,9 +236,7 @@ def update_profile_md(profile_path: Path, journal_md: str) -> None:
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument(
-        "person_dir", nargs="?", help='Имя папки на Google Drive (например "Александр Лысковский — Здоровье")'
-    )
+    p.add_argument("person_dir", nargs="?", help='Имя папки на Google Drive (например "<имя пользователя>")')
     p.add_argument("--kb", help="Прямой путь к knowledge_base.json (вместо имени папки)")
     p.add_argument("--update-profile", action="store_true", help="Записать журнал в PROFILE.md этого человека")
     p.add_argument("--print", action="store_true", help="Только распечатать в stdout, не записывать")
