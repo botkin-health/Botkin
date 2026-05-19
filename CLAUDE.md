@@ -1,7 +1,61 @@
 # Botkin (ex-HealthVault) — Контекст для Claude Code
 
-> Персональная система трекинга здоровья, питания, спорта и медицинских анализов.
-> Открытый проект (botkin.health). Контакты автора на сайте.
+> Открытая платформа трекинга здоровья ([botkin.health](https://botkin.health)).
+> Контакты автора на сайте.
+
+---
+
+## 🎯 Vision — куда движется проект
+
+**Botkin — это мультиюзерная система с гибридной приватностью.**
+
+```
+┌─ Семейный/командный слой (Hetzner server) ─────────────────────┐
+│  • Telegram-бот (общий entry point)                            │
+│  • PostgreSQL: nutrition, activity, weights, BP, biomarkers    │
+│  • Server-side sync: Garmin, Apple Health (HAE), Netatmo, ...  │
+│  • Дашборд /mc/{share_token} — для каждого пользователя        │
+│  • Tools API /api/agent/* (JWT-isolation по cohort+RLS)        │
+└─────────────────────┬──────────────────────────────────────────┘
+                      │ MCP
+┌─────────────────────┴──────────────────────────────────────────┐
+│  Личный AI-агент на компе пользователя (для тех кто хочет       │
+│  приватности и готов работать со своим Claude через MCP):      │
+│   • Локальные приватные потоки (психолог-дневник, Screen Time,  │
+│     личные заметки, медзаписи без согласия публикации)         │
+│   • Свой Claude (Claude Desktop / Code) с MCP подключением      │
+│   • Видит и серверные данные (через MCP), и локальные          │
+│   • Архитектура host-оркестратора см. NanoClaw                  │
+│     (docs/architecture/decisions/0001-nanoclaw-*.md)            │
+└────────────────────────────────────────────────────────────────┘
+```
+
+**Ключевые принципы:**
+
+1. **Multi-user из коробки** — cohort-роли (owner / family / early_user / external), RLS-изоляция, JWT для агентов. Сделано в Sprint 1a (04.05.2026).
+2. **Гибридная приватность** — пользователь сам решает: что лежит на семейном сервере (доступно через AI), что только локально на его компе.
+3. **MCP — основной канал** между личным Claude пользователя и сервером Botkin. Server отдаёт tools, Claude (на компе пользователя) использует.
+4. **NanoClaw-style host-orchestrator** для агентов на сервере (host process + ephemeral spawn-containers per session — НЕ persistent per user). История решения: [`docs/architecture/decisions/0001-nanoclaw-ephemeral-not-persistent.md`](docs/architecture/decisions/0001-nanoclaw-ephemeral-not-persistent.md).
+5. **Open source** — код публичный. Все приватные данные (имена, диагнозы, биомаркеры, личные планы) — только в `~/FamilyHealth/<user>/`. Правила: `docs/operations/personal-data.md`.
+
+**Что НЕ есть Botkin:**
+- Не централизованный медицинский сервис (нет SLA / врачебной ответственности)
+- Не публичный SaaS — приватная семейная платформа с open-source кодом
+- Не «всё в облаке» — приватный слой обязателен (см. vision выше)
+
+---
+
+## 📚 Где что искать в документации
+
+См. **[docs/INDEX.md](docs/INDEX.md)** — карта-навигатор.
+
+Ключевые точки входа:
+- **[docs/ROADMAP.md](docs/ROADMAP.md)** — NOW / NEXT / LATER / VISION / DONE
+- **[docs/architecture/decisions/](docs/architecture/decisions/)** — ADR (отвергнутые подходы и почему)
+- **[docs/projects/](docs/projects/)** — активные / завершённые / отвергнутые проекты с метками статуса
+- **[docs/operations/personal-data.md](docs/operations/personal-data.md)** — куда класть личные данные
+
+---
 
 ## Расположение проекта
 
