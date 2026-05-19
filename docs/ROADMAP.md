@@ -19,22 +19,25 @@
 - [x] Bind-mount всех .py-папок (деплой через `scp`)
 - ⏸ ~~Zepp reauth~~ — отложено. Вес тянется через Apple Health → HAE → server, висцеральный жир стабилен. Не до выходных как минимум, возможно вообще откажемся от Zepp.
 
-### Главная фича: NanoClaw-агент в Telegram (must для FFF)
+### NanoClaw-агент — отложено, требует правильной архитектуры
 
-**Это и есть продуктовая суть Botkin — не «бот логирует», а «AI-агент думает с тобой про твоё здоровье».** Пользователь пишет в Telegram «как мне снизить ApoB» / «почему я плохо спал в апреле» — agent читает твой Postgres + KB + последние замеры, отвечает с цифрами и контекстом.
+**Что случилось 19.05:** попытка построить простой Python-агент (`botkin-agent:v0.1`) для FFF-демо. Откатили — это был obsolete-подход который мы уже отвергли 11.05 после изучения реального NanoClaw.
 
-Архитектура (Sprint 1a, 04.05 — уже готова):
-- ✅ В БД у юзеров `container_id` / `container_port` (RLS-изоляция по cohort)
-- ✅ JWT auth для агентов
-- ✅ 8 endpoints `/api/agent/*` — log_meal_text, log_supplement, log_bp, recent_meals, kb_value, dashboard_summary, user_profile, regenerate_health_token
-- ✅ `telegram_router.py` — webhook определяет если у юзера есть контейнер → форвардит на `http://container:port/agent/process`
-- ❌ **Самого контейнера NanoClaw нет** — образа нет, agent code нет
+**Главное:** правильная архитектура NanoClaw — **host-процесс + эфемерные spawn-контейнеры per session**, а не persistent containers per user. Это переписать заново, не успеваем к FFF.
 
-К FFF (must, 2-3 дня):
-- [ ] **NanoClaw image v0.1** — FastAPI-микросервис с Claude API внутри, эндпоинт `/agent/process` (принимает Telegram update). System prompt → Claude → tools (через JWT в `/api/agent/*`) → ответ в Telegram. [1.5 дня]
-- [ ] **Provision контейнера для Александра** — добавить в БД `container_id=botkin-agent-alex`, `container_port=8200`. Запустить через docker compose. [0.5 дня]
-- [ ] **End-to-end проверка** — написать боту «покажи последний анализ ApoB» → агент читает `kb_value` → отвечает с цифрой и трендом. [0.5 дня]
-- [ ] **Demo-сценарий** — последовательность для FFF: «привет, я Botkin» → лог еды → `/day` → задать сложный вопрос. Записать скринкаст 2 мин. [полдня]
+**Полный разбор:** `docs/research/2026-05-19_nanoclaw-architecture-decision.md`
+
+**Готовая инфраструктура (Sprint 1a, всё ещё актуальна для будущего правильного Sprint 1b):**
+- ✅ Колонки `container_id` / `container_port` / `jwt_secret` в users
+- ✅ JWT-auth (`webhook/jwt_auth.py`)
+- ✅ 8 endpoints `/api/agent/*` (`webhook/agent_tools_api.py`)
+- ✅ `telegram_router.py` — готов форвардить когда `container_id` заполнен
+
+**К FFF — НЕ делаем агента.** Покажем то, что реально работает (см. ниже).
+
+### Demo-подготовка под FFF
+- [ ] **Demo-сценарий** — последовательность: `/start` → лог еды → `/sync status` → `/day` → дашборд через `/share`. Записать скринкаст 2 мин. [полдня]
+- [ ] **Story для FFF** — рассказ как это построено для семьи (4 active юзера, server-side sync, мульти-юзер дашборд, переезд с Mac на сервер за 2 дня).
 
 ### Биомаркеры под FFF (need)
 - [ ] **PhenoAge калькулятор** — после майских анализов (15.05). Биологический возраст = одна цифра на дашборде, понятная без объяснений. [1 день]
@@ -106,7 +109,15 @@
 - `/sync` команда в боте: `/sync`, `/sync <source>`, `/sync status`
 - Bind-mount всех .py-папок (deploy = scp + restart, без docker cp)
 - `lnetatmo` в requirements.txt (hotfix после force-recreate)
-- 4 PR merged (#6, #7, #8, #9)
+- 5 PR merged (#6, #7, #8, #9, #10 ROADMAP, #11 NanoClaw roadmap update)
+
+### 19 мая (NanoClaw попытка → откат → research)
+- 🔴 Построен `botkin-agent:v0.1` (Python FastAPI + Claude SDK, persistent per user) — повторил obsolete-подход из 11.05
+- 🛠 Заметили проблему когда Alex дважды не получил ответа от бота на `привет, кто ты?`
+- 🔧 Webhook chain repair: добавлен port 8081 в `docker-compose.prod.yml` (потерян при `--force-recreate` 18.05)
+- ↩️ Полный откат: контейнер `botkin-agent-alex` удалён, image удалён, сервис закомментирован, ALEX_JWT_SECRET убран
+- 📄 Создан `docs/research/2026-05-19_nanoclaw-architecture-decision.md` — полная история решений (04.05 → 11.05 → 19.05) + правила «как не повторить»
+- 📌 Ветка `feat/nanoclaw-agent-v0.1` НЕ мержится в main — оставлена как experimental/historical
 
 ---
 
