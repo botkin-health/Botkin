@@ -16,6 +16,7 @@ xmltodict>=0.13.0
 garminconnect==0.2.38
 garth>=0.4.47
 huami-token>=0.5.0
+lnetatmo>=4.2.0
 bleak>=0.20.0
 bleparser>=1.0.0
 pandas>=2.0.0
