@@ -89,3 +89,17 @@ knowledge_base.json
 
 # Claude Code session metadata
 .claude/
+
+# === Privacy: личные медицинские данные ===
+# Личные roadmap, биомаркеры, цели здоровья — только в ~/FamilyHealth/<user>/
+HEALTH.md
+personal-*.md
+*-private.md
+knowledge_base.json
+knowledge_base_*.json
+biomarkers_*.json
+config/scout/profile.yaml
+docs/scout/
+
+# Сторонние онбординг-документы (содержат данные конкретных пользователей)
+docs/ONBOARDING*.md
