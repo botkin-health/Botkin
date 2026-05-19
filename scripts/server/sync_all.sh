@@ -1,0 +1,67 @@
+#!/bin/bash
+# Botkin: единый pull-sync на сервере.
+#
+# Запускает все pull-источники последовательно, с обработкой ошибок:
+# если один упал — следующие продолжают, в конце выводится сводка.
+#
+# Запускается изнутри контейнера healthvault_bot. Cron на хосте:
+#   5 4 * * * docker exec healthvault_bot bash /app/scripts/server/sync_all.sh >> /var/log/botkin_sync.log 2>&1
+#
+# Логи смотрятся одной командой:
+#   ssh root@server 'tail -50 /var/log/botkin_sync.log'
+#
+# Не путать с scripts/sync_all_data.sh — тот живёт на Маке и делает
+# ОБРАТНУЮ операцию (тянет данные с сервера на Mac для локальной аналитики).
+#
+# Чтобы добавить новый pull-источник: дописать строку run в блок ниже.
+
+set -u
+
+echo "=========================================="
+echo "🔄 Botkin sync run: $(date -u +%Y-%m-%d\ %H:%M:%S) UTC"
+echo "=========================================="
+
+declare -A RESULTS
+declare -a ORDER
+
+run() {
+    local name=$1
+    local script=$2
+    ORDER+=("$name")
+
+    echo ""
+    echo "--- $name ($script) ---"
+    if [ ! -f "$script" ]; then
+        echo "❌ Script not found"
+        RESULTS[$name]="❌ no script"
+        return
+    fi
+
+    local start=$(date +%s)
+    if python "$script" 2>&1; then
+        local dur=$(($(date +%s) - start))
+        RESULTS[$name]="✅ ${dur}s"
+    else
+        local dur=$(($(date +%s) - start))
+        RESULTS[$name]="❌ ${dur}s"
+    fi
+}
+
+run weather /app/scripts/import/weather.py
+run netatmo /app/scripts/import/netatmo.py
+run garmin  /app/scripts/garmin/download_garmin_data.py
+
+# Zepp пока отключён — токен на сервере устарел, нужен reauth с Mac
+# Когда токен обновится, раскомментировать:
+# run zepp /app/scripts/import/zepp_api.py
+
+echo ""
+echo "=========================================="
+echo "📊 Summary"
+echo "=========================================="
+for name in "${ORDER[@]}"; do
+    printf "  %-10s %s\n" "$name" "${RESULTS[$name]}"
+done
+echo "=========================================="
+echo "End: $(date -u +%Y-%m-%d\ %H:%M:%S) UTC"
+echo ""
