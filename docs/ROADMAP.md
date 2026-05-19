@@ -25,7 +25,7 @@
 
 **Главное:** правильная архитектура NanoClaw — **host-процесс + эфемерные spawn-контейнеры per session**, а не persistent containers per user. Это переписать заново, не успеваем к FFF.
 
-**Полный разбор:** `docs/research/2026-05-19_nanoclaw-architecture-decision.md`
+**Полный разбор:** [`docs/architecture/decisions/0001-nanoclaw-ephemeral-not-persistent.md`](architecture/decisions/0001-nanoclaw-ephemeral-not-persistent.md)
 
 **Готовая инфраструктура (Sprint 1a, всё ещё актуальна для будущего правильного Sprint 1b):**
 - ✅ Колонки `container_id` / `container_port` / `jwt_secret` в users
@@ -116,7 +116,7 @@
 - 🛠 Заметили проблему когда Alex дважды не получил ответа от бота на `привет, кто ты?`
 - 🔧 Webhook chain repair: добавлен port 8081 в `docker-compose.prod.yml` (потерян при `--force-recreate` 18.05)
 - ↩️ Полный откат: контейнер `botkin-agent-alex` удалён, image удалён, сервис закомментирован, ALEX_JWT_SECRET убран
-- 📄 Создан `docs/research/2026-05-19_nanoclaw-architecture-decision.md` — полная история решений (04.05 → 11.05 → 19.05) + правила «как не повторить»
+- 📄 Создан [ADR-0001](architecture/decisions/0001-nanoclaw-ephemeral-not-persistent.md) — полная история решений (04.05 → 11.05 → 19.05) + правила «как не повторить»
 - 📌 Ветка `feat/nanoclaw-agent-v0.1` НЕ мержится в main — оставлена как experimental/historical
 
 ---
