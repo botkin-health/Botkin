@@ -32,6 +32,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    ports:
+      # 8081 — FastAPI webhook сервер (Telegram webhook + /apple_health + /api/agent).
+      # Nginx на хосте проксирует http://127.0.0.1:8081 → внутрь контейнера.
+      # Bind на 127.0.0.1 — не публичный, доступно только локальному nginx.
+      # Был потерян при docker compose --force-recreate 18.05 → 502 на webhook.
+      - "127.0.0.1:8081:8081"
     volumes:
       - ./logs:/app/logs
       - ./data:/app/data
