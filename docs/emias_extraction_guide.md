@@ -164,7 +164,7 @@ python3 scripts/import/parse_lab_pdfs.py            # парсить всё
 | Пользователь | ehrId |
 |---|---|
 | Александр | `09399b7a-e190-427b-aab9-abe8648532ec` |
-| Ника | *(получить при первом входе из localStorage)* |
+| family_user | *(получить при первом входе из localStorage)* |
 
 ## Что доступно в ЕМИАС
 

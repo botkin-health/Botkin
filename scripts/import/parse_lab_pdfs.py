@@ -28,10 +28,7 @@ ENGINE = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(ENGINE))
 from config import get_settings
 
-HEALTH_DIR = (
-    Path.home()
-    / "Library/CloudStorage/GoogleDrive-lyskovsky@gmail.com/Мой диск/HealthVault/Александр Лысковский — Здоровье"
-)
+HEALTH_DIR = Path.home() / "Library/CloudStorage/GoogleDrive-<email>/Мой диск/FamilyHealth/<user>"
 KB_PATH = HEALTH_DIR / "knowledge_base.json"
 
 SECTIONS = [

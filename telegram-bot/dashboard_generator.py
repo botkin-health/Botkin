@@ -1998,7 +1998,7 @@ def _build_payload(db: Session, user_id: int) -> dict:
     # diagnoses (AFib, post-surgical anatomy, chronic metabolic disorders).
     # We apply a conservative cap so the score doesn't mislead.
     _chronic_caps = {
-        "cardiac": 75,  # POAF/AFib history, ICM implant, structural cardiac risk
+        "cardiac": 75,  # cardiac pack: AFib history, structural cardiac risk patterns
         "bariatric": 85,  # Post-bariatric metabolism, malabsorption risk
         "female-cycle": 95,  # Mild cycle-related variance, generally healthy
         "generic": 95,

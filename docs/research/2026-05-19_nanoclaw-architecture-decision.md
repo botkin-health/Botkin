@@ -84,7 +84,7 @@ messaging app  →  host process (router)  →  inbound.db
 - Tool API: HTTP REST с JWT (`/api/agent/*` endpoints)
 - Telegram router форвардит payload в контейнер по `users.container_id`
 
-**Дедлайн:** 14.05 (Андрей получает Withings + Libre 2).
+**Дедлайн:** 14.05 (early_user получает Withings + Libre 2).
 
 **Sprint 1a задачи (DONE):** колонки в БД (`cohort`, `container_id`, `container_port`, `pack_name`, `jwt_secret`), RLS-политики, JWT-auth, 8 endpoints в `/api/agent/*`, telegram_router, audit_log. Полностью реализовано на main к 04.05.
 
@@ -105,11 +105,11 @@ messaging app  →  host process (router)  →  inbound.db
 **Sprint 1b plan помечен OBSOLETE** с комментарием:
 > «Sprint 1b plan предлагал реализацию на Python Claude Agent SDK с docker-сервисом per-user (24/7). После изучения NanoClaw выяснилось, что правильная архитектура — host-процесс + эфемерные spawn-контейнеры per session.»
 
-**Что выбрали 11.05:** не интегрировать с NanoClaw срочно (это полпереписи). Андрей онбордится через legacy путь (расширенный onboarding + multi-user dashboard). Возврат к агентам — после cleanup и multi-user hardening.
+**Что выбрали 11.05:** не интегрировать с NanoClaw срочно (это полпереписи). early_user онбордится через legacy путь (расширенный onboarding + multi-user dashboard). Возврат к агентам — после cleanup и multi-user hardening.
 
-### 14.05.2026 — Андрей в проде без агента
+### 14.05.2026 — early_user в проде без агента
 
-Андрей и Ника подключены через расширенный legacy путь (HAE webhook, multi-user dashboard, sport-блок). Все ✅, без NanoClaw / cohort-agent.
+early-users подключены через расширенный legacy путь (HAE webhook, multi-user dashboard, sport-блок). Все ✅, без NanoClaw / cohort-agent.
 
 ### 19.05.2026 — эпизод повторного отклонения от плана
 
@@ -150,7 +150,7 @@ messaging app  →  host process (router)  →  inbound.db
 - На Hetzner запускаем NanoClaw host-процесс (Node.js, отдельный контейнер `botkin-nanoclaw-host`)
 - Telegram webhook продолжает идти на `healthvault_bot` (текущий aiogram); telegram_router определяет если для юзера должен быть агент → форвардит на NanoClaw host через локальный API/socket
 - NanoClaw сам spawn'ит ephemeral container per session, использует SQLite для коммуникации
-- Agent group per user (Alex / Ника / Андрей / Олег) с собственными `CLAUDE.md` + memory + custom mounts
+- Agent group per user (owner / family / early-users) с собственными `CLAUDE.md` + memory + custom mounts
 - Tools у агента = наши `/api/agent/*` через OneCLI Agent Vault (credential injection)
 
 **Open questions для нового плана:**
