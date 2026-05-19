@@ -28,22 +28,17 @@ SSH_SERVER = "root@116.203.213.137"
 SSH_PASS = "SERVER_PASSWORD_REDACTED"
 SSHPASS = "/opt/homebrew/bin/sshpass"
 
-PERSON_MAP = {
-    "александр": "Александр Лысковский — Здоровье",
-    "саша": "Александр Лысковский — Здоровье",
-    "alexander": "Александр Лысковский — Здоровье",
-    "валерия": "Валерия Лысковская — Здоровье",
-    "мама": "Валерия Лысковская — Здоровье",
-    "valeria": "Валерия Лысковская — Здоровье",
-    "олег": "Олег Лысковский — Здоровье",
-    "oleg": "Олег Лысковский — Здоровье",
-    "игорь": "Игорь Лысковский — Здоровье",
-    "igor": "Игорь Лысковский — Здоровье",
-    "катя": "Екатерина Лысковская — Здоровье",
-    "екатерина": "Екатерина Лысковская — Здоровье",
-    "kate": "Екатерина Лысковская — Здоровье",
-    "ника": None,  # нет папки в FamilyHealth
-}
+# PERSON_MAP — алиасы для имён → название папки в ~/FamilyHealth/<имя>.
+# Это приватный конфиг (имена членов семьи), не должен лежать в git.
+# Загружается из ~/.botkin-personal.yaml (шаблон в docs/operations/personal-data.md).
+# Если файла нет — MCP отвечает только на алиас "self" из env BOTKIN_SELF_DIR.
+import yaml
+
+_personal_yaml = Path.home() / ".botkin-personal.yaml"
+if _personal_yaml.exists():
+    PERSON_MAP = yaml.safe_load(_personal_yaml.read_text()).get("person_map", {})
+else:
+    PERSON_MAP = {"self": os.getenv("BOTKIN_SELF_DIR", "")}
 
 mcp = FastMCP("HealthVault")
 
@@ -58,7 +53,7 @@ def read_knowledge_base(person: str = "Александр") -> str:
     key = person.strip().lower()
     folder_name = PERSON_MAP.get(key)
     if folder_name is None:
-        return json.dumps({"error": f"Человек '{person}' не найден. Доступны: Александр, Валерия, Олег, Игорь, Катя"})
+        return json.dumps({"error": f"Человек '{person}' не найден. Доступны: Александр, family members"})
 
     kb_path = FAMILY_HEALTH / folder_name / "knowledge_base.json"
     if not kb_path.exists():

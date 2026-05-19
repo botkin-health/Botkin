@@ -3,8 +3,8 @@
 and append it to the person's knowledge_base.json.
 
 Usage:
-    python3 parse_23andme_to_kb.py "Александр Лысковский — Здоровье"
-    python3 parse_23andme_to_kb.py "Александр Лысковский — Здоровье" --dry-run
+    python3 parse_23andme_to_kb.py "<имя пользователя>"
+    python3 parse_23andme_to_kb.py "<имя пользователя>" --dry-run
 
 The script auto-detects the genome_*.txt file in the person's HealthVault folder.
 """
@@ -510,7 +510,7 @@ def merge_into_kb(kb_path: Path, record: dict, dry_run: bool = False) -> None:
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("person_folder", help='Имя папки в HealthVault, напр. "Александр Лысковский — Здоровье"')
+    ap.add_argument("person_folder", help='Имя папки в HealthVault, напр. "<имя пользователя>"')
     ap.add_argument("--dry-run", action="store_true", help="Не писать в kb, только показать результат")
     ap.add_argument("--verbose", "-v", action="store_true")
     args = ap.parse_args()
