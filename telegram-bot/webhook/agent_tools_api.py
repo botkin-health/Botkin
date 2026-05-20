@@ -548,6 +548,61 @@ async def recent_sleep(
     }
 
 
+@router.get("/recent_supplements")
+async def recent_supplements(
+    days: int = 30,
+    user=Depends(get_agent_user),
+    db: Session = Depends(get_db),
+):
+    """Recent supplement intake log with per-supplement aggregation.
+
+    Reads from `supplements_log` (filled by aiogram bot when user logs
+    "выпил магний" etc). Returns:
+      - per-supplement: days_taken in period, total_intakes (multi-dose/day OK),
+        last_taken_date, last_dosage seen
+      - period stats: total log lines
+
+    Default 30 days — typical regimen feedback window.
+    """
+    from sqlalchemy import text as sql_text
+
+    days = max(1, min(days, 180))
+    sql = sql_text(
+        """
+        SELECT supplement_name,
+               COUNT(*)                          AS total_intakes,
+               COUNT(DISTINCT date)              AS days_taken,
+               MAX(date)                         AS last_date,
+               (ARRAY_AGG(dosage ORDER BY date DESC, time DESC NULLS LAST))[1] AS last_dosage
+        FROM supplements_log
+        WHERE user_id = :uid
+          AND date >= CURRENT_DATE - (:days || ' days')::interval
+        GROUP BY supplement_name
+        ORDER BY days_taken DESC, supplement_name
+        """
+    )
+    rows = db.execute(sql, {"uid": user.telegram_id, "days": days}).fetchall()
+    items = [
+        {
+            "supplement": r.supplement_name,
+            "days_taken": r.days_taken,
+            "total_intakes": r.total_intakes,
+            "intakes_per_day_avg": round(r.total_intakes / r.days_taken, 2) if r.days_taken else 0,
+            "adherence_pct": round(100 * r.days_taken / days, 1),
+            "last_date": r.last_date.isoformat() if r.last_date else None,
+            "last_dosage": r.last_dosage,
+        }
+        for r in rows
+    ]
+    return {
+        "status": "ok",
+        "period_days": days,
+        "unique_supplements": len(items),
+        "total_log_entries": sum(i["total_intakes"] for i in items),
+        "items": items,
+    }
+
+
 @router.get("/recent_biomarkers")
 async def recent_biomarkers(
     limit: int = 20,
