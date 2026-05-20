@@ -375,6 +375,24 @@ def ask_agent(user_id: int, user_text: str) -> str:
                 len(history),
             )
             r = requests.post(ANTHROPIC_API_URL, headers=headers, json=payload, timeout=60)
+            # Anthropic returns 400 when message history has structural issues
+            # (e.g. tool_use block without matching tool_result from a previous
+            # turn). This can happen if a row was deleted, the DB had a partial
+            # write, or older history was corrupted by an earlier bug. Recover
+            # by retrying with a clean slate (just system + new user turn),
+            # marking the broken history so the user understands context was
+            # dropped.
+            if r.status_code == 400 and iteration == 0 and len(history) > 1:
+                err_body = r.text[:500]
+                logger.warning(
+                    "agent_chat 400 from Anthropic with %d history msgs — retrying with fresh history. Body: %s",
+                    len(history),
+                    err_body,
+                )
+                # Reset to just the new user message
+                history = [{"role": "user", "content": user_text}]
+                payload["messages"] = history
+                r = requests.post(ANTHROPIC_API_URL, headers=headers, json=payload, timeout=60)
             r.raise_for_status()
             response = r.json()
 
