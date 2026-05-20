@@ -118,33 +118,45 @@ async def log_meal_text(
     that stores the raw text when the parser is not available / tightly coupled.
     """
     from database.crud import create_nutrition_log
+    from core.llm.router import analyze_message
+    from core.food.nutrition import process_llm_food_data
 
     record_date = _parse_date(req.date)
     meal_time, meal_name = _slot_to_meal_time(req.slot)
 
-    # Try to use the real parser from core
-    items = None
-    totals = None
+    # Use the real food parser (Claude vision/text via core.llm.router).
+    # Returns dict like {"type": "food", "data": {...}} which the photo/text
+    # handlers feed into process_llm_food_data() to get (items, totals).
+    items: list = []
+    totals: dict = {}
+    parse_error: Optional[str] = None
+
     try:
-        from core.nutrition.food_parser import parse_food_text  # type: ignore
+        llm_result = analyze_message(text=req.text)
+        if not llm_result or llm_result.get("type") != "food":
+            parse_error = (
+                "LLM не распознал это как еду "
+                f"(type={llm_result.get('type') if llm_result else 'None'}). "
+                "Опиши конкретнее: что, сколько, как приготовлено."
+            )
+        else:
+            items, totals = process_llm_food_data(llm_result, req.text)
+    except Exception as e:
+        logger.exception("log_meal_text: parser failed")
+        parse_error = f"парсер упал: {e}"
 
-        items, totals = parse_food_text(req.text)
-    except Exception:
-        pass
+    # Refuse to write a row if we got no KБЖУ — empty rows break the
+    # Mini App dashboard (None aggregations) and are useless to the user.
+    if not items or not (totals.get("calories") or 0):
+        return {
+            "status": "rejected",
+            "reason": parse_error or "не удалось распарсить КБЖУ для этого описания",
+            "hint": "опиши подробнее: продукт + примерный вес/количество, например 'куриная грудка 200г и рис 150г'",
+        }
 
-    if items is None:
-        # Fallback stub: store raw text, calories unknown
-        items = [{"food": req.text, "amount_g": None, "calories": None}]
-        totals = {"calories": None, "protein": None, "fat": None, "carbs": None}
-
-    # Normalize totals to the DB schema (calories key)
-    norm_totals = {
-        "calories": totals.get("calories") or totals.get("kcal"),
-        "protein": totals.get("protein") or totals.get("p"),
-        "fats": totals.get("fats") or totals.get("fat") or totals.get("f"),
-        "carbs": totals.get("carbs") or totals.get("c"),
-        "fiber": totals.get("fiber") or totals.get("fib") or 0,
-    }
+    # Normalize fiber default so JSONB stores 0, not null
+    if totals.get("fiber") is None:
+        totals["fiber"] = 0
 
     log = create_nutrition_log(
         db=db,
@@ -153,7 +165,7 @@ async def log_meal_text(
         meal_time=meal_time,
         meal_name=meal_name,
         items=items,
-        totals=norm_totals,
+        totals=totals,
     )
 
     return {
@@ -163,7 +175,7 @@ async def log_meal_text(
         "slot": req.slot or "auto",
         "meal_name": meal_name,
         "items_count": len(items),
-        "totals": norm_totals,
+        "totals": totals,
     }
 
 
