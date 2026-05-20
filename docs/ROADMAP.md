@@ -19,21 +19,22 @@
 - [x] Bind-mount всех .py-папок (деплой через `scp`)
 - ⏸ ~~Zepp reauth~~ — отложено. Вес тянется через Apple Health → HAE → server, висцеральный жир стабилен. Не до выходных как минимум, возможно вообще откажемся от Zepp.
 
-### NanoClaw-агент — отложено, требует правильной архитектуры
+### NanoClaw-агент @BotkinAgent_bot — Phase 1-3 ✅ задеплоен 20.05
 
-**Что случилось 19.05:** попытка построить простой Python-агент (`botkin-agent:v0.1`) для FFF-демо. Откатили — это был obsolete-подход который мы уже отвергли 11.05 после изучения реального NanoClaw.
+🟢 Параллельный бот **[`@BotkinAgent_bot`](https://t.me/BotkinAgent_bot)** работает на Hetzner:
+- ✅ NanoClaw v2.0.64 host-process + ephemeral spawn-containers per session
+- ✅ OneCLI vault для Anthropic credential
+- ✅ Telegram long-polling adapter
+- ✅ Agent group "Alex" с rich health context CLAUDE.local.md
+- ✅ MCP server "botkin" — 7 tools (читает реальные данные Alex из Postgres через `webhook/agent_tools_api.py`)
+- ✅ JWT bearer auth, container_id stable per-user
+- ✅ Память между сессиями (Claude SDK session persistence)
 
-**Главное:** правильная архитектура NanoClaw — **host-процесс + эфемерные spawn-контейнеры per session**, а не persistent containers per user. Это переписать заново, не успеваем к FFF.
+**Проект:** [`docs/projects/2026-05_nanoclaw-agent-bot/`](projects/2026-05_nanoclaw-agent-bot/) (STATUS / SPEC / PLAN / QUESTIONS_FOR_ALEX)
 
-**Полный разбор:** [`docs/architecture/decisions/0001-nanoclaw-ephemeral-not-persistent.md`](architecture/decisions/0001-nanoclaw-ephemeral-not-persistent.md)
+Старый `@Botkin_md_bot` остаётся без изменений — food logging / Mini App / `/sync` / `/share` работают как раньше.
 
-**Готовая инфраструктура (Sprint 1a, всё ещё актуальна для будущего правильного Sprint 1b):**
-- ✅ Колонки `container_id` / `container_port` / `jwt_secret` в users
-- ✅ JWT-auth (`webhook/jwt_auth.py`)
-- ✅ 8 endpoints `/api/agent/*` (`webhook/agent_tools_api.py`)
-- ✅ `telegram_router.py` — готов форвардить когда `container_id` заполнен
-
-**К FFF — НЕ делаем агента.** Покажем то, что реально работает (см. ниже).
+**К FFF (28-31.05):** Phase 4 — полировка ответов, демо-скринкаст, возможно расширение tools API (см. PLAN.md).
 
 ### Demo-подготовка под FFF
 - [ ] **Demo-сценарий** — последовательность: `/start` → лог еды → `/sync status` → `/day` → дашборд через `/share`. Записать скринкаст 2 мин. [полдня]
@@ -54,8 +55,8 @@
 
 Долги и фичи, которые отложили ради конференции.
 
-- [ ] **NanoClaw-агенты для всех 4 пользователей** — после owner поднять контейнеры для early-users. Каждый со своим JWT-токеном, RLS-изоляция уже есть в БД. [2 дня]
-- [ ] **NanoClaw v0.2: write-tools** — научить агента самостоятельно логировать (`log_meal`, `log_bp` из текста). Сейчас в Sprint 1a эндпоинты есть, но агент их не вызывает. [1-2 дня]
+- [ ] **NanoClaw-агенты для всей семьи** — Phase 5: agent groups для papa / mama / Nika. План в `projects/2026-05_nanoclaw-agent-bot/PLAN.md` § 5.1. [1-2 дня]
+- [x] ~~**NanoClaw v0.2: write-tools**~~ — ✅ сделано в Phase 2 20.05. Агент умеет `log_meal_text`, `log_bp`, `log_supplement` через MCP server.
 - [ ] **Per-user credentials в БД** — `garmin_email/password`, `apple_health_token` per user, OAuth для Fitbit/Whoop. [2-3 дня]
 - [ ] **Google Health Connect** — интеграция для Android-юзеров (папа на Samsung). 2 подхода: Health Sync app или свой APK. [1-2 дня]
 - [ ] **Локальные приватные потоки** — дневники family-cohort, Screen Time owner. Хранятся локально, NanoClaw-агент агрегирует через MCP-tools (часть из Postgres, часть с устройства). **Test case для гибридного сетапа** «сервер + локально». [сессия]
@@ -118,6 +119,15 @@
 - ↩️ Полный откат: контейнер `botkin-agent-alex` удалён, image удалён, сервис закомментирован, ALEX_JWT_SECRET убран
 - 📄 Создан [ADR-0001](architecture/decisions/0001-nanoclaw-ephemeral-not-persistent.md) — полная история решений (04.05 → 11.05 → 19.05) + правила «как не повторить»
 - 📌 Ветка `feat/nanoclaw-agent-v0.1` НЕ мержится в main — оставлена как experimental/historical
+
+### 19–20 мая (NanoClaw правильный deploy → Phase 1-3 ✅)
+- 🟢 Поднят NanoClaw v2.0.64 на Hetzner (`/opt/nanoclaw/`, systemd)
+- 🟢 OneCLI vault (Anthropic key + per-agent token gateway)
+- 🟢 Telegram long-polling adapter, agent group "Alex"
+- 🟢 MCP server "botkin" с 7 tools → реальные данные Alex из Postgres через JWT
+- 🟢 Health context CLAUDE.local.md (семейный анамнез, текущие цифры, цели)
+- 🟢 Auto-chown systemd timer (фикс readonly-db после restart)
+- 📄 Документация в [`docs/projects/2026-05_nanoclaw-agent-bot/`](projects/2026-05_nanoclaw-agent-bot/): STATUS, SPEC, PLAN, QUESTIONS_FOR_ALEX
 
 ---
 
