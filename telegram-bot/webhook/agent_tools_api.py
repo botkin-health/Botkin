@@ -406,6 +406,155 @@ async def dashboard_summary(
     }
 
 
+@router.get("/recent_bp")
+async def recent_bp(
+    days: int = 14,
+    user=Depends(get_agent_user),
+    db: Session = Depends(get_db),
+):
+    """Recent blood-pressure measurements (last `days`).
+
+    Returns each row with measured_at, systolic, diastolic, pulse, source.
+    Plus simple aggregates: mean/min/max systolic+diastolic, latest pulse,
+    pct of measurements above 140/90 (Stage 1 hypertension threshold).
+    """
+    from sqlalchemy import text as sql_text
+
+    days = max(1, min(days, 90))
+    sql = sql_text(
+        """
+        SELECT measured_at, systolic, diastolic, heart_rate, source
+        FROM blood_pressure_logs
+        WHERE user_id = :uid
+          AND measured_at >= NOW() - (:days || ' days')::interval
+        ORDER BY measured_at DESC
+        LIMIT 200
+        """
+    )
+    rows = db.execute(sql, {"uid": user.telegram_id, "days": days}).fetchall()
+    items = [
+        {
+            "measured_at": r.measured_at.isoformat(),
+            "systolic": r.systolic,
+            "diastolic": r.diastolic,
+            "pulse": r.heart_rate,
+            "source": r.source,
+        }
+        for r in rows
+    ]
+
+    if not items:
+        return {"status": "ok", "period_days": days, "count": 0, "items": []}
+
+    sys_vals = [i["systolic"] for i in items]
+    dia_vals = [i["diastolic"] for i in items]
+    above_threshold = sum(1 for i in items if i["systolic"] >= 140 or i["diastolic"] >= 90)
+
+    return {
+        "status": "ok",
+        "period_days": days,
+        "count": len(items),
+        "stats": {
+            "systolic": {"avg": round(sum(sys_vals) / len(sys_vals), 1), "min": min(sys_vals), "max": max(sys_vals)},
+            "diastolic": {"avg": round(sum(dia_vals) / len(dia_vals), 1), "min": min(dia_vals), "max": max(dia_vals)},
+            "stage1_pct": round(100 * above_threshold / len(items), 1),
+        },
+        "items": items[:30],  # cap for token budget
+    }
+
+
+@router.get("/recent_sleep")
+async def recent_sleep(
+    days: int = 14,
+    user=Depends(get_agent_user),
+    db: Session = Depends(get_db),
+):
+    """Recent sleep records (last `days`).
+
+    Returns aggregates and last 14 nights individually.
+    """
+    from sqlalchemy import text as sql_text
+
+    days = max(1, min(days, 90))
+    sql = sql_text(
+        """
+        SELECT date, duration_hours, quality_score,
+               deep_sleep_minutes, rem_sleep_minutes, awake_minutes, source
+        FROM sleep_records
+        WHERE user_id = :uid
+          AND date >= CURRENT_DATE - (:days || ' days')::interval
+        ORDER BY date DESC
+        """
+    )
+    rows = db.execute(sql, {"uid": user.telegram_id, "days": days}).fetchall()
+    items = [
+        {
+            "date": r.date.isoformat(),
+            "duration_hours": float(r.duration_hours) if r.duration_hours is not None else None,
+            "quality_score": r.quality_score,
+            "deep_min": r.deep_sleep_minutes,
+            "rem_min": r.rem_sleep_minutes,
+            "awake_min": r.awake_minutes,
+            "source": r.source,
+        }
+        for r in rows
+    ]
+
+    if not items:
+        return {"status": "ok", "period_days": days, "count": 0, "items": []}
+
+    dur = [i["duration_hours"] for i in items if i["duration_hours"]]
+    qual = [i["quality_score"] for i in items if i["quality_score"]]
+    return {
+        "status": "ok",
+        "period_days": days,
+        "count": len(items),
+        "stats": {
+            "avg_duration_h": round(sum(dur) / len(dur), 2) if dur else None,
+            "avg_quality": round(sum(qual) / len(qual), 1) if qual else None,
+        },
+        "items": items[:14],
+    }
+
+
+@router.get("/recent_biomarkers")
+async def recent_biomarkers(
+    limit: int = 5,
+    user=Depends(get_agent_user),
+    db: Session = Depends(get_db),
+):
+    """Most recent blood tests (latest `limit`).
+
+    Each row has test_date + test_type + values (jsonb dict of marker → value).
+    Defaults to 5 most recent — enough for "what were my last labs?".
+    """
+    from sqlalchemy import text as sql_text
+
+    limit = max(1, min(limit, 20))
+    sql = sql_text(
+        """
+        SELECT test_date, test_type, values
+        FROM blood_tests
+        WHERE user_id = :uid
+        ORDER BY test_date DESC
+        LIMIT :lim
+        """
+    )
+    rows = db.execute(sql, {"uid": user.telegram_id, "lim": limit}).fetchall()
+    return {
+        "status": "ok",
+        "count": len(rows),
+        "tests": [
+            {
+                "date": r.test_date.isoformat(),
+                "type": r.test_type,
+                "values": r.values,
+            }
+            for r in rows
+        ],
+    }
+
+
 @router.get("/user_profile")
 async def user_profile(
     user=Depends(get_agent_user),

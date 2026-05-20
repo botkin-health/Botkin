@@ -595,9 +595,33 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
         data = router_result.get("data", {})
 
         if msg_type == "other":
-            reply = data.get("reply", "Не понял запрос.")
-            # Escape reply just in case
-            await processing_msg.edit_text(html.escape(reply))
+            # Path X (unified bot) — route conversational text to in-process
+            # Claude SDK agent with same tools as NanoClaw spawn-container.
+            # See: docs/projects/2026-05_nanoclaw-agent-bot/PLAN.md § Phase 4.
+            try:
+                from core.agent_chat import ask_agent
+
+                loop = asyncio.get_running_loop()
+                reply = await loop.run_in_executor(None, ask_agent, int(user_id), text)
+                if not reply:
+                    reply = "Хм, у меня нет внятного ответа. Попробуй переформулировать."
+                # Telegram has 4096-char limit per message
+                if len(reply) > 4000:
+                    reply = reply[:3990] + "…"
+                await processing_msg.edit_text(reply)
+            except RuntimeError as e:
+                # Common: user has no agent_system_prompt → conversational
+                # mode not enabled for them yet. Fall back to canned reply.
+                if "agent_system_prompt" in str(e):
+                    debug_logger.info(f"agent_chat skipped: {e}")
+                    fallback = data.get("reply", "Не понял запрос.")
+                    await processing_msg.edit_text(html.escape(fallback))
+                else:
+                    debug_logger.error(f"agent_chat failed: {e}", exc_info=True)
+                    await processing_msg.edit_text("🤖 Разговорный агент временно недоступен. Попробуй через минуту.")
+            except Exception as e:
+                debug_logger.error(f"agent_chat exception: {e}", exc_info=True)
+                await processing_msg.edit_text("🤖 Что-то сломалось при ответе. Попробуй ещё раз.")
             return
 
         elif msg_type == "vitamins":
