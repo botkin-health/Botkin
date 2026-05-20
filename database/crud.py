@@ -199,11 +199,16 @@ def get_nutrition_totals_by_date(db: Session, user_id: int, date: date) -> Dict:
 
     for log in logs:
         totals = log.totals or {}
-        total["calories"] += totals.get("calories", 0)
-        total["protein"] += totals.get("protein", 0)
-        total["fats"] += totals.get("fats", 0)
-        total["carbs"] += totals.get("carbs", 0)
-        total["fiber"] += totals.get("fiber", 0)
+        # `totals.get(k, 0)` returns 0 only when key is MISSING. If the JSONB
+        # field stores `null` explicitly, `.get()` returns None and `int +=
+        # None` raises TypeError. Coerce via `or 0` so partially-filled rows
+        # (e.g. from log_meal_text when LLM parser couldn't compute KБЖУ)
+        # don't 500 the Mini App dashboard.
+        total["calories"] += totals.get("calories") or 0
+        total["protein"] += totals.get("protein") or 0
+        total["fats"] += totals.get("fats") or 0
+        total["carbs"] += totals.get("carbs") or 0
+        total["fiber"] += totals.get("fiber") or 0
 
     return total
 
