@@ -75,19 +75,26 @@ def _extract_rows(kb: dict, user_id: int) -> Iterable[dict]:
                 log.warning("skip — no date in %s entry: %s", kb_section, entry.get("file"))
                 continue
 
-            # Prefer the more specific analysis_type over generic 'type'
-            test_type = entry.get("analysis_type") or entry.get("type") or default_type
+            # Prefer the more specific analysis_type over generic 'type'.
+            # Some KBs (e.g. Andrey's) use 'subtype' (biochemistry/cbc/coagulation).
+            test_type = entry.get("analysis_type") or entry.get("type") or entry.get("subtype") or default_type
             # Some hormone entries use type="DHT" — keep as-is
+
+            # Schema varies between KBs:
+            #   Alex's KB:   entry["values"]  = {marker_key: value, ...}
+            #   Andrey's KB: entry["markers"] = {marker_key: value, ...}
+            # Accept both; prefer 'values' (more common).
+            values_dict = entry.get("values") or entry.get("markers") or {}
 
             yield {
                 "user_id": user_id,
                 "test_date": test_date,
                 "test_type": test_type[:100],  # column is VARCHAR(100)
-                "values": entry.get("values", {}),
-                "file_path": entry.get("file"),
+                "values": values_dict,
+                "file_path": entry.get("file") or entry.get("source_text_file"),
                 "status": (entry.get("status") or "current")[:50],
                 "note": entry.get("note"),
-                "laboratory": entry.get("laboratory") or entry.get("source"),
+                "laboratory": entry.get("laboratory") or entry.get("source") or entry.get("lab"),
             }
 
 
