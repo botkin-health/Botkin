@@ -102,6 +102,11 @@ healthvault_postgres (данные здоровья Alex)
 
 15. **OneCLI agent identifier должен совпадать с `agent_group_id`** (формат `ag-<ts>-<rand>`), не с user-friendly name. NanoClaw в spawnContainer использует `agentGroup.id` как identifier для `ensureAgent`. Если в OneCLI есть Default Agent с identifier="default" и наш Alex с identifier="ag-...", OneCLI gateway правильно роутит по agent token.
 
+16. **🚨 `CLAUDE.local.md` НЕ подхватывается Claude Agent SDK в headless mode** — это самое неочевидное. NanoClaw header композит-файла даже говорит "Edit CLAUDE.local.md for per-group content", но composedClaudeMd НЕ делает `@./CLAUDE.local.md` import. И Claude SDK в headless режиме CLAUDE.local.md не загружает (только interactive Claude Code это делает).
+    **Симптом:** написал rich health context в `groups/alex/CLAUDE.local.md`, но агент отвечает «у меня нет данных» на любой вопрос из контекста (семейный анамнез, текущие препараты, и т.п.).
+    **Решение:** положить весь health context в `container_configs.mcp_servers.botkin.instructions` (JSON-field). `composeGroupClaudeMd` создаст `mcp-botkin.md` fragment в `.claude-fragments/` и автоматически добавит `@./.claude-fragments/mcp-botkin.md` в композит CLAUDE.md. **Проверено end-to-end:** агент теперь знает что Alex принимает D3 5000 МЕ, кратко перечисляет ПСА-риск отца, FCH-наследование и т.п.
+    **Стоит ли обращать в upstream issue:** Да — либо документировать что CLAUDE.local.md только interactive, либо добавить `@./CLAUDE.local.md` в composed CLAUDE.md.
+
 ### Что бы сделал иначе
 
 - Не делать `NANOCLAW_SKIP=channel` — пусть setup сам прогонит add-telegram интерактивно. Я думал что обойду TUI через env-vars, но channel-step требует interactive выбора который проще пройти один раз вручную через ssh+tmux.
