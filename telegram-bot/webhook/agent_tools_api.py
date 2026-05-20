@@ -550,18 +550,19 @@ async def recent_sleep(
 
 @router.get("/recent_biomarkers")
 async def recent_biomarkers(
-    limit: int = 5,
+    limit: int = 20,
     user=Depends(get_agent_user),
     db: Session = Depends(get_db),
 ):
     """Most recent blood tests (latest `limit`).
 
     Each row has test_date + test_type + values (jsonb dict of marker → value).
-    Defaults to 5 most recent — enough for "what were my last labs?".
+    Default raised to 20 so questions like "как менялся холестерин" cover
+    ~1 year of history without follow-up calls.
     """
     from sqlalchemy import text as sql_text
 
-    limit = max(1, min(limit, 20))
+    limit = max(1, min(limit, 100))
     sql = sql_text(
         """
         SELECT test_date, test_type, values
