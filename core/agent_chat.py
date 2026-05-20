@@ -103,6 +103,23 @@ TOOLS: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "get_recent_supplements",
+        "description": (
+            "ЕДИНСТВЕННЫЙ источник для вопросов 'какие витамины/добавки я "
+            "принимаю', 'сколько раз в неделю пил магний', 'когда последний "
+            "раз принимал креатин', 'насколько я придерживаюсь схемы'. "
+            "Возвращает агрегацию по каждой добавке за период: days_taken, "
+            "total_intakes (несколько раз в день — норма), adherence_pct "
+            "(% дней приёма от периода), last_date, last_dosage. "
+            "Период по умолчанию 30 дней. НЕ используй контекст из system "
+            "prompt — там может быть устаревший список, реальный лог здесь."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {"days": {"type": "integer", "minimum": 1, "maximum": 180, "default": 30}},
+        },
+    },
+    {
         "name": "get_recent_biomarkers",
         "description": (
             "ЕДИНСТВЕННЫЙ источник для вопросов про анализы крови, гормоны, "
@@ -226,6 +243,13 @@ def _call_tool(name: str, args: dict, token: str) -> str:
             r = requests.get(
                 f"{TOOLS_API_BASE}/recent_sleep",
                 params={"days": int(args.get("days", 14))},
+                headers=headers,
+                timeout=15,
+            )
+        elif name == "get_recent_supplements":
+            r = requests.get(
+                f"{TOOLS_API_BASE}/recent_supplements",
+                params={"days": int(args.get("days", 30))},
                 headers=headers,
                 timeout=15,
             )
