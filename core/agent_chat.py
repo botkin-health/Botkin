@@ -346,6 +346,38 @@ def _call_tool(name: str, args: dict, token: str) -> str:
 # ---------------------------------------------------------------------------
 
 
+TOOL_RESULT_TRUNCATE_CHARS = 1500
+"""Cap on tool_result content length kept in HISTORY between turns.
+
+Current turn always sees full tool_result (router builds it fresh).
+But prior turns' tool_results bloat input_tokens — get_recent_biomarkers
+can return 10KB JSON. After this turn, the agent's text answer summarised
+what it needed; further turns can work from the summary + truncated tail.
+
+1500 chars ≈ ~400 tokens. Keeps enough context (first table, a few rows)
+without re-paying for full payload.
+"""
+
+
+def _truncate_tool_results_in_history(messages: list[dict]) -> list[dict]:
+    """Shrink tool_result blocks in the historical messages.
+
+    Only mutates blocks of type='tool_result'. The current turn's
+    tool_result hasn't been appended yet by callers — it's safe.
+    """
+    for msg in messages:
+        content = msg.get("content")
+        if not isinstance(content, list):
+            continue
+        for block in content:
+            if not isinstance(block, dict) or block.get("type") != "tool_result":
+                continue
+            body = block.get("content")
+            if isinstance(body, str) and len(body) > TOOL_RESULT_TRUNCATE_CHARS:
+                block["content"] = body[:TOOL_RESULT_TRUNCATE_CHARS] + f"\n…[truncated, was {len(body)} chars]"
+    return messages
+
+
 def _load_history(db, user_id: int, limit: int = HISTORY_WINDOW) -> list[dict]:
     """Load last N messages from agent_conversations in chronological order.
 
@@ -395,6 +427,8 @@ def _load_history(db, user_id: int, limit: int = HISTORY_WINDOW) -> list[dict]:
             else:
                 messages.append({"role": "user", "content": content})
 
+    # Truncate large tool_results in history to save input tokens on each call
+    messages = _truncate_tool_results_in_history(messages)
     return _validate_history(messages)
 
 
@@ -528,12 +562,31 @@ def ask_agent(user_id: int, user_text: str) -> str:
             "content-type": "application/json",
         }
 
+        # Prompt caching: system prompt + tool definitions cached at $0.30/MT
+        # instead of $3.00/MT on subsequent calls (Sonnet 4.5). Cache TTL 5 min
+        # default, refreshed by every cache hit. Within a single conversation
+        # (multi-iteration tool loop) the second+ iteration always hits cache.
+        # `cache_control: ephemeral` on the LAST tool entry caches everything
+        # before it (system + all tools). See:
+        # https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching
+        cached_tools = [dict(t) for t in TOOLS]
+        cached_tools[-1]["cache_control"] = {"type": "ephemeral"}
+        anthropic_beta_header = {"anthropic-beta": "prompt-caching-2024-07-31"}
+        # Merge into headers (don't mutate the outer headers dict)
+        request_headers = {**headers, **anthropic_beta_header}
+
         for iteration in range(MAX_TOOL_ITERATIONS):
             payload = {
                 "model": MODEL,
                 "max_tokens": MAX_TOKENS,
-                "system": user.agent_system_prompt,
-                "tools": TOOLS,
+                "system": [
+                    {
+                        "type": "text",
+                        "text": user.agent_system_prompt,
+                        "cache_control": {"type": "ephemeral"},
+                    }
+                ],
+                "tools": cached_tools,
                 "messages": history,
             }
             logger.info(
@@ -542,7 +595,7 @@ def ask_agent(user_id: int, user_text: str) -> str:
                 iteration,
                 len(history),
             )
-            r = requests.post(ANTHROPIC_API_URL, headers=headers, json=payload, timeout=60)
+            r = requests.post(ANTHROPIC_API_URL, headers=request_headers, json=payload, timeout=60)
             # Anthropic returns 400 when message history has structural issues
             # (e.g. tool_use block without matching tool_result from a previous
             # turn). This can happen if a row was deleted, the DB had a partial
@@ -560,7 +613,7 @@ def ask_agent(user_id: int, user_text: str) -> str:
                 # Reset to just the new user message
                 history = [{"role": "user", "content": user_text}]
                 payload["messages"] = history
-                r = requests.post(ANTHROPIC_API_URL, headers=headers, json=payload, timeout=60)
+                r = requests.post(ANTHROPIC_API_URL, headers=request_headers, json=payload, timeout=60)
             r.raise_for_status()
             response = r.json()
 
