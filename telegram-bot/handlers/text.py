@@ -600,6 +600,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             # See: docs/projects/2026-05_nanoclaw-agent-bot/PLAN.md § Phase 4.
             try:
                 from core.agent_chat import ask_agent
+                from core.tg_markdown import md_to_html
 
                 loop = asyncio.get_running_loop()
                 reply = await loop.run_in_executor(None, ask_agent, int(user_id), text)
@@ -608,7 +609,17 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                 # Telegram has 4096-char limit per message
                 if len(reply) > 4000:
                     reply = reply[:3990] + "…"
-                await processing_msg.edit_text(reply)
+                # Claude отдаёт markdown — конвертируем в Telegram HTML
+                # чтобы **жирный** и `##` рендерились, а не показывались
+                # как сырые символы.
+                reply_html = md_to_html(reply)
+                try:
+                    await processing_msg.edit_text(reply_html, parse_mode="HTML")
+                except Exception as html_err:
+                    # На случай если парсер Telegram спотыкается о наш HTML
+                    # (нестандартные эмодзи, незакрытые теги) — отдаём как plain.
+                    debug_logger.warning(f"HTML render failed ({html_err}); falling back to plain")
+                    await processing_msg.edit_text(reply)
             except RuntimeError as e:
                 # Common: user has no agent_system_prompt → conversational
                 # mode not enabled for them yet. Fall back to canned reply.
