@@ -104,10 +104,20 @@ TOOLS: list[dict[str, Any]] = [
     },
     {
         "name": "get_recent_biomarkers",
-        "description": "Последние анализы крови (по умолчанию 5 самых свежих). Каждый — дата + тип + JSON со значениями маркеров. Использовать для вопросов 'какие у меня были последние анализы', 'какой холестерин в марте', и т.п.",
+        "description": (
+            "ЕДИНСТВЕННЫЙ источник для вопросов про анализы крови, гормоны, "
+            "витамины, биомаркеры. Возвращает строки blood_tests из Postgres: "
+            "дата + тип + values (dict со значениями маркеров типа vitamin_d, "
+            "LDL, HDL, glucose, HbA1c, testosterone, TSH, ferritin, ApoB и т.п.). "
+            "Используй ВСЕГДА когда юзер спрашивает про любые лабораторные показатели: "
+            "'какой у меня витамин Д', 'как менялся холестерин', 'какие гормоны сдавал', "
+            "'покажи динамику ЛПНП', 'какие анализы за последний год'. "
+            "limit по умолчанию 20 (история на год), увеличь до 50 для 'всё что есть'. "
+            "НЕ ИСПОЛЬЗУЙ get_kb_value для анализов — оно ничего не вернёт."
+        ),
         "input_schema": {
             "type": "object",
-            "properties": {"limit": {"type": "integer", "minimum": 1, "maximum": 20, "default": 5}},
+            "properties": {"limit": {"type": "integer", "minimum": 1, "maximum": 100, "default": 20}},
         },
     },
     {
@@ -222,7 +232,7 @@ def _call_tool(name: str, args: dict, token: str) -> str:
         elif name == "get_recent_biomarkers":
             r = requests.get(
                 f"{TOOLS_API_BASE}/recent_biomarkers",
-                params={"limit": int(args.get("limit", 5))},
+                params={"limit": int(args.get("limit", 20))},
                 headers=headers,
                 timeout=15,
             )
