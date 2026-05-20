@@ -871,10 +871,42 @@ async def recent_workouts(
     chronic_load_avg = sum(w.get("training_load") or 0 for w in in_window) / weeks if weeks > 0 else 0
     ac_ratio = round(acute_load / chronic_load_avg, 2) if chronic_load_avg > 0 else None
 
+    # Type aggregation — count workouts by Garmin type.
+    # IMPORTANT: type is the Garmin classification ('running', 'strength_training',
+    # 'walking', 'yoga', ...). activity_name is the user-set route/session label
+    # ('Москва - База', 'Гимнастика #3') and is NOT a reliable indicator of
+    # exercise type — a session named 'Москва - База' may be running OR walking.
+    # ALWAYS read `type` field for classification, not `activity_name`.
+    from collections import Counter as _Counter
+
+    type_counts = _Counter(w.get("type") or "unknown" for w in in_window)
+    # Russian-friendly labels for the common types so the agent uses them
+    type_labels_ru = {
+        "running": "бег",
+        "walking": "ходьба",
+        "strength_training": "силовая",
+        "yoga": "йога",
+        "cycling": "велосипед",
+        "swimming": "плавание",
+        "elliptical": "эллипс",
+        "cardio": "кардио",
+        "hiit": "HIIT",
+        "fitness_equipment": "тренажёр",
+        "other": "другое",
+    }
+    by_type = {
+        type_labels_ru.get(t, t): {
+            "count": c,
+            "garmin_type": t,
+        }
+        for t, c in type_counts.most_common()
+    }
+
     return {
         "status": "ok",
         "period_days": days,
         "count": len(in_window),
+        "by_type": by_type,
         "stats": {
             "per_week": round(len(in_window) / weeks, 1),
             "z2_min_per_week": round(z2_total / weeks),
@@ -900,12 +932,14 @@ async def recent_workouts(
         "items": [
             {
                 "date": w.get("date"),
-                "name": w.get("activity_name") or w.get("type"),
+                "type": w.get("type"),  # GARMIN classification — primary
+                "type_ru": type_labels_ru.get(w.get("type"), w.get("type")),
+                "name": w.get("activity_name"),  # user-set route name (e.g. "Москва - База")
                 "duration_min": w.get("duration_min"),
                 "avg_hr": w.get("avg_hr"),
                 "training_load": w.get("training_load"),
             }
-            for w in sorted(in_window, key=lambda w: w.get("date", ""), reverse=True)[:10]
+            for w in sorted(in_window, key=lambda w: w.get("date", ""), reverse=True)[:15]
         ],
     }
 
