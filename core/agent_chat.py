@@ -138,6 +138,49 @@ TOOLS: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "get_phenoage",
+        "description": (
+            "Биологический возраст по формуле Levine 2018 (Aging Cell). "
+            "Возвращает bio_age, chronological_age, delta_years, и 9 маркеров "
+            "(albumin, creatinine, glucose, hs_CRP, lymphocytes, MCV, RDW, ALP, WBC) "
+            "с пометкой 'younger'/'older' vs NHANES median. Используй для "
+            "вопросов 'какой мой биологический возраст', 'PhenoAge', "
+            "'на сколько я моложе/старше паспорта', 'состав панели биовозраста'. "
+            "Если каких-то маркеров не хватает — вернёт error со списком."
+        ),
+        "input_schema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "get_recent_workouts",
+        "description": (
+            "Анализ тренировок по канонам Seiler 80/20 / Attia Z2 / норвежский 4x4. "
+            "Возвращает: Z2 min/week, HIIT min/week, A:C load ratio (sweet spot 0.8-1.3), "
+            "polarized distribution Z1+Z2 / Z3 / Z4+Z5 %, список последних 10 тренировок. "
+            "Используй для 'сколько раз я бегал', 'сколько Z2 в неделю', "
+            "'каков мой A:C ratio', 'правильное ли распределение зон'. "
+            "Источник: workouts_log_<id>.json (Garmin activity parser). Период по умолчанию 30 дней."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {"days": {"type": "integer", "minimum": 1, "maximum": 180, "default": 30}},
+        },
+    },
+    {
+        "name": "get_recent_trends",
+        "description": (
+            "Per-day тренды HRV, Body Battery, Stress, Steps, RHR, Sleep "
+            "за N дней (по умолчанию 14). В отличие от get_dashboard_summary "
+            "который даёт только AVG за 7 дней — тут видно динамику ДЕНЬ ЗА ДНЁМ. "
+            "Используй для 'падает ли мой HRV', 'когда у меня был стресс', "
+            "'какой у меня body battery утром', 'как менялся пульс покоя'. "
+            "Возвращает items (per-day) + stats (avg/min/max)."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {"days": {"type": "integer", "minimum": 1, "maximum": 90, "default": 14}},
+        },
+    },
+    {
         "name": "log_meal_text",
         "description": "Залогировать приём пищи из текстового описания. ИСПОЛЬЗОВАТЬ ТОЛЬКО если юзер ЯВНО просит 'запиши' или 'залогируй'. Не пытайся логировать каждое упоминание еды.",
         "input_schema": {
@@ -257,6 +300,22 @@ def _call_tool(name: str, args: dict, token: str) -> str:
             r = requests.get(
                 f"{TOOLS_API_BASE}/recent_biomarkers",
                 params={"limit": int(args.get("limit", 20))},
+                headers=headers,
+                timeout=15,
+            )
+        elif name == "get_phenoage":
+            r = requests.get(f"{TOOLS_API_BASE}/phenoage", headers=headers, timeout=15)
+        elif name == "get_recent_workouts":
+            r = requests.get(
+                f"{TOOLS_API_BASE}/recent_workouts",
+                params={"days": int(args.get("days", 30))},
+                headers=headers,
+                timeout=15,
+            )
+        elif name == "get_recent_trends":
+            r = requests.get(
+                f"{TOOLS_API_BASE}/recent_trends",
+                params={"days": int(args.get("days", 14))},
                 headers=headers,
                 timeout=15,
             )

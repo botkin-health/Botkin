@@ -642,6 +642,345 @@ async def recent_biomarkers(
     }
 
 
+@router.get("/phenoage")
+async def phenoage(
+    user=Depends(get_agent_user),
+    db: Session = Depends(get_db),
+):
+    """Biological age via Levine 2018 (Aging Cell) PhenoAge formula.
+
+    Requires 9 markers from blood_tests.values (latest available value per
+    marker, scanning all of user's history). Plus chronological age from
+    users.birth_date.
+
+    Returns: bio_age, chronological_age, delta, markers with direction
+    ('younger'/'older' vs NHANES median for ~48yo male) and freshness.
+    """
+    import math
+
+    from sqlalchemy import text as sql_text
+
+    # Required markers — keys in blood_tests.values JSONB.
+    markers = ["albumin_g_l", "creatinine", "glucose", "hs_CRP", "lymphocytes", "MCV", "RDW_CV", "ALP", "WBC"]
+
+    # Latest value per marker via DISTINCT ON jsonb_each_text scan.
+    sql = sql_text(
+        """
+        SELECT DISTINCT ON (kv.key) kv.key, kv.value, bt.test_date
+        FROM blood_tests bt, jsonb_each_text(bt.values) kv
+        WHERE bt.user_id = :uid AND kv.key = ANY(:markers)
+        ORDER BY kv.key, bt.test_date DESC
+        """
+    )
+    rows = db.execute(sql, {"uid": user.telegram_id, "markers": markers}).fetchall()
+
+    latest: dict[str, dict] = {}
+    for row in rows:
+        try:
+            latest[row.key] = {"value": float(row.value), "date": row.test_date.isoformat()}
+        except (TypeError, ValueError):
+            pass  # non-numeric value (string label etc) — skip
+
+    # Chronological age
+    chrono_age = None
+    if user.birth_date:
+        today = date.today()
+        chrono_age = (
+            today.year
+            - user.birth_date.year
+            - ((today.month, today.day) < (user.birth_date.month, user.birth_date.day))
+        )
+
+    # NHANES median for ~48yo male, plus direction (higher_is_younger)
+    nhanes = {
+        "albumin_g_l": (42.0, True),  # g/L (4.2 g/dL)
+        "creatinine": (92.8, False),  # µmol/L (1.05 mg/dL)
+        "glucose": (5.3, False),  # mmol/L (95 mg/dL)
+        "hs_CRP": (1.0, False),  # mg/L (ln(0.1) → 0)
+        "lymphocytes": (28.0, True),  # %
+        "MCV": (90.0, False),  # fL
+        "RDW_CV": (13.8, False),  # %
+        "ALP": (68.0, False),  # U/L
+        "WBC": (6.7, False),  # ×10³/µL
+    }
+
+    today_date = date.today()
+    marker_list: list[dict] = []
+    younger_count = 0
+    stale_markers: list[str] = []
+    for key in markers:
+        info = latest.get(key)
+        if not info:
+            marker_list.append({"name": key, "value": None, "direction": "unknown", "date": None})
+            continue
+        med, higher_younger = nhanes[key]
+        v = info["value"]
+        is_younger = (v > med) if higher_younger else (v < med)
+        if is_younger:
+            younger_count += 1
+        days_ago = (today_date - date.fromisoformat(info["date"])).days
+        stale = days_ago > 365
+        if stale:
+            stale_markers.append(f"{key} ({info['date']})")
+        marker_list.append(
+            {
+                "name": key,
+                "value": round(v, 3),
+                "direction": "younger" if is_younger else "older",
+                "date": info["date"],
+                "days_ago": days_ago,
+                "stale_over_year": stale,
+            }
+        )
+
+    bio_age: Optional[float] = None
+    error: Optional[str] = None
+    if chrono_age is None:
+        error = "users.birth_date not set"
+    elif None in [latest.get(k, {}).get("value") for k in markers]:
+        missing = [k for k in markers if k not in latest]
+        error = f"missing markers: {missing}"
+    elif latest["hs_CRP"]["value"] <= 0:
+        error = "hs_CRP must be > 0 for ln()"
+    else:
+        try:
+            # Levine 2018 formula
+            alb_gL = latest["albumin_g_l"]["value"]  # already g/L
+            creat_umolL = latest["creatinine"]["value"]  # already µmol/L
+            gluc_mmolL = latest["glucose"]["value"]  # already mmol/L
+            lncrp = math.log(latest["hs_CRP"]["value"] * 0.1)  # ln(CRP mg/dL)
+            lymph_pct = latest["lymphocytes"]["value"]
+            mcv = latest["MCV"]["value"]
+            rdw = latest["RDW_CV"]["value"]
+            alp = latest["ALP"]["value"]
+            wbc = latest["WBC"]["value"]
+
+            xb = (
+                -19.907
+                + 0.0804 * chrono_age
+                + (-0.0336) * alb_gL
+                + 0.0095 * creat_umolL
+                + 0.1953 * gluc_mmolL
+                + 0.0954 * lncrp
+                + (-0.0120) * lymph_pct
+                + 0.0268 * mcv
+                + 0.3306 * rdw
+                + (-0.00188) * alp
+                + 0.0554 * wbc
+            )
+            mort = 1 - math.exp(-math.exp(xb) * (math.exp(0.0076927 * 120) - 1) / 0.0076927)
+            if 0 < mort < 1:
+                bio_age = round(141.50225 + math.log(-0.00553 * math.log(1 - mort)) / 0.090165, 1)
+        except (ValueError, OverflowError) as e:
+            error = f"calculation error: {e}"
+
+    return {
+        "status": "ok" if bio_age is not None else "incomplete",
+        "bio_age": bio_age,
+        "chronological_age": chrono_age,
+        "delta_years": round(bio_age - chrono_age, 1) if bio_age and chrono_age else None,
+        "interpretation": (
+            "moложе паспорта"
+            if bio_age and chrono_age and bio_age < chrono_age
+            else "старше паспорта"
+            if bio_age and chrono_age and bio_age > chrono_age
+            else None
+        ),
+        "younger_markers_count": f"{younger_count}/9",
+        "stale_markers": stale_markers,
+        "error": error,
+        "formula": "Levine 2018 (Aging Cell) — 9 biomarkers + chronological age",
+        "markers": marker_list,
+    }
+
+
+@router.get("/recent_workouts")
+async def recent_workouts(
+    days: int = 30,
+    user=Depends(get_agent_user),
+    db: Session = Depends(get_db),
+):
+    """Workout summary by training-load canons (Seiler/Attia/Maffetone).
+
+    Reads workouts_log_<user_id>.json from /app/telegram-bot/ (Garmin activity
+    parser writes there). Returns Z2 min/week, HIIT min/week, A:C load ratio,
+    polarized distribution, mistagged HIIT flag.
+
+    Note: file-based source, not Postgres. If file missing → available=false.
+    """
+    import json as _json
+    from pathlib import Path as _Path
+
+    days = max(1, min(days, 180))
+
+    wk_path = _Path(f"/app/telegram-bot/workouts_log_{user.telegram_id}.json")
+    if not wk_path.exists():
+        return {"status": "no_data", "available": False, "reason": f"workouts_log_{user.telegram_id}.json not found"}
+
+    try:
+        wd = _json.loads(wk_path.read_text())
+    except Exception as e:
+        return {"status": "error", "error": f"parse failed: {e}"}
+
+    workouts = wd.get("workouts", [])
+    if not workouts:
+        return {"status": "no_data", "available": False, "reason": "empty workouts array"}
+
+    today_date = date.today()
+    cutoff = today_date - timedelta(days=days)
+
+    def _to_date(s: str):
+        try:
+            y, m, d = s.split("-")
+            return date(int(y), int(m), int(d))
+        except Exception:
+            return None
+
+    in_window = []
+    for w in workouts:
+        wd_date = _to_date(w.get("date", ""))
+        if wd_date and cutoff <= wd_date <= today_date:
+            in_window.append(w)
+
+    if not in_window:
+        return {
+            "status": "ok",
+            "period_days": days,
+            "count": 0,
+            "items": [],
+            "stats": {"per_week": 0, "z2_min_per_week": 0, "hiit_min_per_week": 0},
+        }
+
+    # Aggregate zones (prefer MAF — longevity school — over Garmin hr_zones)
+    def _zone_min(w, zone_key):
+        zones = w.get("maf_zones") or w.get("hr_zones") or {}
+        return zones.get(zone_key, 0) or 0
+
+    weeks = days / 7
+    z1_total = sum(_zone_min(w, "z1") for w in in_window)
+    z2_total = sum(_zone_min(w, "z2") for w in in_window)
+    z3_total = sum(_zone_min(w, "z3") for w in in_window)
+    z4_total = sum(_zone_min(w, "z4") for w in in_window)
+    z5_total = sum(_zone_min(w, "z5") for w in in_window)
+    total_zone_min = z1_total + z2_total + z3_total + z4_total + z5_total
+
+    # Acute vs Chronic load
+    seven_ago = today_date - timedelta(days=7)
+    acute = [w for w in in_window if _to_date(w["date"]) and _to_date(w["date"]) >= seven_ago]
+    acute_load = sum(w.get("training_load") or 0 for w in acute)
+    chronic_load_avg = sum(w.get("training_load") or 0 for w in in_window) / weeks if weeks > 0 else 0
+    ac_ratio = round(acute_load / chronic_load_avg, 2) if chronic_load_avg > 0 else None
+
+    return {
+        "status": "ok",
+        "period_days": days,
+        "count": len(in_window),
+        "stats": {
+            "per_week": round(len(in_window) / weeks, 1),
+            "z2_min_per_week": round(z2_total / weeks),
+            "hiit_min_per_week": round((z4_total + z5_total) / weeks),
+            "z2_target_attia": 150,  # mins/week
+            "hiit_target_norwegian": 16,  # mins/week (4x4)
+            "ac_ratio": ac_ratio,
+            "ac_sweet_spot": "0.8-1.3",
+        },
+        "zones_total_min": {
+            "z1": round(z1_total),
+            "z2": round(z2_total),
+            "z3": round(z3_total),
+            "z4": round(z4_total),
+            "z5": round(z5_total),
+        },
+        "polarized_pct": {
+            "low (z1+z2)": round(100 * (z1_total + z2_total) / total_zone_min, 1) if total_zone_min else 0,
+            "mid (z3)": round(100 * z3_total / total_zone_min, 1) if total_zone_min else 0,
+            "high (z4+z5)": round(100 * (z4_total + z5_total) / total_zone_min, 1) if total_zone_min else 0,
+            "ideal_seiler": "80/5/15",
+        },
+        "items": [
+            {
+                "date": w.get("date"),
+                "name": w.get("activity_name") or w.get("type"),
+                "duration_min": w.get("duration_min"),
+                "avg_hr": w.get("avg_hr"),
+                "training_load": w.get("training_load"),
+            }
+            for w in sorted(in_window, key=lambda w: w.get("date", ""), reverse=True)[:10]
+        ],
+    }
+
+
+@router.get("/recent_trends")
+async def recent_trends(
+    days: int = 14,
+    user=Depends(get_agent_user),
+    db: Session = Depends(get_db),
+):
+    """Per-day trends from activity_log.raw_data: HRV, Body Battery, Stress, Steps.
+
+    Complementary to get_dashboard_summary (which gives 7-day AVG only).
+    Use this for trend questions: 'падает ли мой HRV?', 'сколько у меня
+    Body Battery утром', 'когда самый высокий стресс'.
+    """
+    from sqlalchemy import text as sql_text
+
+    days = max(1, min(days, 90))
+    sql = sql_text(
+        """
+        SELECT date,
+               steps,
+               heart_rate_avg AS rhr,
+               hrv,
+               stress_level,
+               sleep_hours,
+               (raw_data->>'bodyBatteryHighestValue')::int  AS body_battery_max,
+               (raw_data->>'bodyBatteryAtWakeTime')::int    AS body_battery_wake,
+               (raw_data->>'bodyBatteryLowestValue')::int   AS body_battery_min,
+               (raw_data->>'averageStressLevel')::int       AS stress_avg
+        FROM activity_log
+        WHERE user_id = :uid
+          AND date >= CURRENT_DATE - (:days || ' days')::interval
+        ORDER BY date DESC
+        """
+    )
+    rows = db.execute(sql, {"uid": user.telegram_id, "days": days}).fetchall()
+
+    items = [
+        {
+            "date": r.date.isoformat(),
+            "steps": r.steps,
+            "rhr": r.rhr,
+            "hrv": r.hrv,
+            "stress_level": r.stress_level or r.stress_avg,
+            "sleep_h": float(r.sleep_hours) if r.sleep_hours else None,
+            "body_battery_morning": r.body_battery_wake,
+            "body_battery_max": r.body_battery_max,
+            "body_battery_min": r.body_battery_min,
+        }
+        for r in rows
+    ]
+
+    def _avg_or_none(vals: list):
+        clean = [v for v in vals if v is not None]
+        return round(sum(clean) / len(clean), 1) if clean else None
+
+    return {
+        "status": "ok",
+        "period_days": days,
+        "count": len(items),
+        "stats": {
+            "hrv_avg": _avg_or_none([i["hrv"] for i in items]),
+            "hrv_min": min((i["hrv"] for i in items if i["hrv"]), default=None),
+            "hrv_max": max((i["hrv"] for i in items if i["hrv"]), default=None),
+            "rhr_avg": _avg_or_none([i["rhr"] for i in items]),
+            "stress_avg": _avg_or_none([i["stress_level"] for i in items]),
+            "body_battery_morning_avg": _avg_or_none([i["body_battery_morning"] for i in items]),
+            "steps_avg": _avg_or_none([i["steps"] for i in items]),
+        },
+        "items": items[:30],
+    }
+
+
 @router.get("/user_profile")
 async def user_profile(
     user=Depends(get_agent_user),
