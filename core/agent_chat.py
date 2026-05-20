@@ -564,6 +564,19 @@ def ask_agent(user_id: int, user_text: str) -> str:
             r.raise_for_status()
             response = r.json()
 
+            # Best-effort usage logging — never blocks
+            try:
+                from core.llm_usage import log_anthropic_response
+
+                log_anthropic_response(
+                    purpose="agent_chat_tool" if iteration > 0 else "agent_chat",
+                    model=MODEL,
+                    response_json=response,
+                    user_id=user_id,
+                )
+            except Exception:
+                logger.exception("agent_chat: usage logging failed")
+
             stop_reason = response.get("stop_reason")
             blocks = response.get("content", [])
 

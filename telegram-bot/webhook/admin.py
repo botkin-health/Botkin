@@ -163,12 +163,73 @@ input.editable:focus{border-color:var(--b);outline:none;background:var(--bg2)}
 </section>
 
 <section>
-  <h2>💰 Расходы на нейронки <span class="badge y">v2 — TODO</span></h2>
-  <div class="placeholder">
-    Учёт токенов на уровне юзера — отдельный спринт.<br>
-    Сейчас общую сумму смотри в OpenAI/Anthropic Dashboard.<br>
-    Подробности: проектный <span class="mono">todo.md</span> → раздел «Админ-дашборд → v2».
+  <h2>💰 Расходы на нейронки</h2>
+  <div class="muted" style="margin-bottom:8px">
+    Период:
+    <select id="llm-window" onchange="loadLLM()">
+      <option value="1">сегодня</option>
+      <option value="7" selected>7 дней</option>
+      <option value="30">30 дней</option>
+      <option value="90">90 дней</option>
+    </select>
+    <span id="llm-totals" style="margin-left:14px"></span>
   </div>
+  <table style="font-size:13px">
+    <thead><tr>
+      <th>Назначение</th><th>Вызовов</th><th>Input · Output</th><th>Cache R/W</th><th>USD</th>
+    </tr></thead>
+    <tbody id="llm-by-purpose"></tbody>
+  </table>
+  <details style="margin-top:8px">
+    <summary class="muted">📊 По дням</summary>
+    <table style="font-size:12px; margin-top:8px">
+      <thead><tr><th>День</th><th>food_text</th><th>food_photo</th><th>agent_chat</th><th>Σ USD</th></tr></thead>
+      <tbody id="llm-by-day"></tbody>
+    </table>
+  </details>
+  <details style="margin-top:8px">
+    <summary class="muted">👥 По юзерам</summary>
+    <table style="font-size:12px; margin-top:8px">
+      <thead><tr><th>User ID</th><th>Имя</th><th>Вызовов</th><th>USD</th></tr></thead>
+      <tbody id="llm-by-user"></tbody>
+    </table>
+  </details>
+  <script>
+    async function loadLLM() {
+      const days = document.getElementById('llm-window').value;
+      const d = await api('/admin/api/llm_usage?days=' + days);
+      // totals
+      document.getElementById('llm-totals').innerHTML =
+        '<b>Σ ' + d.totals.calls + '</b> вызовов · ' +
+        '<b>$' + d.totals.cost_usd.toFixed(4) + '</b> · ' +
+        d.totals.input_tokens.toLocaleString() + ' in / ' +
+        d.totals.output_tokens.toLocaleString() + ' out';
+      // by purpose
+      document.getElementById('llm-by-purpose').innerHTML = d.by_purpose.map(r =>
+        '<tr><td><span class="mono">' + r.purpose + '</span></td>' +
+        '<td>' + r.calls + '</td>' +
+        '<td>' + r.input_tokens.toLocaleString() + ' · ' + r.output_tokens.toLocaleString() + '</td>' +
+        '<td>' + r.cache_read_tokens.toLocaleString() + ' / ' + r.cache_creation_tokens.toLocaleString() + '</td>' +
+        '<td><b>$' + r.cost_usd.toFixed(4) + '</b></td></tr>'
+      ).join('');
+      // by day
+      document.getElementById('llm-by-day').innerHTML = d.by_day.map(r =>
+        '<tr><td>' + r.day + '</td>' +
+        '<td>$' + (r.food_text_usd||0).toFixed(4) + '</td>' +
+        '<td>$' + (r.food_photo_usd||0).toFixed(4) + '</td>' +
+        '<td>$' + (r.agent_chat_usd||0).toFixed(4) + '</td>' +
+        '<td><b>$' + r.total_usd.toFixed(4) + '</b></td></tr>'
+      ).join('');
+      // by user
+      document.getElementById('llm-by-user').innerHTML = d.by_user.map(r =>
+        '<tr><td class="mono">' + (r.user_id || '—') + '</td>' +
+        '<td>' + (r.first_name || '') + '</td>' +
+        '<td>' + r.calls + '</td>' +
+        '<td><b>$' + r.cost_usd.toFixed(4) + '</b></td></tr>'
+      ).join('');
+    }
+    loadLLM();
+  </script>
 </section>
 
 <section>
@@ -495,6 +556,139 @@ def _du(path: str) -> str:
     except Exception as e:
         logger.warning(f"du failed for {path}: {e}")
         return "—"
+
+
+@router.get("/api/llm_usage")
+async def api_llm_usage(days: int = 7, _: str = Depends(admin_auth)) -> JSONResponse:
+    """Aggregated LLM usage stats for admin panel.
+
+    Three slices: by_purpose, by_day, by_user — plus overall totals.
+    """
+    from sqlalchemy import text as _text
+
+    days = max(1, min(days, 365))
+    db = SessionLocal()
+    try:
+        # Totals
+        totals_row = db.execute(
+            _text(
+                """
+                SELECT COUNT(*)                              AS calls,
+                       COALESCE(SUM(input_tokens), 0)        AS input_tokens,
+                       COALESCE(SUM(output_tokens), 0)       AS output_tokens,
+                       COALESCE(SUM(cache_read_tokens), 0)   AS cache_read,
+                       COALESCE(SUM(cache_creation_tokens), 0) AS cache_creation,
+                       COALESCE(SUM(cost_usd), 0)            AS cost_usd
+                FROM llm_usage_log
+                WHERE created_at >= NOW() - (:days || ' days')::interval
+                """
+            ),
+            {"days": days},
+        ).fetchone()
+
+        # By purpose
+        by_purpose = db.execute(
+            _text(
+                """
+                SELECT purpose,
+                       COUNT(*)                              AS calls,
+                       COALESCE(SUM(input_tokens), 0)        AS input_tokens,
+                       COALESCE(SUM(output_tokens), 0)       AS output_tokens,
+                       COALESCE(SUM(cache_read_tokens), 0)   AS cache_read_tokens,
+                       COALESCE(SUM(cache_creation_tokens), 0) AS cache_creation_tokens,
+                       COALESCE(SUM(cost_usd), 0)            AS cost_usd
+                FROM llm_usage_log
+                WHERE created_at >= NOW() - (:days || ' days')::interval
+                GROUP BY purpose
+                ORDER BY cost_usd DESC
+                """
+            ),
+            {"days": days},
+        ).fetchall()
+
+        # By day (pivoted on key purpose buckets)
+        by_day = db.execute(
+            _text(
+                """
+                SELECT DATE(created_at AT TIME ZONE 'Europe/Moscow') AS day,
+                       COALESCE(SUM(cost_usd) FILTER (WHERE purpose='food_text'),  0) AS food_text_usd,
+                       COALESCE(SUM(cost_usd) FILTER (WHERE purpose='food_photo'), 0) AS food_photo_usd,
+                       COALESCE(SUM(cost_usd) FILTER (WHERE purpose IN ('agent_chat','agent_chat_tool')), 0) AS agent_chat_usd,
+                       COALESCE(SUM(cost_usd), 0)            AS total_usd
+                FROM llm_usage_log
+                WHERE created_at >= NOW() - (:days || ' days')::interval
+                GROUP BY 1
+                ORDER BY 1 DESC
+                """
+            ),
+            {"days": days},
+        ).fetchall()
+
+        # By user (top 20)
+        by_user = db.execute(
+            _text(
+                """
+                SELECT l.user_id,
+                       u.first_name,
+                       COUNT(*)                   AS calls,
+                       COALESCE(SUM(l.cost_usd), 0) AS cost_usd
+                FROM llm_usage_log l
+                LEFT JOIN users u ON u.telegram_id = l.user_id
+                WHERE l.created_at >= NOW() - (:days || ' days')::interval
+                GROUP BY l.user_id, u.first_name
+                ORDER BY cost_usd DESC
+                LIMIT 20
+                """
+            ),
+            {"days": days},
+        ).fetchall()
+
+        return JSONResponse(
+            {
+                "period_days": days,
+                "totals": {
+                    "calls": totals_row.calls,
+                    "input_tokens": int(totals_row.input_tokens),
+                    "output_tokens": int(totals_row.output_tokens),
+                    "cache_read_tokens": int(totals_row.cache_read),
+                    "cache_creation_tokens": int(totals_row.cache_creation),
+                    "cost_usd": float(totals_row.cost_usd),
+                },
+                "by_purpose": [
+                    {
+                        "purpose": r.purpose,
+                        "calls": r.calls,
+                        "input_tokens": int(r.input_tokens),
+                        "output_tokens": int(r.output_tokens),
+                        "cache_read_tokens": int(r.cache_read_tokens),
+                        "cache_creation_tokens": int(r.cache_creation_tokens),
+                        "cost_usd": float(r.cost_usd),
+                    }
+                    for r in by_purpose
+                ],
+                "by_day": [
+                    {
+                        "day": r.day.isoformat(),
+                        "food_text_usd": float(r.food_text_usd),
+                        "food_photo_usd": float(r.food_photo_usd),
+                        "agent_chat_usd": float(r.agent_chat_usd),
+                        "total_usd": float(r.total_usd),
+                    }
+                    for r in by_day
+                ],
+                "by_user": [
+                    {
+                        "user_id": r.user_id,
+                        "first_name": r.first_name,
+                        "calls": r.calls,
+                        "cost_usd": float(r.cost_usd),
+                    }
+                    for r in by_user
+                ],
+            }
+        )
+    finally:
+        db.close()
 
 
 @router.get("/api/server")
