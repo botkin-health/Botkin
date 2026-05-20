@@ -194,42 +194,6 @@ input.editable:focus{border-color:var(--b);outline:none;background:var(--bg2)}
       <tbody id="llm-by-user"></tbody>
     </table>
   </details>
-  <script>
-    async function loadLLM() {
-      const days = document.getElementById('llm-window').value;
-      const d = await api('/admin/api/llm_usage?days=' + days);
-      // totals
-      document.getElementById('llm-totals').innerHTML =
-        '<b>Σ ' + d.totals.calls + '</b> вызовов · ' +
-        '<b>$' + d.totals.cost_usd.toFixed(4) + '</b> · ' +
-        d.totals.input_tokens.toLocaleString() + ' in / ' +
-        d.totals.output_tokens.toLocaleString() + ' out';
-      // by purpose
-      document.getElementById('llm-by-purpose').innerHTML = d.by_purpose.map(r =>
-        '<tr><td><span class="mono">' + r.purpose + '</span></td>' +
-        '<td>' + r.calls + '</td>' +
-        '<td>' + r.input_tokens.toLocaleString() + ' · ' + r.output_tokens.toLocaleString() + '</td>' +
-        '<td>' + r.cache_read_tokens.toLocaleString() + ' / ' + r.cache_creation_tokens.toLocaleString() + '</td>' +
-        '<td><b>$' + r.cost_usd.toFixed(4) + '</b></td></tr>'
-      ).join('');
-      // by day
-      document.getElementById('llm-by-day').innerHTML = d.by_day.map(r =>
-        '<tr><td>' + r.day + '</td>' +
-        '<td>$' + (r.food_text_usd||0).toFixed(4) + '</td>' +
-        '<td>$' + (r.food_photo_usd||0).toFixed(4) + '</td>' +
-        '<td>$' + (r.agent_chat_usd||0).toFixed(4) + '</td>' +
-        '<td><b>$' + r.total_usd.toFixed(4) + '</b></td></tr>'
-      ).join('');
-      // by user
-      document.getElementById('llm-by-user').innerHTML = d.by_user.map(r =>
-        '<tr><td class="mono">' + (r.user_id || '—') + '</td>' +
-        '<td>' + (r.first_name || '') + '</td>' +
-        '<td>' + r.calls + '</td>' +
-        '<td><b>$' + r.cost_usd.toFixed(4) + '</b></td></tr>'
-      ).join('');
-    }
-    loadLLM();
-  </script>
 </section>
 
 <section>
@@ -366,7 +330,39 @@ async function changeKB(tid, kb){
   } catch(e){ toast('Ошибка: '+e.message, 'err') }
 }
 
-function loadAll(){ loadUsers(); loadServer(); loadBackups() }
+async function loadLLM(){
+  try{
+    const days = document.getElementById('llm-window').value;
+    const d = await api('/admin/api/llm_usage?days=' + days);
+    document.getElementById('llm-totals').innerHTML =
+      '<b>Σ ' + d.totals.calls + '</b> вызовов · ' +
+      '<b>$' + d.totals.cost_usd.toFixed(4) + '</b> · ' +
+      d.totals.input_tokens.toLocaleString() + ' in / ' +
+      d.totals.output_tokens.toLocaleString() + ' out';
+    document.getElementById('llm-by-purpose').innerHTML = d.by_purpose.map(r =>
+      '<tr><td><span class="mono">' + r.purpose + '</span></td>' +
+      '<td>' + r.calls + '</td>' +
+      '<td>' + r.input_tokens.toLocaleString() + ' · ' + r.output_tokens.toLocaleString() + '</td>' +
+      '<td>' + r.cache_read_tokens.toLocaleString() + ' / ' + r.cache_creation_tokens.toLocaleString() + '</td>' +
+      '<td><b>$' + r.cost_usd.toFixed(4) + '</b></td></tr>'
+    ).join('');
+    document.getElementById('llm-by-day').innerHTML = d.by_day.map(r =>
+      '<tr><td>' + r.day + '</td>' +
+      '<td>$' + (r.food_text_usd||0).toFixed(4) + '</td>' +
+      '<td>$' + (r.food_photo_usd||0).toFixed(4) + '</td>' +
+      '<td>$' + (r.agent_chat_usd||0).toFixed(4) + '</td>' +
+      '<td><b>$' + r.total_usd.toFixed(4) + '</b></td></tr>'
+    ).join('');
+    document.getElementById('llm-by-user').innerHTML = d.by_user.map(r =>
+      '<tr><td class="mono">' + (r.user_id || '—') + '</td>' +
+      '<td>' + (r.first_name || '') + '</td>' +
+      '<td>' + r.calls + '</td>' +
+      '<td><b>$' + r.cost_usd.toFixed(4) + '</b></td></tr>'
+    ).join('');
+  } catch(e){ toast('Ошибка LLM: '+e.message, 'err') }
+}
+
+function loadAll(){ loadUsers(); loadServer(); loadBackups(); loadLLM() }
 function tick(){ $('now').textContent = new Date().toLocaleString('ru-RU') }
 
 tick(); setInterval(tick, 1000);
