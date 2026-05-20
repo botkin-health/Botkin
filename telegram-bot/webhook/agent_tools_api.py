@@ -321,12 +321,24 @@ async def kb_value(
 ):
     """Look up a value in knowledge_base.json by key path.
 
-    Only available for the 'owner' cohort. Other users receive a stub response.
+    Resolution order:
+      1. Per-user KB at `kb_<telegram_id>.json` at repo root (any cohort) —
+         synced from FamilyHealth/<user>/knowledge_base.json on demand.
+      2. Owner-cohort fallback: legacy `knowledge_base.json` (Alex-only).
+      3. Otherwise: returns null with source='kb-not-available'.
     """
-    if user.cohort != "owner":
-        return {"key": key, "value": None, "source": "not-implemented"}
+    project_root = Path(__file__).resolve().parents[2]
+    per_user_kb = project_root / f"kb_{user.telegram_id}.json"
 
-    kb_path = Path(__file__).resolve().parents[2] / "knowledge_base.json"
+    if per_user_kb.exists():
+        kb_path = per_user_kb
+        source = f"kb_{user.telegram_id}.json"
+    elif user.cohort == "owner":
+        kb_path = project_root / "knowledge_base.json"
+        source = "knowledge_base.json"
+    else:
+        return {"key": key, "value": None, "source": "kb-not-available"}
+
     if not kb_path.exists():
         return {"key": key, "value": None, "source": "kb-not-found"}
 
@@ -336,7 +348,7 @@ async def kb_value(
         with open(kb_path, encoding="utf-8") as f:
             kb = json.load(f)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to read knowledge_base.json: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to read {source}: {e}")
 
     # Support dot-notation path traversal: e.g. "blood_tests.0.values.cholesterol"
     value = kb
@@ -353,7 +365,7 @@ async def kb_value(
         if value is None:
             break
 
-    return {"key": key, "value": value, "source": "knowledge_base.json"}
+    return {"key": key, "value": value, "source": source}
 
 
 @router.get("/dashboard_summary")
