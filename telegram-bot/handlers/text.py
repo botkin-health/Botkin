@@ -19,6 +19,79 @@ from services.state import state_manager
 router = Router()
 
 
+_QUESTION_STARTERS = (
+    "как",
+    "что",
+    "почему",
+    "зачем",
+    "когда",
+    "сколько",
+    "какой",
+    "какая",
+    "какие",
+    "какое",
+    "где",
+    "куда",
+    "откуда",
+    "напомни",
+    "посчитай",
+    "покажи",
+    "расскажи",
+    "объясни",
+    "подскажи",
+    "сравни",
+    "оцени",
+    "может",
+    "можно",
+    "нужно",
+    "стоит ли",
+)
+# Word-boundary regex — avoids matching 'дела' as containing 'ела'.
+_FOOD_DISQUALIFIER_RE = re.compile(
+    r"\b("
+    r"съел|съела|ел|ела|выпил|выпила|пью|выпью|"
+    r"позавтракал|пообедал|поужинал|перекусил|перекусила|"
+    r"граммов?|ккал|калори|белков?|жиров?|углеводов?|клетчатк|"
+    r"завтрак|обед|ужин|перекус|бранч|полдник"
+    r")\b",
+    re.IGNORECASE,
+)
+# Numeric weight/dose: "200г", "120/80", "5000 МЕ", "5 шт"
+_NUMERIC_DOSE_RE = re.compile(
+    r"\d+\s*(?:г|мг|мл|кг|/|ме|iu|шт|капсул|таблеток)",
+    re.IGNORECASE,
+)
+
+
+def _is_clearly_conversational(text: str) -> bool:
+    """Cheap heuristic: looks like a question, NOT a food/log entry.
+
+    Used to skip the Sonnet-4.5 LLM router for obvious conversational
+    text — saves ~$0.04 per message (see admin /api/llm_usage panel).
+    Conservative: false negatives (food sent to agent) are harmless because
+    the agent declines to log without explicit user intent.
+    """
+    if not text:
+        return False
+    t = text.strip()
+
+    if _FOOD_DISQUALIFIER_RE.search(t):
+        return False
+    if _NUMERIC_DOSE_RE.search(t):
+        return False
+
+    # Strong signal: explicit question
+    if "?" in t:
+        return True
+
+    # Starts with a question word
+    first_word = t.lower().split(maxsplit=1)[0] if t else ""
+    if any(first_word == qw for qw in _QUESTION_STARTERS):
+        return True
+
+    return False
+
+
 def _is_food_description(text: str) -> bool:
     """
     Определяет, является ли текст описанием еды.
@@ -529,17 +602,29 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             debug_logger.info(f"✅ Supplement pre-check found: {unique_supplements}")
 
     if not router_result:
-        try:
-            debug_logger.info("⏳ Calling analyze_message in executor...")
-            loop = asyncio.get_running_loop()
-            router_result = await loop.run_in_executor(None, analyze_message, text)
-            debug_logger.info(
-                f"✅ analyze_message returned type: {router_result.get('type') if router_result else 'None'}"
-            )
-        except Exception as e:
-            debug_logger.error(f"❌ analyze_message FAILED: {e}", exc_info=True)
-            logger.error(f"LLM Router Error: {e}", exc_info=True)
-            router_result = None
+        # Conversational pre-filter: skip the Sonnet-4.5 LLM router for
+        # texts that are clearly questions (saves ~$0.04/message — see
+        # core/llm_usage admin panel). Heuristic: ends with '?' or starts
+        # with a question word, AND has no food keywords / weight units /
+        # supplement names. Conservative — false negative (food sent to
+        # agent) is fine because agent will refuse to log; false positive
+        # (question sent to router) is fine because router returns 'other'
+        # and we route to agent anyway.
+        if _is_clearly_conversational(text):
+            debug_logger.info("⚡ Pre-filter: conversational text, skipping LLM router")
+            router_result = {"type": "other", "data": {}}
+        else:
+            try:
+                debug_logger.info("⏳ Calling analyze_message in executor...")
+                loop = asyncio.get_running_loop()
+                router_result = await loop.run_in_executor(None, analyze_message, text)
+                debug_logger.info(
+                    f"✅ analyze_message returned type: {router_result.get('type') if router_result else 'None'}"
+                )
+            except Exception as e:
+                debug_logger.error(f"❌ analyze_message FAILED: {e}", exc_info=True)
+                logger.error(f"LLM Router Error: {e}", exc_info=True)
+                router_result = None
 
     if not router_result:
         # Fallback: Regex for Vitamins
