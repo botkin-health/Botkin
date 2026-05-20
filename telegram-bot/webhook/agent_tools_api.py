@@ -469,19 +469,33 @@ async def recent_sleep(
     user=Depends(get_agent_user),
     db: Session = Depends(get_db),
 ):
-    """Recent sleep records (last `days`).
+    """Recent sleep — derived from activity_log.raw_data (Garmin daily-summary).
 
-    Returns aggregates and last 14 nights individually.
+    The dedicated `sleep_records` table exists but isn't populated yet —
+    Garmin sync writes daily totals into `activity_log.raw_data.sleepingSeconds`.
+    This endpoint reads from there so the agent has live data without a
+    separate ETL job (see tech debt in projects/2026-05_nanoclaw-agent-bot/PLAN.md).
+
+    Date semantics: each row's `date` is the calendar day; `sleepingSeconds`
+    is for the night ENDING on that day (Garmin convention).
+
+    Extra fields available when source='garmin_sleep' (rare): `deep_h`, `rem_h`, `sleep_score`.
     """
     from sqlalchemy import text as sql_text
 
     days = max(1, min(days, 90))
     sql = sql_text(
         """
-        SELECT date, duration_hours, quality_score,
-               deep_sleep_minutes, rem_sleep_minutes, awake_minutes, source
-        FROM sleep_records
+        SELECT date,
+               (raw_data->>'sleepingSeconds')::numeric / 3600.0 AS duration_hours,
+               (raw_data->>'sleep_score')::int               AS quality_score,
+               (raw_data->>'deep_h')::numeric * 60           AS deep_min,
+               (raw_data->>'rem_h')::numeric * 60            AS rem_min,
+               source
+        FROM activity_log
         WHERE user_id = :uid
+          AND raw_data ? 'sleepingSeconds'
+          AND (raw_data->>'sleepingSeconds')::int > 0
           AND date >= CURRENT_DATE - (:days || ' days')::interval
         ORDER BY date DESC
         """
@@ -490,11 +504,10 @@ async def recent_sleep(
     items = [
         {
             "date": r.date.isoformat(),
-            "duration_hours": float(r.duration_hours) if r.duration_hours is not None else None,
+            "duration_hours": round(float(r.duration_hours), 2) if r.duration_hours is not None else None,
             "quality_score": r.quality_score,
-            "deep_min": r.deep_sleep_minutes,
-            "rem_min": r.rem_sleep_minutes,
-            "awake_min": r.awake_minutes,
+            "deep_min": int(r.deep_min) if r.deep_min is not None else None,
+            "rem_min": int(r.rem_min) if r.rem_min is not None else None,
             "source": r.source,
         }
         for r in rows
@@ -505,13 +518,19 @@ async def recent_sleep(
 
     dur = [i["duration_hours"] for i in items if i["duration_hours"]]
     qual = [i["quality_score"] for i in items if i["quality_score"]]
+    # Sleep quality flags by duration vs 7h adequate / 6h marginal.
+    below_6h = sum(1 for d in dur if d < 6)
     return {
         "status": "ok",
         "period_days": days,
         "count": len(items),
         "stats": {
             "avg_duration_h": round(sum(dur) / len(dur), 2) if dur else None,
+            "min_duration_h": round(min(dur), 2) if dur else None,
+            "max_duration_h": round(max(dur), 2) if dur else None,
             "avg_quality": round(sum(qual) / len(qual), 1) if qual else None,
+            "nights_below_6h": below_6h,
+            "nights_below_6h_pct": round(100 * below_6h / len(dur), 1) if dur else None,
         },
         "items": items[:14],
     }
