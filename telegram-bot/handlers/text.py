@@ -617,7 +617,9 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             try:
                 debug_logger.info("⏳ Calling analyze_message in executor...")
                 loop = asyncio.get_running_loop()
-                router_result = await loop.run_in_executor(None, analyze_message, text)
+                router_result = await loop.run_in_executor(
+                    None, lambda: analyze_message(text=text, user_id=int(user_id))
+                )
                 debug_logger.info(
                     f"✅ analyze_message returned type: {router_result.get('type') if router_result else 'None'}"
                 )
