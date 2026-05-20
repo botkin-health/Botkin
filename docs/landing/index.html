@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <title>Botkin — Персональный AI-помощник для здоровья</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="Открытая платформа для трекинга здоровья: Telegram-бот, дашборд, интеграции с Apple Health/Garmin, AI-помощник через Claude и Gemini.">
+<meta name="description" content="Открытая платформа для трекинга здоровья: Telegram-бот (iOS / Android), интеграции с Apple Health, Google Health Connect (Samsung Health, Mi, Huawei), Garmin, тонометром и весами; AI-помощник через Claude или Gemini.">
 <meta property="og:title" content="Botkin — Персональный AI-помощник для здоровья">
-<meta property="og:description" content="Открытый проект владельца для трекинга и анализа здоровья с AI.">
+<meta property="og:description" content="Открытый проект Александра Лысковского для трекинга и анализа здоровья с AI.">
 <meta property="og:image" content="/landing/assets/og-cover.png">
 <link rel="icon" type="image/png" href="/landing/assets/favicon.png">
 <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.0/dist/mermaid.min.js"></script>
@@ -221,8 +221,12 @@ section .lead {
 .diagram-wrap {
   background: var(--card); border: 1px solid var(--border); border-radius: 14px;
   padding: 32px; overflow-x: auto;
+  /* break out из 1140px container — диаграмме нужно больше ширины на десктопе */
+  margin-left: calc(-1 * max(0px, (100vw - 1140px) / 2 - 24px));
+  margin-right: calc(-1 * max(0px, (100vw - 1140px) / 2 - 24px));
 }
 .mermaid { color: var(--text); }
+.mermaid svg { display: block; margin: 0 auto; }
 
 /* ─────────── Screenshots gallery ─────────── */
 .gallery {
@@ -378,7 +382,7 @@ footer .bottom {
           <div class="l">источников данных</div>
         </div>
         <div class="stat">
-          <div class="n">730+</div>
+          <div class="n">1000+</div>
           <div class="l">приёмов пищи распознано</div>
         </div>
         <div class="stat">
@@ -415,7 +419,7 @@ footer .bottom {
     <div class="feature">
       <div class="icon">🤖</div>
       <h3>Telegram-бот</h3>
-      <p>Логируй еду фоткой тарелки, голосовым «принял креатин», текстом «АД 128/72». LLM сама распознаёт и пишет в базу.</p>
+      <p>Логируй еду фотографией, голосовым «принял креатин» или текстом «АД 128/72». LLM распознаёт и записывает в базу.</p>
     </div>
     <div class="feature">
       <div class="icon">📊</div>
@@ -456,7 +460,7 @@ footer .bottom {
         <strong>Alawar</strong> (игры, экзит),
         <strong>Welltory</strong> (HealthTech, экзит),
         <strong>iFarm</strong> (AgriTech, вертикальные фермы в 9 странах),
-        <strong>ДАО Тех</strong> (нейронки в промышленной роботизации) — исполнительный директор с января 2026.
+        <strong>ДАО Тех</strong> (AI в промышленной роботизации).
       </p>
 
       <p>
@@ -466,7 +470,7 @@ footer .bottom {
       </p>
 
       <p>
-        Десять лет назад это было фантастикой. Сегодня — благодаря зрелым LLM, MCP и инструментам вайб-кодинга — это реальный проект.
+        Десять лет назад это было фантастикой. Сегодня — благодаря зрелым LLM, MCP и AI-ассистентам в разработке — это реальный проект.
       </p>
 
       <p>
@@ -475,13 +479,9 @@ footer .bottom {
       </p>
 
       <p class="muted">
-        Открытый исходный код — намеренно. <strong>Забирай, форкай, делай свою копию для своей семьи или клиентов.</strong>
-        Хочешь обсудить применение в клинике, в корпоративной программе wellness, в исследовании? — напиши мне.
+        Открытый код — намеренно. <strong>Форкни репозиторий и разверни свою копию для семьи или клиентов.</strong>
+        Если хочешь обсудить применение в клинике, в корпоративной wellness-программе или в исследовании — напиши на <a href="mailto:lyskovsky@gmail.com">lyskovsky@gmail.com</a>.
       </p>
-
-      <div class="signature">
-        <a href="mailto:lyskovsky@gmail.com">lyskovsky@gmail.com</a>
-      </div>
     </div>
   </div>
 </div>
@@ -491,7 +491,7 @@ footer .bottom {
 <section id="how">
 <div class="container">
   <div class="eyebrow">Как это работает</div>
-  <h2>От первой фотки тарелки до полного дашборда — четыре шага</h2>
+  <h2>От первой записи о еде до полного дашборда — четыре шага</h2>
   <p class="lead">
     Подключаешься через Telegram (1 минута), отвечаешь на 10 вопросов онбординга (5 минут),
     дальше — просто пользуешься.
@@ -501,12 +501,12 @@ footer .bottom {
     <div class="step">
       <span class="num">01</span>
       <h3>Подключаешься в Telegram</h3>
-      <p>Открываешь @Botkin_md_bot, нажимаешь /start. 10 вопросов про возраст, рост, цель — посчитает твою норму калорий.</p>
+      <p>Открываешь <a href="https://t.me/Botkin_md_bot">@Botkin_md_bot</a>, нажимаешь /start. 10 вопросов про возраст, рост, цель — посчитает твою норму калорий.</p>
     </div>
     <div class="step">
       <span class="num">02</span>
       <h3>Логируешь данные</h3>
-      <p>Фотки еды, голосовые «принял креатин», текст «АД 128/72». Apple Health / Garmin синкаются автоматически каждую ночь.</p>
+      <p>Фото еды, голосовые «принял креатин», текст «АД 128/72». HRV-датчики, умные часы (Garmin, Apple Watch) и весы подтягиваются напрямую или через Apple Health / Google Health Connect — автоматически раз в сутки или по команде <code>/sync</code>.</p>
     </div>
     <div class="step">
       <span class="num">03</span>
@@ -524,27 +524,65 @@ footer .bottom {
     <h3 style="font-size: 22px; margin-bottom: 20px;">Архитектура — кто где живёт</h3>
     <div class="diagram-wrap">
       <pre class="mermaid">
-graph LR
-    U[👤 Ты] -->|сообщения| B[🤖 Telegram-бот]
-    IP[📱 iPhone] -->|Apple Health| WH[🍎 HAE webhook]
-    GA[⌚ Garmin] -->|API| SY[🔄 Sync]
+flowchart LR
+    subgraph S["📥 ИСТОЧНИКИ"]
+      direction TB
+      U[👤 Сообщения в боте — фото / голос / текст]
+      IOS[📱 iPhone · Apple Health<br>агрегирует весы, тонометр, Apple Watch]
+      AND[📱 Android · Health Connect — скоро<br>агрегирует Samsung Health, Mi, Huawei]
+      WR[⌚ Garmin / Oura / Whoop / Fitbit / Polar]
+      GD[📂 Google Drive — PDF анализов, УЗИ,<br>рецепты, заключения врачей]
+    end
 
-    B --> DB[(🗄 PostgreSQL)]
+    subgraph P["⚙️ ОБРАБОТКА"]
+      direction TB
+      B[🤖 Telegram-бот]
+      WH[🪝 Webhook — HAE и Health Connect]
+      SY[🔄 Ночной sync — API устройств]
+      EX[📝 Claude — извлекает биомаркеры из PDF]
+    end
+
+    subgraph ST["💾 ХРАНЕНИЕ"]
+      direction TB
+      DB[(🗄 PostgreSQL — питание, активность, биомаркеры)]
+      KB[(📚 Knowledge Base — JSON на человека)]
+    end
+
+    subgraph O["📲 ИНТЕРФЕЙСЫ"]
+      direction TB
+      MA[📊 Mini-app — Telegram]
+      DSH[📈 Dashboard — браузер]
+      MCP[🔌 MCP-сервер → Claude / ChatGPT / Gemini / Cursor / Cline / ...]
+    end
+
+    U --> B
+    IOS --> WH
+    AND -.-> WH
+    WR --> SY
+    GD --> EX
+
+    B --> DB
     WH --> DB
     SY --> DB
+    EX --> KB
+    KB --> DB
 
-    DB --> MA[📊 Mini-app]
-    DB --> DSH[📈 Dashboard]
-    DB --> MCP[🔌 MCP server]
+    DB --> MA
+    DB --> DSH
+    DB --> MCP
+    KB --> MCP
 
-    MA --> U
-    DSH --> U
-    MCP -->|для коллабораторов| CD[💻 Claude / Gemini Desktop]
-    CD --> U
+    classDef sourceCls fill:#1a2234,stroke:#3b82f6,color:#e8eef7
+    classDef pipeCls   fill:#1a2234,stroke:#00ff9d,color:#e8eef7
+    classDef storeCls  fill:#1a2234,stroke:#ffb800,color:#e8eef7
+    classDef outCls    fill:#1a2234,stroke:#a855f7,color:#e8eef7
+    classDef plannedCls fill:#1a2234,stroke:#7a879f,stroke-dasharray:5 5,color:#7a879f
 
-    KB[(📂 Google Drive KB)] --> DB
-    LKB[(📚 Longevity KB)] --> B
-    LKB --> MCP
+    class U,IOS,WR,GD sourceCls
+    class AND plannedCls
+    class B,WH,SY,EX pipeCls
+    class DB,KB storeCls
+    class MA,DSH,MCP outCls
       </pre>
     </div>
   </div>
@@ -588,7 +626,7 @@ graph LR
       </div>
       <div class="caption">
         <h4>Распознавание еды</h4>
-        <p>Скинул фото блюда — бот определяет состав, прикидывает порцию, считает КБЖУ.</p>
+        <p>Отправь фото блюда — бот определит состав, оценит порцию, посчитает КБЖУ.</p>
       </div>
     </div>
   </div>
@@ -605,13 +643,13 @@ graph LR
     <div class="persona">
       <div class="who">📱 Простой юзер</div>
       <h3>«Я хочу просто логировать»</h3>
-      <p>Уже трекаешь еду в каком-то приложении, надоело перепечатывать. Хочешь — фоткой или голосом. AI считает за тебя.</p>
+      <p>Уже ведёшь дневник питания в приложении, но надоело руками перепечатывать. В Botkin — фото или голос, AI считает сам.</p>
       <div class="what">→ Telegram-бот, мини-апп</div>
     </div>
     <div class="persona">
       <div class="who">🏃 Здоровьем интересующийся</div>
       <h3>«Я слежу за здоровьем системно»</h3>
-      <p>Носишь Apple Watch / Garmin, сдаёшь анализы регулярно, есть таблица KБЖУ в Excel, хочешь увидеть всё в одном дашборде с трендами.</p>
+      <p>Носишь Apple Watch / Garmin / фитнес-браслет, сдаёшь анализы регулярно, есть таблица KБЖУ в Excel, хочешь увидеть всё в одном дашборде с трендами.</p>
       <div class="what">→ Бот + Apple Health/Garmin + Dashboard</div>
     </div>
     <div class="persona">
@@ -623,7 +661,7 @@ graph LR
     <div class="persona">
       <div class="who">⚒ Вайб-кодер</div>
       <h3>«Хочу форкнуть и делать своё»</h3>
-      <p>Тебя зацепила идея personal health AI agent. Хочешь свою копию для семьи, для клиники, для своих пользователей.</p>
+      <p>Идея personal health AI-agent кажется интересной. Нужна своя копия — для семьи, клиники или собственных пользователей.</p>
       <div class="what">→ GitHub, документация</div>
     </div>
   </div>
@@ -635,7 +673,7 @@ graph LR
 <div class="container">
   <div class="cta-block">
     <div class="eyebrow">Open Source</div>
-    <h2>Забирай код, делай свою копию</h2>
+    <h2>Открытый код. Разверни свою копию.</h2>
     <p>
       Весь код — открытый. Telegram-бот, мини-апп, дашборд, MCP server, парсеры еды.
       Развёртываешь у себя на сервере, регистрируешь своего Telegram-бота, прописываешь свои API-ключи —
@@ -729,14 +767,14 @@ graph LR
   <div class="eyebrow">Для бизнеса</div>
   <h2>Партнёрства, клиники, исследования</h2>
   <p class="lead">
-    Хочешь применить Botkin в клинике, в корпоративной wellness-программе, в исследовании? —
-    Готов обсудить. Если идея серьёзная и аудитория > 50 человек — поможем с развёртыванием.
+    Применение Botkin в клинике, корпоративной wellness-программе или исследовании — готов обсудить.
+    Если идея серьёзная и аудитория > 50 человек — поможем с развёртыванием.
   </p>
 
   <div class="business">
     <div class="biz-card">
       <h3>🏥 Клиники и врачи</h3>
-      <p>Дай своим пациентам персонального AI-помощника по приверженности к терапии, питанию, отслеживанию биомаркеров. Self-host или managed — обсуждаем.</p>
+      <p>Предложи пациентам персонального AI-помощника по приверженности к терапии, питанию и отслеживанию биомаркеров. Self-host или managed — на выбор.</p>
     </div>
     <div class="biz-card">
       <h3>🏢 Корпоративный wellness</h3>
@@ -781,8 +819,13 @@ graph LR
   </details>
 
   <details class="faq-item">
+    <summary>А если у меня только Apple Watch, без Garmin?</summary>
+    <p>Работает полноценно. Через Apple Health подтягиваются шаги, пульс, HRV, SpO2 и стадии сна. Body Battery и Stress считаются по HRV — на дашборде те же тайлы, что у Garmin-юзеров.</p>
+  </details>
+
+  <details class="faq-item">
     <summary>У меня Android, что делать?</summary>
-    <p>Telegram-бот работает у любого пользователя. Без iPhone не будет автоматического синка Apple Health, но всё что ты вводишь руками — работает. Если у тебя Garmin — есть прямой коннектор.</p>
+    <p>Бот работает одинаково на iOS и Android — Telegram одинаков. На любой платформе уже сейчас: Garmin, весы Mi / Zepp, тонометр Omron, ручной ввод (фото / голос / текст). В ближайших обновлениях — интеграция с <strong>Google Health Connect</strong>, через который автоматически подтягиваются Samsung Health, Huawei Health, Mi Health и другие Android-приложения здоровья. Apple Health останется iOS-only (он есть только в iOS).</p>
   </details>
 
   <details class="faq-item">
@@ -824,7 +867,7 @@ graph LR
   </div>
   <div class="bottom">
     <span>© 2026 Александр Лысковский. MIT License.</span>
-    <span class="mono">Botkin v0.5.0 · обновлено 12.05.2026</span>
+    <span class="mono">Botkin v0.6.0 · обновлено 20.05.2026</span>
   </div>
 </div>
 </footer>
@@ -844,6 +887,7 @@ mermaid.initialize({
     mainBkg: '#141a28',
     secondBkg: '#0f1420',
     fontFamily: 'SF Pro Display, Inter, sans-serif',
+    fontSize: '15px',
   }
 });
 </script>
