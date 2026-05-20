@@ -38,6 +38,11 @@ services:
       # Bind на 127.0.0.1 — не публичный, доступно только локальному nginx.
       # Был потерян при docker compose --force-recreate 18.05 → 502 на webhook.
       - "127.0.0.1:8081:8081"
+      # 172.17.0.1 — docker bridge gateway. Нужен для spawn-контейнеров NanoClaw
+      # (agent stack) чтобы достучаться до /api/agent/* через host.docker.internal.
+      # JWT-auth на эндпойнтах обязательна; внешний доступ не открывается.
+      # См. docs/projects/2026-05_nanoclaw-agent-bot/STATUS.md § Архитектура.
+      - "172.17.0.1:8081:8081"
     volumes:
       - ./logs:/app/logs
       - ./data:/app/data
