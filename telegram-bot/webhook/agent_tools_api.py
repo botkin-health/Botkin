@@ -132,7 +132,7 @@ async def log_meal_text(
     parse_error: Optional[str] = None
 
     try:
-        llm_result = analyze_message(text=req.text)
+        llm_result = analyze_message(text=req.text, user_id=user.telegram_id)
         if not llm_result or llm_result.get("type") != "food":
             parse_error = (
                 "LLM не распознал это как еду "

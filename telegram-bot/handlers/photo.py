@@ -170,7 +170,8 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
 
         loop = asyncio.get_running_loop()
         router_result = await loop.run_in_executor(
-            None, lambda: analyze_message(text=prompt_text, image_paths=paths_for_llm)
+            None,
+            lambda: analyze_message(text=prompt_text, image_paths=paths_for_llm, user_id=int(user_id)),
         )
         if router_result and router_result.get("type") == "food" and router_result.get("data"):
             data = router_result["data"]
@@ -790,7 +791,8 @@ async def handle_description(
             processing_message = await message.answer("🤖 Думаю... 🧠")
 
         try:
-            router_result = analyze_message(text=full_description, image_paths=paths_to_analyze)
+            uid_int = int(message.from_user.id) if message and message.from_user else None
+            router_result = analyze_message(text=full_description, image_paths=paths_to_analyze, user_id=uid_int)
         except Exception as e:
             logger.error(f"LLM Router Error: {e}")
             router_result = None
