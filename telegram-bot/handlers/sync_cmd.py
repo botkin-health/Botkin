@@ -74,7 +74,8 @@ SOURCES = {
 async def _run_script(script_path: str, timeout: int = 300) -> tuple[bool, str]:
     """Запускает Python-скрипт в текущем процессе бота (мы уже в контейнере).
 
-    Возвращает (success, tail_output) — последние ~10 строк stdout/stderr.
+    Возвращает (success, summary) — для упавшего скрипта это короткая
+    причина (одна осмысленная строка), для успешного — пустая строка.
     """
     try:
         proc = await asyncio.create_subprocess_exec(
@@ -87,18 +88,63 @@ async def _run_script(script_path: str, timeout: int = 300) -> tuple[bool, str]:
             stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout)
         except asyncio.TimeoutError:
             proc.kill()
-            return False, f"⏱ Таймаут {timeout}с"
+            return False, f"таймаут {timeout}с"
 
         output = (stdout or b"").decode("utf-8", errors="replace")
-        # Берём последние 8 непустых строк — обычно там итог
-        lines = [line for line in output.strip().split("\n") if line.strip()]
-        tail = "\n".join(lines[-8:])
+        if proc.returncode == 0:
+            return True, ""
 
-        return (proc.returncode == 0), tail
+        # Failure: выбрать одну информативную строку для пользователя
+        return False, _summarize_error(output)
     except FileNotFoundError as e:
-        return False, f"❌ Скрипт не найден: {e}"
+        return False, f"скрипт не найден: {e}"
     except Exception as e:
-        return False, f"❌ Ошибка запуска: {type(e).__name__}: {e}"
+        return False, f"{type(e).__name__}: {e}"
+
+
+def _summarize_error(stderr_output: str) -> str:
+    """Извлекает одну читабельную строку из stdout/stderr упавшего скрипта.
+
+    Стратегия (по приоритету):
+      1. Последняя строка Traceback («ModuleNotFoundError: ...», «401 ...»)
+      2. Строка с «Error», «error», «Exception», «failed», «401», «403», «500»
+      3. Просто последняя непустая строка
+
+    Обрезает до 200 символов чтобы влезло в общий summary.
+    """
+    lines = [line.strip() for line in stderr_output.strip().split("\n") if line.strip()]
+    if not lines:
+        return "пустой вывод (exit != 0)"
+
+    # 1. Tail of Traceback — usually the actual error type+msg
+    for line in reversed(lines):
+        if any(
+            line.startswith(prefix)
+            for prefix in (
+                "ModuleNotFoundError",
+                "ImportError",
+                "ConnectionError",
+                "TimeoutError",
+                "ValueError",
+                "KeyError",
+                "AttributeError",
+                "TypeError",
+                "RuntimeError",
+                "OSError",
+                "FileNotFoundError",
+            )
+        ):
+            return line[:200]
+
+    # 2. Any line with error-ish keywords
+    for line in reversed(lines):
+        low = line.lower()
+        if any(kw in low for kw in ("error:", "exception:", "failed", "401", "403", "500", "❌", "⚠")):
+            # Strip leading "❌ " etc emoji noise
+            return line[:200]
+
+    # 3. Just the last non-trivial line
+    return lines[-1][:200]
 
 
 def _format_log_mtime(pattern: str | None) -> str:
@@ -182,26 +228,57 @@ async def cmd_sync(message: Message, command: CommandObject, user_id: int):
         await message.answer(msg)
         return
 
-    # Старт-сообщение
-    labels = ", ".join(SOURCES[s][1] for s in actually_run)
-    await message.answer(f"🔄 Запускаю: {labels}\n_Это займёт до 5 минут_", parse_mode="Markdown")
+    # Старт-сообщение (одной строкой — лаконично)
+    short_labels = ", ".join(SOURCES[s][1].split(" ")[0] for s in actually_run)
+    progress_msg = await message.answer(f"🔄 Sync: {short_labels}…")
 
-    # Запуск последовательно (Garmin сам по себе долгий, параллельность не критична)
-    results = []
+    # Запуск последовательно (Garmin самый долгий, параллельность не критична)
+    started = time.time()
+    results: list[tuple[str, str, bool, str]] = []  # (src, label, success, error_summary)
     for src in actually_run:
         script, label, _ = SOURCES[src]
         _LAST_RUN[src] = time.time()
-        success, tail = await _run_script(script)
-        emoji = "✅" if success else "❌"
-        results.append(f"{emoji} *{label}*\n```\n{tail[:400]}\n```")
+        success, err_summary = await _run_script(script)
+        results.append((src, label, success, err_summary))
 
-    # Финал-сообщение
-    summary = "\n\n".join(results)
+    elapsed = int(time.time() - started)
+    elapsed_str = f"{elapsed}с" if elapsed < 60 else f"{elapsed // 60}м {elapsed % 60}с"
+
+    ok_count = sum(1 for _, _, s, _ in results if s)
+    total = len(results)
+
+    # Header
+    if ok_count == total:
+        lines = [f"✅ Sync чисто ({elapsed_str}) · все {total} источника обновлены"]
+    elif ok_count == 0:
+        lines = [f"❌ Sync упал ({elapsed_str}) · 0/{total}"]
+    else:
+        lines = [f"🔄 Sync ({elapsed_str}) · {ok_count}/{total} ✅"]
+
+    # OK sources — одной строкой через ·
+    ok_labels = [label for _, label, success, _ in results if success]
+    if ok_labels:
+        # Сокращённые имена для одной строки (убираем "(...)" в скобках)
+        short = [lbl.split(" (")[0] for lbl in ok_labels]
+        lines.append("\n✅ " + " · ".join(short))
+
+    # Failures — каждая отдельной строкой с причиной
+    failures = [(label, err) for _, label, success, err in results if not success]
+    for label, err in failures:
+        short_label = label.split(" (")[0]
+        lines.append(f"❌ {short_label} — {err}")
+
     if cooldown_skipped:
-        summary += "\n\n_Пропущено (кулдаун):_ " + ", ".join(SOURCES[s][1] for s, _ in cooldown_skipped)
+        skipped = ", ".join(SOURCES[s][1].split(" (")[0] for s, _ in cooldown_skipped)
+        lines.append(f"\n⏳ Пропущено (кулдаун): {skipped}")
 
-    # Telegram лимит на одно сообщение ~4096 символов
+    summary = "\n".join(lines)
     if len(summary) > 3900:
         summary = summary[:3900] + "\n\n…[обрезано]"
 
-    await message.answer(summary, parse_mode="Markdown")
+    # Заменяем progress-сообщение финальным
+    try:
+        await progress_msg.edit_text(summary)
+    except Exception:
+        # Если редактирование не удалось — пошлём новое
+        await message.answer(summary)
