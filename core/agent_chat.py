@@ -330,7 +330,77 @@ def _load_history(db, user_id: int, limit: int = HISTORY_WINDOW) -> list[dict]:
                 messages[-1]["content"].extend(content)
             else:
                 messages.append({"role": "user", "content": content})
-    return messages
+
+    return _validate_history(messages)
+
+
+def _validate_history(messages: list[dict]) -> list[dict]:
+    """Strip orphan tool_use/tool_result blocks that violate Anthropic API.
+
+    Bug fix for 400 'unexpected tool_use_id in tool_result blocks'. Reasons
+    orphans happen at HISTORY_WINDOW boundary, after row deletions, or after
+    save crashes between tool_use save and matching tool_result save.
+
+    Algorithm:
+      1. Collect all tool_use_id present anywhere in the window
+      2. Drop any tool_result blocks whose tool_use_id isn't in that set
+      3. Drop any tool_use blocks whose id isn't matched by a later tool_result
+      4. Drop messages that become empty after block-stripping
+      5. Strip leading message if its only content was orphan tool blocks
+         (Anthropic requires first message to be 'user' with real text)
+    """
+    # First pass: collect all tool_use_id and tool_result tool_use_id present
+    tool_use_ids: set[str] = set()
+    tool_result_ids: set[str] = set()
+    for m in messages:
+        content = m.get("content")
+        if not isinstance(content, list):
+            continue
+        for block in content:
+            if not isinstance(block, dict):
+                continue
+            if block.get("type") == "tool_use":
+                if tid := block.get("id"):
+                    tool_use_ids.add(tid)
+            elif block.get("type") == "tool_result":
+                if tid := block.get("tool_use_id"):
+                    tool_result_ids.add(tid)
+
+    # Both must match — orphans on either side are stripped
+    valid_ids = tool_use_ids & tool_result_ids
+
+    # Second pass: strip blocks with id not in valid_ids
+    cleaned: list[dict] = []
+    for m in messages:
+        content = m.get("content")
+        if isinstance(content, str):
+            cleaned.append(m)
+            continue
+        if not isinstance(content, list):
+            cleaned.append(m)
+            continue
+        new_blocks = []
+        for block in content:
+            if isinstance(block, dict):
+                btype = block.get("type")
+                if btype == "tool_use":
+                    if block.get("id") in valid_ids:
+                        new_blocks.append(block)
+                    continue
+                if btype == "tool_result":
+                    if block.get("tool_use_id") in valid_ids:
+                        new_blocks.append(block)
+                    continue
+            new_blocks.append(block)
+        if new_blocks:
+            cleaned.append({"role": m["role"], "content": new_blocks})
+
+    # Anthropic requires first message role == "user". If we somehow end up
+    # with an assistant-first list (because user msg got fully orphaned),
+    # drop leading assistants.
+    while cleaned and cleaned[0]["role"] != "user":
+        cleaned.pop(0)
+    return cleaned
 
 
 def _save_message(db, user_id: int, role: str, content: Any, tool_use_id: Optional[str] = None):
