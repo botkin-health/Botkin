@@ -80,11 +80,17 @@ def _extract_rows(kb: dict, user_id: int) -> Iterable[dict]:
             test_type = entry.get("analysis_type") or entry.get("type") or entry.get("subtype") or default_type
             # Some hormone entries use type="DHT" — keep as-is
 
-            # Schema varies between KBs:
-            #   Alex's KB:   entry["values"]  = {marker_key: value, ...}
-            #   Andrey's KB: entry["markers"] = {marker_key: value, ...}
-            # Accept both; prefer 'values' (more common).
-            values_dict = entry.get("values") or entry.get("markers") or {}
+            # Canonical schema: entry["values"] = {marker_key: value, ...}
+            # Legacy "markers" was migrated to "values" 2026-05-18.
+            # See docs/operations/kb-schema.md. If "markers" reappears in a KB,
+            # it's a regression — fix the KB instead of reintroducing fallback.
+            if "markers" in entry and "values" not in entry:
+                raise ValueError(
+                    f"Legacy 'markers' key found in {kb_section} entry "
+                    f"(date={test_date}, file={entry.get('file')}). "
+                    f"Rename to 'values' — see docs/operations/kb-schema.md."
+                )
+            values_dict = entry.get("values") or {}
 
             yield {
                 "user_id": user_id,
