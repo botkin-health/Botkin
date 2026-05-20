@@ -542,6 +542,20 @@ def analyze_message_claude(text: str = None, image_paths: List[Union[str, Path]]
             if cached or created:
                 logger.info(f"Claude cache: read={cached} created={created} tokens")
 
+            # Best-effort usage logging — non-blocking
+            try:
+                from core.llm_usage import log_anthropic_response
+
+                purpose = "food_photo" if image_paths else "food_text"
+                log_anthropic_response(
+                    purpose=purpose,
+                    model=payload.get("model", "claude-sonnet-4-5"),
+                    response_json=result,
+                    user_id=None,  # router doesn't carry user context
+                )
+            except Exception:
+                logger.exception("router: Claude usage logging failed")
+
             return parse_llm_response(json.loads(content_str))
 
         except requests.exceptions.HTTPError as e:
