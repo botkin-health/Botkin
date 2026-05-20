@@ -465,7 +465,11 @@ CORRECT OUTPUT:
 """
 
 
-def analyze_message_claude(text: str = None, image_paths: List[Union[str, Path]] = None) -> Optional[Dict]:
+def analyze_message_claude(
+    text: str = None,
+    image_paths: List[Union[str, Path]] = None,
+    user_id: Optional[int] = None,
+) -> Optional[Dict]:
     """
     Analyzes message content using Claude Sonnet with prompt caching.
     Primary LLM — highest accuracy, ~90% cheaper on repeated system prompt via caching.
@@ -551,7 +555,7 @@ def analyze_message_claude(text: str = None, image_paths: List[Union[str, Path]]
                     purpose=purpose,
                     model=payload.get("model", "claude-sonnet-4-5"),
                     response_json=result,
-                    user_id=None,  # router doesn't carry user context
+                    user_id=user_id,
                 )
             except Exception:
                 logger.exception("router: Claude usage logging failed")
@@ -572,13 +576,20 @@ def analyze_message_claude(text: str = None, image_paths: List[Union[str, Path]]
     return None
 
 
-def analyze_message(text: str = None, image_paths: List[Union[str, Path]] = None) -> Optional[Dict]:
+def analyze_message(
+    text: str = None,
+    image_paths: List[Union[str, Path]] = None,
+    user_id: Optional[int] = None,
+) -> Optional[Dict]:
     """
     Analyzes message content using Claude (primary) → GPT-4o → Gemini.
     Returns structured JSON or None on failure.
+
+    user_id (optional) is threaded down so per-call costs in llm_usage_log
+    are attributed to the right user instead of NULL.
     """
     # 1. Try Claude first
-    result = analyze_message_claude(text, image_paths)
+    result = analyze_message_claude(text, image_paths, user_id=user_id)
     if result is not None:
         return result
     logger.warning("Claude failed, falling back to GPT-4o...")
