@@ -154,11 +154,16 @@ TOOLS: list[dict[str, Any]] = [
         "name": "get_recent_workouts",
         "description": (
             "Анализ тренировок по канонам Seiler 80/20 / Attia Z2 / норвежский 4x4. "
-            "Возвращает: Z2 min/week, HIIT min/week, A:C load ratio (sweet spot 0.8-1.3), "
-            "polarized distribution Z1+Z2 / Z3 / Z4+Z5 %, список последних 10 тренировок. "
+            "Возвращает: by_type (счётчик по Garmin type — running, walking, "
+            "strength_training, yoga и т.п.), Z2 min/week, HIIT min/week, A:C "
+            "load ratio (sweet spot 0.8-1.3), polarized distribution Z1+Z2/Z3/Z4+Z5 %, "
+            "список последних 15 тренировок с type+name. "
             "Используй для 'сколько раз я бегал', 'сколько Z2 в неделю', "
             "'каков мой A:C ratio', 'правильное ли распределение зон'. "
-            "Источник: workouts_log_<id>.json (Garmin activity parser). Период по умолчанию 30 дней."
+            "ВАЖНО: для классификации (бег/ходьба/силовая) ВСЕГДА смотри поле "
+            "`type` (Garmin classification), а НЕ `name` (user-set route label "
+            "типа 'Москва - База' который может быть бегом ИЛИ ходьбой). "
+            "Используй by_type для прямых вопросов типа 'сколько раз я бегал'."
         ),
         "input_schema": {
             "type": "object",
