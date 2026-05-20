@@ -176,14 +176,14 @@ input.editable:focus{border-color:var(--b);outline:none;background:var(--bg2)}
   </div>
   <table style="font-size:13px">
     <thead><tr>
-      <th>Назначение</th><th>Вызовов</th><th>Input · Output</th><th>Cache R/W</th><th>USD</th>
+      <th>Назначение</th><th>Вызовов</th><th>Input → Output</th><th>Кэш чтение / запись</th><th>USD</th>
     </tr></thead>
     <tbody id="llm-by-purpose"></tbody>
   </table>
   <details style="margin-top:8px">
     <summary class="muted">📊 По дням</summary>
     <table style="font-size:12px; margin-top:8px">
-      <thead><tr><th>День</th><th>food_text</th><th>food_photo</th><th>agent_chat</th><th>Σ USD</th></tr></thead>
+      <thead><tr><th>День</th><th>Еда из текста</th><th>Еда из фото</th><th>Агент</th><th>Σ USD</th></tr></thead>
       <tbody id="llm-by-day"></tbody>
     </table>
   </details>
@@ -330,6 +330,16 @@ async function changeKB(tid, kb){
   } catch(e){ toast('Ошибка: '+e.message, 'err') }
 }
 
+// Human-readable purpose labels. Keep DB strings stable; only rename in UI.
+const PURPOSE_LABEL = {
+  'agent_chat':       'Агент · вопрос',
+  'agent_chat_tool':  'Агент · после данных',
+  'food_text':        'Еда из текста',
+  'food_photo':       'Еда из фото',
+  'other':            'Прочее',
+};
+const labelForPurpose = (p) => PURPOSE_LABEL[p] || p;
+
 async function loadLLM(){
   try{
     const days = document.getElementById('llm-window').value;
@@ -340,9 +350,9 @@ async function loadLLM(){
       d.totals.input_tokens.toLocaleString() + ' in / ' +
       d.totals.output_tokens.toLocaleString() + ' out';
     document.getElementById('llm-by-purpose').innerHTML = d.by_purpose.map(r =>
-      '<tr><td><span class="mono">' + r.purpose + '</span></td>' +
+      '<tr><td>' + labelForPurpose(r.purpose) + '</td>' +
       '<td>' + r.calls + '</td>' +
-      '<td>' + r.input_tokens.toLocaleString() + ' · ' + r.output_tokens.toLocaleString() + '</td>' +
+      '<td>' + r.input_tokens.toLocaleString() + ' → ' + r.output_tokens.toLocaleString() + '</td>' +
       '<td>' + r.cache_read_tokens.toLocaleString() + ' / ' + r.cache_creation_tokens.toLocaleString() + '</td>' +
       '<td><b>$' + r.cost_usd.toFixed(4) + '</b></td></tr>'
     ).join('');
