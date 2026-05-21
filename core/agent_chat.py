@@ -230,6 +230,34 @@ TOOLS: list[dict[str, Any]] = [
         "input_schema": {"type": "object", "properties": {}},
     },
     {
+        "name": "get_indoor_air",
+        "description": (
+            "Воздух дома: CO2 ppm, температура, влажность, шум. Источник — Netatmo "
+            "Healthy Home Coach. Только для owner-cohort (Alex). Возвращает latest "
+            "(текущий замер) + history по комнатам (агрегаты за N дней). "
+            "Используй для 'CO2 в спальне', 'духота', 'температура дома'. "
+            "Норма CO2 < 1000 ppm, >1400 — критично для сна/концентрации."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {"days": {"type": "integer", "minimum": 1, "maximum": 60, "default": 7}},
+        },
+    },
+    {
+        "name": "get_outdoor_weather",
+        "description": (
+            "Погода снаружи (Open-Meteo, Москва): температура max/min/средняя, "
+            "давление, влажность, UV, осадки, словесное описание. Без параметра — "
+            "последний день; с date='YYYY-MM-DD' — конкретный. Используй для "
+            "'какая погода сегодня', 'давление', 'был ли дождь', анализа корреляций "
+            "(например 'влияет ли давление на пульс покоя')."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {"date": {"type": "string", "description": "YYYY-MM-DD (optional)"}},
+        },
+    },
+    {
         "name": "get_day_summary",
         "description": (
             "Точечная сводка за конкретный день (date='YYYY-MM-DD'): ккал/БЖУ, был ли "
@@ -409,6 +437,23 @@ def _call_tool(name: str, args: dict, token: str) -> str:
             )
         elif name == "get_body_measurements":
             r = requests.get(f"{TOOLS_API_BASE}/body_measurements", headers=headers, timeout=15)
+        elif name == "get_indoor_air":
+            r = requests.get(
+                f"{TOOLS_API_BASE}/indoor_air",
+                params={"days": int(args.get("days", 7))},
+                headers=headers,
+                timeout=15,
+            )
+        elif name == "get_outdoor_weather":
+            weather_params: dict[str, Any] = {}
+            if args.get("date"):
+                weather_params["date"] = args["date"]
+            r = requests.get(
+                f"{TOOLS_API_BASE}/outdoor_weather",
+                params=weather_params,
+                headers=headers,
+                timeout=10,
+            )
         elif name == "get_day_summary":
             r = requests.get(
                 f"{TOOLS_API_BASE}/day_summary",
