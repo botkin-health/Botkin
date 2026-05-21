@@ -171,7 +171,10 @@ TOOLS: list[dict[str, Any]] = [
             "типа 'Москва - База' который может быть бегом ИЛИ ходьбой). "
             "Используй by_type для прямых вопросов типа 'сколько раз я бегал'. "
             "По умолчанию days=30; для вопросов 'за год' / 'в этом году' "
-            "ставь days=180 (максимум)."
+            "ставь days=180 (максимум). "
+            "Multi-user: owner-cohort использует file-source (rich data со Z2/zones/load), "
+            "остальные пользователи — DB-fallback (только базовые поля type/duration/distance), "
+            "поле `source` в ответе показывает откуда взялись данные."
         ),
         "input_schema": {
             "type": "object",
@@ -226,6 +229,19 @@ TOOLS: list[dict[str, Any]] = [
             "Используй для 'какая у меня талия сейчас', 'как изменилась талия за полгода', "
             "'сравни мою фигуру до и после'. Талия — главная метрика метаболического "
             "здоровья (важнее BMI для ССЗ-риска)."
+        ),
+        "input_schema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "get_user_settings",
+        "description": (
+            "Настройки и цели пользователя: target_weight_kg + date (цель веса), "
+            "supplements_regimen (JSONB список ежедневных добавок с дозами и слотами "
+            "morning_with/evening), calorie_goal_pct (дефицит/профицит), BMR-источник, "
+            "reminders (напоминания о добавках), profile (sex/height/birth_date/timezone). "
+            "Используй для 'какие у меня цели', 'что я регулярно принимаю', 'какой "
+            "дефицит', 'когда напоминания'. Полезно сверять `supplements_log` (что "
+            "реально принял) против `supplements_regimen` (что планировал)."
         ),
         "input_schema": {"type": "object", "properties": {}},
     },
@@ -437,6 +453,8 @@ def _call_tool(name: str, args: dict, token: str) -> str:
             )
         elif name == "get_body_measurements":
             r = requests.get(f"{TOOLS_API_BASE}/body_measurements", headers=headers, timeout=15)
+        elif name == "get_user_settings":
+            r = requests.get(f"{TOOLS_API_BASE}/user_settings", headers=headers, timeout=10)
         elif name == "get_indoor_air":
             r = requests.get(
                 f"{TOOLS_API_BASE}/indoor_air",

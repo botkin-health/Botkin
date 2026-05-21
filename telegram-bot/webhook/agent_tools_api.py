@@ -818,16 +818,109 @@ async def recent_workouts(
     parser writes there). Returns Z2 min/week, HIIT min/week, A:C load ratio,
     polarized distribution, mistagged HIIT flag.
 
-    Note: file-based source, not Postgres. If file missing → available=false.
+    Источник данных (приоритет):
+    1. File `workouts_log_<user_id>.json` — rich data (Z2 zones, training load, MAF).
+       Сейчас есть только у owner (Alex, push_workouts_to_container.py).
+    2. Fallback: таблица `workouts` в БД — для остальных пользователей.
+       Меньше полей (только type, duration, distance, calories), без zones/load,
+       но достаточно для базовых вопросов «сколько раз бегал», «когда тренировался».
     """
     import json as _json
     from pathlib import Path as _Path
+    from sqlalchemy import text as sql_text
 
     days = max(1, min(days, 180))
+    today_date = date.today()
+    cutoff = today_date - timedelta(days=days)
 
     wk_path = _Path(f"/app/telegram-bot/workouts_log_{user.telegram_id}.json")
+
+    # ── Fallback: DB-based мульти-юзер (когда file отсутствует) ──────────────
     if not wk_path.exists():
-        return {"status": "no_data", "available": False, "reason": f"workouts_log_{user.telegram_id}.json not found"}
+        db_rows = db.execute(
+            sql_text(
+                """
+                SELECT date, workout_type, duration_minutes, distance_km,
+                       calories_burned, source, start_time
+                FROM workouts
+                WHERE user_id = :uid AND date >= :cutoff
+                ORDER BY date DESC, start_time DESC NULLS LAST
+                """
+            ),
+            {"uid": user.telegram_id, "cutoff": cutoff},
+        ).fetchall()
+        if not db_rows:
+            return {"status": "no_data", "available": False, "reason": "no workouts in DB or file"}
+
+        from collections import Counter as _Counter
+
+        type_labels_ru = {
+            "running": "бег",
+            "walking": "ходьба",
+            "strength_training": "силовая",
+            "yoga": "йога",
+            "cycling": "велосипед",
+            "swimming": "плавание",
+            "elliptical": "эллипс",
+            "cardio": "кардио",
+            "hiit": "HIIT",
+            "fitness_equipment": "тренажёр",
+            "other": "другое",
+        }
+        type_counts = _Counter(r.workout_type or "unknown" for r in db_rows)
+        by_type = {type_labels_ru.get(t, t): {"count": c, "garmin_type": t} for t, c in type_counts.most_common()}
+
+        # Extremes per type (по duration и distance)
+        extremes_by_type: dict[str, Any] = {}
+        for t in type_counts:
+            of_type = [r for r in db_rows if (r.workout_type or "unknown") == t]
+            with_dur = [r for r in of_type if r.duration_minutes]
+            with_dist = [r for r in of_type if r.distance_km]
+            longest_dur = max(with_dur, key=lambda r: r.duration_minutes) if with_dur else None
+            longest_dist = max(with_dist, key=lambda r: r.distance_km) if with_dist else None
+            extremes_by_type[type_labels_ru.get(t, t)] = {
+                "count": len(of_type),
+                "longest_by_duration": {
+                    "date": longest_dur.date.isoformat(),
+                    "duration_min": longest_dur.duration_minutes,
+                    "distance_km": float(longest_dur.distance_km) if longest_dur.distance_km else None,
+                }
+                if longest_dur
+                else None,
+                "longest_by_distance": {
+                    "date": longest_dist.date.isoformat(),
+                    "distance_km": float(longest_dist.distance_km),
+                    "duration_min": longest_dist.duration_minutes,
+                }
+                if longest_dist
+                else None,
+            }
+
+        weeks = days / 7
+        return {
+            "status": "ok",
+            "source": "db",
+            "period_days": days,
+            "count": len(db_rows),
+            "by_type": by_type,
+            "extremes_by_type": extremes_by_type,
+            "stats": {
+                "per_week": round(len(db_rows) / weeks, 1) if weeks else 0,
+                "note": "DB-fallback: нет training_load/Z2/zones, только базовые поля",
+            },
+            "items": [
+                {
+                    "date": r.date.isoformat(),
+                    "type": r.workout_type,
+                    "type_ru": type_labels_ru.get(r.workout_type, r.workout_type),
+                    "duration_min": r.duration_minutes,
+                    "distance_km": float(r.distance_km) if r.distance_km else None,
+                    "calories_burned": r.calories_burned,
+                    "source": r.source,
+                }
+                for r in db_rows[:15]
+            ],
+        }
 
     try:
         wd = _json.loads(wk_path.read_text())
@@ -1265,6 +1358,69 @@ async def day_summary(
         }
         if row.bp_systolic
         else None,
+    }
+
+
+@router.get("/user_settings")
+async def user_settings(
+    user=Depends(get_agent_user),
+    db: Session = Depends(get_db),
+):
+    """Настройки пользователя: целевой вес, ежедневные добавки, BMR, цель калорий.
+
+    Источник: `user_settings` table (per-user JSONB с регулярным режимом
+    добавок) + поля из `users` (sex, height, birth_date, timezone, smoking_status).
+    Используй для 'какие у меня цели', 'какие добавки я регулярно принимаю',
+    'какой у меня дефицит калорий', 'когда у меня запланированы напоминания'.
+    """
+    from sqlalchemy import text as sql_text
+
+    row = db.execute(
+        sql_text(
+            """
+            SELECT show_calorie_budget_bar, bmr_override, target_weight_kg,
+                   target_weight_date, supplement_reminders_enabled,
+                   supplement_reminder_time, supplements, calorie_goal_pct,
+                   bmr_source, activity_level, activity_avg_override
+            FROM user_settings WHERE user_id = :uid
+            """
+        ),
+        {"uid": user.telegram_id},
+    ).fetchone()
+
+    profile = {
+        "first_name": user.first_name,
+        "sex": user.sex,
+        "height_cm": user.height_cm,
+        "birth_date": user.birth_date.isoformat() if user.birth_date else None,
+        "timezone": user.timezone,
+        "cohort": user.cohort,
+        "smoking_status": getattr(user, "smoking_status", None),
+        "garmin_connected": bool(user.garmin_email),
+    }
+
+    if not row:
+        return {"status": "no_settings", "profile": profile, "reason": "user_settings row not created yet"}
+
+    return {
+        "status": "ok",
+        "profile": profile,
+        "goals": {
+            "target_weight_kg": row.target_weight_kg,
+            "target_weight_date": row.target_weight_date.isoformat() if row.target_weight_date else None,
+            "calorie_goal_pct": row.calorie_goal_pct,
+        },
+        "bmr": {
+            "source": row.bmr_source,
+            "override": row.bmr_override,
+            "activity_level": row.activity_level,
+            "activity_avg_override": row.activity_avg_override,
+        },
+        "supplements_regimen": row.supplements or [],
+        "reminders": {
+            "supplement_enabled": row.supplement_reminders_enabled,
+            "supplement_time": row.supplement_reminder_time.isoformat() if row.supplement_reminder_time else None,
+        },
     }
 
 
