@@ -9,7 +9,7 @@ Auth: Bearer token (APPLE_HEALTH_TOKEN из .env)
 
 import os
 import logging
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Optional, List
 
 from fastapi import FastAPI, HTTPException, Depends, Header, Request
@@ -299,7 +299,7 @@ async def receive_apple_health(
         "status": "ok",
         "date": payload.date,
         "saved": saved,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -665,7 +665,7 @@ async def receive_apple_health_v2(
         "status": "ok",
         "days": len(daily),
         "details": details,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 

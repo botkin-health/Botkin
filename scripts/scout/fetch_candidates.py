@@ -54,7 +54,7 @@ def load_seen() -> set[str]:
 
 def append_seen(urls: list[str]) -> None:
     SEEN_PATH.parent.mkdir(parents=True, exist_ok=True)
-    now = dt.datetime.utcnow().isoformat()
+    now = dt.datetime.now(dt.timezone.utc).isoformat()
     with SEEN_PATH.open("a") as f:
         for u in urls:
             f.write(json.dumps({"url": u, "seen_at": now}) + "\n")
@@ -98,7 +98,7 @@ def fetch_github(cfg: dict, ctx: dict) -> list[dict]:
 def fetch_hn(cfg: dict) -> list[dict]:
     items = []
     for q in cfg.get("queries", []):
-        since = int((dt.datetime.utcnow() - dt.timedelta(days=q["window_days"])).timestamp())
+        since = int((dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=q["window_days"])).timestamp())
         params = {
             "query": q["query"],
             "tags": q.get("tags", "story"),
@@ -230,7 +230,7 @@ def fetch_arxiv(cfg: dict) -> list[dict]:
             continue
         ns = {"a": "http://www.w3.org/2005/Atom"}
         root = ET.fromstring(xml)
-        cutoff = dt.datetime.utcnow() - dt.timedelta(days=q["days_back"])
+        cutoff = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=q["days_back"])
         for entry in root.findall("a:entry", ns):
             published = entry.findtext("a:published", default="", namespaces=ns)
             try:
@@ -308,7 +308,7 @@ def main() -> int:
     out_path = DATA_DIR / f"candidates_{week}.json"
     out = {
         "week": week,
-        "generated_at": dt.datetime.utcnow().isoformat(),
+        "generated_at": dt.datetime.now(dt.timezone.utc).isoformat(),
         "profile_keywords": {
             "high": profile.get("wanted", {}).get("high_priority", []),
             "medium": profile.get("wanted", {}).get("medium_priority", []),
