@@ -203,6 +203,16 @@ def register_handlers(dp: Dispatcher):
         logger.error(f"❌ Не удалось подключить MediaGroupMiddleware: {e}")
         errors.append(f"MediaGroupMiddleware: {e}")
 
+    # Middleware: индикатор "печатает..." в Telegram пока handler работает
+    try:
+        from middlewares.typing_indicator import TypingMiddleware
+
+        dp.message.middleware(TypingMiddleware())
+        logger.info("✅ TypingMiddleware подключен")
+    except Exception as e:
+        logger.error(f"❌ Не удалось подключить TypingMiddleware: {e}")
+        errors.append(f"TypingMiddleware: {e}")
+
     # Middleware для логирования всех апдейтов
     @dp.update.outer_middleware()
     async def log_update_middleware(handler, event, data):

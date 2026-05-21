@@ -93,10 +93,8 @@ class User(Base):
     jwt_secret: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     encrypted_openai_key: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     encrypted_anthropic_key: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    # Per-user system prompt for conversational agent (path X — see
-    # docs/projects/2026-05_nanoclaw-agent-bot/). Source of truth.
-    # NanoClaw spawn-container reads same content from container.json
-    # mcp_servers.botkin.instructions; manual sync for now.
+    # Per-user system prompt для BotkinClaw (in-process AI-агента) — см. ADR-0002.
+    # Source of truth для тона/контекста. Меняется SQL'ом в users.agent_system_prompt.
     agent_system_prompt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Onboarding state machine (Sprint 1a Task 9)

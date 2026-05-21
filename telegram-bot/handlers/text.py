@@ -524,9 +524,18 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
     text = message.text.strip()
     debug_logger.info(f"🚀 START Processing message from {user_id}: {text[:50]}...")
 
-    # Отправляем сообщение "Думаю..."
-    processing_msg = await message.answer("🤖 Читаю и анализирую... 🧠")
-    debug_logger.info("✅ Sent 'Thinking' message")
+    # Индикатор "печатает..." крутится через TypingMiddleware.
+    # Плейсхолдер-сообщение больше не шлём — вместо edit_text шлём новые
+    # сообщения через shim, чтобы не переписывать все 15+ call-сайтов.
+    class _Replier:
+        def __init__(self, msg):
+            self._msg = msg
+
+        async def edit_text(self, *args, **kwargs):
+            return await self._msg.answer(*args, **kwargs)
+
+    processing_msg = _Replier(message)
+    debug_logger.info("✅ Replier shim ready (typing indicator via middleware)")
 
     # Извлекаем дату "Вчера" если есть, для контекста
     from handlers.text import extract_date_from_text
@@ -682,9 +691,9 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
         data = router_result.get("data", {})
 
         if msg_type == "other":
-            # Path X (unified bot) — route conversational text to in-process
-            # Claude SDK agent with same tools as NanoClaw spawn-container.
-            # See: docs/projects/2026-05_nanoclaw-agent-bot/PLAN.md § Phase 4.
+            # BotkinClaw (in-process agent) — route conversational text to
+            # core.agent_chat.ask_agent (Claude Messages API + tools). См. ADR-0002
+            # о причинах выбора в пользу in-process подхода вместо NanoClaw.
             try:
                 from core.agent_chat import ask_agent
                 from core.tg_markdown import md_to_html

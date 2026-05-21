@@ -1,10 +1,33 @@
 # NanoClaw Agent Bot (параллельный @BotkinAgent_bot)
 
-**Status:** 🔵 ACTIVE
+**Status:** 🔴 REJECTED (2026-05-21)
 **Started:** 2026-05-19
-**Target:** demo-ready к FFF Tbilisi (28.05)
+**Closed:** 2026-05-21 — выбран более простой подход (см. ADR-0002)
 **Owner:** Александр Лысковский
 **Cohort:** owner first → family (папа, мама) → early_user
+
+## ⛔ Проект свёрнут (2026-05-21)
+
+После двух дней работы с NanoClaw (Phase 1–3 задеплоены 20.05) решено отказаться от этой инфры и сделать AI-врача более простым способом — прямой вызов Claude API из существующего `@Botkin_md_bot` (aiogram-handler + те же `webhook/agent_tools_api.py` как tools). Подробности и обоснование — в [ADR-0002](../../architecture/decisions/0002-rejecting-nanoclaw-for-simpler-agent.md).
+
+**Что снесено с Hetzner 21.05.2026:**
+- `/opt/nanoclaw/` (179 MB) + docker image `nanoclaw-agent-v2-*` (3.05 GB) + container
+- OneCLI: `/root/.onecli/` + image `ghcr.io/onecli/onecli` (710 MB) + onecli-postgres
+- systemd: `nanoclaw-v2-3282970f.service`, `nanoclaw-chown.service`, `nanoclaw-chown.timer`
+- БД: `users.container_id` обнулён для пользователя `nanoclaw-alex`
+- Бэкап на сервере: `/root/nanoclaw-backup-2026-05-21.tar.gz` (66 MB) — на случай если понадобится вернуться
+
+**Что осталось как актив (переиспользуется новым подходом):**
+- `webhook/agent_tools_api.py` — 8 endpoints с JWT+RLS
+- `users.jwt_secret` — для подписи JWT
+- В БД: `users.agent_system_prompt` (rich health context), `users.pack_name`
+- Telegram-бот `@BotkinAgent_bot` (id 8327780367) — токен в 1Password, можно либо переиспользовать как «sandbox для нового агента», либо revoke. Решение TBD.
+
+**Файлы STATUS.md / SPEC.md / PLAN.md ниже сохранены как исторические** — не следовать им.
+
+---
+
+## (Историческая часть, до сворачивания)
 
 ## Цель
 

@@ -2,10 +2,11 @@
 LLM usage tracking — one row per Anthropic Messages API call into llm_usage_log.
 
 Powers admin panel «Расходы на нейронки». Two callers today:
-    - core/llm/router.py: food/photo parsing (Claude Sonnet 4.5 vision)
-    - core/agent_chat.py: conversational agent + tool-use rounds
+    - core/llm/router.py: food/photo parsing (Claude Sonnet vision)
+    - core/agent_chat.py: BotkinClaw conversational agent + tool-use rounds
 
 Pricing as of 2026-05 (Anthropic public list):
+    claude-sonnet-4-6: $3 / MT input, $15 / MT output, $3.75 cache_write, $0.30 cache_read
     claude-sonnet-4-5: $3 / MT input, $15 / MT output, $3.75 cache_write, $0.30 cache_read
     claude-haiku-4-5:  $1 / MT input, $5  / MT output, $1.25 cache_write, $0.10 cache_read
     gpt-4o (OpenAI):   $2.50 / MT input, $10 / MT output (cache N/A here)
@@ -25,6 +26,7 @@ logger = logging.getLogger(__name__)
 # Tuple: (input, output, cache_write, cache_read). cache_* default to None.
 _PRICING: dict[str, tuple[float, float, float, float]] = {
     # Claude — Anthropic
+    "claude-sonnet-4-6": (3.00, 15.00, 3.75, 0.30),
     "claude-sonnet-4-5": (3.00, 15.00, 3.75, 0.30),
     "claude-sonnet-4-5-20251001": (3.00, 15.00, 3.75, 0.30),
     "claude-haiku-4-5": (1.00, 5.00, 1.25, 0.10),

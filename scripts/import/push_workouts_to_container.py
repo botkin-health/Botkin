@@ -23,7 +23,10 @@ SERVER = "root@116.203.213.137"
 SERVER_PASS = "SERVER_PASSWORD_REDACTED"
 CONTAINER = "healthvault_bot"
 CONTAINER_PATH = f"/app/telegram-bot/workouts_log_{USER_ID}.json"
-KEEP_DAYS = 90
+# 180 дней — максимальное окно, которое принимает /recent_workouts API.
+# Меньше — и вопросы "в этом году" / "за полгода" обрезаются на границе файла,
+# а не на параметре days в запросе агента.
+KEEP_DAYS = 180
 
 
 def main():

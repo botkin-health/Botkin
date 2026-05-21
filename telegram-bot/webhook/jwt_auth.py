@@ -1,11 +1,20 @@
-"""JWT authentication for NanoClaw agent containers → FastAPI tools API.
+"""JWT authentication для BotkinClaw → FastAPI tools API.
 
-Each container has a jwt_secret stored in users.jwt_secret.
-Container signs: {user_id, container_id, exp, iat}
-FastAPI verifies: signature, expiry, container_id matches DB.
+BotkinClaw — in-process AI-агент внутри @Botkin_md_bot (см. ADR-0002,
+заменил NanoClaw). Бот сам подписывает JWT и сам же его валидирует, но JWT-
+контракт сохранён — пригодится если когда-нибудь снова появятся внешние
+агенты (Claude Desktop через MCP, etc).
 
-Security: container_id mismatch → 403 (prevents one container from
-impersonating another user's data).
+Контракт:
+- payload = {user_id, container_id, exp, iat}
+- jwt_secret хранится в users.jwt_secret (per-user)
+- container_id — agent identifier через core.agent_chat.agent_id_for(user):
+  либо устаревшее значение из users.container_id (для legacy NanoClaw-юзеров),
+  либо деривированное `botkinclaw-{telegram_id}`. Обе стороны (подпись и
+  валидация) используют одну и ту же функцию, поэтому всегда сходятся.
+
+Security: container_id mismatch → 403. Защищает от replay-атаки если JWT
+утечёт между пользователями.
 """
 
 import os
@@ -90,8 +99,13 @@ async def get_agent_user(
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="JWT signature invalid")
 
-    if verified.get("container_id") != user.container_id:
-        raise HTTPException(status_code=403, detail="container_id mismatch")
+    # Derive expected agent_id the same way agent_chat.py does — so payload
+    # always matches even когда users.container_id NULL (новые пользователи
+    # после удаления NanoClaw, см. ADR-0002).
+    from core.agent_chat import agent_id_for
+
+    if verified.get("container_id") != agent_id_for(user):
+        raise HTTPException(status_code=403, detail="agent_id mismatch")
 
     # Set RLS session variable for any DB queries in this request
     set_user_session_var(db, user.telegram_id)

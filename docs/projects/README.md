@@ -49,7 +49,7 @@ YYYY-MM_<slug>/
 
 | Период | Проект | Статус |
 |---|---|---|
-| 2026-05 | [nanoclaw-agent-bot](2026-05_nanoclaw-agent-bot/) | 🔵 ACTIVE |
+| 2026-05 | [nanoclaw-agent-bot](2026-05_nanoclaw-agent-bot/) | 🔴 REJECTED (см. [ADR-0002](../architecture/decisions/0002-rejecting-nanoclaw-for-simpler-agent.md)) |
 | 2026-05 | [server-side-sync](2026-05_server-side-sync/) | 🟢 COMPLETED |
 | 2026-05 | [data-atlas](2026-05_data-atlas/) | 🟡 DEFERRED |
 | 2026-04 | [share-dashboard](2026-04_share-dashboard/) | 🟢 COMPLETED |

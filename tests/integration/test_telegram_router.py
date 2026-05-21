@@ -1,3 +1,10 @@
+"""Integration tests for /telegram/webhook routing.
+
+After ADR-0002 (21.05.2026) NanoClaw was removed. The router no longer has a
+forward-to-container path — all known users route to legacy aiogram dispatcher
+where BotkinClaw (in-process AI agent) lives.
+"""
+
 import sys
 from pathlib import Path
 
@@ -34,60 +41,63 @@ def test_unknown_user_goes_to_onboarding(MockSession, mock_onboarding):
     mock_onboarding.assert_awaited_once()
 
 
-@patch("webhook.telegram_router.forward_to_container", new_callable=AsyncMock)
+@patch("webhook.telegram_router._feed_legacy_bot", new_callable=AsyncMock)
 @patch("webhook.telegram_router.SessionLocal")
-def test_known_user_with_container_gets_forwarded(MockSession, mock_forward):
+def test_known_user_text_goes_to_legacy(MockSession, mock_feed):
+    """Known user text routes to legacy aiogram (BotkinClaw lives there)."""
     db = MagicMock()
     MockSession.return_value = db
     user = MagicMock(
-        telegram_id=111111111, container_id="nc-sasha", container_port=8001, is_active=True, onboarding_step="done"
+        telegram_id=111111111,
+        username="testuser",
+        container_id=None,
+        container_port=None,
+        is_active=True,
+        onboarding_step="done",
     )
     db.query.return_value.filter_by.return_value.first.return_value = user
 
     r = client.post("/telegram/webhook", json=_tg_payload(from_id=111111111, text="выпил витамины"))
     assert r.status_code == 200
-    mock_forward.assert_awaited_once()
+    assert r.json()["action"] == "legacy_text"
+    mock_feed.assert_awaited()
 
 
-@patch("webhook.telegram_router.forward_to_container", new_callable=AsyncMock)
+@patch("webhook.telegram_router._feed_legacy_bot", new_callable=AsyncMock)
 @patch("webhook.telegram_router.SessionLocal")
-def test_photo_returns_ok_without_forward(MockSession, mock_forward):
+def test_photo_goes_to_legacy_media(MockSession, mock_feed):
+    """Photo messages always go to legacy aiogram (photo handler lives there)."""
     db = MagicMock()
     MockSession.return_value = db
     user = MagicMock(
-        telegram_id=111111111, container_id="nc-sasha", container_port=8001, is_active=True, onboarding_step="done"
+        telegram_id=111111111,
+        username="testuser",
+        container_id=None,
+        container_port=None,
+        is_active=True,
+        onboarding_step="done",
     )
     db.query.return_value.filter_by.return_value.first.return_value = user
 
     r = client.post("/telegram/webhook", json=_tg_payload(from_id=111111111, has_photo=True))
     assert r.status_code == 200
-    # Photo should NOT be forwarded to container (handled by legacy aiogram)
-    mock_forward.assert_not_awaited()
-
-
-@patch("webhook.telegram_router.SessionLocal")
-def test_user_without_container_returns_ok(MockSession):
-    """User exists but no container yet — returns 200, no forward."""
-    db = MagicMock()
-    MockSession.return_value = db
-    user = MagicMock(
-        telegram_id=836757955, container_id=None, container_port=None, is_active=True, onboarding_step="done"
-    )
-    db.query.return_value.filter_by.return_value.first.return_value = user
-
-    r = client.post("/telegram/webhook", json=_tg_payload(from_id=836757955, text="привет"))
-    assert r.status_code == 200
-    assert r.json()["action"] == "no_container"
+    assert r.json()["action"] == "legacy_media"
+    mock_feed.assert_awaited()
 
 
 @patch("webhook.telegram_router.handle_onboarding", new_callable=AsyncMock)
 @patch("webhook.telegram_router.SessionLocal")
 def test_user_in_onboarding_continues_wizard(MockSession, mock_onboarding):
-    """User with onboarding_step != 'done' routes to onboarding, not no_container."""
+    """User with onboarding_step != 'done' routes to onboarding."""
     db = MagicMock()
     MockSession.return_value = db
     user = MagicMock(
-        telegram_id=222222222, container_id=None, container_port=None, is_active=True, onboarding_step="age"
+        telegram_id=222222222,
+        username="testuser",
+        container_id=None,
+        container_port=None,
+        is_active=True,
+        onboarding_step="age",
     )
     db.query.return_value.filter_by.return_value.first.return_value = user
 
