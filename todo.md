@@ -33,6 +33,26 @@
 
 - [x] **AGPL-3.0-or-later лицензия** — `LICENSE`, `NOTICE`, секция в `README.md`, поля в `pyproject.toml`. Dual-licensing: AGPL для community + commercial license по запросу (lyskovsky@gmail.com). *Сделано 21.05.2026.*
 
+- [ ] **🎯 Anthropic Startups Program — подать заявку через VC-партнёра** — *добавлено 21.05.2026.*
+  - **Что даёт:** (1) **бесплатные API credits** на Claude (главный operational cost Боткина), (2) highest publicly available rate limits, (3) приглашения на закрытые founder events и workshops, (4) технические best practices и кейсы. Это **самое высокое value/effort** действие сейчас — может снять с фаундера риск масштабирования AI-расходов как самостоятельную статью.
+  - **Лендинг:** [claude.com/programs/startups](https://claude.com/programs/startups)
+  - **Условие участия:** «Your company must be an early-stage startup backed by one of our partner venture capital firms». Anthropic **не публикует полный список партнёров публично** — единственный явно упомянутый: **Bain Capital**. Application получают через VC: «Reach out to your investors to get their unique program application link».
+  - **Наш путь — через DVC / Iterative.ai:**
+    - У Александра дружеские отношения с фаундером [dvc.ai](https://dvc.ai) / Iterative.ai (компания делает DVC — data version control для ML, плюс Datachain). Фаундеры — **Дмитрий Петров** и **Иван Щеклеин** (русскоязычные, бывшие сотрудники Microsoft/Yandex).
+    - **Гипотеза:** их VC-инвесторы могут быть в списке Anthropic-партнёров. Известные backers Iterative.ai: **True Ventures** (Series A lead), **Afore Capital** (seed), **468 Capital**. Нужно сверить с актуальным списком Anthropic.
+    - **Что попросить у Дмитрия/Ивана:** (1) есть ли у них **прямой контакт** в Anthropic Startups team (они MLOps-стартап, могут быть знакомы); (2) есть ли среди их VC такие, что в Anthropic-партнёрстве — если да, **warm intro к этому VC** для получения application link; (3) если ни то ни другое — может посоветовать другой fast-path.
+  - **План B (если через DVC не получается):**
+    - Подать на «Apply to be a partner» по форме [claude.com/contact-sales/vc-partner](https://claude.com/contact-sales/vc-partner) — формально для VC, но иногда отвечают и solo-фаундерам с интересным проектом
+    - Через Anthropic Startups Slack community (если есть public access)
+    - Cold email на startups@anthropic.com с pitch: «open-source family health platform, AGPL, solo founder, 4 months built using Claude Code, going public on Hacker News»
+  - **Шаги:**
+    1. Написать Дмитрию/Ивану в DM (Telegram/email) — короткое сообщение: «Делаю Botkin (open-source family health), пытаюсь попасть в Anthropic Startups Program. Знаешь как зайти?»
+    2. Параллельно — изучить актуальный список Anthropic-партнёров (форма contact-sales иногда отображает live, или спросить в community)
+    3. Если получаем application link от партнёра — заполнить и отправить (~30 мин, нужен pitch deck краткий + AGPL repo как proof)
+    4. План B по cold paths если warm не сработал
+  - **Срочность:** до публичного анонса Боткина на HN — хочется анонсировать как **«backed by Anthropic Startups Program»** если получится, это сильный credibility signal для H4 аудитории.
+  - **Время:** ~2 часа активной работы (написать письма, заполнить форму) + 1-4 недели на approval/intros.
+
 - [ ] **Open Collective: настроить публичный Collective для Боткина** — *добавлено 21.05.2026.*
   - **Зачем:** прозрачное финансирование OSS-проекта, видимые донаты + видимые расходы. Это продаёт sustainability community.
   - **Fiscal host:** [Open Source Collective](https://opencollective.com/opensource) (501(c)(6) в США, принимает OSI-approved лицензии = AGPL подходит). Не нужно своё юр.лицо.
