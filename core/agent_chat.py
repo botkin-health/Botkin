@@ -1,18 +1,17 @@
 """
-Conversational agent for @Botkin_md_bot — path X of NanoClaw integration.
+BotkinClaw — conversational AI-agent для @Botkin_md_bot (in-process handler).
 
-Called from `handlers/text.py` when LLM router classifies a message as
-`type=other` (i.e., not food / supplement / BP / etc — a free-form question).
-This module wraps a single Anthropic Messages API call with tools, using:
+Вызывается из `handlers/text.py` когда LLM router классифицирует сообщение как
+`type=other` (т.е. не еда / добавка / АД и т.п. — свободный вопрос). Модуль
+оборачивает Anthropic Messages API call с tools, используя:
 
-- per-user system prompt from `users.agent_system_prompt`
-- 7 tools that wrap `webhook/agent_tools_api.py` endpoints over HTTP+JWT
-- conversation history from `agent_conversations` table (last N turns)
+- per-user system prompt из `users.agent_system_prompt`
+- ~14 tools, которые HTTP+JWT-вызывают эндпоинты `webhook/agent_tools_api.py`
+- история диалога из таблицы `agent_conversations` (HISTORY_WINDOW последних)
 
-Same model + tools as NanoClaw spawn-container agent (`groups/<u>/skills/botkin/server.ts`).
-NanoClaw stays running on `@BotkinAgent_bot` for dev/testing.
-
-See: docs/projects/2026-05_nanoclaw-agent-bot/ (PLAN.md "Phase 4").
+История архитектуры: см. [ADR-0002](docs/architecture/decisions/0002-rejecting-nanoclaw-for-simpler-agent.md)
+— почему отказались от NanoClaw, и почему имя BotkinClaw (игра слов: бот сам
+играет роль «контейнера» в JWT-контракте).
 """
 
 from __future__ import annotations
@@ -42,8 +41,9 @@ logger = logging.getLogger(__name__)
 
 ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
 ANTHROPIC_VERSION = "2023-06-01"
-# Sonnet 4.5 is the same model NanoClaw uses by default for agents.
-MODEL = "claude-sonnet-4-5"
+# Sonnet 4.6 — последняя Sonnet (вышла после Sonnet 4.5 которая использовалась
+# в NanoClaw). Та же цена ($3/MT input, $15/MT output), лучше reasoning + tool use.
+MODEL = "claude-sonnet-4-6"
 MAX_TOKENS = 2000
 MAX_TOOL_ITERATIONS = 6  # safety net against tool loops
 HISTORY_WINDOW = 20  # last N messages from agent_conversations
@@ -55,7 +55,7 @@ TOOLS_API_BASE = "http://localhost:8081/api/agent"
 JWT_TTL_HOURS = 24  # short-lived; agent_chat regenerates per request
 
 # ---------------------------------------------------------------------------
-# Tool schema (same 7 tools as NanoClaw MCP server botkin/server.ts)
+# Tool schema (BotkinClaw tools — wrap webhook/agent_tools_api.py endpoints)
 # ---------------------------------------------------------------------------
 
 TOOLS: list[dict[str, Any]] = [
@@ -157,13 +157,21 @@ TOOLS: list[dict[str, Any]] = [
             "Возвращает: by_type (счётчик по Garmin type — running, walking, "
             "strength_training, yoga и т.п.), Z2 min/week, HIIT min/week, A:C "
             "load ratio (sweet spot 0.8-1.3), polarized distribution Z1+Z2/Z3/Z4+Z5 %, "
-            "список последних 15 тренировок с type+name. "
+            "extremes_by_type (рекорды на каждый тип — longest_by_duration и "
+            "longest_by_distance, считаются по ВСЕМ тренировкам в окне), "
+            "список последних 15 тренировок с type+name+distance_km+duration_min. "
             "Используй для 'сколько раз я бегал', 'сколько Z2 в неделю', "
             "'каков мой A:C ratio', 'правильное ли распределение зон'. "
+            "Для вопросов 'самая длинная пробежка / самая дальняя пробежка' — "
+            "ВСЕГДА смотри в extremes_by_type[бег|ходьба|...].longest_by_distance "
+            "(или longest_by_duration), НЕ в items[] — items обрезан до 15 свежих "
+            "и редкие длинные сессии туда не попадают. "
             "ВАЖНО: для классификации (бег/ходьба/силовая) ВСЕГДА смотри поле "
             "`type` (Garmin classification), а НЕ `name` (user-set route label "
             "типа 'Москва - База' который может быть бегом ИЛИ ходьбой). "
-            "Используй by_type для прямых вопросов типа 'сколько раз я бегал'."
+            "Используй by_type для прямых вопросов типа 'сколько раз я бегал'. "
+            "По умолчанию days=30; для вопросов 'за год' / 'в этом году' "
+            "ставь days=180 (максимум)."
         ),
         "input_schema": {
             "type": "object",
@@ -183,6 +191,59 @@ TOOLS: list[dict[str, Any]] = [
         "input_schema": {
             "type": "object",
             "properties": {"days": {"type": "integer", "minimum": 1, "maximum": 90, "default": 14}},
+        },
+    },
+    {
+        "name": "get_weight_history",
+        "description": (
+            "История веса и состава тела (жир %, мышечная масса, висцеральный жир, BMI). "
+            "Источник — таблица `weights` (с 2015 у долгих пользователей). "
+            "Возвращает: latest (текущий замер), all_time (рекорды за всю историю — "
+            "min/max веса и жира с датами), и опционально in_window (рекорды в окне days). "
+            "Используй для вопросов 'самый низкий жир за всё время', 'минимальный вес', "
+            "'как изменился жир за полгода', 'когда был в лучшей форме'. "
+            "ВАЖНО: возвращает агрегаты (экстремумы + даты), а не сырой список из "
+            "сотен записей. Если нужна динамика по дням — это отдельный tool (пока нет)."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "days": {
+                    "type": "integer",
+                    "minimum": 7,
+                    "maximum": 365,
+                    "description": "Опционально: окно в днях для дополнительных in_window-агрегатов. Без параметра — только all_time.",
+                }
+            },
+        },
+    },
+    {
+        "name": "get_body_measurements",
+        "description": (
+            "Антропометрия: талия, шея, бёдра, грудь, бедро, бицепс (см). "
+            "Источник — ручной ввод. Возвращает latest, extremes (min/max) "
+            "по каждой метрике, и тренд талии (waist) за последние 6 замеров. "
+            "Используй для 'какая у меня талия сейчас', 'как изменилась талия за полгода', "
+            "'сравни мою фигуру до и после'. Талия — главная метрика метаболического "
+            "здоровья (важнее BMI для ССЗ-риска)."
+        ),
+        "input_schema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "get_day_summary",
+        "description": (
+            "Точечная сводка за конкретный день (date='YYYY-MM-DD'): ккал/БЖУ, был ли "
+            "воркаут, часов сна, вес, АД. Источник — таблица daily_summaries (агрегаты "
+            "от ночного sync). В отличие от get_dashboard_summary который даёт AVG за 7 дней, "
+            "тут конкретный день. Используй для 'что у меня было 14 марта', 'сравни этот "
+            "понедельник с прошлым'. Если данных за день нет — вернёт no_data."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "date": {"type": "string", "description": "YYYY-MM-DD"},
+            },
+            "required": ["date"],
         },
     },
     {
@@ -232,17 +293,29 @@ TOOLS: list[dict[str, Any]] = [
 # ---------------------------------------------------------------------------
 
 
-def _generate_jwt(user: User) -> str:
-    """Short-lived JWT for in-process tool calls.
+def agent_id_for(user: User) -> str:
+    """Deterministic agent identifier embedded in JWT payload.
 
-    Reuses the same `users.jwt_secret` + container_id contract as the
-    Sprint 1a NanoClaw integration (webhook/jwt_auth.py).
+    BotkinClaw (in-process agent) — бот сам играет роль "контейнера", отдельных
+    per-user контейнеров не существует. Если `users.container_id` уже выставлен
+    (исторические значения вроде `in-process-andrey`) — используем его;
+    иначе деривируем из telegram_id. И generate_jwt, и validate_jwt используют
+    эту же функцию, поэтому подпись всегда сходится с проверкой.
+
+    Legacy: до удаления NanoClaw (см. ADR-0002) `container_id` указывал на
+    реальный onecli-контейнер. После выпила NanoClaw поле осталось как
+    rudiment — может быть пустым для новых пользователей.
     """
-    if not user.jwt_secret or not user.container_id:
-        raise RuntimeError(f"User {user.telegram_id} missing jwt_secret or container_id; cannot generate agent JWT")
+    return user.container_id or f"botkinclaw-{user.telegram_id}"
+
+
+def _generate_jwt(user: User) -> str:
+    """Short-lived JWT для BotkinClaw tool calls."""
+    if not user.jwt_secret:
+        raise RuntimeError(f"User {user.telegram_id} missing jwt_secret; cannot generate agent JWT")
     payload = {
         "user_id": user.telegram_id,
-        "container_id": user.container_id,
+        "container_id": agent_id_for(user),
         "exp": datetime.now(timezone.utc) + timedelta(hours=JWT_TTL_HOURS),
         "iat": datetime.now(timezone.utc),
     }
@@ -323,6 +396,25 @@ def _call_tool(name: str, args: dict, token: str) -> str:
                 params={"days": int(args.get("days", 14))},
                 headers=headers,
                 timeout=15,
+            )
+        elif name == "get_weight_history":
+            params: dict[str, Any] = {}
+            if "days" in args and args["days"] is not None:
+                params["days"] = int(args["days"])
+            r = requests.get(
+                f"{TOOLS_API_BASE}/weight_history",
+                params=params,
+                headers=headers,
+                timeout=15,
+            )
+        elif name == "get_body_measurements":
+            r = requests.get(f"{TOOLS_API_BASE}/body_measurements", headers=headers, timeout=15)
+        elif name == "get_day_summary":
+            r = requests.get(
+                f"{TOOLS_API_BASE}/day_summary",
+                params={"date": args["date"]},
+                headers=headers,
+                timeout=10,
             )
         elif name == "log_meal_text":
             r = requests.post(f"{TOOLS_API_BASE}/log_meal_text", json=args, headers=headers, timeout=30)
@@ -563,7 +655,7 @@ def ask_agent(user_id: int, user_text: str) -> str:
         }
 
         # Prompt caching: system prompt + tool definitions cached at $0.30/MT
-        # instead of $3.00/MT on subsequent calls (Sonnet 4.5). Cache TTL 5 min
+        # instead of $3.00/MT on subsequent calls (Sonnet 4.6). Cache TTL 5 min
         # default, refreshed by every cache hit. Within a single conversation
         # (multi-iteration tool loop) the second+ iteration always hits cache.
         # `cache_control: ephemeral` on the LAST tool entry caches everything

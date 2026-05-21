@@ -19,22 +19,13 @@
 - [x] Bind-mount всех .py-папок (деплой через `scp`)
 - ⏸ ~~Zepp reauth~~ — отложено. Вес тянется через Apple Health → HAE → server, висцеральный жир стабилен. Не до выходных как минимум, возможно вообще откажемся от Zepp.
 
-### NanoClaw-агент @BotkinAgent_bot — Phase 1-3 ✅ задеплоен 20.05
+### AI-врач: BotkinClaw — упрощённая схема вместо NanoClaw
 
-🟢 Параллельный бот **[`@BotkinAgent_bot`](https://t.me/BotkinAgent_bot)** работает на Hetzner:
-- ✅ NanoClaw v2.0.64 host-process + ephemeral spawn-containers per session
-- ✅ OneCLI vault для Anthropic credential
-- ✅ Telegram long-polling adapter
-- ✅ Agent group "Alex" с rich health context CLAUDE.local.md
-- ✅ MCP server "botkin" — 7 tools (читает реальные данные Alex из Postgres через `webhook/agent_tools_api.py`)
-- ✅ JWT bearer auth, container_id stable per-user
-- ✅ Память между сессиями (Claude SDK session persistence)
+🔴 **NanoClaw свёрнут 21.05.2026.** Инфра (`/opt/nanoclaw`, OneCLI, systemd-юниты, docker-образы) полностью снесена с Hetzner. Освобождено 3.8 GB. См. [ADR-0002](architecture/decisions/0002-rejecting-nanoclaw-for-simpler-agent.md) и [project STATUS](projects/2026-05_nanoclaw-agent-bot/STATUS.md).
 
-**Проект:** [`docs/projects/2026-05_nanoclaw-agent-bot/`](projects/2026-05_nanoclaw-agent-bot/) (STATUS / SPEC / PLAN / QUESTIONS_FOR_ALEX)
+🟢 **BotkinClaw:** AI-врач = in-process handler внутри `@Botkin_md_bot` (aiogram), прямой вызов Anthropic Messages API через `core/agent_chat.py:ask_agent`, история в Postgres, tools — переиспользуем работающий `webhook/agent_tools_api.py` (JWT+RLS, 8 endpoints). Один бот для всех пользователей, без отдельной контейнерной инфры. Имя — игра слов NanoClaw → BotkinClaw, бот сам играет роль «контейнера» в JWT-контракте.
 
-Старый `@Botkin_md_bot` остаётся без изменений — food logging / Mini App / `/sync` / `/share` работают как раньше.
-
-**К FFF (28-31.05):** Phase 4 — полировка ответов, демо-скринкаст, возможно расширение tools API (см. PLAN.md).
+**TODO к FFF:** SPEC для BotkinClaw (документация архитектуры), решение по `@BotkinAgent_bot` (revoke или keep), обновление `users.agent_system_prompt` (убрать упоминания NanoClaw).
 
 ### Demo-подготовка под FFF
 - [ ] **Demo-сценарий** — последовательность: `/start` → лог еды → `/sync status` → `/day` → дашборд через `/share`. Записать скринкаст 2 мин. [полдня]
@@ -55,8 +46,8 @@
 
 Долги и фичи, которые отложили ради конференции.
 
-- [ ] **NanoClaw-агенты для всей семьи** — Phase 5: agent groups для papa / mama / Nika. План в `projects/2026-05_nanoclaw-agent-bot/PLAN.md` § 5.1. [1-2 дня]
-- [x] ~~**NanoClaw v0.2: write-tools**~~ — ✅ сделано в Phase 2 20.05. Агент умеет `log_meal_text`, `log_bp`, `log_supplement` через MCP server.
+- [ ] **BotkinClaw-агенты для всей семьи** — per-user `agent_system_prompt` для papa / mama / Nika. (Старый план в NanoClaw-проекте устарел — см. ADR-0002.)
+- [x] ~~**NanoClaw v0.2: write-tools**~~ — Отменено вместе с NanoClaw. Write-tools (`log_meal_text`, `log_bp`, `log_supplement`) переживают в `webhook/agent_tools_api.py` и переиспользуются BotkinClaw.
 - [ ] **Per-user credentials в БД** — `garmin_email/password`, `apple_health_token` per user, OAuth для Fitbit/Whoop. [2-3 дня]
 - [ ] **Google Health Connect** — интеграция для Android-юзеров (папа на Samsung). 2 подхода: Health Sync app или свой APK. [1-2 дня]
 - [ ] **Локальные приватные потоки** — дневники family-cohort, Screen Time owner. Хранятся локально, NanoClaw-агент агрегирует через MCP-tools (часть из Postgres, часть с устройства). **Test case для гибридного сетапа** «сервер + локально». [сессия]

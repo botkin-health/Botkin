@@ -14,7 +14,7 @@ import secrets
 import logging
 from datetime import datetime, date, timedelta, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -914,11 +914,40 @@ async def recent_workouts(
         for t, c in type_counts.most_common()
     }
 
+    # Extremes per type — рекорды по длительности и дистанции в окне.
+    # Нужно потому что items[:15] обрезает выборку до самых свежих, и редкие
+    # длинные сессии (марафонские пробежки раз в квартал) туда не попадают.
+    # Без этого блока вопрос "самая длинная пробежка года" агенту неотвечаем.
+    def _max_by(items, key):
+        items = [w for w in items if w.get(key) is not None]
+        return max(items, key=lambda w: w[key]) if items else None
+
+    def _extreme_record(w):
+        return {
+            "date": w.get("date"),
+            "name": w.get("activity_name"),
+            "duration_min": w.get("duration_min"),
+            "distance_km": w.get("distance_km"),
+            "avg_hr": w.get("avg_hr"),
+        }
+
+    extremes_by_type = {}
+    for t in type_counts:
+        of_type = [w for w in in_window if (w.get("type") or "unknown") == t]
+        longest_dur = _max_by(of_type, "duration_min")
+        longest_dist = _max_by(of_type, "distance_km")
+        extremes_by_type[type_labels_ru.get(t, t)] = {
+            "count": len(of_type),
+            "longest_by_duration": _extreme_record(longest_dur) if longest_dur else None,
+            "longest_by_distance": _extreme_record(longest_dist) if longest_dist else None,
+        }
+
     return {
         "status": "ok",
         "period_days": days,
         "count": len(in_window),
         "by_type": by_type,
+        "extremes_by_type": extremes_by_type,
         "stats": {
             "per_week": round(len(in_window) / weeks, 1),
             "z2_min_per_week": round(z2_total / weeks),
@@ -948,11 +977,294 @@ async def recent_workouts(
                 "type_ru": type_labels_ru.get(w.get("type"), w.get("type")),
                 "name": w.get("activity_name"),  # user-set route name (e.g. "Москва - База")
                 "duration_min": w.get("duration_min"),
+                "distance_km": w.get("distance_km"),
                 "avg_hr": w.get("avg_hr"),
                 "training_load": w.get("training_load"),
             }
             for w in sorted(in_window, key=lambda w: w.get("date", ""), reverse=True)[:15]
         ],
+    }
+
+
+@router.get("/weight_history")
+async def weight_history(
+    days: Optional[int] = None,
+    user=Depends(get_agent_user),
+    db: Session = Depends(get_db),
+):
+    """История веса и состава тела (жир/мышцы/висцеральный жир).
+
+    Источник: `weights` table — пишется HAE (Apple Health → Mi-весы), Zepp Life,
+    Apple Health XML импортом. История с 2015 у долгих пользователей.
+
+    Возвращает агрегаты, НЕ сырой список из сотен записей. Параметр `days`:
+    - не задан → агрегат за всю историю (all-time extremes)
+    - 7-365 → дополнительно агрегат в окне (для вопросов "как изменился за месяц")
+
+    Поля extremes: запись со значением + дата. body_fat фильтруется > 5
+    (нулевые значения = весы не смогли измерить, мусор).
+    """
+    from sqlalchemy import text as sql_text
+
+    in_window = max(7, min(days, 365)) if days else None
+
+    def _to_date_str(ts) -> Optional[str]:
+        """Накласть .date().isoformat() на datetime, или вернуть str иначе.
+
+        SQLAlchemy в SQLite (тесты) возвращает datetime, в Postgres — тоже.
+        Старое SQL `measured_at::date AS date` ломалось на SQLite, поэтому теперь
+        конвертация в Python.
+        """
+        if ts is None:
+            return None
+        if hasattr(ts, "date"):
+            return ts.date().isoformat()
+        return str(ts)[:10]
+
+    # Latest weighing — current state, most useful single fact
+    latest_row = db.execute(
+        sql_text(
+            """
+            SELECT measured_at, weight, body_fat, muscle_mass,
+                   visceral_fat, bmi, source
+            FROM weights
+            WHERE user_id = :uid
+            ORDER BY measured_at DESC
+            LIMIT 1
+            """
+        ),
+        {"uid": user.telegram_id},
+    ).fetchone()
+
+    if not latest_row:
+        return {"status": "no_data", "count": 0}
+
+    latest = {
+        "date": _to_date_str(latest_row.measured_at),
+        "weight_kg": round(latest_row.weight, 1),
+        "body_fat_pct": round(latest_row.body_fat, 1) if latest_row.body_fat else None,
+        "muscle_mass_kg": round(latest_row.muscle_mass, 1) if latest_row.muscle_mass else None,
+        "visceral_fat": latest_row.visceral_fat,
+        "bmi": round(latest_row.bmi, 1) if latest_row.bmi else None,
+        "source": latest_row.source,
+    }
+
+    def _extremes(where_clause: str, params: dict) -> dict:
+        # Min/max weight (ignores body_fat NULL)
+        w_min = db.execute(
+            sql_text(
+                f"SELECT measured_at, weight FROM weights "
+                f"WHERE user_id = :uid {where_clause} ORDER BY weight ASC LIMIT 1"
+            ),
+            params,
+        ).fetchone()
+        w_max = db.execute(
+            sql_text(
+                f"SELECT measured_at, weight FROM weights "
+                f"WHERE user_id = :uid {where_clause} ORDER BY weight DESC LIMIT 1"
+            ),
+            params,
+        ).fetchone()
+        # Min/max body_fat (filter > 5 — нулевые значения = весы не измерили)
+        bf_min = db.execute(
+            sql_text(
+                f"SELECT measured_at, body_fat, weight FROM weights "
+                f"WHERE user_id = :uid AND body_fat > 5 {where_clause} "
+                f"ORDER BY body_fat ASC LIMIT 1"
+            ),
+            params,
+        ).fetchone()
+        bf_max = db.execute(
+            sql_text(
+                f"SELECT measured_at, body_fat, weight FROM weights "
+                f"WHERE user_id = :uid AND body_fat > 5 {where_clause} "
+                f"ORDER BY body_fat DESC LIMIT 1"
+            ),
+            params,
+        ).fetchone()
+        # Counts + date range
+        meta = db.execute(
+            sql_text(
+                f"SELECT COUNT(*) AS n, MIN(measured_at) AS first, "
+                f"MAX(measured_at) AS last FROM weights "
+                f"WHERE user_id = :uid {where_clause}"
+            ),
+            params,
+        ).fetchone()
+
+        return {
+            "count": meta.n,
+            "first_date": _to_date_str(meta.first),
+            "last_date": _to_date_str(meta.last),
+            "min_weight": {"date": _to_date_str(w_min.measured_at), "weight_kg": round(w_min.weight, 1)}
+            if w_min
+            else None,
+            "max_weight": {"date": _to_date_str(w_max.measured_at), "weight_kg": round(w_max.weight, 1)}
+            if w_max
+            else None,
+            "min_body_fat": {
+                "date": _to_date_str(bf_min.measured_at),
+                "body_fat_pct": round(bf_min.body_fat, 1),
+                "weight_kg": round(bf_min.weight, 1),
+            }
+            if bf_min
+            else None,
+            "max_body_fat": {
+                "date": _to_date_str(bf_max.measured_at),
+                "body_fat_pct": round(bf_max.body_fat, 1),
+                "weight_kg": round(bf_max.weight, 1),
+            }
+            if bf_max
+            else None,
+        }
+
+    result: dict[str, Any] = {
+        "status": "ok",
+        "latest": latest,
+        "all_time": _extremes("", {"uid": user.telegram_id}),
+    }
+
+    if in_window:
+        # Python-computed cutoff — works одинаково на Postgres и SQLite (тесты)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=in_window)
+        result["window_days"] = in_window
+        result["in_window"] = _extremes(
+            "AND measured_at >= :cutoff",
+            {"uid": user.telegram_id, "cutoff": cutoff},
+        )
+
+    return result
+
+
+@router.get("/body_measurements")
+async def body_measurements(
+    user=Depends(get_agent_user),
+    db: Session = Depends(get_db),
+):
+    """Антропометрия: талия, шея, бёдра, грудь, бедро, бицепс (см).
+
+    Источник: `body_measurements` table — ручной ввод пользователя через бот/админку.
+    Талия — важная метрика метаболического здоровья (waist circumference > BMI
+    по предсказанию ССЗ-риска, особенно для visceral fat).
+
+    Возвращает latest замер, all-time min/max каждой метрики с датами, и
+    тренд waist (last 6 measurements) — самая клинически релевантная.
+    """
+    from sqlalchemy import text as sql_text
+
+    rows = db.execute(
+        sql_text(
+            """
+            SELECT date, waist_cm, neck_cm, hips_cm, chest_cm, thigh_cm, biceps_cm, notes
+            FROM body_measurements
+            WHERE user_id = :uid
+            ORDER BY date DESC
+            """
+        ),
+        {"uid": user.telegram_id},
+    ).fetchall()
+
+    if not rows:
+        return {"status": "no_data", "count": 0, "reason": "no body_measurements entries"}
+
+    latest = rows[0]
+    metrics = ["waist_cm", "neck_cm", "hips_cm", "chest_cm", "thigh_cm", "biceps_cm"]
+
+    def _extremes(metric: str) -> dict | None:
+        vals = [(r.date, getattr(r, metric)) for r in rows if getattr(r, metric) is not None]
+        if not vals:
+            return None
+        min_v = min(vals, key=lambda x: x[1])
+        max_v = max(vals, key=lambda x: x[1])
+        return {
+            "min": {"date": min_v[0].isoformat(), "value_cm": round(min_v[1], 1)},
+            "max": {"date": max_v[0].isoformat(), "value_cm": round(max_v[1], 1)},
+            "current_cm": round(getattr(latest, metric), 1) if getattr(latest, metric) is not None else None,
+            "count": len(vals),
+        }
+
+    # Waist trend — last 6 measurements (for ratio/direction)
+    waist_trend = [
+        {"date": r.date.isoformat(), "waist_cm": round(r.waist_cm, 1)} for r in rows[:6] if r.waist_cm is not None
+    ]
+
+    return {
+        "status": "ok",
+        "count": len(rows),
+        "latest": {
+            "date": latest.date.isoformat(),
+            **{m: round(getattr(latest, m), 1) if getattr(latest, m) is not None else None for m in metrics},
+            "notes": latest.notes,
+        },
+        "extremes": {m: _extremes(m) for m in metrics},
+        "waist_trend_last_6": waist_trend,
+    }
+
+
+@router.get("/day_summary")
+async def day_summary(
+    date: str,
+    user=Depends(get_agent_user),
+    db: Session = Depends(get_db),
+):
+    """Сводка за конкретный день: ккал, БЖУ, сон, вес, АД, был ли воркаут.
+
+    Источник: `daily_summaries` table — агрегаты по дням, заполняется
+    скриптами (nightly sync) из nutrition_log, activity_log, weights, BP.
+
+    Используй для вопросов «что у меня было 14 марта», «как был день N»,
+    «сравни такой-то день с другим».
+    """
+    from sqlalchemy import text as sql_text
+    from datetime import date as date_cls
+
+    try:
+        target_date = date_cls.fromisoformat(date)
+    except ValueError:
+        return {"status": "error", "error": f"invalid date format: {date!r} (expected YYYY-MM-DD)"}
+
+    try:
+        row = db.execute(
+            sql_text(
+                """
+                SELECT date, total_calories, total_protein, total_fats, total_carbs,
+                       had_workout, sleep_hours, weight, bp_systolic, bp_diastolic
+                FROM daily_summaries
+                WHERE user_id = :uid AND date = :d
+                """
+            ),
+            {"uid": user.telegram_id, "d": target_date},
+        ).fetchone()
+    except Exception as e:
+        # daily_summaries отсутствует как ORM-модель — таблицу не создают на SQLite
+        # (тестовая фикстура). На Postgres таблица есть. Если откат миграции —
+        # возвращаем мягкий error вместо 500.
+        logger.warning(f"day_summary query failed: {e}")
+        return {"status": "error", "date": target_date.isoformat(), "error": "daily_summaries table not available"}
+
+    if not row:
+        return {"status": "no_data", "date": target_date.isoformat(), "reason": "no daily_summary for this date"}
+
+    return {
+        "status": "ok",
+        "date": row.date.isoformat(),
+        "nutrition": {
+            "calories": row.total_calories,
+            "protein_g": float(row.total_protein) if row.total_protein is not None else None,
+            "fats_g": float(row.total_fats) if row.total_fats is not None else None,
+            "carbs_g": float(row.total_carbs) if row.total_carbs is not None else None,
+        },
+        "activity": {
+            "had_workout": row.had_workout,
+        },
+        "sleep_hours": float(row.sleep_hours) if row.sleep_hours is not None else None,
+        "weight_kg": float(row.weight) if row.weight is not None else None,
+        "blood_pressure": {
+            "systolic": row.bp_systolic,
+            "diastolic": row.bp_diastolic,
+        }
+        if row.bp_systolic
+        else None,
     }
 
 
