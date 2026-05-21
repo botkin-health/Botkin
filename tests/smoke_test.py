@@ -28,10 +28,6 @@ def test_database_connection():
         result = db.execute(text("SELECT 1"))
         assert result.fetchone()[0] == 1
         print("✅ Database connection OK")
-        return True
-    except Exception as e:
-        print(f"❌ Database connection failed: {e}")
-        return False
     finally:
         db.close()
 
@@ -43,10 +39,7 @@ def test_garmin_last_date():
     try:
         last_date = get_last_activity_date(db, 895655)
         print(f"✅ Last Garmin date: {last_date}")
-        return last_date is not None
-    except Exception as e:
-        print(f"❌ get_last_activity_date failed: {e}")
-        return False
+        assert last_date is not None
     finally:
         db.close()
 
@@ -66,14 +59,12 @@ def test_weekly_analysis():
         # Check if saira was detected (should be > 0 if user ate it)
         if fatty_fish > 0:
             print("   ✅ Saira detection working!")
-
-        return True
-    except Exception as e:
-        print(f"❌ Weekly analysis failed: {e}")
+        assert days >= 0  # smoke check: function returned a result
+    except Exception:
         import traceback
 
         traceback.print_exc()
-        return False
+        raise
 
 
 @pytest.mark.integration
@@ -85,10 +76,7 @@ def test_nutrition_logs():
         week_ago = today - timedelta(days=7)
         logs = get_nutrition_logs_by_period(db, 895655, week_ago, today)
         print(f"✅ Nutrition logs OK: {len(logs)} entries found")
-        return True
-    except Exception as e:
-        print(f"❌ Nutrition logs failed: {e}")
-        return False
+        assert isinstance(logs, list)
     finally:
         db.close()
 
