@@ -696,7 +696,7 @@ flowchart LR
     </div>
     <div class="meta">
       <span class="pill">Python · FastAPI · Postgres</span>
-      <span class="pill">MIT License</span>
+      <span class="pill">AGPL-3.0</span>
       <span class="pill">Botkin v0.6.0</span>
     </div>
   </div>
@@ -707,34 +707,37 @@ flowchart LR
 <section id="docs">
 <div class="container">
   <div class="eyebrow">Документация</div>
-  <h2>Полный гайд пользователя — на русском</h2>
-  <p class="lead">9 разделов: архитектура, бот, мини-апп, дашборд, Apple Health, Claude Desktop, Knowledge Base, безопасность, FAQ.</p>
+  <h2>Гайд пользователя — на русском</h2>
+  <p class="lead">Подробное руководство в разработке. Пока — короткие разделы ниже + код в GitHub.</p>
 
   <div class="features">
-    <a href="docs/architecture" class="feature">
+    <div class="feature" style="opacity:.7">
       <div class="icon">🏗</div>
+      <span class="soon">в работе</span>
       <h3>Архитектура</h3>
-      <p>Mermaid-диаграмма + объяснение «кто что хранит» и «кто кого видит».</p>
-    </a>
-    <a href="docs/telegram-bot" class="feature">
+      <p>Mermaid-диаграмма + объяснение «кто что хранит» и «кто кого видит». Пока — см. <a href="https://github.com/Lyskovsky/Botkin/blob/main/CLAUDE.md">CLAUDE.md</a> в репо.</p>
+    </div>
+    <a href="user_guide/" class="feature">
       <div class="icon">🤖</div>
       <h3>Telegram-бот</h3>
       <p>Все команды, как пользоваться фото/голосом/текстом.</p>
     </a>
-    <a href="docs/mcp-claude-desktop" class="feature">
+    <div class="feature" style="opacity:.7">
       <div class="icon">🔌</div>
+      <span class="soon">в работе</span>
       <h3>Claude Desktop MCP</h3>
       <p>Как подключить наш сервер к своему Claude или Gemini.</p>
-    </a>
-    <a href="docs/security" class="feature">
+    </div>
+    <div class="feature" style="opacity:.7">
       <div class="icon">🔒</div>
+      <span class="soon">в работе</span>
       <h3>Безопасность</h3>
       <p>Токены, что видит owner, что приватно, как отозвать доступы.</p>
-    </a>
+    </div>
   </div>
 
   <div style="margin-top: 32px; text-align: center;">
-    <a href="docs/" class="btn secondary">📖 Открыть полный гайд</a>
+    <a href="user_guide/" class="btn secondary">📖 Открыть user guide</a>
   </div>
 </div>
 </section>
@@ -799,10 +802,18 @@ flowchart LR
       <h3>💼 Инвесторы</h3>
       <p>Open-source longevity platform — рынок развивается. Если видишь возможность совместного проекта — напиши, обсудим.</p>
     </div>
+    <div class="biz-card">
+      <h3>🤝 Коллабораторы</h3>
+      <p>Разработчик, врач, дата-сайентист, нутрициолог, longevity-исследователь — у которого есть идея фичи или своего модуля. AGPL-3.0 значит вклад остаётся open — обсудим как встроить в core или сделать как плагин.</p>
+    </div>
+    <div class="biz-card">
+      <h3>🏫 Образование и студенты</h3>
+      <p>Курс по health-tech, дипломный проект, преподавание AI-агентов в медицине — Botkin как реальный учебный кейс. Помогу с разворачиванием инстанса для группы, выделю demo-аккаунты, подскажу с домашками.</p>
+    </div>
   </div>
 
   <div style="margin-top: 40px; text-align: center;">
-    <a href="mailto:lyskovsky@gmail.com" class="btn primary">📩 Написать на email</a>
+    <p style="font-size:16px; color:var(--muted);">Напиши на <a href="mailto:lyskovsky@gmail.com">lyskovsky@gmail.com</a></p>
   </div>
 </div>
 </section>
@@ -812,11 +823,11 @@ flowchart LR
 <div class="container">
   <div class="eyebrow">FAQ</div>
   <h2>Короткие ответы на главные вопросы</h2>
-  <p class="lead">Полный FAQ — в <a href="docs/faq">документации</a>. <em style="opacity:.7">Нажми на вопрос чтобы развернуть ↓</em></p>
+  <p class="lead"><em style="opacity:.7">Нажми на вопрос чтобы развернуть ↓</em></p>
 
   <details class="faq-item">
     <summary>Это бесплатно?</summary>
-    <p>Сам сервис — да. Затраты: сервер ~10€/мес, LLM API ~$30–50/мес. Если станет 50+ пользователей и расходы вырастут — будем думать про BYOK или подписку. Сейчас это open-source проект без коммерции.</p>
+    <p>Сам сервис — да. Реальные затраты сейчас: сервер ~€5/мес (Hetzner CX22), LLM API <span id="cost-llm">~$2/мес</span> (9 активных юзеров). Дёшево потому что prompt caching экономит 90% input-токенов. Если будет 50+ пользователей и LLM-расходы вырастут — введём BYOK или подписку. Сейчас open-source без коммерции (AGPL-3.0).</p>
   </details>
 
   <details class="faq-item">
@@ -869,7 +880,7 @@ flowchart LR
       <h4>Код</h4>
       <a href="https://github.com/Lyskovsky/Botkin">GitHub репозиторий</a>
       <a href="https://github.com/Lyskovsky/Botkin/issues">Issues</a>
-      <a href="https://github.com/Lyskovsky/Botkin/blob/master/LICENSE">MIT License</a>
+      <a href="https://github.com/Lyskovsky/Botkin/blob/main/LICENSE">AGPL-3.0</a>
     </div>
     <div class="col">
       <h4>Контакт</h4>
@@ -877,7 +888,7 @@ flowchart LR
     </div>
   </div>
   <div class="bottom">
-    <span>© 2026 Александр Лысковский. MIT License.</span>
+    <span>© 2026 Александр Лысковский. AGPL-3.0.</span>
     <span class="mono">Botkin v0.6.0 · обновлено 21.05.2026</span>
   </div>
 </div>
@@ -888,9 +899,14 @@ flowchart LR
 fetch('https://health.orangegate.cc/api/public_stats')
   .then(r => r.ok ? r.json() : null)
   .then(data => {
-    if (data && data.meals) {
+    if (!data) return;
+    if (data.meals) {
       const el = document.getElementById('meals-counter');
       if (el) el.textContent = data.meals + '+';
+    }
+    if (typeof data.llm_cost_this_month_usd === 'number') {
+      const el = document.getElementById('cost-llm');
+      if (el) el.textContent = '~$' + data.llm_cost_this_month_usd.toFixed(2) + ' за май';
     }
   })
   .catch(() => {/* fallback на статику */});

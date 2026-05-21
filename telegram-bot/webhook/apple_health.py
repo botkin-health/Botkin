@@ -154,6 +154,15 @@ async def public_stats():
             meals = db.execute(sql_text("SELECT COUNT(*) FROM nutrition_log")).scalar() or 0
             users = db.execute(sql_text("SELECT COUNT(*) FROM users WHERE is_active=true")).scalar() or 0
             biomarkers = db.execute(sql_text("SELECT COUNT(*) FROM blood_tests")).scalar() or 0
+            llm_month = (
+                db.execute(
+                    sql_text(
+                        "SELECT COALESCE(SUM(cost_usd),0) FROM llm_usage_log "
+                        "WHERE created_at >= date_trunc('month', NOW())"
+                    )
+                ).scalar()
+                or 0
+            )
         finally:
             db.close()
     except Exception as e:
@@ -161,7 +170,12 @@ async def public_stats():
         return JSONResponse({"error": "stats unavailable"}, status_code=503)
 
     return JSONResponse(
-        {"meals": meals, "active_users": users, "biomarkers": biomarkers},
+        {
+            "meals": meals,
+            "active_users": users,
+            "biomarkers": biomarkers,
+            "llm_cost_this_month_usd": round(float(llm_month), 2),
+        },
         headers={"Access-Control-Allow-Origin": "*", "Cache-Control": "public, max-age=300"},
     )
 
