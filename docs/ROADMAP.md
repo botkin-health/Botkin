@@ -23,9 +23,11 @@
 
 🔴 **NanoClaw свёрнут 21.05.2026.** Инфра (`/opt/nanoclaw`, OneCLI, systemd-юниты, docker-образы) полностью снесена с Hetzner. Освобождено 3.8 GB. См. [ADR-0002](architecture/decisions/0002-rejecting-nanoclaw-for-simpler-agent.md) и [project STATUS](projects/2026-05_nanoclaw-agent-bot/STATUS.md).
 
-🟢 **BotkinClaw:** AI-врач = in-process handler внутри `@Botkin_md_bot` (aiogram), прямой вызов Anthropic Messages API через `core/agent_chat.py:ask_agent`, история в Postgres, tools — переиспользуем работающий `webhook/agent_tools_api.py` (JWT+RLS, 8 endpoints). Один бот для всех пользователей, без отдельной контейнерной инфры. Имя — игра слов NanoClaw → BotkinClaw, бот сам играет роль «контейнера» в JWT-контракте.
+🟢 **BotkinClaw:** AI-врач = in-process handler внутри `@Botkin_md_bot` (aiogram), прямой вызов Anthropic Messages API через `core/agent_chat.py:ask_agent`, история в Postgres, tools — переиспользуем работающий `webhook/agent_tools_api.py` (JWT+RLS, **18 endpoints** на 21.05). Один бот для всех пользователей, без отдельной контейнерной инфры. Имя — игра слов NanoClaw → BotkinClaw, бот сам играет роль «контейнера» в JWT-контракте.
 
-**TODO к FFF:** SPEC для BotkinClaw (документация архитектуры), решение по `@BotkinAgent_bot` (revoke или keep), обновление `users.agent_system_prompt` (убрать упоминания NanoClaw).
+**Прогресс 21.05.2026:** model bump до Sonnet 4.6, JWT-контракт устойчив к NULL container_id, добавлены tools `get_weight_history`, `get_body_measurements`, `get_day_summary`, `get_indoor_air`, `get_outdoor_weather`, `get_user_settings`, `recent_workouts` теперь multi-user safe (DB fallback). TypingMiddleware для нативного индикатора. E2E ping-pong проверен 32 запросами на 2 юзерах. См. [AI_CHANGELOG](ai_context/AI_CHANGELOG.md#2026-05-21).
+
+**TODO к FFF:** SPEC для BotkinClaw (документация архитектуры), решение по `@BotkinAgent_bot` (revoke или keep), обновление `users.agent_system_prompt` (убрать упоминания NanoClaw), provisioning `jwt_secret` для Нiki/Олег/Pavel.
 
 ### Demo-подготовка под FFF
 - [ ] **Demo-сценарий** — последовательность: `/start` → лог еды → `/sync status` → `/day` → дашборд через `/share`. Записать скринкаст 2 мин. [полдня]

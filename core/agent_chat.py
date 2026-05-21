@@ -246,6 +246,84 @@ TOOLS: list[dict[str, Any]] = [
         "input_schema": {"type": "object", "properties": {}},
     },
     {
+        "name": "get_profile_questionnaire",
+        "description": (
+            "Анкета пользователя из users table: sex, height_cm, birth_date (+ возраст), "
+            "timezone, smoking_status (never/former/current/occasional), kb_status "
+            "(приватность knowledge_base: shared = доступно AI, private = только юзеру), "
+            "garmin_connected, pack_name, превью agent_system_prompt (500 симв). "
+            "Используй для 'что я указывал в анкете', 'мои настройки приватности', "
+            "'подключён ли Garmin', 'какой у меня возраст в системе'. "
+            "Также вызывай ПЕРЕД update_profile_questionnaire чтобы показать что меняется."
+        ),
+        "input_schema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "update_profile_questionnaire",
+        "description": (
+            "Изменить анкетные поля в users table. Все поля опциональны — обновятся "
+            "только переданные. ПЕРЕД использованием — обязательно подтверди с юзером "
+            "что именно меняешь (особенно agent_system_prompt — длинная строка, влияет "
+            "на поведение агента). Допустимые значения: smoking_status ∈ "
+            "{never,former,current,occasional}, kb_status ∈ {shared,private}, sex ∈ "
+            "{male,female,other}, birth_date YYYY-MM-DD."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "sex": {"type": "string", "enum": ["male", "female", "other"]},
+                "height_cm": {"type": "integer", "minimum": 100, "maximum": 250},
+                "birth_date": {"type": "string", "description": "YYYY-MM-DD"},
+                "timezone": {"type": "string"},
+                "smoking_status": {"type": "string", "enum": ["never", "former", "current", "occasional"]},
+                "kb_status": {"type": "string", "enum": ["shared", "private"]},
+                "pack_name": {"type": "string"},
+                "agent_system_prompt": {
+                    "type": "string",
+                    "description": "Полная замена промпта. Длинная (5-10К). Опасное поле.",
+                },
+            },
+        },
+    },
+    {
+        "name": "update_user_settings",
+        "description": (
+            "Изменить настройки в user_settings table: target_weight_kg + target_weight_date "
+            "(цель веса), calorie_goal_pct (-15 = дефицит 15%), bmr_override/bmr_source, "
+            "supplements (ПОЛНАЯ замена списка добавок — каждая {name, dose?, slot?}, slots: "
+            "morning_before / morning_with / evening), reminders. Все поля опциональны. "
+            "ВАЖНО: чтобы добавить ОДНУ добавку — сначала get_user_settings, модифицируй "
+            "список локально, потом update с полным новым списком. ПЕРЕД изменением — "
+            "подтверди с юзером."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "target_weight_kg": {"type": "number", "minimum": 30, "maximum": 300},
+                "target_weight_date": {"type": "string", "description": "YYYY-MM-DD"},
+                "calorie_goal_pct": {"type": "integer", "minimum": -50, "maximum": 50},
+                "bmr_override": {"type": "integer", "minimum": 500, "maximum": 5000},
+                "bmr_source": {"type": "string", "enum": ["auto", "override", "fixed"]},
+                "supplement_reminders_enabled": {"type": "boolean"},
+                "supplement_reminder_time": {"type": "string", "description": "HH:MM"},
+                "show_calorie_budget_bar": {"type": "boolean"},
+                "supplements": {
+                    "type": "array",
+                    "description": "Полный новый список добавок (заменяет все).",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string"},
+                            "dose": {"type": "string"},
+                            "slot": {"type": "string", "enum": ["morning_before", "morning_with", "evening"]},
+                        },
+                        "required": ["name"],
+                    },
+                },
+            },
+        },
+    },
+    {
         "name": "get_indoor_air",
         "description": (
             "Воздух дома: CO2 ppm, температура, влажность, шум. Источник — Netatmo "
@@ -455,6 +533,22 @@ def _call_tool(name: str, args: dict, token: str) -> str:
             r = requests.get(f"{TOOLS_API_BASE}/body_measurements", headers=headers, timeout=15)
         elif name == "get_user_settings":
             r = requests.get(f"{TOOLS_API_BASE}/user_settings", headers=headers, timeout=10)
+        elif name == "get_profile_questionnaire":
+            r = requests.get(f"{TOOLS_API_BASE}/profile_questionnaire", headers=headers, timeout=10)
+        elif name == "update_profile_questionnaire":
+            r = requests.post(
+                f"{TOOLS_API_BASE}/update_profile_questionnaire",
+                json=args,
+                headers=headers,
+                timeout=15,
+            )
+        elif name == "update_user_settings":
+            r = requests.post(
+                f"{TOOLS_API_BASE}/update_user_settings",
+                json=args,
+                headers=headers,
+                timeout=15,
+            )
         elif name == "get_indoor_air":
             r = requests.get(
                 f"{TOOLS_API_BASE}/indoor_air",
