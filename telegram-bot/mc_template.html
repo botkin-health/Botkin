@@ -77,6 +77,23 @@ body {
   background: linear-gradient(135deg, rgba(0,255,157,0.08) 0%, rgba(0,200,120,0.02) 100%);
   border-color: rgba(0,255,157,0.3);
 }
+/* .card-link: hero-карточка, которая anchor-ссылка на секцию дашборда */
+a.card-link {
+  display: block; color: inherit; text-decoration: none;
+  transition: border-color .15s, transform .15s, background .15s;
+  cursor: pointer;
+}
+a.card-link:hover {
+  border-color: var(--g);
+  background: linear-gradient(135deg, rgba(0,255,157,0.06) 0%, rgba(0,200,120,0.02) 100%);
+  transform: translateY(-1px);
+}
+.card-link-arrow {
+  float: right; color: var(--muted); font-size: 11px; opacity: .6; transition: opacity .15s;
+}
+a.card-link:hover .card-link-arrow { opacity: 1; color: var(--g); }
+/* Плавный scroll к якорю */
+html { scroll-behavior: smooth; }
 .card-label {
   font-size: 10px; text-transform: uppercase; letter-spacing: 1.8px;
   color: var(--muted); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
@@ -383,11 +400,11 @@ body {
     <div class="big-number g" id="hp-value">—</div>
     <div class="sub" id="hp-sub"></div>
   </div>
-  <div class="card">
-    <div class="card-label"><span class="status ok"></span>Баланс биомаркеров</div>
+  <a href="#medical-section" class="card card-link" title="Перейти к таблице биомаркеров ↓">
+    <div class="card-label"><span class="status ok"></span>Баланс биомаркеров <span class="card-link-arrow">↓</span></div>
     <div class="big-number g" id="h-score">—</div>
     <div class="sub" id="h-score-sub">% маркеров в оптимуме</div>
-  </div>
+  </a>
 </div>
 
 <!-- TIMELINE -->
