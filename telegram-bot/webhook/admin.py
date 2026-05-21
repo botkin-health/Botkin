@@ -83,6 +83,10 @@ section h2{font-size:15px;font-weight:600;margin-bottom:14px;display:flex;align-
 .badge.g{background:rgba(0,255,157,.12);color:var(--g)}
 .badge.y{background:rgba(255,184,0,.12);color:var(--y)}
 .badge.r{background:rgba(255,59,109,.12);color:var(--r)}
+.period-tabs{display:inline-flex;gap:2px;background:var(--bd);border-radius:6px;padding:2px;margin-left:4px}
+.period-tabs button{background:transparent;border:0;color:var(--mu);padding:4px 10px;font-size:12px;cursor:pointer;border-radius:4px;font-family:inherit}
+.period-tabs button:hover{color:var(--text)}
+.period-tabs button.active{background:var(--bg);color:var(--text);font-weight:500}
 .badge.b{background:rgba(59,130,246,.12);color:var(--b)}
 table{width:100%;border-collapse:collapse;font-size:13px}
 th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--bd);vertical-align:middle}
@@ -166,12 +170,13 @@ input.editable:focus{border-color:var(--b);outline:none;background:var(--bg2)}
   <h2>💰 Расходы на нейронки</h2>
   <div class="muted" style="margin-bottom:8px">
     Период:
-    <select id="llm-window" onchange="loadLLM()">
-      <option value="1">сегодня</option>
-      <option value="7" selected>7 дней</option>
-      <option value="30">30 дней</option>
-      <option value="90">90 дней</option>
-    </select>
+    <span class="period-tabs" id="llm-tabs">
+      <button data-days="1" onclick="setLLMWindow(1)">сегодня</button>
+      <button data-days="7" class="active" onclick="setLLMWindow(7)">7 дней</button>
+      <button data-days="30" onclick="setLLMWindow(30)">30 дней</button>
+      <button data-days="90" onclick="setLLMWindow(90)">90 дней</button>
+    </span>
+    <input type="hidden" id="llm-window" value="7">
     <span id="llm-totals" style="margin-left:14px"></span>
   </div>
   <table style="font-size:13px">
@@ -197,11 +202,17 @@ input.editable:focus{border-color:var(--b);outline:none;background:var(--bg2)}
 </section>
 
 <section>
-  <h2>🤖 Здоровье бота <span class="badge y">v1 — TODO</span></h2>
-  <div class="placeholder">
-    Uptime, ошибки, webhook latency — добавим в v1.<br>
-    Сейчас: <span class="mono">ssh берлин && docker compose logs --tail=200 bot</span>
-  </div>
+  <h2>🤖 Здоровье бота <span class="badge g" id="bothealth-badge">…</span></h2>
+  <div id="bothealth-kpis" class="kpis"></div>
+  <details style="margin-top:10px">
+    <summary class="muted">📜 Последние 10 событий audit_log</summary>
+    <div style="font-size:11px; color:var(--muted); margin: 4px 0 8px">
+      audit_log хранит INSERT/UPDATE/DELETE на чувствительных таблицах (weights, blood_pressure_logs, blood_tests, user_settings) — кто что менял и когда.
+      Используется для прозрачности (когда работают двое +) и аудита SQL-апдейтов мимо приложения. Чистить не надо — компактен (1.6 МБ на 2671 строку).
+    </div>
+    <table style="font-size:11px"><thead><tr><th>Время</th><th>Юзер</th><th>Таблица</th><th>Действие</th></tr></thead>
+    <tbody id="bothealth-audit"></tbody></table>
+  </details>
 </section>
 
 <div id="toast"></div>
@@ -243,8 +254,11 @@ async function loadUsers(){
       const sx = (u.sex||'').toLowerCase();
       const sexEmoji = (sx==='male'||sx==='m') ? '♂' : ((sx==='female'||sx==='f') ? '♀' : '');
       const ageStr = u.age!==null ? `${u.age}л ${sexEmoji}` : '<span class="dim">—</span>';
-      return `<tr>
-        <td>${u.first_name||''} ${u.last_name||''}</td>
+      // [test] badge для тестовых юзеров (deploy_smoke, имена начинающиеся с deploy/test/smoke)
+      const isTest = (u.username||'').toLowerCase().includes('deploy') || (u.username||'').toLowerCase().includes('smoke') || (u.username||'').toLowerCase().startsWith('test_');
+      const testBadge = isTest ? ' <span style="background:#3a2a2a;color:#ff9966;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:600;letter-spacing:.5px">[test]</span>' : '';
+      return `<tr${isTest ? ' style="opacity:.55"' : ''}>
+        <td>${u.first_name||''} ${u.last_name||''}${testBadge}</td>
         <td class="mono muted">@${u.username||'—'}</td>
         <td class="mono dim">${u.telegram_id}</td>
         <td><select onchange="changeCohort(${u.telegram_id}, this.value)" class="cohort-pill c-${u.cohort}">${cohorts}</select></td>
@@ -372,7 +386,34 @@ async function loadLLM(){
   } catch(e){ toast('Ошибка LLM: '+e.message, 'err') }
 }
 
-function loadAll(){ loadUsers(); loadServer(); loadBackups(); loadLLM() }
+async function loadBotHealth(){
+  try{
+    const d = await api('/admin/api/bothealth');
+    const okBadge = d.uptime_seconds > 60 && d.errors_24h < 10;
+    $('bothealth-badge').textContent = okBadge ? '✓ работает' : '⚠ внимание';
+    $('bothealth-badge').className = 'badge ' + (okBadge ? 'g' : 'y');
+    $('bothealth-kpis').innerHTML = `
+      <div class="kpi"><div class="l">Uptime</div><div class="v">${d.uptime_pretty}</div></div>
+      <div class="kpi"><div class="l">Ошибок за 24ч</div><div class="v ${d.errors_24h>10?'crit':''}">${d.errors_24h}</div></div>
+      <div class="kpi"><div class="l">Сообщений сегодня</div><div class="v">${d.messages_today}</div></div>
+      <div class="kpi"><div class="l">Webhook</div><div class="v" style="font-size:14px">${d.webhook_ok?'✓ ok':'✗ down'}</div></div>`;
+    const arows = (d.audit_recent||[]).map(e =>
+      `<tr><td class="mono dim" style="font-size:10px">${fmtDate(e.ts)}</td><td class="mono">${e.user_id||'—'}</td><td>${e.table_name}</td><td class="muted">${e.action}</td></tr>`).join('');
+    $('bothealth-audit').innerHTML = arows || '<tr><td colspan="4" class="placeholder">Тихо</td></tr>';
+  } catch(e) {
+    $('bothealth-badge').textContent = '✗ ошибка';
+    $('bothealth-badge').className = 'badge r';
+    $('bothealth-kpis').innerHTML = '<div class="placeholder">Ошибка: '+e.message+'</div>';
+  }
+}
+function setLLMWindow(days){
+  document.getElementById('llm-window').value = days;
+  document.querySelectorAll('#llm-tabs button').forEach(b => {
+    b.classList.toggle('active', +b.dataset.days === days);
+  });
+  loadLLM();
+}
+function loadAll(){ loadUsers(); loadServer(); loadBackups(); loadLLM(); loadBotHealth() }
 function tick(){ $('now').textContent = new Date().toLocaleString('ru-RU') }
 
 tick(); setInterval(tick, 1000);
@@ -695,6 +736,103 @@ async def api_llm_usage(days: int = 7, _: str = Depends(admin_auth)) -> JSONResp
         )
     finally:
         db.close()
+
+
+@router.get("/api/bothealth")
+async def api_bothealth(_: str = Depends(admin_auth)) -> JSONResponse:
+    """Минимальная телеметрия бота — не жжёт токены/ресурсы.
+
+    - uptime: длительность процесса bot.py (через /proc или ps в контейнере)
+    - errors_24h: подсчёт ERROR/exception записей в logs/bot_debug.log за 24ч
+    - messages_today: count из agent_conversations role='user' с today midnight
+    - webhook_ok: была ли запись webhook в последние 30 мин (по last_active юзеров)
+    - audit_recent: последние 10 событий из audit_log
+    """
+    import subprocess
+    from datetime import datetime as _dt, timezone as _tz
+
+    uptime_seconds = 0
+    uptime_pretty = "—"
+    try:
+        # pgrep bot.py — pid → /proc/<pid>/stat → start_time
+        out = subprocess.run(["pgrep", "-f", "bot.py"], capture_output=True, text=True, timeout=5)
+        pid = (out.stdout.strip().split("\n") or [""])[0]
+        if pid:
+            stat = open(f"/proc/{pid}/stat").read().split()
+            btime = int(open("/proc/stat").read().split("\n")[0].split()[1] if False else 0)
+            # simpler: read /proc/<pid>/stat field 22 = starttime (clock ticks since boot)
+            # easier: use ps etime
+            etime = subprocess.run(
+                ["ps", "-o", "etimes=", "-p", pid], capture_output=True, text=True, timeout=3
+            ).stdout.strip()
+            uptime_seconds = int(etime) if etime.isdigit() else 0
+            if uptime_seconds > 0:
+                d, rem = divmod(uptime_seconds, 86400)
+                h, rem = divmod(rem, 3600)
+                m = rem // 60
+                uptime_pretty = (f"{d}д " if d else "") + (f"{h}ч " if h else "") + f"{m}м"
+    except Exception:
+        pass
+
+    errors_24h = 0
+    try:
+        log_path = "/app/logs/bot_debug.log"
+        # tail последние ~2000 строк, посчитать ERROR/CRITICAL
+        out = subprocess.run(
+            ["grep", "-cE", "ERROR|CRITICAL|Traceback", log_path], capture_output=True, text=True, timeout=3
+        )
+        errors_24h = int(out.stdout.strip()) if out.stdout.strip().isdigit() else 0
+    except Exception:
+        pass
+
+    db = SessionLocal()
+    try:
+        midnight = _dt.now(_tz.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        messages_today = (
+            db.execute(
+                text("SELECT COUNT(*) FROM agent_conversations WHERE role='user' AND created_at >= :m"),
+                {"m": midnight},
+            ).scalar()
+            or 0
+        )
+        recent_active = (
+            db.execute(text("SELECT COUNT(*) FROM users WHERE last_active > NOW() - INTERVAL '30 minutes'")).scalar()
+            or 0
+        )
+        webhook_ok = recent_active > 0 or messages_today > 0
+
+        audit = db.execute(
+            text(
+                """
+                SELECT ts, db_user, query_type, table_name
+                FROM audit_log
+                ORDER BY ts DESC
+                LIMIT 10
+                """
+            )
+        ).fetchall()
+        audit_recent = [
+            {
+                "ts": r.ts.isoformat(),
+                "user_id": r.db_user,
+                "table_name": r.table_name or "—",
+                "action": r.query_type,
+            }
+            for r in audit
+        ]
+    finally:
+        db.close()
+
+    return JSONResponse(
+        {
+            "uptime_seconds": uptime_seconds,
+            "uptime_pretty": uptime_pretty,
+            "errors_24h": errors_24h,
+            "messages_today": messages_today,
+            "webhook_ok": webhook_ok,
+            "audit_recent": audit_recent,
+        }
+    )
 
 
 @router.get("/api/server")

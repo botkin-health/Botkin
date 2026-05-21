@@ -636,11 +636,16 @@ def _load_history(db, user_id: int, limit: int = HISTORY_WINDOW) -> list[dict]:
     """
     from sqlalchemy import text
 
+    # Фильтр source: NULL = легаси (до миграции add_agent_review_consent) или
+    # реальный ход BotkinClaw. 'botkinclaw' = новые ходы агента. Любой
+    # 'router_*' (raw-текст из food/vitamins/BP ветки) — не часть диалога с
+    # Claude, в историю не подмешиваем, чтобы агент не пытался отвечать на
+    # пищевые сообщения.
     sql = text(
         """
         SELECT role, content
         FROM agent_conversations
-        WHERE user_id = :uid
+        WHERE user_id = :uid AND (source IS NULL OR source = 'botkinclaw')
         ORDER BY id DESC
         LIMIT :lim
         """
@@ -756,8 +761,8 @@ def _save_message(db, user_id: int, role: str, content: Any, tool_use_id: Option
     db.execute(
         text(
             """
-            INSERT INTO agent_conversations (user_id, role, content, tool_use_id)
-            VALUES (:uid, :role, CAST(:content AS JSONB), :tid)
+            INSERT INTO agent_conversations (user_id, role, content, tool_use_id, source)
+            VALUES (:uid, :role, CAST(:content AS JSONB), :tid, 'botkinclaw')
             """
         ),
         {
@@ -767,6 +772,46 @@ def _save_message(db, user_id: int, role: str, content: Any, tool_use_id: Option
             "tid": tool_use_id,
         },
     )
+
+
+def log_router_raw_text(user_id: int, raw_text: str, msg_type: str) -> None:
+    """Логирует raw текст сообщения, ушедшего НЕ в BotkinClaw, а в роутер
+    (food / vitamins / bp / weight / mixed / body_measurements).
+
+    Цель: чтобы product-review мог увидеть формулировки пользователя даже
+    когда сообщение распарсилось в структурку и положилось в спец-таблицу.
+    Эти строки не подмешиваются в историю BotkinClaw (см. _load_history).
+
+    Безопасно: ловит и логирует любую ошибку, чтобы не сломать основной
+    хэндлер из-за проблемы с записью.
+    """
+    if not raw_text:
+        return
+    try:
+        from sqlalchemy import text
+
+        db = SessionLocal()
+        try:
+            db.execute(
+                text(
+                    """
+                    INSERT INTO agent_conversations (user_id, role, content, source)
+                    VALUES (:uid, 'user', CAST(:content AS JSONB), :src)
+                    """
+                ),
+                {
+                    "uid": user_id,
+                    "content": json.dumps([{"type": "text", "text": raw_text}]),
+                    "src": f"router_{msg_type}",
+                },
+            )
+            db.commit()
+        finally:
+            db.close()
+    except Exception as e:
+        import logging
+
+        logging.getLogger(__name__).warning(f"log_router_raw_text failed for {user_id}: {e}")
 
 
 # ---------------------------------------------------------------------------

@@ -323,15 +323,15 @@ body {
     <div id="topbar-name" style="font-size:13px; color:var(--muted); font-weight:500;"></div>
   </div>
   <div class="countdown">
-    <div>
+    <div title="Сколько типов данных подтягивается: сон, шаги, HRV, давление, питание, добавки, биомаркеры и т.д. Каждый — отдельный поток.">
       <div class="lbl">Потоков данных</div>
       <div class="big mono" id="stat-streams">—</div>
     </div>
-    <div>
+    <div title="Общее число замеров за всё время по всем потокам — каждый шаг, замер пульса, приём пищи, добавка считается одним параметром.">
       <div class="lbl">Параметров</div>
       <div class="big mono" id="stat-params">—</div>
     </div>
-    <div>
+    <div title="С какого года в системе есть твои данные (от самой ранней записи в любом потоке).">
       <div class="lbl">История</div>
       <div class="big mono" id="stat-years">—</div>
     </div>
@@ -353,7 +353,7 @@ body {
     <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
       <div class="card-label" style="margin-bottom:0;"><span class="status ok"></span>Вес · кг</div>
       <div style="background:rgba(0,255,157,0.1); border:1px solid rgba(0,255,157,0.25); border-radius:20px; padding:4px 12px; font-size:11px; color:var(--g); letter-spacing:0.5px; white-space:nowrap;">
-        T−<span id="cd-days">—</span> дн &nbsp;·&nbsp; цель <span id="meta-goal">—</span> кг
+        <span id="cd-prefix">осталось</span> <span id="cd-days">—</span> дн &nbsp;·&nbsp; цель <span id="meta-goal">—</span> кг
       </div>
     </div>
     <div style="display:flex; align-items:baseline; gap:14px;">
@@ -611,7 +611,7 @@ body {
 </div>
 
 <div class="footer">
-  Data sources: Garmin · Zepp Life · Apple Health · Omron · Netatmo · NutriLogBot · Лаборатории · Claude Code<br>
+  <span id="meta-sources">Data sources: загрузка…</span><br>
   <span class="accent">Botkin</span> · <span id="meta-name"></span><span id="meta-age-part"></span>
 </div>
 
@@ -639,7 +639,9 @@ function ruYearsWord(n) {
   if (mod10 >= 2 && mod10 <= 4) return 'года';
   return 'лет';
 }
-if (_metaAgePart && D.meta.age) _metaAgePart.textContent = ' · ' + D.meta.age + ' ' + ruYearsWord(D.meta.age);
+if (_metaAgePart) _metaAgePart.textContent = D.meta.age ? (' · ' + D.meta.age + ' ' + ruYearsWord(D.meta.age)) : '';
+// Footer data sources заполняется ниже (после `const T = D.totals` и `_bioCount`),
+// чтобы не упасть с TDZ-ошибкой "Cannot access 'T' before initialization".
 // Name in topbar
 const _topbarName = document.getElementById('topbar-name');
 if (_topbarName && D.meta.display_name) _topbarName.textContent = D.meta.display_name;
@@ -677,7 +679,20 @@ if (_sp) _sp.textContent = D.meta.total_params > 0 ? D.meta.total_params : '—'
 if (_sy) _sy.textContent = D.meta.history_label || (D.meta.history_years > 0 ? D.meta.history_years : '—');
 
 // === HERO FILL ===
-document.getElementById('cd-days').textContent = D.meta.days_to_target;
+// days_to_target: positive = ещё впереди ("осталось N дн"); negative = уже прошёл срок ("просрочен на N дн"); null = цель не задана
+const _dtt = D.meta.days_to_target;
+const _cdPrefix = document.getElementById('cd-prefix');
+const _cdDaysEl = document.getElementById('cd-days');
+if (_dtt == null) {
+  if (_cdPrefix) _cdPrefix.textContent = 'цель без даты';
+  _cdDaysEl.textContent = '—';
+} else if (_dtt < 0) {
+  if (_cdPrefix) _cdPrefix.textContent = 'просрочен на';
+  _cdDaysEl.textContent = Math.abs(_dtt);
+} else {
+  if (_cdPrefix) _cdPrefix.textContent = 'осталось';
+  _cdDaysEl.textContent = _dtt;
+}
 // Date range init
 const rsEl = document.getElementById('range-start');
 const reEl = document.getElementById('range-end');
@@ -862,32 +877,56 @@ const lastLabel = (data, suffix) => {
   return `посл. ${v}${suffix ? ' · ' + suffix : ''}`;
 };
 
+// dash(): если значение пустое/0 — возвращает прочерк, иначе само значение
+const dash = (v) => (v == null || v === 0 || v === '0' || v === '') ? '—' : v;
+const dashUnit = (v, unit) => (v == null || v === 0 || v === '0' || v === '') ? '' : unit;
+const lastOr = (arr, suffix) => {
+  const v = last(arr);
+  return (v == null || v === '' || v === 0) ? '—' : v + (suffix ? ' ' + suffix : '');
+};
+// биомаркеры: показываем "N из M" где M = max(12, N) — чтобы никогда не было "15 из 12"
+const _bioCount = D.meta.bio_key_count || 0;
+const _bioTotal = Math.max(12, _bioCount);
+
+// Footer data sources — реально подключённые (определяем по факту наличия данных)
+const _activeSources = [];
+if (T.steps_avg > 0 || T.hrv_avg > 0 || T.rhr_avg > 0) _activeSources.push('Garmin / Apple Watch');
+if (hasWeight) _activeSources.push('весы');
+if (T.bp_last && T.bp_last !== '—') _activeSources.push('тонометр');
+if (T.co2_avg > 0) _activeSources.push('Netatmo');
+if (T.kcal_days_n > 0) _activeSources.push('@Botkin_md_bot');
+if (_bioCount > 0) _activeSources.push('лаборатории');
+const _sourcesEl = document.getElementById('meta-sources');
+if (_sourcesEl) {
+  _sourcesEl.textContent = _activeSources.length
+    ? 'Источники данных: ' + _activeSources.join(' · ')
+    : 'Источники данных: пока ничего не подключено — начни с @Botkin_md_bot';
+}
+
 const streams = [
   // ── Строка 1: Как я сейчас (Recovery & Readiness) ─────────────────────────
-  // Большая цифра (val) = среднее за период наблюдения
-  // Подпись (last_) = последнее значение с контекстом ("посл. N · контекст")
-  { name: '🔋 Body Battery', val: T.bb_avg, unit: '/100 ср', last_: lastLabel(D.body_battery, 'сегодня'), data: D.body_battery, color: COLOR.g },
-  { name: '💗 HRV', val: T.hrv_avg, unit: 'мс ср', last_: lastLabel(D.hrv, 'за прошлую ночь'), data: D.hrv, color: COLOR.r },
-  { name: '😴 Сон', val: T.sleep_avg, unit: 'ч ср', last_: lastLabel(D.sleep_h, 'прошлая ночь'), data: D.sleep_h, color: COLOR.p },
-  { name: '💓 Пульс покоя', val: T.rhr_avg, unit: 'уд/мин ср', last_: lastLabel(D.rhr, 'сегодня'), data: D.rhr, color: COLOR.r },
-  { name: '😰 Стресс', val: T.stress_avg, unit: '/100 ср', last_: lastLabel(D.stress, 'сегодня'), data: D.stress, color: COLOR.y },
-  { name: '🩺 Давление', val: T.bp_last, unit: '', last_: 'последнее измерение', data: D.bp_sys, color: COLOR.r },
+  { name: '🔋 Body Battery', val: dash(T.bb_avg), unit: dashUnit(T.bb_avg, '/100 ср'), last_: lastLabel(D.body_battery, 'сегодня'), data: D.body_battery, color: COLOR.g },
+  { name: '💗 HRV', val: dash(T.hrv_avg), unit: dashUnit(T.hrv_avg, 'мс ср'), last_: lastLabel(D.hrv, 'за прошлую ночь'), data: D.hrv, color: COLOR.r },
+  { name: '😴 Сон', val: dash(T.sleep_avg), unit: dashUnit(T.sleep_avg, 'ч ср'), last_: lastLabel(D.sleep_h, 'прошлая ночь'), data: D.sleep_h, color: COLOR.p },
+  { name: '💓 Пульс покоя', val: dash(T.rhr_avg), unit: dashUnit(T.rhr_avg, 'уд/мин ср'), last_: lastLabel(D.rhr, 'сегодня'), data: D.rhr, color: COLOR.r },
+  { name: '😰 Стресс', val: dash(T.stress_avg), unit: dashUnit(T.stress_avg, '/100 ср'), last_: lastLabel(D.stress, 'сегодня'), data: D.stress, color: COLOR.y },
+  { name: '🩺 Давление', val: T.bp_last || '—', unit: '', last_: T.bp_last ? 'последнее измерение' : 'нет данных', data: D.bp_sys, color: COLOR.r },
   // ── Строка 2: Что я делал (Activity & Nutrition) ───────────────────────────
-  { name: '🏋️ Тренировки', val: T.activities_total, unit: 'всего', last_: T.activity_hours + ' ч · ' + T.activity_km + ' км', data: null, color: COLOR.g, custom: 'workout' },
-  { name: '👣 Шаги', val: T.steps_avg.toLocaleString(), unit: '/день ср', last_: last(D.steps), data: D.steps, color: COLOR.g },
-  { name: '🏃 Минут спорта', val: T.activity_min.toLocaleString(), unit: 'мин всего', last_: Math.round(T.activity_min/D.meta.total_days) + ' мин/день', data: null, color: COLOR.g },
-  { name: '📏 Дистанция', val: T.activity_km, unit: 'км', last_: 'всего', data: null, color: COLOR.g },
-  { name: '🍽️ КБЖУ дней', val: T.kcal_days_n, unit: '/' + D.meta.total_days, last_: T.kcal_avg + ' ккал ср', data: D.kcal, color: COLOR.b },
-  { name: '🥩 Белок', val: T.prot_avg, unit: 'г/день ср',
-    last_: T.prot_target ? 'цель ' + T.prot_target + 'г · ' + (T.prot_avg >= T.prot_target ? '✓' : '−' + (T.prot_target - Math.round(T.prot_avg)) + 'г') : Math.round(T.prot_avg) + 'г',
+  { name: '🏋️ Тренировки', val: dash(T.activities_total), unit: dashUnit(T.activities_total, 'всего'), last_: (T.activities_total ? T.activity_hours + ' ч · ' + T.activity_km + ' км' : 'нет данных'), data: null, color: COLOR.g, custom: 'workout' },
+  { name: '👣 Шаги', val: T.steps_avg ? T.steps_avg.toLocaleString() : '—', unit: dashUnit(T.steps_avg, '/день ср'), last_: lastOr(D.steps), data: D.steps, color: COLOR.g },
+  { name: '🏃 Минут спорта', val: T.activity_min ? T.activity_min.toLocaleString() : '—', unit: dashUnit(T.activity_min, 'мин всего'), last_: (T.activity_min ? Math.round(T.activity_min/D.meta.total_days) + ' мин/день' : '—'), data: null, color: COLOR.g },
+  { name: '📏 Дистанция', val: dash(T.activity_km), unit: dashUnit(T.activity_km, 'км'), last_: T.activity_km ? 'всего' : '—', data: null, color: COLOR.g },
+  { name: '🍽️ КБЖУ дней', val: dash(T.kcal_days_n), unit: dashUnit(T.kcal_days_n, '/' + D.meta.total_days), last_: T.kcal_avg ? T.kcal_avg + ' ккал ср' : '—', data: D.kcal, color: COLOR.b },
+  { name: '🥩 Белок', val: dash(T.prot_avg), unit: dashUnit(T.prot_avg, 'г/день ср'),
+    last_: T.prot_target ? 'цель ' + T.prot_target + 'г · ' + (T.prot_avg >= T.prot_target ? '✓' : '−' + (T.prot_target - Math.round(T.prot_avg)) + 'г') : (T.prot_avg ? Math.round(T.prot_avg) + 'г' : '—'),
     data: D.prot, color: T.prot_target && T.prot_avg < T.prot_target ? COLOR.r : COLOR.y },
   // ── Строка 3: Контекст и прогресс (Body, Environment, Medical) ────────────
-  { name: '⚖️ Вес сегодня', val: hasWeight ? sw.last.toFixed(2) : '—', unit: 'кг', last_: 'цель ' + (D.meta.target_weight || '—'), data: D.weight, color: COLOR.g },
-  { name: '💊 Добавки', val: T.supp_days_n, unit: 'дней', last_: '85%', data: null, color: COLOR.p },
-  { name: '🍷 Алкоголь', val: T.alco_days_n, unit: '/' + D.meta.total_days + ' дн', last_: Math.round(T.alco_days_n/D.meta.total_days*100) + '%', data: null, color: COLOR.r },
-  { name: '🏠 CO₂ дома', val: T.co2_avg, unit: 'ppm ср', last_: last(D.co2) + ' сейчас', data: D.co2, color: COLOR.b },
-  { name: '🌡️ T° дома', val: T.temp_home_avg, unit: '°C ср', last_: last(D.temp_home) + '°C', data: D.temp_home, color: COLOR.y },
-  { name: '🧬 Биомаркеров', val: D.meta.bio_key_count > 0 ? D.meta.bio_key_count : '—', unit: D.meta.bio_key_count > 0 ? 'ключевых' : '', last_: D.meta.bio_key_count > 0 ? D.meta.bio_key_count + ' из 12' : 'нет данных', data: null, color: COLOR.p }
+  { name: '⚖️ Вес сегодня', val: hasWeight ? sw.last.toFixed(2) : '—', unit: hasWeight ? 'кг' : '', last_: D.meta.target_weight ? 'цель ' + D.meta.target_weight : 'нет цели', data: D.weight, color: COLOR.g },
+  { name: '💊 Добавки', val: dash(T.supp_days_n), unit: dashUnit(T.supp_days_n, 'дней'), last_: T.supp_days_n ? '85%' : '—', data: null, color: COLOR.p },
+  { name: '🍷 Алкоголь', val: dash(T.alco_days_n), unit: dashUnit(T.alco_days_n, '/' + D.meta.total_days + ' дн'), last_: T.alco_days_n ? Math.round(T.alco_days_n/D.meta.total_days*100) + '%' : '—', data: null, color: COLOR.r },
+  { name: '🏠 CO₂ дома', val: dash(T.co2_avg), unit: dashUnit(T.co2_avg, 'ppm ср'), last_: T.co2_avg ? lastOr(D.co2, 'сейчас') : 'нет датчика', data: D.co2, color: COLOR.b },
+  { name: '🌡️ T° дома', val: dash(T.temp_home_avg), unit: dashUnit(T.temp_home_avg, '°C ср'), last_: T.temp_home_avg ? (last(D.temp_home) + '°C') : 'нет датчика', data: D.temp_home, color: COLOR.y },
+  { name: '🧬 Биомаркеров', val: _bioCount > 0 ? _bioCount : '—', unit: _bioCount > 0 ? 'ключевых' : '', last_: _bioCount > 0 ? _bioCount + ' из ' + _bioTotal : 'нет данных', data: null, color: COLOR.p }
 ];
 
 // Group labels inserted before index 0, 6, 12
@@ -1631,7 +1670,7 @@ if (D.achievements.length === 0) {
       icon: '🩸',
       title: 'Загрузи анализы крови',
       what: 'Появится: биомаркеры, панели Attia · LE8 · PhenoAge · Framingham',
-      sources: 'Фото бланка или PDF в NutriLogBot · Helix · Инвитро · Гемотест · ЛДЦ'
+      sources: 'Фото бланка или PDF в @Botkin_md_bot · Helix · Инвитро · Гемотест · ЛДЦ'
     });
   }
 

@@ -1,5 +1,6 @@
 # Database Models for HealthVault Multi-user
 
+import secrets
 from datetime import date, datetime, time
 from typing import Optional, List
 from sqlalchemy import (
@@ -90,12 +91,19 @@ class User(Base):
     container_id: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     container_port: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     pack_name: Mapped[str] = mapped_column(String(50), default="generic", server_default="generic")
-    jwt_secret: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    # Per-user HS256 secret для подписи агентских JWT (BotkinClaw → tools API).
+    # Генерируется автоматически на INSERT, чтобы новые юзеры всегда могли
+    # запустить разговорного агента. Бэкфилл существующих: scripts/backfill_jwt_secret.py.
+    jwt_secret: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, default=lambda: secrets.token_hex(32))
     encrypted_openai_key: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     encrypted_anthropic_key: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     # Per-user system prompt для BotkinClaw (in-process AI-агента) — см. ADR-0002.
     # Source of truth для тона/контекста. Меняется SQL'ом в users.agent_system_prompt.
     agent_system_prompt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Согласие пользователя на доступ команды разработки к его переписке с
+    # BotkinClaw (product-review: feature requests, баги, неудобства).
+    # Управляется тогглом в мини-аппе. Default TRUE для текущей закрытой стадии.
+    agent_review_consent: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true", nullable=False)
 
     # Onboarding state machine (Sprint 1a Task 9)
     # Steps: name → age → sex → height → has_garmin → done
