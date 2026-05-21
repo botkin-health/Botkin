@@ -11,10 +11,21 @@
 
 import json
 import os
+import sys
 import time
 from pathlib import Path
 
-import lnetatmo
+try:
+    import lnetatmo
+except ImportError:
+    print(
+        "❌ Модуль lnetatmo не установлен. Поставь `pip install lnetatmo>=4.2.0` "
+        "или пересобери Docker-образ через `deploy.sh --force-rebuild` "
+        "(requirements.txt уже содержит lnetatmo).",
+        file=sys.stderr,
+    )
+    sys.exit(2)
+
 import requests
 from dotenv import load_dotenv
 
