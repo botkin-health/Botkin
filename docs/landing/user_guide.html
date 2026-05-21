@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Botkin — короткий гайд</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<style>
+:root {
+  --bg: #0a0e17; --bg2: #0f1420; --card: #141a28; --border: #1f2940;
+  --text: #e8eef7; --muted: #7a879f; --g: #00ff9d;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body {
+  background: var(--bg); color: var(--text);
+  font: 16px/1.7 'SF Pro Display','Inter',-apple-system,sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background-image:
+    radial-gradient(circle at 15% 0%, rgba(0,255,157,0.04) 0%, transparent 40%),
+    radial-gradient(circle at 85% 100%, rgba(168,85,247,0.04) 0%, transparent 40%);
+}
+.container { max-width: 760px; margin: 0 auto; padding: 48px 24px 120px; }
+nav { padding: 14px 0; border-bottom: 1px solid var(--border); background: rgba(10,14,23,0.85); backdrop-filter: blur(16px); position: sticky; top: 0; z-index: 10; }
+nav .row { max-width: 760px; margin: 0 auto; padding: 0 24px; display: flex; justify-content: space-between; align-items: center; }
+nav a { color: var(--muted); text-decoration: none; font-size: 14px; }
+nav a:hover { color: var(--text); }
+nav .brand { color: var(--text); font-weight: 700; }
+nav .brand .dot { color: var(--g); }
+h1 { font-size: 32px; line-height: 1.2; margin-bottom: 8px; letter-spacing: -0.5px; }
+h2 { font-size: 20px; margin-top: 40px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.lead { color: var(--muted); font-size: 16px; margin-bottom: 24px; }
+p { margin-bottom: 14px; color: var(--text); }
+ul, ol { margin: 0 0 14px 22px; }
+li { margin-bottom: 6px; }
+code { background: var(--card); padding: 2px 6px; border-radius: 4px; font-family: 'SF Mono',Menlo,monospace; font-size: 0.92em; color: var(--g); }
+.example { background: var(--card); border-left: 3px solid var(--g); padding: 10px 14px; margin: 10px 0; border-radius: 4px; font-size: 14px; color: var(--muted); }
+.example b { color: var(--text); }
+a { color: var(--g); }
+.footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<nav>
+  <div class="row">
+    <a class="brand" href="/">Botkin<span class="dot">.</span></a>
+    <a href="https://t.me/Botkin_md_bot">@Botkin_md_bot</a>
+  </div>
+</nav>
+
+<div class="container">
+
+<h1>Короткий гайд по Botkin</h1>
+<p class="lead">Всё необходимое чтобы начать пользоваться за 10 минут. Если что-то непонятно — спроси у самого бота, он подскажет.</p>
+
+<h2>Что это</h2>
+<p>Telegram-бот, в который ты пишешь что ел, что принял и как себя чувствуешь. Часы, тонометр и весы шлют данные сами. Бот ведёт твою историю и отвечает на вопросы про неё.</p>
+
+<h2>Начать</h2>
+<ol>
+  <li>Открой <a href="https://t.me/Botkin_md_bot">@Botkin_md_bot</a> в Telegram.</li>
+  <li>Нажми <code>/start</code>. Ответь на 10 вопросов про возраст, рост, пол, цель. Это считает твою норму калорий.</li>
+  <li>Залогируй первый приём пищи — фотом, голосом или текстом. Дальше — по ситуации.</li>
+</ol>
+
+<h2>Логирование еды</h2>
+<p>Три способа:</p>
+<ul>
+  <li><b>Фото</b> — сфотографируй тарелку, отправь боту. LLM распознает что на фото, прикинет порцию, посчитает КБЖУ.</li>
+  <li><b>Голосовое</b> — «съел овсянку 80 грамм и яблоко».</li>
+  <li><b>Текст</b> — «обед: гречка 200 г, курица 150 г».</li>
+</ul>
+<p>Если бот промахнулся — поправь текстом и он перезапишет.</p>
+<div class="example">«перекус: грейпфрут и пара орехов» — бот узнает «грейпфрут 200г, миндаль 15г», запишет в перекус, посчитает 180 ккал.</div>
+
+<h2>Добавки и АД</h2>
+<p>Тоже просто текстом:</p>
+<ul>
+  <li>«принял креатин 5 г», «выпил омегу», «магний на ночь» — запишет в дневник добавок.</li>
+  <li>«АД 128/72», «давление 135 на 85 пульс 62» — запишет с временем.</li>
+</ul>
+
+<h2>Подключение устройств</h2>
+<p><b>Apple Watch / iPhone:</b> поставь приложение <a href="https://apps.apple.com/app/health-auto-export-json-csv/id1115567069">Health Auto Export</a> (платное, $25). В нём настрой автоматический REST API экспорт на <code>https://health.orangegate.cc/apple_health_v2</code> с твоим Bearer-токеном. Раз в сутки само сольёт шаги, пульс, сон, HRV, давление, вес.</p>
+<p><b>Garmin:</b> в боте напиши «подключи гармин», пришлёт инструкцию.</p>
+<p><b>Тонометр Omron:</b> через Apple Health в iPhone → дальше через HAE как выше.</p>
+<p><b>Весы Mi / Withings:</b> через Apple Health.</p>
+<p><b>Анализы крови:</b> сфотографируй бланк или пришли PDF — Боткин извлечёт показатели в твою базу.</p>
+
+<h2>Спросить Боткина</h2>
+<p>Свободным текстом, как другу. Примеры:</p>
+<ul>
+  <li>«что я ел вчера», «сколько белка за неделю»</li>
+  <li>«какой у меня HRV последние дни», «сон за месяц»</li>
+  <li>«какой витамин D в последних анализах», «как менялся холестерин»</li>
+  <li>«самая длинная пробежка в этом году»</li>
+  <li>«поставь цель веса 72 кг», «измени мой целевой дефицит на -10%»</li>
+</ul>
+<p>Бот сам решит куда смотреть и что считать. На простые вопросы отвечает в 1–2 предложениях, на сложные раскладывает.</p>
+
+<h2>Команды</h2>
+<ul>
+  <li><code>/day</code> — что было сегодня (еда, добавки, шаги, сон)</li>
+  <li><code>/week</code> — то же за неделю</li>
+  <li><code>/sync</code> — обновить данные из устройств вручную (обычно идёт ночью сам)</li>
+  <li><code>/menu</code> — открыть мини-апп с дневником питания и чек-листом добавок</li>
+  <li><code>/share</code> — получить ссылку на свой большой дашборд в браузере</li>
+</ul>
+
+<h2>Дашборд в браузере</h2>
+<p><code>/share</code> в боте даёт ссылку вида <code>https://health.orangegate.cc/mc/...</code> — это твоя личная страница с биомаркерами, графиками веса, тренировок и трендов за месяцы. Открывается без логина (доступ только по знанию URL), удобно открыть на большом экране и обсуждать с врачом.</p>
+
+<h2>Приватность</h2>
+<p>Каждый видит только свои данные. RLS-изоляция в БД — нельзя случайно получить чужую запись. Анализы крови по умолчанию доступны AI-помощнику; если не хочешь — напиши «сделай мою KB приватной», бот отключит доступ.</p>
+<p>Owner проекта (Александр) видит в админке только агрегаты (сколько юзеров, сколько вызовов LLM, размер БД) — без личных данных.</p>
+
+<h2>Если что-то не работает</h2>
+<ul>
+  <li>Бот молчит дольше минуты — попробуй ещё раз, возможно LLM-провайдер тормозит.</li>
+  <li>Распознал еду неверно — поправь текстом, новая запись перезапишет.</li>
+  <li>Данные с часов не приходят — открой Health Auto Export, проверь что автоматизация включена.</li>
+  <li>Что-то совсем сломалось — напиши <a href="mailto:lyskovsky@gmail.com">lyskovsky@gmail.com</a>.</li>
+</ul>
+
+<div class="footer">
+  Botkin v0.6.0 · AGPL-3.0 · <a href="https://github.com/Lyskovsky/Botkin">GitHub</a> · <a href="/">на главную</a>
+</div>
+
+</div>
+</body>
+</html>
