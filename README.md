@@ -1,10 +1,108 @@
-# Botkin
+# Botkin 🩺
 
-> **Персональная аналитическая платформа здоровья** — [botkin.health](https://botkin.health)
+> **Open-source family health hub** — your medical archive, your wearables, and your private AI assistant, in one self-hostable platform.
+> 🌐 [botkin.health](https://botkin.health) · 🤖 [@Botkin_md_bot](https://t.me/Botkin_md_bot)
 
-Собирает данные из 20+ источников (питание, сон, активность, анализы крови, давление, HRV и т.д.), строит корреляции и аналитику. Приватный проект — используется только мной.
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
+[![Status: Alpha](https://img.shields.io/badge/status-alpha-orange.svg)](#status)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-yellow.svg)](https://www.python.org/downloads/)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-> Раньше проект назывался **HealthVault**, переименован в **Botkin** (в честь врача С.П. Боткина) 12.05.2026. GitHub держит redirect со старого `Lyskovsky/HealthVault`.
+**English** · [Русский](#по-русски)
+
+---
+
+Botkin is a self-hostable platform that brings together everything you actually need
+to make sense of your body — and your family's bodies — over time:
+
+- 📊 **20+ data sources** — Garmin, Apple Health (via Health Auto Export), Zepp/Mi
+  scales, Omron blood pressure, Netatmo, Open-Meteo weather, ActivityWatch screen
+  time, plus manual food/supplement logging via Telegram bot (photo + voice + text)
+- 📋 **Medical archive in EHR style** — structured per-family-member JSON of all
+  your blood tests, ultrasounds, ECGs, MRIs, doctor visits, genetics — with
+  AI-generated interpretation, not just storage
+- 👨‍👩‍👧 **Family vault with row-level security** — each member has their own
+  profile, diagnoses, exam journal; share what you want, keep the rest private
+- 🤖 **AI chat with full context** — your personal Claude (via MCP) sees
+  everything you let it see; no walled garden, no per-feature paywall
+- 🔐 **Hybrid privacy by design** — shared family server holds the medical
+  archive and wearable data; sensitive streams (therapy notes, screen time,
+  personal documents) stay on your own machine via the MCP bridge
+- 🌐 **Multilingual** — Russian-first UI, but parsers and bot handle English
+  too; PDF parsing of lab reports works across major Russian and international labs
+
+### Status
+
+**Alpha.** Built for the founder's family (4 active users since 2024).
+We are now opening the codebase under AGPL-3.0 for tech-biohackers who want
+to self-host. A hosted SaaS (`botkin.health/cloud`) is planned for Q2–Q3 2026
+for users who'd rather not run their own server.
+
+This is **not medical advice software**. Botkin is a personal data tool that
+shows you your own information; for clinical decisions, talk to a real doctor.
+
+### Who Botkin is for
+
+- **Now (alpha self-host):** technically competent biohackers who already
+  wrangle their own health stack — Apple Health + Grafana + ChatGPT + scattered
+  PDFs — and want one coherent open-source hub instead of seven duct-taped services.
+- **Soon (Cloud beta):** Russian-speaking adults 35–55 with 5–10 years of
+  accumulated lab results, who want a turnkey hosted version without running
+  Hetzner themselves.
+- **Not yet:** non-technical caregivers with no engineering help, patients
+  seeking diagnoses, clinical providers (concierge longevity clinics — talk
+  to us, this is on the roadmap).
+
+### Support this project
+
+Botkin is built by [Aleksandr Lyskovsky](https://github.com/Lyskovsky) in evenings and
+weekends. If it's useful to you, please consider sponsoring — donations fund
+infrastructure (server, AI tokens) and, eventually, part-time contributors:
+
+- 💖 **GitHub Sponsors** — *coming soon*
+- 🌍 **Open Collective** — *coming soon*
+- 🏢 **Commercial licensing** (SaaS providers, white-label deployments without AGPL obligations) — **lyskovsky@gmail.com**
+
+---
+
+## По-русски
+
+**Botkin** — open-source платформа здоровья для всей семьи: единый медицинский
+архив + данные из носимых устройств + личный AI-ассистент. Self-host под AGPL-3.0
+или будущая платная hosted-версия на [botkin.health](https://botkin.health).
+
+**Что внутри:**
+
+- 📊 **20+ источников данных** — Garmin, Apple Health (через Health Auto Export),
+  Zepp/Mi-весы, Omron АД, Netatmo (воздух дома), погода, ActivityWatch (Screen
+  Time), плюс ручное логгирование еды и добавок через Telegram-бот (фото, голос,
+  текст)
+- 📋 **Медицинский архив в стиле EHR** — структурированный JSON по каждому члену
+  семьи: все анализы крови, мочи, гормоны, УЗИ, ЭКГ, МРТ, приёмы врачей,
+  генетика — с AI-интерпретацией, не просто хранилище
+- 👨‍👩‍👧 **Семейный vault с row-level security** — у каждого члена свой профиль,
+  диагнозы, журнал обследований; делитесь чем хотите, остальное приватно
+- 🤖 **AI-чат с полным контекстом** — ваш личный Claude (через MCP) видит всё что
+  вы ему разрешите; без вендорских ограничений
+- 🔐 **Гибридная приватность** — серверный слой для семьи + локальный приват-слой
+  на вашем компьютере (дневник терапии, Screen Time, личные документы) через MCP-мост
+- 🌐 **Двуязычность** — русский интерфейс, но парсеры PDF и бот понимают
+  английский тоже; работает с лабораториями ИНВИТРО, Атлас, Гемотест и зарубежными
+
+**Статус:** alpha — используется автором и семьёй с 2024 года. Сейчас открываем код
+для tech-биохакеров под AGPL-3.0. Hosted-версия для русскоязычных пользователей
+без своего сервера — Q2–Q3 2026.
+
+> ⚠️ Botkin — это **инструмент для работы с вашими собственными данными**, а не
+> медицинский советник. Для клинических решений — врач.
+
+**Поддержать проект:** GitHub Sponsors и Open Collective — настраиваются.
+Для коммерческой лицензии (SaaS-провайдеры, white-label без обязательств AGPL):
+[lyskovsky@gmail.com](mailto:lyskovsky@gmail.com)
+
+**Связаться:** [@lyskovsky](https://t.me/lyskovsky) · [lyskovsky@gmail.com](mailto:lyskovsky@gmail.com)
+
+---
 
 ## Телеграм-бот
 
