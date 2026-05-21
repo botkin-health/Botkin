@@ -4,6 +4,27 @@
 
 ---
 
+## 🔧 Архитектурные долги (отложено — пересмотрим когда поднакопится)
+
+- [ ] **HealthVault → Botkin: финальный рефактор имён.** Бренд переехал 12.05.2026, но внутри инфры/кода старое имя осталось. Делается одним блоком, не по кускам — иначе будут гонки между обновлёнными и старыми частями. *Добавлено 20.05.2026.*
+
+  **5 шагов (с downtime ~5-10 мин):**
+  1. **Имя БД на сервере** `healthvault` → `botkin`: `pg_dump healthvault | psql botkin` на Hetzner, обновить `DATABASE_URL` в `.env.production`, перезапустить bot. Старую БД оставить на неделю, потом DROP.
+  2. **Папка на сервере** `/opt/healthvault` → `/opt/botkin`: остановить systemd-сервис, `mv`, обновить unit-file path, cron-задачи, nginx vhost, `deploy.sh` на маке. Symlink `/opt/healthvault → /opt/botkin` на пару недель для обратной совместимости.
+  3. **Dev-контейнер postgres** `healthvault_postgres_dev` → `botkin_postgres_dev` в `docker-compose.dev.yml`. Compose-project (`healthvault`) НЕ трогать — потеряем volume и данные dev-БД. `docker compose -f docker-compose.dev.yml down && up -d` — имя обновится, volume сохранится.
+  4. **MCP-сервер** `scripts/mcp/healthvault_mcp.py` → `botkin_mcp.py` + обновить `~/Library/Application Support/Claude/claude_desktop_config.json` (MCP-сервер `healthvault` → `botkin`). MCP отвалится на момент правки конфига, нужен restart Claude Desktop.
+  5. **Code references** в ~30 файлах (`database/`, `config/`, `core/`, `telegram-bot/`, `scripts/`): имена переменных, log-строки, комментарии, ENV-переменные `HEALTHVAULT_*` → `BOTKIN_*` если есть. Find-replace + smoke-тест бота локально + прогон тестов.
+
+  **План проверки (smoke):** `/sync` отрабатывает · бот отвечает на /start · `/dashboard` показывает данные · бэкап в новой папке создаётся.
+
+  **Не трогать в этом рефакторе:** `data/backups/healthvault_backup_*.sql` (история), GD-папка `FamilyHealth/` (по дизайну остаётся HealthVault — см. CLAUDE.md), `.claude/worktrees/` (Claude Code сам прибирает).
+
+  **Долг от 20.05.2026 (мелкий, не блокер):** в 6 скриптах захардкожен путь `/Users/alexlyskovsky/HealthVault/...` через старый симлинк: `tests/smoke_test.py`, `scripts/analysis/bp_correlations.py`, `scripts/apple-health/{process_export,_execute_update,_run_processing,update_apple_health}.py`. Симлинк `~/HealthVault` пришлось восстановить рядом с `~/Botkin`, чтобы скрипты не сломались. В рамках финального рефактора — заменить на `Path.home() / "Botkin" / ...` или относительные пути от `__file__`, и снести симлинк `~/HealthVault`.
+- [ ] **Метрика Z2/Maffetone aerobic baseline** — сейчас в `data/z2_baseline.json` (append-only JSON, см. `scripts/analysis/z2_baseline.py`). Когда наберётся 5-10 точек — перенести в PostgreSQL как таблицу `sport_metrics` (user_id, date, activity_id, pace_at_target_hr, avg_hr, distance, kpi_type). Сделать поддержку мульти-юзер для сравнения Z2-прогресса между пользователями. *Добавлено 16.05.2026.*
+- [ ] **Чистка БД и data/** от лишнего — пользовательский запрос «потом постепенно архитектуру БД офистим от лишнего» (16.05.2026). Пройтись по таблицам PostgreSQL + папке `data/`, найти устаревшие/неиспользуемые объекты (например `apple_health_steps_daily.json` стал ловушкой после починки парсера — нужен свежий XML для перепарса; есть ли мусор в `nutrition_log` от тестов; etc.). Сделать инвентаризацию + чистку.
+
+---
+
 ## 🛠 Админ-дашборд (мульти-юзер инфраструктура к 50 чел)
 
 **Контекст (10.05.2026):** В мае-июне 2026 хотим вырасти с 4 до 5–10 юзеров (семья + early_users) и до 50 после доклада на конференции. Нужна минимальная инфра управления.

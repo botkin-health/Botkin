@@ -7,23 +7,56 @@
 
 ---
 
-## 2026-05-12 — Hotfix: webhook auto-register + хвосты ребрендинга
+## 2026-05-12 — 🏷 Переименование проекта: HealthVault → Botkin
 
-**Контекст:** утром 12.05 пользователь обнаружил, что бот `@Botkin_md_bot` не отвечает на новые сообщения. `/start` срабатывал, но текст еды от 10:59 повис без ответа.
+**Контекст:** Имя «HealthVault» было рабочим. Перед публичным релизом (конференция июнь 2026) выбрали постоянное название.
 
-**Корневая причина:** ночью 12.05 при свитче `@HealthVault_bot` → `@Botkin_md_bot` поменяли `TELEGRAM_BOT_TOKEN` в `.env`, но **не вызвали `setWebhook`** у Telegram для нового токена. Бот слушал порт 8081, но Telegram не знал куда слать апдейты. `pending_update_count: 1` (застрявший завтрак). Хотфикс: `curl setWebhook` → Telegram прокатил сообщение, бот распознал блюдо (317 ккал, 5 ингредиентов) и сохранил.
+**Решение:** Проект называется **Botkin** — в честь Сергея Петровича Боткина (1832–1889), основоположника русской клинической медицины. Игра слов: `BOT + KIN` (бот, который тебе родной).
 
-**Постоянный фикс (PR #4, `telegram-bot/bot.py`):** после `set_my_commands` добавлен идемпотентный блок — `get_webhook_info()`, и если URL отличается от `TELEGRAM_WEBHOOK_URL` (env, default `https://health.orangegate.cc/telegram/webhook`) → `set_webhook()`.
+**Что изменено:**
 
-**Аудит после миграции — почистил остатки бренда HealthVault:**
-- `bot.py`: docstring, startup banner («🚀 HealthVault Tracker v1.2» → «🚀 Botkin v1.2»), error_msg (×2)
-- `mc_template.html` (юзерский дашборд): `<title>`, логотип, panel-source, meta accent
-- `webhook/admin.py`: Basic auth realm, `<title>`, `<h1>` админки
-- `webhook/apple_health.py`: FastAPI title
+| Параметр | Было | Стало |
+|---|---|---|
+| Бренд продукта | HealthVault | **Botkin** |
+| Домен | (не было) | **`botkin.health`** (куплен на Cloudflare 12.05) |
+| GitHub репо | `Lyskovsky/HealthVault` | **`Lyskovsky/Botkin`** (переименовано через GitHub API, redirect работает) |
+| Telegram bot username | `@HealthVault_bot` | **`@Botkin_md_bot`** (новый бот, bot_id 8739688481) |
+| Bot display name | NutriLogBot | **Botkin** |
+| Bot About | (старое) | «AI-врач и помощник в botkin.health» |
+| 1Password карточка | «HealthVault / NutriLogBot — service secrets» | **«Botkin (ex-HealthVault) — service secrets»** |
 
-**Не тронуто намеренно:** docstring внутренних модулей (`database/*.py`, `core/infra/storage.py`), путь к папке семейных медданных `~/.../HealthVault/` — папка сохраняет имя по решению.
+**Telegram bot — миграция:**
+- Создан новый бот через `/newbot` (Telegram запрещает переименовывать существующих — см. https://core.telegram.org/bots/features)
+- `.env` обновлён на новый токен (старый сохранён в `.env.bak.*`)
+- Webhook нового бота на `https://health.orangegate.cc/telegram/webhook`, у старого удалён
+- Старый бот `@HealthVault_bot` — архив, истории чатов сохранены
+- Все 4 юзера получили миграционное сообщение через старого бота, переходят /start в новом — профили подтягиваются по `telegram_id`
 
-**Проверки:** `getMe` → `Botkin/Botkin_md_bot`, `getMyDescription` упоминает botkin.health, `getChatMenuButton` корректный, dashboard live с `<title>Botkin · Mission Control</title>`, все 5 юзеров в БД целы, активных 4. Логи за 24ч — без ERROR/EXCEPTION/TRACEBACK. — *Claude Code*
+**Что НЕ изменено (намеренно):**
+- БД схема, имя БД `healthvault`, Postgres креды (`HealthVault_Secure_2026_*` в `.env`)
+- Архивные доки (`SPRINT_1A_DEPLOY.md`, `ONBOARDING_v2_apr26.md`, старые планы)
+
+**Что ПЕРЕИМЕНОВАНО позже (12.05.2026, после первоначальной миграции):**
+- Папка медданных семьи: `~/.../Мой диск/HealthVault/` → **`~/.../Мой диск/FamilyHealth/`** (параллельно с уже существующим `FamilyDocs/`). Обновлены 13 ABS-путей.
+- Локальная папка проекта: `~/.../Projects/Vibe coding/HealthVault-engine/` → **`~/.../Projects/Vibe coding/Botkin/`** (совпадает 1:1 с GitHub `Lyskovsky/Botkin`). Обновлены ABS-пути в 9 активных файлах. Архивные plan-файлы (`docs/superpowers/plans/2026-04-*`) намеренно не тронуты.
+
+**📌 Если AI открывает проект из новой папки `Botkin/`:**
+- Контекст полностью сохраняется через `CLAUDE.md` (project memory) + `~/.claude/CLAUDE.md` (глобальная)
+- Активные задачи на момент переименования — см. `todo.md` раздел «🚧 Активные задачи»
+
+**Затронутые файлы (обновлены на Botkin):**
+- `README.md`, `CLAUDE.md`, `todo.md`
+- `docs/landing/*` (лендинг с фото Александра)
+- `docs/user_guide/ru/*.md` (9 разделов гайда)
+- `docs/superpowers/specs/2026-05-12-cohort-agents-v2-design.md`
+- `telegram-bot/bot.py` (banner, error messages)
+- `telegram-bot/webhook/admin.py` (заголовок, HTTP Basic Realm)
+- `telegram-bot/webhook/apple_health.py` (FastAPI app title)
+- 1Password карточка, `~/.claude/CLAUDE.md`
+
+**Кто решал:** Александр. Ника предложила «Нутри» — сохранили как имя AI-помощника внутри бота на будущее.
+
+---
 
 ## 2026-05-10 — HAE парсер: sleep, energy, HRV-surrogate Body Battery (продолжение)
 
@@ -32,7 +65,7 @@
 **HRV surrogate Body Battery (dashboard_generator.py):**
 - При отсутствии Garmin BB/Stress вычисляется суррогат по HRV:
   `BB = 50 + (hrv/median − 1) × 100`, clamped 0-100; Stress = инверсия
-- early_user: BB=52, Stress=48 отображаются на дашборде
+- Андрей: BB=52, Stress=48 отображаются на дашборде
 - Тайлы называются «Body Battery» / «Стресс» без привязки к источнику (по просьбе пользователя)
 
 **nginx:** client_max_body_size 1m → 200m; proxy_read_timeout 30s → 300s (фикс 413 для bulk HAE upload)
@@ -58,28 +91,41 @@
 
 ---
 
-## 2026-05-10 — Мультипользовательский дашборд + onboarding cohort early_user
+## 2026-05-10 — Мультипользовательский дашборд + медданные Андрея Походни
 
-**Задача:** Подключить нового пользователя cohort `early_user` к HealthVault, настроить HAE, загрузить исторические данные, улучшить дашборд под мульти-юзер.
+**Задача:** Подключить Андрея Походня к HealthVault, настроить HAE, загрузить исторические данные, улучшить дашборд.
 
-**Что сделано (детали в личных файлах — `~/FamilyHealth/_botkin_planning_private/`):**
-- HAE (Health Auto Export) настроен для cohort `early_user` → webhook `POST /apple_health_v2`
-- Бэкфилл 60 дней из knowledge_base.json → `activity_log`
-- Sprint 3 план импорта ECG в `ecg_event` + `syncope_event` (личный план перенесён в planning_private)
+**Данные Андрея (user_id=836757955):**
+- HAE (Health Auto Export) настроен → webhook `POST /apple_health_v2`, токен сохранён
+- Бэкфилл 60 дней из knowledge_base.json → `activity_log` (60 строк обновлено)
+- `blood_pressure_logs`: 12 пар (уже были из ранних сессий)
+- Задокументировано 122 ЭКГ-записи Apple Watch: SinusRhythm:53, AFib:66, HighHR:3 (диапазон 2021→2026)
+- **Клинически важно:** 66 эпизодов ФП до госпитализации янв 2025 → ФП предшествовала POAF, не следствие операции
+- `biomarkers_836757955.json` обновлён: 35 ключей vs 7, добавлены AST 60.3↑, GGT 18, CRP 6.31, hs_CRP, фибриноген, WBC и др.
 
-**Дашборд — мультипользовательские исправления (публично):**
+**Sprint 3 план:**
+- `docs/superpowers/plans/2026-05-10-sprint3-ecg-syncope.md` — план импорта ЭКГ в `ecg_event` + `syncope_event` (6 задач, ~787 строк)
+- Таблицы в БД пока не созданы — следующая итерация
+
+**Дашборд — мультипользовательские исправления:**
 - `dashboard_blocks.has_blood_test_data`: убран хардкод `cohort == "owner"`, теперь проверяет `biomarkers_{telegram_id}.json` для ЛЮБОГО пользователя
-- `dashboard_generator.biomarkers_latest`: добавлены AST, GGT, hs_CRP, NT_proBNP (cardiac markers pack)
+- `dashboard_generator.biomarkers_latest`: добавлены AST, GGT, hs_CRP, NT_proBNP (cardiac markers для Андрея)
+- `biomarkers_836757955.json`: исправлен ключ `hsCRP` → `hs_CRP` для совместимости с панелями Attia
 - `mc_template.html`: улучшен график калорий — стековый вывод алкоголь/еда (alco_kcal split)
+- Задеплоено и проверено: обе ссылки `/mc/*` работают, все маркеры отображаются
 
 **Коммиты:**
 - `a0ffd2c` fix(router+dashboard): legacy aiogram fallback + pack-aware targets
 - `d81a972` feat(health): Sprint 3 plan — ecg_event + syncope_event tables and import
 - `4917927` feat(dashboard): multi-user blood-test support + cardiac markers
 
-**Дополнение (10.05.2026):**
-- Доработки knowledge_base / PROFILE personal users (детали в `~/FamilyHealth/_botkin_planning_private/`)
+**Дополнение (10.05.2026, завершение сессии):**
+- `knowledge_base.json` Андрея обновлён из `knowledge_base (1).json` (более новая версия, 442889 → 444742 байт)
+- КТ 28.01.2025 дополнен количественными находками: плевральный выпот ~400-450 мл, перикардиальный выпот 17 мл, атelectазы S6/S7-8/S9-10 слева, гепатоспленомегалия (ПД печени 18 см, SI=588), компрессия чревного ствола (MALS-подобная), замедленная эвакуация желудка. Добавлено `clinical_significance` — механизм POAF.
+- **Исправление**: 66 AFib ECGs → все относятся к POAF-периоду 27.01–02.02.2025. До операции ФП НЕ было (исправлено неверное утверждение из CHANGELOG от 10.05).
+- PROFILE.md Андрея: секция КТ 28.01.2025 дополнена объёмами выпота + механизм POAF
 - `scripts/generate_exam_journal.py`: фикс — КТ/МРТ теперь берут дату из `imaging.ct`/`imaging.mri` (если новее, чем из medical_records)
+- Журнал обследований регенерирован: КТ дата исправлена 2024-10-31 → 2025-01-28
 - Дублирующиеся файлы: `knowledge_base (1).json` и `PROFILE (1).md` можно удалить с Google Drive
 
 ---
@@ -181,7 +227,7 @@
 
 ## 2026-05-04 — Sprint 1a Task 10: Adaptive Dashboard — Skip Empty Blocks
 
-**Задача:** Дашборд должен пропускать пустые блоки для пользователей без данных (early-users без Garmin (нет, нет анализов, нет Netatmo).
+**Задача:** Дашборд должен пропускать пустые блоки для пользователей без данных (Андрей, Элен — нет Garmin, нет анализов, нет Netatmo).
 
 **Что сделано:**
 1. `telegram-bot/dashboard_blocks.py` (новый) — хелперы для проверки наличия данных по блокам:
@@ -311,11 +357,11 @@
 
 ## 2026-05-03 — Privacy cleanup: анонимизация личных данных в публичных файлах
 
-**Задача:** Убрать из публичного репозитория реальные имена пользователей и членов семьи, диагнозы, Telegram username и user_id из комментариев/документации.
+**Задача:** Убрать из публичного репозитория реальные имена (Ника Селезнёва, сыновья), диагнозы, Telegram username и user_id из комментариев/документации.
 
 **Что сделано:**
 1. `config/scout/profile.yaml` — `family_context` заменён на обезличенные описания (возраст и проблема без имён).
-2. `docs/MULTI_USER_PLAN.md` — «реальные имена + telegram_id» → «Пользователь 2».
+2. `docs/MULTI_USER_PLAN.md` — «Ника Селезнёва» и `485132` → «Пользователь 2».
 3. `docs/ai_context/AI_CHANGELOG.md`, `README.md`, `03_database_schema.md` — Telegram usernames и user_id → `user_2`, `user3`.
 4. `scripts/mcp/healthvault_mcp.py`, `scripts/audit/nutrition_schema_scan.py` — убраны персональные имена из комментариев.
 5. `todo.md` — анонимизированы упоминания конкретных диагнозов и историй.
@@ -418,7 +464,7 @@
 
 ## 2026-04-25 — Фикс: «Псиллиум» без слова «(БАД)» терял клетчатку
 
-**Симптом:** Пользователь 2 (user_id=485132) залогала «Псиллиум 3г» — в мини-аппе клетчатка 0. У owner те же записи назывались «Псиллиум (БАД)» и LLM ставил fiber=4г из 5г (правильно, ~80%).
+**Симптом:** Пользователь 2 (user_id=485132) залогала «Псиллиум 3г» — в мини-аппе клетчатка 0. У Александра те же записи назывались «Псиллиум (БАД)» и LLM ставил fiber=4г из 5г (правильно, ~80%).
 
 **Root cause:** LLM реагирует на «(БАД)» как на подсказку. Без неё — пасует и возвращает fiber=0. Зависимость от формулировки имени.
 
@@ -457,12 +503,12 @@
 
 ---
 
-## 2026-04-24 — Архив медицинских документов family-member: 25 сканов 2004–2021
+## 2026-04-24 — Архив медицинских документов мамы (Валерия): 25 сканов 2004–2021
 
 **Источник:** письмо от Валерии (мама, v.vachest@mail.ru) с 25 JPEG-сканами. Скачано через Google Workspace MCP (перед этим пришлось убить дубль `workspace-mcp` процесс — был конфликт state OAuth между Claude Desktop и Claude Code).
 
 **Сделано:**
-- Все 25 файлов скопированы в `~/FamilyHealth/<family-member>/` с именами вида `blood_2013-04-01_sls_biochem.jpeg`, `discharge_2015-10-15_zhd_hospital_pituitary_adenoma_surgery.jpeg` и т.п.
+- Все 25 файлов скопированы в `HealthVault/Валерия Лысковская — Здоровье/` с именами вида `blood_2013-04-01_sls_biochem.jpeg`, `discharge_2015-10-15_zhd_hospital_pituitary_adenoma_surgery.jpeg` и т.п.
 - Визуально просмотрен каждый скан (через thumbnails 900px). Ориентация у всех корректная — поворачивать не требовалось.
 - `knowledge_base.json` Валерии расширен: blood_tests 27→41, urinalysis 5→6, добавлены секции `coagulation` (3 записи) и `gynecology` (1 запись), imaging 3→5, consultations 1→5 (включая выписку по операции аденомы гипофиза 15.10.2015 с полным предоперационным гормональным профилем).
 - `PROFILE.md` Валерии обновлён: добавлены диагнозы (жировой гепатоз, атеросклероз БЦА, H. pylori-ассоциированная диспепсия+лямблиоз+аскаридоз 2013, ЧМТ 2004, перелом лучевой 2015). Расширены таблицы холестерина (история 2004–2015 с пиком 14.69 в июне 2015), ГГТ, лимфоцитоза (уже в 12.2021), преддиабета, гиперурикемии.
@@ -653,7 +699,7 @@ DROP TABLE IF EXISTS user_products CASCADE;
 
 ## 2026-04-19 — Полная загрузка EMIAS: 21 PDF + 3 исследования + документация метода
 
-**Что:** Загружены все 21 PDF из ЕМИАС (18 анализов + 3 исследования). Добавлены KB-записи для ОАК 12.07.2024 (24 параметра), ЭКГ 23.01.2025, рентгена рёбер 06.02.2025. Создана документация по методу для повторного использования (другие пользователи). Написан отчёт по медицинским находкам.
+**Что:** Загружены все 21 PDF из ЕМИАС (18 анализов + 3 исследования). Добавлены KB-записи для ОАК 12.07.2024 (24 параметра), ЭКГ 23.01.2025, рентгена рёбер 06.02.2025. Создана документация по методу для повторного использования (Ника и другие члены семьи). Написан отчёт по медицинским находкам.
 
 **Технический метод:**
 - Браузер Claude in Chrome + MCP JavaScript tool
@@ -700,7 +746,7 @@ DROP TABLE IF EXISTS user_products CASCADE;
 файл b26536b3 (метка: ПВ+МНО 2024-09-02) фактически содержит глюкозу 2025-01-23.
 
 **Где:**
-- KB: `~/FamilyHealth/<user>/knowledge_base.json`
+- KB: `HealthVault/Александр Лысковский — Здоровье/knowledge_base.json`
 - PDFs: `blood_2024-07-12_emias_biochem.pdf`, `blood_2024-07-13_emias_ige.pdf`,
   `covid_2024-08-26_emias_antigen.pdf`, `blood_2024-09-02_emias_cbc-coag.pdf`,
   `blood_2025-01-23_emias_biochem-cbc.pdf`
@@ -748,7 +794,7 @@ DROP TABLE IF EXISTS user_products CASCADE;
 
 - **[2026-04-17]** `todo.md` — добавлены два раздела: (1) `🏃 VO₂max тест — май-июнь 2026` с адресами (TriSystems Крылатское, FT Studio), ценой 9 500–10 900 ₽, форматом (~60 мин, лактатные пороги, персональные зоны ЧСС); (2) уточнена дата анализов крови «25–26 мая» в заголовке раздела 🩸. DHEA-S, эстрадиол, DHT, IGF-1 были уже в списке. — *Claude Code*
 
-- **[2026-04-17]** `CLAUDE.md` — убраны упоминания имён пользователей из раздела семейного хранилища медданных и таблицы «Люди и их ключевые проблемы». В таблице пользователей NutriLogBot (telegram_id скрыт) оставлен — пользователь продолжает пользоваться ботом. Сама папка в Google Drive удалена вручную пользователем. — *Claude Code*
+- **[2026-04-17]** `CLAUDE.md` — убраны упоминания Ники Селезнёвой из раздела семейного хранилища медданных (папка HealthVault/Ника) и таблицы «Люди и их ключевые проблемы». В таблице пользователей NutriLogBot (user_id=485132) оставлена — она продолжает пользоваться ботом. Сама папка в Google Drive удалена вручную пользователем. — *Claude Code*
 
 - **[2026-04-10]** Поле `drinks` (стандартные дозы алкоголя) в NutriLogBot: LLM теперь возвращает `drinks` для каждого продукта (1 доза = 10г этанола ≈ 150мл вина ≈ 50мл водки ≈ 500мл пива). Добавлено в SYSTEM_PROMPT, Pydantic-модели (FoodItem, TotalNutrition), `calculate_meal_totals()` в nutrition.py. Бэкфил 599 исторических записей на сервере через SQL regex. Исправлен `_ALCOHOL_RE` — `\b` не работает с кириллицей, заменён на lookbehind. Тесты: 41 новый тест (`test_alcohol_drinks.py`). Итого: 241 тестов, все зелёные. (`core/llm/models.py`, `core/llm/router.py`, `core/food/nutrition.py`, `tests/test_alcohol_drinks.py`) — *Claude Code*
 
@@ -764,7 +810,7 @@ DROP TABLE IF EXISTS user_products CASCADE;
 
 - **[2026-04-05]** Фикс: при `show_calorie_budget_bar=false` в `/day` теперь скрываются и калорийный bar, и макро-бары Б/Ж/У (раньше скрывалась только калорийная полоса). (`telegram-bot/handlers/commands.py`). — *Claude Code*
 
-- **[2026-04-05]** Telegram Mini App — панель настроек NutriLogBot v1. Новая таблица `user_settings` (PostgreSQL). CRUD `get_user_settings`/`upsert_user_settings` (`database/crud.py`). `SupplementService` теперь читает расписание добавок из БД вместо хардкода — при первом запуске мигрирует дефолтный список (`core/health/supplements.py`). Параметр `show_bar: bool` в `format_budget_line()` (`core/health/caloric_budget.py`) — пользователь может скрыть шкалу калорий. API endpoint `GET/POST /api/settings` с HMAC-SHA256 авторизацией Telegram WebApp (`telegram-bot/webhook/apple_health.py`). SPA `telegram-bot/webapp/index.html` (4 раздела: Питание, Добавки, Уведомления, Справка). StaticFiles смонтирован на `/webapp/`. Задеплоено: `https://health.orangegate.cc/webapp/`. BotFather Menu Button — ручной шаг (URL: `https://health.orangegate.cc/webapp/`). — *Claude Code*
+- **[2026-04-05]** Telegram Mini App — панель настроек NutriLogBot v1. Новая таблица `user_settings` (PostgreSQL). CRUD `get_user_settings`/`upsert_user_settings` (`database/crud.py`). `SupplementService` теперь читает расписание добавок из БД вместо хардкода — при первом запуске мигрирует дефолтный список (`core/health/supplements.py`). Параметр `show_bar: bool` в `format_budget_line()` (`core/health/caloric_budget.py`) — Ника может скрыть шкалу калорий. API endpoint `GET/POST /api/settings` с HMAC-SHA256 авторизацией Telegram WebApp (`telegram-bot/webhook/apple_health.py`). SPA `telegram-bot/webapp/index.html` (4 раздела: Питание, Добавки, Уведомления, Справка). StaticFiles смонтирован на `/webapp/`. Задеплоено: `https://health.orangegate.cc/webapp/`. BotFather Menu Button — ручной шаг (URL: `https://health.orangegate.cc/webapp/`). — *Claude Code*
 
 - **[2026-04-05]** Исправлен баг: Метилфолат не записывался при написании "Метилофолат" (опечатка с лишней 'о'). Добавлены синонимы в `_SUPPLEMENT_KEYWORDS` (`telegram-bot/handlers/text.py`) и `self.synonyms` (`core/health/supplements.py`). Добавлены пропущенные записи за Apr 4 и Apr 5 напрямую в БД. — *Claude Code*
 
