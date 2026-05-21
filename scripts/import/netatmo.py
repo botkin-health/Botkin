@@ -1,124 +1,103 @@
 #!/usr/bin/env python3
-import requests
+"""
+Импорт данных Netatmo Home Coach (воздух дома).
+
+Авторизация — OAuth2 через CLIENT_ID + CLIENT_SECRET + REFRESH_TOKEN (.env).
+Все секреты в .env, в коде хардкода нет.
+
+Запуск:
+    python scripts/import/netatmo.py                # текущие + история 60 дней
+"""
+
 import json
 import os
+import time
+from pathlib import Path
+
 import lnetatmo
+import requests
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# User provided credentials
-USERNAME = "lyskovsky@gmail.com"
-PASSWORD = "***REMOVED-SECRET***"
-
-# lnetatmo (v4.2.0+) strictly requires CLIENT_ID, CLIENT_SECRET and REFRESH_TOKEN.
-
-# Because Netatmo recently heavily enforced OAuth2, Client ID/Secret are mandatory.
-# I'll create the script skeleton. If the user didn't create an app, the API will reject it.
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+ENV_DIR = PROJECT_ROOT / "data" / "environment"
 
 CLIENT_ID = os.getenv("NETATMO_CLIENT_ID", "")
 CLIENT_SECRET = os.getenv("NETATMO_CLIENT_SECRET", "")
+REFRESH_TOKEN = os.getenv("NETATMO_REFRESH_TOKEN", "")
+
+# Станции которые игнорируем (старые/неактивные)
+SKIP_STATIONS = {"Гнездышко"}
 
 
 def fetch_homecoach_data():
-    if not CLIENT_ID or not CLIENT_SECRET:
-        print("❌ Ошибка: Необходимы Client ID и Client Secret от Netatmo (dev.netatmo.com).")
-        print("Без них библиотека lnetatmo (и API Netatmo) не позволит пройти авторизацию OAuth2.")
+    if not (CLIENT_ID and CLIENT_SECRET and REFRESH_TOKEN):
+        print("❌ В .env нет NETATMO_CLIENT_ID / NETATMO_CLIENT_SECRET / NETATMO_REFRESH_TOKEN")
         return []
 
     try:
-        refresh_token = os.getenv("NETATMO_REFRESH_TOKEN")
-        if not refresh_token:
-            print(
-                "❌ Ошибка: В .env нет NETATMO_REFRESH_TOKEN. Сгенерируйте его в разделе Token generator на странице приложения."
-            )
-            return []
+        auth = lnetatmo.ClientAuth(clientId=CLIENT_ID, clientSecret=CLIENT_SECRET, refreshToken=REFRESH_TOKEN)
+        homecoach = lnetatmo.HomeCoach(auth)
+    except Exception as e:
+        print(f"❌ Ошибка авторизации Netatmo: {e}")
+        return []
 
-        # Initialize authorization
-        authorization = lnetatmo.ClientAuth(clientId=CLIENT_ID, clientSecret=CLIENT_SECRET, refreshToken=refresh_token)
+    current = []
+    print("🔄 Текущие метрики Netatmo...")
+    for st in homecoach.rawData:
+        name = st.get("station_name", "Unknown")
+        if name in SKIP_STATIONS or not st.get("reachable", False) or "dashboard_data" not in st:
+            continue
+        d = st["dashboard_data"]
+        entry = {
+            "device_name": name,
+            "temperature_c": d.get("Temperature"),
+            "humidity_percent": d.get("Humidity"),
+            "co2_ppm": d.get("CO2"),
+            "noise_db": d.get("Noise"),
+            "health_idx": d.get("health_idx"),
+            "timestamp": d.get("time_utc"),
+        }
+        current.append(entry)
+        print(f"  🌡️  {name}: {entry['temperature_c']}°C, CO₂ {entry['co2_ppm']} ppm, шум {entry['noise_db']} дБ")
 
-        # Get Home Coach data
-        homecoach = lnetatmo.HomeCoach(authorization)
-        data = []
-
-        # Stations to skip (old/inactive devices)
-        SKIP_STATIONS = {"Гнездышко"}
-
-        # Fetch Current Data
-        print("🔄 Извлечение текущих метрик Netatmo...")
-        for station_data in homecoach.rawData:
-            # Skip stations that are unreachable or have no recent dashboard data
-            if not station_data.get("reachable", False) or "dashboard_data" not in station_data:
-                continue
-            if station_data.get("station_name") in SKIP_STATIONS:
-                print(f"⏭️  Пропускаю станцию {station_data.get('station_name')} (в списке исключений)")
-                continue
-
-            dashboard = station_data.get("dashboard_data", {})
-            entry = {
-                "device_name": station_data.get("station_name", "Unknown Room"),
-                "temperature_c": dashboard.get("Temperature"),
-                "humidity_percent": dashboard.get("Humidity"),
-                "co2_ppm": dashboard.get("CO2"),
-                "noise_db": dashboard.get("Noise"),
-                "health_idx": dashboard.get("health_idx"),
-                "timestamp": dashboard.get("time_utc"),
-            }
-            data.append(entry)
-            print(
-                f"🌡️  Текущие параметры {entry['device_name']}: {entry['temperature_c']}°C, {entry['co2_ppm']} ppm CO2"
-            )
-
-        # Fetch Historical Data
-        print("🔄 Извлечение истории Netatmo за последние 60 дней...")
-        import time
-        import requests
-
-        history_data = {}
-        for station_data in homecoach.rawData:
-            device_id = station_data.get("_id")
-            device_name = station_data.get("station_name", "Unknown")
-            if not device_id:
-                continue
-            if device_name in SKIP_STATIONS:
-                print(f"⏭️  Пропускаю историю станции {device_name} (в списке исключений)")
-                continue
-
-            url = "https://api.netatmo.com/api/getmeasure"
-            params = {
+    # История 60 дней
+    print("🔄 История Netatmo за 60 дней...")
+    history = {}
+    for st in homecoach.rawData:
+        device_id = st.get("_id")
+        name = st.get("station_name", "Unknown")
+        if not device_id or name in SKIP_STATIONS:
+            continue
+        resp = requests.post(
+            "https://api.netatmo.com/api/getmeasure",
+            data={
                 "access_token": homecoach.getAuthToken,
                 "device_id": device_id,
                 "scale": "1day",
                 "type": "Temperature,CO2,Humidity,Noise",
                 "date_begin": int(time.time() - 60 * 24 * 3600),
                 "optimize": "false",
-            }
-            resp = requests.post(url, data=params, timeout=15)
-            if resp.status_code == 200:
-                hist = resp.json().get("body", {})
-                history_data[device_name] = hist
-                print(f"✅ Успешно получена история для станции {device_name} (дней: {len(hist)})")
-            else:
-                print(f"⚠️ Ошибка получения истории для {device_name}: {resp.text}")
+            },
+            timeout=15,
+        )
+        if resp.status_code == 200:
+            history[name] = resp.json().get("body", {})
+            print(f"  ✓ История {name}: {len(history[name])} дней")
+        else:
+            print(f"  ⚠️ Ошибка истории {name}: {resp.status_code}")
 
-        # Save Historical Data
-        if history_data:
-            os.makedirs("data/environment", exist_ok=True)
-            with open("data/environment/netatmo_history.json", "w", encoding="utf-8") as f:
-                json.dump(history_data, f, ensure_ascii=False, indent=2)
-            print("✅ Исторические данные сохранены в data/environment/netatmo_history.json")
+    ENV_DIR.mkdir(parents=True, exist_ok=True)
+    if current:
+        (ENV_DIR / "netatmo_log.json").write_text(json.dumps(current, ensure_ascii=False, indent=2))
+        print(f"  ✓ Сохранено: {ENV_DIR / 'netatmo_log.json'}")
+    if history:
+        (ENV_DIR / "netatmo_history.json").write_text(json.dumps(history, ensure_ascii=False, indent=2))
+        print(f"  ✓ Сохранено: {ENV_DIR / 'netatmo_history.json'}")
 
-        return data
-
-    except Exception as e:
-        print(f"❌ Ошибка подключения к Netatmo API: {e}")
-        return []
+    return current
 
 
 if __name__ == "__main__":
-    data = fetch_homecoach_data()
-    if data:
-        os.makedirs("data/environment", exist_ok=True)
-        with open("data/environment/netatmo_log.json", "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        print("✅ Данные климата сохранены в data/environment/netatmo_log.json")
+    fetch_homecoach_data()
