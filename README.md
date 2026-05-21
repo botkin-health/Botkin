@@ -33,10 +33,10 @@ to make sense of your body — and your family's bodies — over time:
 
 ### Status
 
-**Alpha.** Built for the founder's family (4 active users since 2024).
-We are now opening the codebase under AGPL-3.0 for tech-biohackers who want
-to self-host. A hosted SaaS (`botkin.health/cloud`) is planned for Q2–Q3 2026
-for users who'd rather not run their own server.
+**Alpha.** Started in January 2026, used daily by the founder's family
+(4 active users). We are now opening the codebase under AGPL-3.0 for
+tech-biohackers who want to self-host. A hosted SaaS (`botkin.health/cloud`)
+is planned for Q2–Q3 2026 for users who'd rather not run their own server.
 
 This is **not medical advice software**. Botkin is a personal data tool that
 shows you your own information; for clinical decisions, talk to a real doctor.
@@ -89,9 +89,9 @@ infrastructure (server, AI tokens) and, eventually, part-time contributors:
 - 🌐 **Двуязычность** — русский интерфейс, но парсеры PDF и бот понимают
   английский тоже; работает с лабораториями ИНВИТРО, Атлас, Гемотест и зарубежными
 
-**Статус:** alpha — используется автором и семьёй с 2024 года. Сейчас открываем код
-для tech-биохакеров под AGPL-3.0. Hosted-версия для русскоязычных пользователей
-без своего сервера — Q2–Q3 2026.
+**Статус:** alpha — проект стартовал в январе 2026, ежедневно используется автором
+и семьёй (4 активных пользователя). Сейчас открываем код для tech-биохакеров под
+AGPL-3.0. Hosted-версия для русскоязычных пользователей без своего сервера — Q2–Q3 2026.
 
 > ⚠️ Botkin — это **инструмент для работы с вашими собственными данными**, а не
 > медицинский советник. Для клинических решений — врач.
@@ -182,4 +182,4 @@ Botkin распространяется под лицензией **[GNU Affero 
 
 Для **коммерческой лицензии** (использование без обязательств AGPL) — пишите: lyskovsky@gmail.com
 
-© 2024-2026 Aleksandr Lyskovsky
+© 2026 Aleksandr Lyskovsky
