@@ -103,3 +103,6 @@ docs/scout/
 
 # Сторонние онбординг-документы (содержат данные конкретных пользователей)
 docs/ONBOARDING*.md
+
+# Obsidian editor config (not project content)
+.obsidian/
