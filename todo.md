@@ -25,6 +25,105 @@
 
 ---
 
+## 💰 OSS-монетизация и community (стратегия open core)
+
+**Контекст (21.05.2026):** После разбора плейбука Anthropic «The Founder's Playbook» выбрана стратегия H4+H5 — open core для tech-биохакеров (бесплатно, brand+distribution+R&D) + русскоязычный B2C SaaS на botkin.health/cloud (первая платная аудитория). Цель — выйти за 24-36 мес на $3-8k/мес выручки, достаточной для найма part-time backend + саппорт. Референс-модель: **Home Assistant + Nabu Casa**.
+
+### Запуск (на этой неделе — июнь 2026)
+
+- [x] **AGPL-3.0-or-later лицензия** — `LICENSE`, `NOTICE`, секция в `README.md`, поля в `pyproject.toml`. Dual-licensing: AGPL для community + commercial license по запросу (lyskovsky@gmail.com). *Сделано 21.05.2026.*
+
+- [ ] **Open Collective: настроить публичный Collective для Боткина** — *добавлено 21.05.2026.*
+  - **Зачем:** прозрачное финансирование OSS-проекта, видимые донаты + видимые расходы. Это продаёт sustainability community.
+  - **Fiscal host:** [Open Source Collective](https://opencollective.com/opensource) (501(c)(6) в США, принимает OSI-approved лицензии = AGPL подходит). Не нужно своё юр.лицо.
+  - **Стоимость:** 5% платформенный fee + 10% fiscal host fee + ~3% Stripe = **~18% с каждого доната**. Цена за отсутствие бухгалтерии и юр.формальностей.
+  - **Tier'ы (планируемые):**
+    - ☕ Supporter $5/мес — имя в README
+    - 🌟 Patron $25/мес — голос в feature voting + early access
+    - 💎 Sustainer $100/мес — name в credits на botkin.health
+    - 🏢 Sponsor $500/мес — logo на сайте
+  - **Юрисдикция:** ✅ разблокировано — израильский паспорт + USD foreign-currency sub-account в Discount Bank (Israel) уже открыт (см. CLAUDE.md). Stripe Connect / GitHub Sponsors / Open Collective работают напрямую без обходов.
+  - **Шаги:**
+    1. Зарегистрироваться на opencollective.com **с израильским адресом и паспортом** (не РФ), создать Collective «Botkin» (описание, миссия, лого)
+    2. Подать заявку в Open Source Collective как fiscal host (нужна ссылка на GitHub repo с AGPL)
+    3. Ждать одобрения (3-10 дней)
+    4. После approve — настроить tier'ы, привязать Stripe Connect с Discount Bank USD-счётом, опубликовать
+    5. Добавить кнопку «Sponsor» на botkin.health
+  - **Примеры посмотреть:** [opencollective.com/babel](https://opencollective.com/babel) ($300k+/год), [opencollective.com/standardnotes](https://opencollective.com/standardnotes), [opencollective.com/forgejo](https://opencollective.com/forgejo)
+  - **Время на setup:** ~2-3 часа активной работы + 3-10 дней ожидания approval.
+
+- [ ] **GitHub Sponsors параллельно с Open Collective** — *добавлено 21.05.2026.*
+  - **Зачем:** технари (= H4) уже живут на GitHub, для них «Sponsor» кнопка прямо в репо — путь наименьшего сопротивления. Best practice — подключить обе платформы: GitHub Sponsors для технических контрибьюторов, Open Collective для прозрачности + не-технарей.
+  - **Стоимость:** **0% fee** (GitHub субсидирует, по крайней мере до конца 2026) + Stripe processing ~3%. Дешевле Open Collective на ~15 п.п.
+  - **Что даёт сверху OC:**
+    - Кнопка «Sponsor» прямо в шапке GitHub-репо
+    - Запись в файле `.github/FUNDING.yml` — GitHub автоматически показывает её на каждой странице
+    - Sponsor badge у юзеров рядом с именем — социальный сигнал
+    - Matched funding программа (GitHub иногда удваивает первые $5k для новых maintainer'ов)
+  - **Tier'ы (mirror с Open Collective для консистентности):**
+    - ☕ Supporter $5/мес — имя в README
+    - 🌟 Patron $25/мес — голос в feature voting + early access к новым фичам
+    - 💎 Sustainer $100/мес — name в credits на botkin.health + monthly office hours (групповой звонок)
+    - 🏢 Sponsor $500/мес — logo на botkin.health + dedicated Slack/Telegram support
+    - One-time donations включены — не все хотят подписку
+  - **Юрисдикция:** ✅ разблокировано — израильский паспорт + израильский банк. GitHub Sponsors официально поддерживает Israel в списке payout-стран, Stripe Connect работает напрямую.
+  - **Шаги:**
+    1. github.com/sponsors → "Become a sponsored developer" → заполнить профиль (bio, photo, why I'm building Botkin) — ~30 мин
+    2. Привязать payout method (Stripe Atlas / Payoneer / Wise USD) — ~15 мин
+    3. Дождаться approval (обычно 1-3 дня, иногда до недели)
+    4. После approve — настроить tier'ы, написать welcome message
+    5. Создать `.github/FUNDING.yml` в репо Botkin с двумя ссылками (GitHub + Open Collective):
+       ```yaml
+       github: [Lyskovsky]
+       open_collective: botkin
+       ```
+    6. Добавить кнопку «Sponsor» на botkin.health (та же что Open Collective, второй CTA)
+  - **Примеры посмотреть** (топовые solo-maintainer'ы):
+    - [github.com/sponsors/sindresorhus](https://github.com/sponsors/sindresorhus) — ~$45k/год, JS open source
+    - [github.com/sponsors/calebporzio](https://github.com/sponsors/calebporzio) — $30k+/мес, Livewire/Alpine.js
+    - [github.com/sponsors/evanw](https://github.com/sponsors/evanw) — Evan Wallace, esbuild
+    - [github.com/sponsors/yyx990803](https://github.com/sponsors/yyx990803) — Evan You, Vue.js
+  - **Время на setup:** ~1 час активной работы + 1-3 дня ожидания approval.
+
+- [ ] **CLA Assistant для будущих контрибьюторов** — *добавлено 21.05.2026.*
+  - **Зачем:** без подписанного CLA код внешних контрибьюторов остаётся AGPL и нельзя re-license в commercial. Это убивает dual-licensing модель.
+  - [cla-assistant.io](https://cla-assistant.io/) — бесплатный GitHub App, контрибьютор подписывает CLA одним кликом на первый PR.
+  - **Срочность:** надо включить **до публичного анонса** (до первого внешнего PR).
+  - Шаги: установить GitHub App + написать текст CLA (стандартный Apache 2.0 ICLA подходит, минимальные правки).
+
+- [ ] **`BUSINESS.md` в корне проекта** — *добавлено 21.05.2026.*
+  - Зафиксировать стратегию: open core, выбранные сегменты H4 (OSS tech-biohackers) + H5 (русский B2C SaaS), AGPL + dual-licensing, монетизация по слоям, ключевые риски, метрики успеха.
+  - Это «scope freeze» из плейбука — без него через месяц забудем что договаривались, и начнётся scope creep.
+
+### Следующая фаза (месяц 1-3)
+
+- [ ] **Bring-your-own-key (BYOK)** для Claude/OpenAI в боте — снимает с фаундера риск масштабирования AI-расходов. Юзер сам платит за свои токены через свой API-key. Технари H4 это любят (privacy-first + я-плачу-только-за-себя).
+
+- [ ] **Customer discovery интервью** (10×H4 + 10×H5 за 2-3 недели) — past-behavior вопросы, не предсказательные. Outreach через HN/Reddit/Twitter (H4) + личную сеть (H5). См. план в разборе плейбука от 21.05.2026.
+
+- [ ] **Лендинг botkin.health** — одностраничник: что это, для кого, GitHub link, waitlist для Cloud, кнопки Sponsor (GitHub + Open Collective). Нужен к моменту outreach в интервью.
+
+### Средняя фаза (месяц 3-6)
+
+- [ ] **Hosted SaaS — botkin.health/cloud** ($5-15/мес, русский B2C → H5) — turnkey версия для не-технарей. Multi-tenant в проде (RLS уже есть!), billing через ЮKassa (RU) + Stripe (intl), регистрация, OAuth-подключения.
+
+- [ ] **Premium-фичи с license-key** в self-host — model Standard Notes. Advanced PDF парсинг с medical NER, family vault > 3 человек, премиум коннекторы (Mi Body CN3, специфичные русские лабы). $39 lifetime / $4/мес.
+
+### Дальняя фаза (год 1+)
+
+- [ ] **Bounty platform (Polar.sh)** — пользователи скидываются на конкретные фичи, contributor делает, фича попадает в OSS.
+
+- [ ] **B2B sponsorships от concierge-клиник** (упрощённая H2) — $200-500/мес за white-label. Прямой контакт через Илью Мутовина (Singularity Club).
+
+### Что НЕ делаем (anti-scope)
+
+- ❌ Никаких VC-раундов до month 12+ — open core путь несовместим с venture pressure
+- ❌ Никаких хроников/диабетиков как первый сегмент — регуляторный риск без MD-партнёра (см. H3 в разборе)
+- ❌ Никакого корпоративного wellness/страховых — другая ДНК продукта
+- ❌ Никаких новых фич для self под H4/H5 запросы вне scope — scope freeze в `BUSINESS.md`
+
+---
+
 ## 🛠 Админ-дашборд (мульти-юзер инфраструктура к 50 чел)
 
 **Контекст (10.05.2026):** В мае-июне 2026 хотим вырасти с 4 до 5–10 юзеров (семья + early_users) и до 50 после доклада на конференции. Нужна минимальная инфра управления.
