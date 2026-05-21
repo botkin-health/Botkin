@@ -366,9 +366,9 @@ html { scroll-behavior: smooth; }
 
 <!-- HERO -->
 <div class="grid hero-grid">
-  <div class="card hero-main">
+  <a href="#timeline-section" class="card hero-main card-link" title="К графику веса в Траектории трансформации ↓">
     <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
-      <div class="card-label" style="margin-bottom:0;"><span class="status ok"></span>Вес · кг</div>
+      <div class="card-label" style="margin-bottom:0;"><span class="status ok"></span>Вес · кг <span class="card-link-arrow">↓</span></div>
       <div style="background:rgba(0,255,157,0.1); border:1px solid rgba(0,255,157,0.25); border-radius:20px; padding:4px 12px; font-size:11px; color:var(--g); letter-spacing:0.5px; white-space:nowrap;">
         <span id="cd-prefix">осталось</span> <span id="cd-days">—</span> дн &nbsp;·&nbsp; цель <span id="meta-goal">—</span> кг
       </div>
@@ -389,17 +389,17 @@ html { scroll-behavior: smooth; }
         <div id="h-progress" style="height:100%; background:linear-gradient(90deg,var(--g) 0%,var(--g2) 100%); border-radius:3px; box-shadow: 0 0 8px rgba(0,255,157,0.4); transition: width 1s ease;"></div>
       </div>
     </div>
-  </div>
-  <div class="card">
-    <div class="card-label"><span class="status ok"></span>% Жира · биоимпеданс</div>
+  </a>
+  <a href="#timeline-section" class="card card-link" title="К графику веса/жира во времени ↓">
+    <div class="card-label"><span class="status ok"></span>% Жира · биоимпеданс <span class="card-link-arrow">↓</span></div>
     <div class="big-number g" id="h-fat">—</div>
     <div class="sub"><span id="h-fat-delta">—</span> · висцеральный <span id="h-visc">—</span> · мышцы <span id="h-muscle">—</span> кг</div>
-  </div>
-  <div class="card" id="hero-priority-card">
-    <div class="card-label"><span class="status ok" id="hp-status"></span><span id="hp-title" style="text-transform:none; letter-spacing:0.3px; font-size:11px;">Биомаркеры</span></div>
+  </a>
+  <a href="#medical-section" class="card card-link" id="hero-priority-card" title="К таблице биомаркеров ↓">
+    <div class="card-label"><span class="status ok" id="hp-status"></span><span id="hp-title" style="text-transform:none; letter-spacing:0.3px; font-size:11px;">Биомаркеры</span> <span class="card-link-arrow">↓</span></div>
     <div class="big-number g" id="hp-value">—</div>
     <div class="sub" id="hp-sub"></div>
-  </div>
+  </a>
   <a href="#medical-section" class="card card-link" title="Перейти к таблице биомаркеров ↓">
     <div class="card-label"><span class="status ok"></span>Баланс биомаркеров <span class="card-link-arrow">↓</span></div>
     <div class="big-number g" id="h-score">—</div>
@@ -408,7 +408,7 @@ html { scroll-behavior: smooth; }
 </div>
 
 <!-- TIMELINE -->
-<div class="section-title">Траектория трансформации <span class="hint">клик по легенде ниже — скрыть/показать слой</span></div>
+<div class="section-title" id="timeline-section">Траектория трансформации <span class="hint">клик по легенде ниже — скрыть/показать слой</span></div>
 <div class="card">
   <div class="chart-wrap tall"><canvas id="timeline"></canvas></div>
 </div>
