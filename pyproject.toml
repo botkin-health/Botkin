@@ -5,6 +5,8 @@ name = "botkin"
 version = "0.5.0"
 description = "Personal health analytics platform — Telegram bot + dashboard + MCP."
 requires-python = ">=3.11"
+license = {text = "AGPL-3.0-or-later"}
+authors = [{name = "Aleksandr Lyskovsky", email = "lyskovsky@gmail.com"}]
 
 [tool.ruff]
 line-length = 120
