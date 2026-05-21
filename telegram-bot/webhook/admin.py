@@ -360,7 +360,7 @@ async function loadLLM(){
     const d = await api('/admin/api/llm_usage?days=' + days);
     document.getElementById('llm-totals').innerHTML =
       '<b>Σ ' + d.totals.calls + '</b> вызовов · ' +
-      '<b>$' + d.totals.cost_usd.toFixed(4) + '</b> · ' +
+      '<b>$' + d.totals.cost_usd.toFixed(2) + '</b> · ' +
       d.totals.input_tokens.toLocaleString() + ' in / ' +
       d.totals.output_tokens.toLocaleString() + ' out';
     document.getElementById('llm-by-purpose').innerHTML = d.by_purpose.map(r =>
@@ -368,20 +368,20 @@ async function loadLLM(){
       '<td>' + r.calls + '</td>' +
       '<td>' + r.input_tokens.toLocaleString() + ' → ' + r.output_tokens.toLocaleString() + '</td>' +
       '<td>' + r.cache_read_tokens.toLocaleString() + ' / ' + r.cache_creation_tokens.toLocaleString() + '</td>' +
-      '<td><b>$' + r.cost_usd.toFixed(4) + '</b></td></tr>'
+      '<td><b>$' + r.cost_usd.toFixed(2) + '</b></td></tr>'
     ).join('');
     document.getElementById('llm-by-day').innerHTML = d.by_day.map(r =>
       '<tr><td>' + r.day + '</td>' +
-      '<td>$' + (r.food_text_usd||0).toFixed(4) + '</td>' +
-      '<td>$' + (r.food_photo_usd||0).toFixed(4) + '</td>' +
-      '<td>$' + (r.agent_chat_usd||0).toFixed(4) + '</td>' +
-      '<td><b>$' + r.total_usd.toFixed(4) + '</b></td></tr>'
+      '<td>$' + (r.food_text_usd||0).toFixed(2) + '</td>' +
+      '<td>$' + (r.food_photo_usd||0).toFixed(2) + '</td>' +
+      '<td>$' + (r.agent_chat_usd||0).toFixed(2) + '</td>' +
+      '<td><b>$' + r.total_usd.toFixed(2) + '</b></td></tr>'
     ).join('');
     document.getElementById('llm-by-user').innerHTML = d.by_user.map(r =>
       '<tr><td class="mono">' + (r.user_id || '—') + '</td>' +
       '<td>' + (r.first_name || '') + '</td>' +
       '<td>' + r.calls + '</td>' +
-      '<td><b>$' + r.cost_usd.toFixed(4) + '</b></td></tr>'
+      '<td><b>$' + r.cost_usd.toFixed(2) + '</b></td></tr>'
     ).join('');
   } catch(e){ toast('Ошибка LLM: '+e.message, 'err') }
 }
