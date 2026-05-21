@@ -7,6 +7,32 @@
 
 ---
 
+## 2026-05-21 — Product-review pipeline: consent, raw-text log, ночной /review skill
+
+Замысел: уметь раз в N дней (ночью) пройтись по переписке пользователей с Botkin
+и автоматически выгребать оттуда баги / feature requests / неудобства. Без подглядывания
+без согласия и без потери исходных формулировок, которые сейчас «съедаются» роутером
+в пищевых сообщениях.
+
+**Что сделано:**
+- `users.agent_review_consent BOOLEAN NOT NULL DEFAULT TRUE` — миграция `add_agent_review_consent.sql`. На текущей закрытой стадии (семья + друзья) default ON.
+- Тоггл «Делиться диалогами с командой» в мини-аппе → секция «Приватность» в `telegram-bot/webapp/index.html`, GET/POST `/api/settings` расширены. Свич с пояснением «никаких других данных — только сами сообщения».
+- `agent_conversations.source TEXT` + индекс. Значения: `botkinclaw` (реальный диалог), `router_food` / `router_vitamins` / `router_bp` / `router_weight` / `router_mixed` / `router_body_measurements` (raw текст для не-агентных веток), NULL = легаси.
+- `core.agent_chat.log_router_raw_text(uid, raw, msg_type)` — пишет user-turn с `source='router_*'`. Вызывается из `handlers/text.py` сразу после классификации.
+- `_load_history` фильтрует `WHERE source IS NULL OR source='botkinclaw'` — non-agent сообщения не подмешиваются в контекст Claude.
+- Skill `~/.claude/skills/review-conversations/SKILL.md` — ночное продукт-ревью: выгрузка из прод-БД с фильтром по consent, группировка по юзерам, прогон через Claude, сводный план в виде todo.
+
+**E2E прогон:** GET /api/settings отдаёт `agent_review_consent`, тоггл туда-обратно работает, `log_router_raw_text` пишет с правильным source, `ask_agent` не подхватывает router_-записи в контекст.
+
+## 2026-05-21 — jwt_secret: автогенерация для новых юзеров + бэкфилл легаси
+
+Папа (33831673) при попытке поговорить с Botkin получал «Разговорный агент временно недоступен» — у него в `users` не было `jwt_secret`, BotkinClaw валился на `_generate_jwt`. Та же дыра у 4 других активных юзеров (DeployTest, Настя, Лена, игнат) — их онбординг прошёл до того, как ввели требование JWT.
+
+**Чиним системно:**
+- `database/models.py`: `User.jwt_secret` теперь имеет `default=lambda: secrets.token_hex(32)` — любой `User(...)` без явного значения получит секрет на INSERT. Покрывает все 3 точки создания (`onboarding.py:130`, `crud.py:49`, `crud.py:343`).
+- `scripts/backfill_jwt_secret.py` — однократный бэкфилл для активных пользователей; флаги `--dry-run` и `--all` (включая неактивных).
+- Прогнан на проде: 4 юзера получили секреты, бот перезапущен. У всех 9 активных юзеров теперь `jwt_secret IS NOT NULL`.
+
 ## 2026-05-21 — BotkinClaw: JWT fallback, +6 tools, Sonnet 4.6, multi-user safe
 
 Ночная автономная сессия после сноса NanoClaw (см. ADR-0002). Имя in-process AI-агента — **BotkinClaw** (игра слов NanoClaw → BotkinClaw).

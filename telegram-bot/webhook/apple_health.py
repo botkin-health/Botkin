@@ -132,6 +132,40 @@ async def health_check():
     return {"status": "ok", "service": "apple_health_webhook"}
 
 
+@app.get("/api/public_stats")
+async def public_stats():
+    """Публичная статистика для лендинга botkin.health (CORS-открыто, без auth).
+
+    Возвращает агрегаты: общее число приёмов пищи в системе, число активных
+    пользователей. Никакого PII — только counts. Используется JS-fetch'ем в
+    docs/landing/index.html для live-цифр в hero-блоке.
+    """
+    from fastapi.responses import JSONResponse
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+    try:
+        from database import SessionLocal
+        from sqlalchemy import text as sql_text
+
+        db = SessionLocal()
+        try:
+            meals = db.execute(sql_text("SELECT COUNT(*) FROM nutrition_log")).scalar() or 0
+            users = db.execute(sql_text("SELECT COUNT(*) FROM users WHERE is_active=true")).scalar() or 0
+            biomarkers = db.execute(sql_text("SELECT COUNT(*) FROM blood_tests")).scalar() or 0
+        finally:
+            db.close()
+    except Exception as e:
+        logger.warning(f"public_stats failed: {e}")
+        return JSONResponse({"error": "stats unavailable"}, status_code=503)
+
+    return JSONResponse(
+        {"meals": meals, "active_users": users, "biomarkers": biomarkers},
+        headers={"Access-Control-Allow-Origin": "*", "Cache-Control": "public, max-age=300"},
+    )
+
+
 @app.post("/apple_health")
 async def receive_apple_health(
     payload: AppleHealthPayload,
@@ -689,6 +723,10 @@ class UserSettingsSchema(BaseModel):
     supplement_reminders_enabled: bool = False
     supplement_reminder_time: str = "08:00"  # HH:MM string
     supplements: List[SupplementItem] = []
+    # Поле живёт в users.agent_review_consent, не в user_settings — это
+    # privacy-флаг, а не UI-настройка. Принимаем тут чтобы мини-апп мог
+    # сохранять весь профиль одним POST'ом.
+    agent_review_consent: Optional[bool] = None
 
 
 @app.get("/api/settings")
@@ -701,6 +739,7 @@ async def get_settings(tg_user: dict = Depends(get_tg_user)):
 
     from database import SessionLocal
     from database.crud import get_user_settings
+    from database.models import User
 
     user_id = tg_user.get("id")
     if not user_id:
@@ -708,6 +747,11 @@ async def get_settings(tg_user: dict = Depends(get_tg_user)):
 
     db = SessionLocal()
     try:
+        user = db.query(User).filter(User.telegram_id == user_id).first()
+        # Default TRUE если юзера ещё нет (мини-апп открыт до /start) — поведение
+        # согласовано с server_default колонки.
+        review_consent = bool(user.agent_review_consent) if user else True
+
         s = get_user_settings(db, user_id)
         if s is None:
             return {
@@ -718,6 +762,7 @@ async def get_settings(tg_user: dict = Depends(get_tg_user)):
                 "supplement_reminders_enabled": False,
                 "supplement_reminder_time": "08:00",
                 "supplements": [],  # new users start with empty list, not owner's supplements
+                "agent_review_consent": review_consent,
             }
         return {
             "show_calorie_budget_bar": s.show_calorie_budget_bar,
@@ -730,6 +775,7 @@ async def get_settings(tg_user: dict = Depends(get_tg_user)):
             if s.supplement_reminder_time
             else "08:00",
             "supplements": s.supplements or [],
+            "agent_review_consent": review_consent,
         }
     finally:
         db.close()
@@ -745,6 +791,7 @@ async def save_settings(payload: UserSettingsSchema, tg_user: dict = Depends(get
 
     from database import SessionLocal
     from database.crud import upsert_user_settings
+    from database.models import User
     from datetime import date as date_cls, time as time_cls
 
     user_id = tg_user.get("id")
@@ -781,6 +828,14 @@ async def save_settings(payload: UserSettingsSchema, tg_user: dict = Depends(get
             supplement_reminder_time=reminder_time,
             supplements=supplements_list,
         )
+
+        # agent_review_consent живёт на users, не user_settings — обновляем
+        # отдельным UPDATE'ом, только если поле явно пришло в payload.
+        if payload.agent_review_consent is not None:
+            user = db.query(User).filter(User.telegram_id == user_id).first()
+            if user is not None:
+                user.agent_review_consent = payload.agent_review_consent
+                db.commit()
     finally:
         db.close()
 

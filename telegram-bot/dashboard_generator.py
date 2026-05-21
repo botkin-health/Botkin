@@ -2142,7 +2142,7 @@ def _build_payload(db: Session, user_id: int) -> dict:
         for milestone in [108, 100, 90, 60, 30, 21, 14, 7]:
             if n_kcal >= milestone:
                 _w_d = _ru_plural(n_kcal, ("день", "дня", "дней"))
-                _ach_t5.append(("🍽️", f"{n_kcal} {_w_d} питания", "Каждый приём в NutriLogBot"))
+                _ach_t5.append(("🍽️", f"{n_kcal} {_w_d} питания", "Каждый приём в Botkin_md_bot"))
                 break
         # Protein average — only shown for nutrition-basic tier (no weight/activity data)
         if prot and not (stats_weight or activities):
@@ -2317,7 +2317,7 @@ def _build_payload(db: Session, user_id: int) -> dict:
                 "has_medical": any(  # True only if at least one biomarker has actual data
                     v.get("val") is not None for v in biomarkers_latest.values()
                 ),
-                "has_nutrition": bool(kcal),  # NutriLogBot in use
+                "has_nutrition": bool(kcal),  # Botkin_md_bot in use
                 # True when BB/stress are computed from HRV (not real Garmin data).
                 # Template uses this to show "HRV Readiness" / "HRV Stress" labels.
                 "hrv_surrogate": bool(

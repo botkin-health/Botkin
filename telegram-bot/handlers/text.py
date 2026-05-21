@@ -690,6 +690,18 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
         msg_type = router_result.get("type")
         data = router_result.get("data", {})
 
+        # Логируем raw text для не-BotkinClaw веток (food / vitamins / bp / weight / ...).
+        # BotkinClaw-ветка ('other') сама пишет user-turn внутри ask_agent.
+        # См. core.agent_chat.log_router_raw_text — продукт-ревью увидит исходные
+        # формулировки пользователя даже когда они распарсились в нутришн/витамины.
+        if msg_type and msg_type != "other":
+            try:
+                from core.agent_chat import log_router_raw_text
+
+                log_router_raw_text(int(user_id), text, msg_type)
+            except Exception as _e:
+                debug_logger.warning(f"raw text log failed: {_e}")
+
         if msg_type == "other":
             # BotkinClaw (in-process agent) — route conversational text to
             # core.agent_chat.ask_agent (Claude Messages API + tools). См. ADR-0002

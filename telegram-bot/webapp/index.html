@@ -475,6 +475,21 @@
     </div>
   </div>
 
+  <!-- ПРИВАТНОСТЬ -->
+  <div class="group-title">Приватность</div>
+  <div class="settings-group">
+    <div class="settings-row">
+      <div class="row-label">
+        Делиться диалогами с командой
+        <div class="row-sub">Команда Botkin сможет читать твою переписку с ботом, чтобы находить баги и улучшать продукт. Никаких других данных — только сами сообщения.</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="review-consent-toggle">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+
   <!-- УВЕДОМЛЕНИЯ -->
   <div class="group-title">Уведомления</div>
   <div class="settings-group">
@@ -717,6 +732,8 @@ function populate() {
   if (settings.target_weight_kg) document.getElementById('target-weight').value = settings.target_weight_kg;
   if (settings.target_weight_date) document.getElementById('target-date').value = settings.target_weight_date;
   document.getElementById('show-bar').checked = settings.show_calorie_budget_bar !== false;
+  // Приватность: default TRUE (см. server_default колонки users.agent_review_consent)
+  document.getElementById('review-consent-toggle').checked = settings.agent_review_consent !== false;
   // Goal slider
   const goalPct = settings.calorie_goal_pct ?? -15;
   const sliderEl = document.getElementById('goal-pct');
@@ -830,6 +847,11 @@ function wireAutosave() {
   // Show calorie bar
   document.getElementById('show-bar').addEventListener('change', e => {
     autosave({ show_calorie_budget_bar: e.target.checked });
+  });
+
+  // Приватность: согласие на доступ команды к переписке с BotkinClaw
+  document.getElementById('review-consent-toggle').addEventListener('change', e => {
+    autosave({ agent_review_consent: e.target.checked });
   });
 
   // Calorie goal slider — live badge update on drag, autosave on release
