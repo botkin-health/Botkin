@@ -1,14 +1,19 @@
 """Telegram webhook entry point.
 
-Routes incoming Telegram updates to:
-- handle_onboarding(): new users (not in DB)
-- forward_to_container(): existing users with a provisioned NanoClaw container
-- legacy aiogram dispatcher: users without container (Sprint 1a fallback) + all media
+Все запросы идут в legacy aiogram dispatcher (то есть в основной aiogram-бот),
+где BotkinClaw (in-process AI-агент) обрабатывает свободно-формулированные
+вопросы через `handlers/text.py`.
 
-IMPORTANT: This router does NOT parse message text. It only looks at:
+Раньше здесь была развилка: пользователи с провижненым NanoClaw-контейнером
+получали forward в их container, остальные — fallback на legacy aiogram.
+После сноса NanoClaw (см. ADR-0002, 21.05.2026) все ходят через legacy,
+поэтому forward-ветка удалена. История в git, при желании посмотреть —
+коммит `0af69dd` (feat: NanoClaw deploy Phase 1-3).
+
+IMPORTANT: Этот роутер НЕ парсит текст. Он только определяет:
 - message.from.id → identify user
 - message type (photo/voice vs text)
-- user.container_id + user.container_port → routing decision
+- onboarding-state → routing decision (новый юзер → onboarding wizard, иначе legacy)
 """
 
 import logging
@@ -22,23 +27,6 @@ from database.models import User
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-
-
-async def forward_to_container(container_id: str, port: int, payload: dict) -> None:
-    """POST the Telegram payload to the NanoClaw container's /agent/process endpoint.
-
-    Fire-and-forget — container will call sendMessage back to Telegram directly.
-    On failure: send a fallback message to the user.
-    """
-    url = f"http://{container_id}:{port}/agent/process"
-    chat_id = payload.get("message", {}).get("chat", {}).get("id")
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        try:
-            await client.post(url, json=payload)
-        except (httpx.RequestError, httpx.TimeoutException) as e:
-            logger.error(f"Failed to forward to container {container_id}: {e}")
-            if chat_id:
-                await _send_fallback(chat_id, "⚠️ Агент сейчас недоступен, попробуй через минуту.")
 
 
 async def handle_onboarding(payload: dict) -> None:
@@ -122,19 +110,13 @@ async def telegram_webhook(payload: dict):
         if user:
             tg_from = msg.get("from", {}) or {}
             tg_username = tg_from.get("username")
-            tg_first = tg_from.get("first_name")
-            tg_last = tg_from.get("last_name")
             changed = False
             if tg_username and tg_username != user.username:
                 logger.info(f"User {from_id} username updated: {user.username!r} -> {tg_username!r}")
                 user.username = tg_username
                 changed = True
-            if tg_first and tg_first != user.first_name and not (user.first_name or "").startswith("/"):
-                # Don't overwrite an explicitly-set name (during onboarding)
-                # with the Telegram display name unless it matches what's there.
-                # We only sync if user.first_name was the original Telegram value.
-                pass  # skip first_name sync to not overwrite onboarding answers
-            # last_active updated by main flow elsewhere; we don't touch here
+            # first_name/last_name sync intentionally skipped — onboarding answers
+            # take precedence over Telegram display name.
             if changed:
                 db.commit()
 
@@ -162,14 +144,8 @@ async def telegram_webhook(payload: dict):
             await handle_setup_command(payload)
             return {"status": "ok", "action": "setup"}
 
-        # Existing user but no container yet — fall back to legacy aiogram bot (Sprint 1a)
-        if not user.container_id or not user.container_port:
-            logger.info(f"User {from_id} has no container yet — falling back to legacy bot")
-            await _feed_legacy_bot(payload)
-            return {"status": "ok", "action": "legacy_fallback"}
-
-        # Route to user's NanoClaw container
-        await forward_to_container(user.container_id, user.container_port, payload)
-        return {"status": "ok", "action": "forwarded"}
+        # All other text — legacy aiogram dispatcher (BotkinClaw lives there)
+        await _feed_legacy_bot(payload)
+        return {"status": "ok", "action": "legacy_text"}
     finally:
         db.close()

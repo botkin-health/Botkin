@@ -337,7 +337,11 @@ def test_kb_value_owner_returns_value(client, tmp_path, monkeypatch):
 
 
 def test_kb_value_non_owner_returns_stub(db_session, monkeypatch):
-    """GET /kb_value for non-owner user returns not-implemented stub."""
+    """GET /kb_value for non-owner user returns kb-not-available stub.
+
+    Только owner-cohort пользователь имеет полный knowledge_base.json. Для
+    family/early_user/external endpoint возвращает заглушку, не падает.
+    """
     from fastapi.testclient import TestClient
     from webhook import agent_tools_api
     from webhook.jwt_auth import get_agent_user, get_db
@@ -356,7 +360,7 @@ def test_kb_value_non_owner_returns_stub(db_session, monkeypatch):
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["value"] is None
-    assert body["source"] == "not-implemented"
+    assert body["source"] == "kb-not-available"
 
 
 def test_dashboard_summary_empty_db(client):
@@ -426,3 +430,73 @@ def test_user_profile_returns_profile(client):
     assert body["health_token"] == "hvt_old_token"
     assert body["garmin_email"] == "test@garmin.com"
     assert "timezone" in body
+
+
+# ── New tools (post-NanoClaw, added 21.05.2026) ─────────────────────────────
+
+
+def test_weight_history_no_data(client):
+    """GET /weight_history with no weights — returns no_data, not 500."""
+    r = client.get("/api/agent/weight_history")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["status"] == "no_data"
+
+
+def test_weight_history_returns_latest_and_extremes(client, db_session):
+    """GET /weight_history — latest + all_time extremes when data present."""
+    create_weight(db_session, user_id=895655, measured_at=datetime(2020, 12, 16, 8), weight=74.9, body_fat=25.7)
+    create_weight(db_session, user_id=895655, measured_at=datetime(2024, 1, 10, 8), weight=86.3, body_fat=35.9)
+    create_weight(db_session, user_id=895655, measured_at=datetime(2026, 5, 16, 8), weight=76.6, body_fat=26.7)
+
+    r = client.get("/api/agent/weight_history")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["status"] == "ok"
+    assert body["latest"]["weight_kg"] == 76.6
+    assert body["latest"]["body_fat_pct"] == 26.7
+    assert body["all_time"]["min_weight"]["weight_kg"] == 74.9
+    assert body["all_time"]["max_weight"]["weight_kg"] == 86.3
+    assert body["all_time"]["min_body_fat"]["body_fat_pct"] == 25.7
+    assert body["all_time"]["min_body_fat"]["date"] == "2020-12-16"
+
+
+def test_weight_history_with_window(client, db_session):
+    """GET /weight_history?days=30 — adds in_window aggregate."""
+    create_weight(db_session, user_id=895655, measured_at=datetime(2020, 1, 1, 8), weight=80.0, body_fat=30.0)
+    create_weight(db_session, user_id=895655, measured_at=datetime.now(), weight=76.0, body_fat=26.0)
+
+    r = client.get("/api/agent/weight_history?days=30")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["window_days"] == 30
+    assert body["in_window"]["count"] == 1  # only the recent one
+    assert body["all_time"]["count"] == 2
+
+
+def test_day_summary_invalid_date(client):
+    """GET /day_summary with malformed date — returns error, not 500."""
+    r = client.get("/api/agent/day_summary?date=not-a-date")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["status"] == "error"
+
+
+def test_day_summary_no_data(client):
+    """GET /day_summary for date without daily_summary row — graceful no_data/error.
+
+    SQLite-фикстура не создаёт daily_summaries (нет ORM-модели), endpoint
+    возвращает {"status": "error"} вместо 500. На Postgres вернёт no_data.
+    """
+    r = client.get("/api/agent/day_summary?date=2020-01-01")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["status"] in ("no_data", "error")
+
+
+def test_body_measurements_no_data(client):
+    """GET /body_measurements with no data — returns no_data, not 500."""
+    r = client.get("/api/agent/body_measurements")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["status"] == "no_data"

@@ -35,7 +35,7 @@
 1. **Multi-user из коробки** — cohort-роли (owner / family / early_user / external), RLS-изоляция, JWT для агентов. Сделано в Sprint 1a (04.05.2026).
 2. **Гибридная приватность** — пользователь сам решает: что лежит на семейном сервере (доступно через AI), что только локально на его компе.
 3. **MCP — основной канал** между личным Claude пользователя и сервером Botkin. Server отдаёт tools, Claude (на компе пользователя) использует.
-4. **NanoClaw-style host-orchestrator** для агентов на сервере (host process + ephemeral spawn-containers per session — НЕ persistent per user). История решения: [`docs/architecture/decisions/0001-nanoclaw-ephemeral-not-persistent.md`](docs/architecture/decisions/0001-nanoclaw-ephemeral-not-persistent.md).
+4. **AI-врач = BotkinClaw** — in-process handler в основном aiogram-боте (решение от 21.05.2026 после спайка NanoClaw). Прямой вызов Anthropic Messages API из `@Botkin_md_bot`, история диалога в Postgres, tools через переиспользуемый `webhook/agent_tools_api.py` (JWT+RLS, 8 endpoints). Один бот для всех пользователей, без отдельной контейнерной инфры. История: [ADR-0001](docs/architecture/decisions/0001-nanoclaw-ephemeral-not-persistent.md) (ephemeral vs persistent — остаётся валидным архитектурным принципом *если* когда-нибудь вернёмся к контейнеризации) + [ADR-0002](docs/architecture/decisions/0002-rejecting-nanoclaw-for-simpler-agent.md) (почему отказались от NanoClaw, и почему «BotkinClaw» — игра слов NanoClaw → BotkinClaw, бот сам играет роль контейнера).
 5. **Open source** — код публичный. Все приватные данные (имена, диагнозы, биомаркеры, личные планы) — только в `~/FamilyHealth/<user>/`. Правила: `docs/operations/personal-data.md`.
 
 **Что НЕ есть Botkin:**

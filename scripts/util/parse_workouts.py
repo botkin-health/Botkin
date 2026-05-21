@@ -72,6 +72,10 @@ def parse_activity(filepath: Path):
     duration_sec = data.get("duration") or data.get("elapsedDuration") or 0
     duration_min = round(duration_sec / 60, 1)
 
+    # Дистанция (метры → км). У силовых/йоги обычно 0, поэтому None в этом случае.
+    distance_m = data.get("distance") or 0
+    distance_km = round(distance_m / 1000, 2) if distance_m else None
+
     calories = data.get("calories") or 0
     bmr_calories = data.get("bmrCalories") or 0
     active_calories = max(0, calories - bmr_calories)  # только активные, без базового обмена
@@ -148,6 +152,7 @@ def parse_activity(filepath: Path):
         "high_zone_pct": round(high_zone_pct, 1),
         # Нагрузка
         "duration_min": duration_min,
+        "distance_km": distance_km,
         "calories_total": round(calories),
         "calories_active": round(active_calories),
         "training_load": training_load,

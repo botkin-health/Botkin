@@ -506,7 +506,7 @@ def analyze_message_claude(
         return None
 
     payload = {
-        "model": "claude-sonnet-4-5",
+        "model": "claude-sonnet-4-6",
         "max_tokens": 2000,
         "temperature": 0.1,
         "system": [
@@ -553,7 +553,7 @@ def analyze_message_claude(
                 purpose = "food_photo" if image_paths else "food_text"
                 log_anthropic_response(
                     purpose=purpose,
-                    model=payload.get("model", "claude-sonnet-4-5"),
+                    model=payload.get("model", "claude-sonnet-4-6"),
                     response_json=result,
                     user_id=user_id,
                 )
