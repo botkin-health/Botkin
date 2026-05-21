@@ -10,7 +10,7 @@ This module provides database operations for all tables:
 - BloodTests: create, get latest, get all
 """
 
-from datetime import datetime, date, time, timedelta
+from datetime import datetime, date, time, timedelta, timezone
 from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, text
@@ -627,7 +627,7 @@ def upsert_user_settings(db: Session, user_id: int, **kwargs) -> "UserSettings":
     else:
         for key, value in kwargs.items():
             setattr(settings, key, value)
-        settings.updated_at = datetime.utcnow()
+        settings.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(settings)
     return settings
