@@ -7,6 +7,29 @@
 
 ---
 
+## 2026-05-21 — BotkinClaw: JWT fallback, +6 tools, Sonnet 4.6, multi-user safe
+
+Ночная автономная сессия после сноса NanoClaw (см. ADR-0002). Имя in-process AI-агента — **BotkinClaw** (игра слов NanoClaw → BotkinClaw).
+
+**Архитектура:**
+- `core/agent_chat.py:agent_id_for(user)` — общий helper. Если `users.container_id` NULL → деривирует `botkinclaw-{telegram_id}`. И generate, и validate JWT используют одну функцию. Снимает зависимость от NanoClaw-провижна.
+- `_generate_jwt` требует только `jwt_secret` (не `container_id`).
+- Модель: `claude-sonnet-4-5` → **`claude-sonnet-4-6`** (агент + photo router).
+- `TypingMiddleware` — нативный «печатает...» в Telegram, обновляется каждые 4 сек.
+- `telegram_router.py` — удалена мёртвая ветка `forward_to_container`.
+
+**Новые tools (8→18):** `get_weight_history`, `get_body_measurements`, `get_day_summary(date)`, `get_indoor_air(days)` (Netatmo, owner-only), `get_outdoor_weather(date)` (Open-Meteo), `get_user_settings`, `recent_workouts` теперь с DB-fallback (multi-user safe).
+
+**E2E проверка:** ping-pong 32 запроса (2 юзера × 16 endpoints) — 0 ошибок 500, все `no_data` ответы корректные.
+
+**Dev experience:** `pyjwt==2.8.0` → `>=2.8.0`, `datetime.utcnow()` × 7 → `datetime.now(timezone.utc)`, Mac venv пересоздан, 5 merged-веток удалены, `docs/operations/dependency-updates-2026-05-21.md` — аудит outdated-пакетов, BotkinClaw sanity-check в `/cleanup` skill.
+
+**Тесты:** 407 unit passed + 8 новых.
+
+**Commits:** `6b138b1`, `2bfb1fa`, `fa184f7`, `7cc1e8d`, `0339296`, `7c01b70`.
+
+---
+
 ## 2026-05-12 — 🏷 Переименование проекта: HealthVault → Botkin
 
 **Контекст:** Имя «HealthVault» было рабочим. Перед публичным релизом (конференция июнь 2026) выбрали постоянное название.
