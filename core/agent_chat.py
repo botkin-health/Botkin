@@ -1060,28 +1060,27 @@ def ask_agent(
             import time as _time
 
             def _post_with_overload_retry(p):
-                # 3 попытки на основной модели с 1s/2s/4s паузами
-                resp = None
-                for attempt in range(3):
-                    resp = requests.post(ANTHROPIC_API_URL, headers=request_headers, json=p, timeout=60)
-                    if resp.status_code not in (429, 503, 529):
-                        return resp
-                    if attempt < 2:
-                        delay = 2**attempt
-                        logger.warning(
-                            "Anthropic %d on %s attempt %d/3, sleeping %ds: %s",
-                            resp.status_code,
-                            p.get("model", MODEL),
-                            attempt + 1,
-                            delay,
-                            resp.text[:200],
-                        )
-                        _time.sleep(delay)
-                # Все 3 ретрая упали с overload → fallback на 4.5
-                # (другой compute pool у Anthropic — часто свободнее когда 4.6 перегружен)
+                # Strategy: fast fallback. Anthropic 529 обычно сигнализирует
+                # пиковую нагрузку на конкретный compute pool — короткий retry
+                # её не разгребает. Лучше быстро прыгнуть на 4.5 (другой pool).
+                # Раньше было 1+2+4=7s ожиданий, юзер видел "думаю..." 10+ сек.
+                # Теперь: 1 быстрый retry (0.7s), потом сразу fallback.
+                resp = requests.post(ANTHROPIC_API_URL, headers=request_headers, json=p, timeout=60)
+                if resp.status_code not in (429, 503, 529):
+                    return resp
+                logger.warning(
+                    "Anthropic %d on %s — quick retry in 0.7s",
+                    resp.status_code,
+                    p.get("model", MODEL),
+                )
+                _time.sleep(0.7)
+                resp = requests.post(ANTHROPIC_API_URL, headers=request_headers, json=p, timeout=60)
+                if resp.status_code not in (429, 503, 529):
+                    return resp
+                # Всё ещё overload → fallback на 4.5 (другой compute pool)
                 if p.get("model") != FALLBACK_MODEL:
                     logger.warning(
-                        "Anthropic %d on %s after 3 retries — fallback to %s",
+                        "Anthropic %d on %s after retry — fallback to %s",
                         resp.status_code,
                         p.get("model", MODEL),
                         FALLBACK_MODEL,
