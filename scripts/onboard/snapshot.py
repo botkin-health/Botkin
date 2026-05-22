@@ -12,7 +12,7 @@ from typing import Optional
 DEFAULT_SNAPSHOTS_DIR = Path(__file__).resolve().parents[2] / "data" / "onboarding_snapshots"
 
 
-@dataclass
+@dataclass(frozen=True)
 class UserSnapshot:
     telegram_id: int
     cohort: str
