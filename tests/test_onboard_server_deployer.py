@@ -212,6 +212,16 @@ def test_upload_kb_rejects_invalid_json_on_server(cfg, tmp_path):
     assert "JSON" in str(exc.value) or "json" in str(exc.value)
 
 
+def test_fetch_agent_system_prompt_returns_text(cfg):
+    """Возвращает текст промпта из psql output."""
+    from scripts.onboard.server_deployer import fetch_agent_system_prompt
+
+    psql_result = subprocess.CompletedProcess([], 0, stdout="some prompt text\n", stderr="")
+    with patch("scripts.onboard.server_deployer.subprocess.run", return_value=psql_result):
+        prompt = fetch_agent_system_prompt(telegram_id=999, cfg=cfg)
+    assert "some prompt text" in prompt
+
+
 def test_upload_kb_rollback_tmp_on_mv_failure(cfg, tmp_path):
     """Если mv падает — должен быть вызван rm на .tmp файл."""
     kb = tmp_path / "kb_999.json"
