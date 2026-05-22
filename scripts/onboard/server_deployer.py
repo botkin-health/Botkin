@@ -9,6 +9,14 @@ from pathlib import Path
 from typing import Optional
 
 
+class PsqlError(RuntimeError):
+    """psql command failed (infrastructure error: container down, network, etc)."""
+
+
+class UserNotFoundError(RuntimeError):
+    """User with given telegram_id does not exist in users table."""
+
+
 @dataclass(frozen=True)
 class ServerConfig:
     host: str
@@ -16,6 +24,7 @@ class ServerConfig:
     password: str
     deploy_path: str
     sshpass_path: str = "/opt/homebrew/bin/sshpass"
+    timeout: int = 60  # seconds for ssh/scp commands
 
 
 @dataclass(frozen=True)
@@ -44,7 +53,7 @@ def _ssh(cfg: ServerConfig, remote_cmd: str) -> subprocess.CompletedProcess:
         f"{cfg.user}@{cfg.host}",
         remote_cmd,
     ]
-    return subprocess.run(cmd, capture_output=True, text=True)
+    return subprocess.run(cmd, capture_output=True, text=True, timeout=cfg.timeout)
 
 
 def _scp(cfg: ServerConfig, local_path: Path, remote_path: str) -> subprocess.CompletedProcess:
@@ -55,7 +64,7 @@ def _scp(cfg: ServerConfig, local_path: Path, remote_path: str) -> subprocess.Co
         str(local_path),
         f"{cfg.user}@{cfg.host}:{remote_path}",
     ]
-    return subprocess.run(cmd, capture_output=True, text=True)
+    return subprocess.run(cmd, capture_output=True, text=True, timeout=cfg.timeout)
 
 
 def _psql(cfg: ServerConfig, sql: str) -> subprocess.CompletedProcess:
@@ -79,6 +88,14 @@ def upload_kb(*, kb_path: Path, telegram_id: int, cfg: ServerConfig) -> None:
         _ssh(cfg, f"rm -f {shlex.quote(tmp_remote)}")
         raise RuntimeError(f"ssh mv failed: {mv.stderr or mv.stdout}")
 
+    # Verify the uploaded file is valid JSON on the server
+    check_cmd = f"python3 -c 'import json,sys; json.load(open(sys.argv[1]))' {shlex.quote(final_remote)}"
+    verify = _ssh(cfg, check_cmd)
+    if verify.returncode != 0:
+        # Roll back the broken file
+        _ssh(cfg, f"rm -f {shlex.quote(final_remote)}")
+        raise RuntimeError(f"Uploaded KB is not valid JSON on server: {verify.stderr or verify.stdout}")
+
 
 def remove_kb(*, telegram_id: int, cfg: ServerConfig) -> None:
     """Удалить kb_<tid>.json с сервера (для rollback / --unenroll)."""
@@ -95,26 +112,28 @@ def update_user_row(
     cfg: ServerConfig,
 ) -> DeployResult:
     """UPDATE users SET cohort, pack_name, agent_system_prompt WHERE telegram_id."""
-    # Escape single quotes in prompt for SQL
+    # Escape single quotes in all string fields for SQL
+    cohort_escaped = cohort.replace("'", "''")
+    pack_escaped = pack_name.replace("'", "''")
     prompt_escaped = agent_system_prompt.replace("'", "''")
     sql = (
-        f"UPDATE users SET cohort='{cohort}', pack_name='{pack_name}', "
+        f"UPDATE users SET cohort='{cohort_escaped}', pack_name='{pack_escaped}', "
         f"agent_system_prompt='{prompt_escaped}' "
         f"WHERE telegram_id={telegram_id};"
     )
     result = _psql(cfg, sql)
     if result.returncode != 0:
-        raise RuntimeError(f"psql failed: {result.stderr or result.stdout}")
+        raise PsqlError(f"psql failed: {result.stderr or result.stdout}")
 
     out = result.stdout.strip()
     # Last non-empty line is "UPDATE N"
     last_lines = [line for line in out.splitlines() if line.strip()]
     if not last_lines:
-        raise RuntimeError(f"psql gave no output for UPDATE: {out!r}")
+        raise PsqlError(f"psql gave no output for UPDATE: {out!r}")
     last = last_lines[-1]
     rows = int(last.split()[-1]) if last.upper().startswith("UPDATE") else 0
     if rows == 0:
-        raise RuntimeError(f"UPDATE matched 0 rows — user telegram_id={telegram_id} not found")
+        raise UserNotFoundError(f"UPDATE matched 0 rows — user telegram_id={telegram_id} not found")
     return DeployResult(rows_affected=rows)
 
 
@@ -127,10 +146,10 @@ def fetch_user_state(*, telegram_id: int, cfg: ServerConfig) -> UserServerState:
     )
     result = _psql(cfg, sql)
     if result.returncode != 0:
-        raise RuntimeError(f"psql SELECT failed: {result.stderr or result.stdout}")
+        raise PsqlError(f"psql SELECT failed: {result.stderr or result.stdout}")
     lines = [line for line in result.stdout.strip().splitlines() if line.strip()]
     if not lines:
-        raise RuntimeError(f"User telegram_id={telegram_id} not found in users table")
+        raise UserNotFoundError(f"User telegram_id={telegram_id} not found in users table")
     line = lines[0]
     tid, cohort, pack, prompt_len = line.split("|")
 
