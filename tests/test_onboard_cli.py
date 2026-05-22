@@ -35,6 +35,25 @@ def test_cli_enroll_requires_tid():
     assert result.returncode != 0
 
 
+def test_cli_enroll_missing_persona_args_clean_error(monkeypatch):
+    """--enroll без обязательных persona-полей: чистая ошибка, не traceback."""
+    sys.path.insert(0, str(REPO_ROOT))
+    from scripts import onboard_family_user as cli
+
+    rc = cli.main(["--enroll", "--tid", "999"])
+    assert rc != 0  # non-zero exit code, no traceback
+
+
+def test_short_name_from_full_drops_soft_sign():
+    """Имя на 'ь' не должно генерировать trailing underscore."""
+    sys.path.insert(0, str(REPO_ROOT))
+    from scripts.onboard_family_user import _short_name_from_full
+
+    assert _short_name_from_full("Игорь") == "igor"
+    assert _short_name_from_full("Александр") == "aleksandr"
+    assert _short_name_from_full("Татьяна") == "tatyana"
+
+
 def test_cli_dry_run_unit(monkeypatch, tmp_path):
     """Импортированный CLI в --dry-run не дёргает деструктивные операции."""
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
