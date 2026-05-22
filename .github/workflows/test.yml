@@ -35,6 +35,13 @@ jobs:
       - name: Run pytest
         # tests/integration/ skipped — pre-existing flakes in onboarding_wizard
         # not related to family-user onboarding pipeline. Add back when fixed.
+        # Dummy env vars: project code fails loudly on import if these are
+        # unset. Real values live in .env / 1Password — never in CI.
+        env:
+          TELEGRAM_BOT_TOKEN: "0000000000:CI_DUMMY_TOKEN_NOT_REAL"
+          ANTHROPIC_API_KEY: "sk-ant-ci-dummy-not-real"
+          OPENAI_API_KEY: "sk-ci-dummy-not-real"
+          DATABASE_URL: "sqlite:///:memory:"
         run: pytest tests/ --ignore=tests/integration -v
 
   ruff:
