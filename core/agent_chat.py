@@ -21,7 +21,7 @@ import logging
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 import jwt as pyjwt
 import requests
@@ -205,8 +205,12 @@ TOOLS: list[dict[str, Any]] = [
             "min/max веса и жира с датами), и опционально in_window (рекорды в окне days). "
             "Используй для вопросов 'самый низкий жир за всё время', 'минимальный вес', "
             "'как изменился жир за полгода', 'когда был в лучшей форме'. "
-            "ВАЖНО: возвращает агрегаты (экстремумы + даты), а не сырой список из "
-            "сотен записей. Если нужна динамика по дням — это отдельный tool (пока нет)."
+            "\n\n"
+            "Параметр `series=true` ДОБАВЛЯЕТ поле `points` с массивом всех "
+            "ежедневных замеров {date, weight_kg, body_fat_pct} в окне. "
+            "Используй когда собираешься рисовать график (render_chart / "
+            "render_report). БЕЗ series ответ короткий — это нормально для "
+            "текстовых вопросов."
         ),
         "input_schema": {
             "type": "object",
@@ -215,8 +219,13 @@ TOOLS: list[dict[str, Any]] = [
                     "type": "integer",
                     "minimum": 7,
                     "maximum": 365,
-                    "description": "Опционально: окно в днях для дополнительных in_window-агрегатов. Без параметра — только all_time.",
-                }
+                    "description": "Окно в днях. Без параметра — only all_time.",
+                },
+                "series": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "Вернуть все точки в `points` для рисования графика. Дефолт false.",
+                },
             },
         },
     },
@@ -408,6 +417,83 @@ TOOLS: list[dict[str, Any]] = [
             "required": ["supplement_name"],
         },
     },
+    {
+        "name": "render_chart",
+        "description": (
+            "Универсальный рендер графика через QuickChart → Telegram. Для всего что "
+            "не покрывает render_report (тот быстрее для типовых случаев).\n\n"
+            "КОГДА: «нарисуй», «график», «инфографика», «сравни X и Y», «корреляция».\n\n"
+            "ФОРМАТ spec — Chart.js v4. Пиши МИНИМАЛЬНО, только данные и тип; "
+            "стиль (цвета, шрифты, легенду, сетку, размеры) сервер ставит сам "
+            "из Botkin-палитры. НЕ заполняй borderColor / backgroundColor / "
+            "tension / pointRadius — сервер заполнит. Заполняй ТОЛЬКО:\n"
+            "  • type ('line'|'bar'|'scatter'|'doughnut'|'pie'|'radar'|'polarArea')\n"
+            "  • data.labels, data.datasets[].label, data.datasets[].data\n"
+            "  • options.plugins.title.text — заголовок графика (обязательно)\n"
+            "  • options.scales — только если нужны нестандартные оси (multi-axis: yAxisID на datasets + scales.y/y1)\n\n"
+            "Минимальный пример:\n"
+            "{type:'line', data:{labels:['янв','фев','мар'], datasets:[{label:'Вес', data:[82,81,80]}]}, "
+            "options:{plugins:{title:{text:'Вес за квартал'}}}}\n\n"
+            "Кириллица в labels/title работает нормально. После render — короткий "
+            "комментарий (1-3 предложения), не пересказывай содержимое картинки."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "chart": {
+                    "type": "object",
+                    "description": "Chart.js v4 config: {type, data, options}",
+                },
+                "caption": {
+                    "type": "string",
+                    "description": "Подпись под фото в Telegram (1 строка, без markdown).",
+                },
+                "width": {"type": "integer", "default": 600, "minimum": 200, "maximum": 1600},
+                "height": {"type": "integer", "default": 400, "minimum": 200, "maximum": 1200},
+            },
+            "required": ["chart"],
+        },
+    },
+    {
+        "name": "render_report",
+        "description": (
+            "Сгенерировать и ОТПРАВИТЬ юзеру в Telegram PNG-инфографику. "
+            "Tool сам делает sendPhoto — тебе НЕ надо ничего возвращать в тексте, "
+            "Telegram уже получил картинку к моменту когда ты увидишь результат. "
+            "После использования напиши КОРОТКИЙ комментарий-резюме к картинке "
+            "(2-4 предложения), не пытайся пересказать всё что на ней. "
+            "\n\n"
+            "КОГДА ИСПОЛЬЗОВАТЬ: ВМЕСТО рисования markdown-таблицы с динамикой "
+            "лабораторных значений. Триггеры: «динамика анализов», «разбери "
+            "анализы», «график X», «нарисуй», «как менялся X», «покажи отчёт», "
+            "«инфографика», «сделай разбор для врача». "
+            "\n\n"
+            "Два режима:\n"
+            "  • report_type='biomarker_dynamics' (DEFAULT) — общая панель 2×3 "
+            "    с 6 ключевыми маркерами (липиды + метаболизм + печень и т.п.). "
+            "    Зови когда юзер просит общую картину / разбор / для врача.\n"
+            "  • report_type='single_biomarker' + marker='<имя>' — большой график "
+            "    одного маркера. Зови когда юзер спрашивает про конкретный "
+            "    показатель: «график витамина Д», «как менялся ЛПНП», «динамика "
+            "    глюкозы». Параметр marker принимает русские названия (витамин Д, "
+            "    глюкоза, ЛПНП, холестерин, гликированный, ферритин, тестостерон) "
+            "    и латинские (LDL, HDL, HbA1c, ALT, TSH, vitamin_d, и т.п.)."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "report_type": {
+                    "type": "string",
+                    "enum": ["biomarker_dynamics", "single_biomarker"],
+                    "default": "biomarker_dynamics",
+                },
+                "marker": {
+                    "type": "string",
+                    "description": ("Имя биомаркера для режима single_biomarker. Игнорируется для biomarker_dynamics."),
+                },
+            },
+        },
+    },
 ]
 
 # ---------------------------------------------------------------------------
@@ -523,6 +609,8 @@ def _call_tool(name: str, args: dict, token: str) -> str:
             params: dict[str, Any] = {}
             if "days" in args and args["days"] is not None:
                 params["days"] = int(args["days"])
+            if args.get("series"):
+                params["series"] = "true"
             r = requests.get(
                 f"{TOOLS_API_BASE}/weight_history",
                 params=params,
@@ -579,6 +667,32 @@ def _call_tool(name: str, args: dict, token: str) -> str:
             r = requests.post(f"{TOOLS_API_BASE}/log_bp", json=args, headers=headers, timeout=10)
         elif name == "log_supplement":
             r = requests.post(f"{TOOLS_API_BASE}/log_supplement", json=args, headers=headers, timeout=10)
+        elif name == "render_report":
+            # Side-effect tool — генерит PNG и шлёт юзеру sendPhoto.
+            # Возвращает только статус (не саму картинку), чтобы агент
+            # дальше отвечал коротким текстом-комментарием к картинке.
+            payload = {"report_type": args.get("report_type", "biomarker_dynamics")}
+            if "marker" in args:
+                payload["marker"] = args["marker"]
+            r = requests.post(
+                f"{TOOLS_API_BASE}/render_report",
+                json=payload,
+                headers=headers,
+                timeout=30,
+            )
+        elif name == "render_chart":
+            # Универсальный рендер через QuickChart.io. Side-effect — sendPhoto.
+            r = requests.post(
+                f"{TOOLS_API_BASE}/render_chart",
+                json={
+                    "chart": args.get("chart") or {},
+                    "caption": args.get("caption"),
+                    "width": args.get("width", 600),
+                    "height": args.get("height", 400),
+                },
+                headers=headers,
+                timeout=30,
+            )
         else:
             return json.dumps({"error": f"unknown tool: {name}"})
 
@@ -819,7 +933,47 @@ def log_router_raw_text(user_id: int, raw_text: str, msg_type: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-def ask_agent(user_id: int, user_text: str) -> str:
+# Маппинг tool name → короткая фраза для прогресс-индикатора (UI бот'a).
+# Идея: пользователь видит «🎨 рисую график...» вместо 18-секундной тишины.
+# Если tool здесь нет — фоллбэк на просто «📡 запрос данных».
+_TOOL_PROGRESS_LABEL = {
+    # Read tools
+    "get_recent_meals": "🍽 собираю питание",
+    "get_recent_supplements": "💊 смотрю добавки",
+    "get_recent_bp": "🩸 поднимаю давление",
+    "get_recent_sleep": "😴 проверяю сон",
+    "get_recent_trends": "📊 собираю динамику",
+    "get_recent_workouts": "🏃 поднимаю тренировки",
+    "get_recent_biomarkers": "🧪 смотрю анализы",
+    "get_kb_value": "📋 ищу в карте здоровья",
+    "get_weight_history": "⚖️ собираю историю веса",
+    "get_body_measurements": "📏 проверяю замеры",
+    "get_dashboard_summary": "📊 свожу метрики",
+    "get_user_profile": "👤 читаю профиль",
+    "get_user_settings": "⚙️ читаю настройки",
+    "get_indoor_air": "🏠 проверяю воздух",
+    "get_outdoor_weather": "🌤 смотрю погоду",
+    "get_phenoage": "🧬 считаю PhenoAge",
+    "get_day_summary": "📅 свожу день",
+    "get_profile_questionnaire": "📝 читаю анкету",
+    # Write tools
+    "log_meal_text": "✍️ записываю еду",
+    "log_supplement": "✍️ отмечаю добавку",
+    "log_bp": "✍️ записываю давление",
+    "regenerate_health_token": "🔑 пересоздаю токен",
+    "update_profile_questionnaire": "📝 обновляю анкету",
+    "update_user_settings": "⚙️ обновляю настройки",
+    # Render tools
+    "render_report": "🎨 рисую график",
+    "render_chart": "🎨 рисую график",
+}
+
+
+def ask_agent(
+    user_id: int,
+    user_text: str,
+    progress_cb: Optional[Callable[[str], None]] = None,
+) -> str:
     """Synchronous — call from `run_in_executor`.
 
     Returns assistant's text reply. Empty string if nothing produced.
@@ -841,6 +995,14 @@ def ask_agent(user_id: int, user_text: str) -> str:
             )
 
         token = _generate_jwt(user)
+
+        # Прогресс «думаю» сразу после провижна — пользователь видит что бот
+        # начал работать ещё ДО первого Claude-вызова (~3-5 сек).
+        if progress_cb:
+            try:
+                progress_cb("🤔 думаю")
+            except Exception:
+                logger.exception("progress_cb start failed")
 
         # Build messages: history + new user turn
         history = _load_history(db, user_id)
@@ -889,14 +1051,31 @@ def ask_agent(user_id: int, user_text: str) -> str:
                 iteration,
                 len(history),
             )
-            r = requests.post(ANTHROPIC_API_URL, headers=request_headers, json=payload, timeout=60)
+            # Helper: ретрай на overload-коды Anthropic (529 Overloaded, 503 Service Unavailable,
+            # 429 Rate Limited). API сам рекомендует exponential backoff.
+            import time as _time
+
+            def _post_with_overload_retry(p):
+                for attempt in range(3):
+                    resp = requests.post(ANTHROPIC_API_URL, headers=request_headers, json=p, timeout=60)
+                    if resp.status_code in (429, 503, 529) and attempt < 2:
+                        delay = 2**attempt  # 1s, 2s, 4s
+                        logger.warning(
+                            "Anthropic %d on attempt %d/3, sleeping %ds: %s",
+                            resp.status_code,
+                            attempt + 1,
+                            delay,
+                            resp.text[:200],
+                        )
+                        _time.sleep(delay)
+                        continue
+                    return resp
+                return resp  # type: ignore[possibly-undefined]
+
+            r = _post_with_overload_retry(payload)
             # Anthropic returns 400 when message history has structural issues
             # (e.g. tool_use block without matching tool_result from a previous
-            # turn). This can happen if a row was deleted, the DB had a partial
-            # write, or older history was corrupted by an earlier bug. Recover
-            # by retrying with a clean slate (just system + new user turn),
-            # marking the broken history so the user understands context was
-            # dropped.
+            # turn). Recover by retrying with a clean slate.
             if r.status_code == 400 and iteration == 0 and len(history) > 1:
                 err_body = r.text[:500]
                 logger.warning(
@@ -904,10 +1083,9 @@ def ask_agent(user_id: int, user_text: str) -> str:
                     len(history),
                     err_body,
                 )
-                # Reset to just the new user message
                 history = [{"role": "user", "content": user_text}]
                 payload["messages"] = history
-                r = requests.post(ANTHROPIC_API_URL, headers=request_headers, json=payload, timeout=60)
+                r = _post_with_overload_retry(payload)
             r.raise_for_status()
             response = r.json()
 
@@ -931,6 +1109,22 @@ def ask_agent(user_id: int, user_text: str) -> str:
                 # Record assistant turn (text + tool_use blocks)
                 _save_message(db, user_id, "assistant", blocks)
                 history.append({"role": "assistant", "content": blocks})
+
+                # Прогресс по tools этого turn'a. Если в одном turn модель
+                # просит несколько tools (типично — get_weight + get_trends)
+                # — берём label первого render-tool если он есть, иначе
+                # первого read/write tool. render имеет приоритет потому что
+                # это самая «зрелищная» операция.
+                if progress_cb:
+                    tool_names = [b["name"] for b in blocks if b.get("type") == "tool_use"]
+                    render_tools = [n for n in tool_names if n in ("render_chart", "render_report")]
+                    pick = render_tools[0] if render_tools else (tool_names[0] if tool_names else None)
+                    if pick:
+                        label = _TOOL_PROGRESS_LABEL.get(pick, "📡 запрос данных")
+                        try:
+                            progress_cb(label)
+                        except Exception:
+                            logger.exception("progress_cb tool failed")
 
                 # Execute each tool_use, collect tool_result blocks
                 tool_results: list[dict] = []
