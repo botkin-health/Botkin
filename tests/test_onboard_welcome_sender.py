@@ -37,6 +37,14 @@ def test_send_welcome_calls_telegram_api(monkeypatch):
     assert kwargs["json"]["text"] == "hello"
 
 
+def test_send_welcome_raises_when_token_missing(monkeypatch):
+    """Если TELEGRAM_BOT_TOKEN не установлен — RuntimeError, не silent fail."""
+    monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+    with pytest.raises(RuntimeError) as exc:
+        send_welcome(chat_id=999, text="hello")
+    assert "TELEGRAM_BOT_TOKEN" in str(exc.value)
+
+
 def test_send_welcome_raises_on_api_error(monkeypatch):
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "test-token")
     fake_response = MagicMock(status_code=400)
