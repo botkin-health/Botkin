@@ -82,8 +82,28 @@ TOOLS: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "list_kb_keys",
+        "description": (
+            "Список реальных топ-уровневых ключей knowledge_base ЭТОГО пользователя "
+            "(у разных людей схемы расходятся: у кого-то `echocardiogram`/`current_medications`, "
+            "у кого-то `mrt`/`tumor_markers`, у кого-то `cardio`/`endoscopy`). "
+            "ВСЕГДА зови это первым, если юзер спрашивает про специфичный вид обследования "
+            "(ЭхоКГ, холтер, МРТ, КТ, операции, текущие препараты, диагнозы) и ты не уверен "
+            "под каким именно ключом эти данные лежат. Для каждого ключа возвращает "
+            "type (list/dict) и count — видно есть ли там данные или секция пустая."
+        ),
+        "input_schema": {"type": "object", "properties": {}},
+    },
+    {
         "name": "get_kb_value",
-        "description": "Значение из knowledge base по ключу. Распространённые ключи: 'blood_tests', 'hormones', 'vitamins', 'blood_pressure_history', 'weight_history', 'allergies'.",
+        "description": (
+            "Значение из knowledge base по ключу (поддерживает dot-notation, например "
+            "'blood_tests.0.values.cholesterol'). Распространённые ключи: 'blood_tests', "
+            "'hormones', 'vitamins', 'ultrasound', 'ecg', 'echocardiogram', 'holter_ecg', "
+            "'current_medications', 'medications', 'chronic_diagnoses', 'diagnoses', "
+            "'operations', 'imaging', 'mrt', 'endoscopy', 'cardio'. ВАЖНО: если не уверен "
+            "какой именно ключ есть у этого юзера — сначала позови `list_kb_keys`."
+        ),
         "input_schema": {
             "type": "object",
             "properties": {"key": {"type": "string"}},
@@ -558,6 +578,12 @@ def _call_tool(name: str, args: dict, token: str) -> str:
                 headers=headers,
                 timeout=15,
             )
+        elif name == "list_kb_keys":
+            r = requests.get(
+                f"{TOOLS_API_BASE}/list_kb_keys",
+                headers=headers,
+                timeout=10,
+            )
         elif name == "get_kb_value":
             r = requests.get(
                 f"{TOOLS_API_BASE}/kb_value",
@@ -950,6 +976,7 @@ _TOOL_PROGRESS_LABEL = {
     "get_recent_workouts": "🏃 поднимаю тренировки",
     "get_recent_biomarkers": "🧪 смотрю анализы",
     "get_kb_value": "📋 ищу в карте здоровья",
+    "list_kb_keys": "🗂 смотрю что есть в карте",
     "get_weight_history": "⚖️ собираю историю веса",
     "get_body_measurements": "📏 проверяю замеры",
     "get_dashboard_summary": "📊 свожу метрики",
