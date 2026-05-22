@@ -124,3 +124,31 @@ def test_generate_persona_fallback_on_overload(sample_input, monkeypatch):
     last_payload = mock_post.call_args_list[-1].kwargs["json"]
     assert last_payload["model"] == "claude-sonnet-4-5"
     assert blocks.framing == "x"
+
+
+def test_generate_persona_invalid_json_raises(sample_input, monkeypatch):
+    """Если Claude вернул мусор вместо JSON — RuntimeError с raw text в сообщении."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    fake_response = MagicMock(status_code=200)
+    fake_response.json.return_value = {"content": [{"type": "text", "text": "this is not json at all"}]}
+    with patch("scripts.onboard.persona_generator.requests.post", return_value=fake_response):
+        with pytest.raises(RuntimeError) as exc:
+            generate_persona(sample_input)
+    assert "JSON" in str(exc.value) or "json" in str(exc.value)
+    # Должен включать raw text для дебага
+    assert "not json" in str(exc.value)
+
+
+def test_generate_persona_missing_keys_raises(sample_input, monkeypatch):
+    """Если в JSON нет каких-то required полей — RuntimeError со списком отсутствующих."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    fake_response = MagicMock(status_code=200)
+    fake_response.json.return_value = {
+        "content": [{"type": "text", "text": json.dumps({"framing": "x"})}]  # 5 keys missing
+    }
+    with patch("scripts.onboard.persona_generator.requests.post", return_value=fake_response):
+        with pytest.raises(RuntimeError) as exc:
+            generate_persona(sample_input)
+    assert "missing" in str(exc.value).lower()
+    # Должен перечислить отсутствующие ключи
+    assert "chronic" in str(exc.value)
