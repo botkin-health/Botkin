@@ -2,7 +2,7 @@
 
 import pytest
 
-from core.packs import PACKS, get_pack
+from core.packs import PACKS, Pack, get_pack
 
 
 def test_pack_is_frozen_dataclass():
@@ -31,6 +31,7 @@ def test_respiratory_allergic_pack_shape():
     assert "tick_antibodies" in p.focus_areas
     assert "vitamin_d_trend" in p.dashboard_blocks
     assert "allergy_history" in p.dashboard_blocks
+    assert isinstance(p, Pack)
 
 
 def test_get_pack_unknown_raises():
