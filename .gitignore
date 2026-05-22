@@ -107,3 +107,6 @@ docs/ONBOARDING*.md
 
 # Obsidian editor config (not project content)
 .obsidian/
+
+# git worktrees
+.worktrees/
