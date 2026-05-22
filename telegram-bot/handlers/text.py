@@ -708,39 +708,96 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             # о причинах выбора в пользу in-process подхода вместо NanoClaw.
             try:
                 from core.agent_chat import ask_agent
-                from core.tg_markdown import md_to_html
+                from core.tg_markdown import md_to_html, split_markdown_for_telegram
 
+                # Прогресс-индикатор: реальное сообщение которое edit'им из
+                # progress_cb по ходу. Без него юзер видит 12-18 сек тишины.
+                progress_msg = await message.answer("⏳ принял...")
                 loop = asyncio.get_running_loop()
-                reply = await loop.run_in_executor(None, ask_agent, int(user_id), text)
+
+                # Дроссель: Telegram режет editMessageText >1/сек по chat_id
+                # с погрешностью. Не больше 1 edit в 800мс — иначе словим 429.
+                import time as _time
+
+                _last_edit = {"t": 0.0, "text": ""}
+
+                def _progress(label: str) -> None:
+                    now = _time.monotonic()
+                    if now - _last_edit["t"] < 0.8:
+                        return
+                    if label == _last_edit["text"]:
+                        return
+                    _last_edit["t"] = now
+                    _last_edit["text"] = label
+                    # edit_message_text — синхронный вызов из run_in_executor
+                    # потока. Используем bot из контекста message.
+                    try:
+                        import asyncio as _asyncio
+
+                        coro = message.bot.edit_message_text(
+                            chat_id=progress_msg.chat.id,
+                            message_id=progress_msg.message_id,
+                            text=f"⏳ {label}…",
+                        )
+                        # Кидаем в event loop основного потока (мы в executor)
+                        _asyncio.run_coroutine_threadsafe(coro, loop)
+                    except Exception as _e:
+                        debug_logger.warning(f"progress edit failed: {_e}")
+
+                reply = await loop.run_in_executor(None, ask_agent, int(user_id), text, _progress)
                 if not reply:
                     reply = "Хм, у меня нет внятного ответа. Попробуй переформулировать."
-                # Telegram has 4096-char limit per message
-                if len(reply) > 4000:
-                    reply = reply[:3990] + "…"
-                # Claude отдаёт markdown — конвертируем в Telegram HTML
-                # чтобы **жирный** и `##` рендерились, а не показывались
-                # как сырые символы.
-                reply_html = md_to_html(reply)
-                try:
-                    await processing_msg.edit_text(reply_html, parse_mode="HTML")
-                except Exception as html_err:
-                    # На случай если парсер Telegram спотыкается о наш HTML
-                    # (нестандартные эмодзи, незакрытые теги) — отдаём как plain.
-                    debug_logger.warning(f"HTML render failed ({html_err}); falling back to plain")
-                    await processing_msg.edit_text(reply)
+
+                # Финальный ответ кладём в плейсхолдер (первый чанк edit'ом,
+                # остальные новыми сообщениями).
+                chunks = split_markdown_for_telegram(reply)
+
+                async def _send_chunk(chunk: str, edit_target=None):
+                    chunk_html = md_to_html(chunk)
+                    try:
+                        if edit_target is not None:
+                            await message.bot.edit_message_text(
+                                chat_id=edit_target.chat.id,
+                                message_id=edit_target.message_id,
+                                text=chunk_html,
+                                parse_mode="HTML",
+                            )
+                        else:
+                            await message.answer(chunk_html, parse_mode="HTML")
+                    except Exception as html_err:
+                        debug_logger.warning(f"HTML render failed ({html_err}); falling back to plain")
+                        if edit_target is not None:
+                            await message.bot.edit_message_text(
+                                chat_id=edit_target.chat.id,
+                                message_id=edit_target.message_id,
+                                text=chunk,
+                            )
+                        else:
+                            await message.answer(chunk)
+
+                for i, chunk in enumerate(chunks):
+                    await _send_chunk(chunk, edit_target=progress_msg if i == 0 else None)
             except RuntimeError as e:
                 # Common: user has no agent_system_prompt → conversational
                 # mode not enabled for them yet. Fall back to canned reply.
                 if "agent_system_prompt" in str(e):
                     debug_logger.info(f"agent_chat skipped: {e}")
                     fallback = data.get("reply", "Не понял запрос.")
-                    await processing_msg.edit_text(html.escape(fallback))
+                    await message.answer(html.escape(fallback))
                 else:
                     debug_logger.error(f"agent_chat failed: {e}", exc_info=True)
-                    await processing_msg.edit_text("🤖 Разговорный агент временно недоступен. Попробуй через минуту.")
+                    await message.answer("🤖 Разговорный агент временно недоступен. Попробуй через минуту.")
             except Exception as e:
                 debug_logger.error(f"agent_chat exception: {e}", exc_info=True)
-                await processing_msg.edit_text("🤖 Что-то сломалось при ответе. Попробуй ещё раз.")
+                err_str = str(e).lower()
+                if any(code in err_str for code in ("529", "503", "overloaded", "rate")):
+                    await message.answer(
+                        "⏳ AI-провайдер сейчас перегружен. Попробуй через минуту — данные не пропали."
+                    )
+                elif "429" in err_str:
+                    await message.answer("⏳ Слишком много запросов подряд. Подожди пару минут.")
+                else:
+                    await message.answer("🤖 Что-то сломалось при ответе. Попробуй ещё раз.")
             return
 
         elif msg_type == "vitamins":
