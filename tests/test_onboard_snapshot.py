@@ -1,7 +1,7 @@
 """Тесты snapshot helper'а — фиксации состояния юзера до изменений."""
 
 import json
-
+import time
 
 from scripts.onboard.snapshot import (
     UserSnapshot,
@@ -35,8 +35,6 @@ def test_load_latest_picks_most_recent(tmp_path):
 
     save_snapshot(snap_a, snapshots_dir=tmp_path)
     # симуляция времени — пишем второй с явно более поздним именем
-    import time
-
     time.sleep(0.01)
     save_snapshot(snap_b, snapshots_dir=tmp_path)
 
@@ -46,4 +44,7 @@ def test_load_latest_picks_most_recent(tmp_path):
 
 
 def test_load_latest_returns_none_when_missing(tmp_path):
+    # Branch 1: dir exists but contains no matching snapshot files
     assert load_latest_snapshot(telegram_id=12345, snapshots_dir=tmp_path) is None
+    # Branch 2: dir does not exist at all (the `if not exists: return None` guard)
+    assert load_latest_snapshot(telegram_id=12345, snapshots_dir=tmp_path / "subdir") is None
