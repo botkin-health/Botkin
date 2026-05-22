@@ -38,10 +38,13 @@ jobs:
         # Dummy env vars: project code fails loudly on import if these are
         # unset. Real values live in .env / 1Password — never in CI.
         env:
+          # Project fails loudly at import if these are unset. Dummies — never
+          # real values. DATABASE_URL deliberately omitted: default postgres
+          # URL is used (engine creation is lazy — never connects in tests);
+          # conftest.py creates its own in-memory SQLite via fixtures.
           TELEGRAM_BOT_TOKEN: "0000000000:CI_DUMMY_TOKEN_NOT_REAL"
           ANTHROPIC_API_KEY: "sk-ant-ci-dummy-not-real"
           OPENAI_API_KEY: "sk-ci-dummy-not-real"
-          DATABASE_URL: "sqlite:///:memory:"
         run: pytest tests/ --ignore=tests/integration -v
 
   ruff:
