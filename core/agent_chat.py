@@ -44,6 +44,10 @@ ANTHROPIC_VERSION = "2023-06-01"
 # Sonnet 4.6 — последняя Sonnet (вышла после Sonnet 4.5 которая использовалась
 # в NanoClaw). Та же цена ($3/MT input, $15/MT output), лучше reasoning + tool use.
 MODEL = "claude-sonnet-4-6"
+# Fallback на 4.5 если 4.6 вернул 529/503/429 несмотря на ретраи.
+# Та же цена, отдельный compute pool у Anthropic → обычно свободнее когда
+# 4.6 перегружен. Качество ответа чуть хуже, но это разменивается на доступность.
+FALLBACK_MODEL = "claude-sonnet-4-5"
 MAX_TOKENS = 2000
 MAX_TOOL_ITERATIONS = 6  # safety net against tool loops
 HISTORY_WINDOW = 20  # last N messages from agent_conversations
@@ -1056,21 +1060,35 @@ def ask_agent(
             import time as _time
 
             def _post_with_overload_retry(p):
+                # 3 попытки на основной модели с 1s/2s/4s паузами
+                resp = None
                 for attempt in range(3):
                     resp = requests.post(ANTHROPIC_API_URL, headers=request_headers, json=p, timeout=60)
-                    if resp.status_code in (429, 503, 529) and attempt < 2:
-                        delay = 2**attempt  # 1s, 2s, 4s
+                    if resp.status_code not in (429, 503, 529):
+                        return resp
+                    if attempt < 2:
+                        delay = 2**attempt
                         logger.warning(
-                            "Anthropic %d on attempt %d/3, sleeping %ds: %s",
+                            "Anthropic %d on %s attempt %d/3, sleeping %ds: %s",
                             resp.status_code,
+                            p.get("model", MODEL),
                             attempt + 1,
                             delay,
                             resp.text[:200],
                         )
                         _time.sleep(delay)
-                        continue
-                    return resp
-                return resp  # type: ignore[possibly-undefined]
+                # Все 3 ретрая упали с overload → fallback на 4.5
+                # (другой compute pool у Anthropic — часто свободнее когда 4.6 перегружен)
+                if p.get("model") != FALLBACK_MODEL:
+                    logger.warning(
+                        "Anthropic %d on %s after 3 retries — fallback to %s",
+                        resp.status_code,
+                        p.get("model", MODEL),
+                        FALLBACK_MODEL,
+                    )
+                    p = {**p, "model": FALLBACK_MODEL}
+                    resp = requests.post(ANTHROPIC_API_URL, headers=request_headers, json=p, timeout=60)
+                return resp
 
             r = _post_with_overload_retry(payload)
             # Anthropic returns 400 when message history has structural issues
