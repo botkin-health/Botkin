@@ -153,7 +153,20 @@ def generate_persona(inp: PersonaInput) -> PersonaBlocks:
             raw_text = raw_text[4:]
         raw_text = raw_text.rsplit("```", 1)[0].strip()
 
-    data = json.loads(raw_text)
+    try:
+        data = json.loads(raw_text)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(
+            f"Failed to parse LLM response as JSON: {exc}. Raw text (first 300 chars): {raw_text[:300]!r}"
+        ) from exc
+
+    required = ("framing", "chronic", "open_questions", "therapy", "focus_areas", "typical_questions")
+    missing = [k for k in required if k not in data]
+    if missing:
+        raise RuntimeError(
+            f"LLM response missing required keys: {missing}. "
+            f"Got keys: {sorted(data.keys())}. Raw (first 300): {raw_text[:300]!r}"
+        )
     return PersonaBlocks(
         framing=data["framing"],
         chronic=data["chronic"],
