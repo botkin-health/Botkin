@@ -60,3 +60,29 @@ def test_kb_invalid_json_raises(tmp_path):
 def test_kb_missing_file_raises(tmp_path):
     with pytest.raises(FileNotFoundError):
         validate_kb(tmp_path / "nonexistent.json")
+
+
+def test_kb_blood_tests_not_a_list_raises(tmp_path):
+    """KB schema: blood_tests must be a list, not a dict."""
+    kb = {"blood_tests": {"date": "2025-05-08", "values": {"vitamin_d": 35}}}
+    p = _write_kb(tmp_path, kb)
+    with pytest.raises(KbValidationError) as exc:
+        validate_kb(p)
+    assert "blood_tests" in str(exc.value)
+    assert "list" in str(exc.value).lower()
+
+
+def test_kb_with_both_markers_and_values_passes(tmp_path):
+    """Транзитивная миграция: запись с ОБОИМИ полями разрешена."""
+    kb = {
+        "blood_tests": [
+            {
+                "date": "2025-05-08",
+                "markers": {"vitamin_d": 35.4},  # legacy
+                "values": {"vitamin_d": 35.4},  # new standard
+            }
+        ]
+    }
+    p = _write_kb(tmp_path, kb)
+    summary = validate_kb(p)
+    assert summary.blood_tests_count == 1
