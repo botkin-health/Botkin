@@ -29,7 +29,7 @@ ANTHROPIC_VERSION = "2023-06-01"
 MODEL = "claude-sonnet-4-6"
 FALLBACK_MODEL = "claude-sonnet-4-5"
 MAX_TOKENS = 4000
-REQUEST_TIMEOUT = 60
+REQUEST_TIMEOUT = 180  # 6 blocks of structured Russian Markdown can take 60-120s for large KBs
 QUICK_RETRY_SLEEP = 0.7
 
 
