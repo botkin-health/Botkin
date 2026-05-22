@@ -7,6 +7,29 @@
 
 ---
 
+## 2026-05-21 — PNG-инфографика «Динамика биомаркеров»
+
+Markdown-таблицы в Telegram читаются плохо (моноширинный не везде, узкие экраны ломают выравнивание). Решение: новый tool `render_report` который генерит matplotlib-картинку 2×3 small-multiples по 6 ключевым биомаркерам (глюкоза/гемоглобин/холестерин/креатинин/АЛТ/гематокрит и т.п.) с линиями, точками и зоной нормы — отправляет sendPhoto от имени `@Botkin_md_bot`.
+
+- `core/reports/biomarker_dynamics.py` — рендерер, читает per-user KB, выбирает до 6 маркеров с ≥2 наблюдениями по приоритету.
+- POST `/api/agent/render_report` ([agent_tools_api.py](telegram-bot/webhook/agent_tools_api.py)) — JWT-isolated endpoint, делает sendPhoto и возвращает агенту короткий статус (агент комментирует картинку текстом).
+- Tool описан в `TOOLS` массиве `core/agent_chat.py` с явной инструкцией «вместо markdown-таблицы».
+- `requirements.txt`: добавлен matplotlib>=3.8 (на проде установлен в running container).
+- `docker-compose.prod.yml`: bind-mounts для `kb_<id>.json` чтобы файлы не терялись при пересборке (раньше docker cp пропадал).
+
+E2E: запрос «покажи инфографикой динамику моих биомаркеров» к BotkinClaw от user_id=33831673 → агент дёргает render_report → Telegram получает PNG → агент отвечает 4 предложениями с фокусом на главное (рост глюкозы, снижение холестерина).
+
+## 2026-05-21 — Длинные ответы BotkinClaw: чанкование под лимит Telegram
+
+После markdown→HTML текст может превышать 4096-символьный лимит Telegram (теги дают expansion). Раньше отваливалось с `message is too long`, фоллбэк на plain снимал жирные/заголовки.
+
+- `core.tg_markdown.split_markdown_for_telegram(text, max_chunk=3500)` — рубит по \\n\\n → \\n → `. ` → hard cut, не режет внутри ```код```.
+- `handlers/text.py`: каждый чанк рендерится HTML отдельно, fallback на plain — только для конкретного чанка.
+
+## 2026-05-21 — KB для папы подключён
+
+Файл `kb_33831673.json` (41 КБ) был на хосте `/opt/healthvault/`, но не в контейнере. Пофикшено через bind-mount в `docker-compose.prod.yml`. Tool `get_kb_value` для папы теперь возвращает реальные данные.
+
 ## 2026-05-21 — Product-review pipeline: consent, raw-text log, ночной /review skill
 
 Замысел: уметь раз в N дней (ночью) пройтись по переписке пользователей с Botkin

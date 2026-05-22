@@ -166,6 +166,57 @@ def _apply_blocks(text: str) -> str:
 # ---------------------------------------------------------------------------
 
 
+# Telegram message hard-limit = 4096 байт. После markdown→HTML текст может
+# подрасти (escape `<>&`, обёртки тегов в заголовках). Берём запас:
+# 3500 байт markdown → ≤ ~4000 байт HTML в реалистичных случаях.
+TELEGRAM_SAFE_CHUNK = 3500
+
+
+def split_markdown_for_telegram(text: str, max_chunk: int = TELEGRAM_SAFE_CHUNK) -> list[str]:
+    """Разбить markdown-текст на куски, безопасные для одного Telegram-сообщения.
+
+    Приоритет точек разреза:
+      1. Двойной перевод строки (\\n\\n — абзац).
+      2. Одинарный перевод строки.
+      3. Точка с пробелом (граница предложения).
+      4. Жёсткий обрыв по `max_chunk`.
+
+    Гарантия: НЕ режем внутри ```код```. Если внутри окна нечётное число
+    ограничителей — расширяем окно до закрывающей тройной кавычки.
+    """
+    if not text or len(text) <= max_chunk:
+        return [text] if text else []
+
+    chunks: list[str] = []
+    remaining = text
+    min_split = max_chunk // 2  # не режем слишком близко к началу окна
+
+    while len(remaining) > max_chunk:
+        window_end = max_chunk
+        # Внутри открытого ```код``` — продлеваем окно до его закрытия.
+        if remaining[:window_end].count("```") % 2 == 1:
+            close = remaining.find("```", window_end)
+            if close >= 0:
+                window_end = close + 3
+        window = remaining[:window_end]
+
+        split_at = window.rfind("\n\n")
+        if split_at < min_split:
+            split_at = window.rfind("\n")
+        if split_at < min_split:
+            sentence = window.rfind(". ")
+            split_at = sentence + 1 if sentence >= min_split else -1
+        if split_at < min_split:
+            split_at = window_end  # hard cut
+
+        chunks.append(remaining[:split_at].rstrip())
+        remaining = remaining[split_at:].lstrip()
+
+    if remaining:
+        chunks.append(remaining)
+    return chunks
+
+
 def md_to_html(text: str) -> str:
     """Convert a subset of Markdown → Telegram HTML.
 
