@@ -7,6 +7,10 @@
 
 ---
 
+## 2026-05-22 — Igor onboarding to BotkinClaw + reusable family-user pipeline
+
+- **Igor onboarding to BotkinClaw + reusable family-user pipeline.** Подключён Игорь Лысковский (telegram_id 830908046) как family/respiratory_allergic. Создан `scripts/onboard_family_user.py` с командами enroll/refresh-kb/refresh-prompt/unenroll, поддержкой dry-run, атомарным scp+psql с rollback'ом, post-upload JSON-валидацией. Реестр packs вынесен в `core/packs.py` как декларативный `@dataclass(frozen=True)`. Шаблон промпта `scripts/server/agent_prompts/templates/family_active_coach.md` с `string.Template`-плейсхолдерами + LLM-генерация 6 структурированных блоков через claude-sonnet-4-6 (fallback на 4-5). Дизайн: [docs/superpowers/specs/2026-05-22-igor-botkin-onboarding-design.md](../superpowers/specs/2026-05-22-igor-botkin-onboarding-design.md), план: [docs/superpowers/plans/2026-05-22-igor-botkin-onboarding.md](../superpowers/plans/2026-05-22-igor-botkin-onboarding.md), runbook: [docs/operations/onboard-family-user.md](../operations/onboard-family-user.md). Следующее применение — подключение мамы (Валерия Лысковская) тем же скриптом.
+
 ## 2026-05-21 — PNG-инфографика «Динамика биомаркеров»
 
 Markdown-таблицы в Telegram читаются плохо (моноширинный не везде, узкие экраны ломают выравнивание). Решение: новый tool `render_report` который генерит matplotlib-картинку 2×3 small-multiples по 6 ключевым биомаркерам (глюкоза/гемоглобин/холестерин/креатинин/АЛТ/гематокрит и т.п.) с линиями, точками и зоной нормы — отправляет sendPhoto от имени `@Botkin_md_bot`.
