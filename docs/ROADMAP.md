@@ -51,7 +51,7 @@
 - [ ] **BotkinClaw-агенты для всей семьи** — per-user `agent_system_prompt` для papa / mama / Nika. (Старый план в NanoClaw-проекте устарел — см. ADR-0002.)
 - [x] ~~**NanoClaw v0.2: write-tools**~~ — Отменено вместе с NanoClaw. Write-tools (`log_meal_text`, `log_bp`, `log_supplement`) переживают в `webhook/agent_tools_api.py` и переиспользуются BotkinClaw.
 - [ ] **Per-user credentials в БД** — `garmin_email/password`, `apple_health_token` per user, OAuth для Fitbit/Whoop. [2-3 дня]
-- [ ] **Google Health Connect** — интеграция для Android-юзеров (папа на Samsung). 2 подхода: Health Sync app или свой APK. [1-2 дня]
+- [ ] **Google Health Connect** — интеграция для Android-юзеров (папа на Samsung). Решение найдено: [`mcnaveen/health-connect-webhook`](https://github.com/mcnaveen/health-connect-webhook) — Kotlin APK, 24 типа данных, POST на произвольный URL. Задача на стороне Botkin — написать `telegram-bot/webhook/android_health.py` (аналог `apple_health.py`) + эндпоинт `/android_health_v1`. Ждём готовности папы к подключению. Ресёрч: `docs/research/2026-05-22_android-health-connect-export-webhook.md`. [2-3 часа]
 - [ ] **Локальные приватные потоки** — дневники family-cohort, Screen Time owner. Хранятся локально, личный Claude пользователя через MCP подцепляется к Botkin-серверу и комбинирует серверные данные с локальными приватными. **Test case для гибридного сетапа** «сервер + локально». [сессия]
 - [ ] **Login-форма в админке** — вместо HTTP Basic (см. `todo.md`).
 - [ ] **Broadcast в админке** — массовая рассылка active-юзерам.

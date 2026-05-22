@@ -42,3 +42,6 @@ aiofiles
 
 # JWT auth (BotkinClaw — ex-NanoClaw, см. ADR-0002)
 pyjwt>=2.8.0
+
+# Rendering PNG-отчётов агентом (см. core/reports/biomarker_dynamics.py)
+matplotlib>=3.8
