@@ -67,9 +67,16 @@ def _server_config() -> server_deployer.ServerConfig:
 
 
 def _git_commit_artifact(prompt_path: Path, telegram_id: int, pack_name: str) -> None:
+    """Stage the prompt artifact and commit. Warn (don't raise) on failure."""
     msg = f"agent: onboard telegram_id={telegram_id} — {pack_name}"
-    subprocess.run(["git", "add", str(prompt_path), "core/packs.py"], check=False, cwd=REPO_ROOT)
-    subprocess.run(["git", "commit", "-m", msg], check=False, cwd=REPO_ROOT)
+    add = subprocess.run(["git", "add", str(prompt_path)], capture_output=True, text=True, cwd=REPO_ROOT)
+    if add.returncode != 0:
+        print(f"  ⚠ git add failed (rc={add.returncode}): {add.stderr.strip()}")
+        return
+    commit = subprocess.run(["git", "commit", "-m", msg], capture_output=True, text=True, cwd=REPO_ROOT)
+    if commit.returncode != 0:
+        # Could be "nothing to commit" — not fatal
+        print(f"  ⚠ git commit returned rc={commit.returncode}: {commit.stdout.strip() or commit.stderr.strip()}")
 
 
 def _confirm(message: str, *, auto_yes: bool) -> bool:
@@ -80,43 +87,52 @@ def _confirm(message: str, *, auto_yes: bool) -> bool:
 
 
 def _short_name_from_full(name: str) -> str:
-    """Cyrillic → latin slug. Best-effort, для имени файла."""
-    # Multi-char first
-    multi = {
-        "ж": "zh",
-        "ч": "ch",
-        "ш": "sh",
-        "щ": "shch",
-        "ю": "yu",
-        "я": "ya",
-        "ё": "yo",
-        "й": "y",
-        "Ж": "Zh",
-        "Ч": "Ch",
-        "Ш": "Sh",
-        "Щ": "Shch",
-        "Ю": "Yu",
-        "Я": "Ya",
-        "Ё": "Yo",
-        "Й": "Y",
-    }
-    out = []
-    for ch in name:
-        if ch in multi:
-            out.append(multi[ch])
-        else:
-            out.append(ch)
-    s = "".join(out)
-    table = str.maketrans(
-        "абвгдезийклмнопрстуфхцъыьэАБВГДЕЗИЙКЛМНОПРСТУФХЦЪЫЬЭ",
-        "abvgdeziyklmnoprstufhc_y_eABVGDEZIYKLMNOPRSTUFHC_Y_E",
+    """Транслитерация Cyrillic → latin для имени файла. Soft/hard signs дропаются."""
+    digraphs = [
+        ("ж", "zh"),
+        ("Ж", "Zh"),
+        ("ч", "ch"),
+        ("Ч", "Ch"),
+        ("ш", "sh"),
+        ("Ш", "Sh"),
+        ("щ", "shch"),
+        ("Щ", "Shch"),
+        ("ю", "yu"),
+        ("Ю", "Yu"),
+        ("я", "ya"),
+        ("Я", "Ya"),
+        ("ё", "yo"),
+        ("Ё", "Yo"),
+    ]
+    for src, dst in digraphs:
+        name = name.replace(src, dst)
+    # Single-char map — same length on both sides
+    single = str.maketrans(
+        "абвгдезийклмнопрстуфхцыэАБВГДЕЗИЙКЛМНОПРСТУФХЦЫЭ",
+        "abvgdeziyklmnoprstufhcyeABVGDEZIYKLMNOPRSTUFHCYE",
     )
-    return s.translate(table).lower().replace(" ", "_")
+    name = name.translate(single)
+    # Drop soft and hard signs entirely (no underscore replacement)
+    name = name.replace("ь", "").replace("Ь", "").replace("ъ", "").replace("Ъ", "")
+    return name.lower().replace(" ", "_").strip("_")
 
 
 def cmd_enroll(args) -> int:
-    if not args.family_folder:
-        print("❌ --family-folder обязателен для --enroll")
+    ENROLL_REQUIRED = (
+        "family_folder",
+        "name",
+        "full_name",
+        "age",
+        "birth_date",
+        "location",
+        "cohort",
+        "cohort_relationship",
+        "bio_line",
+        "pack",
+    )
+    missing = [f"--{f.replace('_', '-')}" for f in ENROLL_REQUIRED if getattr(args, f) is None]
+    if missing:
+        print(f"❌ --enroll requires: {', '.join(missing)}")
         return 1
     fam_folder = Path(args.family_folder)
     kb_path = fam_folder / "knowledge_base.json"
@@ -143,11 +159,15 @@ def cmd_enroll(args) -> int:
         )
         return 1
 
+    # When re-enrolling (--force), capture the prior prompt for full rollback.
+    prior_prompt = ""
+    if already_enrolled:
+        prior_prompt = server_deployer.fetch_agent_system_prompt(telegram_id=args.tid, cfg=cfg)
     snap = snapshot.UserSnapshot(
         telegram_id=args.tid,
         cohort=state_before.cohort,
         pack_name=state_before.pack_name,
-        agent_system_prompt="",
+        agent_system_prompt=prior_prompt,
         kb_existed_on_server=state_before.kb_on_server,
     )
     snapshot_path = snapshot.save_snapshot(snap)
@@ -275,14 +295,21 @@ def cmd_unenroll(args) -> int:
         return 0
     if not _confirm(f"Отозвать enrollment у telegram_id={args.tid}?", auto_yes=args.yes):
         return 1
-    server_deployer.update_user_row(
-        telegram_id=args.tid,
-        cohort="external",
-        pack_name="generic",
-        agent_system_prompt="",
-        cfg=cfg,
-    )
-    server_deployer.remove_kb(telegram_id=args.tid, cfg=cfg)
+    try:
+        server_deployer.update_user_row(
+            telegram_id=args.tid,
+            cohort="external",
+            pack_name="generic",
+            agent_system_prompt="",
+            cfg=cfg,
+        )
+        server_deployer.remove_kb(telegram_id=args.tid, cfg=cfg)
+    except server_deployer.UserNotFoundError as e:
+        print(f"❌ {e}")
+        return 2
+    except Exception as e:
+        print(f"❌ Unenroll failed: {e}")
+        return 3
     print(f"✅ Unenrolled telegram_id={args.tid}")
     return 0
 
@@ -303,14 +330,28 @@ def cmd_refresh_kb(args) -> int:
 
 
 def cmd_refresh_prompt(args) -> int:
+    if not args.from_file:
+        REFRESH_PROMPT_REQUIRED = (
+            "family_folder",
+            "name",
+            "full_name",
+            "age",
+            "birth_date",
+            "location",
+            "cohort",
+            "cohort_relationship",
+            "bio_line",
+            "pack",
+        )
+        missing = [f"--{f.replace('_', '-')}" for f in REFRESH_PROMPT_REQUIRED if getattr(args, f) is None]
+        if missing:
+            print(f"❌ --refresh-prompt without --from-file requires: {', '.join(missing)}")
+            return 1
     cfg = _server_config()
     if args.from_file:
         prompt_text = Path(args.from_file).read_text(encoding="utf-8")
         print(f"Using prompt from {args.from_file} ({len(prompt_text)} chars)")
     else:
-        if not args.family_folder:
-            print("❌ --family-folder обязателен для --refresh-prompt без --from-file")
-            return 1
         fam_folder = Path(args.family_folder)
         kb_data = json.loads((fam_folder / "knowledge_base.json").read_text(encoding="utf-8"))
         profile_path = fam_folder / "PROFILE.md"

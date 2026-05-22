@@ -137,6 +137,20 @@ def update_user_row(
     return DeployResult(rows_affected=rows)
 
 
+def fetch_agent_system_prompt(*, telegram_id: int, cfg: ServerConfig) -> str:
+    """Получить полный текст agent_system_prompt из БД. Empty string if NULL."""
+    sql = f"SELECT COALESCE(agent_system_prompt, '') FROM users WHERE telegram_id={telegram_id};"
+    result = _psql(cfg, sql)
+    if result.returncode != 0:
+        raise PsqlError(f"psql SELECT prompt failed: {result.stderr or result.stdout}")
+    lines = [line for line in result.stdout.splitlines() if line.strip()]
+    if not lines:
+        raise UserNotFoundError(f"User telegram_id={telegram_id} not found")
+    # psql -t -A returns the value; if prompt has newlines they'll be in the lines
+    # But COALESCE ensures we always get at least an empty marker
+    return "\n".join(lines)
+
+
 def fetch_user_state(*, telegram_id: int, cfg: ServerConfig) -> UserServerState:
     """SELECT текущего состояния юзера + проверка наличия kb-файла."""
     sql = (
