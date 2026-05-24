@@ -81,6 +81,16 @@ SOURCES = {
         "Workouts (дашборд)",
         "/app/telegram-bot/workouts_log_895655.json",
     ),
+    # Postgres backfill: workouts + sleep + hrv → таблицы для агента
+    # (/recent_workouts, /recent_activity). Должен идти ПОСЛЕ garmin
+    # (читает /app/data/garmin/*). Без этого шага агент-БД отстаёт от
+    # дашборда даже если /sync workouts успешно пересобрал JSON.
+    # См. ADR-like запись в DEV_LOG 24.05.2026.
+    "pg_sync": (
+        "/app/scripts/util/server_backfill_postgres.py",
+        "Postgres (агент)",
+        "/app/data/cache/pg_sync_last_run.json",
+    ),
     "zepp": (
         "/app/scripts/import/zepp_api.py",
         "Zepp (весы)",
