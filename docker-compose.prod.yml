@@ -58,18 +58,9 @@ services:
       - ./services:/app/services
       - ./helpers:/app/helpers
       - ./domain:/app/domain
-      # Per-user knowledge_base files. Read by core.reports.biomarker_dynamics
-      # (render_report) and webhook.agent_tools_api.kb_value (get_kb_value).
-      # Path resolution: project_root = Path(__file__).resolve().parents[2] = /app,
-      # so files must land at /app/kb_<tid>.json.
-      # TODO (systematic fix): move all kb_*.json into data/kb/ and update
-      # path resolution — that auto-syncs through existing ./data:/app/data mount
-      # without per-file entries here. See docs/superpowers/specs/ for the plan.
-      - ./kb_895655.json:/app/kb_895655.json
-      - ./kb_33831673.json:/app/kb_33831673.json
-      - ./kb_836757955.json:/app/kb_836757955.json
-      - ./kb_1137554647.json:/app/kb_1137554647.json
-      - ./kb_830908046.json:/app/kb_830908046.json
+      # Per-user KB files live in data/kb/kb_<tid>.json — covered by the
+      # ./data:/app/data mount above. Adding a new user does NOT require
+      # editing this file. See agent_tools_api._resolve_user_kb_path().
     networks:
       - healthvault_network
     restart: always
