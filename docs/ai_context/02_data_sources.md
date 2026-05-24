@@ -328,3 +328,16 @@ python3 scripts/import_zepp_api.py --reauth
 * **Актуальность**: Архивные данные. Не обновляются.
 * 💡 **Статус**: ✅ (статичные данные).
 * 🛠 **Как обновить**: Не требуется. При новом тестировании — загрузить PDF в `data/genetics/`.
+
+---
+
+## 16. 🩸 Анализы крови / мочи / гормоны / витамины (CMD, Invitro, Helix, КДЛ)
+* **Данные**: Все лабораторные показатели — биохимия, липиды, гормоны, витамины, ПСА, ОАМ. По всей семье (5 KB-файлов).
+* **Источник истины**: `~/FamilyHealth/<Имя>/knowledge_base.json` **на маке** (приватные мед-документы не хранятся вне локалки в исходном виде). PDF-оригиналы лежат рядом.
+* **3 production-канала на сервере** (читают разное, поэтому ВСЕ должны быть синхронизированы):
+  1. `/app/telegram-bot/biomarkers_<id>.json` — **flat dict** для дашборда (`dashboard_generator.py`). Только последнее значение + history по каждому маркеру.
+  2. **PostgreSQL `blood_tests`** — для агента (`/recent_biomarkers` в `agent_tools_api.py`). Полные ряды с jsonb-values.
+  3. `/app/data/kb/kb_<id>.json` (bind-mount из `/opt/healthvault/data/kb/`) — для агента (`/kb_value`, `/list_kb_keys`). Целый KB.
+* **Актуальность**: Александр 75 тестов, latest 2026-05-23 ✅. Папа/Андрей/Олег/Игорь — per-user.
+* 💡 **Статус**: ✅ автоматизировано (с 24.05.2026, см. workflow 13 в `04_workflows.md`).
+* 🛠 **Как обновить**: одна команда **`python3 scripts/generate_biomarkers_json.py --deploy`** — обновляет все 3 канала за раз для Александра. Для других юзеров — пока через `sync_family_kb.py` + `kb_to_blood_tests.py` отдельно (TBD: расширить generate_biomarkers_json на `--all-users`).

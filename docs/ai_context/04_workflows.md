@@ -233,6 +233,31 @@ ls -t data/backups/healthvault_backup_*.sql | tail -n +8 | xargs rm -f
 
 ---
 
+## 13. Загрузил новый анализ в `knowledge_base.json` — что синкать на сервер
+
+Самый частый workflow для биомаркеров. Источник истины — `~/FamilyHealth/<Имя>/knowledge_base.json` на маке; на сервере читается из **трёх** мест (`02_data_sources.md`, секция 16). Если синкать только одно — увидишь рассогласование (дашборд знает, агент нет — или наоборот).
+
+**Для Александра (одна команда):**
+```bash
+python3 scripts/generate_biomarkers_json.py --deploy
+```
+Делает 3 стадии: (1) flat-JSON для дашборда → scp+docker cp, (2) `kb_to_blood_tests.py` → PostgreSQL `blood_tests`, (3) `sync_family_kb.py` → `/app/data/kb/kb_895655.json`.
+
+**Для других юзеров** (Папа/Андрей/Олег/Игорь — пока без авто-обёртки):
+```bash
+python3 scripts/sync_family_kb.py --user <telegram_id> --apply
+python3 scripts/import/kb_to_blood_tests.py --user-id <telegram_id> --folder "<имя папки>"
+```
+
+**Проверка после синка:**
+- Дашборд: открыть `https://botkin.health/mc/<share_token>` → раздел Биомаркеры → смотреть свежую дату
+- Агент: написать боту «какие анализы за <месяц>?» — должен вернуть свежую запись
+- PostgreSQL: `psql -c "SELECT test_date FROM blood_tests WHERE user_id=<id> ORDER BY test_date DESC LIMIT 3"`
+
+**Прецедент 24.05.2026:** обновили только flat-JSON, забыли (2) и (3) → дашборд показывал май, агент утверждал «последний 19 марта». С тех пор автомат `--deploy` закрывает все 3 канала для Александра.
+
+---
+
 ## Что НЕ делать
 
 ❌ Не делать `git push --force` на main без явного согласия.
