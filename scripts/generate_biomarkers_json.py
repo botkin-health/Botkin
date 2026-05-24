@@ -204,20 +204,22 @@ def main() -> None:
 
     if args.deploy:
         deploy(OUT_PATH)
-        # После пуша flat-JSON для дашборда — синхронизируем blood_tests в Postgres
-        # через kb_to_blood_tests.py. Без этого шага агент (BotkinClaw → endpoint
-        # /recent_biomarkers) читает устаревшую таблицу blood_tests и говорит
-        # "последний анализ 19 марта", хотя в biomarkers JSON уже новые данные.
-        # Прецедент: 24.05.2026 — обновили biomarkers, но в БД не залили, агент
-        # утверждал что нет данных за май. Идемпотентно, безопасно повторять.
+        # ── 3-stage pipeline после --deploy ──
+        # Все три источника читают разное и должны быть синхронизированы:
+        #   1) biomarkers_<id>.json (flat, для дашборда) — ⤴ уже сделано через deploy()
+        #   2) PostgreSQL blood_tests (для агента → /recent_biomarkers) — через kb_to_blood_tests.py
+        #   3) /app/data/kb/kb_<id>.json (для агента → /kb_value, /list_kb_keys) — через sync_family_kb.py
+        # Прецедент: 24.05.2026 — забыли (2) и (3), агент утверждал «последний
+        # анализ 19 марта» хотя дашборд уже знал майскую панель. Чтобы не
+        # повторялось — теперь автомат для всех трёх. Идемпотентно.
+        scripts_dir = Path(__file__).resolve().parent
         print()
-        print("🗄️  Syncing KB → Postgres blood_tests (для агента)...")
-        sync_script = Path(__file__).resolve().parent / "import" / "kb_to_blood_tests.py"
+        print("🗄️  Stage 2/3: KB → Postgres blood_tests (agent /recent_biomarkers)...")
         try:
             subprocess.run(
                 [
                     sys.executable,
-                    str(sync_script),
+                    str(scripts_dir / "import" / "kb_to_blood_tests.py"),
                     "--user-id",
                     "895655",
                     "--folder",
@@ -231,7 +233,27 @@ def main() -> None:
                 f"biomarkers JSON залит, но агент-БД отстаёт. "
                 f"Запусти руками: python3 scripts/import/kb_to_blood_tests.py --user-id 895655 ..."
             )
-        print("🚀 Done! Biomarkers updated on server (JSON + Postgres).")
+        print()
+        print("🗄️  Stage 3/3: KB → /app/data/kb/kb_895655.json (agent /kb_value)...")
+        try:
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(scripts_dir / "sync_family_kb.py"),
+                    "--user",
+                    "895655",
+                    "--apply",
+                ],
+                check=True,
+            )
+        except subprocess.CalledProcessError as e:
+            print(
+                f"   ⚠️ sync_family_kb упал (код {e.returncode}) — "
+                f"kb_*.json на сервере отстаёт. "
+                f"Запусти руками: python3 scripts/sync_family_kb.py --user 895655 --apply"
+            )
+        print()
+        print("🚀 Done! Biomarkers updated on server (3/3 sources sync'd).")
     else:
         print("\nRun with --deploy to push to server, or run scripts/deploy_biomarkers.sh")
 
