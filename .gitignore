@@ -99,6 +99,12 @@ personal-*.md
 knowledge_base.json
 knowledge_base_*.json
 biomarkers_*.json
+# Derived JSON-ы для дашборда — генерятся ТОЛЬКО на сервере
+# через scripts/util/build_workouts_log.py и build_env_data.py.
+# Не должны быть в git (иначе моя локальная копия с мака перетирает
+# серверные свежие данные при каждом docker build).
+telegram-bot/workouts_log_*.json
+telegram-bot/env_data_*.json
 config/scout/profile.yaml
 docs/scout/
 

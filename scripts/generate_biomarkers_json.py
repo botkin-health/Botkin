@@ -19,7 +19,7 @@ import subprocess
 from pathlib import Path
 
 KB_PATH = Path.home() / (
-    "Library/CloudStorage/GoogleDrive-lyskovsky@gmail.com/Мой диск/~/FamilyHealth/<user>/knowledge_base.json"
+    "Library/CloudStorage/GoogleDrive-lyskovsky@gmail.com/Мой диск/FamilyHealth/Александр Лысковский — Здоровье/knowledge_base.json"
 )
 OUT_PATH = Path(__file__).resolve().parent.parent / "telegram-bot" / "biomarkers_895655.json"
 

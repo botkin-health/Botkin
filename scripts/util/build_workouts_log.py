@@ -1,0 +1,122 @@
+#!/usr/bin/env python3
+"""
+build_workouts_log.py — серверный derived-builder для дашборда.
+
+Что делает:
+  1. Запускает parse_workouts.py — он пересобирает data/garmin/workouts_log.json
+     из сырых Garmin activity-файлов (data/garmin/activities/*.json).
+  2. Обрезает до последних 180 дней и пишет в финальное место,
+     которое читает dashboard_generator.py:
+         /app/telegram-bot/workouts_log_{user_id}.json
+     (180 дней — максимум, на который опирается /recent_workouts API; больше
+     дашборду не нужно, экономим память контейнера.)
+
+Зачем существует отдельным скриптом:
+  parse_workouts.py пишет в data/garmin/workouts_log.json (исторический формат
+  без user_id). Дашборд же читает per-user файл в telegram-bot/. До этого
+  скрипта связка делалась только локально на маке через
+  scripts/import/push_workouts_to_container.py. Теперь то же самое делается
+  прямо на сервере, без зависимости от мак-pipeline.
+
+Использование:
+    python3 scripts/util/build_workouts_log.py                  # default user 895655
+    python3 scripts/util/build_workouts_log.py --user-id 12345  # для будущих юзеров
+
+В sync_all.sh:
+    run garmin    /app/scripts/garmin/download_garmin_data.py
+    run workouts  /app/scripts/util/build_workouts_log.py
+
+В /sync в боте: ключ "workouts" в SOURCES (handlers/sync_cmd.py).
+
+Multi-user готовность:
+  Сейчас Garmin тянется только для Александра (telegram_id=895655) и сырые
+  файлы лежат в общем data/garmin/activities/. Когда Андрей/Олег/Игорь
+  подключат свой Garmin — нужно будет разделить хранение на data/garmin/{user_id}/.
+  Этот скрипт уже принимает --user-id, чтобы переход был механическим:
+  достаточно будет научить parse_workouts.py читать из per-user папки.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import subprocess
+import sys
+from datetime import date, timedelta
+from pathlib import Path
+
+# Дефолт — Александр (единственный сейчас активный Garmin-пользователь).
+# Когда подключатся другие — sync_all.sh будет вызывать скрипт по разу на каждого.
+DEFAULT_USER_ID = 895655
+KEEP_DAYS = 180
+
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+PARSE_SCRIPT = BASE_DIR / "scripts" / "util" / "parse_workouts.py"
+SOURCE_LOG = BASE_DIR / "data" / "garmin" / "workouts_log.json"
+
+
+def out_path_for(user_id: int) -> Path:
+    """Финальное место, откуда читает dashboard_generator.py."""
+    return BASE_DIR / "telegram-bot" / f"workouts_log_{user_id}.json"
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument(
+        "--user-id", type=int, default=DEFAULT_USER_ID, help=f"Telegram user_id (default {DEFAULT_USER_ID})"
+    )
+    parser.add_argument(
+        "--skip-parse",
+        action="store_true",
+        help="Не запускать parse_workouts.py, использовать существующий workouts_log.json",
+    )
+    args = parser.parse_args()
+
+    # Шаг 1: пересобираем data/garmin/workouts_log.json из сырых activity-файлов
+    if not args.skip_parse:
+        if not PARSE_SCRIPT.exists():
+            print(f"❌ {PARSE_SCRIPT} не найден", file=sys.stderr)
+            return 2
+        print(f"🔄 Запуск {PARSE_SCRIPT.name}…")
+        result = subprocess.run(
+            [sys.executable, str(PARSE_SCRIPT)],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            # Печатаем stdout+stderr чтобы _summarize_error в боте мог их прочесть
+            print(result.stdout)
+            print(result.stderr, file=sys.stderr)
+            print(f"❌ parse_workouts.py вернул {result.returncode}", file=sys.stderr)
+            return result.returncode
+        # Показываем только последние пару строк, чтобы лог /sync не распухал
+        tail = "\n".join(result.stdout.strip().splitlines()[-3:])
+        if tail:
+            print(tail)
+
+    if not SOURCE_LOG.exists():
+        print(f"❌ {SOURCE_LOG} не появился после parse_workouts", file=sys.stderr)
+        return 2
+
+    # Шаг 2: обрезаем до 180 дней и кладём в per-user место для дашборда
+    full = json.loads(SOURCE_LOG.read_text())
+    cutoff = (date.today() - timedelta(days=KEEP_DAYS)).isoformat()
+    workouts = [w for w in full.get("workouts", []) if w.get("date", "") >= cutoff]
+
+    payload = {
+        "generated_at": full.get("generated_at"),
+        "workouts": workouts,
+        "kept_days": KEEP_DAYS,
+    }
+
+    out = out_path_for(args.user_id)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+
+    latest = max((w["date"] for w in workouts), default="—")
+    print(f"✅ {out.name}: {len(workouts)} тренировок за {KEEP_DAYS} дней (latest: {latest})")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

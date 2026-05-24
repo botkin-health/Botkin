@@ -38,7 +38,7 @@ from datetime import date, timedelta
 from pathlib import Path
 import sys
 
-GD_HEALTH = Path.home() / "Library/CloudStorage/GoogleDrive-lyskovsky@gmail.com/Мой диск/HealthVault"
+GD_HEALTH = Path.home() / "Library/CloudStorage/GoogleDrive-lyskovsky@gmail.com/Мой диск/FamilyHealth"
 TODAY = date.today()
 
 

@@ -58,10 +58,28 @@ SOURCES = {
         "Netatmo (воздух дома)",
         "/app/data/environment/netatmo_history.json",
     ),
+    # Derived-builder: пересобирает env_data_{user_id}.json для блока
+    # «Воздух дома» на дашборде. Должен идти ПОСЛЕ netatmo. Симметрично
+    # workouts. Без этого шага дашборд отставал — баг найден 24.05.2026.
+    "env": (
+        "/app/scripts/util/build_env_data.py",
+        "Воздух дома (дашборд)",
+        "/app/telegram-bot/env_data_895655.json",
+    ),
     "garmin": (
         "/app/scripts/garmin/download_garmin_data.py",
         "Garmin (часы)",
         "/app/data/garmin/daily-summary/*.json",
+    ),
+    # Derived-builder: пересобирает workouts_log_{user_id}.json из сырых
+    # Garmin-активностей. Должен идти ПОСЛЕ garmin (зависит от его выхода).
+    # Иначе дашборд читает устаревший derived-файл — баг, который и привёл
+    # к появлению этого ключа (см. история 24.05.2026 — тренировка 22.05
+    # была в сырых данных, но не в дашборде).
+    "workouts": (
+        "/app/scripts/util/build_workouts_log.py",
+        "Workouts (дашборд)",
+        "/app/telegram-bot/workouts_log_895655.json",
     ),
     "zepp": (
         "/app/scripts/import/zepp_api.py",
