@@ -115,6 +115,8 @@ def build_biomarkers(kb: dict) -> dict:
     add("DHEA_S", ["DHEA_S", "DHEAS", "dhea_s", "DHEA-S"])
     add("FAI", ["FAI"])
     add("PTH_intact", ["PTH_intact", "parathyroid_hormone", "PTH"])
+    add("IGF_1", ["IGF_1", "IGF-1", "igf1", "IGF1"])
+    add("homocysteine", ["homocysteine", "homocystein", "Homocysteine"])
 
     # Vitamins / nutrients
     add("vitamin_D", ["vitamin_D"])

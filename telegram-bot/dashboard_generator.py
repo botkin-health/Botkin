@@ -1152,12 +1152,19 @@ def _build_payload(db: Session, user_id: int) -> dict:
             {
                 "name": "IGF-1",
                 "category": "Гормон роста · долголетие",
-                "val": None,
+                "val": bv("IGF_1"),
                 "unit": "нг/мл",
                 "target": "100–250 нг/мл",
-                "status": "missing",
-                "date": None,
-                "note": None,
+                # Если ни разу не сдан — показываем "missing" + note с рекомендацией сдать
+                "status": _attia_status(bv("IGF_1"), target_hi=250, target_lo=100) if bv("IGF_1") else "missing",
+                "date": bd("IGF_1"),
+                "note": (
+                    "Не сдавался ни разу. Рекомендуется добавить к ближайшей панели — "
+                    "маркер mTOR/анаболизма, по Attia важен для оценки риска онко "
+                    "и долголетия (~700 ₽ в CMD)."
+                    if not bv("IGF_1")
+                    else None
+                ),
             },
             {
                 "name": "DHEA-S",
