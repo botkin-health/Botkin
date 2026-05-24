@@ -1164,9 +1164,11 @@ bioRefs.map(([k, nm, lo, hi, sys]) => {
     </tr>`;
   }).join('') +
   (met.tg_hdl_ratio !== null && met.tg_hdl_ratio !== undefined ? `<tr style="border-top:2px solid var(--border);">
-    <td colspan="2" style="padding-top:10px;"><b>TG/HDL ratio</b> <span style="color:${COLOR.muted};font-size:10px;">инсулинорезистентность</span></td>
-    <td style="color:${COLOR.muted};font-size:11px;">&lt;1.5</td>
-    <td colspan="2"><span style="color:${met.tg_hdl_ratio < 1.5 ? COLOR.g : COLOR.r};font-size:14px;font-weight:700;">${met.tg_hdl_ratio}</span> <span style="color:${met.tg_hdl_ratio < 1.5 ? COLOR.g : COLOR.r};font-size:11px;">${met.tg_hdl_ratio < 1.5 ? '✓ отлично' : '✕ выше цели'}</span></td>
+    <td style="padding-top:10px;"><b>TG/HDL ratio</b></td>
+    <td class="val" style="padding-top:10px;"><span style="color:${met.tg_hdl_ratio < 1.5 ? COLOR.g : COLOR.r};">${met.tg_hdl_ratio}</span></td>
+    <td style="color:${COLOR.muted};font-size:11px;padding-top:10px;">&lt;1.5</td>
+    <td style="padding-top:10px;"><span style="color:${met.tg_hdl_ratio < 1.5 ? COLOR.g : COLOR.r};font-size:11px;">${met.tg_hdl_ratio < 1.5 ? '✓ отлично' : '✕ выше цели'}</span></td>
+    <td class="d" style="font-size:10px;padding-top:10px;">Маркер инсулинорезистентности</td>
   </tr>` : '') + '</tbody>';
 })();
 
