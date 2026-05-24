@@ -338,6 +338,24 @@ def main() -> int:
         upd = info.get("updated", 0)
         print(f"  {kind:10s} вставлено: {ins:3d}  обновлено: {upd:3d}  ({info.get('status')})")
 
+    # Marker для /sync status — handlers/sync_cmd.py показывает mtime этого
+    # файла как «когда последний раз PG-бэкфилл крутился». Не пишем при dry-run.
+    if not args.dry_run:
+        marker = BASE / "data" / "cache" / "pg_sync_last_run.json"
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.write_text(
+            json.dumps(
+                {
+                    "ran_at": datetime.now(timezone.utc).isoformat(),
+                    "user_id": args.user_id,
+                    "since": args.since,
+                    "summary": summary,
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+
     return 0
 
 
