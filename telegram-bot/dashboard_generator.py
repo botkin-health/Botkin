@@ -1162,12 +1162,18 @@ def _build_payload(db: Session, user_id: int) -> dict:
             {
                 "name": "DHEA-S",
                 "category": "Гормоны надпочечников",
-                "val": None,
+                "val": bv("DHEA_S"),
                 "unit": "мкмоль/л",
                 "target": "5–13 мкмоль/л",
-                "status": "missing",
-                "date": None,
-                "note": None,
+                # Attia 5-13: ниже = адреналовая недостаточность, выше = обычно конституция
+                # или хр. стресс. Для статуса используем верхнюю границу 13 — если выше, warn.
+                "status": _attia_status(bv("DHEA_S"), target_hi=13),
+                "date": bd("DHEA_S"),
+                "note": (
+                    "По возрастной CMD-норме (1.22-9.12) превышение; по Attia (5-13) в норме."
+                    if bv("DHEA_S") and bv("DHEA_S") > 9.12 and bv("DHEA_S") <= 13
+                    else None
+                ),
             },
         ],
     }
