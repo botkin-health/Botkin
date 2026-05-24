@@ -206,7 +206,7 @@ def cmd_enroll(args) -> int:
     print(f"  Prompt artifact saved: {prompt_path} ({len(prompt_text)} chars)")
 
     print("\n== Plan ==")
-    print(f"  KB: scp {kb_path} → {cfg.deploy_path}/kb_{args.tid}.json")
+    print(f"  KB: scp {kb_path} → {cfg.deploy_path}/data/kb/kb_{args.tid}.json")
     print(
         f"  DB: UPDATE users SET cohort='{args.cohort}', pack_name='{args.pack}', "
         f"agent_system_prompt=<{len(prompt_text)} chars> WHERE telegram_id={args.tid}"
@@ -322,7 +322,7 @@ def cmd_refresh_kb(args) -> int:
     kb_validator.validate_kb(kb_path)
     cfg = _server_config()
     if args.dry_run:
-        print(f"💡 --dry-run: scp {kb_path} → {cfg.deploy_path}/kb_{args.tid}.json")
+        print(f"💡 --dry-run: scp {kb_path} → {cfg.deploy_path}/data/kb/kb_{args.tid}.json")
         return 0
     server_deployer.upload_kb(kb_path=kb_path, telegram_id=args.tid, cfg=cfg)
     print(f"✅ KB refreshed for telegram_id={args.tid}")

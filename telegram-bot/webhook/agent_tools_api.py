@@ -103,6 +103,36 @@ def _slot_to_meal_time(slot: Optional[str]):
     return mapping[slot], name_map[slot]
 
 
+def _resolve_user_kb_path(user) -> tuple[Optional[Path], str]:
+    """Resolve per-user KB file path with fallback to legacy locations.
+
+    Search order (first hit wins):
+      1. ``data/kb/kb_<telegram_id>.json`` — current layout (since 2026-05-24
+         refactor). Auto-mounted into the bot container via the existing
+         ``./data:/app/data`` bind-mount in docker-compose.prod.yml.
+      2. ``kb_<telegram_id>.json`` at repo root — legacy layout, kept for
+         backward-compat during the rolling migration. Required per-file
+         bind-mounts in docker-compose.prod.yml (now removed).
+      3. ``knowledge_base.json`` at repo root — owner-cohort fallback (Alex).
+
+    Returns ``(path, source_label)``. Path is None when no KB available;
+    caller should return ``"kb-not-available"`` sentinel to the agent.
+    """
+    project_root = Path(__file__).resolve().parents[2]
+    new_path = project_root / "data" / "kb" / f"kb_{user.telegram_id}.json"
+    legacy_path = project_root / f"kb_{user.telegram_id}.json"
+
+    if new_path.exists():
+        return new_path, f"data/kb/kb_{user.telegram_id}.json"
+    if legacy_path.exists():
+        return legacy_path, f"kb_{user.telegram_id}.json"
+    if user.cohort == "owner":
+        owner_kb = project_root / "knowledge_base.json"
+        if owner_kb.exists():
+            return owner_kb, "knowledge_base.json"
+    return None, "kb-not-available"
+
+
 # ── Task 5: Write endpoints ───────────────────────────────────────────────────
 
 
@@ -327,20 +357,9 @@ async def kb_value(
       2. Owner-cohort fallback: legacy `knowledge_base.json` (Alex-only).
       3. Otherwise: returns null with source='kb-not-available'.
     """
-    project_root = Path(__file__).resolve().parents[2]
-    per_user_kb = project_root / f"kb_{user.telegram_id}.json"
-
-    if per_user_kb.exists():
-        kb_path = per_user_kb
-        source = f"kb_{user.telegram_id}.json"
-    elif user.cohort == "owner":
-        kb_path = project_root / "knowledge_base.json"
-        source = "knowledge_base.json"
-    else:
-        return {"key": key, "value": None, "source": "kb-not-available"}
-
-    if not kb_path.exists():
-        return {"key": key, "value": None, "source": "kb-not-found"}
+    kb_path, source = _resolve_user_kb_path(user)
+    if kb_path is None:
+        return {"key": key, "value": None, "source": source}  # "kb-not-available"
 
     import json
 
@@ -381,17 +400,9 @@ async def list_kb_keys(user=Depends(get_agent_user)):
     list/dict), чтобы агент понимал где искать. Служебные ключи `_*`
     и крупные дампы (`apple_health`, `cgm_data`) фильтруются.
     """
-    project_root = Path(__file__).resolve().parents[2]
-    per_user_kb = project_root / f"kb_{user.telegram_id}.json"
-
-    if per_user_kb.exists():
-        kb_path = per_user_kb
-        source = f"kb_{user.telegram_id}.json"
-    elif user.cohort == "owner":
-        kb_path = project_root / "knowledge_base.json"
-        source = "knowledge_base.json"
-    else:
-        return {"keys": [], "source": "kb-not-available"}
+    kb_path, source = _resolve_user_kb_path(user)
+    if kb_path is None:
+        return {"keys": [], "source": source}  # "kb-not-available"
 
     if not kb_path.exists():
         return {"keys": [], "source": "kb-not-found"}
@@ -463,17 +474,9 @@ async def render_report(
             "error": (f"unknown report_type '{req.report_type}'; supported: biomarker_dynamics, single_biomarker"),
         }
 
-    project_root = Path(__file__).resolve().parents[2]
-    per_user_kb = project_root / f"kb_{user.telegram_id}.json"
-    if per_user_kb.exists():
-        kb_path = per_user_kb
-    elif user.cohort == "owner":
-        kb_path = project_root / "knowledge_base.json"
-    else:
+    kb_path, _source = _resolve_user_kb_path(user)
+    if kb_path is None:
         return {"status": "error", "error": "kb-not-available", "sent": False}
-
-    if not kb_path.exists():
-        return {"status": "error", "error": "kb-not-found", "sent": False}
 
     user_name = (user.first_name or "").strip()
     caption_suffix = ""

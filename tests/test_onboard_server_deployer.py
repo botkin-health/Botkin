@@ -201,8 +201,8 @@ def test_upload_kb_rejects_invalid_json_on_server(cfg, tmp_path):
 
     def fake_run(cmd, **kw):
         call_count["n"] += 1
-        # scp = success, mv = success, python -c json.load = failure, rm cleanup = success
-        if call_count["n"] == 3:
+        # Call sequence: mkdir (1) → scp (2) → mv (3) → python json.load (4, fails) → rm (5)
+        if call_count["n"] == 4:
             return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="json.decoder.JSONDecodeError")
         return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
 
@@ -233,14 +233,14 @@ def test_upload_kb_rollback_tmp_on_mv_failure(cfg, tmp_path):
     def fake_run(cmd, **kw):
         call_count["n"] += 1
         captured.append(" ".join(cmd))
-        # scp succeeds, mv fails
-        if call_count["n"] == 2:
+        # Call sequence: mkdir (1) → scp (2) → mv (3, fails) → rm rollback (4)
+        if call_count["n"] == 3:
             return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="mv failed")
         return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
 
     with patch("scripts.onboard.server_deployer.subprocess.run", side_effect=fake_run):
         with pytest.raises(RuntimeError):
             upload_kb(kb_path=kb, telegram_id=999, cfg=cfg)
-    # Третий вызов — rm -f .tmp rollback
-    assert "rm -f" in captured[2]
-    assert "kb_999.json.tmp" in captured[2]
+    # 4-й вызов — rm -f .tmp rollback после провала mv
+    assert "rm -f" in captured[3]
+    assert "kb_999.json.tmp" in captured[3]
