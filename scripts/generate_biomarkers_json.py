@@ -16,6 +16,7 @@ import argparse
 import json
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 KB_PATH = Path.home() / (
@@ -203,7 +204,34 @@ def main() -> None:
 
     if args.deploy:
         deploy(OUT_PATH)
-        print("🚀 Done! Biomarkers updated on server.")
+        # После пуша flat-JSON для дашборда — синхронизируем blood_tests в Postgres
+        # через kb_to_blood_tests.py. Без этого шага агент (BotkinClaw → endpoint
+        # /recent_biomarkers) читает устаревшую таблицу blood_tests и говорит
+        # "последний анализ 19 марта", хотя в biomarkers JSON уже новые данные.
+        # Прецедент: 24.05.2026 — обновили biomarkers, но в БД не залили, агент
+        # утверждал что нет данных за май. Идемпотентно, безопасно повторять.
+        print()
+        print("🗄️  Syncing KB → Postgres blood_tests (для агента)...")
+        sync_script = Path(__file__).resolve().parent / "import" / "kb_to_blood_tests.py"
+        try:
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(sync_script),
+                    "--user-id",
+                    "895655",
+                    "--folder",
+                    "Александр Лысковский — Здоровье",
+                ],
+                check=True,
+            )
+        except subprocess.CalledProcessError as e:
+            print(
+                f"   ⚠️ kb_to_blood_tests упал (код {e.returncode}) — "
+                f"biomarkers JSON залит, но агент-БД отстаёт. "
+                f"Запусти руками: python3 scripts/import/kb_to_blood_tests.py --user-id 895655 ..."
+            )
+        print("🚀 Done! Biomarkers updated on server (JSON + Postgres).")
     else:
         print("\nRun with --deploy to push to server, or run scripts/deploy_biomarkers.sh")
 
