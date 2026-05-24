@@ -508,3 +508,147 @@ class SupplementService:
 # Global instance - now requires user_id
 # Create instance per-request in handlers
 # supplement_service = SupplementService()  # DEPRECATED: use per-user instance
+
+
+# ─── Lab-artefact detection ────────────────────────────────────────────────
+# Некоторые БАДы напрямую искажают лабораторные показатели — типичный
+# пример: креатин (5 г/день) поднимает сывороточный креатинин на 10-30%
+# даже при идеально здоровых почках. Без явной пометки на дашборде это
+# выглядит как «снижение функции почек» и приводит к ложной тревоге.
+#
+# Эта секция предоставляет общий helper для проверки активного приёма
+# любой добавки по подстроке имени, плюс табличку известных артефактов
+# биомаркеров (пока — креатин → креатинин; легко расширяется).
+
+
+def is_supplement_active(db, user_id: int, name_pattern: str, days: int = 7) -> dict:
+    """Активна ли добавка у пользователя в последние N дней.
+
+    Args:
+        db: SQLAlchemy session
+        user_id: telegram_id пользователя
+        name_pattern: подстрока для ILIKE-поиска в supplement_name
+            (регистронезависимо, partial match)
+        days: окно проверки, по умолчанию 7 дней. Для большинства добавок
+            7 дней — разумный proxy для «принимает регулярно». Для креатина
+            wash-out из организма ~10-14 дней, так что для лаб-артефакт-логики
+            окно можно расширять.
+
+    Returns:
+        dict с ключами:
+          active (bool): True если за окно есть хотя бы один приём
+          last_date (str | None): последняя дата приёма в формате YYYY-MM-DD
+          doses_in_window (int): количество записей за окно
+          dose_repr (str | None): последняя зафиксированная дозировка (для UI)
+    """
+    from sqlalchemy import text
+
+    row = db.execute(
+        text(
+            """
+            SELECT date, dosage
+            FROM supplements_log
+            WHERE user_id = :uid
+              AND supplement_name ILIKE :pat
+              AND date >= CURRENT_DATE - (:days || ' days')::interval
+            ORDER BY date DESC, time DESC NULLS LAST
+            LIMIT 1
+            """
+        ),
+        {"uid": user_id, "pat": f"%{name_pattern}%", "days": days},
+    ).fetchone()
+
+    count = (
+        db.execute(
+            text(
+                """
+            SELECT COUNT(*)
+            FROM supplements_log
+            WHERE user_id = :uid
+              AND supplement_name ILIKE :pat
+              AND date >= CURRENT_DATE - (:days || ' days')::interval
+            """
+            ),
+            {"uid": user_id, "pat": f"%{name_pattern}%", "days": days},
+        ).scalar()
+        or 0
+    )
+
+    if row is None:
+        return {"active": False, "last_date": None, "doses_in_window": 0, "dose_repr": None}
+
+    last_date = row[0].isoformat() if row[0] else None
+    dose_repr = row[1] if row[1] else None
+    return {
+        "active": True,
+        "last_date": last_date,
+        "doses_in_window": int(count),
+        "dose_repr": dose_repr,
+    }
+
+
+# Таблица известных биомаркер-артефактов от добавок/еды.
+# Каждый артефакт: какую subset из supplements_log искать, какие маркеры
+# искажает, и насколько (для будущей коррекции в формулах).
+#
+# Сейчас используется только для UI-предупреждений в PhenoAge (Panel 4).
+# В будущем можно подключить к корректировкам в формулах (Levine, Cockcroft,
+# CKD-EPI) — но это требует валидации, поэтому пока только визуальный warning.
+LAB_ARTEFACTS = {
+    "creatine": {
+        # Регулярный приём 5 г/день поднимает сывороточный креатинин на
+        # ~10-30% (среднее ~22%). Wash-out из мышц ~10-14 дней.
+        # Источники: Persky & Brazeau 2001 (Pharmacol Rev); Pritchard &
+        # Kalra 1998 (Lancet); ISSN position stand 2017.
+        "supplement_query": "креатин",
+        "lookback_days": 14,
+        "affects": {
+            "creatinine": {
+                "direction": "up",
+                "magnitude_pct": 22,  # типичное завышение, эмпирически
+                "correction_factor": 0.78,  # creatinine_real ≈ creatinine_measured × 0.78
+                "explanation": (
+                    "Сывороточный креатинин завышен из-за приёма креатина "
+                    "({dose}). Истинная цифра приблизительно × 0.78 от "
+                    "измеренной. Чтобы получить чистый результат — отменить "
+                    "креатин минимум за 14 дней до сдачи."
+                ),
+            },
+        },
+    },
+    # Места для будущих артефактов (без активации):
+    # "biotin":  биотин → ложные значения T3/T4/TSH в иммунохем. методах
+    # "alcohol_recent": алкоголь <72ч → ↑ГГТ, ↑AST, ↑ТГ
+    # "bcaa":    BCAA/большой белок → ↑АЛТ слегка
+}
+
+
+def check_lab_artefacts_for_user(db, user_id: int) -> dict:
+    """Сводка активных биомаркер-артефактов у пользователя.
+
+    Returns:
+        dict: ключи — имена артефактов из LAB_ARTEFACTS, значения — данные
+        is_supplement_active + конфиг артефакта. Только активные.
+
+    Пример возвращаемого значения для пользователя на креатине:
+        {
+            "creatine": {
+                "active": True,
+                "last_date": "2026-05-22",
+                "doses_in_window": 4,
+                "dose_repr": "5 г",
+                "affects": {"creatinine": {...}},
+            }
+        }
+    """
+    result = {}
+    for art_name, art_cfg in LAB_ARTEFACTS.items():
+        status = is_supplement_active(
+            db,
+            user_id,
+            name_pattern=art_cfg["supplement_query"],
+            days=art_cfg["lookback_days"],
+        )
+        if status["active"]:
+            result[art_name] = {**status, "affects": art_cfg["affects"]}
+    return result

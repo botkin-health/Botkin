@@ -18,6 +18,8 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from core.health.supplements import check_lab_artefacts_for_user
+
 TEMPLATE_PATH = Path(__file__).parent / "mc_template.html"
 
 
@@ -1511,10 +1513,26 @@ def _build_payload(db: Session, user_id: int) -> dict:
     # --- Panel 4: PhenoAge (Levine et al. 2018) ---
     # 9 biomarkers; direction vs NHANES median for age ~48 male.
     # Каждый маркер хранит value + date — дата нужна для проверки свежести.
+
+    # Проверка артефактов биомаркеров от активных добавок (например,
+    # креатин 5г/день поднимает сывороточный креатинин на ~22% даже при
+    # здоровых почках — без флага это выглядит как «упала функция почек»).
+    # Возвращает {}, если артефактов нет — UI ничего не показывает.
+    _lab_artefacts = check_lab_artefacts_for_user(db, user_id)
+
     _alb_gdl = bv("albumin_g_l")
     if _alb_gdl:
         _alb_gdl = round(_alb_gdl / 10, 2)  # g/L → g/dL
     _creat_mgdl = round(bv("creatinine") / 88.4, 3) if bv("creatinine") else None
+    # Скорректированный креатинин — если активен креатин-артефакт, считаем
+    # «истинную» цифру для подсказки рядом с маркером. Формулу PhenoAge при
+    # этом НЕ модифицируем (она остаётся на исходных данных), чтобы изменения
+    # формулы были осознанным шагом, а не скрытой коррекцией.
+    _creat_artefact = _lab_artefacts.get("creatine") if _creat_mgdl else None
+    _creat_corrected_mgdl = None
+    if _creat_artefact and _creat_mgdl:
+        _corr_factor = _creat_artefact["affects"]["creatinine"]["correction_factor"]
+        _creat_corrected_mgdl = round(_creat_mgdl * _corr_factor, 3)
     _glc_mgdl = round((bv("glucose") or 0) * 18.0182, 1) if bv("glucose") else None
     _crp_ln = round(math.log(bv("hs_CRP")), 3) if (bv("hs_CRP") and bv("hs_CRP") > 0) else None
     _lymph_pct = bv("lymphocytes")
@@ -1581,6 +1599,20 @@ def _build_payload(db: Session, user_id: int) -> dict:
             "direction": _pheno_dir(_creat_mgdl, 1.05),
             "date": _pheno_dates["creatinine"],
             "stale_note": _stale_label(_days_ago(_pheno_dates["creatinine"])),
+            # Артефакт-флаг: True если пользователь регулярно принимает креатин
+            # в последние 14 дней. UI должен отрисовать предупреждение.
+            "supplement_artefact": "creatine" if _creat_artefact else None,
+            "supplement_artefact_note": (
+                _creat_artefact["affects"]["creatinine"]["explanation"].format(
+                    dose=(_creat_artefact.get("dose_repr") or "по логу supplements_log")
+                )
+                if _creat_artefact
+                else None
+            ),
+            "corrected_val": _creat_corrected_mgdl,
+            "corrected_note": (
+                f"С поправкой на креатин ≈ {_creat_corrected_mgdl} мг/дл" if _creat_corrected_mgdl else None
+            ),
         },
         {
             "name": "Глюкоза",
@@ -1645,7 +1677,11 @@ def _build_payload(db: Session, user_id: int) -> dict:
 
     # Расчёт биовозраста по формуле Levine 2018 (Aging Cell).
     # Требуются ВСЕ 9 маркеров + возраст. Если хоть один отсутствует — биовозраст None.
+    # Если есть креатин-артефакт — считаем ДВЕ цифры: исходную (как сдано) и
+    # скорректированную (с креатинином × 0.78). Это даёт пользователю
+    # «нижний прогноз» биовозраста, который ожидается после wash-out 14 дней.
     _bio_age = None
+    _bio_age_corrected = None
     _bio_age_note_extra = ""
     _crp_raw_mgL = bv("hs_CRP")
     _all_markers_present = all(
@@ -1678,8 +1714,49 @@ def _build_payload(db: Session, user_id: int) -> dict:
             # Защита от ln(0) если M очень близко к 0
             if 0 < _mort < 1:
                 _bio_age = round(141.50225 + math.log(-0.00553 * math.log(1 - _mort)) / 0.090165, 1)
+
+            # Скорректированный биовозраст с учётом креатин-артефакта.
+            # Пересчитываем _xb с _creat_corrected_mgdl × 88.4 вместо измеренного.
+            if _creat_corrected_mgdl is not None:
+                _creat_umolL_corr = _creat_corrected_mgdl * 88.4
+                _xb_corr = (
+                    -19.907
+                    + 0.0804 * _age_score
+                    + (-0.0336) * _alb_gL
+                    + 0.0095 * _creat_umolL_corr
+                    + 0.1953 * _gluc_mmolL
+                    + 0.0954 * _lncrp
+                    + (-0.0120) * _lymph_pct
+                    + 0.0268 * _mcv
+                    + 0.3306 * _rdw
+                    + (-0.00188) * _alp
+                    + 0.0554 * _wbc
+                )
+                _mort_corr = 1 - math.exp(-math.exp(_xb_corr) * (math.exp(0.0076927 * 120) - 1) / 0.0076927)
+                if 0 < _mort_corr < 1:
+                    _bio_age_corrected = round(141.50225 + math.log(-0.00553 * math.log(1 - _mort_corr)) / 0.090165, 1)
         except (ValueError, OverflowError) as e:
             _bio_age_note_extra = f" [расчёт не удался: {e}]"
+
+    # Хвост note про артефакт креатина — добавляется к любой версии _pheno_note
+    # ниже. Если есть скорректированная цифра — показываем оба возраста.
+    _artefact_suffix = ""
+    if _creat_artefact:
+        _last = _creat_artefact.get("last_date") or "—"
+        _dose = _creat_artefact.get("dose_repr") or "по логу"
+        if _bio_age is not None and _bio_age_corrected is not None:
+            _artefact_suffix = (
+                f" 🔶 Креатинин завышен из-за активного приёма креатина "
+                f"({_dose}, последний приём {_last}). "
+                f"С поправкой ×0.78 биовозраст ≈ {_bio_age_corrected} лет "
+                f"(против ~{_bio_age} без поправки). После 14-дневной отмены "
+                f"креатина пересдай — получишь чистую цифру."
+            )
+        else:
+            _artefact_suffix = (
+                f" 🔶 Креатинин завышен из-за приёма креатина ({_dose}). "
+                f"После отмены креатина за 14 дней до сдачи получишь чистую цифру."
+            )
 
     # Сборка ноты с явной информацией о свежести данных
     if _stale_markers:
@@ -1710,16 +1787,24 @@ def _build_payload(db: Session, user_id: int) -> dict:
         )
         _bio_age_quality = "no_data"
 
+    # Прицепляем артефакт-предупреждение к итоговой ноте (если есть)
+    _pheno_note = _pheno_note + _artefact_suffix
+
     panels_phenoage = {
         "source": "Levine et al. 2018, Aging Cell",
         "source_url": "https://doi.org/10.18632/aging.101414",
         "chrono_age": _age_score,
         "bio_age_est": _bio_age,
+        "bio_age_est_corrected": _bio_age_corrected,  # с поправкой на креатин-артефакт (None если нет)
         "bio_age_quality": _bio_age_quality,  # "fresh" | "stale" | "no_data"
         "bio_age_range": None,
         "younger_count": _younger_count,
         "markers": _pheno_markers,
         "stale_markers": [m["name"] for m in _stale_markers],
+        # Активные биомаркер-артефакты от БАД/еды. Сейчас содержит максимум
+        # один ключ "creatine". UI может вывести предупреждение и предложить
+        # отменить добавку за 14 дней до следующей сдачи.
+        "lab_artefacts": _lab_artefacts,
         "note": _pheno_note,
     }
 
