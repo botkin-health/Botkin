@@ -1,0 +1,28 @@
+# Docker build context exclusions.
+# Эти файлы могут существовать локально на маке (для разработки/тестов),
+# но НЕ должны попадать в образ — на сервере они пересобираются скриптами
+# в /app/scripts/util/ или приходят через cron/webhook.
+
+# Derived JSON-ы для дашборда — генерятся на сервере (build_workouts_log.py,
+# build_env_data.py). Если бы мы их сюда копировали, моя локальная (часто
+# устаревшая) копия с мака перетирала бы свежие серверные данные при
+# каждом --force-rebuild. Прецедент: 24.05.2026, поймали этот баг.
+telegram-bot/workouts_log_*.json
+telegram-bot/env_data_*.json
+
+# Логи и кэши Python
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+.DS_Store
+**/.DS_Store
+
+# venv и подобное
+venv/
+.venv/
+
+# Логи бота
+telegram-bot/logs/
+data/cache/

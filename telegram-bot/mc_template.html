@@ -213,16 +213,31 @@ html { scroll-behavior: smooth; }
           margin-top: 30px; padding: 20px; letter-spacing: 0.5px; }
 .footer .accent { color: var(--g); }
 
-/* Biomarker panel tabs */
-.panel-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border);
-              margin-bottom: 14px; overflow-x: auto; scrollbar-width: none; }
+/* Biomarker panel tabs — pill-button style (Вариант A).
+   Каждая вкладка — отдельная скруглённая «таблетка». Активная заполнена
+   зелёным цветом проекта, неактивные имеют тёмно-серый фон и на hover
+   плавно светлеют. Сразу читается как кнопки/переключатели.
+
+   Компактный размер чтобы все 7 вкладок влезали в одну строку на обычном
+   десктопе; на узком экране flex-wrap всё равно переносит. */
+.panel-tabs { display: flex; gap: 4px; flex-wrap: wrap;
+              margin-bottom: 16px; padding-bottom: 4px;
+              overflow-x: auto; scrollbar-width: none; }
 .panel-tabs::-webkit-scrollbar { display: none; }
-.panel-tab { padding: 8px 14px; font-size: 11px; font-weight: 600; color: var(--muted);
-             border: none; border-bottom: 2px solid transparent; cursor: pointer;
-             white-space: nowrap; transition: color .2s, border-color .2s;
-             letter-spacing: 0.4px; background: none; font-family: inherit; }
-.panel-tab:hover { color: var(--text); }
-.panel-tab.active { color: var(--g); border-bottom-color: var(--g); }
+.panel-tab { padding: 6px 11px; font-size: 11px; font-weight: 600; color: var(--muted);
+             border: 1px solid var(--border);
+             background: var(--bg2);
+             border-radius: 999px;
+             cursor: pointer; white-space: nowrap;
+             transition: background .15s, color .15s, border-color .15s, transform .1s;
+             letter-spacing: 0.3px; font-family: inherit; }
+.panel-tab:hover { color: var(--text); background: rgba(255,255,255,0.04);
+                   border-color: rgba(255,255,255,0.18); }
+.panel-tab:active { transform: scale(0.97); }
+.panel-tab.active { color: #0f1414; background: var(--g);
+                    border-color: var(--g); font-weight: 700;
+                    box-shadow: 0 0 0 1px rgba(0,0,0,0.15) inset; }
+.panel-tab.active:hover { background: var(--g); color: #0f1414; }
 .panel-content { display: none; }
 .panel-content.active { display: block; }
 .panel-source { font-size: 10px; color: var(--dim); margin-bottom: 6px; line-height: 1.6; }
@@ -448,49 +463,52 @@ html { scroll-behavior: smooth; }
     </div>
   </div>
   <div class="card" style="overflow: hidden;">
+    <!-- Короткие названия чтобы все 7 вкладок влезали в одну строку.
+         Полные описания дублируются в panel-source внутри каждой панели. -->
     <div class="panel-tabs">
-      <button class="panel-tab active" onclick="switchPanel(0)">Мониторинг</button>
-      <button class="panel-tab" onclick="switchPanel(1)">Longevity · Attia</button>
-      <button class="panel-tab" onclick="switchPanel(2)">Метаболизм</button>
-      <button class="panel-tab" onclick="switchPanel(3)">Life's Essential 8</button>
-      <button class="panel-tab" onclick="switchPanel(4)">PhenoAge</button>
-      <button class="panel-tab" onclick="switchPanel(5)">SCORE2</button>
-      <button class="panel-tab" onclick="switchPanel(6)">ASCVD Lifetime</button>
+      <button class="panel-tab active" onclick="switchPanel(0)" title="9-маркерные биологические часы Levine 2018">PhenoAge</button>
+      <button class="panel-tab" onclick="switchPanel(1)" title="Ключевые биомаркеры с цветными целями">Мониторинг</button>
+      <button class="panel-tab" onclick="switchPanel(2)" title="Longevity по Peter Attia «Outlive»">Attia</button>
+      <button class="panel-tab" onclick="switchPanel(3)" title="Метаболический синдром (NCEP ATP III)">Метаболизм</button>
+      <button class="panel-tab" onclick="switchPanel(4)" title="Life's Essential 8 — индекс здоровья ССС">LE8</button>
+      <button class="panel-tab" onclick="switchPanel(5)" title="10-летний риск ССЗ (ESC 2021)">SCORE2</button>
+      <button class="panel-tab" onclick="switchPanel(6)" title="Пожизненный риск ССЗ (AHA/ACC)">ASCVD</button>
     </div>
 
-    <!-- Panel 0: Мониторинг -->
-    <div class="panel-content active" id="panel-0">
+    <!-- Panel 0 (in DOM order): PhenoAge — поставлена первой как самая интересная для пользователя.
+         id="panel-4" сохранён исторически, но порядок в DOM теперь определяет switchPanel. -->
+    <div class="panel-content active" id="panel-4">
+      <div class="panel-source">Источник: <a href="https://doi.org/10.18632/aging.101414" target="_blank">Levine et al. 2018, Aging Cell</a> &nbsp;·&nbsp; 9-маркерные биологические часы PhenoAge</div>
+      <div class="panel-explainer">Что показывает: твой биологический возраст по 9 биомаркерам крови (vs паспортный). Откалибровано на NHANES — крупная американская популяция. Ниже паспортного = «моложе для своих лет», статистически меньше риск умереть в ближайшие 10 лет.</div>
+      <div id="phenoage-panel"></div>
+    </div>
+
+    <!-- Panel 1 (in DOM order): Мониторинг -->
+    <div class="panel-content" id="panel-0">
       <div class="panel-source">Botkin · <span id="bio-count-1">—</span> ключевых биомаркеров · последние данные крови</div>
       <div class="panel-explainer">Ключевые маркеры с цветной разметкой целей — глюкоза, липиды, гормоны, витамины, воспаление. Реальные значения за последний анализ.</div>
       <table class="biotable" id="biotable"></table>
     </div>
 
-    <!-- Panel 1: Longevity · Attia -->
+    <!-- Panel 2 (in DOM order): Longevity · Attia -->
     <div class="panel-content" id="panel-1">
       <div class="panel-source">Источник: <a href="https://peterattiamd.com/outlive" target="_blank">peterattiamd.com/outlive</a> &nbsp;·&nbsp; Peter Attia «Outlive» (2023)</div>
       <div class="panel-explainer">Что показывает: 7 ключевых маркеров для долголетия по Питеру Аттиа — кардиолог-визионер, автор бестселлера про продление здоровой жизни. Это чек-лист «попадаешь ли в зоны для долгой жизни».</div>
       <table class="biotable" id="attia-table"></table>
     </div>
 
-    <!-- Panel 2: Метаболизм -->
+    <!-- Panel 3 (in DOM order): Метаболизм -->
     <div class="panel-content" id="panel-2">
       <div class="panel-source">Источник: <a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2654873/" target="_blank">NCEP ATP III 2001</a> &nbsp;·&nbsp; Метаболический синдром: 3+ критерия из 5</div>
       <div class="panel-explainer">Что показывает: есть ли у тебя метаболический синдром — кластер из 5 признаков (талия, давление, ТГ, HDL, глюкоза). 3+ из 5 = диагноз, повышенный риск диабета 2 типа и ССЗ (сердечно-сосудистых заболеваний).</div>
       <table class="biotable" id="metabolic-table"></table>
     </div>
 
-    <!-- Panel 3: Life's Essential 8 -->
+    <!-- Panel 4 (in DOM order): Life's Essential 8 -->
     <div class="panel-content" id="panel-3">
       <div class="panel-source">Источник: <a href="https://www.ahajournals.org/doi/10.1161/CIR.0000000000001081" target="_blank">American Heart Association · Life's Essential 8 (2022)</a> &nbsp;·&nbsp; Индекс здоровья ССС по 8 компонентам · шкала 0–100</div>
       <div class="panel-explainer">Что показывает: индекс здоровья сердечно-сосудистой системы по 8 факторам — 4 биомаркеров (липиды, давление, глюкоза, ИМТ) + 4 поведенческих (диета, спорт, сон, курение). Валидирован на 500к+ людей. Чем выше балл, тем ниже 10-летний риск ССЗ.</div>
       <div id="le8-panel"></div>
-    </div>
-
-    <!-- Panel 4: PhenoAge -->
-    <div class="panel-content" id="panel-4">
-      <div class="panel-source">Источник: <a href="https://doi.org/10.18632/aging.101414" target="_blank">Levine et al. 2018, Aging Cell</a> &nbsp;·&nbsp; 9-маркерные биологические часы PhenoAge</div>
-      <div class="panel-explainer">Что показывает: твой биологический возраст по 9 биомаркерам крови (vs паспортный). Откалибровано на NHANES — крупная американская популяция. Ниже паспортного = «моложе для своих лет», статистически меньше риск умереть в ближайшие 10 лет.</div>
-      <div id="phenoage-panel"></div>
     </div>
 
     <!-- Panel 5: SCORE2 -->
@@ -1229,12 +1247,27 @@ bioRefs.map(([k, nm, lo, hi, sys]) => {
   const ageColor  = isStale ? COLOR.y : COLOR.g;
   const dirColor = { younger: COLOR.g, older: COLOR.r, unknown: COLOR.muted };
   const dirIcon  = { younger: '↓', older: '↑', unknown: '?' };
-  // Заголовок плашки в зависимости от качества данных
+  // Заголовок плашки в зависимости от качества данных. Над цифрой показываем
+  // ТОЛЬКО про устаревшие маркеры (это блокирует надёжность расчёта).
+  // Креатин-артефакт — отдельная подсекция в нижнем «Примечании» (см. ниже),
+  // чтобы не дублировать одно и то же сообщение в двух местах.
   const qualityBanner = isStale
     ? `<div style="background:rgba(255,180,40,0.12);border:1px solid ${COLOR.y};border-radius:8px;padding:8px 12px;font-size:11px;color:${COLOR.y};margin-bottom:12px;">
         ⚠ <b>Расчёт ненадёжный:</b> устаревшие маркеры (${(pa.stale_markers||[]).join(", ")}). Цифре доверять можно только после пересдачи.
        </div>`
     : "";
+
+  // Креатин-артефакт нужен только для рендера 🔶-бейджа на самом маркере
+  // и для отделения artefact-suffix в нижнем «Примечании».
+  const creatineArt = pa.lab_artefacts && pa.lab_artefacts.creatine;
+  const corrColor = '#ff9a3c';
+  // Разделяем итоговую ноту на две части: основной текст и креатин-suffix.
+  // В backend они склеены в pa.note через " 🔶 " — режем по этому маркеру.
+  const noteText = pa.note || "";
+  const splitIdx = noteText.indexOf(" 🔶 ");
+  const mainNote = splitIdx >= 0 ? noteText.substring(0, splitIdx).trim() : noteText;
+  const artefactNote = splitIdx >= 0 ? noteText.substring(splitIdx + 1).trim() : "";
+
   el.innerHTML = `
     ${qualityBanner}
     <div style="display:flex;align-items:flex-start;gap:24px;margin-bottom:16px;">
@@ -1264,14 +1297,24 @@ bioRefs.map(([k, nm, lo, hi, sys]) => {
           const valStr = m.val !== null && m.val !== undefined ? m.val : '—';
           const dateStr = m.date && m.date !== '—' ? m.date : '';
           const staleBadge = m.stale_note ? ` <span style="color:${COLOR.y};font-size:9px;font-weight:700;">${m.stale_note}</span>` : '';
+          // Артефакт-бейдж: 🔶 если креатинин завышен из-за активного креатина и т.п.
+          // Tooltip = explanation + corrected value (если есть).
+          const artBadge = m.supplement_artefact
+            ? ` <span title="${(m.supplement_artefact_note||'').replace(/"/g,'&quot;')}${m.corrected_note ? ' — ' + m.corrected_note.replace(/"/g,'&quot;') : ''}" style="color:#ff9a3c;font-size:11px;font-weight:700;cursor:help;">🔶</span>`
+            : '';
           return `<div style="background:var(--bg2);border-radius:6px;padding:5px 10px;font-size:11px;border-left:2px solid ${c};">
-            <span style="color:${COLOR.muted};">${m.name}</span>&nbsp;<span style="color:${c};font-weight:700;">${ic}&nbsp;${valStr}</span>${m.unit ? `<span style="color:${COLOR.dim};font-size:9px;"> ${m.unit}</span>` : ''}${dateStr ? `<span style="color:${COLOR.dim};font-size:9px;"> · ${dateStr}</span>` : ''}${staleBadge}
+            <span style="color:${COLOR.muted};">${m.name}</span>&nbsp;<span style="color:${c};font-weight:700;">${ic}&nbsp;${valStr}</span>${m.unit ? `<span style="color:${COLOR.dim};font-size:9px;"> ${m.unit}</span>` : ''}${dateStr ? `<span style="color:${COLOR.dim};font-size:9px;"> · ${dateStr}</span>` : ''}${staleBadge}${artBadge}
           </div>`;
         }).join('')}
       </div>
     </div>
     <div style="background:var(--bg2);border-radius:8px;padding:12px 14px;font-size:11px;color:${COLOR.muted};line-height:1.9;border-left:3px solid ${isStale ? COLOR.y : COLOR.g};">
-      <b style="color:var(--text);">Примечание:</b> ${pa.note}
+      <b style="color:var(--text);">Примечание:</b> ${mainNote}
+      ${artefactNote ? `
+        <div style="margin-top:10px;padding:10px 12px;background:rgba(255,154,60,0.10);border-left:3px solid ${corrColor};border-radius:6px;color:${corrColor};font-weight:500;">
+          ${artefactNote}
+        </div>
+      ` : ''}
     </div>`;
 })();
 

@@ -1,7 +1,7 @@
 {
   "HbA1c": {
-    "value": 5.4,
-    "date": "2026-03-19",
+    "value": 5.0,
+    "date": "2026-05-23",
     "earliest": {
       "value": 6.5,
       "date": "2022-12-28"
@@ -11,14 +11,14 @@
       "date": "2022-12-28"
     },
     "peak_min": {
-      "value": 5.4,
-      "date": "2026-03-19"
+      "value": 5.0,
+      "date": "2026-05-23"
     },
-    "n_history": 3
+    "n_history": 4
   },
   "glucose": {
-    "value": 4.8,
-    "date": "2026-03-19",
+    "value": 4.3,
+    "date": "2026-05-23",
     "earliest": {
       "value": 5.6,
       "date": "2015-09-21"
@@ -28,69 +28,82 @@
       "date": "2015-09-21"
     },
     "peak_min": {
-      "value": 4.68,
-      "date": "2024-07-12"
+      "value": 4.3,
+      "date": "2026-05-23"
     },
-    "n_history": 7
+    "n_history": 13
   },
   "insulin": {
-    "value": 8.1,
-    "date": "2026-03-19",
+    "value": 8.4,
+    "date": "2026-05-23",
     "earliest": {
       "value": 4.9,
       "date": "2026-01-07"
     },
     "peak_max": {
-      "value": 8.1,
+      "value": 8.4,
+      "date": "2026-05-23"
+    },
+    "peak_min": {
+      "value": 4.9,
+      "date": "2026-01-07"
+    },
+    "n_history": 4
+  },
+  "HOMA_index": {
+    "value": 1.62,
+    "date": "2026-05-23",
+    "earliest": {
+      "value": 1.7,
+      "date": "2026-03-19"
+    },
+    "peak_max": {
+      "value": 1.7,
       "date": "2026-03-19"
     },
     "peak_min": {
-      "value": 4.9,
-      "date": "2026-01-07"
+      "value": 1.62,
+      "date": "2026-05-23"
     },
     "n_history": 2
   },
-  "HOMA_index": {
-    "value": 1.7,
-    "date": "2026-03-19"
-  },
   "cholesterol_total": {
-    "value": 5.24,
-    "date": "2026-03-19",
+    "value": 6.01,
+    "date": "2026-05-23",
     "earliest": {
       "value": 5.4,
       "date": "2015-09-21"
     },
     "peak_max": {
-      "value": 5.86,
-      "date": "2026-01-07"
+      "value": 6.01,
+      "date": "2026-05-23"
     },
     "peak_min": {
       "value": 4.96,
       "date": "2022-12-28"
     },
-    "n_history": 7
+    "n_history": 13
   },
   "HDL": {
-    "value": 1.49,
-    "date": "2026-03-19",
+    "value": 1.78,
+    "date": "2026-05-23",
     "earliest": {
       "value": 1.5,
       "date": "2016-09-16"
     },
     "peak_max": {
-      "value": 1.56,
-      "date": "2025-08-10"
+      "value": 1.78,
+      "date": "2026-05-23"
     },
     "peak_min": {
       "value": 1.49,
       "date": "2026-03-19"
     },
-    "n_history": 3
+    "n_history": 4
   },
   "LDL": {
-    "value": 3.1,
-    "date": "2026-03-19",
+    "value": 3.51,
+    "date": "2026-05-23",
     "earliest": {
       "value": 3.1,
       "date": "2016-09-16"
@@ -103,11 +116,11 @@
       "value": 3.1,
       "date": "2016-09-16"
     },
-    "n_history": 4
+    "n_history": 5
   },
   "triglycerides": {
-    "value": 0.73,
-    "date": "2026-03-19",
+    "value": 0.72,
+    "date": "2026-05-23",
     "earliest": {
       "value": 0.71,
       "date": "2015-09-21"
@@ -120,23 +133,62 @@
       "value": 0.58,
       "date": "2025-08-10"
     },
-    "n_history": 6
+    "n_history": 8
   },
   "ApoB": {
-    "value": 1.07,
-    "date": "2026-03-19"
+    "value": 1.14,
+    "date": "2026-05-23",
+    "earliest": {
+      "value": 1.07,
+      "date": "2026-03-19"
+    },
+    "peak_max": {
+      "value": 1.14,
+      "date": "2026-05-23"
+    },
+    "peak_min": {
+      "value": 1.07,
+      "date": "2026-03-19"
+    },
+    "n_history": 2
   },
   "ApoA1": {
-    "value": 1.48,
-    "date": "2026-03-19"
+    "value": 1.7,
+    "date": "2026-05-23",
+    "earliest": {
+      "value": 1.48,
+      "date": "2026-03-19"
+    },
+    "peak_max": {
+      "value": 1.7,
+      "date": "2026-05-23"
+    },
+    "peak_min": {
+      "value": 1.48,
+      "date": "2026-03-19"
+    },
+    "n_history": 2
   },
   "lipoprotein_a": {
-    "value": 0.07,
-    "date": "2026-03-19"
+    "value": 0.08,
+    "date": "2026-05-23",
+    "earliest": {
+      "value": 0.07,
+      "date": "2026-03-19"
+    },
+    "peak_max": {
+      "value": 0.08,
+      "date": "2026-05-23"
+    },
+    "peak_min": {
+      "value": 0.07,
+      "date": "2026-03-19"
+    },
+    "n_history": 2
   },
   "ALT": {
-    "value": 13.8,
-    "date": "2026-03-19",
+    "value": 20.2,
+    "date": "2026-05-23",
     "earliest": {
       "value": 28,
       "date": "2015-09-21"
@@ -149,11 +201,11 @@
       "value": 13.8,
       "date": "2026-03-19"
     },
-    "n_history": 8
+    "n_history": 12
   },
   "AST": {
-    "value": 14.3,
-    "date": "2026-03-19",
+    "value": 17.9,
+    "date": "2026-05-23",
     "earliest": {
       "value": 14,
       "date": "2015-09-21"
@@ -166,11 +218,11 @@
       "value": 14,
       "date": "2015-09-21"
     },
-    "n_history": 8
+    "n_history": 12
   },
   "GGT": {
-    "value": 36,
-    "date": "2026-01-07",
+    "value": 25.0,
+    "date": "2026-05-23",
     "earliest": {
       "value": 34,
       "date": "2015-09-21"
@@ -183,7 +235,7 @@
       "value": 18.0,
       "date": "2016-09-16"
     },
-    "n_history": 5
+    "n_history": 7
   },
   "ALP": {
     "value": 54,
@@ -200,11 +252,11 @@
       "value": 54,
       "date": "2026-01-07"
     },
-    "n_history": 4
+    "n_history": 5
   },
   "bilirubin_total": {
-    "value": 17.8,
-    "date": "2026-01-07",
+    "value": 12.0,
+    "date": "2026-05-23",
     "earliest": {
       "value": 10.0,
       "date": "2015-09-21"
@@ -217,53 +269,66 @@
       "value": 9.3,
       "date": "2022-12-28"
     },
-    "n_history": 6
+    "n_history": 8
   },
   "hs_CRP": {
     "value": 0.11,
-    "date": "2026-03-19"
+    "date": "2026-05-23",
+    "earliest": {
+      "value": 0.11,
+      "date": "2026-03-19"
+    },
+    "peak_max": {
+      "value": 0.11,
+      "date": "2026-03-19"
+    },
+    "peak_min": {
+      "value": 0.11,
+      "date": "2026-03-19"
+    },
+    "n_history": 2
   },
   "testosterone": {
-    "value": 15.98,
-    "date": "2026-03-19",
+    "value": 19.15,
+    "date": "2026-05-23",
     "earliest": {
       "value": 14.39,
       "date": "2025-08-10"
     },
     "peak_max": {
-      "value": 15.98,
-      "date": "2026-03-19"
+      "value": 19.15,
+      "date": "2026-05-23"
     },
     "peak_min": {
       "value": 9.26,
       "date": "2026-01-07"
     },
-    "n_history": 5
+    "n_history": 7
   },
   "TSH": {
-    "value": 1.6,
-    "date": "2026-03-19",
+    "value": 2.12,
+    "date": "2026-05-23",
     "earliest": {
       "value": 0.93,
       "date": "2025-08-10"
     },
     "peak_max": {
-      "value": 1.6,
-      "date": "2026-03-19"
+      "value": 2.12,
+      "date": "2026-05-23"
     },
     "peak_min": {
       "value": 0.93,
       "date": "2025-08-10"
     },
-    "n_history": 3
+    "n_history": 4
   },
   "FT3": {
     "value": 5.74,
     "date": "2026-03-19"
   },
   "FT4": {
-    "value": 16.6,
-    "date": "2026-03-19",
+    "value": 15.9,
+    "date": "2026-05-23",
     "earliest": {
       "value": 14.8,
       "date": "2025-08-10"
@@ -276,15 +341,41 @@
       "value": 14.8,
       "date": "2025-08-10"
     },
-    "n_history": 2
+    "n_history": 3
   },
   "cortisol": {
-    "value": 531.7,
-    "date": "2026-03-19"
+    "value": 653.65,
+    "date": "2026-05-23",
+    "earliest": {
+      "value": 531.7,
+      "date": "2026-03-19"
+    },
+    "peak_max": {
+      "value": 653.65,
+      "date": "2026-05-23"
+    },
+    "peak_min": {
+      "value": 531.7,
+      "date": "2026-03-19"
+    },
+    "n_history": 2
   },
   "SHBG": {
-    "value": 26.5,
-    "date": "2026-03-19"
+    "value": 38.3,
+    "date": "2026-05-23",
+    "earliest": {
+      "value": 26.5,
+      "date": "2026-03-19"
+    },
+    "peak_max": {
+      "value": 38.3,
+      "date": "2026-05-23"
+    },
+    "peak_min": {
+      "value": 26.5,
+      "date": "2026-03-19"
+    },
+    "n_history": 2
   },
   "prolactin": {
     "value": 192.0,
@@ -338,12 +429,25 @@
     "n_history": 2
   },
   "vitamin_D": {
-    "value": 35.6,
-    "date": "2026-03-19"
+    "value": 35.8,
+    "date": "2026-05-23",
+    "earliest": {
+      "value": 35.6,
+      "date": "2026-03-19"
+    },
+    "peak_max": {
+      "value": 35.8,
+      "date": "2026-05-23"
+    },
+    "peak_min": {
+      "value": 35.6,
+      "date": "2026-03-19"
+    },
+    "n_history": 2
   },
   "ferritin": {
-    "value": 245.01,
-    "date": "2026-03-19",
+    "value": 242.53,
+    "date": "2026-05-23",
     "earliest": {
       "value": 378.1,
       "date": "2022-02-18"
@@ -353,10 +457,10 @@
       "date": "2022-12-28"
     },
     "peak_min": {
-      "value": 245.01,
-      "date": "2026-03-19"
+      "value": 242.53,
+      "date": "2026-05-23"
     },
-    "n_history": 6
+    "n_history": 8
   },
   "folic_acid": {
     "value": 9.8,
@@ -427,29 +531,29 @@
     "n_history": 6
   },
   "creatinine": {
-    "value": 81,
-    "date": "2026-01-07",
+    "value": 104.8,
+    "date": "2026-05-23",
     "earliest": {
       "value": 85,
       "date": "2015-09-21"
     },
     "peak_max": {
-      "value": 90.3,
-      "date": "2025-01-23"
+      "value": 104.8,
+      "date": "2026-05-23"
     },
     "peak_min": {
       "value": 79.9,
       "date": "2025-08-10"
     },
-    "n_history": 6
+    "n_history": 10
   },
   "egfr": {
     "value": 98,
     "date": "2026-01-07"
   },
   "uric_acid": {
-    "value": 399.2,
-    "date": "2025-08-10",
+    "value": 371.9,
+    "date": "2026-05-23",
     "earliest": {
       "value": 0.45,
       "date": "2022-12-28"
@@ -462,24 +566,24 @@
       "value": 0.45,
       "date": "2022-12-28"
     },
-    "n_history": 2
+    "n_history": 3
   },
   "urea": {
-    "value": 5.8,
-    "date": "2025-08-10",
+    "value": 7.0,
+    "date": "2026-05-23",
     "earliest": {
       "value": 4.5,
       "date": "2015-09-21"
     },
     "peak_max": {
-      "value": 5.8,
-      "date": "2025-08-10"
+      "value": 7.0,
+      "date": "2026-05-23"
     },
     "peak_min": {
       "value": 4.5,
       "date": "2015-09-21"
     },
-    "n_history": 3
+    "n_history": 4
   },
   "WBC": {
     "value": 5.23,
@@ -496,7 +600,7 @@
       "value": 5.01,
       "date": "2022-02-18"
     },
-    "n_history": 12
+    "n_history": 15
   },
   "RBC": {
     "value": 5.49,
@@ -513,7 +617,7 @@
       "value": 5.23,
       "date": "2015-11-24"
     },
-    "n_history": 12
+    "n_history": 15
   },
   "Hb": {
     "value": 154.0,
@@ -530,7 +634,7 @@
       "value": 143,
       "date": "2015-11-24"
     },
-    "n_history": 10
+    "n_history": 14
   },
   "lymphocytes": {
     "value": 35.0,
@@ -564,7 +668,7 @@
       "value": 75.9,
       "date": "2017-06-16"
     },
-    "n_history": 12
+    "n_history": 15
   },
   "RDW_CV": {
     "value": 13.6,
@@ -581,7 +685,7 @@
       "value": 13.2,
       "date": "2017-06-16"
     },
-    "n_history": 12
+    "n_history": 15
   },
   "PLT": {
     "value": 239.0,
@@ -598,7 +702,7 @@
       "value": 223,
       "date": "2021-03-01"
     },
-    "n_history": 12
+    "n_history": 15
   },
   "ESR": {
     "value": 5.0,
@@ -615,7 +719,7 @@
       "value": 1,
       "date": "2015-11-24"
     },
-    "n_history": 12
+    "n_history": 17
   },
   "albumin_g_l": {
     "value": 46.5,
@@ -649,11 +753,11 @@
       "value": 7.57,
       "date": "2022-12-28"
     },
-    "n_history": 3
+    "n_history": 4
   },
   "PSA_total": {
-    "value": 2.466,
-    "date": "2025-08-10",
+    "value": 1.56,
+    "date": "2026-05-23",
     "earliest": {
       "value": 2.466,
       "date": "2025-08-10"
@@ -663,10 +767,10 @@
       "date": "2025-08-10"
     },
     "peak_min": {
-      "value": 2.466,
-      "date": "2025-08-10"
+      "value": 1.56,
+      "date": "2026-05-23"
     },
-    "n_history": 2
+    "n_history": 3
   },
   "CRP": {
     "value": 3.0,
@@ -686,8 +790,8 @@
     "n_history": 4
   },
   "atherogenic_index": {
-    "value": 2.52,
-    "date": "2026-03-19",
+    "value": 2.37,
+    "date": "2026-05-23",
     "earliest": {
       "value": 2.1,
       "date": "2015-09-21"
@@ -700,11 +804,24 @@
       "value": 2.1,
       "date": "2015-09-21"
     },
-    "n_history": 4
+    "n_history": 5
   },
   "FAI": {
-    "value": 60.3,
-    "date": "2026-03-19"
+    "value": 50,
+    "date": "2026-05-23",
+    "earliest": {
+      "value": 60.3,
+      "date": "2026-03-19"
+    },
+    "peak_max": {
+      "value": 60.3,
+      "date": "2026-03-19"
+    },
+    "peak_min": {
+      "value": 50,
+      "date": "2026-05-23"
+    },
+    "n_history": 2
   },
   "calcium": {
     "value": 2.3,
@@ -758,8 +875,8 @@
     "n_history": 4
   },
   "_meta": {
-    "earliest_test_date": "2014-04-28",
-    "total_tests": 39,
+    "earliest_test_date": "2013-06-06",
+    "total_tests": 75,
     "total_markers": 53
   }
 }

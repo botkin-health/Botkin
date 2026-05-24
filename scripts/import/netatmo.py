@@ -81,6 +81,10 @@ def fetch_homecoach_data():
         name = st.get("station_name", "Unknown")
         if not device_id or name in SKIP_STATIONS:
             continue
+        # date_end передаём явно — без него Netatmo API для scale=1day
+        # возвращает данные только до ~7-8 дней назад (наблюдалось 24.05.2026:
+        # сейчас 24.05, а max_ts в ответе = 16.05). Явный date_end=now()
+        # запрашивает полный диапазон до текущего момента включительно.
         resp = requests.post(
             "https://api.netatmo.com/api/getmeasure",
             data={
@@ -89,6 +93,7 @@ def fetch_homecoach_data():
                 "scale": "1day",
                 "type": "Temperature,CO2,Humidity,Noise",
                 "date_begin": int(time.time() - 60 * 24 * 3600),
+                "date_end": int(time.time()),
                 "optimize": "false",
             },
             timeout=15,

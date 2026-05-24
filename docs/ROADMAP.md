@@ -57,6 +57,7 @@
 - [ ] **Broadcast в админке** — массовая рассылка active-юзерам.
 - [ ] **Bot health metrics** — uptime, webhook latency, последние ошибки.
 - [ ] **Sync в Claude Code + PDF→KB pipeline** — отдельный интерфейс для меня лично в IDE (перенесено из NOW).
+- [ ] **Health Reports — автоматические отчёты по здоровью** — генерация HTML-отчётов на сервере по шаблону (аналог `Отчёт_для_Павла_Леонидовича_*`). Триггер: `/report` в боте + BotkinClaw tool `generate_report`. Доступ — только владелец по JWT-ссылке. Все версии сохраняются. PDF = кнопка `window.print()` на клиенте (без Playwright). Стек: `services/report_generator.py` (matplotlib-графики → base64 PNG → Jinja2-шаблон → HTML), таблица `health_reports(id, user_id, created_at, report_html, token)`, эндпоинт `GET /r/{token}`. Шаблон и правила — на основе опыта с папой и мамой, дополняем итерационно. [3-5 дней]
 
 ---
 
