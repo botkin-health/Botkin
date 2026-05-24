@@ -58,6 +58,18 @@ services:
       - ./services:/app/services
       - ./helpers:/app/helpers
       - ./domain:/app/domain
+      # Per-user knowledge_base files. Read by core.reports.biomarker_dynamics
+      # (render_report) and webhook.agent_tools_api.kb_value (get_kb_value).
+      # Path resolution: project_root = Path(__file__).resolve().parents[2] = /app,
+      # so files must land at /app/kb_<tid>.json.
+      # TODO (systematic fix): move all kb_*.json into data/kb/ and update
+      # path resolution — that auto-syncs through existing ./data:/app/data mount
+      # without per-file entries here. See docs/superpowers/specs/ for the plan.
+      - ./kb_895655.json:/app/kb_895655.json
+      - ./kb_REDACTED_ID.json:/app/kb_REDACTED_ID.json
+      - ./kb_REDACTED_ID.json:/app/kb_REDACTED_ID.json
+      - ./kb_REDACTED_ID.json:/app/kb_REDACTED_ID.json
+      - ./kb_REDACTED_ID.json:/app/kb_REDACTED_ID.json
     networks:
       - healthvault_network
     restart: always
