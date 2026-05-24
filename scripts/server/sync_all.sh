@@ -58,6 +58,11 @@ run garmin   /app/scripts/garmin/download_garmin_data.py
 # сырых Garmin-активностей, чтобы дашборд видел свежие тренировки. ОБЯЗАТЕЛЬНО
 # после garmin. Раньше этот шаг делался только в мак-pipeline → дашборд отставал.
 run workouts /app/scripts/util/build_workouts_log.py
+# Postgres backfill: workouts + sleep + hrv в БД (для агента /recent_workouts,
+# /recent_activity). Раньше эту работу делал scripts/backfill_to_postgres.py
+# с мака — и протух 16-24.05.2026 потому что мак не запускали. Теперь сервер
+# делает сам каждую ночь. Идемпотентно: ON CONFLICT DO NOTHING / UPDATE.
+run pg_sync  /app/scripts/util/server_backfill_postgres.py
 
 # Zepp пока отключён — токен на сервере устарел, нужен reauth с Mac
 # Когда токен обновится, раскомментировать:
