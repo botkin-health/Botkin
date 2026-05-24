@@ -112,6 +112,9 @@ def build_biomarkers(kb: dict) -> dict:
     add("prolactin", ["prolactin"])
     add("LH", ["LH"])
     add("FSH", ["FSH"])
+    add("DHEA_S", ["DHEA_S", "DHEAS", "dhea_s", "DHEA-S"])
+    add("FAI", ["FAI"])
+    add("PTH_intact", ["PTH_intact", "parathyroid_hormone", "PTH"])
 
     # Vitamins / nutrients
     add("vitamin_D", ["vitamin_D"])
