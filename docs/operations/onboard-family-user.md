@@ -13,7 +13,7 @@ Runbook для будущих onboarding'ов через `scripts/onboard_family
 ## Архитектура (что куда едет)
 
 ```
-FamilyHealth/<name>/knowledge_base.json  →  scp  →  /opt/healthvault/kb_<tid>.json
+FamilyHealth/<name>/knowledge_base.json  →  scp  →  /opt/healthvault/data/kb/kb_<tid>.json
 FamilyHealth/<name>/PROFILE.md            ↘
                                             generate_persona  →  agent_system_prompt
 core/packs.py                             ↗
@@ -139,7 +139,7 @@ print(f'Sent message_id={msg_id}')
 
 - **Anthropic 529 на 4.6** — скрипт сам делает quick retry (0.7s) и fallback на 4.5. Если оба упали — повторить через 1-2 минуты или использовать `--from-file` со старым артефактом промпта.
 - **scp прерван** — `--enroll` сам откатит KB-файл при ошибке DB UPDATE. Если scp упал — ничего не было применено, можно перезапустить.
-- **Process killed между scp и mv** — может остаться `kb_<tid>.json.tmp` на сервере (нет автоматической чистки). Удалить вручную: `ssh root@host "rm -f /opt/healthvault/kb_<tid>.json.tmp"`.
+- **Process killed между scp и mv** — может остаться `kb_<tid>.json.tmp` в `/opt/healthvault/data/kb/`. Удалить вручную: `ssh root@host "rm -f /opt/healthvault/data/kb/kb_<tid>.json.tmp"`.
 - **psql: 0 rows updated → UserNotFoundError** — юзер не существует в `users`. Проверь telegram_id.
 - **Welcome не дошёл** — `chat_id` должен совпадать с telegram_id юзера, юзер должен был хотя бы раз написать боту (chat существует).
 - **`--enroll requires: ...`** — argparse объявил эти поля optional, но `cmd_enroll` валидирует на старте. Проверь команду на missing-args.

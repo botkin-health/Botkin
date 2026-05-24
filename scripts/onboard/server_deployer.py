@@ -73,10 +73,23 @@ def _psql(cfg: ServerConfig, sql: str) -> subprocess.CompletedProcess:
     return _ssh(cfg, docker_cmd)
 
 
+def _kb_remote_path(cfg: ServerConfig, telegram_id: int) -> str:
+    """Layout: ``<deploy_path>/data/kb/kb_<tid>.json``. Auto-synced into the
+    bot container via the existing ``./data:/app/data`` bind-mount. New users
+    no longer require per-file entries in docker-compose.prod.yml."""
+    return f"{cfg.deploy_path}/data/kb/kb_{telegram_id}.json"
+
+
 def upload_kb(*, kb_path: Path, telegram_id: int, cfg: ServerConfig) -> None:
-    """Залить kb_<tid>.json на сервер atomic'ом: scp в .tmp + mv."""
-    tmp_remote = f"{cfg.deploy_path}/kb_{telegram_id}.json.tmp"
-    final_remote = f"{cfg.deploy_path}/kb_{telegram_id}.json"
+    """Залить kb_<tid>.json на сервер atomic'ом: mkdir + scp в .tmp + mv."""
+    final_remote = _kb_remote_path(cfg, telegram_id)
+    tmp_remote = f"{final_remote}.tmp"
+    kb_dir = final_remote.rsplit("/", 1)[0]
+
+    # Ensure target directory exists (idempotent).
+    mkdir = _ssh(cfg, f"mkdir -p {shlex.quote(kb_dir)}")
+    if mkdir.returncode != 0:
+        raise RuntimeError(f"mkdir failed: {mkdir.stderr or mkdir.stdout}")
 
     scp = _scp(cfg, kb_path, tmp_remote)
     if scp.returncode != 0:
@@ -98,9 +111,14 @@ def upload_kb(*, kb_path: Path, telegram_id: int, cfg: ServerConfig) -> None:
 
 
 def remove_kb(*, telegram_id: int, cfg: ServerConfig) -> None:
-    """Удалить kb_<tid>.json с сервера (для rollback / --unenroll)."""
-    final_remote = f"{cfg.deploy_path}/kb_{telegram_id}.json"
-    _ssh(cfg, f"rm -f {shlex.quote(final_remote)}")
+    """Удалить kb_<tid>.json с сервера (для rollback / --unenroll).
+
+    Also cleans up legacy location at deploy_path root if it exists — covers
+    the 2026-05-22→05-24 transition when files briefly lived in both spots.
+    """
+    final_remote = _kb_remote_path(cfg, telegram_id)
+    legacy_remote = f"{cfg.deploy_path}/kb_{telegram_id}.json"
+    _ssh(cfg, f"rm -f {shlex.quote(final_remote)} {shlex.quote(legacy_remote)}")
 
 
 def update_user_row(
