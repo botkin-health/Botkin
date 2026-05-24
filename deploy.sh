@@ -101,6 +101,21 @@ sshpass -p "$SERVER_PASSWORD" ssh ${SERVER_USER}@${SERVER_IP} \
 echo "✅ Containers restarted"
 echo ""
 
+# 3b. Rebuild derived JSONs для дашборда сразу после рестарта.
+# Эти файлы (workouts_log_*.json, env_data_*.json) больше НЕ копируются в образ
+# (исключены через .dockerignore), поэтому после --force-rebuild они пусты
+# до следующего ночного cron'а 04:05 UTC. Если не пересобрать их явно
+# здесь — дашборд несколько часов показывает «нет данных» на блоках Sport/Air.
+# Прецедент: 24.05.2026, силовая 22.05 трижды пропадала после rebuild.
+# `|| true` — если бот ещё не поднялся за 3s sleep ниже, cron всё равно
+# отработает ночью, deploy не должен падать из-за этого.
+echo "🔧 Rebuilding derived JSONs (workouts_log, env_data)..."
+sshpass -p "$SERVER_PASSWORD" ssh ${SERVER_USER}@${SERVER_IP} \
+    "docker exec healthvault_bot python3 /app/scripts/util/build_workouts_log.py 2>&1 | tail -1 || echo '   ⚠️ workouts rebuild пропустим (бот не готов)'"
+sshpass -p "$SERVER_PASSWORD" ssh ${SERVER_USER}@${SERVER_IP} \
+    "docker exec healthvault_bot python3 /app/scripts/util/build_env_data.py 2>&1 | tail -1 || echo '   ⚠️ env rebuild пропустим (бот не готов)'"
+echo ""
+
 # 4. Verify deployment
 echo "🏥 Step 4/4: Verifying deployment..."
 sleep 3
