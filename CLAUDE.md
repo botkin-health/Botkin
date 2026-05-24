@@ -99,6 +99,24 @@ Telegram ID и личные данные пользователей — в `~/.c
 
 ## Данные здоровья — источники и пайплайн
 
+### 🩸 Анализы (KB) — 3-source pipeline (важно!)
+
+Источник истины — `~/FamilyHealth/<Имя>/knowledge_base.json` **на маке**. На сервере читается из **трёх мест одновременно** (каждое для своего слоя):
+
+| Канал на сервере | Кто читает | Как туда попадают данные |
+|---|---|---|
+| `/app/telegram-bot/biomarkers_<id>.json` | дашборд (`dashboard_generator.py`) | scp+`docker cp` из `generate_biomarkers_json.py` |
+| PostgreSQL `blood_tests` | агент (`/recent_biomarkers`) | `scripts/import/kb_to_blood_tests.py` |
+| `/app/data/kb/kb_<id>.json` (bind-mount) | агент (`/kb_value`, `/list_kb_keys`) | `scripts/sync_family_kb.py --apply` |
+
+**Когда добавил новый анализ в KB → одна команда для Александра:**
+```bash
+python3 scripts/generate_biomarkers_json.py --deploy
+```
+Этот скрипт делает все 3 стадии разом. Для других юзеров — пока через `sync_family_kb.py` + `kb_to_blood_tests.py` руками (см. `docs/ai_context/04_workflows.md` §13).
+
+**Прецедент 24.05.2026:** забыли стадии (2) и (3) → дашборд показывал май, агент твердил «последний 19 марта». Теперь автомат.
+
 ### Автоматические (скрипты тянут сами)
 
 | Метрика | Источник | Файл/таблица | Скрипт |

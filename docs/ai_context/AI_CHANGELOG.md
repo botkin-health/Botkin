@@ -7,6 +7,20 @@
 
 ---
 
+## 2026-05-24 — Marathon: server-side derived pipelines + bot token rollback + 3-source KB sync
+
+Большой день, четыре независимых блока:
+
+1. **CMD-панель Александра (23.05) распарсена и залита.** 50+ биомаркеров в KB. `blood_2026-05-23_cmd_comprehensive.pdf` в FamilyHealth. Журнал обследований регенерирован. Динамика март→май сравнена с командировочной неделей (4 ночи недосыпа, HRV UNBALANCED 3 дня подряд, алкоголь 3 вечера) → объясняет искажение кортизола, DHEA-S, креатинина, ЛПНП.
+
+2. **Server-side derived pipelines (закрыли мак-зависимость).** Новые скрипты `scripts/util/build_workouts_log.py` (Garmin activities → `workouts_log_<id>.json`) и `scripts/util/build_env_data.py` (netatmo_history → `env_data_<id>.json`). Добавлены шаги в `sync_all.sh` (ночной cron) и в `handlers/sync_cmd.py` (бот). `.dockerignore` исключает derived JSON-ы из образа. В `deploy.sh` после `up -d` запускаются builders. Прецедент: тренировка 22.05 трижды пропадала с дашборда после каждого `--force-rebuild`. Архитектурно закрыто.
+
+3. **PhenoAge креатин-артефакт детекция.** `core/health/supplements.py`: новые `is_supplement_active()` и `check_lab_artefacts_for_user()` + таблица `LAB_ARTEFACTS` (creatine → creatinine ×0.78, расширяема для биотин/алкоголь/BCAA). `dashboard_generator.py` Panel 4: маркер «Креатинин» теперь содержит флаг + corrected_val + биовозраст с поправкой (35.7 → 33.2). UI: оранжевая плашка в Примечании + 🔶 бейдж на маркере с tooltip. PhenoAge переехала на первую позицию среди вкладок биомаркеров. Pill-button стиль вкладок + короткие названия (Attia, LE8, ASCVD) чтобы все 7 умещались в строку.
+
+4. **Bot token rollback + 3-source KB sync pipeline.** Обнаружено что `.env` (мак, сервер, 1Password) содержал старый токен `@HealthVault_bot` (8500310863), а display name старого бота был переименован в «NutriLogBot» — пользователь думал что пишет `@Botkin_md_bot`, но Telegram открывал старый чат. Откатили: токен в трёх местах → правильный 8739688481, старый бот переименован в «HealthVault (архив)» через `setMyName`, webhook у старого снят через `deleteWebhook`. **Главное архитектурное:** агент читает анализы из ТРЁХ мест (flat JSON для дашборда, PostgreSQL `blood_tests` для `/recent_biomarkers`, `/app/data/kb/kb_<id>.json` для `/kb_value`). Раньше `generate_biomarkers_json.py --deploy` обновлял только flat — поэтому дашборд знал май, агент твердил «последний 19 марта». Теперь `--deploy` запускает 3-stage pipeline: (1) deploy flat-JSON, (2) `kb_to_blood_tests.py`, (3) `sync_family_kb.py`. См. `docs/ai_context/04_workflows.md` §13. Bind-mount `/opt/healthvault/data/kb → /app/data/kb` уже существовал (коммиты 4665a03 + 9d3d93c).
+
+Коммиты: `af8aa59` day cleanup · `7c33f6a` deploy derived-rebuild · `b48526b` auto-sync blood_tests · `d69f095` 3-stage --deploy.
+
 ## 2026-05-22 — Igor onboarding to BotkinClaw + reusable family-user pipeline
 
 - **Igor onboarding to BotkinClaw + reusable family-user pipeline.** Подключён Игорь Лысковский (telegram_id 830908046) как family/respiratory_allergic. Создан `scripts/onboard_family_user.py` с командами enroll/refresh-kb/refresh-prompt/unenroll, поддержкой dry-run, атомарным scp+psql с rollback'ом, post-upload JSON-валидацией. Реестр packs вынесен в `core/packs.py` как декларативный `@dataclass(frozen=True)`. Шаблон промпта `scripts/server/agent_prompts/templates/family_active_coach.md` с `string.Template`-плейсхолдерами + LLM-генерация 6 структурированных блоков через claude-sonnet-4-6 (fallback на 4-5). Дизайн: [docs/superpowers/specs/2026-05-22-igor-botkin-onboarding-design.md](../superpowers/specs/2026-05-22-igor-botkin-onboarding-design.md), план: [docs/superpowers/plans/2026-05-22-igor-botkin-onboarding.md](../superpowers/plans/2026-05-22-igor-botkin-onboarding.md), runbook: [docs/operations/onboard-family-user.md](../operations/onboard-family-user.md). Следующее применение — подключение мамы (Валерия Лысковская) тем же скриптом.
