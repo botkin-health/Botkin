@@ -245,6 +245,63 @@ def save_weight_to_db(data: Dict[str, Any], user_id: int = None) -> str:
         return ""
 
 
+def save_bp_to_db(
+    systolic: int,
+    diastolic: int,
+    pulse: Optional[int] = None,
+    user_id: int = None,
+    measured_at: Optional[datetime] = None,
+    source: str = "manual_text",
+) -> bool:
+    """Сохраняет замер артериального давления в blood_pressure_logs.
+
+    Используется regex-pre-check в text.py для детерминированного паттерна
+    «XXX/YY пульс ZZ» — мимо LLM-роутера, чтобы не залипал в food-handler.
+    Прецедент 25.05.2026: папа Александра отправил 4 замера АД, бот ответил
+    «не еда» 4 раза подряд — состояние не сбрасывалось и роутер не различал BP.
+
+    ON CONFLICT (user_id, measured_at) обновляет существующий замер —
+    идемпотентно, безопасно для retry'ев.
+    """
+    if user_id is None:
+        raise ValueError("save_bp_to_db: user_id is required")
+
+    if measured_at is None:
+        measured_at = datetime.now(MSK)
+
+    from sqlalchemy import text as _text
+
+    db = SessionLocal()
+    try:
+        db.execute(
+            _text(
+                """INSERT INTO blood_pressure_logs
+                   (user_id, measured_at, systolic, diastolic, heart_rate, source)
+                   VALUES (:uid, :ts, :sys, :dia, :hr, :src)
+                   ON CONFLICT (user_id, measured_at) DO UPDATE
+                     SET systolic = EXCLUDED.systolic,
+                         diastolic = EXCLUDED.diastolic,
+                         heart_rate = COALESCE(EXCLUDED.heart_rate, blood_pressure_logs.heart_rate)"""
+            ),
+            {
+                "uid": user_id,
+                "ts": measured_at,
+                "sys": systolic,
+                "dia": diastolic,
+                "hr": pulse,
+                "src": source,
+            },
+        )
+        db.commit()
+        logger.info(f"BP saved to DB: {systolic}/{diastolic} pulse={pulse} at {measured_at} (user {user_id})")
+        return True
+    except Exception as e:
+        logger.error(f"Error saving BP to DB: {e}", exc_info=True)
+        return False
+    finally:
+        db.close()
+
+
 def save_supplements_to_db(items: list, user_id: int = None, date_str: Optional[str] = None) -> bool:
     """
     Сохраняет добавки в PostgreSQL
