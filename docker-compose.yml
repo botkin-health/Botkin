@@ -39,6 +39,10 @@ services:
     volumes:
       - ./logs:/app/logs
       - ./data:/app/data
+      # 25.05.2026: серверные nightly pg_dump (cron 03:30) в /opt/backups —
+      # mount даёт админ-панели видеть их через BACKUPS_DIR=/app/backups.
+      # Без этого /admin/api/backups возвращал count=0 хотя бэкапы были.
+      - /opt/backups:/app/backups
     networks:
       - healthvault_network
     restart: always
