@@ -252,17 +252,23 @@ def save_bp_to_db(
     user_id: int = None,
     measured_at: Optional[datetime] = None,
     source: str = "manual_text",
+    is_e2e: bool = False,
 ) -> bool:
     """Сохраняет замер артериального давления в blood_pressure_logs.
 
     Используется regex-pre-check в text.py для детерминированного паттерна
     «XXX/YY пульс ZZ» — мимо LLM-роутера, чтобы не залипал в food-handler.
     Прецедент 25.05.2026: папа Александра отправил 4 замера АД, бот ответил
-    «не еда» 4 раза подряд — состояние не сбрасывалось и роутер не различал BP.
+    «не еда» 4 раза подряд.
 
-    ON CONFLICT (user_id, measured_at) обновляет существующий замер —
-    идемпотентно, безопасно для retry'ев.
+    is_e2e=True → перебивает source на 'e2e_test' для безопасной чистки
+    через /admin/cleanup_e2e (task #62). Используется когда сообщение
+    начинается с маркера 🧪.
+
+    ON CONFLICT (user_id, measured_at) обновляет существующий замер.
     """
+    if is_e2e:
+        source = "e2e_test"
     if user_id is None:
         raise ValueError("save_bp_to_db: user_id is required")
 
