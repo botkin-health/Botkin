@@ -576,7 +576,11 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                 if 0 <= hh <= 23 and 0 <= mm <= 59:
                     from datetime import datetime as _dt
 
-                    MSK = timezone(timedelta(hours=3))
+                    # ВАЖНО: используем модульный MSK (объявлен в line 11).
+                    # НЕ объявлять MSK здесь локально — иначе Python сделает её
+                    # local для ВСЕЙ функции, и в food-flow ниже UnboundLocalError.
+                    # Прецедент 25.05.2026: Александр тестировал hot-fix, упало
+                    # на "Овсянка 150г" с этим же error'ом.
                     measured_at = _dt.now(MSK).replace(hour=hh, minute=mm, second=0, microsecond=0)
 
             if pulse_v is not None and not (30 <= pulse_v <= 220):
