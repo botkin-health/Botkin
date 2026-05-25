@@ -432,6 +432,58 @@ async def list_kb_keys(user=Depends(get_agent_user)):
     return {"keys": keys, "source": source, "total": len(keys)}
 
 
+@router.get("/open_questions")
+async def open_questions(user=Depends(get_agent_user)):
+    """Открытые клинические вопросы и красные флаги из KB пользователя.
+
+    Каждый человек ведёт «висящие» вопросы которые ждут решения врача,
+    повторного анализа или клинического follow-up — например «K+/Mg+
+    ни разу не сдавались при QTc 0.60», «микрогематурия 04.2025 без
+    дообследования», «HbA1c на Метформине ни разу не измерен».
+
+    Бот ДОЛЖЕН проактивно поднимать их при ЛЮБОМ медицинском вопросе,
+    даже если пользователь спрашивает о другом. Прецедент 25.05.2026 —
+    папа спрашивал «какие диагнозы» и «разбор анализов», бот корректно
+    отвечал по факту, но НЕ упомянул что K/Mg/ТТГ должны быть в
+    следующем заборе (хотя в его KB это давно как красный флаг).
+
+    Источники в KB (бот пробует по очереди):
+      1. `open_questions` (список строк) — у папы
+      2. `open_issues` (список строк/dict) — альтернативное имя
+      3. `urgent_problems` (dict с приоритетами) — если завели
+      4. `red_flags` (список) — ещё один синоним
+
+    Возвращает: {questions: [...], source: '<key>', count: N}.
+    Если ничего не найдено — questions=[], source='not-tracked'.
+    """
+    kb_path, source = _resolve_user_kb_path(user)
+    if kb_path is None or not kb_path.exists():
+        return {"questions": [], "source": "kb-not-available", "count": 0}
+
+    import json
+
+    try:
+        with open(kb_path, encoding="utf-8") as f:
+            kb = json.load(f)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to read {source}: {e}")
+
+    # Try multiple known key names — у людей разные схемы
+    candidates = ["open_questions", "open_issues", "urgent_problems", "red_flags"]
+    for k in candidates:
+        v = kb.get(k)
+        if v is None:
+            continue
+        if isinstance(v, list) and len(v) > 0:
+            return {"questions": v, "source": k, "count": len(v)}
+        if isinstance(v, dict) and len(v) > 0:
+            # Преобразуем dict в список «{приоритет}: {описание}» строк
+            flattened = [f"{prio}: {desc}" for prio, desc in v.items()]
+            return {"questions": flattened, "source": k, "count": len(flattened)}
+
+    return {"questions": [], "source": "not-tracked", "count": 0}
+
+
 class RenderReportRequest(BaseModel):
     report_type: str = Field(
         "biomarker_dynamics",
