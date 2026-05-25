@@ -537,12 +537,18 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
     processing_msg = _Replier(message)
     debug_logger.info("✅ Replier shim ready (typing indicator via middleware)")
 
-    # Извлекаем дату "Вчера" если есть, для контекста
+    # Извлекаем дату "Вчера / 23 мая / 29.01" — нужно для food-логирования
+    # ("Вчера ужин: ..."), но НЕ для conversational вопросов
+    # ("Как мои анализы от 23 мая?" → "23 мая" вырезалось и Claude получал
+    # обрезанное "Как мои анализы от ?", переспрашивал дату).
+    # Прецедент 25.05.2026.
     from handlers.text import extract_date_from_text
 
-    custom_date, clean_text = extract_date_from_text(text)
-    if custom_date:
-        text = clean_text
+    custom_date = None
+    if not _is_clearly_conversational(text):
+        custom_date, clean_text = extract_date_from_text(text)
+        if custom_date:
+            text = clean_text
 
     # /my_products feature removed — no early-exit product matching, LLM handles all.
     router_result = None
