@@ -925,14 +925,24 @@ def _validate_history(messages: list[dict]) -> list[dict]:
     return cleaned
 
 
-def _save_message(db, user_id: int, role: str, content: Any, tool_use_id: Optional[str] = None):
+def _save_message(
+    db,
+    user_id: int,
+    role: str,
+    content: Any,
+    tool_use_id: Optional[str] = None,
+    source: str = "botkinclaw",
+):
+    """source='e2e_test' для тестовых сообщений с маркером 🧪 (task #62) —
+    позволяет потом массово удалять через /admin/cleanup_e2e без риска
+    задеть реальные диалоги."""
     from sqlalchemy import text
 
     db.execute(
         text(
             """
             INSERT INTO agent_conversations (user_id, role, content, tool_use_id, source)
-            VALUES (:uid, :role, CAST(:content AS JSONB), :tid, 'botkinclaw')
+            VALUES (:uid, :role, CAST(:content AS JSONB), :tid, :src)
             """
         ),
         {
@@ -940,6 +950,7 @@ def _save_message(db, user_id: int, role: str, content: Any, tool_use_id: Option
             "role": role,
             "content": json.dumps(content),
             "tid": tool_use_id,
+            "src": source,
         },
     )
 
@@ -1031,12 +1042,18 @@ def ask_agent(
     user_id: int,
     user_text: str,
     progress_cb: Optional[Callable[[str], None]] = None,
+    is_e2e: bool = False,
 ) -> str:
     """Synchronous — call from `run_in_executor`.
 
     Returns assistant's text reply. Empty string if nothing produced.
     Errors are raised; caller (handler) catches and replies "технически не вышло".
+
+    is_e2e=True → все _save_message в agent_conversations помечаются
+    source='e2e_test' (вместо 'botkinclaw') чтобы потом удалять через
+    /admin/cleanup_e2e без риска задеть реальные диалоги. Task #62.
     """
+    src = "e2e_test" if is_e2e else "botkinclaw"
     settings = get_settings()
     api_key = settings.anthropic_api_key
     if not api_key:
@@ -1067,7 +1084,7 @@ def ask_agent(
         history.append({"role": "user", "content": user_text})
 
         # Persist user turn immediately so a crash mid-call doesn't lose it.
-        _save_message(db, user_id, "user", user_text)
+        _save_message(db, user_id, "user", user_text, source=src)
         db.commit()
 
         headers = {
@@ -1220,7 +1237,7 @@ def ask_agent(
 
             if stop_reason == "tool_use":
                 # Record assistant turn (text + tool_use blocks)
-                _save_message(db, user_id, "assistant", blocks)
+                _save_message(db, user_id, "assistant", blocks, source=src)
                 history.append({"role": "assistant", "content": blocks})
 
                 # Прогресс по tools этого turn'a. Если в одном turn модель
@@ -1257,13 +1274,13 @@ def ask_agent(
                         }
                     )
 
-                _save_message(db, user_id, "tool_result", tool_results)
+                _save_message(db, user_id, "tool_result", tool_results, source=src)
                 history.append({"role": "user", "content": tool_results})
                 db.commit()
                 continue  # next iteration — model will incorporate tool results
 
             # stop_reason in ("end_turn", "max_tokens", "stop_sequence") — final
-            _save_message(db, user_id, "assistant", blocks)
+            _save_message(db, user_id, "assistant", blocks, source=src)
             db.commit()
 
             # Extract text

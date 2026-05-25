@@ -522,6 +522,21 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
         debug_logger.addHandler(fh)
 
     text = message.text.strip()
+
+    # ── E2E test mode (task #62) ────────────────────────────────────────────
+    # Маркер 🧪 в начале — Claude через MCP помечает свои тестовые сообщения
+    # чтобы потом удалить их пачкой без риска перепутать с реальными данными
+    # Александра. Прецедент 25.05.2026: удалил 20 настоящих диалогов приняв за
+    # тесты, восстанавливал из бэкапа.
+    # При is_e2e=True:
+    #   - убирается маркер из текста (чтобы LLM/regex обработали как обычно)
+    #   - вставки в БД помечаются source='e2e_test'
+    #   - ответ префиксуется «🧪 [E2E] ...»
+    is_e2e = text.startswith("🧪")
+    if is_e2e:
+        text = text[1:].lstrip(" :")
+        debug_logger.info(f"🧪 E2E mode detected for user {user_id}")
+
     debug_logger.info(f"🚀 START Processing message from {user_id}: {text[:50]}...")
 
     # Индикатор "печатает..." крутится через TypingMiddleware.
@@ -601,12 +616,14 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                 user_id=int(user_id),
                 measured_at=measured_at,
                 source="manual_text",
+                is_e2e=is_e2e,
             )
             if saved:
                 pulse_part = f" пульс {pulse_v}" if pulse_v else ""
                 time_part = f" в {measured_at.strftime('%H:%M')}" if measured_at else ""
+                e2e_prefix = "🧪 [E2E] " if is_e2e else ""
                 await processing_msg.edit_text(
-                    f"🩺 <b>АД:</b> {sys_v}/{dia_v}{pulse_part}{time_part}\n✅ Записано",
+                    f"{e2e_prefix}🩺 <b>АД:</b> {sys_v}/{dia_v}{pulse_part}{time_part}\n✅ Записано",
                     parse_mode="HTML",
                 )
                 debug_logger.info(f"✅ BP regex pre-check matched: {sys_v}/{dia_v} pulse={pulse_v}")
@@ -815,9 +832,16 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                     except Exception as _e:
                         debug_logger.warning(f"progress edit failed: {_e}")
 
-                reply = await loop.run_in_executor(None, ask_agent, int(user_id), text, _progress)
+                # E2E mode (task #62): is_e2e → ask_agent помечает все
+                # _save_message'ы source='e2e_test' и префиксует ответ.
+                reply = await loop.run_in_executor(
+                    None,
+                    lambda: ask_agent(int(user_id), text, _progress, is_e2e=is_e2e),
+                )
                 if not reply:
                     reply = "Хм, у меня нет внятного ответа. Попробуй переформулировать."
+                if is_e2e and not reply.startswith("🧪"):
+                    reply = "🧪 [E2E] " + reply
 
                 # Финальный ответ кладём в плейсхолдер (первый чанк edit'ом,
                 # остальные новыми сообщениями).

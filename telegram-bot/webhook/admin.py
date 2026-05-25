@@ -966,3 +966,98 @@ async def api_backups_create(_: str = Depends(admin_auth)) -> JSONResponse:
             "size_pretty": _human(st.st_size),
         }
     )
+
+
+# ─── E2E test data cleanup (task #62) ──────────────────────────────────────
+# Удаляет всё помеченное source='e2e_test' за период. Маркер ставится
+# когда сообщение приходит с префиксом 🧪 (см. text.py / agent_chat.py).
+# Прецедент 25.05.2026: Claude через MCP удалил 20 реальных диалогов
+# Александра приняв за свои E2E. Этот endpoint — безопасный путь чистки.
+
+
+@router.delete("/api/cleanup_e2e")
+async def cleanup_e2e_test_data(
+    user_id: int,
+    minutes: int = 60,
+    dry_run: bool = False,
+    _admin: str = Depends(admin_auth),
+):
+    """Удаляет E2E-тестовые записи (source='e2e_test') за последние `minutes`.
+
+    Параметры:
+    - user_id: telegram_id чьи тесты чистим (обязательно для multi-user безопасности)
+    - minutes: окно от текущего момента (1-1440, default 60)
+    - dry_run: если true — только посчитать что было бы удалено, без DELETE
+
+    Возвращает: counts по каждой таблице + список ID для аудита.
+    """
+    if not (1 <= minutes <= 1440):
+        raise HTTPException(status_code=400, detail="minutes must be 1..1440")
+
+    db = SessionLocal()
+    try:
+        params = {"uid": user_id, "minutes": minutes}
+
+        # Сначала COUNT и LIST id'ов — для отчёта и dry-run
+        agent_rows = db.execute(
+            text(
+                """SELECT id FROM agent_conversations
+                   WHERE user_id = :uid AND source = 'e2e_test'
+                     AND created_at > NOW() - (:minutes || ' minutes')::INTERVAL"""
+            ),
+            params,
+        ).fetchall()
+        bp_rows = db.execute(
+            text(
+                """SELECT id FROM blood_pressure_logs
+                   WHERE user_id = :uid AND source = 'e2e_test'
+                     AND measured_at > NOW() - (:minutes || ' minutes')::INTERVAL"""
+            ),
+            params,
+        ).fetchall()
+
+        agent_ids = [r[0] for r in agent_rows]
+        bp_ids = [r[0] for r in bp_rows]
+
+        result = {
+            "dry_run": dry_run,
+            "user_id": user_id,
+            "window_minutes": minutes,
+            "found": {
+                "agent_conversations": len(agent_ids),
+                "blood_pressure_logs": len(bp_ids),
+            },
+            "ids": {
+                "agent_conversations": agent_ids,
+                "blood_pressure_logs": bp_ids,
+            },
+        }
+
+        if not dry_run and (agent_ids or bp_ids):
+            db.execute(
+                text(
+                    """DELETE FROM agent_conversations
+                       WHERE user_id = :uid AND source = 'e2e_test'
+                         AND created_at > NOW() - (:minutes || ' minutes')::INTERVAL"""
+                ),
+                params,
+            )
+            db.execute(
+                text(
+                    """DELETE FROM blood_pressure_logs
+                       WHERE user_id = :uid AND source = 'e2e_test'
+                         AND measured_at > NOW() - (:minutes || ' minutes')::INTERVAL"""
+                ),
+                params,
+            )
+            db.commit()
+            result["deleted"] = True
+            logger.info(
+                f"[admin] E2E cleanup for user {user_id}: agent={len(agent_ids)} bp={len(bp_ids)} (window {minutes}m)"
+            )
+        else:
+            result["deleted"] = False
+
+        return JSONResponse(result)
+    finally:
+        db.close()
