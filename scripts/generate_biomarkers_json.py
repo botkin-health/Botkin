@@ -239,14 +239,18 @@ def main() -> None:
                 f"Запусти руками: python3 scripts/import/kb_to_blood_tests.py --user-id 895655 ..."
             )
         print()
-        print("🗄️  Stage 3/3: KB → /app/data/kb/kb_895655.json (agent /kb_value)...")
+        print("🗄️  Stage 3/3: KB → /app/data/kb/kb_*.json для ВСЕЙ семьи (agent /kb_value, /open_questions)...")
+        # Без `--user` синкается каждый member семьи (USERS в sync_family_kb.py).
+        # Раньше синкался только Александр — поэтому KB папы/Андрея/Олега могли
+        # отставать неделями, и агент получал null на get_kb_value у них.
+        # Прецедент 21.05.2026: бот не видел papa's blood_tests хотя в локальном
+        # KB они были. Прецедент 25.05.2026: бот не упомянул open_questions
+        # папы (K/Mg/ТТГ) — не видел свежий KB.
         try:
             subprocess.run(
                 [
                     sys.executable,
                     str(scripts_dir / "sync_family_kb.py"),
-                    "--user",
-                    "895655",
                     "--apply",
                 ],
                 check=True,
@@ -255,7 +259,7 @@ def main() -> None:
             print(
                 f"   ⚠️ sync_family_kb упал (код {e.returncode}) — "
                 f"kb_*.json на сервере отстаёт. "
-                f"Запусти руками: python3 scripts/sync_family_kb.py --user 895655 --apply"
+                f"Запусти руками: python3 scripts/sync_family_kb.py --apply"
             )
         print()
         print("🚀 Done! Biomarkers updated on server (3/3 sources sync'd).")
