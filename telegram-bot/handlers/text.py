@@ -547,6 +547,67 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
     # /my_products feature removed — no early-exit product matching, LLM handles all.
     router_result = None
 
+    # ── BP regex pre-check ──────────────────────────────────────────────────
+    # Детерминированный паттерн «XXX/YY пульс ZZ» — мимо LLM-роутера.
+    # Прецедент 25.05.2026: папа Александра написал «Сейчас 15:07 151/92 пуль 65»,
+    # бот ответил «не удалось понять, что это за еда» (4 раза подряд).
+    # LLM-роутер не классифицировал замер АД как `bp`, поэтому ловим regex'ом.
+    # Систолика 70-250, диастолика 40-150 — реалистичные границы.
+    _BP_RE = re.compile(
+        r"(?<![\d.,])(\d{2,3})\s*[/\\]\s*(\d{2,3})"  # XXX/YY (систола/диастола)
+        r"(?:[^\d\n]{0,30}?(?:пул[ьсаеыйя]+|чсс|hr|hrm|pulse)[^\d\n]{0,10}?(\d{2,3}))?",
+        re.IGNORECASE,
+    )
+    _TIME_RE = re.compile(r"\b(\d{1,2})[:.](\d{2})\b")
+
+    bp_match = _BP_RE.search(text)
+    if bp_match:
+        sys_v = int(bp_match.group(1))
+        dia_v = int(bp_match.group(2))
+        pulse_v = int(bp_match.group(3)) if bp_match.group(3) else None
+        # Валидация: реалистичные границы. Иначе это не АД (может, размер обуви
+        # «42/12» или что-то ещё). Систолика >= диастолики обязательно.
+        if (70 <= sys_v <= 250) and (40 <= dia_v <= 150) and (sys_v > dia_v):
+            # Опциональное время «15:07» в тексте — привязываем к сегодня
+            measured_at = None
+            time_match = _TIME_RE.search(text)
+            if time_match:
+                hh, mm = int(time_match.group(1)), int(time_match.group(2))
+                if 0 <= hh <= 23 and 0 <= mm <= 59:
+                    from datetime import datetime as _dt
+
+                    MSK = timezone(timedelta(hours=3))
+                    measured_at = _dt.now(MSK).replace(hour=hh, minute=mm, second=0, microsecond=0)
+
+            if pulse_v is not None and not (30 <= pulse_v <= 220):
+                pulse_v = None  # неправдоподобный пульс — отбрасываем но BP сохраняем
+
+            from helpers.db_save import save_bp_to_db
+
+            saved = save_bp_to_db(
+                systolic=sys_v,
+                diastolic=dia_v,
+                pulse=pulse_v,
+                user_id=int(user_id),
+                measured_at=measured_at,
+                source="manual_text",
+            )
+            if saved:
+                pulse_part = f" пульс {pulse_v}" if pulse_v else ""
+                time_part = f" в {measured_at.strftime('%H:%M')}" if measured_at else ""
+                await processing_msg.edit_text(
+                    f"🩺 <b>АД:</b> {sys_v}/{dia_v}{pulse_part}{time_part}\n✅ Записано",
+                    parse_mode="HTML",
+                )
+                debug_logger.info(f"✅ BP regex pre-check matched: {sys_v}/{dia_v} pulse={pulse_v}")
+                return
+            else:
+                await processing_msg.edit_text(
+                    f"🩺 Распознал давление {sys_v}/{dia_v}, но сохранение в БД не удалось. "
+                    f"Попробуй ещё раз через минуту."
+                )
+                return
+
     if not router_result:
         # Предварительная проверка экей витаминов ДО вызова LLM — если все слова входят в словарь, не зовём LLM
         _SUPPLEMENT_KEYWORDS = {
