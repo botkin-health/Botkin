@@ -267,9 +267,9 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
                     try:
                         hh, mm = map(int, time_str.split(":")[:2])
                         if 0 <= hh <= 23 and 0 <= mm <= 59:
-                            from datetime import datetime, timezone, timedelta
-
-                            MSK = timezone(timedelta(hours=3))
+                            # ВАЖНО: используем модульный MSK (line 13). НЕ переопределять
+                            # локально — Python сделает MSK local для всей функции и в
+                            # food-flow ниже (line 502) упадёт UnboundLocalError.
                             measured_at = datetime.now(MSK).replace(hour=hh, minute=mm, second=0, microsecond=0)
                     except (ValueError, IndexError):
                         pass
@@ -935,11 +935,17 @@ async def handle_description(
                     try:
                         hh, mm = map(int, time_str.split(":")[:2])
                         if 0 <= hh <= 23 and 0 <= mm <= 59:
-                            from datetime import datetime as _dt
-                            from datetime import timezone as _tz, timedelta as _td
-
-                            MSK = _tz(_td(hours=3))
-                            measured_at = _dt.now(MSK).replace(hour=hh, minute=mm, second=0, microsecond=0)
+                            # ВАЖНО: используем модульный MSK (line 13). НЕ переопределять
+                            # локально — Python сделает MSK local для ВСЕЙ функции, и в
+                            # food-flow (line 1052/1069) упадёт UnboundLocalError.
+                            # Прецедент 26.05.2026 17:39-17:42: после успешного распознавания
+                            # «Лосось в терияки 500 ккал» бот молча падал на datetime.now(MSK)
+                            # — пользователь видел только «📸 Получено…», карточка с КБЖУ
+                            # и кнопкой Сохранить не отрисовывалась. Лог: `Failed to feed
+                            # update to legacy bot: cannot access local variable 'MSK'`.
+                            # Тот же баг чинили в text.py (commit af71067), но в photo.py
+                            # его пропустили.
+                            measured_at = datetime.now(MSK).replace(hour=hh, minute=mm, second=0, microsecond=0)
                     except (ValueError, IndexError):
                         pass
 

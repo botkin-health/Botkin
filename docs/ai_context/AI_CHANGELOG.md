@@ -7,6 +7,44 @@
 
 ---
 
+## 2026-05-26 — fix: UnboundLocalError MSK в photo.py + вопрос про витамин логировался как приём
+
+Три связанных бага в `@Botkin_md_bot`, выявленных пользователем по скринам:
+
+1. **Фото обеда → нет ответа.** Photo с caption «Обед» успешно распознавался LLM как food
+   (видно в логах: `Распознано через LLM: Лосось в терияки, 500 ккал`), `process_llm_food_data`
+   возвращал валидные items+totals, но карточка с КБЖУ и кнопкой «Сохранить» не отрисовывалась.
+   Лог: `Failed to feed update to legacy bot: cannot access local variable 'MSK' where it is not associated with a value`.
+2. **Текстовое описание после фото → молчание.** Из-за бага #1 state оставался `waiting_description`,
+   следующее сообщение «Мурманский лосось 520 ккал…» уходило в `handle_description` и
+   снова падало на том же MSK.
+3. **«Какой у меня витамин Д?» → «💊 Витамины: Витамин D3 ✅ Записано».** Вопрос про
+   анализ логировался как факт приёма добавки.
+
+**Root cause #1+#2:** в `telegram-bot/handlers/photo.py` внутри функций `handle_description`
+(line 941) и `process_photos_list` (line 272) был локальный re-assignment
+`MSK = timezone(timedelta(hours=3))` в BP-ветке. Python видит присваивание и помечает
+MSK как local для ВСЕЙ функции. Когда food-flow позже обращался к `datetime.now(MSK)`
+(lines 1052/1069/502), Python кидал UnboundLocalError. Тот же баг чинили в text.py
+(commit af71067), но в photo.py пропустили.
+
+**Root cause #3:** vitamin pre-check в `telegram-bot/handlers/text.py:655` стоял
+ПЕРЕД conversational pre-filter (line 718). «Какой у меня витамин Д?» = 5 слов ≤ 6,
+содержит «витамин д» → router_result становился `{type: vitamins, items: [Витамин D3]}` →
+save_supplements. Conversational pre-filter (который вернул бы `type=other` → BotkinClaw)
+никогда не доходил. Регрессия от commit a0c2154.
+
+**Fix:**
+- `photo.py`: удалены локальные `MSK = ...` (lines 272, 941). Используется модульный
+  MSK с line 13.
+- `text.py`: vitamin pre-check (line 655) и regex fallback (line 787) теперь гарданы
+  условием `not _is_clearly_conversational(text)`. Вопрос → агент, факт приёма → логирование.
+
+Задеплоено: `docker cp` photo.py + text.py в `healthvault_bot`, restart. Smoke-test
+прошёл (бот стартанул, 156 обработчиков зарегистрированы).
+
+---
+
 ## 2026-05-26 — scripts: warn на пустые values в KB перед генерацией biomarkers
 
 Добавлена функция `warn_empty_values()` в `scripts/generate_biomarkers_json.py`.

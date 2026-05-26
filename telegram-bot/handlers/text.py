@@ -652,8 +652,11 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                 )
                 return
 
-    if not router_result:
-        # Предварительная проверка экей витаминов ДО вызова LLM — если все слова входят в словарь, не зовём LLM
+    if not router_result and not _is_clearly_conversational(text):
+        # Предварительная проверка экей витаминов ДО вызова LLM — если все слова входят в словарь, не зовём LLM.
+        # ВАЖНО: только для НЕ-вопросов. Иначе «Какой у меня витамин Д?» (вопрос про анализ) ловится
+        # как факт приёма Витамина D3 и логируется. Прецедент 26.05.2026 17:43: Александр спросил
+        # про уровень витамина D — бот ответил «💊 Витамины: Витамин D3 ✅ Записано».
         _SUPPLEMENT_KEYWORDS = {
             "стирол": "Plant Sterols",
             "стиролы": "Plant Sterols",
@@ -781,9 +784,12 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                 if name not in found_items:
                     found_items.append(name)
 
-        if found_items:
+        if found_items and not _is_clearly_conversational(text):
             logger.info(f"Regex Fallback found vitamins: {found_items}")
             router_result = {"type": "vitamins", "data": {"items": found_items}}
+        elif found_items:
+            logger.info(f"Regex Fallback found vitamins {found_items} but text is conversational — routing to agent")
+            router_result = {"type": "other", "data": {}}
         else:
             await processing_msg.edit_text(
                 "🤷‍♂️ Не понял, что это. Это еда? Попробуй описать точнее.\n⚠️ <b>OpenAI не отвечает</b> — доложи баланс в OpenAI или проверь ключ."
