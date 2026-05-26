@@ -224,7 +224,14 @@ async def test_parse_menu_photo_fallback(tmp_path):
 
 @pytest.mark.asyncio
 async def test_no_recognition_asks_for_description(tmp_path):
-    """Nothing recognised → bot edits processing_msg asking for description text."""
+    """Nothing recognised → bot edits processing_msg with "not food" prompt.
+
+    FIX 26.05.2026: when LLM returns None (network/limit error) or photo is not food,
+    we no longer set waiting_description state. Instead we show a neutral prompt
+    so the user can respond with text (which goes through normal routing).
+    This prevents Garmin screenshots and other non-food photos from getting stuck
+    in the food flow.
+    """
     from handlers.photo import process_photos_list
     from services.state import state_manager
 
@@ -240,15 +247,16 @@ async def test_no_recognition_asks_for_description(tmp_path):
     ):
         await process_photos_list(msg, [photo])
 
-    # Bot must prompt user to describe the food
+    # Bot must send some response (not silent)
     assert processing_msg.edit_text.called
     call_text = processing_msg.edit_text.call_args[0][0]
-    assert "описание" in call_text.lower() or "фото" in call_text.lower()
+    # Should mention photo or how to retry
+    assert "фото" in call_text.lower() or "текст" in call_text.lower()
 
-    # State should be waiting_description
+    # State must NOT be waiting_description — unrecognized photos should not
+    # trap the user in the food flow (see fix 26.05.2026 in photo.py)
     st = state_manager.get_state("895655")
-    assert st is not None
-    assert st.state == "waiting_description"
+    assert st is None or st.state != "waiting_description"
 
 
 @pytest.mark.asyncio

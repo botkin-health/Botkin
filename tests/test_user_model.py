@@ -43,4 +43,4 @@ def test_user_has_cohort_field(db):
     assert fetched.cohort == "early_user"
     assert fetched.pack_name == "cardiac"
     assert fetched.container_id is None  # nullable
-    assert fetched.jwt_secret is None
+    assert fetched.jwt_secret is not None  # auto-generated for BotkinClaw (#69)
