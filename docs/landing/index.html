@@ -398,7 +398,7 @@ footer .bottom {
           <div class="l">приёмов пищи распознано</div>
         </div>
         <div class="stat">
-          <div class="n" id="bio-counter">200+</div>
+          <div class="n" id="bio-counter">340+</div>
           <div class="l">видов биомаркеров</div>
         </div>
       </div>
@@ -907,6 +907,10 @@ fetch('https://health.orangegate.cc/api/public_stats')
     if (data.meals) {
       const el = document.getElementById('meals-counter');
       if (el) el.textContent = data.meals + '+';
+    }
+    if (data.biomarker_types) {
+      const el = document.getElementById('bio-counter');
+      if (el) el.textContent = data.biomarker_types + '+';
     }
     if (typeof data.llm_cost_this_month_usd === 'number') {
       const el = document.getElementById('cost-llm');
