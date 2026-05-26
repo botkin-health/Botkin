@@ -7,6 +7,15 @@
 
 ---
 
+## 2026-05-26 — scripts: warn на пустые values в KB перед генерацией biomarkers
+
+Добавлена функция `warn_empty_values()` в `scripts/generate_biomarkers_json.py`.
+При каждом запуске (с `--deploy` или без) сканирует секции `blood_tests`, `urine_tests`, `hormones`, `vitamins`
+и выводит `⚠️ Пустые values: {section} {date} {lab}` для записей с пустым или отсутствующим полем `values`.
+Деплой не прерывается — только информирование. Итоговая строка подсказывает как исправить.
+
+---
+
 ## 2026-05-26 — KB: анализы мочи — парсинг 4 тестов (2016–2026)
 
 Обнаружено, что секция `urine_tests` в `knowledge_base.json` содержала 1 запись с пустыми `values: {}`.
