@@ -89,7 +89,7 @@ healthvault_postgres (данные здоровья Alex)
 | `/opt/healthvault/docker-compose.prod.yml` | dual port bind 8081 (127.0.0.1 + 172.17.0.1) |
 | `/etc/systemd/system/nanoclaw-chown.timer` | каждые 30 сек chown сессий |
 | `users.container_id = 'nanoclaw-alex'` в Postgres | stable JWT container_id |
-| JWT для агента | TTL 1 год, exp 2027-05-20, user_id=895655, container_id=nanoclaw-alex; signed by `users.jwt_secret`. Лежит в `container.json` mcpServers.botkin.env.BOTKIN_JWT |
+| JWT для агента | TTL 1 год, signed by `users.jwt_secret`. Хранится в env конфига MCP-клиента. |
 
 ## Lessons learned (Phase 1)
 
