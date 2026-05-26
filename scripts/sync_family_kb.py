@@ -38,7 +38,8 @@ USERS = {
     REDACTED_ID: "Игорь Лысковский — Здоровье",
     REDACTED_ID: "Андрей REDACTED — Здоровье",
     REDACTED_ID: "Олег Лысковский — Здоровье",
-    # Ника, Катя, Валерия — добавить когда есть knowledge_base.json
+    REDACTED_ID: "Валерия Лысковская — Здоровье",
+    # Ника, Катя — добавить когда есть knowledge_base.json
 }
 
 
