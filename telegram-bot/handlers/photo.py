@@ -206,7 +206,23 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
         if router_result and router_result.get("type") == "vitamins":
             data = router_result.get("data", {})
             items = data.get("items", [])
+            action = data.get("action", "logged")  # default "logged" для обратной совместимости
             if items:
+                # 🐛 FIX task #65: фото банок добавок с intent='metadata' не должно
+                # логироваться как факт приёма. Прецедент 25.05.2026: Александр
+                # прислал фото 8 добавок «решил отправить фото всех, чтобы ты знал
+                # марки» — бот залогировал 8 «приёмов» с длинными именами.
+                if action == "metadata":
+                    items_list = "\n".join([f"• {item}" for item in items])
+                    await processing_msg.edit_text(
+                        f"📋 <b>Распознал твои добавки:</b>\n{items_list}\n\n"
+                        f"Это <b>не приём</b> — просто запись марок для профиля. "
+                        f"Когда реально их выпьешь — напиши обычным сообщением "
+                        f"(например, «выпил магний»).",
+                        parse_mode="HTML",
+                    )
+                    return
+
                 from core.health.supplements import save_supplements
 
                 telegram_user_id = int(message.from_user.id)
@@ -232,6 +248,50 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
                 else:
                     await processing_msg.edit_text(
                         f"⚖️ Распознано: {w_val} кг (сохранение не удалось)", parse_mode="HTML"
+                    )
+                return
+        # 🩺 BP (task #53): LLM распознал фото тонометра или текст замера АД.
+        # Прецедент 25.05.2026: папа прислал фото Omron + текст "151/92 пульс 65" —
+        # бот 4 раза «не еда» подряд. Теперь LLM возвращает type='bp' → пишем напрямую.
+        if router_result and router_result.get("type") == "bp":
+            data = router_result.get("data", {})
+            sys_v, dia_v, pulse_v = data.get("systolic"), data.get("diastolic"), data.get("pulse")
+            if sys_v and dia_v and (70 <= sys_v <= 250) and (40 <= dia_v <= 150) and (sys_v > dia_v):
+                from helpers.db_save import save_bp_to_db
+
+                telegram_user_id = int(message.from_user.id)
+                # Опциональное время из текста ("в 15:07" → 15:07 МСК сегодня)
+                measured_at = None
+                time_str = data.get("measured_at_time")
+                if time_str and ":" in time_str:
+                    try:
+                        hh, mm = map(int, time_str.split(":")[:2])
+                        if 0 <= hh <= 23 and 0 <= mm <= 59:
+                            from datetime import datetime, timezone, timedelta
+
+                            MSK = timezone(timedelta(hours=3))
+                            measured_at = datetime.now(MSK).replace(hour=hh, minute=mm, second=0, microsecond=0)
+                    except (ValueError, IndexError):
+                        pass
+
+                saved = save_bp_to_db(
+                    systolic=sys_v,
+                    diastolic=dia_v,
+                    pulse=pulse_v,
+                    user_id=telegram_user_id,
+                    measured_at=measured_at,
+                    source="llm_photo",
+                )
+                if saved:
+                    pulse_part = f" пульс {pulse_v}" if pulse_v else ""
+                    time_part = f" в {time_str}" if time_str else ""
+                    await processing_msg.edit_text(
+                        f"🩺 <b>АД:</b> {sys_v}/{dia_v}{pulse_part}{time_part}\n✅ Записано",
+                        parse_mode="HTML",
+                    )
+                else:
+                    await processing_msg.edit_text(
+                        f"🩺 Распознано: {sys_v}/{dia_v} (сохранение не удалось)", parse_mode="HTML"
                     )
                 return
     except Exception as e:
@@ -860,6 +920,46 @@ async def handle_description(
             await processing_message.edit_text(response, parse_mode="HTML")
             state_manager.clear_state(user_id)
             return
+
+        elif router_result and router_result.get("type") == "bp":
+            # 🩺 BP — фото тонометра + caption, или текст-описание после фото
+            data = router_result.get("data", {})
+            sys_v, dia_v, pulse_v = data.get("systolic"), data.get("diastolic"), data.get("pulse")
+            if sys_v and dia_v and (70 <= sys_v <= 250) and (40 <= dia_v <= 150) and (sys_v > dia_v):
+                from helpers.db_save import save_bp_to_db
+
+                telegram_user_id = int(message.from_user.id)
+                measured_at = None
+                time_str = data.get("measured_at_time")
+                if time_str and ":" in time_str:
+                    try:
+                        hh, mm = map(int, time_str.split(":")[:2])
+                        if 0 <= hh <= 23 and 0 <= mm <= 59:
+                            from datetime import datetime as _dt
+                            from datetime import timezone as _tz, timedelta as _td
+
+                            MSK = _tz(_td(hours=3))
+                            measured_at = _dt.now(MSK).replace(hour=hh, minute=mm, second=0, microsecond=0)
+                    except (ValueError, IndexError):
+                        pass
+
+                saved = save_bp_to_db(
+                    systolic=sys_v,
+                    diastolic=dia_v,
+                    pulse=pulse_v,
+                    user_id=telegram_user_id,
+                    measured_at=measured_at,
+                    source="llm_photo",
+                )
+                pulse_part = f" пульс {pulse_v}" if pulse_v else ""
+                time_part = f" в {time_str}" if time_str else ""
+                status = "✅ Записано" if saved else "⚠️ Ошибка записи"
+                await processing_message.edit_text(
+                    f"🩺 <b>АД:</b> {sys_v}/{dia_v}{pulse_part}{time_part}\n{status}",
+                    parse_mode="HTML",
+                )
+                state_manager.clear_state(user_id)
+                return
 
         else:
             # 🐛 FIX 25.05.2026: state_manager.clear_state — без этого

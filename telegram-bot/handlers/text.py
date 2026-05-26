@@ -914,6 +914,20 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
 
         elif msg_type == "vitamins":
             items = data.get("items", [])
+            action = data.get("action", "logged")
+
+            # 🐛 FIX task #65: text-route — если LLM понял intent='metadata' (а не intake),
+            # не логировать как приём. Симметрично photo.py.
+            if action == "metadata" and items:
+                items_list = "\n".join([f"• {item}" for item in items])
+                e2e_prefix = "🧪 [E2E] " if is_e2e else ""
+                await processing_msg.edit_text(
+                    f"{e2e_prefix}📋 <b>Распознал:</b>\n{items_list}\n\n"
+                    f"Это <b>не приём</b>, просто запись. Когда реально выпьешь — "
+                    f"напиши «выпил магний» или подобное.",
+                    parse_mode="HTML",
+                )
+                return
 
             # Нормализуем имена витаминов перед сохранением
             _NORMALIZE = {
@@ -1118,6 +1132,45 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             w_val = data.get("weight")
             await processing_msg.edit_text(f"⚖️ <b>Вес:</b> {w_val} кг\n✅ Записано (Simulated)", parse_mode="HTML")
             return
+
+        elif msg_type == "bp":
+            # 🩺 BP (task #53): LLM-роутер распознал замер АД (если regex
+            # pre-check выше не сработал — например необычная формулировка).
+            data = router_result.get("data", {})
+            sys_v, dia_v, pulse_v = data.get("systolic"), data.get("diastolic"), data.get("pulse")
+            if sys_v and dia_v and (70 <= sys_v <= 250) and (40 <= dia_v <= 150) and (sys_v > dia_v):
+                from helpers.db_save import save_bp_to_db
+
+                measured_at = None
+                time_str = data.get("measured_at_time")
+                if time_str and ":" in time_str:
+                    try:
+                        from datetime import datetime as _dt
+
+                        hh, mm = map(int, time_str.split(":")[:2])
+                        if 0 <= hh <= 23 and 0 <= mm <= 59:
+                            measured_at = _dt.now(MSK).replace(hour=hh, minute=mm, second=0, microsecond=0)
+                    except (ValueError, IndexError):
+                        pass
+
+                saved = save_bp_to_db(
+                    systolic=sys_v,
+                    diastolic=dia_v,
+                    pulse=pulse_v,
+                    user_id=int(user_id),
+                    measured_at=measured_at,
+                    source="llm_text",
+                    is_e2e=is_e2e,
+                )
+                pulse_part = f" пульс {pulse_v}" if pulse_v else ""
+                time_part = f" в {time_str}" if time_str else ""
+                e2e_prefix = "🧪 [E2E] " if is_e2e else ""
+                status = "✅ Записано" if saved else "⚠️ Ошибка записи"
+                await processing_msg.edit_text(
+                    f"{e2e_prefix}🩺 <b>АД:</b> {sys_v}/{dia_v}{pulse_part}{time_part}\n{status}",
+                    parse_mode="HTML",
+                )
+                return
 
         elif msg_type == "body_measurements":
             # Обработка замеров тела
