@@ -499,11 +499,28 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
 
     # Проверяем, ожидается ли описание (после фото)
     if user_state and user_state.state == "waiting_description":
-        # Обрабатываем как описание блюда
-        from handlers.photo import handle_description
+        # 🐛 FIX 26.05.2026: если пользователь вместо описания еды задаёт вопрос
+        # или пишет что-то явно НЕ про еду — сбросить state и пустить в обычный
+        # flow (BP regex / conversational агент). Без этого юзер залипает в
+        # waiting_description после фото которое бот не распознал как еду.
+        # Прецедент: Александр прислал 2 скриншота Garmin → бот не распознал
+        # → state=waiting_description → текст «Сейчас утро вторника. Ты видишь
+        # сон?» снова попал в food-handler → опять «не еда». Цикл 3+ раз.
+        text_stripped = (message.text or "").strip()
+        if _is_clearly_conversational(text_stripped):
+            logger.info(
+                f"⚡ User {user_id} in waiting_description sent conversational text "
+                f"({text_stripped[:50]!r}) — clearing state, routing to normal flow"
+            )
+            state_manager.clear_state(user_id)
+            user_state = None
+            # Не return — продолжаем normal flow ниже
+        else:
+            # Это похоже на описание еды — обрабатываем как раньше
+            from handlers.photo import handle_description
 
-        await handle_description(message, message.text)
-        return
+            await handle_description(message, message.text)
+            return
 
     # --- LLM Router Logic ---
     from core.llm.router import analyze_message

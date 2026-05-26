@@ -504,31 +504,25 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
         # Caption уже в state, передаем None чтобы функция взяла caption из состояния
         await handle_description(message, None, processing_message=processing_msg)
     else:
-        # Не меню и нет caption - устанавливаем состояние и просим описание
-        # Если состояния нет (одиночное фото без группы)
-        if not user_state:
-            user_state = UserState(
-                user_id=user_id,
-                state="waiting_description",
-                data={
-                    "photo_paths": [str(p) for p in photo_paths],
-                    "photo_file_ids": [message.photo[-1].file_id if message.photo else ""],
-                    "caption": "",
-                },
-            )
-            state_manager.set_state(user_id, user_state)
-
+        # 🐛 FIX 26.05.2026: фото которое LLM-роутер НЕ распознал как еду
+        # (тонометр, скриншот, добавки, документ, etc) — НЕ ставим waiting_description
+        # state. Иначе юзер залипает в food-handler на каждое следующее сообщение.
+        # Прецедент: Александр прислал 2 скрина Garmin → попали сюда → state=
+        # waiting_description → вопрос «Ты видишь сон?» уходит в food-flow → «не еда» 3 раза.
+        # Решение: явное сообщение что фото не еда + предложение задать вопрос текстом.
+        # Не ставим state вообще — следующее сообщение пойдёт через нормальный
+        # routing (BP regex / vitamins regex / BotkinClaw).
         prompt_text = (
-            f"📸 Получено {photo_count} фото!\n"
-            "Отправь описание:\n"
-            "• Название блюда или продукта\n"
-            "• Компоненты с весами\n"
-            "• Или просто название - бот попробует распознать меню или найти продукт"
+            "🤔 Не распознал на фото еду.\n\n"
+            "Если это <b>не еда</b> — просто <b>напиши текстом</b> что хотел: "
+            "вопрос, замер давления, что-то про здоровье. Я разберусь.\n\n"
+            "Если это <b>еда</b> — пришли фото ещё раз с подписью "
+            "(название блюда, компоненты, вес)."
         )
         if processing_msg:
-            await processing_msg.edit_text(prompt_text)
+            await processing_msg.edit_text(prompt_text, parse_mode="HTML")
         else:
-            await message.answer(prompt_text)
+            await message.answer(prompt_text, parse_mode="HTML")
 
 
 @router.message(F.photo)
