@@ -153,7 +153,16 @@ async def public_stats():
         try:
             meals = db.execute(sql_text("SELECT COUNT(*) FROM nutrition_log")).scalar() or 0
             users = db.execute(sql_text("SELECT COUNT(*) FROM users WHERE is_active=true")).scalar() or 0
-            biomarkers = db.execute(sql_text("SELECT COUNT(*) FROM blood_tests")).scalar() or 0
+            biomarker_types = (
+                db.execute(
+                    sql_text(
+                        "SELECT COUNT(DISTINCT k) FROM blood_tests, "
+                        "jsonb_object_keys(values) AS k "
+                        "WHERE k NOT LIKE '%_ref' AND k NOT LIKE '%_unit' AND k NOT LIKE '%_flag'"
+                    )
+                ).scalar()
+                or 0
+            )
             llm_month = (
                 db.execute(
                     sql_text(
@@ -173,7 +182,7 @@ async def public_stats():
         {
             "meals": meals,
             "active_users": users,
-            "biomarkers": biomarkers,
+            "biomarker_types": biomarker_types,
             "llm_cost_this_month_usd": round(float(llm_month), 2),
         },
         headers={"Access-Control-Allow-Origin": "*", "Cache-Control": "public, max-age=300"},
