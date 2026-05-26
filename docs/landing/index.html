@@ -376,9 +376,9 @@ footer .bottom {
       <div class="eyebrow">Open Source · Personal AI · Longevity</div>
       <h1>Твой <span class="accent">персональный AI-помощник</span> для здоровья и долголетия</h1>
       <p class="subtitle">
-        Логируешь питание и лекарства в Telegram — фотками, голосом или текстом.
-        Часы, тонометр и весы шлют данные автоматически.
-        AI помогает разобраться, что с этим делать — в боте, в Claude или Gemini.
+        Персональный AI-врач, который знает твои данные: питание, анализы, давление,
+        сон, шаги, биомаркеры за годы. Часы и весы шлют всё автоматически.
+        Задаёшь вопрос в чате — получаешь ответ по своим данным, а не общие слова.
       </p>
       <div class="cta-row">
         <a href="https://t.me/Botkin_md_bot" class="btn primary">
@@ -398,8 +398,8 @@ footer .bottom {
           <div class="l">приёмов пищи распознано</div>
         </div>
         <div class="stat">
-          <div class="n">1 мин</div>
-          <div class="l">от Start до первого лога</div>
+          <div class="n" id="bio-counter">200+</div>
+          <div class="l">видов биомаркеров</div>
         </div>
       </div>
     </div>
@@ -421,10 +421,10 @@ footer .bottom {
 <section id="what">
 <div class="container">
   <div class="eyebrow">Что это</div>
-  <h2>Четыре куска одной системы</h2>
+  <h2>Не трекер еды — полная картина здоровья</h2>
   <p class="lead">
-    Не отдельное приложение — а связанная инфраструктура: Telegram-бот для повседневного логирования,
-    мини-апп и дашборд для просмотра, AI-помощник для разбора, открытая база знаний для команды.
+    Питание, анализы, давление, сон, активность, биомаркеры в динамике — всё в одном месте.
+    Telegram-бот для повседневного ввода, дашборд с графиками за годы, AI-врач для разбора.
   </p>
 
   <div class="features">
@@ -440,8 +440,8 @@ footer .bottom {
     </div>
     <div class="feature">
       <div class="icon">🧠</div>
-      <h3>AI-помощник</h3>
-      <p>Внутри бота уже отвечает на любые вопросы про твои данные. Подключение из Claude, Gemini или Cursor — в бете для приглашённых.</p>
+      <h3>AI-врач BotkinClaw</h3>
+      <p>Живой AI-консультант прямо в боте. Спроси «что с моим ApoB?», «почему вырос холестерин?», «оцени мой последний анализ» — он знает твою историю и отвечает по делу.</p>
     </div>
     <div class="feature">
       <div class="icon">📂</div>
@@ -525,7 +525,7 @@ footer .bottom {
     <div class="step">
       <span class="num">04</span>
       <h3>Просто говоришь с ним</h3>
-      <p>Пишешь ему в чат как другу: «как мой сон?», «достаточно ли я ем белка?», «давай поставим цель похудеть к лету». Он смотрит в твои данные и отвечает по делу, а не общими словами. А когда хочется графиков — открываешь большой дашборд в браузере.</p>
+      <p>Пишешь в чат: «объясни мой последний анализ крови», «почему вырос ApoB?», «сравни биомаркеры с прошлым годом», «как мой сон на этой неделе?». BotkinClaw смотрит в твои данные и отвечает конкретно. А когда хочется графиков за годы — открываешь дашборд в браузере.</p>
     </div>
   </div>
 
@@ -602,40 +602,59 @@ flowchart LR
 <section>
 <div class="container">
   <div class="eyebrow">Как это выглядит</div>
-  <h2>Скриншоты</h2>
-  <p class="lead">Реальные экраны бота и mini-app.</p>
+  <h2>Реальные экраны</h2>
+  <p class="lead">Дашборд, биомаркеры, активность, дневник питания и добавки — всё живое, не мокапы.</p>
 
   <div class="gallery">
-    <div class="shot">
-      <div class="img-wrap">
-        <img src="../user_guide/screenshots/miniapp-diary.png" alt="Mini-app: Дневник питания"
-             onerror="this.parentElement.innerHTML='📱 Mini-app — Дневник<br><span style=&quot;font-size:11px&quot;>скрин будет здесь</span>';">
+    <div class="shot" style="grid-column: span 2;">
+      <div class="img-wrap wide">
+        <img src="assets/dashboard-hero.jpg" alt="Botkin Mission Control — KPI тайлы: вес, жир%, ApoB, баланс биомаркеров + траектория трансформации">
       </div>
       <div class="caption">
-        <h4>Дневник питания</h4>
-        <p>Дневная норма, приёмы пищи, прогресс по БЖУ — всё на одном экране в Telegram.</p>
+        <h4>Mission Control — главный дашборд</h4>
+        <p>Вес, % жира, ApoB, баланс биомаркеров — 4 ключевых KPI на одном экране. Ниже — траектория трансформации за 141 день с тренировками, калориями и алкоголем.</p>
+      </div>
+    </div>
+
+    <div class="shot" style="grid-column: span 2;">
+      <div class="img-wrap wide">
+        <img src="assets/dashboard-activity.jpg" alt="Botkin — восстановление, активность, питание: Body Battery, HRV, сон, шаги, КБЖУ">
+      </div>
+      <div class="caption">
+        <h4>Восстановление и активность</h4>
+        <p>Body Battery, HRV, сон, пульс покоя, стресс, давление — всё из часов и тонометра. Тренировки по типам, шаги, КБЖУ дня, белок к цели.</p>
+      </div>
+    </div>
+
+    <div class="shot" style="grid-column: span 2;">
+      <div class="img-wrap wide">
+        <img src="assets/dashboard-biomarkers.jpg" alt="Botkin — биомаркеры: радар-чарт по системам, PhenoAge биологический возраст 35.7 лет">
+      </div>
+      <div class="caption">
+        <h4>Биомаркеры и биологический возраст</h4>
+        <p>Радар-чарт баланса по 9 системам (метаболизм, липиды, печень, гормоны…). PhenoAge Clock: биологических 35.7 лет при паспортных 49. Панели Attia, LE8, ASCVD, SCORE2.</p>
       </div>
     </div>
 
     <div class="shot">
       <div class="img-wrap">
-        <img src="../user_guide/screenshots/miniapp-supps.png" alt="Mini-app: Добавки и лекарства"
-             onerror="this.parentElement.innerHTML='💊 Mini-app — Добавки<br><span style=&quot;font-size:11px&quot;>скрин будет здесь</span>';">
+        <img src="../user_guide/screenshots/miniapp-diary.png" alt="Mini-app: Дневник питания"
+             onerror="this.parentElement.innerHTML='📱 Mini-app — Дневник';">
+      </div>
+      <div class="caption">
+        <h4>Дневник питания</h4>
+        <p>Дневная норма, приёмы пищи, прогресс по БЖУ — прямо в Telegram.</p>
+      </div>
+    </div>
+
+    <div class="shot">
+      <div class="img-wrap">
+        <img src="../user_guide/screenshots/miniapp-supps.png" alt="Mini-app: Добавки"
+             onerror="this.parentElement.innerHTML='💊 Mini-app — Добавки';">
       </div>
       <div class="caption">
         <h4>Добавки и лекарства</h4>
         <p>Чек-листы по слотам (утро/обед/вечер/ночь), прогресс «Принято сегодня».</p>
-      </div>
-    </div>
-
-    <div class="shot">
-      <div class="img-wrap">
-        <img src="../user_guide/screenshots/chat-food.jpg" alt="Распознавание еды по фото в чате"
-             onerror="this.parentElement.innerHTML='📸 Распознавание еды<br><span style=&quot;font-size:11px&quot;>скрин будет здесь</span>';">
-      </div>
-      <div class="caption">
-        <h4>Распознавание еды</h4>
-        <p>Отправь фото блюда — бот определит состав, оценит порцию, посчитает КБЖУ.</p>
       </div>
     </div>
   </div>
@@ -817,7 +836,7 @@ flowchart LR
 
   <details class="faq-item">
     <summary>Это медицинский совет?</summary>
-    <p>Нет. Боткин — твой персональный аналитик собственных данных о здоровье: ведёт дневник еды, добавок и давления, автоматически собирает сон, HRV, шаги, вес и состав тела с часов и весов, хранит анализы из лабораторий. Замечает связи между потоками, объясняет биомаркеры, считает биологический возраст и риски по канонам <a href="https://peterattiamd.com/" target="_blank" rel="noopener">Attia</a> и <a href="https://www.heart.org/en/healthy-living/healthy-lifestyle/lifes-essential-8" target="_blank" rel="noopener">Life's Essential 8</a>, помогает задавать врачу правильные вопросы. Но диагнозы, дозировки и назначения — всегда у твоего врача.</p>
+    <p>Нет. Боткин — твой персональный аналитик собственных данных о здоровье: ведёт дневник еды, добавок и давления, автоматически собирает сон, HRV, шаги, вес и состав тела с часов и весов, хранит анализы из лабораторий. Замечает связи между потоками, объясняет биомаркеры, считает биологический возраст и риски по канонам <a href="https://peterattiamd.com/" target="_blank" rel="noopener">Attia</a> и <a href="https://www.heart.org/en/healthy-living/healthy-lifestyle/lifes-essential-8" target="_blank" rel="noopener">Life's Essential 8</a>, помогает задавать врачу правильные вопросы. Но диагнозы, дозировки и назначения — всегда у твоего врача. У Botkin уже есть активные пользователи нескольких поколений одной семьи — от 21 до 70+ лет. Каждый получает персонализированные инсайты по своим данным.</p>
   </details>
 
   <details class="faq-item">
@@ -874,7 +893,7 @@ flowchart LR
   </div>
   <div class="bottom">
     <span>© 2026 Александр Лысковский. AGPL-3.0.</span>
-    <span class="mono">Botkin v0.6.0 · обновлено 21.05.2026</span>
+    <span class="mono">Botkin v0.6.1 · обновлено 26.05.2026</span>
   </div>
 </div>
 </footer>
