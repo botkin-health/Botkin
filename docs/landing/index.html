@@ -546,10 +546,11 @@ flowchart LR
 
     subgraph P["⚙️ ОБРАБОТКА"]
       direction TB
-      B[🤖 Telegram-бот]
+      B[🤖 Telegram-бот<br>логирует еду, добавки, давление]
       WH[🪝 Webhook — HAE и Health Connect]
       SY[🔄 Ночной sync — API устройств]
       EX[📝 Claude — извлекает биомаркеры из PDF]
+      BC[🧠 BotkinClaw — AI-врач<br>Claude Sonnet · tools: DB + KB<br>помнит историю диалога]
     end
 
     subgraph ST["💾 ХРАНЕНИЕ"]
@@ -560,9 +561,9 @@ flowchart LR
 
     subgraph O["📲 ИНТЕРФЕЙСЫ"]
       direction TB
-      MA[📊 Mini-app — Telegram]
+      MA[📱 Telegram — чат + Mini-app]
       DSH[📈 Dashboard — браузер]
-      MCP[🔌 MCP-сервер → Claude / ChatGPT / Gemini / Cursor / Cline / ...]
+      MCP[🔌 MCP-сервер → Claude / Gemini / Cursor / ...]
     end
 
     U --> B
@@ -572,25 +573,32 @@ flowchart LR
     GD --> EX
 
     B --> DB
+    B --> BC
     WH --> DB
     SY --> DB
     EX --> KB
     KB --> DB
+
+    DB --> BC
+    KB --> BC
+    BC --> MA
 
     DB --> MA
     DB --> DSH
     DB --> MCP
     KB --> MCP
 
-    classDef sourceCls fill:#1a2234,stroke:#3b82f6,color:#e8eef7
-    classDef pipeCls   fill:#1a2234,stroke:#00ff9d,color:#e8eef7
-    classDef storeCls  fill:#1a2234,stroke:#ffb800,color:#e8eef7
-    classDef outCls    fill:#1a2234,stroke:#a855f7,color:#e8eef7
+    classDef sourceCls  fill:#1a2234,stroke:#3b82f6,color:#e8eef7
+    classDef pipeCls    fill:#1a2234,stroke:#00ff9d,color:#e8eef7
+    classDef storeCls   fill:#1a2234,stroke:#ffb800,color:#e8eef7
+    classDef outCls     fill:#1a2234,stroke:#a855f7,color:#e8eef7
+    classDef aiCls      fill:#1e1535,stroke:#22d3ee,color:#e8eef7
     classDef plannedCls fill:#1a2234,stroke:#7a879f,stroke-dasharray:5 5,color:#7a879f
 
     class U,IOS,WR,GD sourceCls
     class AND plannedCls
     class B,WH,SY,EX pipeCls
+    class BC aiCls
     class DB,KB storeCls
     class MA,DSH,MCP outCls
       </pre>
