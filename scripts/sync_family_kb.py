@@ -35,9 +35,10 @@ SERVER_KB_DIR = "/opt/healthvault/data/kb"
 USERS = {
     895655: "Александр Лысковский — Здоровье",
     33831673: "Павел Храпкин — Здоровье",
+    830908046: "Игорь Лысковский — Здоровье",
     836757955: "Андрей Походня — Здоровье",
     1137554647: "Олег Лысковский — Здоровье",
-    # Ника, Игорь, Катя, Валерия — добавить когда есть knowledge_base.json
+    # Ника, Катя, Валерия — добавить когда есть knowledge_base.json
 }
 
 
@@ -47,75 +48,43 @@ def md5(path: Path) -> str:
     return hashlib.md5(path.read_bytes()).hexdigest()
 
 
-def get_server_md5(telegram_id: int, sshpass: str) -> str:
-    """Удалённо считаем md5 файла на сервере."""
+SSH_OPTS = ["-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=10"]
+
+
+def get_server_md5(telegram_id: int, _sshpass: str = "") -> str:
+    """Удалённо считаем md5 файла на сервере (прямой ssh по ключу)."""
     result = subprocess.run(
-        [
-            "/opt/homebrew/bin/sshpass",
-            "-e",
-            "ssh",
-            "-o",
-            "StrictHostKeyChecking=no",
-            SERVER,
-            f"md5sum {SERVER_KB_DIR}/kb_{telegram_id}.json 2>/dev/null | awk '{{print $1}}'",
-        ],
+        ["ssh", *SSH_OPTS, SERVER, f"md5sum {SERVER_KB_DIR}/kb_{telegram_id}.json 2>/dev/null | awk '{{print $1}}'"],
         capture_output=True,
         text=True,
-        env={**os.environ, "SSHPASS": sshpass},
     )
     return result.stdout.strip()
 
 
-def upload(local: Path, telegram_id: int, sshpass: str) -> bool:
-    """SCP файл на сервер с backup существующей версии."""
+def upload(local: Path, telegram_id: int, _sshpass: str = "") -> bool:
+    """SCP файл на сервер с backup существующей версии (прямой ssh по ключу)."""
     remote = f"{SERVER}:{SERVER_KB_DIR}/kb_{telegram_id}.json"
 
     # Backup
     subprocess.run(
         [
-            "/opt/homebrew/bin/sshpass",
-            "-e",
             "ssh",
-            "-o",
-            "StrictHostKeyChecking=no",
+            *SSH_OPTS,
             SERVER,
             f"[ -f {SERVER_KB_DIR}/kb_{telegram_id}.json ] && "
             f"cp {SERVER_KB_DIR}/kb_{telegram_id}.json "
             f"{SERVER_KB_DIR}/kb_{telegram_id}.json.backup_$(date +%Y%m%d) || true",
         ],
-        env={**os.environ, "SSHPASS": sshpass},
         capture_output=True,
     )
 
     # Upload
     r = subprocess.run(
-        [
-            "/opt/homebrew/bin/sshpass",
-            "-e",
-            "scp",
-            "-o",
-            "StrictHostKeyChecking=no",
-            str(local),
-            remote,
-        ],
+        ["scp", *SSH_OPTS, str(local), remote],
         capture_output=True,
         text=True,
-        env={**os.environ, "SSHPASS": sshpass},
     )
     return r.returncode == 0
-
-
-def get_sshpass() -> str:
-    """SSH-пароль сервера. Берём из переменной или из .env."""
-    p = os.environ.get("SERVER_PASSWORD") or os.environ.get("SSHPASS")
-    if p:
-        return p
-    env_file = PROJECT_ROOT / ".env"
-    if env_file.exists():
-        for line in env_file.read_text().splitlines():
-            if line.startswith("SERVER_PASSWORD="):
-                return line.split("=", 1)[1].strip().strip('"').strip("'")
-    raise SystemExit("Не нашёл SERVER_PASSWORD — добавь в .env или экспортни в окружение")
 
 
 def main():
@@ -124,7 +93,6 @@ def main():
     ap.add_argument("--user", type=int, help="Один пользователь по telegram_id")
     args = ap.parse_args()
 
-    sshpass = get_sshpass()
     users = {args.user: USERS[args.user]} if args.user else USERS
 
     needs_upload = []
@@ -134,7 +102,7 @@ def main():
             print(f"  ⊘ {tid} {folder}: knowledge_base.json не найден локально")
             continue
         local_md5 = md5(local)
-        server_md5 = get_server_md5(tid, sshpass)
+        server_md5 = get_server_md5(tid)
 
         if local_md5 == server_md5:
             print(f"  ✓ {tid} {folder}: совпадает ({local_md5[:8]}…)")
@@ -156,7 +124,7 @@ def main():
 
     print(f"\nЗагружаю {len(needs_upload)} файлов…")
     for tid, folder, local in needs_upload:
-        ok = upload(local, tid, sshpass)
+        ok = upload(local, tid)
         status = "✅" if ok else "❌"
         print(f"  {status} kb_{tid}.json ← {folder}")
 
