@@ -30,16 +30,15 @@ import sys
 from pathlib import Path
 from typing import Iterable
 
-# 1Password-style: SSH-tunnel out, write directly into Postgres via subprocess
-# psql. Keeps deps minimal — no psycopg2 needed locally. The script runs on
-# Mac, ships rows to Hetzner via the existing fetch_remote_nutrition.sh
-# credentials pattern.
+# SSH-tunnel out, write directly into Postgres via subprocess psql. Keeps deps
+# minimal — no psycopg2 needed locally. The script runs on Mac, ships rows to
+# Hetzner over SSH by key (same transport as sync_family_kb.py).
 
 FAMILYHEALTH_BASE = Path(
     os.path.expanduser("~/Library/CloudStorage/GoogleDrive-lyskovsky@gmail.com/Мой диск/FamilyHealth")
 )
-SSHPASS = "/opt/homebrew/bin/sshpass"
 SERVER = "root@116.203.213.137"
+SSH_OPTS = ["-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=10"]
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 log = logging.getLogger("kb_sync")
@@ -137,29 +136,16 @@ END $$;
 """
 
 
-def _read_pw() -> str:
-    """Lift SERVER_PASSWORD from existing fetch_remote_nutrition.sh."""
-    script = Path(__file__).resolve().parent.parent / "fetch_remote_nutrition.sh"
-    for line in script.read_text().splitlines():
-        if line.startswith("PASS="):
-            return line.split('"', 2)[1]
-    raise RuntimeError("PASS= not found in fetch_remote_nutrition.sh")
-
-
 def _psql_exec(sql: str, *, capture: bool = False) -> str | None:
-    """Run SQL on Hetzner postgres via sshpass + docker exec.
+    """Run SQL on Hetzner postgres via ssh (key auth) + docker exec.
 
     Returns stdout if capture=True, else None.
     """
     import subprocess
 
     cmd = [
-        SSHPASS,
-        "-p",
-        _read_pw(),
         "ssh",
-        "-o",
-        "StrictHostKeyChecking=no",
+        *SSH_OPTS,
         SERVER,
         f"docker exec -i healthvault_postgres psql -U healthvault -d healthvault -v ON_ERROR_STOP=1 {'-t -A ' if capture else ''}-c {json.dumps(sql)}",
     ]
@@ -224,9 +210,8 @@ def _psql_copy_via_python(rows: list[dict]) -> tuple[int, int]:
         f.write(_REMOTE_SCRIPT)
         local_script = f.name
 
-    pw = _read_pw()
-    base_ssh = [SSHPASS, "-p", pw, "ssh", "-o", "StrictHostKeyChecking=no"]
-    base_scp = [SSHPASS, "-p", pw, "scp", "-o", "StrictHostKeyChecking=no"]
+    base_ssh = ["ssh", *SSH_OPTS]
+    base_scp = ["scp", *SSH_OPTS]
 
     try:
         subprocess.run(base_scp + [local_script, f"{SERVER}:/tmp/kb_upsert.py"], check=True, capture_output=True)
