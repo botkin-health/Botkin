@@ -962,21 +962,70 @@ async def handle_description(
                 return
 
         else:
-            # 🐛 FIX 25.05.2026: state_manager.clear_state — без этого
-            # пользователь застревал в awaiting_food_description state и
-            # любое следующее сообщение (фото или текст) снова падало
-            # сюда же. Прецедент: папа Александра отправил фото тонометра
-            # → «не еда» → текст «это не еда, это тонометр😂» → «не еда»
-            # → текст «151/92 пульс 65» → «не еда» (4 раза подряд).
-            # Все ветки выше (vitamins/weight/body_measurements) state
-            # сбрасывают — в else-ветке этого не было. Это и есть
-            # «зацикленность Боткина на еде» о которой написал папа.
+            # 🐛 FIX 26.05.2026: фото + caption где роутер не распознал ни food/
+            # vitamins/weight/bp/body_measurements — НЕ выдавать stock-message.
+            # Передать в BotkinClaw как conversational с описанием контекста.
+            # Прецедент: Александр прислал скриншот Garmin Connect + caption
+            # «приложение показывает 6:27» — бот сказал «не еда», хотя caption
+            # явно про сон → должен был дёрнуть get_recent_sleep и ответить.
+            #
+            # Логика: если есть caption — это явный сигнал что пользователь
+            # хочет ОБСУДИТЬ фото (вопрос/комментарий), а не залогировать его.
+            # BotkinClaw через tools сам решит что нужно.
             state_manager.clear_state(user_id)
+
+            actual_caption = (caption or "").strip()
+            if actual_caption:
+                # Передаём агенту — он умнее stock-message
+                try:
+                    from core.agent_chat import ask_agent
+                    from core.tg_markdown import md_to_html, split_markdown_for_telegram
+                    import asyncio
+
+                    user_text_for_agent = (
+                        f"[Пользователь прислал фото с подписью]: {actual_caption}\n\n"
+                        f"(LLM-vision не распознал на фото еду/вес/добавки/АД/замеры тела. "
+                        f"Это вероятно скриншот приложения, медицинский документ, фото объекта "
+                        f"или вопрос с контекстом. Разберись через свои tools и ответь по существу.)"
+                    )
+
+                    await processing_message.edit_text("🤔 думаю...")
+                    loop = asyncio.get_running_loop()
+                    reply = await loop.run_in_executor(None, ask_agent, int(user_id), user_text_for_agent)
+
+                    if reply:
+                        chunks = split_markdown_for_telegram(reply)
+                        first = True
+                        for chunk in chunks:
+                            chunk_html = md_to_html(chunk)
+                            try:
+                                if first:
+                                    await processing_message.edit_text(chunk_html, parse_mode="HTML")
+                                    first = False
+                                else:
+                                    await message.answer(chunk_html, parse_mode="HTML")
+                            except Exception:
+                                # HTML render failed — отправим как plain text
+                                if first:
+                                    await processing_message.edit_text(chunk)
+                                    first = False
+                                else:
+                                    await message.answer(chunk)
+                    else:
+                        await processing_message.edit_text(
+                            "🤔 Понял что прислал фото с подписью «" + actual_caption[:80] + "», "
+                            "но не смог сформулировать ответ. Попробуй переформулировать вопрос текстом."
+                        )
+                    return
+                except Exception as agent_err:
+                    logger.warning(f"BotkinClaw fallback for non-food photo failed: {agent_err}")
+                    # Дальше — обычный stock-message
+
+            # Caption нет ИЛИ агент упал — обычный понятный ответ без state
             await processing_message.edit_text(
                 "❌ Не удалось распознать что это за еда.\n\n"
-                "💡 Если это не еда — попробуй просто написать текстом что хотел "
-                "сказать (например, замер давления «120/80 пульс 70», вес, "
-                "вопрос про здоровье). Я переключусь."
+                "💡 Если это не еда — напиши текстом что хотел сказать "
+                "(вопрос про здоровье, замер «120/80 пульс 70», вес и т.п.). Я разберусь."
             )
             return
 
