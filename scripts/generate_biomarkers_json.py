@@ -193,6 +193,23 @@ def deploy(path: Path) -> None:
     )
 
 
+def warn_empty_values(kb: dict) -> None:
+    """Выводит предупреждение для записей с пустым или отсутствующим полем values."""
+    sections = ["blood_tests", "urine_tests", "hormones", "vitamins"]
+    found = 0
+    for section in sections:
+        for entry in kb.get(section, []):
+            vals = entry.get("values") or entry.get("results")
+            if not vals:
+                date = entry.get("date", "?")
+                lab = entry.get("laboratory", entry.get("lab", "?"))
+                print(f"⚠️  Пустые values: {section} {date} {lab}")
+                found += 1
+    if found:
+        print(f"   Итого {found} записей с пустыми values — они не попадут в biomarkers JSON.")
+        print("   Добавь данные в knowledge_base.json или оставь как есть (не влияет на деплой).")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--deploy", action="store_true", help="Deploy to server after generating")
@@ -200,6 +217,8 @@ def main() -> None:
 
     print(f"📖 Reading {KB_PATH}")
     kb = json.loads(KB_PATH.read_text())
+
+    warn_empty_values(kb)
 
     bio = build_biomarkers(kb)
     print(f"✅ Built {len(bio)} biomarkers")
