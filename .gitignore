@@ -76,8 +76,9 @@ data/media/
 # Analysis charts (generated PNGs)
 data/analysis/
 
-# Superpowers (Claude Code skills cache)
+# Superpowers (Claude Code skills cache and internal planning docs)
 .superpowers/
+docs/superpowers/
 
 # macOS
 **/.DS_Store

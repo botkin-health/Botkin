@@ -12,7 +12,8 @@ ALTER TABLE users
   ADD COLUMN IF NOT EXISTS encrypted_openai_key TEXT,
   ADD COLUMN IF NOT EXISTS encrypted_anthropic_key TEXT;
 
--- Backfill existing users
-UPDATE users SET cohort = 'owner',       pack_name = 'bariatric'    WHERE telegram_id = 895655;
-UPDATE users SET cohort = 'family',      pack_name = 'female-cycle' WHERE telegram_id = 485132;
-UPDATE users SET cohort = 'early_user',  pack_name = 'cardiac'      WHERE telegram_id = 836757955;
+-- Backfill existing users (one-time data migration, executed on initial deployment)
+-- UPDATE users SET cohort = 'owner', pack_name = ... WHERE telegram_id = <owner_id>;
+-- UPDATE users SET cohort = 'family', pack_name = ... WHERE telegram_id = <family_member_id>;
+-- UPDATE users SET cohort = 'early_user', pack_name = ... WHERE telegram_id = <early_user_id>;
+-- Run onboard_family_user.py to configure users in new deployments.
