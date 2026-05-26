@@ -12,45 +12,41 @@ echo "================================================="
 cd "$(dirname "$0")/.." || exit 1
 
 echo "1/4 📥 Синхронизация БД с удаленного сервера (Nutrition, Weights, Activity, Supplements)..."
-export SSHPASS="SERVER_PASSWORD_REDACTED"
-/opt/homebrew/bin/sshpass -e scp -o StrictHostKeyChecking=no scripts/util/sync_remote_db.py root@116.203.213.137:/tmp/sync_remote_db_tmp.py
-/opt/homebrew/bin/sshpass -e ssh -o StrictHostKeyChecking=no root@116.203.213.137 "docker cp /tmp/sync_remote_db_tmp.py healthvault_bot:/tmp/sync_remote_db.py"
-/opt/homebrew/bin/sshpass -e ssh -o StrictHostKeyChecking=no root@116.203.213.137 "docker exec healthvault_bot bash -c 'cd /tmp && python sync_remote_db.py'"
-/opt/homebrew/bin/sshpass -e ssh -o StrictHostKeyChecking=no root@116.203.213.137 "docker cp healthvault_bot:/tmp/data /opt/healthvault/tmp_data"
+scp -o StrictHostKeyChecking=no scripts/util/sync_remote_db.py root@116.203.213.137:/tmp/sync_remote_db_tmp.py
+ssh -o StrictHostKeyChecking=no root@116.203.213.137 "docker cp /tmp/sync_remote_db_tmp.py healthvault_bot:/tmp/sync_remote_db.py"
+ssh -o StrictHostKeyChecking=no root@116.203.213.137 "docker exec healthvault_bot bash -c 'cd /tmp && python sync_remote_db.py'"
+ssh -o StrictHostKeyChecking=no root@116.203.213.137 "docker cp healthvault_bot:/tmp/data /opt/healthvault/tmp_data"
 
 echo "1.5/4 📸 Скачивание сгенерированных дампов БД и новых фотографий весов/еды..."
 # Синхронизируем выгруженные логи из tmp_data и медиа из рабочей data.
 # weights/ теперь содержит и weights_remote.json, и blood_pressure_remote.json (с 09.05.2026).
-/opt/homebrew/bin/sshpass -e rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
+rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
     root@116.203.213.137:/opt/healthvault/tmp_data/nutrition/ ./data/nutrition/ || true
-/opt/homebrew/bin/sshpass -e rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
+rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
     root@116.203.213.137:/opt/healthvault/tmp_data/supplements/ ./data/supplements/ || true
-/opt/homebrew/bin/sshpass -e rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
+rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
     root@116.203.213.137:/opt/healthvault/tmp_data/weights/ ./data/weights/ || true
-/opt/homebrew/bin/sshpass -e rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
+rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
     root@116.203.213.137:/opt/healthvault/tmp_data/activities/activities_remote.json ./data/activities/ || true
-/opt/homebrew/bin/sshpass -e rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
+rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
     root@116.203.213.137:/opt/healthvault/data/media/ ./data/media/ || true
 
 # Уборка за собой
-/opt/homebrew/bin/sshpass -e ssh -o StrictHostKeyChecking=no root@116.203.213.137 "rm -rf /opt/healthvault/tmp_data /tmp/sync_remote_db_tmp.py && docker exec healthvault_bot rm -rf /tmp/data /tmp/sync_remote_db.py"
+ssh -o StrictHostKeyChecking=no root@116.203.213.137 "rm -rf /opt/healthvault/tmp_data /tmp/sync_remote_db_tmp.py && docker exec healthvault_bot rm -rf /tmp/data /tmp/sync_remote_db.py"
 
 # Helper: повторный дамп БД (нужен после push_garmin_to_db.sh, чтобы activities_remote.json
 # содержал свежие шаги/HRV, а не старые из первого дампа).
 sync_db_again() {
-    /opt/homebrew/bin/sshpass -e ssh -o StrictHostKeyChecking=no root@116.203.213.137 \
-        "docker cp /opt/healthvault/scripts/util/sync_remote_db.py healthvault_bot:/tmp/sync_remote_db.py 2>/dev/null; \
-         /opt/homebrew/bin/sshpass=stub" 2>/dev/null || true
-    /opt/homebrew/bin/sshpass -e scp -o StrictHostKeyChecking=no scripts/util/sync_remote_db.py root@116.203.213.137:/tmp/sync_remote_db_tmp.py
-    /opt/homebrew/bin/sshpass -e ssh -o StrictHostKeyChecking=no root@116.203.213.137 \
+    scp -o StrictHostKeyChecking=no scripts/util/sync_remote_db.py root@116.203.213.137:/tmp/sync_remote_db_tmp.py
+    ssh -o StrictHostKeyChecking=no root@116.203.213.137 \
         "docker cp /tmp/sync_remote_db_tmp.py healthvault_bot:/tmp/sync_remote_db.py && \
          docker exec healthvault_bot bash -c 'cd /tmp && python sync_remote_db.py' >/dev/null && \
          docker cp healthvault_bot:/tmp/data /opt/healthvault/tmp_data"
-    /opt/homebrew/bin/sshpass -e rsync -aqz -e "ssh -o StrictHostKeyChecking=no" \
+    rsync -aqz -e "ssh -o StrictHostKeyChecking=no" \
         root@116.203.213.137:/opt/healthvault/tmp_data/weights/ ./data/weights/ || true
-    /opt/homebrew/bin/sshpass -e rsync -aqz -e "ssh -o StrictHostKeyChecking=no" \
+    rsync -aqz -e "ssh -o StrictHostKeyChecking=no" \
         root@116.203.213.137:/opt/healthvault/tmp_data/activities/activities_remote.json ./data/activities/ || true
-    /opt/homebrew/bin/sshpass -e ssh -o StrictHostKeyChecking=no root@116.203.213.137 \
+    ssh -o StrictHostKeyChecking=no root@116.203.213.137 \
         "rm -rf /opt/healthvault/tmp_data /tmp/sync_remote_db_tmp.py && docker exec healthvault_bot rm -rf /tmp/data /tmp/sync_remote_db.py"
 }
 

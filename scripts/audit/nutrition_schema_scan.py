@@ -21,14 +21,13 @@ from typing import Any
 
 # ── server connection ───────────────────────────────────────────────────────
 SERVER = "root@116.203.213.137"
-PASSWORD = "SERVER_PASSWORD_REDACTED"
-SSHPASS = "/opt/homebrew/bin/sshpass"
+SSH_OPTS = ["-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=10"]
 PSQL = "docker exec healthvault_postgres psql -U healthvault -d healthvault -t -A -c"
 
 
 def run_sql(sql: str) -> str:
     """Run SQL on prod, return stdout."""
-    cmd = [SSHPASS, "-p", PASSWORD, "ssh", "-o", "StrictHostKeyChecking=no", SERVER, f'{PSQL} "{sql}"']
+    cmd = ["ssh", *SSH_OPTS, SERVER, f'{PSQL} "{sql}"']
     res = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
     if res.returncode != 0:
         sys.exit(f"SQL failed: {res.stderr}")

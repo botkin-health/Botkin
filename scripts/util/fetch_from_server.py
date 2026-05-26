@@ -4,7 +4,7 @@ import os
 
 HOST = "116.203.213.137"
 USER = "root"
-PASSWORD = "SERVER_PASSWORD_REDACTED"
+KEY_FILE = os.path.expanduser("~/.ssh/id_ed25519")
 
 
 def run_ssh_query(ssh, query, output_file):
@@ -38,7 +38,7 @@ def main():
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
-        ssh.connect(HOST, username=USER, password=PASSWORD, timeout=10)
+        ssh.connect(HOST, username=USER, key_filename=KEY_FILE, timeout=10)
         print("✅ SSH connected successfully")
 
         queries = [

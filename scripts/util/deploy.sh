@@ -11,10 +11,8 @@
 set -euo pipefail
 
 SERVER="root@116.203.213.137"
-PASS="SERVER_PASSWORD_REDACTED"
-SSHPASS="/opt/homebrew/bin/sshpass"
-SSH="$SSHPASS -p $PASS ssh -o StrictHostKeyChecking=no $SERVER"
-SCP="$SSHPASS -p $PASS scp -o StrictHostKeyChecking=no"
+SSH="ssh -o StrictHostKeyChecking=no $SERVER"
+SCP="scp -o StrictHostKeyChecking=no"
 SERVER_DIR="/opt/healthvault"
 CONTAINER="healthvault_bot"
 
@@ -29,7 +27,7 @@ echo "🚀 Deploying HealthVault from: $PROJECT_DIR"
 # ── Step 1: rsync source code to server ───────────────────────────────────
 echo ""
 echo "📦 Syncing source code to server..."
-$SSHPASS -p "$PASS" rsync -az --delete \
+rsync -az --delete -e "ssh -o StrictHostKeyChecking=no" \
   --exclude='data/' \
   --exclude='venv/' \
   --exclude='venv_mcp/' \

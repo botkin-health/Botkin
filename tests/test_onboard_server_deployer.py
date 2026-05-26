@@ -19,9 +19,7 @@ def cfg():
     return ServerConfig(
         host="116.203.213.137",
         user="root",
-        password="testpw",
         deploy_path="/opt/healthvault",
-        sshpass_path="/usr/bin/sshpass",
     )
 
 

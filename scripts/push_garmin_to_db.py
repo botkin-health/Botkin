@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import subprocess
 import sys
 from datetime import date, datetime, timedelta
@@ -36,7 +35,7 @@ HOT_WINDOW_DAYS = 7
 MIN_TOTAL_KCAL = 1500  # неполные дни (час на зарядке, ранний sync) — пропускаем
 
 SSH_HOST = "root@116.203.213.137"
-SSHPASS = "/opt/homebrew/bin/sshpass"
+SSH_OPTS = ["-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=10"]
 
 # Garth-токены для бот-контейнера
 GARTH_LOCAL = BASE / "data/cache/garth_tokens"
@@ -145,46 +144,28 @@ COMMIT;
 """
 
 
-def get_server_password() -> str:
-    """Read SERVER_PASSWORD from .env."""
-    env_file = BASE / ".env"
-    if not env_file.exists():
-        raise RuntimeError(".env не найден")
-    for line in env_file.read_text().splitlines():
-        if line.startswith("SERVER_PASSWORD="):
-            return line.split("=", 1)[1].strip()
-    raise RuntimeError("SERVER_PASSWORD не найден в .env")
-
-
-def run_ssh(cmd: list[str], env: dict) -> None:
-    """Wrapper для запуска sshpass-команды с проверкой возврата."""
-    result = subprocess.run(cmd, env=env, capture_output=True, text=True)
+def run_ssh(cmd: list[str]) -> None:
+    """Wrapper для запуска ssh/scp-команды (key auth) с проверкой возврата."""
+    result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
         sys.stderr.write(f"❌ FAILED: {' '.join(cmd[:4])}...\nstderr: {result.stderr}\n")
         raise subprocess.CalledProcessError(result.returncode, cmd, result.stdout, result.stderr)
 
 
-def push_garth_tokens(env: dict) -> None:
+def push_garth_tokens() -> None:
     """Копирует garth-токены на сервер. Делается всегда — токены живут ~28 дней."""
     if not (GARTH_LOCAL / "oauth1_token.json").exists() or not (GARTH_LOCAL / "oauth2_token.json").exists():
         print("⚠️  garth-токены не найдены — пропущено")
         return
-    run_ssh(
-        [SSHPASS, "-e", "ssh", "-o", "StrictHostKeyChecking=no", SSH_HOST, f"mkdir -p {GARTH_REMOTE}"],
-        env,
-    )
+    run_ssh(["ssh", *SSH_OPTS, SSH_HOST, f"mkdir -p {GARTH_REMOTE}"])
     run_ssh(
         [
-            SSHPASS,
-            "-e",
             "scp",
-            "-o",
-            "StrictHostKeyChecking=no",
+            *SSH_OPTS,
             str(GARTH_LOCAL / "oauth1_token.json"),
             str(GARTH_LOCAL / "oauth2_token.json"),
             f"{SSH_HOST}:{GARTH_REMOTE}/",
-        ],
-        env,
+        ]
     )
 
 
@@ -243,30 +224,20 @@ def main():
     sql_path = Path("/tmp/garmin_batch.sql")
     sql_path.write_text(sql)
 
-    env = os.environ.copy()
-    env["SSHPASS"] = get_server_password()
-
     print(f"📤 Garmin → DB: {len(rows_to_push)} дней одним batch (hot={files_hot}, delta={files_cold_modified})")
 
     # SCP файла на сервер, копия в контейнер postgres, выполнение, очистка
-    run_ssh(
-        [SSHPASS, "-e", "scp", "-o", "StrictHostKeyChecking=no", str(sql_path), f"{SSH_HOST}:/tmp/garmin_batch.sql"],
-        env,
-    )
+    run_ssh(["scp", *SSH_OPTS, str(sql_path), f"{SSH_HOST}:/tmp/garmin_batch.sql"])
     run_ssh(
         [
-            SSHPASS,
-            "-e",
             "ssh",
-            "-o",
-            "StrictHostKeyChecking=no",
+            *SSH_OPTS,
             SSH_HOST,
             "docker cp /tmp/garmin_batch.sql healthvault_postgres:/tmp/garmin_batch.sql && "
             "docker exec healthvault_postgres psql -U healthvault -d healthvault -q -f /tmp/garmin_batch.sql > /dev/null && "
             "rm /tmp/garmin_batch.sql && "
             "docker exec healthvault_postgres rm /tmp/garmin_batch.sql",
-        ],
-        env,
+        ]
     )
 
     # State обновляется ПОСЛЕ успешного SSH — на ошибке state остаётся прежним
@@ -278,7 +249,7 @@ def main():
 
     # Garth-токены — отдельная операция, не блокирует основной flow
     try:
-        push_garth_tokens(env)
+        push_garth_tokens()
         print("🔑 Garth-токены обновлены")
     except Exception as e:
         print(f"⚠️  Garth-токены не обновлены: {e}")

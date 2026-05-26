@@ -30,8 +30,7 @@ import sys
 from typing import Tuple
 
 SERVER = "root@116.203.213.137"
-SSHPASS_BIN = "/opt/homebrew/bin/sshpass"
-SERVER_PASS_FILE = "scripts/util/diagnose_remote.sh"
+SSH_OPTS = ["-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=10"]
 USER_ID = 895655
 START_DATE = "2026-01-06"
 
@@ -96,31 +95,14 @@ def estimate_amount_from_calories(food_name: str, calories: float) -> Tuple[floa
     return (round(calories / DEFAULT_DENSITY), DEFAULT_CATEGORY)
 
 
-def get_server_password() -> str:
-    import re
-
-    with open(SERVER_PASS_FILE) as f:
-        for line in f:
-            m = re.match(r'PASS="([^"]+)"', line)
-            if m:
-                return m.group(1)
-    raise RuntimeError("Could not find PASS= in " + SERVER_PASS_FILE)
-
-
-def ssh_psql(password: str, sql: str, csv: bool = False) -> str:
-    """Run SQL on server via stdin, return raw output."""
-    import shlex
-
+def ssh_psql(sql: str, csv: bool = False) -> str:
+    """Run SQL on server via stdin (ssh key auth), return raw output."""
     full_sql = f"COPY ({sql}) TO STDOUT WITH CSV" if csv else sql
     # Pipe SQL via stdin to avoid shell-quoting hell
     remote_cmd = "docker exec -i healthvault_postgres psql -U healthvault -d healthvault -t -A"
     cmd = [
-        SSHPASS_BIN,
-        "-p",
-        password,
         "ssh",
-        "-o",
-        "StrictHostKeyChecking=no",
+        *SSH_OPTS,
         SERVER,
         remote_cmd,
     ]
@@ -130,7 +112,7 @@ def ssh_psql(password: str, sql: str, csv: bool = False) -> str:
     return result.stdout
 
 
-def fetch_broken_rows(password: str) -> list[dict]:
+def fetch_broken_rows() -> list[dict]:
     """Fetch nutrition_log rows where at least one item has amount=0/NULL and calories>0."""
     import csv as csv_mod
     import io
@@ -139,7 +121,7 @@ def fetch_broken_rows(password: str) -> list[dict]:
         f"SELECT id, date::text, items::text FROM nutrition_log "
         f"WHERE user_id={USER_ID} AND date >= '{START_DATE}' ORDER BY date, meal_time"
     )
-    raw = ssh_psql(password, sql, csv=True)
+    raw = ssh_psql(sql, csv=True)
     rows = []
     reader = csv_mod.reader(io.StringIO(raw))
     for parts in reader:
@@ -180,10 +162,10 @@ def build_updated_items(items: list[dict]) -> Tuple[list[dict], list[dict]]:
     return new_items, changes
 
 
-def update_row(password: str, log_id: int, new_items: list[dict]) -> None:
+def update_row(log_id: int, new_items: list[dict]) -> None:
     items_json = json.dumps(new_items, ensure_ascii=False).replace("'", "''")
     sql = f"UPDATE nutrition_log SET items='{items_json}'::jsonb WHERE id={log_id}"
-    ssh_psql(password, sql)
+    ssh_psql(sql)
 
 
 def main():
@@ -193,9 +175,8 @@ def main():
     group.add_argument("--apply", action="store_true", help="Apply changes to DB")
     args = parser.parse_args()
 
-    password = get_server_password()
     print(f"🔍 Fetching broken rows (user_id={USER_ID}, date >= {START_DATE})...")
-    rows = fetch_broken_rows(password)
+    rows = fetch_broken_rows()
     print(f"   Found {len(rows)} rows with zero/null amount items")
 
     total_items_changed = 0
@@ -208,7 +189,7 @@ def main():
         for c in changes:
             print(f"   • {c['food'][:60]:<60} {c['calories']:>5.0f} ккал → {c['amount']:>4.0f}г  [{c['category']}]")
         if args.apply:
-            update_row(password, row["id"], new_items)
+            update_row(row["id"], new_items)
 
     print(f"\n{'✅ Applied' if args.apply else '🔎 Dry run'}: {total_items_changed} items in {len(rows)} rows")
     if args.dry_run:

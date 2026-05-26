@@ -21,10 +21,11 @@ class UserNotFoundError(RuntimeError):
 class ServerConfig:
     host: str
     user: str
-    password: str
     deploy_path: str
-    sshpass_path: str = "/opt/homebrew/bin/sshpass"
     timeout: int = 60  # seconds for ssh/scp commands
+
+
+SSH_OPTS = ["-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=10"]
 
 
 @dataclass(frozen=True)
@@ -41,15 +42,10 @@ class UserServerState:
     kb_on_server: bool
 
 
-def _sshpass_args(cfg: ServerConfig) -> list[str]:
-    return [cfg.sshpass_path, "-p", cfg.password]
-
-
 def _ssh(cfg: ServerConfig, remote_cmd: str) -> subprocess.CompletedProcess:
-    cmd = _sshpass_args(cfg) + [
+    cmd = [
         "ssh",
-        "-o",
-        "StrictHostKeyChecking=no",
+        *SSH_OPTS,
         f"{cfg.user}@{cfg.host}",
         remote_cmd,
     ]
@@ -57,10 +53,9 @@ def _ssh(cfg: ServerConfig, remote_cmd: str) -> subprocess.CompletedProcess:
 
 
 def _scp(cfg: ServerConfig, local_path: Path, remote_path: str) -> subprocess.CompletedProcess:
-    cmd = _sshpass_args(cfg) + [
+    cmd = [
         "scp",
-        "-o",
-        "StrictHostKeyChecking=no",
+        *SSH_OPTS,
         str(local_path),
         f"{cfg.user}@{cfg.host}:{remote_path}",
     ]

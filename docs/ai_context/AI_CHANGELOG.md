@@ -7,6 +7,15 @@
 
 ---
 
+## 2026-05-26 — fix: все скрипты переведены с sshpass на ssh по ключу
+
+Сервер `116.203.213.137` имеет `PasswordAuthentication no` — парольный вход вообще выключен (проверено `BatchMode=yes` + `sshd_config`). Поэтому весь sshpass-код был мёртвым грузом: пароль уходил на сервер, который его не слушает → exit 3. Доступ держится на `~/.ssh/id_ed25519` (файл на диске, не агент).
+
+Переведены на `ssh`/`scp`/`rsync` по ключу (паттерн `SSH_OPTS`, как в `sync_family_kb.py`), удалены все хардкод-пароли и `_read_pw`/`get_server_password`:
+- **Python:** `push_garmin_to_db.py`, `generate_biomarkers_json.py`, `backfill_to_postgres.py`, `backfill_andrey_apple_health.py`, `audit/nutrition_schema_scan.py`, `import/zepp_api.py`, `import/zepp_csv.py`, `backfill/backfill_amount_from_calories.py`, `backfill/backfill_fiber.py`, `mcp/healthvault_mcp.py`, `analysis/progress_chart.py`, `onboard/server_deployer.py` (+ дроп `password`/`sshpass_path` из `ServerConfig`), `onboard_family_user.py`, `util/fetch_from_server.py` (paramiko → `key_filename`).
+- **Shell:** `fetch_remote_nutrition.sh`, `sync_all_data.sh`, `util/deploy.sh`, `util/diagnose_remote.sh`.
+- **Проверено:** ruff clean, 19/19 onboard-тестов, live-смоук read-only скриптов через ключ (`fetch_remote_nutrition.sh` → данные, `nutrition_schema_scan.py` → 956 строк, `backfill_amount --dry-run` → 48 items). Главный `generate_biomarkers_json.py --deploy` теперь не зависит от пароля.
+
 ## 2026-05-26 — fix: kb_to_blood_tests.py переведён на ssh по ключу (sshpass+устаревший пароль)
 
 Транспорт в `scripts/import/kb_to_blood_tests.py` падал на scp/ssh через sshpass (exit 3) — `_read_pw()` тянул устаревший пароль из `PASS=` в `fetch_remote_nutrition.sh`, хотя ключевой `ssh root@116.203.213.137` работает.
@@ -27,6 +36,7 @@
 - **agent_system_prompt** (~12k): кардио-фокус, полная история диагнозов/лекарств/флагов, непереносимость статинов. **Критичные правила тона:** обращение «Валерия» на «вы», НЕ давить (она отложила ЭКГ/ЭхоКГ до осени), ИИ = инструмент-помощник, не врач.
 - **E2E (ask_agent):** агент корректно назвал последний холестерин/ЛПНП из blood_tests, дневник АД, и отказался предлагать статины (помнит непереносимость). e2e-сообщения вычищены из `agent_conversations` (чистая история к подключению). Дашборд `botkin.health/mc/<token>` → 200.
 - **Заметка:** транспорт `kb_to_blood_tests.py` через sshpass упал (пароль в `fetch_remote_nutrition.sh` устарел, exit 3) — импорт проведён вручную через ssh по ключу. Стоит починить пароль/перейти на ключевой ssh.
+- **Персональное приветствие /start** (`telegram-bot/handlers/commands.py`): добавлен словарь `PERSONAL_START_GREETINGS` (ключ — telegram_id). Для Валерии — развёрнутое приветствие на «вы»: что Боткин про неё знает (анализы 2009–2026, диагнозы, лекарства, дневник АД) + примеры вопросов по темам (🩺 здоровье/анализы/симптомы, 🥗 питание, 🚶 активность: ходьба/лыжи/велик) + ссылка на дашборд. Стандартное food-приветствие у остальных не тронуто. Задеплоено + рестарт.
 
 ## 2026-05-26 — data: OCR всех JPEG Олега и Игоря — масштабное дополнение KB
 

@@ -55,11 +55,8 @@ XLIM = (START - timedelta(days=1), GOAL_DATE + timedelta(days=5))
 # Локальный кэш питания (создаётся fetch_remote_nutrition.sh)
 NUTRITION_CACHE = BASE / "data/nutrition/nutrition_log_remote.json"
 
-# SSH-параметры для прямого запроса к PostgreSQL
+# SSH-параметры для прямого запроса к PostgreSQL (ssh по ключу)
 _SSH = [
-    "/opt/homebrew/bin/sshpass",
-    "-p",
-    "SERVER_PASSWORD_REDACTED",
     "ssh",
     "-o",
     "StrictHostKeyChecking=no",

@@ -13,7 +13,6 @@
 """
 
 import csv
-import os
 import subprocess
 from pathlib import Path
 
@@ -114,12 +113,9 @@ def main():
         return
 
     batch_sql = "\n".join(sql_statements)
-    env = {**os.environ, "SSHPASS": "SERVER_PASSWORD_REDACTED"}
 
     result = subprocess.run(
         [
-            "/opt/homebrew/bin/sshpass",
-            "-e",
             "ssh",
             "-o",
             "StrictHostKeyChecking=no",
@@ -129,7 +125,6 @@ def main():
         input=batch_sql,
         capture_output=True,
         text=True,
-        env=env,
     )
 
     if result.returncode != 0:
