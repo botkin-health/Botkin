@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -25,8 +24,7 @@ KB_PATH = Path.home() / (
 OUT_PATH = Path(__file__).resolve().parent.parent / "telegram-bot" / "biomarkers_895655.json"
 
 SERVER = "root@116.203.213.137"
-SSHPASS = "/opt/homebrew/bin/sshpass"
-SSH_PASS = os.environ.get("SSH_PASS", "SERVER_PASSWORD_REDACTED")
+SSH_OPTS = ["-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=10"]
 
 
 def build_biomarkers(kb: dict) -> dict:
@@ -172,18 +170,14 @@ def deploy(path: Path) -> None:
     remote_tmp = "/tmp/biomarkers_895655.json"
     print(f"📤 Uploading to {SERVER}...")
     subprocess.run(
-        [SSHPASS, "-p", SSH_PASS, "scp", "-o", "StrictHostKeyChecking=no", str(path), f"{SERVER}:{remote_tmp}"],
+        ["scp", *SSH_OPTS, str(path), f"{SERVER}:{remote_tmp}"],
         check=True,
     )
     print("🐳 Copying into Docker container...")
     subprocess.run(
         [
-            SSHPASS,
-            "-p",
-            SSH_PASS,
             "ssh",
-            "-o",
-            "StrictHostKeyChecking=no",
+            *SSH_OPTS,
             SERVER,
             f"docker cp {remote_tmp} healthvault_bot:/app/biomarkers_895655.json && "
             f"docker cp {remote_tmp} healthvault_bot:/app/telegram-bot/biomarkers_895655.json && "

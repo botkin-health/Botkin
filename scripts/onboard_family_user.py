@@ -54,15 +54,10 @@ PROMPT_DIR = REPO_ROOT / "scripts" / "server" / "agent_prompts"
 
 
 def _server_config() -> server_deployer.ServerConfig:
-    password = os.environ.get("SERVER_PASSWORD")
-    if not password:
-        raise RuntimeError("SERVER_PASSWORD env var not set")
     return server_deployer.ServerConfig(
         host=os.environ.get("SERVER_HOST", "116.203.213.137"),
         user=os.environ.get("SERVER_USER", "root"),
-        password=password,
         deploy_path=os.environ.get("SERVER_DEPLOY_PATH", "/opt/healthvault"),
-        sshpass_path=os.environ.get("SSHPASS_PATH", "/opt/homebrew/bin/sshpass"),
     )
 
 

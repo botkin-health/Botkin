@@ -22,7 +22,7 @@ TOOL_RESULT_FILE = (
 )
 
 SERVER = "root@116.203.213.137"
-SSHPASS = "/opt/homebrew/bin/sshpass"
+SSH_OPTS = ["-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=10"]
 ANDREY_UID = REDACTED_ID
 
 # ── Load KB ─────────────────────────────────────────────────────────────────
@@ -154,26 +154,9 @@ total = len(sql_lines)
 print(f"\nTotal SQL statements: {total}")
 print("Connecting to server …")
 
-import os
-
-server_pass = None
-env_file = Path(__file__).parent.parent / ".env"
-for line in env_file.read_text().splitlines():
-    if line.startswith("SERVER_PASSWORD="):
-        server_pass = line.split("=", 1)[1].strip()
-        break
-
-if not server_pass:
-    print("ERROR: SERVER_PASSWORD not found in .env")
-    sys.exit(1)
-
 cmd = [
-    SSHPASS,
-    "-p",
-    server_pass,
     "ssh",
-    "-o",
-    "StrictHostKeyChecking=no",
+    *SSH_OPTS,
     SERVER,
     "docker exec -i healthvault_postgres psql -U healthvault -d healthvault",
 ]
@@ -201,12 +184,8 @@ else:
 
 print("\nVerification query:")
 verify_cmd = [
-    SSHPASS,
-    "-p",
-    server_pass,
     "ssh",
-    "-o",
-    "StrictHostKeyChecking=no",
+    *SSH_OPTS,
     SERVER,
     f"docker exec healthvault_postgres psql -U healthvault -d healthvault -c "
     f'"SELECT MIN(date), MAX(date), COUNT(*) as days, '

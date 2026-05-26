@@ -25,8 +25,7 @@ ROOT = Path(__file__).resolve().parents[2]
 FAMILY_HEALTH = Path.home() / "Library/CloudStorage/GoogleDrive-lyskovsky@gmail.com/Мой диск/HealthVault"
 
 SSH_SERVER = "root@116.203.213.137"
-SSH_PASS = "SERVER_PASSWORD_REDACTED"
-SSHPASS = "/opt/homebrew/bin/sshpass"
+SSH_OPTS = ["-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=10"]
 
 # PERSON_MAP — алиасы для имён → название папки в ~/FamilyHealth/<имя>.
 # Это приватный конфиг (имена членов семьи), не должен лежать в git.
@@ -94,12 +93,8 @@ def query_nutrition(days: int = 7, user: str = "Александр") -> str:
 
     def ssh_query(sql: str) -> list:
         cmd = [
-            SSHPASS,
-            "-p",
-            SSH_PASS,
             "ssh",
-            "-o",
-            "StrictHostKeyChecking=no",
+            *SSH_OPTS,
             SSH_SERVER,
             f'docker exec healthvault_postgres psql -U healthvault -d healthvault -t -c "COPY ({sql}) TO STDOUT"',
         ]

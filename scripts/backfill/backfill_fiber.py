@@ -28,7 +28,7 @@ load_dotenv(BASE_DIR / ".env")
 
 POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "***REMOVED-SECRET***")
 SERVER = "root@116.203.213.137"
-SERVER_PASS = "SERVER_PASSWORD_REDACTED"
+SSH_OPTS = ["-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=10"]
 LOCAL_PORT = 15432
 OPENAI_KEY = os.getenv("OPENAI_API_KEY")
 USER_ID = 895655
@@ -41,12 +41,8 @@ def run_sql(query: str) -> list:
     # Убираем переносы строк — psql через -c не любит многострочный SQL
     query_oneline = " ".join(query.split())
     cmd = [
-        "/opt/homebrew/bin/sshpass",
-        "-p",
-        SERVER_PASS,
         "ssh",
-        "-o",
-        "StrictHostKeyChecking=no",
+        *SSH_OPTS,
         SERVER,
         f"docker exec healthvault_postgres psql -U healthvault -d healthvault -t -A -F'|' -c \"{query_oneline}\"",
     ]
@@ -64,12 +60,8 @@ def run_update(log_id: int, items_json: str, totals_json: str):
     totals_safe = totals_json.replace("'", "''")
     sql = f"UPDATE nutrition_log SET items='{items_safe}'::jsonb, totals='{totals_safe}'::jsonb WHERE id={log_id};"
     cmd = [
-        "/opt/homebrew/bin/sshpass",
-        "-p",
-        SERVER_PASS,
         "ssh",
-        "-o",
-        "StrictHostKeyChecking=no",
+        *SSH_OPTS,
         SERVER,
         f"docker exec healthvault_postgres psql -U healthvault -d healthvault -c {json.dumps(sql)}",
     ]

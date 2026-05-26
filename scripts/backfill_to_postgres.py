@@ -29,8 +29,7 @@ GARMIN_SLEEP = BASE / "data" / "garmin" / "sleep"
 
 USER_ID = 895655
 SERVER = "root@116.203.213.137"
-SSHPASS = "/opt/homebrew/bin/sshpass"
-SSH_PASS = "SERVER_PASSWORD_REDACTED"
+SSH_OPTS = ["-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=10"]
 CONTAINER = "healthvault_postgres"
 DB_USER = "healthvault"
 DB_NAME = "healthvault"
@@ -45,12 +44,8 @@ def run_sql(sql: str, dry_run: bool = False) -> str:
         return ""
     result = subprocess.run(
         [
-            SSHPASS,
-            "-p",
-            SSH_PASS,
             "ssh",
-            "-o",
-            "StrictHostKeyChecking=no",
+            *SSH_OPTS,
             SERVER,
             f"docker exec {CONTAINER} psql -U {DB_USER} -d {DB_NAME} -t -c {json.dumps(sql)}",
         ],
@@ -72,12 +67,8 @@ def run_sql_file(sql: str, dry_run: bool = False) -> str:
     # Пишем SQL во временный файл на сервере через stdin
     result = subprocess.run(
         [
-            SSHPASS,
-            "-p",
-            SSH_PASS,
             "ssh",
-            "-o",
-            "StrictHostKeyChecking=no",
+            *SSH_OPTS,
             SERVER,
             f"docker exec -i {CONTAINER} psql -U {DB_USER} -d {DB_NAME}",
         ],

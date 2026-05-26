@@ -48,9 +48,8 @@ CSV_OUT = BASE / "data/zepp_export_latest.csv"
 # CN3 сервер Zepp (данные весов) — доступен только через Hetzner
 ZEPP_CN3_API = "https://api-mifit-cn3.zepp.com"
 
-# Hetzner proxy для доступа к CN3
+# Hetzner proxy для доступа к CN3 (ssh по ключу)
 HETZNER_HOST = "root@116.203.213.137"
-HETZNER_PASS = "SERVER_PASSWORD_REDACTED"
 
 # Xiaomi OAuth URL (для получения токена через браузер)
 XIAOMI_OAUTH_URL = (
@@ -187,11 +186,8 @@ def fetch_via_hetzner(user_id: str, app_token: str, start: str, end: str) -> lis
         r.raise_for_status()
         data = r.json()
     else:
-        # SSH proxy mode (с Mac)
+        # SSH proxy mode (с Mac) — ssh по ключу
         cmd = [
-            "/opt/homebrew/bin/sshpass",
-            "-p",
-            HETZNER_PASS,
             "ssh",
             "-o",
             "StrictHostKeyChecking=no",
