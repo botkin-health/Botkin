@@ -117,3 +117,7 @@ docs/ONBOARDING*.md
 
 # git worktrees
 .worktrees/
+
+# Night-shift generated reports (contain personal health data)
+docs/night-shift/*.md
+docs/night-shift/STATUS.md
