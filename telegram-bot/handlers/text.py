@@ -63,6 +63,51 @@ _NUMERIC_DOSE_RE = re.compile(
 )
 
 
+def _inject_bp_to_agent_conv(
+    user_id: int,
+    raw_text: str,
+    conf_text: str,
+    include_user_turn: bool = True,
+) -> None:
+    """После save_bp_to_db() — записать в agent_conversations оба хода диалога
+    (user-turn + assistant-confirmation), чтобы BotkinClaw видел сохранённые
+    замеры при последующих вопросах о динамике АД.
+
+    Regex-путь (include_user_turn=True): обходит весь agent pipeline, user-turn
+    не логируется нигде → добавляем оба.
+    LLM-путь (include_user_turn=False): log_router_raw_text уже сохранил
+    user-turn → добавляем только assistant-подтверждение.
+
+    Ошибки подавляются — не должны ломать основной хэндлер. Прецедент #71.
+    """
+    try:
+        from core.agent_chat import _save_message
+        from database.session import SessionLocal
+
+        _db = SessionLocal()
+        try:
+            if include_user_turn:
+                _save_message(
+                    _db,
+                    user_id,
+                    "user",
+                    [{"type": "text", "text": raw_text}],
+                    source="bp_fast_handler",
+                )
+            _save_message(
+                _db,
+                user_id,
+                "assistant",
+                [{"type": "text", "text": conf_text}],
+                source="bp_fast_handler",
+            )
+            _db.commit()
+        finally:
+            _db.close()
+    except Exception as _e:
+        pass  # non-critical, never break the main handler
+
+
 def _is_clearly_conversational(text: str) -> bool:
     """Cheap heuristic: looks like a question, NOT a food/log entry.
 
@@ -644,6 +689,17 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                     parse_mode="HTML",
                 )
                 debug_logger.info(f"✅ BP regex pre-check matched: {sys_v}/{dia_v} pulse={pulse_v}")
+                # Inject both turns into agent_conversations so BotkinClaw sees
+                # this save when later asked about BP dynamics (fix: #71).
+                # Regex path bypasses the agent pipeline entirely — without this
+                # the agent has no memory of these saves and falsely reports
+                # "no measurements today". Prec: 26.05.2026 Павел Храпкин.
+                _inject_bp_to_agent_conv(
+                    user_id=int(user_id),
+                    raw_text=text,
+                    conf_text=f"🩺 АД: {sys_v}/{dia_v}{pulse_part}{time_part}. Записано.",
+                    include_user_turn=True,
+                )
                 return
             else:
                 await processing_msg.edit_text(
@@ -1176,6 +1232,15 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                     f"{e2e_prefix}🩺 <b>АД:</b> {sys_v}/{dia_v}{pulse_part}{time_part}\n{status}",
                     parse_mode="HTML",
                 )
+                if saved:
+                    # LLM router path: log_router_raw_text already saved the user
+                    # turn → inject only the assistant confirmation (#71).
+                    _inject_bp_to_agent_conv(
+                        user_id=int(user_id),
+                        raw_text=text,
+                        conf_text=f"🩺 АД: {sys_v}/{dia_v}{pulse_part}{time_part}. Записано.",
+                        include_user_turn=False,
+                    )
                 return
 
         elif msg_type == "body_measurements":
