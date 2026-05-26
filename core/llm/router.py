@@ -310,11 +310,18 @@ Extract weight and body composition.
 
 SCENARIO 3: VITAMINS
 IMPORTANT: Return "items" in RUSSIAN language (e.g. "Витамин С", "Магний").
+
+CRITICAL — distinguish INTENT:
+- "logged" (intake) — user just TOOK them: «выпил магний», «принял Д3», «съел омегу» — log as taken
+- "metadata" — user sent photo/list TO RECORD the brand/form in profile, NOT to log intake.
+  Triggers: «вот мои добавки», «список того что я принимаю», «занеси марки», «отправляю фото банок чтобы ты знал», «есть где записать состав?», «решил прислать тебе фото».
+  In this case set action="metadata" and DO NOT mark as taken.
+
 {
   "type": "vitamins",
   "data": {
     "items": ["Витамин С", "Омега-3"],
-    "action": "logged"
+    "action": "logged"  // OR "metadata" — see CRITICAL note above
   }
 }
 
@@ -341,6 +348,23 @@ SCENARIO 5: OTHER
     "reply": "Brief helpful reply or clarity question"
   }
 }
+
+SCENARIO 7: BP (blood pressure measurement)
+Use when user sends a blood pressure reading — text like "120/80 пульс 70", "АД 130/85", or a photo of a tonometer (Omron, Microlife, etc) showing SYS/DIA/PULSE values on the display.
+Realistic ranges: systolic 70-250, diastolic 40-150, pulse 30-220, systolic > diastolic.
+{
+  "type": "bp",
+  "data": {
+    "systolic": number,
+    "diastolic": number,
+    "pulse": number or null,
+    "measured_at_time": "HH:MM" or null  // if user mentions specific time like "в 15:30" or "сейчас 21:00"
+  }
+}
+Examples:
+- "120/80 пульс 65" → systolic=120, diastolic=80, pulse=65
+- "Сейчас 15:07 151/92 пуль 65" → systolic=151, diastolic=92, pulse=65, measured_at_time="15:07"
+- Photo of Omron showing SYS:135 DIA:85 PULSE:72 → systolic=135, diastolic=85, pulse=72
 
 SCENARIO 6: MIXED (food WITH supplements in one message)
 Use this when the message contains BOTH caloric food (with weight/macros) AND supplements.
