@@ -10,7 +10,7 @@
 
 Логика:
 - Маппинг telegram_id → имя папки в FamilyHealth (см. USERS ниже)
-- Сравнивает md5 локального файла с тем что на сервере
+- Сравнивает sha256 локального файла с тем что на сервере
 - Если разные → backup сервер-версии в *.backup_YYYYMMDD, перезаписывает kb_<id>.json
 - НЕ делает merge — local рассматривается как source of truth.
   Если на сервере есть данные которых нет локально (как было до 22.05) —
@@ -43,19 +43,20 @@ USERS = {
 }
 
 
-def md5(path: Path) -> str:
+def file_hash(path: Path) -> str:
+    """SHA-256 checksum of a local file (used for equality comparison, not security)."""
     if not path.exists():
         return ""
-    return hashlib.md5(path.read_bytes()).hexdigest()
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 SSH_OPTS = ["-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=10"]
 
 
-def get_server_md5(telegram_id: int, _sshpass: str = "") -> str:
-    """Удалённо считаем md5 файла на сервере (прямой ssh по ключу)."""
+def get_server_hash(telegram_id: int, _sshpass: str = "") -> str:
+    """Удалённо считаем sha256 файла на сервере (прямой ssh по ключу)."""
     result = subprocess.run(
-        ["ssh", *SSH_OPTS, SERVER, f"md5sum {SERVER_KB_DIR}/kb_{telegram_id}.json 2>/dev/null | awk '{{print $1}}'"],
+        ["ssh", *SSH_OPTS, SERVER, f"sha256sum {SERVER_KB_DIR}/kb_{telegram_id}.json 2>/dev/null | awk '{{print $1}}'"],
         capture_output=True,
         text=True,
     )
@@ -102,16 +103,16 @@ def main():
         if not local.exists():
             print(f"  ⊘ {tid} {folder}: knowledge_base.json не найден локально")
             continue
-        local_md5 = md5(local)
-        server_md5 = get_server_md5(tid)
+        local_hash = file_hash(local)
+        server_hash = get_server_hash(tid)
 
-        if local_md5 == server_md5:
-            print(f"  ✓ {tid} {folder}: совпадает ({local_md5[:8]}…)")
-        elif not server_md5:
+        if local_hash == server_hash:
+            print(f"  ✓ {tid} {folder}: совпадает ({local_hash[:8]}…)")
+        elif not server_hash:
             print(f"  ✚ {tid} {folder}: на сервере нет, будет загружен ({local.stat().st_size // 1024} KB)")
             needs_upload.append((tid, folder, local))
         else:
-            print(f"  ⚠ {tid} {folder}: РАЗНЫЕ ({local_md5[:8]} vs {server_md5[:8]})")
+            print(f"  ⚠ {tid} {folder}: РАЗНЫЕ ({local_hash[:8]} vs {server_hash[:8]})")
             needs_upload.append((tid, folder, local))
 
     if not needs_upload:

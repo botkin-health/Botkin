@@ -616,7 +616,7 @@ def upsert_user_settings(db: Session, user_id: int, **kwargs) -> "UserSettings":
     """Create or update user settings. Pass fields as kwargs.
 
     Example:
-        upsert_user_settings(db, user_id=895655, show_calorie_budget_bar=False)
+        upsert_user_settings(db, user_id=123456789, show_calorie_budget_bar=False)
     """
     from database.models import UserSettings
 
@@ -797,7 +797,7 @@ def set_user_session_var(db: Session, user_id: int) -> None:
 
     Example:
         with db.begin():
-            set_user_session_var(db, user_id=895655)
+            set_user_session_var(db, user_id=123456789)
             logs = db.execute(text("SELECT * FROM nutrition_log")).fetchall()
     """
     # SET LOCAL only accepts string literals, not parameterized values — str() cast required

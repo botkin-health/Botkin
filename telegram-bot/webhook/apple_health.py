@@ -911,7 +911,7 @@ def _webapp_version() -> str:
         p = _webapp_dir / fname
         if p.exists():
             parts.append(str(p.stat().st_mtime_ns))
-    return hashlib.md5("-".join(parts).encode()).hexdigest()[:8] if parts else "0"
+    return hashlib.sha256("-".join(parts).encode()).hexdigest()[:8] if parts else "0"
 
 
 async def _serve_index() -> HTMLResponse:
