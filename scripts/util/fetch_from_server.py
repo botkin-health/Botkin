@@ -5,6 +5,8 @@ import os
 HOST = "116.203.213.137"
 USER = "root"
 KEY_FILE = os.path.expanduser("~/.ssh/id_ed25519")
+# Owner telegram_id — used in SQL queries. Override with env var if needed.
+OWNER_USER_ID = int(os.getenv("HEALTHVAULT_USER_ID", "895655"))
 
 
 def run_ssh_query(ssh, query, output_file):
@@ -36,26 +38,29 @@ def run_ssh_query(ssh, query, output_file):
 def main():
     print("Connecting to SSH...")
     ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    # Load known hosts from ~/.ssh/known_hosts — reject unknown/changed host keys
+    # to prevent MITM attacks (replaces former AutoAddPolicy which silently accepted any key).
+    ssh.load_system_host_keys()
+    ssh.set_missing_host_key_policy(paramiko.RejectPolicy())
     try:
         ssh.connect(HOST, username=USER, key_filename=KEY_FILE, timeout=10)
         print("✅ SSH connected successfully")
 
         queries = [
             (
-                "SELECT * FROM nutrition_log WHERE user_id = 895655 ORDER BY date, meal_time",
+                f"SELECT * FROM nutrition_log WHERE user_id = {OWNER_USER_ID} ORDER BY date, meal_time",
                 "data/nutrition/nutrition_log_remote.json",
             ),
             (
-                "SELECT * FROM supplements_log WHERE user_id = 895655 ORDER BY date, time",
+                f"SELECT * FROM supplements_log WHERE user_id = {OWNER_USER_ID} ORDER BY date, time",
                 "data/supplements/supplements_log_remote.json",
             ),
             (
-                "SELECT * FROM weights WHERE user_id = 895655 AND source IN ('screenshot_ocr', 'manual', 'zepp', 'apple_health') ORDER BY measured_at",
+                f"SELECT * FROM weights WHERE user_id = {OWNER_USER_ID} AND source IN ('screenshot_ocr', 'manual', 'zepp', 'apple_health') ORDER BY measured_at",
                 "data/weights/weights_remote.json",
             ),
             (
-                "SELECT * FROM activity_log WHERE user_id = 895655 ORDER BY date",
+                f"SELECT * FROM activity_log WHERE user_id = {OWNER_USER_ID} ORDER BY date",
                 "data/activities/activities_remote.json",
             ),
         ]
