@@ -16,6 +16,7 @@ from datetime import datetime, date, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
 
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -28,6 +29,52 @@ from webhook.jwt_auth import get_agent_user, get_db  # noqa: E402
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/agent", tags=["agent-tools"])
+
+
+# ── Timezone helpers ──────────────────────────────────────────────────────────
+
+_DEFAULT_TZ = "Europe/Moscow"
+
+
+def _get_user_tz(user) -> ZoneInfo:
+    """Return ZoneInfo timezone for user. Falls back to Europe/Moscow."""
+    tz_name = getattr(user, "timezone", None) or _DEFAULT_TZ
+    try:
+        return ZoneInfo(tz_name)
+    except (ZoneInfoNotFoundError, KeyError):
+        logger.warning(
+            "Unknown timezone %r for user %s, falling back to %s",
+            tz_name,
+            getattr(user, "telegram_id", "?"),
+            _DEFAULT_TZ,
+        )
+        return ZoneInfo(_DEFAULT_TZ)
+
+
+def _dt_to_user_tz(dt: datetime, user) -> datetime:
+    """Convert a UTC (or timezone-aware) datetime to the user's local timezone."""
+    if dt is None:
+        return dt
+    tz = _get_user_tz(user)
+    # Ensure dt is timezone-aware (treat naive as UTC)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(tz)
+
+
+def _dt_isoformat_local(dt: datetime, user) -> Optional[str]:
+    """Convert UTC datetime to user's timezone and return ISO string (no microseconds)."""
+    if dt is None:
+        return None
+    local_dt = _dt_to_user_tz(dt, user)
+    # Format without microseconds for readability: 2026-05-27T21:18:00+03:00
+    return local_dt.strftime("%Y-%m-%dT%H:%M:%S%z")
+
+
+def _today_in_user_tz(user) -> date:
+    """Return today's date in the user's local timezone."""
+    tz = _get_user_tz(user)
+    return datetime.now(tz).date()
 
 
 # ── Request / Response schemas ────────────────────────────────────────────────
@@ -56,10 +103,10 @@ class LogBPRequest(BaseModel):
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 
-def _parse_date(date_str: Optional[str]) -> date:
-    """Parse YYYY-MM-DD string or return today."""
+def _parse_date(date_str: Optional[str], user=None) -> date:
+    """Parse YYYY-MM-DD string or return today in user's local timezone."""
     if not date_str:
-        return date.today()
+        return _today_in_user_tz(user) if user is not None else date.today()
     try:
         return date.fromisoformat(date_str)
     except ValueError:
@@ -151,7 +198,7 @@ async def log_meal_text(
     from core.llm.router import analyze_message
     from core.food.nutrition import process_llm_food_data
 
-    record_date = _parse_date(req.date)
+    record_date = _parse_date(req.date, user)
     meal_time, meal_name = _slot_to_meal_time(req.slot)
 
     # Use the real food parser (Claude vision/text via core.llm.router).
@@ -218,7 +265,7 @@ async def log_supplement(
     """Save a supplement entry to supplements_log."""
     from database.crud import create_supplement_log
 
-    record_date = _parse_date(req.date)
+    record_date = _parse_date(req.date, user)
     sup_time = _parse_time(req.time)
 
     log = create_supplement_log(
@@ -279,7 +326,7 @@ async def log_bp(
 
     return {
         "status": "ok",
-        "measured_at": measured_at.isoformat(),
+        "measured_at": _dt_isoformat_local(measured_at, user),
         "systolic": req.systolic,
         "diastolic": req.diastolic,
         "pulse": req.pulse,
@@ -317,7 +364,7 @@ async def recent_meals(
     if days < 1 or days > 90:
         raise HTTPException(status_code=400, detail="days must be between 1 and 90")
 
-    end_date = date.today()
+    end_date = _today_in_user_tz(user)
     start_date = end_date - timedelta(days=days - 1)
 
     logs = get_nutrition_logs_by_period(db, user.telegram_id, start_date, end_date)
@@ -788,7 +835,7 @@ async def dashboard_summary(
         get_latest_weight,
     )
 
-    end_date = date.today()
+    end_date = _today_in_user_tz(user)
     start_date = end_date - timedelta(days=6)
 
     activity_rows = get_activity_logs_by_period(db, user.telegram_id, start_date, end_date)
@@ -862,7 +909,7 @@ async def recent_bp(
     rows = db.execute(sql, {"uid": user.telegram_id, "days": days}).fetchall()
     items = [
         {
-            "measured_at": r.measured_at.isoformat(),
+            "measured_at": _dt_isoformat_local(r.measured_at, user),
             "systolic": r.systolic,
             "diastolic": r.diastolic,
             "pulse": r.heart_rate,
@@ -1234,7 +1281,7 @@ async def recent_workouts(
     from sqlalchemy import text as sql_text
 
     days = max(1, min(days, 180))
-    today_date = date.today()
+    today_date = _today_in_user_tz(user)
     cutoff = today_date - timedelta(days=days)
 
     wk_path = _Path(f"/app/telegram-bot/workouts_log_{user.telegram_id}.json")
@@ -1335,7 +1382,7 @@ async def recent_workouts(
     if not workouts:
         return {"status": "no_data", "available": False, "reason": "empty workouts array"}
 
-    today_date = date.today()
+    # today_date was already computed above using user's timezone
     cutoff = today_date - timedelta(days=days)
 
     def _to_date(s: str):
@@ -2152,7 +2199,9 @@ async def indoor_air(
                     "co2_ppm": latest.get("co2_ppm"),
                     "humidity_percent": latest.get("humidity_percent"),
                     "noise_db": latest.get("noise_db"),
-                    "measured_at": datetime.fromtimestamp(latest["timestamp"], tz=timezone.utc).isoformat()
+                    "measured_at": _dt_isoformat_local(
+                        datetime.fromtimestamp(latest["timestamp"], tz=timezone.utc), user
+                    )
                     if latest.get("timestamp")
                     else None,
                 }
