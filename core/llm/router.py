@@ -352,6 +352,13 @@ SCENARIO 5: OTHER
 SCENARIO 7: BP (blood pressure measurement)
 Use when user sends a blood pressure reading — text like "120/80 пульс 70", "АД 130/85", or a photo of a tonometer (Omron, Microlife, etc) showing SYS/DIA/PULSE values on the display.
 Realistic ranges: systolic 70-250, diastolic 40-150, pulse 30-220, systolic > diastolic.
+
+CRITICAL — DO NOT classify as BP if any of these apply:
+- Message is a QUESTION about BP (contains «нужно ли», «можно ли», «опасно ли», «что делать», «что значит», «?», "should I", "is it ok", etc.). Even if BP numbers are mentioned, the user is asking, not logging — use SCENARIO 5 (OTHER) so the agent answers.
+- Message describes a RANGE («давление в интервале 140-120 /85-70», «в диапазоне», «бывает», «иногда», «доходит до», «колеблется») — that's a description for the agent to interpret, not a single measurement.
+- Message is in past tense about past readings («раньше было», «вчера было», «месяц назад») — use OTHER, the agent will look up history.
+Example: «У меня давление 140/90, нужно ли пить таблетки?» → SCENARIO 5 (OTHER), NOT bp.
+Example: «120/80 пульс 65» → SCENARIO 7 (BP).
 {
   "type": "bp",
   "data": {
@@ -533,6 +540,10 @@ def analyze_message_claude(
         "model": "claude-sonnet-4-6",
         "max_tokens": 2000,
         "temperature": 0.1,
+        # Роутинг еды/добавок — простая классификация в JSON. effort="low"
+        # экономит токены и латентность (Sonnet 4.6 иначе дефолтит на high и
+        # «передумывает» на тривиальной задаче). См. docs Anthropic /effort.
+        "output_config": {"effort": "low"},
         "system": [
             {
                 "type": "text",
