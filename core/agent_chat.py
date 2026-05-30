@@ -234,16 +234,27 @@ TOOLS: list[dict[str, Any]] = [
     {
         "name": "get_recent_trends",
         "description": (
-            "Per-day тренды HRV, Body Battery, Stress, Steps, RHR, Sleep "
-            "за N дней (по умолчанию 14). В отличие от get_dashboard_summary "
+            "Per-day тренды HRV, Body Battery, Stress, Steps, RHR, Sleep + "
+            "флаг alcohol (был ли в этот день алкоголь, из nutrition_log) "
+            "за N дней (по умолчанию 14, до 180). В отличие от get_dashboard_summary "
             "который даёт только AVG за 7 дней — тут видно динамику ДЕНЬ ЗА ДНЁМ. "
             "Используй для 'падает ли мой HRV', 'когда у меня был стресс', "
-            "'какой у меня body battery утром', 'как менялся пульс покоя'. "
-            "Возвращает items (per-day) + stats (avg/min/max)."
+            "'какой у меня body battery утром', 'как менялся пульс покоя', "
+            "а также для корреляций 'алкоголь → HRV/стресс следующего дня'. "
+            "Возвращает items (per-day, поле alcohol:bool) + stats (avg/min/max + alcohol_days). "
+            "Для КОРРЕЛЯЦИЙ и ГРАФИКОВ на длинном окне ставь full_series=true "
+            "(вернёт ВСЕ точки окна, а не последние 30) и days=90..180."
         ),
         "input_schema": {
             "type": "object",
-            "properties": {"days": {"type": "integer", "minimum": 1, "maximum": 90, "default": 14}},
+            "properties": {
+                "days": {"type": "integer", "minimum": 1, "maximum": 180, "default": 14},
+                "full_series": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "Вернуть все точки окна (для корреляций/графиков). Дефолт false (последние 30).",
+                },
+            },
         },
     },
     {
@@ -663,9 +674,12 @@ def _call_tool(name: str, args: dict, token: str) -> str:
         elif name == "get_recent_trends":
             r = requests.get(
                 f"{TOOLS_API_BASE}/recent_trends",
-                params={"days": int(args.get("days", 14))},
+                params={
+                    "days": int(args.get("days", 14)),
+                    "full_series": bool(args.get("full_series", False)),
+                },
                 headers=headers,
-                timeout=15,
+                timeout=20,
             )
         elif name == "get_weight_history":
             params: dict[str, Any] = {}

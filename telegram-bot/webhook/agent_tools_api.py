@@ -2314,34 +2314,51 @@ async def outdoor_weather(
 @router.get("/recent_trends")
 async def recent_trends(
     days: int = 14,
+    full_series: bool = False,
     user=Depends(get_agent_user),
     db: Session = Depends(get_db),
 ):
-    """Per-day trends from activity_log.raw_data: HRV, Body Battery, Stress, Steps.
+    """Per-day trends from activity_log.raw_data: HRV, Body Battery, Stress, Steps, Alcohol.
 
     Complementary to get_dashboard_summary (which gives 7-day AVG only).
     Use this for trend questions: 'падает ли мой HRV?', 'сколько у меня
     Body Battery утром', 'когда самый высокий стресс'.
+
+    `alcohol` (bool) per day — был ли в этот день приём пищи с алкоголем
+    (флаг из nutrition_log.totals.has_alcohol). Полезно для корреляций
+    'алкоголь → HRV/стресс следующего дня'.
+
+    Окно до 180 дней. По умолчанию возвращается до 30 последних точек в
+    `items`. Для корреляций/графиков на длинном окне передай
+    `full_series=true` — тогда вернутся ВСЕ точки окна (тяжелее, но нужно
+    чтобы посчитать связь на 90-180 днях).
     """
     from sqlalchemy import text as sql_text
 
-    days = max(1, min(days, 90))
+    days = max(1, min(days, 180))
     sql = sql_text(
         """
-        SELECT date,
-               steps,
-               heart_rate_avg AS rhr,
-               hrv,
-               stress_level,
-               sleep_hours,
-               (raw_data->>'bodyBatteryHighestValue')::int  AS body_battery_max,
-               (raw_data->>'bodyBatteryAtWakeTime')::int    AS body_battery_wake,
-               (raw_data->>'bodyBatteryLowestValue')::int   AS body_battery_min,
-               (raw_data->>'averageStressLevel')::int       AS stress_avg
-        FROM activity_log
-        WHERE user_id = :uid
-          AND date >= CURRENT_DATE - (:days || ' days')::interval
-        ORDER BY date DESC
+        SELECT al.date,
+               al.steps,
+               al.heart_rate_avg AS rhr,
+               al.hrv,
+               al.stress_level,
+               al.sleep_hours,
+               (al.raw_data->>'bodyBatteryHighestValue')::int  AS body_battery_max,
+               (al.raw_data->>'bodyBatteryAtWakeTime')::int    AS body_battery_wake,
+               (al.raw_data->>'bodyBatteryLowestValue')::int   AS body_battery_min,
+               (al.raw_data->>'averageStressLevel')::int       AS stress_avg,
+               COALESCE(nu.alcohol, false)                     AS alcohol
+        FROM activity_log al
+        LEFT JOIN (
+            SELECT date, bool_or((totals->>'has_alcohol') = 'true') AS alcohol
+            FROM nutrition_log
+            WHERE user_id = :uid
+            GROUP BY date
+        ) nu ON nu.date = al.date
+        WHERE al.user_id = :uid
+          AND al.date >= CURRENT_DATE - (:days || ' days')::interval
+        ORDER BY al.date DESC
         """
     )
     rows = db.execute(sql, {"uid": user.telegram_id, "days": days}).fetchall()
@@ -2357,6 +2374,7 @@ async def recent_trends(
             "body_battery_morning": r.body_battery_wake,
             "body_battery_max": r.body_battery_max,
             "body_battery_min": r.body_battery_min,
+            "alcohol": bool(r.alcohol),
         }
         for r in rows
     ]
@@ -2377,8 +2395,9 @@ async def recent_trends(
             "stress_avg": _avg_or_none([i["stress_level"] for i in items]),
             "body_battery_morning_avg": _avg_or_none([i["body_battery_morning"] for i in items]),
             "steps_avg": _avg_or_none([i["steps"] for i in items]),
+            "alcohol_days": sum(1 for i in items if i["alcohol"]),
         },
-        "items": items[:30],
+        "items": items if full_series else items[:30],
     }
 
 
