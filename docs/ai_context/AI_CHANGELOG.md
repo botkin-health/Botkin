@@ -7,6 +7,18 @@
 
 ---
 
+## 2026-05-30 — feat(agent): алкоголь-флаг + full_series в get_recent_trends
+
+**Проблема:** BotkinClaw в чате отвечал «алкоголь нигде не трекается» — хотя флаг `has_alcohol` есть в `nutrition_log.totals` (18 приёмов, ~16 дней). Причина: ни один tool его не отдавал, а `recent_trends` был капнут на 90 дней и `items[:30]`.
+
+**Что сделано** (`telegram-bot/webhook/agent_tools_api.py` + `core/agent_chat.py`):
+- `recent_trends`: LEFT JOIN агрегата `nutrition_log` по дню → поле `alcohol:bool` в каждом item + `alcohol_days` в stats. Кап окна 90 → **180** дней.
+- Новый параметр `full_series` (дефолт false → последние 30 точек; true → ВСЕ точки окна, нужно для корреляций/графиков на 90-180 днях).
+- Описание tool'а в `agent_chat.py` обновлено (alcohol, full_series, кейс «алкоголь → HRV следующего дня»).
+- E2E через `ask_agent`: агент теперь видит 16 алко-дней, считает HRV на D+1, отвечает. Деплой `docker cp` + restart.
+
+**Известное ограничение:** агент считает корреляцию вручную (получил −2 мс vs мой Python −6 мс) — точный Pearson+детренд это задача отдельного server-side tool `get_correlation` (в бэклоге).
+
 ## 2026-05-29 — feat(agent): BotkinClaw на Claude Opus 4.8 + effort-параметр
 
 **Контекст:** Opus 4.8 вышел 28.05.2026 — в 4× реже пропускает ошибки и честнее про неуверенность, чем предшественники. Для медицинского агента это критично.
