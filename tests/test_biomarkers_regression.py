@@ -1,24 +1,17 @@
 # tests/test_biomarkers_regression.py
 import json
 import os
-import sys
 from pathlib import Path
 
 import pytest
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts" / "import"))
 
 from core.health.biomarkers import aggregate_biomarkers
 
 FAMILY = Path(os.path.expanduser("~/Library/CloudStorage/GoogleDrive-lyskovsky@gmail.com/Мой диск/FamilyHealth"))
 BIO_DIR = Path(__file__).resolve().parent.parent / "telegram-bot"
 
-# telegram_id → папка FamilyHealth (см. config/users.py — здесь дублируем намеренно,
-# чтобы тест не зависел от рантайм-конфига)
-USERS = {
-    895655: "Александр Лысковский — Здоровье",
-    REDACTED_ID: "Дмитрий REDACTED — Здоровье",
-}
+ALEXANDER = (895655, "Александр Лысковский — Здоровье")
+DIMA = (REDACTED_ID, "Дмитрий REDACTED — Здоровье")
 
 
 def _kb_rows(folder: str):
@@ -32,8 +25,10 @@ def _kb_rows(folder: str):
     return rows
 
 
-@pytest.mark.parametrize("tid,folder", list(USERS.items()))
-def test_new_aggregate_superset_of_old_json(tid, folder):
+def test_alexander_golden_nothing_lost():
+    """Александр — единственный golden: зрелый корректный pipeline.
+    Новый агрегат обязан содержать каждый старый канонический ключ с тем же value+date."""
+    tid, folder = ALEXANDER
     old_file = BIO_DIR / f"biomarkers_{tid}.json"
     kb_path = FAMILY / folder / "knowledge_base.json"
     if not old_file.exists() or not kb_path.exists():
@@ -42,14 +37,33 @@ def test_new_aggregate_superset_of_old_json(tid, folder):
     old = json.loads(old_file.read_text())
     new = aggregate_biomarkers(_kb_rows(folder))
 
-    missing = []
+    lost = []
     for key, old_rec in old.items():
         if key == "_meta":
             continue
         if key not in new:
-            missing.append(key)
-            continue
-        # value совпадает (старый формат: old_rec["value"])
-        if abs(new[key]["value"] - old_rec["value"]) > 1e-6:
-            missing.append(f"{key}:value {old_rec['value']}→{new[key]['value']}")
-    assert not missing, f"потеряны/изменены маркеры для {tid}: {missing}"
+            lost.append(key)
+        elif abs(new[key]["value"] - old_rec["value"]) > 1e-6:
+            lost.append(f"{key}:value {old_rec['value']}→{new[key]['value']}")
+    assert not lost, f"Александр потерял/изменил маркеры: {lost}"
+
+
+def test_dima_smoke_builds_and_units_sane():
+    """Дима: старый baseline был битый (сырые pmol/L под каноническими именами).
+    Smoke: агрегат строится и ключевые маркеры конвертированы в правильные единицы."""
+    tid, folder = DIMA
+    kb_path = FAMILY / folder / "knowledge_base.json"
+    if not kb_path.exists():
+        pytest.skip("no Dima KB")
+
+    bio = aggregate_biomarkers(_kb_rows(folder))
+    assert bio["_meta"]["total_markers"] > 30
+
+    if "insulin" in bio:
+        assert bio["insulin"]["value"] < 30, "insulin должен быть в µIU/mL (<30), не сырой pmol/L"
+    if "PTH_intact" in bio:
+        assert 10 < bio["PTH_intact"]["value"] < 200, "PTH должен быть в pg/mL"
+    if "vitamin_B12" in bio:
+        assert 150 < bio["vitamin_B12"]["value"] < 1500, "B12 в pg/mL"
+    if "folic_acid" in bio:
+        assert bio["folic_acid"]["value"] < 25, "фолат в ng/mL"

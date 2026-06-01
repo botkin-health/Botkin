@@ -120,6 +120,38 @@ CANONICAL: dict[str, CanonicalMarker] = {
     "calcium": CanonicalMarker("ммоль/л", {"calcium": 1, "Ca": 1}),
     "potassium": CanonicalMarker("ммоль/л", {"potassium": 1, "K": 1}),
     "sodium": CanonicalMarker("ммоль/л", {"sodium": 1, "Na": 1}),
+    # ── CBC (extended) ───────────────────────────────────────────────────────
+    "HCT": CanonicalMarker("%", {"hct_pct": 1, "Ht": 1, "hematocrit": 1}),
+    # NB: и "HCT", и "Hct" лоуэркейсятся в "hct" — у Александра это доля (0.451 L/L),
+    # неоднозначно с %, поэтому "hct"-вариант НЕ алиас. Маппим только однозначные
+    # %-ключи: Ht (Александр, n=11), hematocrit, hct_pct (Дима).
+    "MCH": CanonicalMarker("пг", {"MCH": 1, "mch_pg": 1}),
+    "MCHC": CanonicalMarker("г/л", {"MCHC": 1, "mchc_g_l": 1}),
+    "neutrophils": CanonicalMarker("%", {"neutrophils_percent": 1, "neutrophils_seg": 1, "neutrophils_seg_pct": 1}),
+    # bare "neutrophils" у Александра = абс. число (×10⁹/л) — НЕ алиас.
+    "monocytes": CanonicalMarker("%", {"monocytes": 1, "monocytes_percent": 1, "monocytes_rel": 1, "monocytes_pct": 1}),
+    "eosinophils": CanonicalMarker(
+        "%", {"eosinophils": 1, "eosinophils_percent": 1, "eosinophils_rel": 1, "eosinophils_pct": 1}
+    ),
+    # ── Coagulation ──────────────────────────────────────────────────────────
+    "INR": CanonicalMarker("", {"INR": 1}),
+    "APTT": CanonicalMarker("сек", {"APTT": 1, "aptt_sec": 1}),
+    "fibrinogen": CanonicalMarker("г/л", {"fibrinogen": 1, "fibrinogen_g_l": 1}),
+    "d_dimer": CanonicalMarker("нг/мл", {"D_dimer": 1, "d_dimer_ng_feu_ml": 1}),
+    # ── Proteins / enzymes (extended) ─────────────────────────────────────────
+    "total_protein": CanonicalMarker("г/л", {"total_protein": 1, "protein_total": 1, "total_protein_g_l": 1}),
+    "amylase": CanonicalMarker("Ед/л", {"amylase": 1, "alpha_amylase": 1, "amylase_pancreatic_u_l": 1}),
+    # амилаза: total (alpha_amylase) и панкреатическая (Дима) — разные аналиты, та же единица.
+    # ── Hormones (extended) ──────────────────────────────────────────────────
+    "DHT": CanonicalMarker("пг/мл", {"dht": 1, "dihydrotestosterone_pg_ml": 1}),
+    "testosterone_free": CanonicalMarker("пмоль/л", {"testosterone_free_pmol_l": 1}),
+    # NB: Александровы free_testosterone/testosterone_free в иной шкале (≈16-19, не pmol/L) — НЕ алиасы.
+    "Anti_TPO": CanonicalMarker("МЕ/мл", {"anti_TPO": 1, "anti_tpo_iu_ml": 1}),
+    "Anti_Tg": CanonicalMarker("МЕ/мл", {"anti_Tg": 1, "anti_tg_iu_ml": 1}),
+    # ── Vitamins (extended) ──────────────────────────────────────────────────
+    "vitamin_A": CanonicalMarker("мкг/мл", {"vitamin_a_ug_ml": 1}),
+    "vitamin_E": CanonicalMarker("мкг/мл", {"vitamin_e_ug_ml": 1}),
+    "vitamin_B6": CanonicalMarker("нг/мл", {"vitamin_b6_ng_ml": 1}),
 }
 
 

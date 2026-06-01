@@ -54,13 +54,13 @@ def test_unknown_unit_alias_skipped_with_warning():
 
 
 def test_passthrough_unmapped():
-    canon, _ = to_canonical({"fibrinogen_g_l": 3.0}, passthrough_unmapped=True)
-    assert canon["fibrinogen_g_l"] == 3.0  # passed through untouched
+    canon, _ = to_canonical({"made_up_marker_zzz": 3.0}, passthrough_unmapped=True)
+    assert canon["made_up_marker_zzz"] == 3.0  # passed through untouched
 
 
 def test_no_passthrough_drops_unmapped():
-    canon, _ = to_canonical({"fibrinogen_g_l": 3.0})
-    assert "fibrinogen_g_l" not in canon
+    canon, _ = to_canonical({"made_up_marker_zzz": 3.0})
+    assert "made_up_marker_zzz" not in canon
 
 
 def test_collision_same_value_no_warning():
@@ -87,3 +87,38 @@ def test_reverse_index_has_no_duplicate_aliases():
 def test_non_numeric_value_skipped():
     canon, _ = to_canonical({"LDL": "n/a"})
     assert "LDL" not in canon
+
+
+def test_extended_markers_dima_explicit_units_map():
+    canon, _ = to_canonical(
+        {
+            "hct_pct": 47.3,
+            "mch_pg": 29.9,
+            "mchc_g_l": 345,
+            "total_protein_g_l": 67.8,
+            "fibrinogen_g_l": 2.3,
+            "aptt_sec": 25.2,
+            "dihydrotestosterone_pg_ml": 582,
+            "anti_tpo_iu_ml": 0.22,
+            "vitamin_a_ug_ml": 0.584,
+            "amylase_pancreatic_u_l": 14,
+            "testosterone_free_pmol_l": 99.5,
+            "neutrophils_seg_pct": 42,
+            "monocytes_pct": 8,
+        }
+    )
+    assert canon["HCT"] == 47.3
+    assert canon["MCH"] == 29.9
+    assert canon["testosterone_free"] == 99.5
+    assert canon["DHT"] == 582
+    assert canon["neutrophils"] == 42
+    assert canon["amylase"] == 14
+
+
+def test_ambiguous_bare_keys_not_mapped():
+    # bare HCT (fraction), bare neutrophils (absolute), Alexander free_testosterone (wrong scale)
+    # must NOT be mapped — guarded against silent mis-scaling.
+    canon, _ = to_canonical({"HCT": 0.451, "neutrophils": 3.03, "free_testosterone": 19.4})
+    assert "HCT" not in canon
+    assert "neutrophils" not in canon
+    assert canon == {}
