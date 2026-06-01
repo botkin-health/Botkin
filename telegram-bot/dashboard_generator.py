@@ -2361,18 +2361,27 @@ def _build_payload(db: Session, user_id: int) -> dict:
     _earliest_all = min(_early_dates) if _early_dates else today.isoformat()
     _history_days = (today - date.fromisoformat(_earliest_all[:10])).days
     _history_years = _history_days // 365
-    # Display: years if ≥1, months otherwise (Russian declension: 1 год, 2-4 года, 5+ лет)
+
+    def _year_word_for(y: int) -> str:
+        # Русское склонение: 1 год, 2-4 года, 5-20 лет, 21 год, ...
+        if 11 <= (y % 100) <= 14:
+            return "лет"
+        if y % 10 == 1:
+            return "год"
+        if 2 <= y % 10 <= 4:
+            return "года"
+        return "лет"
+
+    # Display: для ≥1 года показываем годы + остаток в месяцах (чтобы 1.6 года
+    # не округлялось вниз до «1 год» и не выглядело будто данных мало).
+    # Прецедент: Дима — анализы окт.2024…мар.2026 (≈19 мес) показывались как «1 год».
     if _history_years >= 1:
-        _y = _history_years
-        if 11 <= (_y % 100) <= 14:
-            _year_word = "лет"
-        elif _y % 10 == 1:
-            _year_word = "год"
-        elif 2 <= _y % 10 <= 4:
-            _year_word = "года"
+        _rem_months = (_history_days % 365) // 30
+        _y_word = _year_word_for(_history_years)
+        if _rem_months > 0:
+            _history_label = f"{_history_years} {_y_word} {_rem_months} мес"
         else:
-            _year_word = "лет"
-        _history_label = str(_y) + " " + _year_word
+            _history_label = f"{_history_years} {_y_word}"
     else:
         _history_label = str(max(1, _history_days // 30)) + " мес"
 
