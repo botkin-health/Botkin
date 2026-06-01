@@ -438,11 +438,24 @@ TOOLS: list[dict[str, Any]] = [
     },
     {
         "name": "log_meal_text",
-        "description": "Залогировать приём пищи из текстового описания. ИСПОЛЬЗОВАТЬ ТОЛЬКО если юзер ЯВНО просит 'запиши' или 'залогируй'. Не пытайся логировать каждое упоминание еды.",
+        "description": (
+            "Залогировать приём пищи из текстового описания. ИСПОЛЬЗОВАТЬ ТОЛЬКО "
+            "если юзер ЯВНО просит 'запиши' или 'залогируй'. Не пытайся логировать "
+            "каждое упоминание еды.\n\n"
+            "Если юзер указал ДЕНЬ приёма («вчера», «позавчера», «29 мая», «в "
+            "понедельник») — вычисли конкретную дату и передай её в `date` "
+            "(YYYY-MM-DD), опираясь на сегодняшнее число. Без указания дня `date` "
+            "НЕ передавай (запишется на сегодня). После записи ОБЯЗАТЕЛЬНО назови "
+            "дату в ответе, если она не сегодняшняя («записал на 29 мая»)."
+        ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "text": {"type": "string"},
+                "date": {
+                    "type": "string",
+                    "description": "Дата приёма YYYY-MM-DD. Только если юзер указал день; иначе не передавать (=сегодня).",
+                },
                 "slot": {
                     "type": "string",
                     "enum": ["breakfast", "lunch", "dinner", "snack"],
@@ -1200,7 +1213,27 @@ def ask_agent(
             "\n"
         )
         per_user_prompt = user.agent_system_prompt or ""
-        merged_system_prompt = UNIVERSAL_META_PROMPT + per_user_prompt
+        # 📅 Инжектим сегодняшнюю дату в таймзоне юзера. Без неё LLM угадывает
+        # «сегодня» (и ошибается: e2e 01.06.2026 — агент решил, что сегодня 02.06,
+        # и «вчера» посчитал как 01.06). Нужно для корректного log_meal_text с
+        # относительной датой и любых «вчера/на той неделе». Дата меняется раз в
+        # сутки → префикс кэша обновляется раз в день (незначимо).
+        _tz_name = getattr(user, "timezone", None) or "Europe/Moscow"
+        try:
+            from zoneinfo import ZoneInfo
+
+            _now_local = datetime.now(ZoneInfo(_tz_name))
+        except Exception:
+            _now_local = datetime.now(timezone.utc)
+        _weekday_ru = ["понедельник", "вторник", "среда", "четверг", "пятница", "суббота", "воскресенье"][
+            _now_local.weekday()
+        ]
+        _date_line = (
+            f"📅 Сегодня: {_now_local.strftime('%Y-%m-%d')} ({_weekday_ru}), "
+            f"таймзона пользователя {_tz_name}. Все относительные даты «вчера», "
+            "«позавчера», «на той неделе» считай строго от этой даты.\n\n"
+        )
+        merged_system_prompt = _date_line + UNIVERSAL_META_PROMPT + per_user_prompt
         # Prompt caching: system prompt + tool definitions cached at $0.30/MT
         # instead of $3.00/MT on subsequent calls (Sonnet 4.6). Cache TTL 5 min
         # default, refreshed by every cache hit. Within a single conversation
