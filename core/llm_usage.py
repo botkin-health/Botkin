@@ -26,6 +26,9 @@ logger = logging.getLogger(__name__)
 # Tuple: (input, output, cache_write, cache_read). cache_* default to None.
 _PRICING: dict[str, tuple[float, float, float, float]] = {
     # Claude — Anthropic
+    # Opus 4.8 — флагман BotkinClaw (с 29.05.2026). Цена как у Opus 4.7.
+    "claude-opus-4-8": (15.00, 75.00, 18.75, 1.50),
+    "claude-opus-4-7": (15.00, 75.00, 18.75, 1.50),
     "claude-sonnet-4-6": (3.00, 15.00, 3.75, 0.30),
     "claude-sonnet-4-5": (3.00, 15.00, 3.75, 0.30),
     "claude-sonnet-4-5-20251001": (3.00, 15.00, 3.75, 0.30),

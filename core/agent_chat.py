@@ -41,13 +41,17 @@ logger = logging.getLogger(__name__)
 
 ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
 ANTHROPIC_VERSION = "2023-06-01"
-# Sonnet 4.6 — последняя Sonnet (вышла после Sonnet 4.5 которая использовалась
-# в NanoClaw). Та же цена ($3/MT input, $15/MT output), лучше reasoning + tool use.
+# Sonnet 4.6 — рабочая модель агента (откат с Opus 4.8 01.06.2026 по стоимости:
+# Opus давал ~$7.5/активный день ≈ $100/мес, дорогие tool-итерации; Sonnet в ~5×
+# дешевле при достаточном качестве для семейного медбота). $3/$15 за MT.
 MODEL = "claude-sonnet-4-6"
-# Fallback на 4.5 если 4.6 вернул 529/503/429 несмотря на ретраи.
-# Та же цена, отдельный compute pool у Anthropic → обычно свободнее когда
-# 4.6 перегружен. Качество ответа чуть хуже, но это разменивается на доступность.
+# Fallback на 4.5 если 4.6 вернул 529/503/429. Другой compute pool (обычно
+# свободнее). ⚠️ Sonnet 4.5 НЕ поддерживает output_config.effort → в fallback-
+# ветке effort снимается (см. _post_with_overload_retry), иначе 400.
 FALLBACK_MODEL = "claude-sonnet-4-5"
+# effort=medium — документированный sweet spot Sonnet 4.6 для чата: дешевле и
+# быстрее дефолтного high, без потери качества на разговорных задачах.
+AGENT_EFFORT = "medium"
 MAX_TOKENS = 2000
 MAX_TOOL_ITERATIONS = 6  # safety net against tool loops
 HISTORY_WINDOW = 20  # last N messages from agent_conversations
@@ -228,16 +232,27 @@ TOOLS: list[dict[str, Any]] = [
     {
         "name": "get_recent_trends",
         "description": (
-            "Per-day тренды HRV, Body Battery, Stress, Steps, RHR, Sleep "
-            "за N дней (по умолчанию 14). В отличие от get_dashboard_summary "
+            "Per-day тренды HRV, Body Battery, Stress, Steps, RHR, Sleep + "
+            "флаг alcohol (был ли в этот день алкоголь, из nutrition_log) "
+            "за N дней (по умолчанию 14, до 180). В отличие от get_dashboard_summary "
             "который даёт только AVG за 7 дней — тут видно динамику ДЕНЬ ЗА ДНЁМ. "
             "Используй для 'падает ли мой HRV', 'когда у меня был стресс', "
-            "'какой у меня body battery утром', 'как менялся пульс покоя'. "
-            "Возвращает items (per-day) + stats (avg/min/max)."
+            "'какой у меня body battery утром', 'как менялся пульс покоя', "
+            "а также для корреляций 'алкоголь → HRV/стресс следующего дня'. "
+            "Возвращает items (per-day, поле alcohol:bool) + stats (avg/min/max + alcohol_days). "
+            "Для КОРРЕЛЯЦИЙ и ГРАФИКОВ на длинном окне ставь full_series=true "
+            "(вернёт ВСЕ точки окна, а не последние 30) и days=90..180."
         ),
         "input_schema": {
             "type": "object",
-            "properties": {"days": {"type": "integer", "minimum": 1, "maximum": 90, "default": 14}},
+            "properties": {
+                "days": {"type": "integer", "minimum": 1, "maximum": 180, "default": 14},
+                "full_series": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "Вернуть все точки окна (для корреляций/графиков). Дефолт false (последние 30).",
+                },
+            },
         },
     },
     {
@@ -657,9 +672,12 @@ def _call_tool(name: str, args: dict, token: str) -> str:
         elif name == "get_recent_trends":
             r = requests.get(
                 f"{TOOLS_API_BASE}/recent_trends",
-                params={"days": int(args.get("days", 14))},
+                params={
+                    "days": int(args.get("days", 14)),
+                    "full_series": bool(args.get("full_series", False)),
+                },
                 headers=headers,
-                timeout=15,
+                timeout=20,
             )
         elif name == "get_weight_history":
             params: dict[str, Any] = {}
@@ -1200,6 +1218,7 @@ def ask_agent(
             payload = {
                 "model": MODEL,
                 "max_tokens": MAX_TOKENS,
+                "output_config": {"effort": AGENT_EFFORT},
                 "system": [
                     {
                         "type": "text",
@@ -1247,6 +1266,9 @@ def ask_agent(
                         FALLBACK_MODEL,
                     )
                     p = {**p, "model": FALLBACK_MODEL}
+                    # Sonnet 4.5 не поддерживает output_config.effort → снимаем,
+                    # иначе вернёт 400 на fallback-вызове.
+                    p.pop("output_config", None)
                     resp = requests.post(ANTHROPIC_API_URL, headers=request_headers, json=p, timeout=60)
                 return resp
 

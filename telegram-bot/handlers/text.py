@@ -643,7 +643,48 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
     )
     _TIME_RE = re.compile(r"\b(\d{1,2})[:.](\d{2})\b")
 
-    bp_match = _BP_RE.search(text)
+    # 🩺 Guard: НЕ принимать «XXX/YY» за замер, если сообщение —
+    # это вопрос или описание диапазона. Прецедент 28.05.2026 (мама Александра):
+    # «Если у меня давление в интервале 140-120 /85-70, нужно ли мне пить таблетки?»
+    # regex выдрал «120/85» из диапазона и записал как замер, вопрос к агенту не
+    # попал. Два детектора:
+    #   1) вопросительные маркеры («нужно ли», «можно ли», «?», «что делать», ...)
+    #   2) диапазон вида «\d-\d/\d» или «\d/\d-\d» (описание, не одно измерение)
+    _BP_QUESTION_MARKERS = (
+        "?",
+        "нужно ли",
+        "нужны ли",
+        "надо ли",
+        "можно ли",
+        "стоит ли",
+        "следует ли",
+        "правда ли",
+        "верно ли",
+        "что значит",
+        "что делать",
+        "почему",
+        "опасно ли",
+        "опасно?",
+        "нормально ли",
+        "норма ли",
+        "хорошо ли",
+        "плохо ли",
+        "стоит беспокоиться",
+        "переживать",
+    )
+    _BP_RANGE_RE = re.compile(r"\d{2,3}\s*-\s*\d{2,3}\s*[/\\]|[/\\]\s*\d{2,3}\s*-\s*\d{2,3}")
+    _lower_text = text.lower()
+    _is_bp_question = any(m in _lower_text for m in _BP_QUESTION_MARKERS)
+    _is_bp_range = bool(_BP_RANGE_RE.search(text))
+    if _is_bp_question or _is_bp_range:
+        debug_logger.info(
+            f"🩺 BP regex SKIPPED for user {user_id}: "
+            f"question={_is_bp_question} range={_is_bp_range} — "
+            f"передаём в агент (text head: {text[:80]!r})"
+        )
+        bp_match = None
+    else:
+        bp_match = _BP_RE.search(text)
     if bp_match:
         sys_v = int(bp_match.group(1))
         dia_v = int(bp_match.group(2))
@@ -1200,7 +1241,17 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             # pre-check выше не сработал — например необычная формулировка).
             data = router_result.get("data", {})
             sys_v, dia_v, pulse_v = data.get("systolic"), data.get("diastolic"), data.get("pulse")
-            if sys_v and dia_v and (70 <= sys_v <= 250) and (40 <= dia_v <= 150) and (sys_v > dia_v):
+            # Тот же guard, что и в regex-пути выше: если сообщение —
+            # вопрос или описание диапазона, не сохраняем замер. Сбрасываем
+            # router_result/msg_type и выпадаем ниже к BotkinClaw.
+            if _is_bp_question or _is_bp_range:
+                debug_logger.info(
+                    f"🩺 BP LLM-router SKIPPED for user {user_id}: "
+                    f"question={_is_bp_question} range={_is_bp_range} — передаём в агент"
+                )
+                router_result = None
+                msg_type = None
+            elif sys_v and dia_v and (70 <= sys_v <= 250) and (40 <= dia_v <= 150) and (sys_v > dia_v):
                 from helpers.db_save import save_bp_to_db
 
                 measured_at = None
