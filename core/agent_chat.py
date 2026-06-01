@@ -41,19 +41,17 @@ logger = logging.getLogger(__name__)
 
 ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
 ANTHROPIC_VERSION = "2023-06-01"
-# Opus 4.8 — флагман для медицинского агента. В 4 раза реже пропускает ошибки
-# и честнее про неуверенность, чем предшественники (релиз 28.05.2026) — критично
-# когда агент даёт советы по здоровью. Дороже Sonnet ($15/$75 vs $3/$15 за MT),
-# но трафик BotkinClaw мал (~$0.5/нед) → прирост стоимости незначим.
-MODEL = "claude-opus-4-8"
-# Fallback если Opus вернул 529/503/429 несмотря на ретраи. Sonnet 4.6 — другой
-# compute pool (обычно свободнее), дешевле, и тоже поддерживает effort-параметр
-# (Sonnet 4.5 его НЕ поддерживает → вернул бы 400 на output_config).
-FALLBACK_MODEL = "claude-sonnet-4-6"
-# Уровень "усилия" (Opus 4.8): high — документированный sweet spot. max не берём:
-# для tool-heavy чат-бота, который по умолчанию отвечает коротко, max рискует
-# «передумывать» (overthinking) и растит латентность ответа в Telegram.
-AGENT_EFFORT = "high"
+# Sonnet 4.6 — рабочая модель агента (откат с Opus 4.8 01.06.2026 по стоимости:
+# Opus давал ~$7.5/активный день ≈ $100/мес, дорогие tool-итерации; Sonnet в ~5×
+# дешевле при достаточном качестве для семейного медбота). $3/$15 за MT.
+MODEL = "claude-sonnet-4-6"
+# Fallback на 4.5 если 4.6 вернул 529/503/429. Другой compute pool (обычно
+# свободнее). ⚠️ Sonnet 4.5 НЕ поддерживает output_config.effort → в fallback-
+# ветке effort снимается (см. _post_with_overload_retry), иначе 400.
+FALLBACK_MODEL = "claude-sonnet-4-5"
+# effort=medium — документированный sweet spot Sonnet 4.6 для чата: дешевле и
+# быстрее дефолтного high, без потери качества на разговорных задачах.
+AGENT_EFFORT = "medium"
 MAX_TOKENS = 2000
 MAX_TOOL_ITERATIONS = 6  # safety net against tool loops
 HISTORY_WINDOW = 20  # last N messages from agent_conversations
@@ -1268,6 +1266,9 @@ def ask_agent(
                         FALLBACK_MODEL,
                     )
                     p = {**p, "model": FALLBACK_MODEL}
+                    # Sonnet 4.5 не поддерживает output_config.effort → снимаем,
+                    # иначе вернёт 400 на fallback-вызове.
+                    p.pop("output_config", None)
                     resp = requests.post(ANTHROPIC_API_URL, headers=request_headers, json=p, timeout=60)
                 return resp
 
