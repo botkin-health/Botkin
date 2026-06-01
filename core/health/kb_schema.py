@@ -64,7 +64,7 @@ CANONICAL: dict[str, CanonicalMarker] = {
     "ALT": CanonicalMarker("Ед/л", {"ALT": 1, "alt_u_l": 1}),
     "AST": CanonicalMarker("Ед/л", {"AST": 1, "ast_u_l": 1}),
     "GGT": CanonicalMarker("Ед/л", {"GGT": 1, "ggt_u_l": 1}),
-    "ALP": CanonicalMarker("Ед/л", {"ALP": 1, "alkaline_phosphatase": 1, "alkaline_phosphatase_u_l": 1}),
+    "ALP": CanonicalMarker("Ед/л", {"ALP": 1, "alkaline_phosphatase": 1, "alkaline_phosphatase_u_l": 1, "alp_u_l": 1}),
     "bilirubin_total": CanonicalMarker(
         "мкмоль/л", {"bilirubin_total": 1, "total_bilirubin": 1, "bilirubin_total_umol_l": 1}
     ),
@@ -101,25 +101,25 @@ CANONICAL: dict[str, CanonicalMarker] = {
     "creatinine": CanonicalMarker("мкмоль/л", {"creatinine": 1, "creatinine_umol_l": 1}),
     "egfr": CanonicalMarker("", {"egfr_ckd_epi": 1, "egfr": 1, "gfr": 1}),
     "uric_acid": CanonicalMarker("мкмоль/л", {"uric_acid": 1, "uric_acid_umol_l": 1}),
-    "urea": CanonicalMarker("ммоль/л", {"urea": 1}),
+    "urea": CanonicalMarker("ммоль/л", {"urea": 1, "urea_mmol_l": 1}),
     # ── CBC ──────────────────────────────────────────────────────────────────
     "WBC": CanonicalMarker("10⁹/л", {"WBC": 1, "wbc_10_9_l": 1}),
     "RBC": CanonicalMarker("10¹²/л", {"RBC": 1, "rbc_10_12_l": 1}),
     "Hb": CanonicalMarker("г/л", {"Hb": 1, "HGB": 1, "hemoglobin": 1, "hgb_g_l": 1}),
     "lymphocytes": CanonicalMarker(
-        "%", {"lymphocytes": 1, "lymphocytes_percent": 1, "lymphocytes_rel": 1, "lymphocytes_pct": 1}
+        "%", {"lymphocytes": 1, "lymphocytes_percent": 1, "lymphocytes_rel": 1, "lymphocytes_pct": 1, "lymph_pct": 1}
     ),
     "MCV": CanonicalMarker("фл", {"MCV": 1, "mcv_fl": 1}),
-    "RDW_CV": CanonicalMarker("%", {"RDW_CV": 1, "RDW": 1}),
-    "PLT": CanonicalMarker("10⁹/л", {"PLT": 1, "platelets": 1, "platelets_10_9_l": 1}),
+    "RDW_CV": CanonicalMarker("%", {"RDW_CV": 1, "RDW": 1, "rdw_cv_pct": 1}),
+    "PLT": CanonicalMarker("10⁹/л", {"PLT": 1, "platelets": 1, "platelets_10_9_l": 1, "plt_10_9_l": 1}),
     "ESR": CanonicalMarker("мм/ч", {"ESR": 1, "esr_mm_h": 1}),
     # albumin_pct/_percent (электрофорез, %) — ДРУГОЙ маркер, намеренно НЕ алиас
     "albumin_g_l": CanonicalMarker("г/л", {"albumin_g_l": 1, "albumin": 1}),
     # ── Other ────────────────────────────────────────────────────────────────
     "PSA_total": CanonicalMarker("нг/мл", {"PSA_total": 1, "psa": 1, "psa_ng_ml": 1}),
     "calcium": CanonicalMarker("ммоль/л", {"calcium": 1, "Ca": 1}),
-    "potassium": CanonicalMarker("ммоль/л", {"potassium": 1, "K": 1}),
-    "sodium": CanonicalMarker("ммоль/л", {"sodium": 1, "Na": 1}),
+    "potassium": CanonicalMarker("ммоль/л", {"potassium": 1, "K": 1, "potassium_mmol_l": 1}),
+    "sodium": CanonicalMarker("ммоль/л", {"sodium": 1, "Na": 1, "sodium_mmol_l": 1}),
     # ── CBC (extended) ───────────────────────────────────────────────────────
     "HCT": CanonicalMarker("%", {"hct_pct": 1, "Ht": 1, "hematocrit": 1}),
     # NB: и "HCT", и "Hct" лоуэркейсятся в "hct" — у Александра это доля (0.451 L/L),
@@ -127,12 +127,18 @@ CANONICAL: dict[str, CanonicalMarker] = {
     # %-ключи: Ht (Александр, n=11), hematocrit, hct_pct (Дима).
     "MCH": CanonicalMarker("пг", {"MCH": 1, "mch_pg": 1}),
     "MCHC": CanonicalMarker("г/л", {"MCHC": 1, "mchc_g_l": 1}),
-    "neutrophils": CanonicalMarker("%", {"neutrophils_percent": 1, "neutrophils_seg": 1, "neutrophils_seg_pct": 1}),
-    # bare "neutrophils" у Александра = абс. число (×10⁹/л) — НЕ алиас.
-    "monocytes": CanonicalMarker("%", {"monocytes": 1, "monocytes_percent": 1, "monocytes_rel": 1, "monocytes_pct": 1}),
-    "eosinophils": CanonicalMarker(
-        "%", {"eosinophils": 1, "eosinophils_percent": 1, "eosinophils_rel": 1, "eosinophils_pct": 1}
+    "neutrophils": CanonicalMarker(
+        "%", {"neutrophils_percent": 1, "neutrophils_seg": 1, "neutrophils_seg_pct": 1, "neut_pct": 1}
     ),
+    # bare "neutrophils" у Александра = абс. число (×10⁹/л) — НЕ алиас.
+    # neut_pct (К+31, Андрей) = общий % нейтрофилов (сегменто+палочко) — это %, безопасный алиас.
+    "monocytes": CanonicalMarker(
+        "%", {"monocytes": 1, "monocytes_percent": 1, "monocytes_rel": 1, "monocytes_pct": 1, "mon_pct": 1}
+    ),
+    "eosinophils": CanonicalMarker(
+        "%", {"eosinophils": 1, "eosinophils_percent": 1, "eosinophils_rel": 1, "eosinophils_pct": 1, "eo_pct": 1}
+    ),
+    "basophils": CanonicalMarker("%", {"basophils": 1, "basophils_percent": 1, "basophils_pct": 1, "bas_pct": 1}),
     # ── Coagulation ──────────────────────────────────────────────────────────
     "INR": CanonicalMarker("", {"INR": 1}),
     "APTT": CanonicalMarker("сек", {"APTT": 1, "aptt_sec": 1}),
@@ -152,6 +158,14 @@ CANONICAL: dict[str, CanonicalMarker] = {
     "vitamin_A": CanonicalMarker("мкг/мл", {"vitamin_a_ug_ml": 1}),
     "vitamin_E": CanonicalMarker("мкг/мл", {"vitamin_e_ug_ml": 1}),
     "vitamin_B6": CanonicalMarker("нг/мл", {"vitamin_b6_ng_ml": 1}),
+    # ── Cardiac / lipid risk (extended) ───────────────────────────────────────
+    # NT-proBNP: канон пг/мл (как в dashboard_generator biomarkers_latest).
+    # Альтернативная лабораторная единица — пмоль/л (×0.118 → пг/мл, МВ 8458 Da);
+    # фактор НЕ задаём, т.к. реальных pmol/L-значений в KB пока нет — добавить при появлении.
+    "NT_proBNP": CanonicalMarker("пг/мл", {"NT_proBNP": 1, "nt_probnp_pg_ml": 1}),
+    # Омега-3 индекс (HS-Omega-3 Index, Harris-von Schacht) — % EPA+DHA от жирных
+    # кислот мембраны эритроцитов. Безразмерных алиасов нет — только %.
+    "omega3_index": CanonicalMarker("%", {"omega3_index": 1, "omega_3_index": 1, "omega3_index_pct": 1}),
 }
 
 
