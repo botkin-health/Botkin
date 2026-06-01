@@ -106,6 +106,12 @@ def main() -> None:
         )
 
     if args.deploy:
+        if os.getenv("BOTKIN_LEGACY_BIOMARKERS_JSON") != "1" or not OUT_PATH.exists():
+            print(
+                "⚠️  --deploy пропущен: biomarkers_<id>.json не сгенерирован "
+                "(дашборд читает Postgres). Для legacy-деплоя: BOTKIN_LEGACY_BIOMARKERS_JSON=1 ... --deploy"
+            )
+            return
         deploy(OUT_PATH)
         # ── 3-stage pipeline после --deploy ──
         # Все три источника читают разное и должны быть синхронизированы:

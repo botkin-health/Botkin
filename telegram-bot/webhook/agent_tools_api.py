@@ -150,6 +150,18 @@ def _slot_to_meal_time(slot: Optional[str]):
     return mapping[slot], name_map[slot]
 
 
+def _as_dict(values):
+    """blood_tests.values: dict в Postgres (JSONB), но str если пришло как JSON-текст."""
+    if isinstance(values, str):
+        import json as _json
+
+        try:
+            return _json.loads(values)
+        except Exception:
+            return {}
+    return values or {}
+
+
 def _resolve_user_kb_path(user) -> tuple[Optional[Path], str]:
     """Resolve per-user KB file path with fallback to legacy locations.
 
@@ -1095,7 +1107,7 @@ async def recent_biomarkers(
 
     tests = []
     for r in rows:
-        canon, _w = to_canonical(r.values or {}, passthrough_unmapped=True)
+        canon, _w = to_canonical(_as_dict(r.values), passthrough_unmapped=True)
         tests.append({"date": r.test_date.isoformat(), "type": r.test_type, "values": canon})
     return {"status": "ok", "count": len(tests), "tests": tests}
 
@@ -1132,7 +1144,7 @@ async def phenoage(
 
     latest: dict[str, dict] = {}
     for r in rows:
-        canon, _w = to_canonical(r.values or {})
+        canon, _w = to_canonical(_as_dict(r.values))
         for key in markers:
             if key in canon and key not in latest:
                 latest[key] = {"value": float(canon[key]), "date": r.test_date.isoformat()}

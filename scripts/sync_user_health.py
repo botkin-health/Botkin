@@ -59,7 +59,13 @@ def main(argv=None) -> int:
     ap.add_argument("--apply", action="store_true", help="Без флага — dry-run")
     args = ap.parse_args(argv)
 
-    users = KB_USERS if args.all else {args.user: KB_USERS[args.user]}
+    if args.all:
+        users = KB_USERS
+    else:
+        if args.user not in KB_USERS:
+            print(f"❌ User {args.user} не найден в config.users.KB_USERS. Известные: {sorted(KB_USERS)}")
+            return 1
+        users = {args.user: KB_USERS[args.user]}
     for tid, folder in users.items():
         r = sync_user(tid, folder, args.apply)
         print(
