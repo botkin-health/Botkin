@@ -395,26 +395,23 @@ def extract_date_from_text(text: str) -> tuple[str, str]:
         ("yesterday", 1),
     ]
 
-    # Проверяем начало строки
-    # Например: "Вчера ужин: ..." или "Позавчера: ..."
-    # 1. Проверка "вчера" / "позавчера" / "yesterday"
+    # 1. "вчера" / "позавчера" / "yesterday" — ищем в ЛЮБОМ месте строки, не
+    # только в начале. Прецедент 30.05.2026: «Обед вчера: рыбные шарики» —
+    # слово стоит после "Обед", прежний startswith его не ловил → запись шла
+    # на сегодня. Порядок relative_keywords (позавчера раньше вчера) + границы
+    # слова \b защищают от ложного совпадения "вчера" внутри "позавчера".
     for kw, days_ago in relative_keywords:
-        if text_lower.startswith(kw):
-            # Проверяем, что идет после ключевого слова
-            after_kw = text_lower[len(kw) :]
-
+        m = re.search(rf"\b{re.escape(kw)}\b", text_lower)
+        if m:
             target_date = datetime.now(MSK) - timedelta(days=days_ago)
             date_str = target_date.strftime("%Y-%m-%d")
 
-            # Если текст закончился - это просто "вчера" / "позавчера"
-            if not after_kw:
-                return date_str, ""
-
-            # Если после ключевого слова идет разделитель
-            if after_kw[0] in [":", ",", "-", " ", "\n"]:
-                clean_text = text[len(kw) :].strip()
-                clean_text = re.sub(r"^[:,\-\s]+", "", clean_text).strip()
-                return date_str, clean_text
+            # Склеиваем префикс (до kw) и суффикс (после kw), срезая разделители.
+            # "Обед вчера: рыбные шарики" → "Обед рыбные шарики".
+            prefix = re.sub(r"[:,\-\s]+$", "", text[: m.start()].strip()).strip()
+            suffix = re.sub(r"^[:,\-\s]+", "", text[m.end() :].strip()).strip()
+            clean_text = f"{prefix} {suffix}".strip() if prefix else suffix
+            return date_str, clean_text
 
     # 2. Проверка даты в формате ДД.ММ или ДД/ММ (например "29.01", "29/01")
     # Ищем в начале строки
@@ -1199,6 +1196,8 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             supp_status = "✅" if supp_saved else "⚠️"
             response = f"💊 {supp_status} <b>Добавки:</b>\n{supp_list}\n\n"
             response += f"🍽️ <b>{html.escape(str(meal_name))}</b>\n"
+            if custom_date:
+                response += f"📅 на {custom_date}\n"
             for item in meal_items:
                 w_str = f"{item['weight_g']}г" if item.get("weight_g") else "?"
                 cal = item.get("calories", 0)
