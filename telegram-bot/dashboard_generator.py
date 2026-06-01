@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import re
 import sys
 from datetime import date, datetime, timedelta
@@ -37,6 +38,31 @@ def _rows(db: Session, sql: str, **params):
 def _one(db: Session, sql: str, **params):
     row = db.execute(text(sql), params).fetchone()
     return row[0] if row else None
+
+
+def _load_biomarkers_from_db(db, user_id: int) -> dict:
+    """Канонические биомаркеры пользователя из Postgres blood_tests.
+
+    Заменяет чтение файла biomarkers_<id>.json. Структура результата идентична
+    тому, что строил generate_biomarkers_json (см. core.health.biomarkers).
+    """
+    import json as _json
+
+    from core.health.biomarkers import aggregate_biomarkers
+
+    rows = _rows(db, 'SELECT test_date, "values" AS vals FROM blood_tests WHERE user_id=:uid', uid=user_id)
+    tests = []
+    for r in rows:
+        vals = r.vals
+        if isinstance(vals, str):  # SQLite/JSON-as-text
+            try:
+                vals = _json.loads(vals)
+            except Exception:
+                vals = {}
+        td = r.test_date
+        date_str = td if isinstance(td, str) else td.isoformat()
+        tests.append({"date": date_str, "values": vals or {}})
+    return aggregate_biomarkers(tests)
 
 
 # ── sport block (HR-zones, polarized training analysis) ──────────────────────
@@ -851,14 +877,22 @@ def _build_payload(db: Session, user_id: int) -> dict:
     )
     supp_days = sorted(r.date.isoformat() for r in supp_rows)
 
-    # ── biomarkers: try to load from per-user JSON in container ───────────────
+    # ── biomarkers: read from Postgres blood_tests (canonical via kb_schema) ───
+    # Fallback на legacy-файл biomarkers_<id>.json только если явно включён флаг
+    # BOTKIN_LEGACY_BIOMARKERS_JSON (страховка на переходный период).
     biomarkers: dict = {}
-    bio_path = Path(__file__).parent / f"biomarkers_{user_id}.json"
-    if bio_path.exists():
+    if os.getenv("BOTKIN_LEGACY_BIOMARKERS_JSON") == "1":
+        bio_path = Path(__file__).parent / f"biomarkers_{user_id}.json"
+        if bio_path.exists():
+            try:
+                biomarkers = json.loads(bio_path.read_text())
+            except Exception:
+                pass
+    if not biomarkers:
         try:
-            biomarkers = json.loads(bio_path.read_text())
+            biomarkers = _load_biomarkers_from_db(db, user_id)
         except Exception:
-            pass
+            biomarkers = {}
 
     # ── environmental (optional, empty if no file) ────────────────────────────
     co2: dict[str, int] = {}
