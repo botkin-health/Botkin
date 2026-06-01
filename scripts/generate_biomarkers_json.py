@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -28,142 +29,20 @@ SSH_OPTS = ["-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=10"]
 
 
 def build_biomarkers(kb: dict) -> dict:
-    tests = sorted(kb.get("blood_tests", []), key=lambda x: x.get("date", ""), reverse=True)
+    """Тонкая обёртка над core.health.biomarkers.aggregate_biomarkers.
+    Сохранена для обратной совместимости (legacy biomarkers_<id>.json)."""
+    import sys
+    from pathlib import Path as _P
 
-    # Самое свежее значение по каждому ключу (для основной выдачи)
-    seen: dict[str, dict] = {}
-    # Полная история значений по каждому ключу (для peak/min/тренд анализа)
-    history: dict[str, list[dict]] = {}
-    for t in tests:
-        date = t.get("date", "")
-        vals = t.get("values") or t.get("results") or {}
-        for k, v in vals.items():
-            if isinstance(v, (int, float)):
-                if k not in seen:
-                    seen[k] = {"value": v, "date": date}
-                history.setdefault(k, []).append({"value": v, "date": date})
+    sys.path.insert(0, str(_P(__file__).resolve().parent.parent))
+    from core.health.biomarkers import aggregate_biomarkers
 
-    bio: dict = {}
-
-    def add(bio_key: str, kb_keys: list[str]) -> None:
-        """Среди всех алиасов берём САМОЕ СВЕЖЕЕ значение по дате,
-        а не первое попавшееся из списка. Иначе устаревший анализ с одним именем
-        может перекрыть свежий с другим именем.
-
-        Также собирает peak/min историю — нужна для дашборда чтобы показать
-        прогресс «было X (дата) → стало Y».
-        """
-        candidates = [seen[k] for k in kb_keys if k in seen]
-        if not candidates:
-            return
-        candidates.sort(key=lambda x: x.get("date", ""), reverse=True)
-        record = dict(candidates[0])
-
-        # Объединяем историю по всем алиасам (для маркеров где имена менялись со временем)
-        all_history: list[dict] = []
-        for k in kb_keys:
-            all_history.extend(history.get(k, []))
-        # Сортируем по дате
-        all_history.sort(key=lambda x: x.get("date", ""))
-        if len(all_history) >= 2:
-            # Самое раннее, самое большое и самое маленькое значения с датами
-            earliest = all_history[0]
-            peak_max = max(all_history, key=lambda x: x["value"])
-            peak_min = min(all_history, key=lambda x: x["value"])
-            record["earliest"] = earliest
-            record["peak_max"] = peak_max
-            record["peak_min"] = peak_min
-            record["n_history"] = len(all_history)
-        bio[bio_key] = record
-
-    # Core metabolic
-    add("HbA1c", ["HbA1c"])
-    add("glucose", ["glucose"])
-    add("insulin", ["insulin"])
-    add("HOMA_index", ["HOMA_index"])
-
-    # Lipids
-    add("cholesterol_total", ["cholesterol_total"])
-    add("HDL", ["HDL"])
-    add("LDL", ["LDL"])
-    add("triglycerides", ["triglycerides"])
-    add("ApoB", ["ApoB"])
-    add("ApoA1", ["ApoA1"])
-    add("lipoprotein_a", ["lipoprotein_a"])
-
-    # Liver / inflammation
-    add("ALT", ["ALT", "alt"])
-    add("AST", ["AST", "ast"])
-    add("GGT", ["GGT", "ggt"])
-    add("ALP", ["ALP", "alkaline_phosphatase"])
-    add("bilirubin_total", ["bilirubin_total"])
-    # hs_CRP stored in mg/L (0.11 mg/L = excellent, consistent with ESR=5)
-    add("hs_CRP", ["hs_CRP"])
-
-    # Hormones
-    add("testosterone", ["testosterone"])
-    add("TSH", ["TSH", "tsh"])
-    add("FT3", ["FT3"])
-    add("FT4", ["FT4"])
-    add("cortisol", ["cortisol"])
-    add("SHBG", ["SHBG"])
-    add("prolactin", ["prolactin"])
-    add("LH", ["LH"])
-    add("FSH", ["FSH"])
-    add("DHEA_S", ["DHEA_S", "DHEAS", "dhea_s", "DHEA-S"])
-    add("FAI", ["FAI"])
-    add("PTH_intact", ["PTH_intact", "parathyroid_hormone", "PTH"])
-    add("IGF_1", ["IGF_1", "IGF-1", "igf1", "IGF1"])
-    add("homocysteine", ["homocysteine", "homocystein", "Homocysteine"])
-
-    # Vitamins / nutrients
-    add("vitamin_D", ["vitamin_D"])
-    add("ferritin", ["ferritin"])
-    add("folic_acid", ["folic_acid", "folate"])
-    add("magnesium", ["magnesium", "Mg"])
-    add("zinc", ["zinc", "Zn"])
-    add("iron", ["iron", "Fe"])
-
-    # Kidneys
-    add("creatinine", ["creatinine"])
-    add("egfr", ["egfr_ckd_epi"])
-    add("uric_acid", ["uric_acid"])
-    add("urea", ["urea"])
-
-    # CBC (for PhenoAge)
-    add("WBC", ["WBC"])
-    add("RBC", ["RBC"])
-    add("Hb", ["Hb"])
-    add("lymphocytes", ["lymphocytes"])
-    add("MCV", ["MCV"])
-    add("RDW_CV", ["RDW_CV", "RDW"])
-    add("PLT", ["PLT"])
-    add("ESR", ["ESR"])
-
-    # albumin in g/L; dashboard_generator.py converts /10 → g/dL for PhenoAge.
-    # Поддерживаем оба алиаса: новый "albumin_g_l" и старый просто "albumin"
-    # (в анализах 2015 года было записано как albumin без суффикса).
-    add("albumin_g_l", ["albumin_g_l", "albumin"])
-
-    # Extra
-    add("homocysteine", ["homocysteine"])
-    add("PSA_total", ["PSA_total", "psa"])
-    add("CRP", ["CRP"])
-    add("atherogenic_index", ["atherogenic_index"])
-    add("FAI", ["FAI"])
-    add("calcium", ["Ca", "calcium"])
-    add("potassium", ["K", "potassium"])
-    add("sodium", ["Na", "sodium"])
-
-    # Add meta: earliest test date and total marker count (for history display)
-    all_dates = sorted(t.get("date", "") for t in tests if t.get("date"))
-    bio["_meta"] = {
-        "earliest_test_date": all_dates[0] if all_dates else None,
-        "total_tests": len(tests),
-        "total_markers": len(bio),
-    }
-
-    return bio
+    rows = []
+    for section in ("blood_tests", "hormones", "vitamins"):
+        for e in kb.get(section, []):
+            if e.get("date"):
+                rows.append({"date": e["date"], "values": e.get("values") or {}})
+    return aggregate_biomarkers(rows)
 
 
 def deploy(path: Path) -> None:
@@ -217,10 +96,22 @@ def main() -> None:
     bio = build_biomarkers(kb)
     print(f"✅ Built {len(bio)} biomarkers")
 
-    OUT_PATH.write_text(json.dumps(bio, indent=2, ensure_ascii=False) + "\n")
-    print(f"💾 Saved to {OUT_PATH}")
+    if os.getenv("BOTKIN_LEGACY_BIOMARKERS_JSON") == "1":
+        OUT_PATH.write_text(json.dumps(bio, indent=2, ensure_ascii=False) + "\n")
+        print(f"💾 Saved to {OUT_PATH} (legacy mode)")
+    else:
+        print(
+            "ℹ️  biomarkers_<id>.json больше не нужен дашборду (читает Postgres). "
+            "Для legacy-файла запусти с BOTKIN_LEGACY_BIOMARKERS_JSON=1."
+        )
 
     if args.deploy:
+        if os.getenv("BOTKIN_LEGACY_BIOMARKERS_JSON") != "1" or not OUT_PATH.exists():
+            print(
+                "⚠️  --deploy пропущен: biomarkers_<id>.json не сгенерирован "
+                "(дашборд читает Postgres). Для legacy-деплоя: BOTKIN_LEGACY_BIOMARKERS_JSON=1 ... --deploy"
+            )
+            return
         deploy(OUT_PATH)
         # ── 3-stage pipeline после --deploy ──
         # Все три источника читают разное и должны быть синхронизированы:
