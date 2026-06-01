@@ -1091,18 +1091,13 @@ async def recent_biomarkers(
         """
     )
     rows = db.execute(sql, {"uid": user.telegram_id, "lim": limit}).fetchall()
-    return {
-        "status": "ok",
-        "count": len(rows),
-        "tests": [
-            {
-                "date": r.test_date.isoformat(),
-                "type": r.test_type,
-                "values": r.values,
-            }
-            for r in rows
-        ],
-    }
+    from core.health.kb_schema import to_canonical
+
+    tests = []
+    for r in rows:
+        canon, _w = to_canonical(r.values or {}, passthrough_unmapped=True)
+        tests.append({"date": r.test_date.isoformat(), "type": r.test_type, "values": canon})
+    return {"status": "ok", "count": len(tests), "tests": tests}
 
 
 @router.get("/phenoage")
@@ -1126,23 +1121,21 @@ async def phenoage(
     # Required markers — keys in blood_tests.values JSONB.
     markers = ["albumin_g_l", "creatinine", "glucose", "hs_CRP", "lymphocytes", "MCV", "RDW_CV", "ALP", "WBC"]
 
-    # Latest value per marker via DISTINCT ON jsonb_each_text scan.
-    sql = sql_text(
-        """
-        SELECT DISTINCT ON (kv.key) kv.key, kv.value, bt.test_date
-        FROM blood_tests bt, jsonb_each_text(bt.values) kv
-        WHERE bt.user_id = :uid AND kv.key = ANY(:markers)
-        ORDER BY kv.key, bt.test_date DESC
-        """
-    )
-    rows = db.execute(sql, {"uid": user.telegram_id, "markers": markers}).fetchall()
+    # Забираем все строки юзера и канонизируем в Python — формат-агностично
+    # (работает для CamelCase Александра и snake_case_with_units Димы).
+    from core.health.kb_schema import to_canonical
+
+    rows = db.execute(
+        sql_text("SELECT test_date, values FROM blood_tests WHERE user_id = :uid ORDER BY test_date DESC"),
+        {"uid": user.telegram_id},
+    ).fetchall()
 
     latest: dict[str, dict] = {}
-    for row in rows:
-        try:
-            latest[row.key] = {"value": float(row.value), "date": row.test_date.isoformat()}
-        except (TypeError, ValueError):
-            pass  # non-numeric value (string label etc) — skip
+    for r in rows:
+        canon, _w = to_canonical(r.values or {})
+        for key in markers:
+            if key in canon and key not in latest:
+                latest[key] = {"value": float(canon[key]), "date": r.test_date.isoformat()}
 
     # Chronological age
     chrono_age = None

@@ -500,3 +500,38 @@ def test_body_measurements_no_data(client):
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["status"] == "no_data"
+
+
+def test_recent_biomarkers_returns_canonical_keys():
+    from core.health.kb_schema import to_canonical
+
+    raw = {"ldl_mmol_l": 3.1, "alt_u_l": 22, "fibrinogen_g_l": 3.0}
+    canon, _ = to_canonical(raw, passthrough_unmapped=True)
+    assert canon["LDL"] == 3.1  # mapped
+    assert canon["ALT"] == 22  # mapped
+    assert canon["fibrinogen"] == 3.0  # mapped (fibrinogen now in registry)
+
+
+def test_phenoage_marker_lookup_canonical_for_dima_keys():
+    from core.health.kb_schema import to_canonical
+
+    rows_values = [
+        {
+            "mcv_fl": 90,
+            "wbc_10_9_l": 6.7,
+            "creatinine_umol_l": 92,
+            "glucose_mmol_l": 5.3,
+            "alkaline_phosphatase_u_l": 68,
+            "lymphocytes_pct": 28,
+            "albumin_g_l": 42,
+            "rdw_cv": 13.8,
+            "hs_CRP": 1.0,
+        }
+    ]
+    latest = {}
+    for vals in rows_values:
+        canon, _ = to_canonical(vals)
+        for k, v in canon.items():
+            latest.setdefault(k, v)
+    for need in ["albumin_g_l", "creatinine", "glucose", "hs_CRP", "lymphocytes", "MCV", "RDW_CV", "ALP", "WBC"]:
+        assert need in latest, f"phenoage marker {need} не извлёкся из ключей Димы"
