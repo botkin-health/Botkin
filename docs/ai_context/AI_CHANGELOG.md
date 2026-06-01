@@ -7,6 +7,19 @@
 
 ---
 
+## 2026-06-01 — chore(agent): откат BotkinClaw Opus 4.8 → Sonnet 4.6 (стоимость)
+
+**Причина:** замер реальной стоимости через `llm_usage_log` показал Opus 4.8 ~$7.5/активный день (≈$100/мес при активном использовании), дорогие tool-итерации (agent_chat_tool $8.24 > agent_chat $7.26 — каждая итерация шлёт растущий контекст по Opus-цене). Для семейного медбота Sonnet 4.6 даёт достаточное качество в ~5× дешевле.
+
+**Что сделано** (`core/agent_chat.py`):
+- `MODEL`: claude-opus-4-8 → **claude-sonnet-4-6**
+- `FALLBACK_MODEL`: claude-sonnet-4-6 → **claude-sonnet-4-5** (другой пул)
+- `AGENT_EFFORT`: high → **medium** (документированный sweet spot Sonnet 4.6 для чата)
+- В fallback-ветке `_post_with_overload_retry` добавлен `p.pop("output_config")` — Sonnet 4.5 не поддерживает effort, иначе 400.
+- E2E через ask_agent: Sonnet 4.6 + medium отвечает корректно, без 400. Деплой docker cp + restart.
+
+(Цена Opus 4.8/4.7 в `llm_usage.py` оставлена — на случай возврата + для исторического учёта.)
+
 ## 2026-05-30 — feat(agent): алкоголь-флаг + full_series в get_recent_trends
 
 **Проблема:** BotkinClaw в чате отвечал «алкоголь нигде не трекается» — хотя флаг `has_alcohol` есть в `nutrition_log.totals` (18 приёмов, ~16 дней). Причина: ни один tool его не отдавал, а `recent_trends` был капнут на 90 дней и `items[:30]`.
