@@ -1863,16 +1863,45 @@ def _build_payload(db: Session, user_id: int) -> dict:
                 **_ascvd,
                 "no_data_reason": None,
             }
+
+    # Точная подсказка «чего не хватает» вместо общего списка всех параметров.
+    # Раньше при отсутствии ОДНОГО параметра (напр. АД) показывался весь
+    # список — выглядело будто нет ничего, хотя 4 из 5 уже есть.
+    def _cv_missing() -> list[str]:
+        m: list[str] = []
+        if not _age_score:
+            m.append("возраст")
+        if not user.sex:
+            m.append("пол")
+        if _bp_avg_sys is None:
+            m.append("систолическое АД (внести замер или вести дневник давления)")
+        if not bv("cholesterol_total"):
+            m.append("общий холестерин")
+        if not bv("HDL"):
+            m.append("ЛПВП")
+        return m
+
+    _cv_miss = _cv_missing()
     if panels_score2 is None:
+        if not _cv_miss and _age_score and not (40 <= _age_score <= 69):
+            # Все данные есть, но возраст вне валидного диапазона калькулятора
+            _reason_s2 = f"Возраст {_age_score} вне диапазона SCORE2 (40–69 лет)."
+        elif _cv_miss:
+            _reason_s2 = "Не хватает только: " + ", ".join(_cv_miss) + "."
+        else:
+            _reason_s2 = "Нужны: возраст, пол, давление, общий холестерин, ЛПВП. Возрастной диапазон SCORE2: 40–69 лет."
         panels_score2 = {
             "available": False,
-            "no_data_reason": "Нужны: возраст, пол, давление, общий холестерин, ЛПВП. "
-            "Возрастной диапазон SCORE2: 40-69 лет.",
+            "no_data_reason": _reason_s2,
         }
     if panels_ascvd is None:
+        if _cv_miss:
+            _reason_av = "Не хватает только: " + ", ".join(_cv_miss) + "."
+        else:
+            _reason_av = "Нужны: возраст, пол, давление, общий холестерин, ЛПВП."
         panels_ascvd = {
             "available": False,
-            "no_data_reason": "Нужны: возраст, пол, давление, общий холестерин, ЛПВП.",
+            "no_data_reason": _reason_av,
         }
 
     # Свежая мышечная масса для шапки дашборда (не дублирует панели —
