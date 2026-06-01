@@ -41,7 +41,9 @@ def test_albumin_pct_not_collapsed_into_albumin_g_l():
     # albumin_pct is a DIFFERENT marker (electrophoresis %), must NOT map to albumin_g_l
     canon, warnings = to_canonical({"albumin_pct": 60.0, "albumin_g_l": 42.0})
     assert canon["albumin_g_l"] == 42.0
+    assert "albumin_pct" not in canon
     assert "albumin_pct" not in reverse_index()  # not a registered alias
+    assert any("albumin_pct" in w for w in warnings)
 
 
 def test_unknown_unit_alias_skipped_with_warning():

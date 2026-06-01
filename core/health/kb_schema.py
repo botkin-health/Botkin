@@ -40,6 +40,7 @@ CANONICAL: dict[str, CanonicalMarker] = {
     "HbA1c": CanonicalMarker("%", {"HbA1c": 1, "A1c": 1, "hba1c_pct": 1}),
     "glucose": CanonicalMarker("ммоль/л", {"glucose": 1, "glucose_mmol_l": 1}),
     "insulin": CanonicalMarker("мкЕд/мл", {"insulin": 1, "insulin_pmol_l": 1 / 6.945}),
+    # unit="" — безразмерные или единица варьируется по лаборатории
     "HOMA_index": CanonicalMarker("", {"HOMA_index": 1, "homa_ir": 1}),
     # ── Lipids ───────────────────────────────────────────────────────────────
     "cholesterol_total": CanonicalMarker(
@@ -112,6 +113,7 @@ CANONICAL: dict[str, CanonicalMarker] = {
     "RDW_CV": CanonicalMarker("%", {"RDW_CV": 1, "RDW": 1}),
     "PLT": CanonicalMarker("10⁹/л", {"PLT": 1, "platelets": 1, "platelets_10_9_l": 1}),
     "ESR": CanonicalMarker("мм/ч", {"ESR": 1, "esr_mm_h": 1}),
+    # albumin_pct/_percent (электрофорез, %) — ДРУГОЙ маркер, намеренно НЕ алиас
     "albumin_g_l": CanonicalMarker("г/л", {"albumin_g_l": 1, "albumin": 1}),
     # ── Other ────────────────────────────────────────────────────────────────
     "PSA_total": CanonicalMarker("нг/мл", {"PSA_total": 1, "psa": 1, "psa_ng_ml": 1}),
@@ -121,27 +123,32 @@ CANONICAL: dict[str, CanonicalMarker] = {
 }
 
 
-# Реверс-индекс строится один раз: lower(alias) → (canonical_key, factor).
-_REVERSE: dict[str, tuple[str, float]] = {}
-for _canon_key, _marker in CANONICAL.items():
-    for _alias, _factor in _marker.aliases.items():
-        _low = _alias.lower()
-        if _low in _REVERSE:
-            raise ValueError(f"duplicate alias {_alias!r} in CANONICAL ({_REVERSE[_low][0]} vs {_canon_key})")
-        _REVERSE[_low] = (_canon_key, _factor)
+def _build_reverse() -> dict[str, tuple[str, float]]:
+    idx: dict[str, tuple[str, float]] = {}
+    for canon_key, marker in CANONICAL.items():
+        for alias, factor in marker.aliases.items():
+            low = alias.lower()
+            if low in idx:
+                raise ValueError(f"duplicate alias {alias!r} in CANONICAL ({idx[low][0]} vs {canon_key})")
+            idx[low] = (canon_key, factor)
+    return idx
+
+
+_REVERSE: dict[str, tuple[str, float]] = _build_reverse()
 
 
 def reverse_index() -> dict[str, tuple[str, float]]:
-    """Возвращает реверс-индекс (для тестов / интроспекции)."""
-    return _REVERSE
+    """Копия реверс-индекса (для тестов / интроспекции)."""
+    return dict(_REVERSE)
 
 
-def to_canonical(values: dict, *, passthrough_unmapped: bool = False):
+def to_canonical(values: dict, *, passthrough_unmapped: bool = False) -> tuple[dict[str, float], list[str]]:
     """Сырые KB-values → {canonical_key: converted_value}.
 
     Возвращает (canon, warnings). Числовые значения конвертируются множителем;
     нечисловые пропускаются. Алиас, не найденный в реестре, либо отбрасывается
     с предупреждением, либо (passthrough_unmapped=True) пробрасывается как есть.
+    passthrough_unmapped=True пробрасывает немаппленные ключи без warning.
     """
     canon: dict[str, float] = {}
     exact_source: dict[str, str] = {}  # canon_key → исходный alias, выигравший слот
@@ -161,14 +168,13 @@ def to_canonical(values: dict, *, passthrough_unmapped: bool = False):
         new_val = raw_val * factor
         if canon_key in canon and exact_source.get(canon_key) != raw_key:
             prev = canon[canon_key]
+            prior_alias = exact_source.get(canon_key, "?")
             # коллизия: приоритет exact-case (raw_key == canon_key)
             if raw_key == canon_key:
                 canon[canon_key] = new_val
                 exact_source[canon_key] = raw_key
             if abs(prev - new_val) > 1e-9:
-                warnings.append(
-                    f"collision on {canon_key}: {exact_source.get(canon_key, '?')}={prev} vs {raw_key}={new_val}"
-                )
+                warnings.append(f"collision on {canon_key}: {prior_alias}={prev} vs {raw_key}={new_val}")
             continue
         canon[canon_key] = new_val
         exact_source[canon_key] = raw_key
