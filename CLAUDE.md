@@ -99,23 +99,28 @@ Telegram ID и личные данные пользователей — в `~/.c
 
 ## Данные здоровья — источники и пайплайн
 
-### 🩸 Анализы (KB) — 3-source pipeline (важно!)
+### 🩸 Анализы (KB) — 2-source pipeline + read-time канонизация (унифицировано 01.06.2026)
 
-Источник истины — `~/FamilyHealth/<Имя>/knowledge_base.json` **на маке**. На сервере читается из **трёх мест одновременно** (каждое для своего слоя):
+Источник истины — `~/FamilyHealth/<Имя>/knowledge_base.json` **на маке**. На сервере биомаркеры живут в **двух местах**, и канонизация ключей происходит **на чтении** через `core/health/kb_schema.py` (единый реестр алиасов + конверсия единиц с guard):
 
-| Канал на сервере | Кто читает | Как туда попадают данные |
-|---|---|---|
-| `/app/telegram-bot/biomarkers_<id>.json` | дашборд (`dashboard_generator.py`) | scp+`docker cp` из `generate_biomarkers_json.py` |
-| PostgreSQL `blood_tests` | агент (`/recent_biomarkers`) | `scripts/import/kb_to_blood_tests.py` |
-| `/app/data/kb/kb_<id>.json` (bind-mount) | агент (`/kb_value`, `/list_kb_keys`) | `scripts/sync_family_kb.py --apply` |
+| Канал на сервере | Кто читает | Формат | Как туда попадают данные |
+|---|---|---|---|
+| PostgreSQL `blood_tests` (сырые `values`) | **дашборд** (`dashboard_generator._load_biomarkers_from_db` → `aggregate_biomarkers`) **и агент** (`/recent_biomarkers`, `/phenoage`) | канонизируется на лету `to_canonical` | `scripts/import/kb_to_blood_tests.py` |
+| `/app/data/kb/kb_<id>.json` (bind-mount) | агент (`/kb_value`, `/list_kb_keys`) | сырой полный KB | `scripts/sync_family_kb.py --apply` |
 
-**Когда добавил новый анализ в KB → одна команда для Александра:**
+Дашборд **больше не читает файл** `biomarkers_<id>.json` — он берёт биомаркеры из Postgres (durable, не теряются при rebuild контейнера — раньше у 4 family-юзеров дашборды пустели после деплоя). Legacy-файл оставлен как fallback за env `BOTKIN_LEGACY_BIOMARKERS_JSON=1` (на 1-2 недели, потом удалить).
+
+**Когда добавил новый анализ в KB → одна команда для ЛЮБОГО юзера:**
 ```bash
-python3 scripts/generate_biomarkers_json.py --deploy
+python3 scripts/sync_user_health.py --user <telegram_id> --apply   # или --all
 ```
-Этот скрипт делает все 3 стадии разом. Для других юзеров — пока через `sync_family_kb.py` + `kb_to_blood_tests.py` руками (см. `docs/ai_context/04_workflows.md` §13).
+Две идемпотентные стадии: KB → bind-mount `kb_<id>.json` + KB → Postgres `blood_tests`. Маппинг `telegram_id → папка` — в `config/users.py::KB_USERS` (единый, не дублировать).
 
-**Прецедент 24.05.2026:** забыли стадии (2) и (3) → дашборд показывал май, агент твердил «последний 19 марта». Теперь автомат.
+⚠️ `sync_user_health` льёт из **локального** KB. Если у юзера на сервере данные богаче локального (прецедент: KB Андрея беднее его старого дашборда) — сперва дополнить локальный `knowledge_base.json`, иначе перезатрёшь.
+
+**Прецеденты:** 24.05.2026 — забывали стадии синка (теперь одна команда). 01.06.2026 — унификация: 3 формата ключей (`LDL`/`ldl`/`ldl_mmol_l`) и битый ad-hoc файл Димы (сырые pmol/L под каноническими именами) → единый `kb_schema` с конверсией единиц.
+
+**Follow-up:** консолидировать `core/reports/biomarker_dynamics.py::MARKER_CONFIG` (4-й case-sensitive маппинг) на `kb_schema`.
 
 ### Автоматические (скрипты тянут сами)
 
