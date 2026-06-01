@@ -32,16 +32,10 @@ SERVER = "root@116.203.213.137"
 SERVER_KB_DIR = "/opt/healthvault/data/kb"
 
 # telegram_id → имя папки в FamilyHealth
-USERS = {
-    895655: "Александр Лысковский — Здоровье",
-    REDACTED_ID: "Павел REDACTED — Здоровье",
-    REDACTED_ID: "Игорь Лысковский — Здоровье",
-    REDACTED_ID: "Андрей REDACTED — Здоровье",
-    REDACTED_ID: "Олег Лысковский — Здоровье",
-    REDACTED_ID: "Валерия Лысковская — Здоровье",
-    REDACTED_ID: "Дмитрий REDACTED — Здоровье",
-    # Ника, Катя — добавить когда есть knowledge_base.json
-}
+import sys as _sys
+
+_sys.path.insert(0, str(PROJECT_ROOT))
+from config.users import KB_USERS as USERS
 
 
 def file_hash(path: Path) -> str:
