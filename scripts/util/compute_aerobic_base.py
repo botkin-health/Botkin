@@ -168,26 +168,41 @@ def main():
     ap.add_argument("--user-id", type=int, default=895655, help="Telegram ID пользователя (для чтения возраста из БД)")
     args = ap.parse_args()
 
-    # Определить возраст: явный --age перебивает БД, БД перебивает дефолт 48
+    # Определить возраст: явный --age → БД → env-фолбэк → дефолт 49.
+    def _age_from(bd) -> int:
+        """Полный возраст с учётом того, прошёл ли ДР в этом году."""
+        t = date.today()
+        return t.year - bd.year - ((t.month, t.day) < (bd.month, bd.day))
+
     user_age = args.age
     if user_age is None:
         try:
-            # Импорт DB-сессии — может не сработать если БД на сервере (как сейчас)
+            # Импорт DB-сессии — может не сработать если БД на сервере (как сейчас,
+            # при локальном запуске в sync_all_data.sh → коннект к localhost падает).
             sys.path.insert(0, str(BASE))
             from database import SessionLocal
             from database.models import User
-            from datetime import date as _date
 
             db = SessionLocal()
             user = db.query(User).filter_by(telegram_id=args.user_id).first()
             if user and user.birth_date:
-                user_age = _date.today().year - user.birth_date.year
+                user_age = _age_from(user.birth_date)
             db.close()
         except Exception:
             pass
     if user_age is None:
-        user_age = 48  # safe default for Alex
-        print("⚠️  Возраст не определён, использую default 48")
+        # БД недоступна локально → дата рождения владельца из env
+        # (BOTKIN_OWNER_BIRTHDATE=YYYY-MM-DD в .env; .env в .gitignore →
+        # PII не попадает в публичный репозиторий). Возраст самокорректируется.
+        bd_env = os.getenv("BOTKIN_OWNER_BIRTHDATE")
+        if bd_env:
+            try:
+                user_age = _age_from(date.fromisoformat(bd_env))
+            except ValueError:
+                pass
+    if user_age is None:
+        user_age = 49  # последний известный возраст владельца (2026)
+        print("⚠️  Возраст не определён (нет --age, БД недоступна, BOTKIN_OWNER_BIRTHDATE не задан) — default 49")
 
     boundaries = compute_zone_boundaries(user_age)
     print(f"🎯 Maffetone-зоны для возраста {user_age}:")
