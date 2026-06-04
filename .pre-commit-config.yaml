@@ -24,3 +24,11 @@ repos:
       # Newline в конце файла
       - id: end-of-file-fixer
         exclude: "data/"
+
+  # gitleaks — сканирует каждый коммит на секреты (API-ключи, пароли, токены)
+  # и БЛОКИРУЕТ коммит при находке. Защита от повторной утечки.
+  # Добавлено 04.06.2026 после аудита публичного репо.
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
