@@ -125,3 +125,17 @@ docs/night-shift/STATUS.md
 # Личный рабочий roadmap — НЕ публиковать (стратегия, идеи, личные данные юзеров)
 todo.md
 todo.md.local-backup-*
+
+# ── Приватные данные (PII / медкарты / стратегия) — НЕ публиковать ──
+config/users_private.py
+config/personal_greetings_private.py
+docs/ai_context/AI_CHANGELOG.md
+docs/night-shift/
+docs/superpowers/
+docs/presentations/
+docs/operations/whoop-app-instruction-for-dima.md
+# Персональные системные промпты BotkinClaw (медданные конкретных людей)
+scripts/server/agent_prompts/*.md
+!scripts/server/agent_prompts/templates/
+docs/projects/
+docs/research/2026-05-22_android-health-connect-export-webhook.md

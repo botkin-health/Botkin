@@ -2,14 +2,14 @@
 """onboard_family_user.py — CLI оркестратор подключения семейного юзера к BotkinClaw.
 
 Examples:
-  # Полный onboarding Игоря (dry-run):
+  # Полный onboarding (dry-run):
   python3 scripts/onboard_family_user.py --enroll \\
-      --tid REDACTED_ID \\
-      --family-folder "$HOME/Library/CloudStorage/.../FamilyHealth/Игорь Лысковский — Здоровье" \\
-      --name "Игорь" --full-name "Лысковский Игорь Александрович" \\
-      --age "21 год" --birth-date "2004-08-15" --location "Москва" \\
-      --cohort family --cohort-relationship "сын Александра" \\
-      --bio-line "Студент. Аллергия на пыль, поллиноз." \\
+      --tid <TELEGRAM_ID> \\
+      --family-folder "$HOME/Library/CloudStorage/.../FamilyHealth/<Имя> — Здоровье" \\
+      --name "<Имя>" --full-name "<Фамилия Имя Отчество>" \\
+      --age "21 год" --birth-date "YYYY-MM-DD" --location "Город" \\
+      --cohort family --cohort-relationship "член семьи" \\
+      --bio-line "Краткое описание / аллергии." \\
       --pack respiratory_allergic --style ty \\
       --dry-run
 
@@ -17,13 +17,11 @@ Examples:
   python3 scripts/onboard_family_user.py --enroll ... --send-welcome --yes
 
   # Только обновить промпт:
-  python3 scripts/onboard_family_user.py --refresh-prompt --tid REDACTED_ID \\
-      --from-file scripts/server/agent_prompts/igor.md
+  python3 scripts/onboard_family_user.py --refresh-prompt --tid <TELEGRAM_ID> \\
+      --from-file scripts/server/agent_prompts/<name>.md
 
   # Отозвать:
-  python3 scripts/onboard_family_user.py --unenroll --tid REDACTED_ID
-
-См. design: docs/superpowers/specs/2026-05-22-igor-botkin-onboarding-design.md
+  python3 scripts/onboard_family_user.py --unenroll --tid <TELEGRAM_ID>
 """
 
 from __future__ import annotations

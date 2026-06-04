@@ -11,7 +11,9 @@ FAMILY = Path(os.path.expanduser("~/Library/CloudStorage/GoogleDrive-lyskovsky@g
 BIO_DIR = Path(__file__).resolve().parent.parent / "telegram-bot"
 
 ALEXANDER = (895655, "Александр Лысковский — Здоровье")
-DIMA = (REDACTED_ID, "Дмитрий REDACTED — Здоровье")
+# Второй тест-юзер: реальные id/папка берутся из env, чтобы не светить PII
+# в публичном репо. Без env тест ниже скипается (папка не найдётся).
+USER2 = (int(os.getenv("TEST_USER2_ID", "100000002")), os.getenv("TEST_USER2_FOLDER", "Test User 2 — Здоровье"))
 
 
 def _kb_rows(folder: str):
@@ -48,13 +50,13 @@ def test_alexander_golden_nothing_lost():
     assert not lost, f"Александр потерял/изменил маркеры: {lost}"
 
 
-def test_dima_smoke_builds_and_units_sane():
-    """Дима: старый baseline был битый (сырые pmol/L под каноническими именами).
+def test_user2_smoke_builds_and_units_sane():
+    """Второй юзер: старый baseline был битый (сырые pmol/L под каноническими именами).
     Smoke: агрегат строится и ключевые маркеры конвертированы в правильные единицы."""
-    tid, folder = DIMA
+    tid, folder = USER2
     kb_path = FAMILY / folder / "knowledge_base.json"
     if not kb_path.exists():
-        pytest.skip("no Dima KB")
+        pytest.skip("no USER2 KB (set TEST_USER2_FOLDER)")
 
     bio = aggregate_biomarkers(_kb_rows(folder))
     assert bio["_meta"]["total_markers"] > 30

@@ -35,8 +35,8 @@ QUICK_RETRY_SLEEP = 0.7
 
 @dataclass(frozen=True)
 class PersonaInput:
-    name: str  # короткое имя — "Игорь"
-    full_name: str  # полное — "Лысковский Игорь Александрович"
+    name: str  # короткое имя — "Имя"
+    full_name: str  # полное — "Фамилия Имя Отчество"
     age: str  # "21 год" — словами
     birth_date: str
     location: str

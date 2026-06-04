@@ -7,7 +7,7 @@ Target: blood_pressure_logs table
 
 Usage:
     python scripts/import_blood_pressure.py
-    python scripts/import_blood_pressure.py --db-url postgresql://healthvault:***REMOVED-SECRET***@116.203.213.137:5432/healthvault
+    python scripts/import_blood_pressure.py --db-url "$DATABASE_URL"
     python scripts/import_blood_pressure.py --dry-run
 """
 
@@ -100,8 +100,8 @@ def main():
     parser = argparse.ArgumentParser(description="Import blood pressure CSV → PostgreSQL")
     parser.add_argument(
         "--db-url",
-        default=os.getenv("DATABASE_URL", "postgresql://healthvault:***REMOVED-SECRET***@116.203.213.137:5432/healthvault"),
-        help="PostgreSQL connection URL",
+        default=os.getenv("DATABASE_URL"),
+        help="PostgreSQL connection URL (или env DATABASE_URL)",
     )
     parser.add_argument("--dry-run", action="store_true", help="Parse only, don't write to DB")
     args = parser.parse_args()

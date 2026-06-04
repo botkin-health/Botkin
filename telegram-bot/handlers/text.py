@@ -731,7 +731,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                 # this save when later asked about BP dynamics (fix: #71).
                 # Regex path bypasses the agent pipeline entirely — without this
                 # the agent has no memory of these saves and falsely reports
-                # "no measurements today". Prec: 26.05.2026 Павел REDACTED.
+                # "no measurements today". Прецедент 26.05.2026 (семейный юзер).
                 _inject_bp_to_agent_conv(
                     user_id=int(user_id),
                     raw_text=text,

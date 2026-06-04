@@ -5,9 +5,9 @@ services:
     image: postgres:15
     container_name: healthvault_postgres_dev
     environment:
-      POSTGRES_DB: healthvault
-      POSTGRES_USER: healthvault
-      POSTGRES_PASSWORD: ***REMOVED-SECRET***
+      POSTGRES_DB: ${POSTGRES_DB:-healthvault}
+      POSTGRES_USER: ${POSTGRES_USER:-healthvault}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
     ports:
       - "5432:5432"
     volumes:

@@ -26,8 +26,8 @@ from dotenv import load_dotenv
 
 load_dotenv(BASE_DIR / ".env")
 
-POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "***REMOVED-SECRET***")
-SERVER = "root@116.203.213.137"
+POSTGRES_PASSWORD = os.environ["POSTGRES_PASSWORD"]  # обязателен в env, без хардкод-дефолта
+SERVER = os.getenv("BOTKIN_SERVER", "root@SERVER_IP")
 SSH_OPTS = ["-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=10"]
 LOCAL_PORT = 15432
 OPENAI_KEY = os.getenv("OPENAI_API_KEY")

@@ -17,13 +17,13 @@ from scripts.onboard.persona_generator import (
 @pytest.fixture
 def sample_input():
     return PersonaInput(
-        name="Игорь",
-        full_name="Лысковский Игорь Александрович",
+        name="Имя",
+        full_name="Фамилия Имя Отчество",
         age="21 год",
         birth_date="2004-08-15",
         location="Москва",
         cohort="family",
-        cohort_relationship="сын Александра",
+        cohort_relationship="член семьи",
         pack_name="respiratory_allergic",
         bio_line="Студент. Аллергия на пыль, поллиноз. Регулярный скрининг КЭ-вакцины.",
         kb_json={
