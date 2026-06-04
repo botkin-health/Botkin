@@ -719,3 +719,32 @@ async def cmd_share(message: Message, user_id: int):
         parse_mode="HTML",
         reply_markup=keyboard,
     )
+
+
+@router.message(Command("whoop"))
+async def cmd_whoop(message: Message, user_id: int):
+    """/whoop — подключить носимое устройство Whoop (сон, восстановление, пульс, HRV)."""
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+
+    import os
+
+    if not os.environ.get("WHOOP_CLIENT_ID"):
+        await message.answer(
+            "⏳ Интеграция Whoop ещё настраивается на стороне сервера. "
+            "Скоро здесь появится кнопка подключения — я напишу, когда будет готово."
+        )
+        return
+
+    from webhook.whoop_oauth import make_connect_link
+
+    url = make_connect_link(user_id)
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔗 Подключить Whoop", url=url)]])
+    await message.answer(
+        "⌚️ <b>Подключение Whoop</b>\n\n"
+        "Нажми кнопку ниже → авторизуйся в Whoop → разреши доступ. "
+        "После этого я буду автоматически получать твой сон, восстановление (recovery), "
+        "пульс покоя, HRV и нагрузку (strain).\n\n"
+        "Это безопасно: я получаю только чтение данных, пароль Whoop я не вижу.",
+        parse_mode="HTML",
+        reply_markup=keyboard,
+    )

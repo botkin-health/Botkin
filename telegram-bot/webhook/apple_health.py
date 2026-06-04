@@ -893,6 +893,10 @@ from webhook.admin import router as admin_router
 
 app.include_router(admin_router)
 
+from webhook.whoop_oauth import router as whoop_router
+
+app.include_router(whoop_router)
+
 
 # ── Static webapp ─────────────────────────────────────────────────────────────
 
