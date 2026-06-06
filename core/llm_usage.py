@@ -5,7 +5,9 @@ Powers admin panel «Расходы на нейронки». Two callers today:
     - core/llm/router.py: food/photo parsing (Claude Sonnet vision)
     - core/agent_chat.py: BotkinClaw conversational agent + tool-use rounds
 
-Pricing as of 2026-05 (Anthropic public list):
+Pricing as of 2026-06 (Anthropic public list):
+    claude-opus-4-8:   $5 / MT input, $25 / MT output, $6.25 cache_write, $0.50 cache_read
+    claude-opus-4-7:   $5 / MT input, $25 / MT output, $6.25 cache_write, $0.50 cache_read
     claude-sonnet-4-6: $3 / MT input, $15 / MT output, $3.75 cache_write, $0.30 cache_read
     claude-sonnet-4-5: $3 / MT input, $15 / MT output, $3.75 cache_write, $0.30 cache_read
     claude-haiku-4-5:  $1 / MT input, $5  / MT output, $1.25 cache_write, $0.10 cache_read
@@ -26,9 +28,11 @@ logger = logging.getLogger(__name__)
 # Tuple: (input, output, cache_write, cache_read). cache_* default to None.
 _PRICING: dict[str, tuple[float, float, float, float]] = {
     # Claude — Anthropic
-    # Opus 4.8 — флагман BotkinClaw (с 29.05.2026). Цена как у Opus 4.7.
-    "claude-opus-4-8": (15.00, 75.00, 18.75, 1.50),
-    "claude-opus-4-7": (15.00, 75.00, 18.75, 1.50),
+    # Opus 4.8/4.7 — $5/$25 (Opus подешевел с 4.5; раньше тут стояла старая
+    # цена 4.1-эры $15/$75 — завышала Opus-расход в учёте ×3). cache_write=1.25×in,
+    # cache_read=0.1×in. Сверено со справкой Claude API (2026-06).
+    "claude-opus-4-8": (5.00, 25.00, 6.25, 0.50),
+    "claude-opus-4-7": (5.00, 25.00, 6.25, 0.50),
     "claude-sonnet-4-6": (3.00, 15.00, 3.75, 0.30),
     "claude-sonnet-4-5": (3.00, 15.00, 3.75, 0.30),
     "claude-sonnet-4-5-20251001": (3.00, 15.00, 3.75, 0.30),
