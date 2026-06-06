@@ -455,19 +455,6 @@ def load_nutrition():
         )
     return pd.DataFrame(records)
 
-    records = []
-    for d, v in data_map.items():
-        records.append(
-            {
-                "date": d,
-                "nutrition_cals": v["nutrition_cals"],
-                "protein_g": v["protein_g"],
-                "fats_g": v["fats_g"],
-                "carbs_g": v["carbs_g"],
-            }
-        )
-    return pd.DataFrame(records)
-
 
 # --- Main Analysis ---
 

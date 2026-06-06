@@ -19,6 +19,9 @@ from datetime import datetime, timedelta, timezone
 from fastapi import HTTPException
 from unittest.mock import MagicMock
 
+# Фейковый telegram_id для тестов (не реальный PII — заглушка после PII-скраба).
+REDACTED_ID = 111111
+
 from webhook.jwt_auth import get_agent_user, generate_agent_jwt
 
 

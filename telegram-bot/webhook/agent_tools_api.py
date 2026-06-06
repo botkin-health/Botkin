@@ -100,6 +100,17 @@ class LogBPRequest(BaseModel):
     measured_at: Optional[str] = None  # ISO datetime; defaults to now
 
 
+class EditMealRequest(BaseModel):
+    meal_id: int
+    new_date: Optional[str] = None  # YYYY-MM-DD — перенести на другой день
+    new_slot: Optional[str] = None  # breakfast | lunch | dinner | snack — сменить слот/время
+    new_name: Optional[str] = None  # переименовать
+
+
+class DeleteMealRequest(BaseModel):
+    meal_id: int
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 
@@ -268,6 +279,61 @@ async def log_meal_text(
     }
 
 
+@router.post("/edit_meal")
+async def edit_meal(
+    req: EditMealRequest,
+    user=Depends(get_agent_user),
+    db: Session = Depends(get_db),
+):
+    """Изменить уже залогированный приём пищи: перенести на дату (new_date),
+    сменить слот/время (new_slot), переименовать (new_name). meal_id — из recent_meals."""
+    from database.crud import update_nutrition_meal_fields
+
+    meal_name = req.new_name
+    meal_time = None
+    if req.new_slot:
+        meal_time, _slot_default_name = _slot_to_meal_time(req.new_slot)
+    new_date = _parse_date(req.new_date, user) if req.new_date else None
+
+    if meal_name is None and meal_time is None and new_date is None:
+        raise HTTPException(status_code=400, detail="Nothing to change: pass new_date, new_slot or new_name.")
+
+    try:
+        row = update_nutrition_meal_fields(
+            db,
+            meal_id=req.meal_id,
+            user_id=user.telegram_id,
+            meal_name=meal_name,
+            meal_time=meal_time,
+            new_date=new_date,
+        )
+    except LookupError:
+        raise HTTPException(status_code=404, detail=f"meal {req.meal_id} not found")
+
+    return {
+        "status": "ok",
+        "meal_id": row.id,
+        "date": row.date.isoformat(),
+        "meal_time": row.meal_time.strftime("%H:%M") if row.meal_time else None,
+        "meal_name": row.meal_name,
+    }
+
+
+@router.post("/delete_meal")
+async def delete_meal(
+    req: DeleteMealRequest,
+    user=Depends(get_agent_user),
+    db: Session = Depends(get_db),
+):
+    """Удалить залогированный приём пищи по meal_id (из recent_meals)."""
+    from database.crud import delete_nutrition_log
+
+    ok = delete_nutrition_log(db, log_id=req.meal_id, user_id=user.telegram_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail=f"meal {req.meal_id} not found")
+    return {"status": "ok", "deleted_meal_id": req.meal_id}
+
+
 @router.post("/log_supplement")
 async def log_supplement(
     req: LogSupplementRequest,
@@ -367,14 +433,26 @@ async def regenerate_health_token(
 @router.get("/recent_meals")
 async def recent_meals(
     days: int = 7,
+    compact: bool = False,
     user=Depends(get_agent_user),
     db: Session = Depends(get_db),
 ):
-    """Return nutrition_log rows for the last N days."""
+    """Return nutrition_log rows for the last N days.
+
+    compact=True — лёгкий формат для поиска по длинному периоду («ел ли я X за
+    3 месяца»): `items` становится списком имён продуктов (строки), `totals`
+    сводится к калориям. Режет payload в ~5-10 раз (один такой запрос на 90 дней
+    раньше стоил ~120k токенов / $2). Авто-включается при days > 14, чтобы один
+    вызов не раздувал контекст.
+    """
     from database.crud import get_nutrition_logs_by_period
 
     if days < 1 or days > 90:
         raise HTTPException(status_code=400, detail="days must be between 1 and 90")
+
+    # Длинные окна по умолчанию компактны (защита от token-blowup).
+    if days > 14:
+        compact = True
 
     end_date = _today_in_user_tz(user)
     start_date = end_date - timedelta(days=days - 1)
@@ -383,20 +461,32 @@ async def recent_meals(
 
     result = []
     for log in logs:
+        if compact:
+            names = [
+                (it.get("product") or it.get("name") or "").strip()
+                for it in (log.items or [])
+                if (it.get("product") or it.get("name"))
+            ]
+            items_out = names
+            totals_out = {"calories": (log.totals or {}).get("calories")}
+        else:
+            items_out = log.items
+            totals_out = log.totals
         result.append(
             {
                 "id": log.id,
                 "date": log.date.isoformat(),
                 "meal_time": log.meal_time.strftime("%H:%M") if log.meal_time else None,
                 "meal_name": log.meal_name,
-                "items": log.items,
-                "totals": log.totals,
+                "items": items_out,
+                "totals": totals_out,
             }
         )
 
     return {
         "status": "ok",
         "days": days,
+        "compact": compact,
         "start_date": start_date.isoformat(),
         "end_date": end_date.isoformat(),
         "meals": result,

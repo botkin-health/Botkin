@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Backfill Andrey REDACTED (user_id=REDACTED_ID) Apple Health data
+Backfill second user (user_id from env ANDREY_UID) Apple Health data
 into PostgreSQL: activity_log, weights, blood_pressure_logs.
 
 Data source: knowledge_base.json from GDrive (pre-parsed by scripts/parse_apple_health.py).
@@ -8,6 +8,7 @@ Run: python3 scripts/backfill_andrey_apple_health.py
 """
 
 import json
+import os
 import sys
 import subprocess
 from pathlib import Path
@@ -23,7 +24,9 @@ TOOL_RESULT_FILE = (
 
 SERVER = "root@116.203.213.137"
 SSH_OPTS = ["-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=10"]
-ANDREY_UID = REDACTED_ID
+ANDREY_UID = int(os.getenv("ANDREY_UID", "0"))
+if not ANDREY_UID:
+    sys.exit("Set ANDREY_UID env var (telegram_id) before running this backfill.")
 
 # ── Load KB ─────────────────────────────────────────────────────────────────
 print("Loading knowledge_base.json …")

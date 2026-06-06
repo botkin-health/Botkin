@@ -74,10 +74,12 @@ def query_nutrition(days: int = 7, user: str = "Александр") -> str:
     """
     Получает данные о питании и добавках из PostgreSQL (SSH на сервер).
     days: за сколько последних дней (по умолчанию 7).
-    user: Александр (895655) или второй пользователь (REDACTED_ID).
+    user: Александр (895655) или второй пользователь (env HV_SECOND_USER_ID).
     Возвращает JSON с записями питания и добавками.
     """
-    user_id = 895655 if "александр" in user.lower() or "саша" in user.lower() else REDACTED_ID
+    user_id = (
+        895655 if "александр" in user.lower() or "саша" in user.lower() else int(os.getenv("HV_SECOND_USER_ID", "0"))
+    )
     since = (date.today() - timedelta(days=days)).isoformat()
 
     nutrition_sql = (

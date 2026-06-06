@@ -4,7 +4,7 @@
 Проверяет полноту и корректность данных перед анализом
 """
 
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
 import json
 import logging
 from datetime import datetime, timedelta

@@ -55,7 +55,7 @@ def test_render_prompt_substitutes_all_placeholders(sample_input, tmp_path):
     leftovers = re.findall(r"\$[a-z_]+", rendered)
     assert not leftovers, f"Unsubstituted placeholders: {leftovers}"
     # Имя подставлено
-    assert "Игорь" in rendered
+    assert sample_input.name in rendered
     # Pack описание есть
     assert "respiratory_allergic" in rendered
 
