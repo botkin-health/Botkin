@@ -181,7 +181,7 @@ def _build_sport_block(user_id: int, user_age: int | None = None) -> dict:
     ac_ratio = round(acute_load / chronic_load_per_7d, 2) if chronic_load_per_7d > 0 else None
 
     # Status indicators for KPIs
-    def _kpi_status(value, target, low_warn=0.5, high_warn=1.3):
+    def _kpi_status(value, target, low_warn=0.5):
         """Returns (color_code, hint). g=green, y=yellow, r=red."""
         if target == 0:
             return ("muted", "—")

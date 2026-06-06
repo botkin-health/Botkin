@@ -758,10 +758,7 @@ async def api_bothealth(_: str = Depends(admin_auth)) -> JSONResponse:
         out = subprocess.run(["pgrep", "-f", "bot.py"], capture_output=True, text=True, timeout=5)
         pid = (out.stdout.strip().split("\n") or [""])[0]
         if pid:
-            stat = open(f"/proc/{pid}/stat").read().split()
-            btime = int(open("/proc/stat").read().split("\n")[0].split()[1] if False else 0)
-            # simpler: read /proc/<pid>/stat field 22 = starttime (clock ticks since boot)
-            # easier: use ps etime
+            # uptime через ps etime (надёжнее ручного парсинга /proc/<pid>/stat)
             etime = subprocess.run(
                 ["ps", "-o", "etimes=", "-p", pid], capture_output=True, text=True, timeout=3
             ).stdout.strip()

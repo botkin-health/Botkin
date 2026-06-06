@@ -232,9 +232,7 @@ def main():
     print(f"✅ Распарсено с данными:    {parsed_ok}")
     print(f"   Пустой результат:        {parsed_empty}")
     print(f"   Ошибки:                  {parsed_err}")
-    print(
-        f"   Пропущено (covid pcr):   {len([x for x in get_items_needing_parse(json.loads(KB_PATH.read_text())) if x[0] == 'covid_tests']) if False else '—'}"
-    )
+    print("   Пропущено (covid pcr):   —")
     print(f"\n📁 KB обновлён: {KB_PATH.name}")
 
 

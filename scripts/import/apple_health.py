@@ -20,7 +20,7 @@
   Скрипт сам найдёт export.xml в ~/Downloads/apple_health_export*/
 """
 
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
 import json
 import glob
 import os

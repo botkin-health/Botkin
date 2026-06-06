@@ -104,7 +104,7 @@ def interpret_mthfr(genotypes: dict[str, str]) -> dict:
     }
 
 
-def interpret_simple(snp_id: str, genotype: str, rules: dict) -> dict:
+def interpret_simple(_snp_id: str, genotype: str, rules: dict) -> dict:
     """Generic interpreter: look up the genotype in a rules dict."""
     info = rules.get(genotype, {"summary": f"Генотип {genotype} — нет курированной интерпретации", "level": "unknown"})
     return {"genotype": genotype, **info}

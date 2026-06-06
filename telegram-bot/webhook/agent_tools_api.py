@@ -367,14 +367,26 @@ async def regenerate_health_token(
 @router.get("/recent_meals")
 async def recent_meals(
     days: int = 7,
+    compact: bool = False,
     user=Depends(get_agent_user),
     db: Session = Depends(get_db),
 ):
-    """Return nutrition_log rows for the last N days."""
+    """Return nutrition_log rows for the last N days.
+
+    compact=True — лёгкий формат для поиска по длинному периоду («ел ли я X за
+    3 месяца»): `items` становится списком имён продуктов (строки), `totals`
+    сводится к калориям. Режет payload в ~5-10 раз (один такой запрос на 90 дней
+    раньше стоил ~120k токенов / $2). Авто-включается при days > 14, чтобы один
+    вызов не раздувал контекст.
+    """
     from database.crud import get_nutrition_logs_by_period
 
     if days < 1 or days > 90:
         raise HTTPException(status_code=400, detail="days must be between 1 and 90")
+
+    # Длинные окна по умолчанию компактны (защита от token-blowup).
+    if days > 14:
+        compact = True
 
     end_date = _today_in_user_tz(user)
     start_date = end_date - timedelta(days=days - 1)
@@ -383,20 +395,32 @@ async def recent_meals(
 
     result = []
     for log in logs:
+        if compact:
+            names = [
+                (it.get("product") or it.get("name") or "").strip()
+                for it in (log.items or [])
+                if (it.get("product") or it.get("name"))
+            ]
+            items_out = names
+            totals_out = {"calories": (log.totals or {}).get("calories")}
+        else:
+            items_out = log.items
+            totals_out = log.totals
         result.append(
             {
                 "id": log.id,
                 "date": log.date.isoformat(),
                 "meal_time": log.meal_time.strftime("%H:%M") if log.meal_time else None,
                 "meal_name": log.meal_name,
-                "items": log.items,
-                "totals": log.totals,
+                "items": items_out,
+                "totals": totals_out,
             }
         )
 
     return {
         "status": "ok",
         "days": days,
+        "compact": compact,
         "start_date": start_date.isoformat(),
         "end_date": end_date.isoformat(),
         "meals": result,

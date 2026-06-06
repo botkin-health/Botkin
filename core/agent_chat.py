@@ -81,10 +81,22 @@ TOOLS: list[dict[str, Any]] = [
     },
     {
         "name": "get_recent_meals",
-        "description": "Недавние приёмы пищи. days=1..30, по умолчанию 3.",
+        "description": (
+            "Недавние приёмы пищи. days=1..90, по умолчанию 3. "
+            "Для поиска по длинному периоду («ел ли я X за месяцы», «как часто пельмени») "
+            "ставь большой days и compact=true — вернёт компактно (имена продуктов + калории), "
+            "без раздувания контекста. days>14 авто-включает compact."
+        ),
         "input_schema": {
             "type": "object",
-            "properties": {"days": {"type": "integer", "minimum": 1, "maximum": 30, "default": 3}},
+            "properties": {
+                "days": {"type": "integer", "minimum": 1, "maximum": 90, "default": 3},
+                "compact": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": "Лёгкий формат (имена продуктов + калории) для поиска по длинному периоду.",
+                },
+            },
         },
     },
     {
@@ -622,9 +634,12 @@ def _call_tool(name: str, args: dict, token: str) -> str:
             r = requests.get(f"{TOOLS_API_BASE}/dashboard_summary", headers=headers, timeout=15)
         elif name == "get_recent_meals":
             days = int(args.get("days", 3))
+            params = {"days": days}
+            if args.get("compact"):
+                params["compact"] = "true"
             r = requests.get(
                 f"{TOOLS_API_BASE}/recent_meals",
-                params={"days": days},
+                params=params,
                 headers=headers,
                 timeout=15,
             )

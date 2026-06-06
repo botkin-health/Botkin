@@ -3,7 +3,7 @@ Apple Health Export XML Parser
 Supports multi-user import with data isolation
 """
 
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
 from datetime import datetime
 from typing import Dict, List
 import logging

@@ -7,7 +7,7 @@
 import os
 import sys
 import json
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
 from pathlib import Path
 from datetime import datetime
 from collections import defaultdict

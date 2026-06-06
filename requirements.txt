@@ -45,3 +45,4 @@ pyjwt>=2.8.0
 
 # Rendering PNG-отчётов агентом (см. core/reports/biomarker_dynamics.py)
 matplotlib>=3.8
+defusedxml==0.7.1

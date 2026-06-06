@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Генерация плоских файлов Apple Health в формате, ожидаемом /sync и /dashboard."""
 
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
 import json
 from pathlib import Path
 from collections import defaultdict
