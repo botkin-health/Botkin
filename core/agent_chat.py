@@ -479,6 +479,39 @@ TOOLS: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "edit_meal",
+        "description": (
+            "Изменить УЖЕ залогированный приём пищи: перенести на другой день (new_date), "
+            "сменить слот/время (new_slot), переименовать (new_name). "
+            "meal_id бери из get_recent_meals (поле id). "
+            "ИСПОЛЬЗОВАТЬ когда юзер просит «перенеси/исправь/измени/это был не обед а ужин» "
+            "про уже записанную еду. Передавай только те поля, что меняются."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "meal_id": {"type": "integer", "description": "id записи из get_recent_meals"},
+                "new_date": {"type": "string", "description": "Новая дата YYYY-MM-DD (перенос на другой день)"},
+                "new_slot": {"type": "string", "enum": ["breakfast", "lunch", "dinner", "snack"]},
+                "new_name": {"type": "string", "description": "Новое название приёма"},
+            },
+            "required": ["meal_id"],
+        },
+    },
+    {
+        "name": "delete_meal",
+        "description": (
+            "Удалить залогированный приём пищи по meal_id (из get_recent_meals, поле id). "
+            "ИСПОЛЬЗОВАТЬ когда юзер просит «удали/убери» запись о еде. "
+            "Если нужно перенести на другой день — используй edit_meal с new_date, не delete+log."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {"meal_id": {"type": "integer", "description": "id записи из get_recent_meals"}},
+            "required": ["meal_id"],
+        },
+    },
+    {
         "name": "log_bp",
         "description": "Залогировать измерение давления.",
         "input_schema": {
@@ -767,6 +800,10 @@ def _call_tool(name: str, args: dict, token: str) -> str:
             )
         elif name == "log_meal_text":
             r = requests.post(f"{TOOLS_API_BASE}/log_meal_text", json=args, headers=headers, timeout=30)
+        elif name == "edit_meal":
+            r = requests.post(f"{TOOLS_API_BASE}/edit_meal", json=args, headers=headers, timeout=10)
+        elif name == "delete_meal":
+            r = requests.post(f"{TOOLS_API_BASE}/delete_meal", json=args, headers=headers, timeout=10)
         elif name == "log_bp":
             r = requests.post(f"{TOOLS_API_BASE}/log_bp", json=args, headers=headers, timeout=10)
         elif name == "log_supplement":
@@ -1075,6 +1112,8 @@ _TOOL_PROGRESS_LABEL = {
     "get_profile_questionnaire": "📝 читаю анкету",
     # Write tools
     "log_meal_text": "✍️ записываю еду",
+    "edit_meal": "✏️ правлю запись о еде",
+    "delete_meal": "🗑 удаляю запись о еде",
     "log_supplement": "✍️ отмечаю добавку",
     "log_bp": "✍️ записываю давление",
     "regenerate_health_token": "🔑 пересоздаю токен",

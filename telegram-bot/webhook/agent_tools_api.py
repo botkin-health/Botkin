@@ -100,6 +100,17 @@ class LogBPRequest(BaseModel):
     measured_at: Optional[str] = None  # ISO datetime; defaults to now
 
 
+class EditMealRequest(BaseModel):
+    meal_id: int
+    new_date: Optional[str] = None  # YYYY-MM-DD — перенести на другой день
+    new_slot: Optional[str] = None  # breakfast | lunch | dinner | snack — сменить слот/время
+    new_name: Optional[str] = None  # переименовать
+
+
+class DeleteMealRequest(BaseModel):
+    meal_id: int
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 
@@ -266,6 +277,61 @@ async def log_meal_text(
         "items_count": len(items),
         "totals": totals,
     }
+
+
+@router.post("/edit_meal")
+async def edit_meal(
+    req: EditMealRequest,
+    user=Depends(get_agent_user),
+    db: Session = Depends(get_db),
+):
+    """Изменить уже залогированный приём пищи: перенести на дату (new_date),
+    сменить слот/время (new_slot), переименовать (new_name). meal_id — из recent_meals."""
+    from database.crud import update_nutrition_meal_fields
+
+    meal_name = req.new_name
+    meal_time = None
+    if req.new_slot:
+        meal_time, _slot_default_name = _slot_to_meal_time(req.new_slot)
+    new_date = _parse_date(req.new_date, user) if req.new_date else None
+
+    if meal_name is None and meal_time is None and new_date is None:
+        raise HTTPException(status_code=400, detail="Nothing to change: pass new_date, new_slot or new_name.")
+
+    try:
+        row = update_nutrition_meal_fields(
+            db,
+            meal_id=req.meal_id,
+            user_id=user.telegram_id,
+            meal_name=meal_name,
+            meal_time=meal_time,
+            new_date=new_date,
+        )
+    except LookupError:
+        raise HTTPException(status_code=404, detail=f"meal {req.meal_id} not found")
+
+    return {
+        "status": "ok",
+        "meal_id": row.id,
+        "date": row.date.isoformat(),
+        "meal_time": row.meal_time.strftime("%H:%M") if row.meal_time else None,
+        "meal_name": row.meal_name,
+    }
+
+
+@router.post("/delete_meal")
+async def delete_meal(
+    req: DeleteMealRequest,
+    user=Depends(get_agent_user),
+    db: Session = Depends(get_db),
+):
+    """Удалить залогированный приём пищи по meal_id (из recent_meals)."""
+    from database.crud import delete_nutrition_log
+
+    ok = delete_nutrition_log(db, log_id=req.meal_id, user_id=user.telegram_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail=f"meal {req.meal_id} not found")
+    return {"status": "ok", "deleted_meal_id": req.meal_id}
 
 
 @router.post("/log_supplement")

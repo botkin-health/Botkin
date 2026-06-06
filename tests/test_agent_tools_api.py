@@ -308,6 +308,122 @@ def test_recent_meals_invalid_days(client):
     assert r.status_code == 400
 
 
+def test_recent_meals_compact_returns_product_names(client, db_session):
+    """compact=true → items как список имён, totals только калории (F-006)."""
+    create_nutrition_log(
+        db=db_session,
+        user_id=895655,
+        date=date.today(),
+        meal_time=time(13, 0),
+        meal_name="Обед",
+        items=[
+            {"product": "Хинкали", "weight_g": 200, "calories": 400, "protein": 20, "fats": 15, "carbs": 45, "fiber": 2}
+        ],
+        totals={"calories": 400, "protein": 20, "fats": 15, "carbs": 45, "fiber": 2},
+    )
+    r = client.get("/api/agent/recent_meals?days=7&compact=true")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["compact"] is True
+    meal = body["meals"][0]
+    assert meal["items"] == ["Хинкали"]
+    assert meal["totals"] == {"calories": 400}
+
+
+def test_recent_meals_long_window_auto_compact(client, db_session):
+    """days>14 авто-включает compact, даже если не передан явно (F-006)."""
+    create_nutrition_log(
+        db=db_session,
+        user_id=895655,
+        date=date.today(),
+        meal_time=time(13, 0),
+        meal_name="Обед",
+        items=[{"product": "Рис", "weight_g": 150, "calories": 200}],
+        totals={"calories": 200, "protein": 4, "fats": 1, "carbs": 44, "fiber": 1},
+    )
+    r = client.get("/api/agent/recent_meals?days=30")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["compact"] is True
+    assert body["meals"][0]["items"] == ["Рис"]
+
+
+def _seed_meal(db_session, **kw):
+    defaults = dict(
+        db=db_session,
+        user_id=895655,
+        date=date.today(),
+        meal_time=time(13, 0),
+        meal_name="Обед",
+        items=[{"product": "Курица", "weight_g": 150, "calories": 250}],
+        totals={"calories": 250, "protein": 40, "fats": 5, "carbs": 0, "fiber": 0},
+    )
+    defaults.update(kw)
+    return create_nutrition_log(**defaults)
+
+
+def test_edit_meal_moves_date(client, db_session):
+    """POST /edit_meal с new_date переносит запись на другой день (P-001)."""
+    from datetime import timedelta
+
+    meal = _seed_meal(db_session)
+    yesterday = (date.today() - timedelta(days=1)).isoformat()
+    r = client.post("/api/agent/edit_meal", json={"meal_id": meal.id, "new_date": yesterday})
+    assert r.status_code == 200, r.text
+    assert r.json()["date"] == yesterday
+
+
+def test_edit_meal_rename_and_slot(client, db_session):
+    """POST /edit_meal меняет имя и слот (время)."""
+    meal = _seed_meal(db_session)
+    r = client.post(
+        "/api/agent/edit_meal",
+        json={"meal_id": meal.id, "new_name": "Ужин (перенос)", "new_slot": "dinner"},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["meal_name"] == "Ужин (перенос)"
+    assert body["meal_time"] == "19:00"
+
+
+def test_edit_meal_not_found(client):
+    """POST /edit_meal с несуществующим meal_id → 404."""
+    r = client.post("/api/agent/edit_meal", json={"meal_id": 999999, "new_name": "x"})
+    assert r.status_code == 404
+
+
+def test_edit_meal_nothing_to_change(client, db_session):
+    """POST /edit_meal без полей-изменений → 400."""
+    meal = _seed_meal(db_session)
+    r = client.post("/api/agent/edit_meal", json={"meal_id": meal.id})
+    assert r.status_code == 400
+
+
+def test_delete_meal_removes_row(client, db_session):
+    """POST /delete_meal удаляет запись; после — recent_meals пуст (P-001)."""
+    meal = _seed_meal(db_session)
+    r = client.post("/api/agent/delete_meal", json={"meal_id": meal.id})
+    assert r.status_code == 200, r.text
+    assert r.json()["deleted_meal_id"] == meal.id
+    assert client.get("/api/agent/recent_meals?days=7").json()["meals"] == []
+
+
+def test_delete_meal_not_found(client):
+    """POST /delete_meal с несуществующим meal_id → 404."""
+    r = client.post("/api/agent/delete_meal", json={"meal_id": 999999})
+    assert r.status_code == 404
+
+
+def test_delete_meal_scoped_to_user(client, db_session):
+    """Нельзя удалить чужой приём пищи (RLS-изоляция по user_id)."""
+    other = User(telegram_id=222, first_name="Other", is_active=True, cohort="external", pack_name="generic")
+    db_session.add(other)
+    db_session.commit()
+    foreign = _seed_meal(db_session, user_id=222, meal_name="Чужой обед")
+    r = client.post("/api/agent/delete_meal", json={"meal_id": foreign.id})
+    assert r.status_code == 404
+
+
 def test_kb_value_owner_returns_value(client, tmp_path, monkeypatch):
     """GET /kb_value for owner cohort reads knowledge_base.json."""
     import json

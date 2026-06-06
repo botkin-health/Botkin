@@ -718,6 +718,7 @@ def update_nutrition_meal_fields(
     user_id: int,
     meal_name: Optional[str] = None,
     meal_time: Optional[time] = None,
+    new_date: Optional[date] = None,
 ) -> NutritionLog:
     row = get_nutrition_log(db, meal_id=meal_id, user_id=user_id)
     if row is None:
@@ -726,6 +727,8 @@ def update_nutrition_meal_fields(
         row.meal_name = meal_name
     if meal_time is not None:
         row.meal_time = meal_time
+    if new_date is not None:
+        row.date = new_date
     db.commit()
     db.refresh(row)
     return row
