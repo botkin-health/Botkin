@@ -70,8 +70,13 @@ sshpass -p "$SERVER_PASSWORD" rsync -avz \
     --exclude '.git' \
     --exclude 'logs/*' \
     --exclude 'data/garmin/*' \
-    --exclude '.env.local' \
+    --exclude '.env' \
+    --exclude '.env.*' \
     ./ ${SERVER_USER}@${SERVER_IP}:${SERVER_PATH}/
+
+# ⚠️ .env НЕ синкается: прод-.env (/opt/healthvault/.env) — источник правды,
+# у него свой POSTGRES_PASSWORD/DATABASE_URL и BOTKIN_ADMIN_ID. Локальный .env
+# (dev) отличается — синк его поверх прода ронял auth к БД (инцидент 06.06.2026).
 
 echo "✅ Code uploaded successfully"
 echo ""
