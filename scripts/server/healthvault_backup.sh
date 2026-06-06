@@ -21,7 +21,16 @@ DOW=$(date +%u)   # 1..7 (7 = воскресенье)
 DOM=$(date +%d)   # 01..31
 
 LOCAL_DIR=/opt/backups
-RCLONE_REMOTE="gdrive:Botkin-Backups"
+# Offsite — в ЛИЧНЫЙ «Мой диск» Александра, папка FamilyHealth/_backups_db
+# (там же ручные снимки + README, синкается на мак).
+# ВАЖНО: remote gdrive: по умолчанию скоупнут на КОРПОРАТИВНЫЙ корень iFarm
+# (root_folder_id=1Uetbu…). Чтобы попасть в личный My Drive, переопределяем
+# root на "root" (алиас My Drive в Drive API). Без этой строки бэкапы уезжают
+# в чужой корпоративный FamilyHealth — прецедент 06.06.2026.
+export RCLONE_DRIVE_ROOT_FOLDER_ID=root
+# GFS идёт в подпапки daily/weekly/monthly; ротация бьёт только по ним,
+# ручные дампы в корне _backups_db не трогаются.
+RCLONE_REMOTE="gdrive:FamilyHealth/_backups_db"
 LOG=/var/log/healthvault_backup.log
 KEEP_LOCAL=14
 

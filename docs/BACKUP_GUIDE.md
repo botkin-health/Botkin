@@ -9,11 +9,19 @@
 |---|---|---|
 | Живая БД | контейнер `healthvault_postgres` (Hetzner) | — |
 | Локальные дампы | `/opt/backups/healthvault_<TS>.sql.gz` | 14 последних |
-| Offsite daily | `gdrive:Botkin-Backups/daily/` | 30 дней |
-| Offsite weekly | `gdrive:Botkin-Backups/weekly/` (по воскресеньям) | 56 дней (8 шт) |
-| Offsite monthly | `gdrive:Botkin-Backups/monthly/` (1-го числа) | 365 дней (12 шт) |
+| Offsite daily | `FamilyHealth/_backups_db/daily/` | 30 дней |
+| Offsite weekly | `FamilyHealth/_backups_db/weekly/` (по воскресеньям) | 56 дней (8 шт) |
+| Offsite monthly | `FamilyHealth/_backups_db/monthly/` (1-го числа) | 365 дней (12 шт) |
 
-`gdrive:` — rclone-remote на Google Drive Александра (lyskovsky@gmail.com).
+Offsite лежит в личном «Мой диск» рядом с ручными снимками (`_backups_db/`),
+синкается на мак Александра.
+
+⚠️ **Подводный камень rclone:** remote `gdrive:` на сервере по умолчанию
+скоупнут на КОРПОРАТИВНЫЙ корень iFarm (`root_folder_id=1Uetbu…`), а не на
+личный My Drive. Скрипт переопределяет это через `RCLONE_DRIVE_ROOT_FOLDER_ID=root`.
+Без этой переменной бэкапы уезжают в чужой корпоративный FamilyHealth (утечка
+данных). Любые ручные `rclone`-команды к личному диску — тоже с этим флагом:
+`rclone --drive-root-folder-id=root ls gdrive:FamilyHealth/_backups_db/daily`.
 
 ## Что попадает в дамп
 
@@ -49,8 +57,8 @@
 # посмотреть последние записи лога
 tail -20 /var/log/healthvault_backup.log
 
-# список облачных копий
-rclone ls gdrive:Botkin-Backups/daily
+# список облачных копий (флаг root обязателен — см. подводный камень выше)
+rclone --drive-root-folder-id=root ls gdrive:FamilyHealth/_backups_db/daily
 ```
 
 Через админку (botkin.health/admin) — кнопка «Сделать бэкап сейчас» делает
@@ -62,7 +70,7 @@ rclone ls gdrive:Botkin-Backups/daily
 # 1. взять свежий дамп (локальный или из облака)
 LATEST=$(ls -t /opt/backups/healthvault_*.sql.gz | head -1)
 # из облака при потере сервера:
-#   rclone copy gdrive:Botkin-Backups/daily/<файл>.sql.gz ./
+#   rclone --drive-root-folder-id=root copy gdrive:FamilyHealth/_backups_db/daily/<файл>.sql.gz ./
 
 # 2. развернуть в БД (ОСТОРОЖНО: перетирает данные)
 zcat "$LATEST" | docker exec -i healthvault_postgres psql -U healthvault -d healthvault
