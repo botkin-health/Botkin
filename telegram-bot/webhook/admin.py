@@ -11,6 +11,8 @@ MVP scope. v1/v2 features are tracked in project todo.md.
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import logging
 import os
 import secrets
@@ -39,13 +41,34 @@ BACKUPS_DIR = Path("/app/backups")  # mounted from /opt/backups on host
 
 # ─── Auth ──────────────────────────────────────────────────────────────────
 
+# «Запомнить меня»: после успешного Basic Auth ставим подписанную куку, чтобы
+# не вводить пароль на каждом заходе с того же браузера. Токен = HMAC от
+# ADMIN_PASSWORD → сменили пароль ⇒ все куки сразу невалидны (отдельный секрет
+# не нужен). Кука httpOnly+Secure, scope /admin, живёт ADMIN_COOKIE_DAYS дней.
+ADMIN_COOKIE_NAME = "botkin_admin"
+ADMIN_COOKIE_DAYS = 90
 
-def _check_auth(creds: Optional[HTTPBasicCredentials]) -> None:
+
+def _expected_cookie_token() -> Optional[str]:
+    """Детерминированный токен, привязанный к текущему ADMIN_PASSWORD."""
+    pw = os.getenv("ADMIN_PASSWORD", "")
+    if not pw:
+        return None
+    return hmac.new(b"botkin-admin-cookie-v1", pw.encode(), hashlib.sha256).hexdigest()
+
+
+def _check_auth(creds: Optional[HTTPBasicCredentials], request: Optional[Request] = None) -> None:
     expected_user = os.getenv("ADMIN_USERNAME", "admin")
     expected_pass = os.getenv("ADMIN_PASSWORD", "")
     if not expected_pass:
         # Safety: if ADMIN_PASSWORD env not set, refuse all admin access
         raise HTTPException(status_code=503, detail="Admin not configured")
+    # 1) Валидная «remember-me» кука → пускаем без Basic Auth
+    expected_token = _expected_cookie_token()
+    cookie_token = request.cookies.get(ADMIN_COOKIE_NAME) if request else None
+    if cookie_token and expected_token and secrets.compare_digest(cookie_token, expected_token):
+        return
+    # 2) Иначе — обычный Basic Auth
     if not creds or not (
         secrets.compare_digest(creds.username.encode(), expected_user.encode())
         and secrets.compare_digest(creds.password.encode(), expected_pass.encode())
@@ -57,9 +80,9 @@ def _check_auth(creds: Optional[HTTPBasicCredentials]) -> None:
         )
 
 
-def admin_auth(creds: Optional[HTTPBasicCredentials] = Depends(security)) -> str:
-    _check_auth(creds)
-    return creds.username  # type: ignore
+def admin_auth(request: Request, creds: Optional[HTTPBasicCredentials] = Depends(security)) -> str:
+    _check_auth(creds, request)
+    return creds.username if creds else "admin"
 
 
 # ─── HTML page ─────────────────────────────────────────────────────────────
@@ -426,7 +449,21 @@ setInterval(loadAll, 60000);  // refresh every minute
 
 @router.get("/", response_class=HTMLResponse)
 async def admin_index(_: str = Depends(admin_auth)) -> HTMLResponse:
-    return HTMLResponse(content=ADMIN_HTML)
+    resp = HTMLResponse(content=ADMIN_HTML)
+    # «Запомнить меня»: после успешного входа ставим/продлеваем куку, чтобы
+    # с этого браузера не переспрашивать Basic Auth (см. _check_auth).
+    token = _expected_cookie_token()
+    if token:
+        resp.set_cookie(
+            ADMIN_COOKIE_NAME,
+            token,
+            max_age=ADMIN_COOKIE_DAYS * 24 * 3600,
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            path="/admin",
+        )
+    return resp
 
 
 # ─── API: Users ────────────────────────────────────────────────────────────
