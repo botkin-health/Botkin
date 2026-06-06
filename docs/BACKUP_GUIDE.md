@@ -1,84 +1,83 @@
-# Команды для автобэкапа HealthVault БД
+# Бэкапы Botkin / HealthVault БД
+
+> Стратегия 3-2-1: 3 копии (живая БД + локальный `.gz` + облако), 2 носителя,
+> 1 копия offsite (Google Drive). Внедрено 06.06.2026.
+
+## Где что лежит
+
+| Слой | Путь | Ротация |
+|---|---|---|
+| Живая БД | контейнер `healthvault_postgres` (Hetzner) | — |
+| Локальные дампы | `/opt/backups/healthvault_<TS>.sql.gz` | 14 последних |
+| Offsite daily | `gdrive:Botkin-Backups/daily/` | 30 дней |
+| Offsite weekly | `gdrive:Botkin-Backups/weekly/` (по воскресеньям) | 56 дней (8 шт) |
+| Offsite monthly | `gdrive:Botkin-Backups/monthly/` (1-го числа) | 365 дней (12 шт) |
+
+`gdrive:` — rclone-remote на Google Drive Александра (lyskovsky@gmail.com).
+
+## Что попадает в дамп
+
+`pg_dump` всей БД `healthvault` — 15 таблиц, включая **данные пользователей**
+(`users`, `nutrition_log`, `blood_tests`, `blood_pressure_logs`, `weights`,
+`sleep_records`, `activity_log`, `supplements_log`) и **логи**
+(`agent_conversations` — переписка с ботом, `audit_log`, `llm_usage_log`).
+
+⚠️ Медиа (`data/media/` — фото еды, голосовые) в дамп **не входят** — бэкапятся
+отдельно при необходимости (см. todo).
+
+## Автоматизация (cron на сервере)
+
+```cron
+30 3 * * *  /usr/local/bin/healthvault_backup.sh        # ежедневный бэкап + offsite + GFS
+0  4 1 * *  /usr/local/bin/healthvault_restore_test.sh  # ежемесячный drill восстановления
+```
+
+Канонические версии скриптов — в репо `scripts/server/`. После правок —
+залить на сервер в `/usr/local/bin/` (scp) и `chmod +x`.
+
+Лог обоих: `/var/log/healthvault_backup.log`.
 
 ## Ручные команды
 
 ```bash
-# Создать бэкап сейчас
-make db-backup
+# сделать бэкап сейчас (включая offsite)
+/usr/local/bin/healthvault_backup.sh
 
-# Восстановить из последнего бэкапа
-make db-restore
-# > Выберите 'latest'
+# прогнать тест восстановления вручную
+/usr/local/bin/healthvault_restore_test.sh
 
-# Восстановить из конкретного файла
-make db-restore
-# > Введите имя файла (например: healthvault_2026-02-01_133459.sql)
+# посмотреть последние записи лога
+tail -20 /var/log/healthvault_backup.log
+
+# список облачных копий
+rclone ls gdrive:Botkin-Backups/daily
 ```
 
-## Автоматический бэкап (Cron)
-
-### Установка
-
-1. Откройте crontab:
-```bash
-crontab -e
-```
-
-2. Добавьте строку:
-```bash
-# Автобэкап HealthVault БД каждый день в 3:00 UTC
-0 3 * * * cd /Users/alexlyskovsky/HealthVault && make db-backup-auto >> backup/cron.log 2>&1
-```
-
-3. Сохраните и выйдите (`:wq` в vim)
-
-### Проверка
-
-```bash
-# Посмотреть текущие задачи cron
-crontab -l
-
-# Проверить лог автобэкапа
-cat backup/cron.log
-```
-
-### Детали `db-backup-auto`
-
-- Создает бэкап: `backup/healthvault_YYYY-MM-DD.sql`
-- Удаляет бэкапы старше 7 дней
-- Экономит место на диске
+Через админку (botkin.health/admin) — кнопка «Сделать бэкап сейчас» делает
+локальный дамп (offsite добавляется крон-скриптом).
 
 ## Восстановление после сбоя
 
-Если Postgres поврежден или потеряны данные:
-
 ```bash
-# 1. Остановить бота и БД
-pkill -f bot.py
-make db-down
+# 1. взять свежий дамп (локальный или из облака)
+LATEST=$(ls -t /opt/backups/healthvault_*.sql.gz | head -1)
+# из облака при потере сервера:
+#   rclone copy gdrive:Botkin-Backups/daily/<файл>.sql.gz ./
 
-# 2. Поднять чистую БД
-make db-up
+# 2. развернуть в БД (ОСТОРОЖНО: перетирает данные)
+zcat "$LATEST" | docker exec -i healthvault_postgres psql -U healthvault -d healthvault
 
-# 3. Восстановить из последнего бэкапа
-make db-restore
-# > Выберите 'latest'
-
-# 4. Проверить данные
-make db-shell
-# > SELECT COUNT(*) FROM weight_logs;
-
-# 5. Запустить бота
-make run-fast
+# 3. проверить
+docker exec healthvault_postgres psql -U healthvault -d healthvault \
+  -c "SELECT count(*) FROM users; SELECT count(*) FROM nutrition_log;"
 ```
 
-## Где хранятся бэкапы
+Безопасная проверка дампа без риска для прода — `healthvault_restore_test.sh`
+(разворачивает в одноразовую БД и удаляет её).
 
-- **Директория:** `backup/`
-- **Формат:** `healthvault_YYYY-MM-DD_HHMMSS.sql` (ручной)
-- **Формат:** `healthvault_YYYY-MM-DD.sql` (auto)
-- **Срок хранения:** 7 дней (auto), бесконечно (ручной)
+## Проверка здоровья бэкапов
 
-## .gitignore
-
-Убедитесь что `/backup` в `.gitignore` (уже есть ✅)
+- `tail /var/log/healthvault_backup.log` — есть ли строки `backup created`,
+  `offsite daily OK`, ежемесячно `restore OK`.
+- Если видишь `ERROR: offsite ... FAILED` — проверить `rclone listremotes` и
+  токен gdrive (`rclone about gdrive:`).
