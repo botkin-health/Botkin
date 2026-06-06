@@ -7,15 +7,23 @@ import pytest
 from datetime import date, time
 from database.models import NutritionLog
 from database.crud import ensure_user_exists, get_nutrition_logs_by_period
-from config.users import ADMIN_USER_ID, is_admin
+from config.users import is_admin
 
 
 class TestMultiUserAuth:
     """Tests for multi-user authorization"""
 
-    def test_admin_user_is_admin(self):
-        """Test that main admin user has admin privileges"""
-        assert is_admin(ADMIN_USER_ID) is True
+    def test_admin_user_is_admin(self, monkeypatch):
+        """Admin gate works when BOTKIN_ADMIN_ID настроен.
+
+        ADMIN_USER_ID берётся из env BOTKIN_ADMIN_ID (дефолт 0). В тест-окружении
+        env не задан, поэтому патчим значение и проверяем логику is_admin напрямую.
+        """
+        import config.users as users_mod
+
+        monkeypatch.setattr(users_mod, "ADMIN_USER_ID", 895655)
+        assert users_mod.is_admin(895655) is True
+        assert users_mod.is_admin(1) is False
 
     def test_random_user_is_not_admin(self):
         """Test that random users don't have admin privileges"""

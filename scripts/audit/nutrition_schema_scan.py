@@ -13,11 +13,15 @@ Read-only. No writes to DB.
 """
 
 import json
+import os
 import subprocess
 import sys
 from collections import Counter, defaultdict
 from datetime import date
 from typing import Any
+
+# Второй пользователь для скана (telegram_id из env, без хардкода PII).
+SECOND_UID = int(os.getenv("HV_SECOND_USER_ID", "0"))
 
 # ── server connection ───────────────────────────────────────────────────────
 SERVER = "root@116.203.213.137"
@@ -35,12 +39,13 @@ def run_sql(sql: str) -> str:
 
 
 def fetch_rows() -> list[dict[str, Any]]:
-    """Fetch nutrition_log rows for user 895655 + REDACTED_ID."""
+    """Fetch nutrition_log rows for user 895655 (+ optional HV_SECOND_USER_ID)."""
+    uids = "895655" + (f", {SECOND_UID}" if SECOND_UID else "")
     sql = (
         "SELECT json_agg(t) FROM ("
         "  SELECT id, user_id, date::text, meal_time::text, meal_name, items, totals "
         "  FROM nutrition_log "
-        "  WHERE user_id IN (895655, REDACTED_ID) "
+        f"  WHERE user_id IN ({uids}) "
         "  ORDER BY date, meal_time"
         ") t"
     )

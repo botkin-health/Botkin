@@ -17,6 +17,9 @@
 
 from unittest.mock import patch, MagicMock
 
+# Фейковый telegram_id для тестов (не реальный PII — заглушка после PII-скраба).
+REDACTED_ID = 111111
+
 
 PROGRESS_BAR_CHARS = {"🟩", "🟥", "🟧", "🟨", "⬜"}
 

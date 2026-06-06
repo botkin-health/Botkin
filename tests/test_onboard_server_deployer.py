@@ -13,6 +13,9 @@ from scripts.onboard.server_deployer import (
     remove_kb,
 )
 
+# Фейковый telegram_id для тестов (не реальный PII — заглушка после PII-скраба).
+REDACTED_ID = 111111
+
 
 @pytest.fixture
 def cfg():
@@ -71,7 +74,7 @@ def test_update_user_row_builds_correct_sql(cfg):
         )
 
     joined = " ".join(captured_sql)
-    assert "REDACTED_ID" in joined
+    assert str(REDACTED_ID) in joined
     assert "family" in joined
     assert "respiratory_allergic" in joined
     assert result.rows_affected == 1
@@ -96,7 +99,7 @@ def test_update_user_row_raises_when_zero_rows(cfg):
 def test_fetch_user_state_parses_psql_output(cfg):
     # First call: psql SELECT returns pipe-separated row
     # Second call: ssh test -f returns "t\n"
-    psql_result = subprocess.CompletedProcess([], 0, stdout="REDACTED_ID|external|generic|0\n", stderr="")
+    psql_result = subprocess.CompletedProcess([], 0, stdout=f"{REDACTED_ID}|external|generic|0\n", stderr="")
     ssh_result = subprocess.CompletedProcess([], 0, stdout="f\n", stderr="")
 
     with patch("scripts.onboard.server_deployer.subprocess.run", side_effect=[psql_result, ssh_result]):
