@@ -1046,17 +1046,17 @@ async def recent_sleep(
     user=Depends(get_agent_user),
     db: Session = Depends(get_db),
 ):
-    """Recent sleep — derived from activity_log.raw_data (Garmin daily-summary).
+    """Recent sleep — из колонки activity_log.sleep_hours (надёжный источник).
 
-    The dedicated `sleep_records` table exists but isn't populated yet —
-    Garmin sync writes daily totals into `activity_log.raw_data.sleepingSeconds`.
-    This endpoint reads from there so the agent has live data without a
-    separate ETL job (see tech debt in projects/2026-05_nanoclaw-agent-bot/PLAN.md).
+    ВАЖНО (фикс 06.06.2026): раньше читали `raw_data->>'sleepingSeconds'`, которое
+    заполняется лишь иногда (из daily-summary) → агент НЕ видел сон, который реально
+    есть в БД (последние ночи имели пустой sleepingSeconds, но заполненный
+    sleep_hours). Теперь читаем колонку `sleep_hours`, которую надёжно пишет
+    `scripts/util/server_backfill_postgres.py::sync_sleep` из файлов Garmin sleep/.
+    sleep_score/deep_h/rem_h остаются в raw_data (пишет тот же sync_sleep).
 
-    Date semantics: each row's `date` is the calendar day; `sleepingSeconds`
-    is for the night ENDING on that day (Garmin convention).
-
-    Extra fields available when source='garmin_sleep' (rare): `deep_h`, `rem_h`, `sleep_score`.
+    Date semantics: `date` — календарный день; сон относится к ночи, ЗАКАНЧИВАЮЩЕЙСЯ
+    в этот день (конвенция Garmin).
     """
     from sqlalchemy import text as sql_text
 
@@ -1064,15 +1064,15 @@ async def recent_sleep(
     sql = sql_text(
         """
         SELECT date,
-               (raw_data->>'sleepingSeconds')::numeric / 3600.0 AS duration_hours,
-               (raw_data->>'sleep_score')::int               AS quality_score,
-               (raw_data->>'deep_h')::numeric * 60           AS deep_min,
-               (raw_data->>'rem_h')::numeric * 60            AS rem_min,
+               sleep_hours                          AS duration_hours,
+               (raw_data->>'sleep_score')::int      AS quality_score,
+               (raw_data->>'deep_h')::numeric * 60  AS deep_min,
+               (raw_data->>'rem_h')::numeric * 60   AS rem_min,
                source
         FROM activity_log
         WHERE user_id = :uid
-          AND raw_data ? 'sleepingSeconds'
-          AND (raw_data->>'sleepingSeconds')::int > 0
+          AND sleep_hours IS NOT NULL
+          AND sleep_hours > 0
           AND date >= CURRENT_DATE - (:days || ' days')::interval
         ORDER BY date DESC
         """
@@ -1090,8 +1090,25 @@ async def recent_sleep(
         for r in rows
     ]
 
+    # Свежесть: последняя НОЧЬ с данными, независимо от окна `days`. Чтобы агент
+    # при пустом окне честно сказал «последний сон за DATE», а не «данных нет»
+    # (данные Garmin приходят с задержкой; авто-синк идёт периодически).
+    latest = db.execute(
+        sql_text(
+            "SELECT MAX(date) FROM activity_log WHERE user_id = :uid AND sleep_hours IS NOT NULL AND sleep_hours > 0"
+        ),
+        {"uid": user.telegram_id},
+    ).scalar()
+    latest_iso = latest.isoformat() if latest else None
+
     if not items:
-        return {"status": "ok", "period_days": days, "count": 0, "items": []}
+        return {
+            "status": "ok",
+            "period_days": days,
+            "count": 0,
+            "items": [],
+            "latest_available_date": latest_iso,
+        }
 
     dur = [i["duration_hours"] for i in items if i["duration_hours"]]
     qual = [i["quality_score"] for i in items if i["quality_score"]]
@@ -1110,6 +1127,7 @@ async def recent_sleep(
             "nights_below_6h_pct": round(100 * below_6h / len(dur), 1) if dur else None,
         },
         "items": items[:14],
+        "latest_available_date": latest_iso,
     }
 
 
