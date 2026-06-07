@@ -305,8 +305,12 @@ def sync_stress(conn, user_id: int, since: str, dry_run: bool) -> dict:
     их надёжными из dedicated stress-файлов.
     """
     cur = conn.cursor()
+    # Гейтим по наличию bodyBattery в raw_data (а не stress_level): так дата
+    # переобработается, если stress_level уже есть, но BB ещё нет (бэкфилл BB на
+    # уже обработанные даты). jsonb_exists вместо оператора ? — psycopg2-safe.
     cur.execute(
-        "SELECT date::text FROM activity_log WHERE user_id=%s AND date >= %s AND stress_level IS NOT NULL",
+        "SELECT date::text FROM activity_log WHERE user_id=%s AND date >= %s "
+        "AND jsonb_exists(raw_data, 'bodyBatteryHighestValue')",
         (user_id, since),
     )
     existing = {row[0] for row in cur.fetchall()}
@@ -330,8 +334,10 @@ def sync_stress(conn, user_id: int, since: str, dry_run: bool) -> dict:
         avg_stress = raw.get("avgStressLevel")
         # Garmin: -1 = нет данных, -2 = слишком активен. Берём только валидное.
         stress_val = int(avg_stress) if isinstance(avg_stress, (int, float)) and avg_stress > 0 else None
+        # Формат массива в stress-файле: [timestamp, bodyBatteryStatus("MEASURED"),
+        # bodyBatteryLevel, ...] — уровень на индексе 2 (descriptors подтверждают).
         bb_arr = raw.get("bodyBatteryValuesArray") or []
-        bb_vals = [pt[1] for pt in bb_arr if isinstance(pt, list) and len(pt) >= 2 and isinstance(pt[1], (int, float))]
+        bb_vals = [pt[2] for pt in bb_arr if isinstance(pt, list) and len(pt) >= 3 and isinstance(pt[2], (int, float))]
         bb_high = max(bb_vals) if bb_vals else None
         bb_low = min(bb_vals) if bb_vals else None
         if stress_val is None and bb_high is None:
