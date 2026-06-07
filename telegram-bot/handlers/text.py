@@ -13,6 +13,7 @@ MSK = timezone(timedelta(hours=3))
 from aiogram import Router, F
 from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
+from aiogram.filters import StateFilter
 
 from services.state import state_manager
 
@@ -509,7 +510,10 @@ def is_confirmation(text: str) -> bool:
     return False
 
 
-@router.message(F.text & ~F.text.startswith("/"))
+# StateFilter(None): не перехватывать текст во время активного FSM-диалога
+# (мастер /profile в handlers/setup.py). Без этого catch-all съедал ввод шагов
+# мастера, и профиль нельзя было заполнить вводом — только «пропустить». См. #44.
+@router.message(F.text & ~F.text.startswith("/"), StateFilter(None))
 async def handle_text_message(message: Message, user_id: int, state: FSMContext):
     """Обработчик текстовых сообщений (БЕЗ фото)"""
     import logging
