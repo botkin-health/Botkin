@@ -132,6 +132,36 @@ def reset_share_token(db: Session, telegram_id: int) -> str:
     return user.share_token
 
 
+def get_or_create_health_token(db: Session, telegram_id: int) -> str:
+    """Get user's Apple Health token, creating one if absent.
+
+    Idempotent: returns the existing token unchanged. Call reset_health_token()
+    to force-regenerate. Format matches onboarding: hvt_<telegram_id>_<hex>.
+    """
+    import secrets
+
+    user = get_user_by_telegram_id(db, telegram_id)
+    if not user:
+        raise ValueError(f"User {telegram_id} not found")
+    if user.health_token:
+        return user.health_token
+    user.health_token = f"hvt_{telegram_id}_{secrets.token_hex(16)}"
+    db.commit()
+    return user.health_token
+
+
+def reset_health_token(db: Session, telegram_id: int) -> str:
+    """Regenerate Apple Health token — old token immediately stops working."""
+    import secrets
+
+    user = get_user_by_telegram_id(db, telegram_id)
+    if not user:
+        raise ValueError(f"User {telegram_id} not found")
+    user.health_token = f"hvt_{telegram_id}_{secrets.token_hex(16)}"
+    db.commit()
+    return user.health_token
+
+
 # ==================== NUTRITION LOG OPERATIONS ====================
 
 
