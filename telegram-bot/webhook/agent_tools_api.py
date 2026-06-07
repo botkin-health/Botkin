@@ -921,6 +921,72 @@ async def render_chart(
     }
 
 
+@router.get("/meal_context")
+async def meal_context(
+    user=Depends(get_agent_user),
+    db: Session = Depends(get_db),
+):
+    """P-002: всё нужное для «что мне съесть сейчас» ОДНИМ вызовом —
+    остаток КБЖУ на сегодня + ограничения (диагнозы) + любимые продукты.
+
+    Зачем тул, а не три вызова: гарантирует, что ограничения-диагнозы (подагра,
+    демпинг-синдром и т.п.) ВСЕГДА в контексте, и экономит токены/реплики.
+    """
+    import json
+
+    from core.health.caloric_budget import get_daily_budget
+    from database.crud import get_nutrition_totals_by_date, get_recent_product_names
+
+    today = _today_in_user_tz(user)
+
+    # Бюджет (consumed/target/remaining) — self-contained хелпер со своей сессией.
+    try:
+        budget = get_daily_budget(user.telegram_id, for_date=today)
+    except Exception:
+        logger.exception("meal_context: get_daily_budget failed")
+        budget = {}
+
+    totals = get_nutrition_totals_by_date(db, user.telegram_id, today) or {}
+
+    try:
+        products = get_recent_product_names(db, user.telegram_id, limit=15, lookback_days=60)
+    except Exception:
+        products = []
+
+    # Ограничения из KB (диагнозы) — чтобы советы были безопасны под состояние.
+    constraints = []
+    kb_path, _src = _resolve_user_kb_path(user)
+    if kb_path:
+        try:
+            kb = _as_dict(json.loads(kb_path.read_text(encoding="utf-8")))
+            for key in ("chronic_diagnoses", "diagnoses", "conditions"):
+                v = kb.get(key)
+                if v:
+                    constraints = v if isinstance(v, list) else [v]
+                    break
+        except Exception:
+            logger.exception("meal_context: KB read failed")
+
+    return {
+        "status": "ok",
+        "date": today.isoformat(),
+        "budget": {
+            "target_kcal": budget.get("target"),
+            "consumed_kcal": budget.get("consumed"),
+            "remaining_kcal": budget.get("remaining"),
+        },
+        "eaten_today": {
+            "calories": totals.get("calories"),
+            "protein": totals.get("protein"),
+            "fats": totals.get("fats"),
+            "carbs": totals.get("carbs"),
+            "fiber": totals.get("fiber"),
+        },
+        "constraints": constraints,
+        "frequent_products": products[:15],
+    }
+
+
 @router.get("/dashboard_summary")
 async def dashboard_summary(
     user=Depends(get_agent_user),

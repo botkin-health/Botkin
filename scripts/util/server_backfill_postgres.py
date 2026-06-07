@@ -56,6 +56,7 @@ BASE = Path("/app")  # внутри контейнера
 GARMIN_ACTS = BASE / "data" / "garmin" / "activities"
 GARMIN_SLEEP = BASE / "data" / "garmin" / "sleep"
 GARMIN_HRV = BASE / "data" / "garmin" / "hrv"
+GARMIN_STRESS = BASE / "data" / "garmin" / "stress"
 
 # Маппинг Garmin typeKey → workout_type в нашей БД.
 # Совпадает с backfill_to_postgres.py — менять синхронно в обоих местах.
@@ -291,6 +292,80 @@ def sync_hrv(conn, user_id: int, since: str, dry_run: bool) -> dict:
     return {"status": "ok", "inserted": len(new_dates), "updated": 0}
 
 
+# ── stress + body battery ────────────────────────────────────────────────────
+
+
+def sync_stress(conn, user_id: int, since: str, dry_run: bool) -> dict:
+    """avgStressLevel → колонка stress_level; bodyBattery high/low → raw_data.
+
+    Файлы Garmin stress/ содержат и стресс, и bodyBatteryValuesArray. Раньше эти
+    поля наполнялись лишь изредка через daily-summary → агентский recent_trends
+    видел стресс/bodyBattery пустыми (тот же класс бага, что был со сном —
+    reader читал raw_data-поле, которое надёжно никто не писал). Этот синк делает
+    их надёжными из dedicated stress-файлов.
+    """
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT date::text FROM activity_log WHERE user_id=%s AND date >= %s AND stress_level IS NOT NULL",
+        (user_id, since),
+    )
+    existing = {row[0] for row in cur.fetchall()}
+
+    if not GARMIN_STRESS.exists():
+        return {"status": "no_source", "inserted": 0, "updated": 0}
+
+    data: dict[str, dict] = {}
+    for f in sorted(GARMIN_STRESS.glob("*.json")):
+        if f.name[:4] not in {"2024", "2025", "2026", "2027", "2028"}:
+            continue
+        try:
+            raw = json.loads(f.read_text())
+        except Exception:
+            continue
+        if not isinstance(raw, dict):
+            continue
+        cal_date = raw.get("calendarDate", "")
+        if not cal_date or cal_date < since:
+            continue
+        avg_stress = raw.get("avgStressLevel")
+        # Garmin: -1 = нет данных, -2 = слишком активен. Берём только валидное.
+        stress_val = int(avg_stress) if isinstance(avg_stress, (int, float)) and avg_stress > 0 else None
+        bb_arr = raw.get("bodyBatteryValuesArray") or []
+        bb_vals = [pt[1] for pt in bb_arr if isinstance(pt, list) and len(pt) >= 2 and isinstance(pt[1], (int, float))]
+        bb_high = max(bb_vals) if bb_vals else None
+        bb_low = min(bb_vals) if bb_vals else None
+        if stress_val is None and bb_high is None:
+            continue
+        data[cal_date] = {"stress": stress_val, "bb_high": bb_high, "bb_low": bb_low}
+
+    new_dates = {d: v for d, v in data.items() if d not in existing}
+
+    if dry_run:
+        print(f"  [dry-run] stress: добавить/обновить {len(new_dates)} дней")
+        return {"status": "dry", "inserted": len(new_dates), "updated": 0}
+
+    for cal_date, v in sorted(new_dates.items()):
+        raw_upd = json.dumps(
+            {
+                k: val
+                for k, val in (("bodyBatteryHighestValue", v["bb_high"]), ("bodyBatteryLowestValue", v["bb_low"]))
+                if val is not None
+            }
+        )
+        cur.execute(
+            """INSERT INTO activity_log (user_id, date, stress_level, raw_data, source)
+               VALUES (%s, %s, %s, %s::jsonb, %s)
+               ON CONFLICT (user_id, date) DO UPDATE
+                 SET stress_level = COALESCE(EXCLUDED.stress_level, activity_log.stress_level),
+                     raw_data = COALESCE(activity_log.raw_data, '{}'::jsonb) || EXCLUDED.raw_data""",
+            (user_id, cal_date, v["stress"], raw_upd, "garmin_stress"),
+        )
+
+    conn.commit()
+    cur.close()
+    return {"status": "ok", "inserted": len(new_dates), "updated": 0}
+
+
 # ── main ────────────────────────────────────────────────────────────────────
 
 
@@ -298,7 +373,7 @@ def main() -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     p.add_argument("--user-id", type=int, default=DEFAULT_USER_ID)
     p.add_argument("--since", default=DEFAULT_SINCE, help="YYYY-MM-DD (default 2026-01-01)")
-    p.add_argument("--only", choices=["workouts", "sleep", "hrv"], help="Только один тип")
+    p.add_argument("--only", choices=["workouts", "sleep", "hrv", "stress"], help="Только один тип")
     p.add_argument("--dry-run", action="store_true")
     args = p.parse_args()
 
@@ -329,6 +404,9 @@ def main() -> int:
         if not args.only or args.only == "hrv":
             print("→ hrv")
             summary["hrv"] = sync_hrv(conn, args.user_id, args.since, args.dry_run)
+        if not args.only or args.only == "stress":
+            print("→ stress")
+            summary["stress"] = sync_stress(conn, args.user_id, args.since, args.dry_run)
     finally:
         conn.close()
 

@@ -80,6 +80,19 @@ TOOLS: list[dict[str, Any]] = [
         "input_schema": {"type": "object", "properties": {}},
     },
     {
+        "name": "meal_context",
+        "description": (
+            "Контекст для вопросов «что мне съесть / что ещё можно сейчас / что на ужин»: остаток "
+            "КБЖУ на сегодня (target/consumed/remaining), съеденные макросы, ОГРАНИЧЕНИЯ-ДИАГНОЗЫ "
+            "(constraints) и любимые продукты юзера — всё ОДНИМ вызовом. При таких вопросах зови "
+            "ЭТОТ tool вместо нескольких отдельных. По результату дай СРАЗУ 2-3 конкретных варианта "
+            "под остаток калорий и под constraints (диагнозы — критично: подагра, демпинг и т.п.); "
+            "уточняющий вопрос («где ты», «что дома») задавай ТОЛЬКО если без него никак, не гоняй "
+            "юзера по 3-4 репликам."
+        ),
+        "input_schema": {"type": "object", "properties": {}},
+    },
+    {
         "name": "get_recent_meals",
         "description": (
             "Недавние приёмы пищи. days=1..90, по умолчанию 3. "
@@ -674,6 +687,8 @@ def _call_tool(name: str, args: dict, token: str) -> str:
             r = requests.get(f"{TOOLS_API_BASE}/user_profile", headers=headers, timeout=10)
         elif name == "get_dashboard_summary":
             r = requests.get(f"{TOOLS_API_BASE}/dashboard_summary", headers=headers, timeout=15)
+        elif name == "meal_context":
+            r = requests.get(f"{TOOLS_API_BASE}/meal_context", headers=headers, timeout=15)
         elif name == "get_recent_meals":
             days = int(args.get("days", 3))
             params = {"days": days}
@@ -1112,6 +1127,7 @@ _TOOL_PROGRESS_LABEL = {
     "get_weight_history": "⚖️ собираю историю веса",
     "get_body_measurements": "📏 проверяю замеры",
     "get_dashboard_summary": "📊 свожу метрики",
+    "meal_context": "🍽 подбираю что поесть",
     "get_user_profile": "👤 читаю профиль",
     "get_user_settings": "⚙️ читаю настройки",
     "get_indoor_air": "🏠 проверяю воздух",
@@ -1198,6 +1214,17 @@ def ask_agent(
         # После этой директивы — модель всегда дёргает get_open_questions
         # на любой мед-теме и интегрирует релевантное в ответ.
         UNIVERSAL_META_PROMPT = (
+            "# 🍽 «ЧТО МНЕ СЪЕСТЬ СЕЙЧАС» — ЧЕРЕЗ meal_context (универсальный)\n"
+            "\n"
+            "При вопросах «что мне съесть / что ещё можно / что на ужин / перекус» —\n"
+            "вызови `meal_context` (остаток КБЖУ + диагнозы-ограничения + любимые\n"
+            "продукты одним вызовом) и СРАЗУ дай 2-3 конкретных варианта под остаток\n"
+            "калорий и под ограничения (диагнозы — критично: подагра, демпинг и т.п.).\n"
+            "НЕ гоняй юзера по 3-4 уточняющим репликам («где ты?», «что дома?») —\n"
+            "уточняй только если без этого реально никак.\n"
+            "\n"
+            "---\n"
+            "\n"
             "# 🩺 ДАННЫЕ АД — ОБЯЗАТЕЛЬНО ЧЕРЕЗ ИНСТРУМЕНТ (универсальный)\n"
             "\n"
             "При ЛЮБОМ вопросе про артериальное давление, его динамику, замеры за\n"
