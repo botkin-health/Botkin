@@ -93,7 +93,9 @@ def test_rls_blocks_other_users_meals(hv_app_engine):
     with hv_app_engine.connect() as conn:
         with conn.begin():
             conn.execute(text("SET LOCAL app.user_id = '895655'"))
-            rows = conn.execute(text("SELECT user_id FROM nutrition_log WHERE user_id = REDACTED_ID LIMIT 5")).fetchall()
+            rows = conn.execute(
+                text("SELECT user_id FROM nutrition_log WHERE user_id = REDACTED_ID LIMIT 5")
+            ).fetchall()
     assert len(rows) == 0, "Sasha's session shouldn't see Nika's nutrition rows"
 
 
