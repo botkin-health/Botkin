@@ -103,13 +103,45 @@ def main() -> int:
     cutoff = (date.today() - timedelta(days=KEEP_DAYS)).isoformat()
     workouts = [w for w in full.get("workouts", []) if w.get("date", "") >= cutoff]
 
+    out = out_path_for(args.user_id)
+
+    # Шаг 2.5: сохранить HR-производные поля из существующего per-user файла.
+    # aerobic_base_min / maf_zones / hr_sample_minutes считаются ТОЛЬКО на маке
+    # (scripts/util/compute_aerobic_base.py — нужны посекундные HR-сэмплы из Garmin
+    # Connect, на сервере токенов нет). parse_workouts их не восстанавливает, поэтому
+    # серверная пересборка (/sync, cron) затирала их в None и «Z2 база» обнулялась.
+    # Переносим по activity_id (fallback date) из старого файла. См. F-001 (08.06.2026).
+    _CARRY = ("aerobic_base_min", "maf_zones", "hr_sample_minutes")
+    if out.exists():
+        try:
+            prev = json.loads(out.read_text())
+            prev_map = {}
+            for w in prev.get("workouts", []):
+                k = w.get("activity_id") or w.get("garmin_activity_id") or w.get("date")
+                if k is not None:
+                    prev_map[k] = w
+            carried = 0
+            for w in workouts:
+                k = w.get("activity_id") or w.get("garmin_activity_id") or w.get("date")
+                old = prev_map.get(k)
+                if not old:
+                    continue
+                for field in _CARRY:
+                    if w.get(field) is None and old.get(field) is not None:
+                        w[field] = old[field]
+                        if field == "aerobic_base_min":
+                            carried += 1
+            if carried:
+                print(f"   ↺ перенесён aerobic_base_min из старого файла: {carried} трен.")
+        except Exception as e:  # noqa: BLE001 — merge не должен ронять сборку
+            print(f"   ⚠️ не удалось смержить aerobic_base из {out.name}: {e}", file=sys.stderr)
+
     payload = {
         "generated_at": full.get("generated_at"),
         "workouts": workouts,
         "kept_days": KEEP_DAYS,
     }
 
-    out = out_path_for(args.user_id)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
 

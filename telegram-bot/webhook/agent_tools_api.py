@@ -1589,7 +1589,10 @@ async def recent_workouts(
     # Aggregate zones (prefer MAF — longevity school — over Garmin hr_zones)
     def _zone_min(w, zone_key):
         zones = w.get("maf_zones") or w.get("hr_zones") or {}
-        return zones.get(zone_key, 0) or 0
+        # Ключи в workouts_log: z1_min..z5_min (а не z1..z5) — как пишет
+        # build_workouts_log.py и читает dashboard_generator. Раньше читали
+        # голый "z2" → всегда 0 → агент сообщал «0 мин Z2». См. F-001 (08.06.2026).
+        return zones.get(zone_key, 0) or zones.get(f"{zone_key}_min", 0) or 0
 
     weeks = days / 7
     z1_total = sum(_zone_min(w, "z1") for w in in_window)
@@ -1598,6 +1601,23 @@ async def recent_workouts(
     z4_total = sum(_zone_min(w, "z4") for w in in_window)
     z5_total = sum(_zone_min(w, "z5") for w in in_window)
     total_zone_min = z1_total + z2_total + z3_total + z4_total + z5_total
+
+    # «Z2 база» в смысле longevity-школы (Attia/Maffetone, HR-коридор 114-131 для
+    # 49 лет) — это aerobic_base_min, посчитанный из посекундных HR-сэмплов
+    # (scripts/util/compute_aerobic_base.py). НЕ путать с Garmin-зоной z2 (139+ bpm):
+    # лёгкий бег на 128 bpm у Garmin = z1, но это и есть aerobic base. Дашборд берёт
+    # именно aerobic_base (dashboard_generator._base_min_for) — агент теперь тоже,
+    # иначе при цели Attia 150 мин/нед показывал ~0. См. F-001 (08.06.2026).
+    def _aerobic_base_min(w):
+        v = w.get("aerobic_base_min")
+        if v is not None:
+            return float(v)
+        maf = w.get("maf_zones") or {}
+        if maf.get("z2_min") is not None:
+            return float(maf["z2_min"])
+        return 0.0
+
+    aerobic_base_total = sum(_aerobic_base_min(w) for w in in_window)
 
     # Acute vs Chronic load
     seven_ago = today_date - timedelta(days=7)
@@ -1673,7 +1693,10 @@ async def recent_workouts(
         "extremes_by_type": extremes_by_type,
         "stats": {
             "per_week": round(len(in_window) / weeks, 1),
-            "z2_min_per_week": round(z2_total / weeks),
+            # z2_min_per_week = aerobic base (longevity-Z2, HR 114-131), как KPI дашборда
+            "z2_min_per_week": round(aerobic_base_total / weeks),
+            "z2_min_per_week_garmin": round(z2_total / weeks),  # Garmin-зона z2 (139+), для справки
+            "z2_metric_note": "z2_min_per_week — это aerobic base (HR 114-131, метрика Attia/Maffetone), НЕ Garmin-зона Z2",
             "hiit_min_per_week": round((z4_total + z5_total) / weeks),
             "z2_target_attia": 150,  # mins/week
             "hiit_target_norwegian": 16,  # mins/week (4x4)
