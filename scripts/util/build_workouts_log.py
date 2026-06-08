@@ -52,6 +52,7 @@ KEEP_DAYS = 180
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 PARSE_SCRIPT = BASE_DIR / "scripts" / "util" / "parse_workouts.py"
+AEROBIC_SCRIPT = BASE_DIR / "scripts" / "util" / "compute_aerobic_base.py"
 SOURCE_LOG = BASE_DIR / "data" / "garmin" / "workouts_log.json"
 
 
@@ -69,6 +70,11 @@ def main() -> int:
         "--skip-parse",
         action="store_true",
         help="Не запускать parse_workouts.py, использовать существующий workouts_log.json",
+    )
+    parser.add_argument(
+        "--skip-aerobic",
+        action="store_true",
+        help="Не запускать compute_aerobic_base.py (без Garmin Connect / для скорости)",
     )
     args = parser.parse_args()
 
@@ -97,6 +103,32 @@ def main() -> int:
     if not SOURCE_LOG.exists():
         print(f"❌ {SOURCE_LOG} не появился после parse_workouts", file=sys.stderr)
         return 2
+
+    # Шаг 1.5: точная Z2-база (aerobic_base_min) из посекундных HR-сэмплов.
+    # Best-effort: нужен Garmin Connect (garth-токены + garminconnect). Если их нет
+    # или fetch упал — НЕ роняем сборку, merge-guard ниже подхватит старые значения.
+    # Без этого шага новые тренировки приходят с aerobic_base=None → «Z2 база» = 0.
+    # См. F-001 (08.06.2026). --skip-parse тоже пропускает compute (источник не менялся).
+    if not args.skip_parse and not args.skip_aerobic and AEROBIC_SCRIPT.exists():
+        print(f"🎯 Запуск {AEROBIC_SCRIPT.name} (точная Z2-база по HR)…")
+        try:
+            result = subprocess.run(
+                [sys.executable, str(AEROBIC_SCRIPT), "--days", "30"],
+                capture_output=True,
+                text=True,
+                timeout=300,
+            )
+            tail = "\n".join((result.stdout or "").strip().splitlines()[-3:])
+            if tail:
+                print(tail)
+            if result.returncode != 0:
+                print(
+                    f"   ⚠️ compute_aerobic_base вернул {result.returncode} — "
+                    f"пропускаем (старые значения сохранит merge-guard)",
+                    file=sys.stderr,
+                )
+        except Exception as e:  # noqa: BLE001 — compute не должен ронять /sync
+            print(f"   ⚠️ compute_aerobic_base не отработал ({e}) — пропускаем", file=sys.stderr)
 
     # Шаг 2: обрезаем до 180 дней и кладём в per-user место для дашборда
     full = json.loads(SOURCE_LOG.read_text())
