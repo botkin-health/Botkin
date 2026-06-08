@@ -1232,8 +1232,25 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
 
         elif msg_type == "weight":
             w_val = data.get("weight")
-            await processing_msg.edit_text(f"⚖️ <b>Вес:</b> {w_val} кг\n✅ Записано (Simulated)", parse_mode="HTML")
-            return
+            # Guard: сохраняем только правдоподобный вес тела; иначе отдаём в агент
+            # (тот же приём, что и в ветке bp выше).
+            if not isinstance(w_val, (int, float)) or not (20 <= w_val <= 400):
+                router_result = None
+                msg_type = None
+            else:
+                from helpers.db_save import save_weight_to_db
+
+                saved = save_weight_to_db(
+                    {"weight": w_val, "source": "e2e_test" if is_e2e else "llm_text"},
+                    user_id=int(user_id),
+                )
+                e2e_prefix = "🧪 [E2E] " if is_e2e else ""
+                status = "✅ Записано" if saved else "⚠️ Ошибка записи"
+                await processing_msg.edit_text(
+                    f"{e2e_prefix}⚖️ <b>Вес:</b> {w_val} кг\n{status}",
+                    parse_mode="HTML",
+                )
+                return
 
         elif msg_type == "bp":
             # 🩺 BP (task #53): LLM-роутер распознал замер АД (если regex
