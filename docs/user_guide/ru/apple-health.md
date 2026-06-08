@@ -46,7 +46,7 @@ hvt_895655_a1b2c3d4e5f6...
 В приложении HAE:
 
 1. **Add Automation** → **REST API**
-2. **URL:** `https://health.orangegate.cc/apple_health_v2`
+2. **URL:** `https://botkin.health/apple_health_v2`
 3. **HTTP Method:** POST
 4. **Header:** добавить `Authorization` со значением `Bearer hvt_895655_твой_токен`
 5. **Format:** JSON · **Version:** v2

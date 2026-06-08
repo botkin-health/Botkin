@@ -534,7 +534,7 @@ async def _finish_onboarding(user: User, db, chat_id: int) -> None:
         msg += (
             "\nДля автосинка с Apple Health поставь приложение Health Auto Export "
             "($24.99) и пропиши:\n"
-            f"• URL: <code>https://health.orangegate.cc/apple_health_v2</code>\n"
+            f"• URL: <code>https://botkin.health/apple_health_v2</code>\n"
             f"• Header: <code>Authorization: Bearer {user.health_token}</code>\n"
         )
 
