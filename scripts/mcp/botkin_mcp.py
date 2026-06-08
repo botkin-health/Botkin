@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-HealthVault MCP Server — инструменты для Claude Desktop.
+Botkin MCP Server — инструменты для Claude Desktop.
 
 Инструменты:
   read_knowledge_base(person)  — медицинская база знаний члена семьи
@@ -22,7 +22,7 @@ from pathlib import Path
 from mcp.server.fastmcp import FastMCP
 
 ROOT = Path(__file__).resolve().parents[2]
-FAMILY_HEALTH = Path.home() / "Library/CloudStorage/GoogleDrive-lyskovsky@gmail.com/Мой диск/HealthVault"
+FAMILY_HEALTH = Path.home() / "Library/CloudStorage/GoogleDrive-lyskovsky@gmail.com/Мой диск/FamilyHealth"
 
 SSH_SERVER = "root@116.203.213.137"
 SSH_OPTS = ["-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=10"]
@@ -39,7 +39,7 @@ if _personal_yaml.exists():
 else:
     PERSON_MAP = {"self": os.getenv("BOTKIN_SELF_DIR", "")}
 
-mcp = FastMCP("HealthVault")
+mcp = FastMCP("Botkin")
 
 
 @mcp.tool()

@@ -1,5 +1,5 @@
 """
-Configuration module for HealthVault.
+Configuration module for Botkin.
 Provides unified access to all settings and secrets.
 """
 

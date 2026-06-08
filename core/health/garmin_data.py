@@ -128,7 +128,7 @@ def sync_today_garmin(user_id: int, target_date: Optional[date_type] = None) -> 
                 return (float(activity.active_calories or 0), "cached")
 
         # --- 2. Get credentials ---
-        primary_id = int(os.getenv("HEALTHVAULT_USER_ID", "895655"))
+        primary_id = int(os.getenv("BOTKIN_USER_ID") or os.getenv("HEALTHVAULT_USER_ID") or "895655")
         if user_id == primary_id:
             email = os.getenv("GARMIN_EMAIL")
             password = os.getenv("GARMIN_PASSWORD")
@@ -232,7 +232,7 @@ def sync_garmin_data(user_id: int, sync_date: Optional[date_type] = None):
             return
 
         # Garmin: только из DB или ENV для основного пользователя (обратная совместимость)
-        primary_id = int(os.getenv("HEALTHVAULT_USER_ID", "895655"))
+        primary_id = int(os.getenv("BOTKIN_USER_ID") or os.getenv("HEALTHVAULT_USER_ID") or "895655")
         if user.garmin_email and user.garmin_password:
             email, password = user.garmin_email, user.garmin_password
         elif user_id == primary_id and os.getenv("GARMIN_EMAIL") and os.getenv("GARMIN_PASSWORD"):

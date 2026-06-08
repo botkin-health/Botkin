@@ -23,7 +23,7 @@ from database.crud import create_weight, get_weights_by_period
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
-USER_ID = int(os.getenv("HEALTHVAULT_USER_ID", "895655"))
+USER_ID = int(os.getenv("BOTKIN_USER_ID") or os.getenv("HEALTHVAULT_USER_ID") or "895655")
 START = date(2026, 1, 6)
 END = date.today()
 

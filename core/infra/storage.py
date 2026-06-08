@@ -11,13 +11,14 @@ from datetime import datetime
 from typing import Dict, Optional
 
 
-# Определяем корневую директорию HealthVault
-HEALTHVAULT_ROOT = Path(__file__).parent.parent
+# Корневая директория проекта
+BOTKIN_ROOT = Path(__file__).parent.parent
+HEALTHVAULT_ROOT = BOTKIN_ROOT  # backward-compat alias, remove after server migration
 
 # Директории для логов
-NUTRITION_LOG_DIR = HEALTHVAULT_ROOT / "data" / "logs" / "nutrition"
-SUPPLEMENTS_LOG_DIR = HEALTHVAULT_ROOT / "data" / "logs" / "supplements"
-MEDIA_DIR = HEALTHVAULT_ROOT / "data" / "media" / "nutrition"
+NUTRITION_LOG_DIR = BOTKIN_ROOT / "data" / "logs" / "nutrition"
+SUPPLEMENTS_LOG_DIR = BOTKIN_ROOT / "data" / "logs" / "supplements"
+MEDIA_DIR = BOTKIN_ROOT / "data" / "media" / "nutrition"
 
 # Создаем директории, если их нет
 for dir_path in [NUTRITION_LOG_DIR, SUPPLEMENTS_LOG_DIR, MEDIA_DIR]:
@@ -109,7 +110,7 @@ def get_today_totals() -> Dict:
     }
 
     # Пробуем загрузить из основного JSON файла
-    nutrition_json = HEALTHVAULT_ROOT / "data" / "nutrition" / "nutrition_log.json"
+    nutrition_json = BOTKIN_ROOT / "data" / "nutrition" / "nutrition_log.json"
     if nutrition_json.exists():
         try:
             with open(nutrition_json, "r", encoding="utf-8") as f:

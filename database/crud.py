@@ -1,5 +1,5 @@
 """
-CRUD operations for HealthVault database
+CRUD operations for Botkin database
 
 This module provides database operations for all tables:
 - Users: create, get, update, list
