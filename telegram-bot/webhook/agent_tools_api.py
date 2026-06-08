@@ -1695,8 +1695,7 @@ async def recent_workouts(
             "per_week": round(len(in_window) / weeks, 1),
             # z2_min_per_week = aerobic base (longevity-Z2, HR 114-131), как KPI дашборда
             "z2_min_per_week": round(aerobic_base_total / weeks),
-            "z2_min_per_week_garmin": round(z2_total / weeks),  # Garmin-зона z2 (139+), для справки
-            "z2_metric_note": "z2_min_per_week — это aerobic base (HR 114-131, метрика Attia/Maffetone), НЕ Garmin-зона Z2",
+            "z2_metric_note": "z2_min_per_week — это aerobic base (HR 114-131, метрика Attia/Maffetone), НЕ Garmin-зона Z2 (139+)",
             "hiit_min_per_week": round((z4_total + z5_total) / weeks),
             "z2_target_attia": 150,  # mins/week
             "hiit_target_norwegian": 16,  # mins/week (4x4)

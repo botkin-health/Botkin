@@ -278,6 +278,7 @@ async def main():
         BotCommand(command="share", description="Поделиться дашбордом здоровья"),
         BotCommand(command="profile", description="Настроить профиль (рост, возраст, цель)"),
         BotCommand(command="sync", description="Подтянуть свежие данные (Garmin, весы, погода)"),
+        BotCommand(command="agent_reset", description="Сбросить недавний контекст AI-ассистента"),
         BotCommand(command="help", description="Помощь"),
     ]
 

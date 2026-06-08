@@ -434,6 +434,65 @@ async def cmd_cache_clear(message: Message):
         await message.answer("❌ Кэш не настроен")
 
 
+@router.message(Command("agent_reset"))
+async def cmd_agent_reset(message: Message, user_id: int):
+    """/agent_reset — сбросить недавнюю историю AI-ассистента (за 24ч).
+
+    Лечит «токсичную» историю: когда бот когда-то ответил «нет данных» и
+    повторяет это даже после загрузки данных. Старше 24ч НЕ трогаем —
+    это долговременная память (контекст истории здоровья).
+
+    /agent_reset          — показать сколько сообщений будет удалено
+    /agent_reset confirm  — удалить
+    """
+    from sqlalchemy import text as _sql
+
+    from database import SessionLocal
+
+    args = message.text.split()[1:] if message.text else []
+    do_confirm = bool(args) and args[0].lower() in ("confirm", "да", "yes")
+
+    db = SessionLocal()
+    try:
+        # RLS-правило проекта: всегда WHERE user_id=<свой>.
+        cnt = db.execute(
+            _sql(
+                "SELECT COUNT(*) FROM agent_conversations "
+                "WHERE user_id = :uid AND created_at > NOW() - INTERVAL '24 hours'"
+            ),
+            {"uid": user_id},
+        ).scalar()
+
+        if not cnt:
+            await message.answer("🤖 За последние 24 часа истории нет — сбрасывать нечего.")
+            return
+
+        if not do_confirm:
+            await message.answer(
+                f"🤖 В истории AI-ассистента за 24 часа: <b>{cnt}</b> сообщений.\n\n"
+                "Сброс уберёт недавний контекст (полезно, если бот «застрял» на старом "
+                "ответе). История здоровья старше 24ч сохранится.\n\n"
+                "Подтвердить: <code>/agent_reset confirm</code>",
+                parse_mode="HTML",
+            )
+            return
+
+        deleted = db.execute(
+            _sql("DELETE FROM agent_conversations WHERE user_id = :uid AND created_at > NOW() - INTERVAL '24 hours'"),
+            {"uid": user_id},
+        ).rowcount
+        db.commit()
+        await message.answer(
+            f"🗑 Контекст AI-ассистента сброшен: удалено {deleted} сообщений за 24ч.\n"
+            "Следующий вопрос обработаю с чистого листа (данные и история здоровья на месте)."
+        )
+    except Exception as e:
+        db.rollback()
+        await message.answer(f"❌ Ошибка сброса: {e}")
+    finally:
+        db.close()
+
+
 # Alias for old users / comfort
 @router.message(Command("status"))
 async def cmd_status_alias(message: Message):
