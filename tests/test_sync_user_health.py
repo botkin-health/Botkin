@@ -9,9 +9,11 @@ sys.path.insert(0, str(ROOT))
 from config.users import KB_USERS
 
 
-def test_kb_users_has_all_seven():
-    assert len(KB_USERS) == 7
-    assert KB_USERS[895655].startswith("Александр")
+def test_kb_users_is_dict():
+    # KB_USERS подгружается из приватного config/users_private.py (в .gitignore),
+    # с fallback на {} в публичном репозитории. Поэтому проверяем структуру (это dict),
+    # а не конкретный состав/количество пользователей — оно зависит от приватного конфига.
+    assert isinstance(KB_USERS, dict)
 
 
 def test_sync_user_health_importable_and_has_main():
