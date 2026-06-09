@@ -16,6 +16,8 @@ from fastapi import FastAPI, HTTPException, Depends, Header, Request
 from pydantic import BaseModel, Field
 import uvicorn
 
+from core.health.hr_artifact import classify_hr_min
+
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Botkin Apple Health Webhook", docs_url=None, redoc_url=None)
@@ -89,6 +91,7 @@ class AppleHealthPayload(BaseModel):
     # Пульс
     resting_heart_rate: Optional[int] = None
     heart_rate_min: Optional[int] = None
+    heart_rate_min_verify: Optional[bool] = None  # True → 30-39 bpm, держим но «проверить»
     heart_rate_max: Optional[int] = None
     heart_rate_avg: Optional[int] = None
 
@@ -255,7 +258,11 @@ async def receive_apple_health(
             if payload.flights_climbed is not None:
                 raw["flights_climbed"] = payload.flights_climbed
             if payload.heart_rate_min is not None:
-                raw["heart_rate_min"] = payload.heart_rate_min
+                hr_min, needs_verify = classify_hr_min(payload.heart_rate_min)
+                if hr_min is not None:
+                    raw["heart_rate_min"] = hr_min
+                    if needs_verify:
+                        raw["heart_rate_min_verify"] = True
             if payload.heart_rate_max is not None:
                 raw["heart_rate_max"] = payload.heart_rate_max
             # NOTE: blood_pressure_systolic/diastolic НЕ идут в raw_data —
@@ -429,7 +436,11 @@ def _hae_to_daily_payloads(metrics: list[dict]) -> dict[str, AppleHealthPayload]
                 if "Avg" in rec and rec["Avg"] is not None:
                     slot["heart_rate_avg"] = int(round(float(rec["Avg"])))
                 if "Min" in rec and rec["Min"] is not None:
-                    slot["heart_rate_min"] = int(round(float(rec["Min"])))
+                    hr_min, needs_verify = classify_hr_min(float(rec["Min"]))
+                    if hr_min is not None:
+                        slot["heart_rate_min"] = hr_min
+                        if needs_verify:
+                            slot["heart_rate_min_verify"] = True
                 if "Max" in rec and rec["Max"] is not None:
                     slot["heart_rate_max"] = int(round(float(rec["Max"])))
                 if "qty" in rec and rec["qty"] is not None and "heart_rate_avg" not in slot:
@@ -610,6 +621,7 @@ async def receive_apple_health_v2(
                 "walking_asymmetry_pct",
                 "flights_climbed",
                 "heart_rate_min",
+                "heart_rate_min_verify",
                 "heart_rate_max",
                 "vo2_max",
                 "respiratory_rate",
