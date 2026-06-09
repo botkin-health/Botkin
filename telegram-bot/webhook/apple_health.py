@@ -13,7 +13,7 @@ from datetime import date, datetime, timezone
 from typing import Optional, List
 
 from fastapi import FastAPI, HTTPException, Depends, Header, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 import uvicorn
 
 logger = logging.getLogger(__name__)
@@ -121,6 +121,33 @@ class AppleHealthPayload(BaseModel):
     vo2_max: Optional[float] = None
     respiratory_rate: Optional[float] = None
     wrist_temperature: Optional[float] = None
+
+    @field_validator(
+        "steps",
+        "flights_climbed",
+        "resting_heart_rate",
+        "heart_rate_min",
+        "heart_rate_max",
+        "heart_rate_avg",
+        "blood_pressure_systolic",
+        "blood_pressure_diastolic",
+        "hrv",
+        mode="before",
+    )
+    @classmethod
+    def _round_float_to_int(cls, v):
+        """Округлять дробные значения до int.
+
+        iOS Shortcuts (бесплатный путь Apple Health) присылает усреднённые
+        метрики как float (например heart_rate_avg=72.4). Pydantic v2 strict-int
+        иначе отклоняет такие значения с 422 "got a number with a fractional part".
+        Округляем до целого, сохраняя int-семантику поля. None и уже-целые int
+        проходят без изменений; v2-путь (_hae_to_daily_payloads) уже шлёт int —
+        для него валидатор no-op.
+        """
+        if isinstance(v, float):
+            return round(v)
+        return v
 
 
 # ── Endpoint ──────────────────────────────────────────────────────────────────
