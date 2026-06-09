@@ -139,3 +139,15 @@ scripts/server/agent_prompts/*.md
 !scripts/server/agent_prompts/templates/
 docs/projects/
 docs/research/2026-05-22_android-health-connect-export-webhook.md
+
+# Google Drive placeholder-файлы (облачные доки лежат в этой папке на Drive).
+# Это JSON-указатели, не контент; репо публичный — в git им не место.
+*.gslides
+*.gdoc
+*.gsheet
+*.gdraw
+*.gform
+*.gmap
+*.gtable
+*.gsite
+*.glink
