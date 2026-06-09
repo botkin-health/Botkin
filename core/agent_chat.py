@@ -18,7 +18,9 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import sys
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Optional
@@ -1034,6 +1036,299 @@ def _validate_history(messages: list[dict]) -> list[dict]:
     return cleaned
 
 
+# ---------------------------------------------------------------------------
+# P-003 — авто-инвалидация устаревших turn'ов истории при расхождении со
+# свежими tool-данными текущего хода.
+#
+# Прецедент 09.06.2026: после фикса Z2-метрики тул отдаёт правильные числа
+# (106 мин/нед, пробежка 36.7 мин), но агент продолжал парротить старые числа
+# (61/38) и «Z2=0/баг» из накопленной истории, игнорируя свежий tool_result.
+# Промпт-правило «свежие данные > история» (коммит ad73abf) оказалось
+# недостаточным — при накопленной истории агент говорил «только что смотрел,
+# ничего не изменилось» и не звал тул заново. Лечилось только ручной чисткой
+# agent_conversations / командой /agent_reset.
+#
+# Механизм: ПЕРЕД следующим вызовом Claude сравниваем ключевые числа свежего
+# tool_result этого хода с числами/утверждениями в недавних assistant-turn'ах
+# и при ЯВНОМ конфликте по той же метрике нейтрализуем устаревший turn (текст
+# заменяется маркером, tool_use/tool_result-блоки сохраняются — чтобы не
+# нарушить парность для _validate_history).
+#
+# Консервативность (главный риск — выбросить валидный turn):
+#  • Срабатываем только если свежий tool_result реально содержит значение по
+#    этой метрике (есть ground truth этого хода).
+#  • Числа из assistant-turn берём ТОЛЬКО рядом с keyword метрики и её unit.
+#  • Числовой конфликт = turn содержит число по метрике, и НИ ОДНО из его
+#    чисел по этой метрике не совпадает (в пределах tol) ни с одним свежим
+#    значением. Если хоть одно число turn'а совпадает со свежим — turn НЕ
+#    трогаем (он, видимо, обсуждает актуальное состояние / контекстуализирует).
+#  • Fresh-значения собираем щедро (явные JSON-поля + числа рядом с keyword) —
+#    чем больше «белый список» актуальных чисел, тем меньше ложных срабатываний.
+#  • «Баг»-конфликт = в turn'е keyword + фраза вида «0/баг/не считается», а
+#    свежее значение метрики строго > 0.
+# См. docs/night-shift/2026-06-09.md (P-003).
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class _StaleMetric:
+    """Описание метрики, по которой ищем конфликт история↔свежий tool_result."""
+
+    name: str
+    label: str
+    # keyword метрики — должен встретиться И в свежем tool-тексте, И в turn'е.
+    keyword: re.Pattern
+    # захват числа в контексте метрики (число + её unit). group(1) — число.
+    number_re: re.Pattern
+    # JSON-пути к актуальным значениям в свежем tool_result (для «белого списка»).
+    # Поддержка `a.b` и `a[].b` (списки словарей).
+    json_paths: tuple = ()
+    abs_tol: float = 1.0  # допустимое расхождение (округление и т.п.)
+    rel_tol: float = 0.0  # доп. относительный допуск от свежего значения
+
+
+_NUM = r"(\d+(?:[.,]\d+)?)"
+# unit-токены метрик. Z2: число + «мин» (минуты тренировки/неделю).
+_RE_Z2_KW = re.compile(r"z2|зон[аеуы]\s*2|аэроб|aerobic", re.IGNORECASE)
+_RE_WEIGHT_KW = re.compile(r"\bвес\b|\bweight\b|кг\b", re.IGNORECASE)
+_RE_CAL_KW = re.compile(r"калор|ккал|kcal|калораж", re.IGNORECASE)
+# NB: давление (систола/диастола, пара «120/80») и биомаркеры (десятки имён,
+# разные единицы) — намеренно НЕ покрыты: безопасный generic-матчер для них
+# заметно сложнее, а риск выкинуть валидный turn выше пользы. Follow-up — см.
+# docs/night-shift/2026-06-09.md (P-003).
+
+# Фразы «метрика сломана / ноль / не считается» — категоричные утверждения,
+# которые становятся заведомо ложными, когда свежее значение метрики > 0.
+_BUG_PHRASE_RE = re.compile(
+    r"\bбаг\b|\bглюк|не\s+счита|не\s+работает|сломан|\b0\s*мин|\bноль\b|=\s*0\b|:\s*0\b",
+    re.IGNORECASE,
+)
+
+# ⚠️ Известное ограничение (verify 09.06.2026): недельный агрегат Z2 зависит от
+# окна (≈22 мин/нед за 30 дней vs 61 мин/нед за 7 дней — оба верны). Поэтому
+# исторически-корректный turn про ДРУГОЕ окно может быть нейтрализован, если в
+# нём нет ни одного числа, совпавшего со свежим. Вред мал (агент всё равно
+# перезапрашивает тул), снижается за счёт: щедрого whitelist (per-workout
+# aerobic_base_min/duration_min стабильны и не зависят от окна) + правила
+# «оставить turn, если хоть одно число совпало». Follow-up — различать окна.
+STALE_METRICS: tuple = (
+    _StaleMetric(
+        name="z2",
+        label="Z2 / aerobic base (мин)",
+        keyword=_RE_Z2_KW,
+        number_re=re.compile(_NUM + r"\s*мин", re.IGNORECASE),
+        json_paths=(
+            "stats.z2_min_per_week",
+            "stats.z2_target_attia",
+            "stats.hiit_min_per_week",
+            "items[].aerobic_base_min",
+            "items[].duration_min",
+        ),
+        abs_tol=1.0,
+    ),
+    _StaleMetric(
+        name="weight",
+        label="вес (кг)",
+        keyword=_RE_WEIGHT_KW,
+        number_re=re.compile(_NUM + r"\s*кг", re.IGNORECASE),
+        json_paths=("weight", "weight_kg", "latest.weight", "current.weight"),
+        abs_tol=0.3,
+    ),
+    _StaleMetric(
+        name="calories",
+        label="калории (ккал)",
+        keyword=_RE_CAL_KW,
+        number_re=re.compile(_NUM + r"\s*к?кал", re.IGNORECASE),
+        json_paths=("calories", "total_calories", "kcal", "totals.calories"),
+        abs_tol=20.0,
+        rel_tol=0.05,
+    ),
+)
+
+
+def _try_json(text: str):
+    """Распарсить tool_result как JSON; None если не получилось."""
+    try:
+        return json.loads(text)
+    except (ValueError, TypeError):
+        return None
+
+
+def _to_float(v) -> Optional[float]:
+    try:
+        f = float(str(v).replace(",", "."))
+    except (ValueError, TypeError):
+        return None
+    return f
+
+
+def _json_path_numbers(obj, path: str) -> set:
+    """Числа по dot-пути. Сегмент `key[]` означает «обойти список словарей»."""
+    nodes = [obj]
+    for seg in path.split("."):
+        list_seg = seg.endswith("[]")
+        key = seg[:-2] if list_seg else seg
+        nxt = []
+        for node in nodes:
+            if not isinstance(node, dict) or key not in node:
+                continue
+            val = node[key]
+            if list_seg:
+                if isinstance(val, list):
+                    nxt.extend(val)
+            else:
+                nxt.append(val)
+        nodes = nxt
+    out: set = set()
+    for n in nodes:
+        f = _to_float(n)
+        if f is not None:
+            out.add(f)
+    return out
+
+
+# Сегментируем текст ТОЛЬКО по границам предложений (точка/!/?/;/перевод
+# строки). НЕ дробим по « — » и « , »: «Z2-база — 61 мин/нед, пробежка 38 мин»
+# должно остаться одним сегментом, иначе keyword («Z2») отрывается от числа
+# («61») и теряется. Прецедент 09.06.2026 (verify): дробление по « — »/«, »
+# выкидывало 61 из связки с Z2 → инвалидация срабатывала на одном «38», хотя
+# 61 был актуальным числом (консервативное правило «оставить turn, если хоть
+# одно число совпало со свежим» не применялось).
+_SEGMENT_SPLIT_RE = re.compile(r"[\n.!?;]+")
+
+
+def _numbers_near_keyword(text: str, metric: _StaleMetric) -> set:
+    """Числа метрики из тех сегментов текста, где упомянут её keyword."""
+    out: set = set()
+    for seg in _SEGMENT_SPLIT_RE.split(text):
+        if not metric.keyword.search(seg):
+            continue
+        for m in metric.number_re.finditer(seg):
+            f = _to_float(m.group(1))
+            if f is not None:
+                out.add(f)
+    return out
+
+
+def _fresh_values(metric: _StaleMetric, tool_text: str) -> set:
+    """«Белый список» актуальных значений метрики из свежего tool_result.
+
+    Собираем щедро: явные JSON-поля + числа рядом с keyword. Чем шире набор —
+    тем меньше ложных инвалидаций (assistant-число, совпавшее с любым свежим,
+    считается актуальным).
+    """
+    vals: set = set()
+    obj = _try_json(tool_text)
+    if obj is not None:
+        for path in metric.json_paths:
+            vals |= _json_path_numbers(obj, path)
+    vals |= _numbers_near_keyword(tool_text, metric)
+    return vals
+
+
+def _matches_fresh(value: float, fresh: set, metric: _StaleMetric) -> bool:
+    """value совпадает с каким-либо свежим значением в пределах допуска."""
+    for f in fresh:
+        if abs(value - f) <= max(metric.abs_tol, metric.rel_tol * abs(f)):
+            return True
+    return False
+
+
+# В маркере НЕ цитируем устаревшие числа — иначе модель может их снова
+# спарротить. Конкретику (какие числа выкинули) пишем только в лог.
+_STALE_MARKER = (
+    "[⚠️ P-003: предыдущий ответ убран из контекста — его числа по метрике "
+    "«{label}» противоречат свежему tool_result этого хода и устарели. "
+    "Опирайся на свежий tool_result, не пытайся вспомнить прошлый ответ.]"
+)
+
+
+def _invalidate_stale_history(messages: list[dict], fresh_tool_text: str) -> list[str]:
+    """Нейтрализовать assistant-turn'ы, противоречащие свежему tool_result.
+
+    Мутирует `messages` на месте: у конфликтных assistant-turn'ов текстовые
+    блоки заменяются маркером (tool_use-блоки сохраняются, чтобы не осиротить
+    парные tool_result — см. _validate_history). Возвращает список лог-строк о
+    том, что выкинули (пусто = ничего не тронули).
+
+    Консервативно: см. блок-комментарий выше. Любая внутренняя ошибка
+    парсинга не должна ронять ход — вызывающий оборачивает в try/except.
+    """
+    if not fresh_tool_text:
+        return []
+
+    # Какие метрики реально присутствуют в свежем tool_result (есть ground truth).
+    active: list[tuple] = []
+    for metric in STALE_METRICS:
+        if not metric.keyword.search(fresh_tool_text):
+            continue
+        fresh = _fresh_values(metric, fresh_tool_text)
+        if not fresh:
+            continue
+        fresh_positive = any(f > 0 for f in fresh)
+        active.append((metric, fresh, fresh_positive))
+
+    if not active:
+        return []
+
+    notes: list[str] = []
+    for msg in messages:
+        if msg.get("role") != "assistant":
+            continue
+        content = msg.get("content")
+        if not isinstance(content, list):
+            continue
+        text = " ".join(b.get("text", "") for b in content if isinstance(b, dict) and b.get("type") == "text")
+        if not text.strip():
+            continue
+
+        for metric, fresh, fresh_positive in active:
+            if not metric.keyword.search(text):
+                continue
+
+            claim_nums = _numbers_near_keyword(text, metric)
+            numeric_conflict = bool(claim_nums) and all(not _matches_fresh(n, fresh, metric) for n in claim_nums)
+            bug_conflict = fresh_positive and bool(_BUG_PHRASE_RE.search(text))
+            # bug-фразу засчитываем только если она в сегменте с keyword метрики.
+            if bug_conflict:
+                bug_conflict = any(
+                    metric.keyword.search(seg) and _BUG_PHRASE_RE.search(seg) for seg in _SEGMENT_SPLIT_RE.split(text)
+                )
+
+            if not (numeric_conflict or bug_conflict):
+                continue
+
+            old = ", ".join(_fmt_num(n) for n in sorted(claim_nums)) if numeric_conflict else "0/сломано"
+            marker = _STALE_MARKER.format(label=metric.label)
+            # Заменяем текстовые блоки маркером, tool_use оставляем.
+            new_content = []
+            replaced = False
+            for b in content:
+                if isinstance(b, dict) and b.get("type") == "text":
+                    if not replaced:
+                        new_content.append({"type": "text", "text": marker})
+                        replaced = True
+                    # дубли text-блоков отбрасываем
+                else:
+                    new_content.append(b)
+            if not replaced:
+                new_content.insert(0, {"type": "text", "text": marker})
+            msg["content"] = new_content
+
+            notes.append(
+                f"metric={metric.name} old=[{old}] fresh_sample="
+                f"{sorted(fresh)[:5]} reason="
+                f"{'numeric' if numeric_conflict else 'bug-phrase'}"
+            )
+            break  # turn нейтрализован — другие метрики по нему не проверяем
+
+    return notes
+
+
+def _fmt_num(n: float) -> str:
+    return str(int(n)) if float(n).is_integer() else str(n)
+
+
 def _save_message(
     db,
     user_id: int,
@@ -1193,6 +1488,9 @@ def ask_agent(
 
         # Build messages: history + new user turn
         history = _load_history(db, user_id)
+        # P-003: всё ДО текущего user-сообщения — кандидаты на инвалидацию, если
+        # свежий tool_result этого хода им противоречит (см. _invalidate_stale_history).
+        prior_history_len = len(history)
         history.append({"role": "user", "content": user_text})
 
         # Persist user turn immediately so a crash mid-call doesn't lose it.
@@ -1558,6 +1856,19 @@ def ask_agent(
                             "content": result_text,
                         }
                     )
+
+                # P-003: свежие tool_result этого хода — ground truth. Сверяем
+                # ключевые числа с недавними assistant-turn'ами истории и
+                # нейтрализуем те, что противоречат (иначе агент парротит старое
+                # вместо свежего — прецедент 09.06.2026, F-001). Мутирует turn'ы
+                # in-place → следующая итерация увидит чистую историю.
+                try:
+                    fresh_text = "\n".join(tr["content"] for tr in tool_results if isinstance(tr.get("content"), str))
+                    stale_notes = _invalidate_stale_history(history[:prior_history_len], fresh_text)
+                    for note in stale_notes:
+                        logger.info("P-003 invalidated stale turn: user=%s %s", user_id, note)
+                except Exception:
+                    logger.exception("P-003 stale-history invalidation failed (non-fatal)")
 
                 _save_message(db, user_id, "tool_result", tool_results, source=src)
                 history.append({"role": "user", "content": tool_results})
