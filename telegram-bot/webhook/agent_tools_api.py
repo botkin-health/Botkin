@@ -1725,6 +1725,11 @@ async def recent_workouts(
                 "distance_km": w.get("distance_km"),
                 "avg_hr": w.get("avg_hr"),
                 "training_load": w.get("training_load"),
+                # Потренировочная Z2-база (longevity, HR 114-131) и полная MAF-разбивка
+                # зон ИМЕННО этой тренировки. Без этого агент на вопрос «сколько Z2
+                # в пробежке 7-го» не имел данных и выдумывал числа. См. F (09.06).
+                "aerobic_base_min": w.get("aerobic_base_min"),
+                "maf_zones": w.get("maf_zones"),
             }
             for w in sorted(in_window, key=lambda w: w.get("date", ""), reverse=True)[:15]
         ],

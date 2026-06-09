@@ -86,18 +86,27 @@ def find_metric_index(descriptors: list[dict], key: str) -> int | None:
     return None
 
 
-def compute_maf_zones(activity_details: dict, boundaries: dict) -> dict:
+def compute_maf_zones(activity_details: dict, boundaries: dict, duration_min: float | None = None) -> dict:
     """Распределение HR-сэмплов по 5 Maffetone-зонам.
+
+    ВАЖНО (фикс 09.06.2026): Garmin прореживает activityDetailMetrics для длинных
+    активностей (1 сэмпл может = 2-5 сек, а не 1 сек). Раньше считали counts/60,
+    предполагая 1 сэмпл = 1 сек → зоны занижались вдвое+ на длинных тренировках
+    (06-07: 25.1 мин из реальных 49.6). Теперь считаем ДОЛИ зон по сэмплам и
+    масштабируем на фактическую длительность тренировки (duration_min) → сумма
+    зон = длительности независимо от частоты записи. Fallback на counts/60 если
+    duration_min не передан.
 
     Returns: {
         "z1_min": float, "z2_min": float, "z3_min": float, "z4_min": float, "z5_min": float,
-        "total_min": float, "avg_hr": float
+        "total_min": float, "avg_hr": float, "sample_seconds_each": float
     }
     """
     desc = activity_details.get("metricDescriptors") or []
     hr_idx = find_metric_index(desc, "directHeartRate")
+    empty = {"z1_min": 0, "z2_min": 0, "z3_min": 0, "z4_min": 0, "z5_min": 0, "total_min": 0, "avg_hr": 0}
     if hr_idx is None:
-        return {"z1_min": 0, "z2_min": 0, "z3_min": 0, "z4_min": 0, "z5_min": 0, "total_min": 0, "avg_hr": 0}
+        return empty
 
     metrics = activity_details.get("activityDetailMetrics") or []
     counts = {"z1": 0, "z2": 0, "z3": 0, "z4": 0, "z5": 0}
@@ -110,14 +119,26 @@ def compute_maf_zones(activity_details: dict, boundaries: dict) -> dict:
             counts[classify_hr(hr, boundaries)] += 1
             hr_sum += hr
             total += 1
+    if total == 0:
+        return empty
+
+    # Масштаб: если знаем длительность — раскладываем её по долям зон (устойчиво
+    # к прореживанию). Иначе старое допущение «1 сэмпл = 1 сек».
+    span_min = duration_min if (duration_min and duration_min > 0) else (total / 60.0)
+    sec_each = round(span_min * 60.0 / total, 2)  # сколько реальных секунд на сэмпл
+
+    def zmin(z):
+        return round(counts[z] / total * span_min, 1)
+
     return {
-        "z1_min": round(counts["z1"] / 60.0, 1),
-        "z2_min": round(counts["z2"] / 60.0, 1),
-        "z3_min": round(counts["z3"] / 60.0, 1),
-        "z4_min": round(counts["z4"] / 60.0, 1),
-        "z5_min": round(counts["z5"] / 60.0, 1),
-        "total_min": round(total / 60.0, 1),
-        "avg_hr": round(hr_sum / total, 1) if total else 0,
+        "z1_min": zmin("z1"),
+        "z2_min": zmin("z2"),
+        "z3_min": zmin("z3"),
+        "z4_min": zmin("z4"),
+        "z5_min": zmin("z5"),
+        "total_min": round(span_min, 1),
+        "avg_hr": round(hr_sum / total, 1),
+        "sample_seconds_each": sec_each,
     }
 
 
@@ -280,7 +301,7 @@ def main():
         if not has_cache:
             fetched += 1
 
-        maf = compute_maf_zones(details, boundaries)
+        maf = compute_maf_zones(details, boundaries, duration_min=w.get("duration_min"))
         w["aerobic_base_min"] = maf["z2_min"]
         w["hr_sample_minutes"] = maf["total_min"]
         w["maf_zones"] = {
