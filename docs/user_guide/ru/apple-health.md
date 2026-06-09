@@ -132,11 +132,13 @@ hvt_895655_a1b2c3d4e5f6...
 
 ### Шаг 2 — установи команду
 
-> 🔗 Ссылка на готовый шаблон (iCloud) будет здесь после публикации.
-> Нажми её на iPhone → **«Добавить команду»** → вставь свой ключ `Bearer hvt_…` (целиком).
->
-> Команда собирается вручную на iPhone (Find Health Samples → Calculate Statistics → POST
-> на `botkin.health/apple_health`). Импортировать готовый `.shortcut`-файл нельзя — Apple
+🔗 **Готовый шаблон:** [Botkin Health Export (iCloud)](https://www.icloud.com/shortcuts/61542a7b1edb42ad86b0b99137c00a94)
+
+Нажми ссылку на iPhone → **«Добавить команду»** → в поле «Текст» вставь свой ключ
+`Bearer hvt_…` (целиком, вместе со словом Bearer) вместо плейсхолдера.
+
+> Команда собрана из стандартных действий iOS (Find Health Samples → Calculate Statistics →
+> POST на `botkin.health/apple_health`). Импортировать готовый `.shortcut`-файл нельзя — Apple
 > отдаёт его зашифрованным; распространение только через подписанную iCloud-ссылку.
 
 ### Шаг 3 — разреши доступ к данным здоровья
