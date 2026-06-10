@@ -1,4 +1,4 @@
-# Database Models for HealthVault Multi-user
+# Database Models for Botkin Multi-user
 
 import secrets
 from datetime import date, datetime, time

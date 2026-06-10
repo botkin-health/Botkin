@@ -1,3 +1,3 @@
 """
-Domain models and interfaces for HealthVault
+Domain models and interfaces for Botkin
 """

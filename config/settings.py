@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Unified configuration for HealthVault.
+Unified configuration for Botkin.
 All secrets and settings should come from environment variables.
 """
 

@@ -22,7 +22,7 @@ from database import SessionLocal
 from database.crud import create_or_update_activity
 from sqlalchemy import text
 
-USER_ID = int(os.getenv("HEALTHVAULT_USER_ID", "895655"))
+USER_ID = int(os.getenv("BOTKIN_USER_ID") or os.getenv("HEALTHVAULT_USER_ID") or "895655")
 SLEEP_DIR = project_root / "data" / "garmin" / "sleep"
 START = date(2026, 1, 6)
 END = date.today()

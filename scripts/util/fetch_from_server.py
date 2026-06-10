@@ -6,7 +6,7 @@ HOST = "116.203.213.137"
 USER = "root"
 KEY_FILE = os.path.expanduser("~/.ssh/id_ed25519")
 # Owner telegram_id — used in SQL queries. Override with env var if needed.
-OWNER_USER_ID = int(os.getenv("HEALTHVAULT_USER_ID", "895655"))
+OWNER_USER_ID = int(os.getenv("BOTKIN_USER_ID") or os.getenv("HEALTHVAULT_USER_ID") or "895655")
 
 
 def run_ssh_query(ssh, query, output_file):

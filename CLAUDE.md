@@ -1,4 +1,6 @@
-# Botkin — Контекст для Claude Code
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 > Открытая платформа трекинга здоровья ([botkin.health](https://botkin.health)).
 > Контакты автора на сайте.
@@ -206,6 +208,97 @@ python3 scripts/import/parse_apple_health_xml.py
 
 Эти файлы НЕ читают `/sync` и `/dashboard` — они лежат как архив. Если пользователь спросит что-то из истории ("тренировки за 2017", "плавание в 2024") — читаем напрямую через `Read`/`python3`.
 
+## Команды разработки
+
+### Тесты
+
+```bash
+# Запуск всех unit-тестов (integration и live LLM исключены по умолчанию)
+PYTHONPATH=. pytest tests/ -v \
+  --ignore=tests/integration \
+  --ignore=tests/test_nutrition_parsing.py \
+  --deselect tests/test_agent_tools_api.py::test_log_meal_text_returns_200 \
+  --deselect tests/test_agent_tools_api.py::test_log_meal_text_defaults_to_today \
+  --deselect tests/test_user_model.py::test_user_has_cohort_field
+
+# Запуск одного файла
+PYTHONPATH=. pytest tests/test_nutrition_logic.py -v
+
+# Запуск одного теста
+PYTHONPATH=. pytest tests/test_nutrition_logic.py::test_xxx -v
+
+# Для тестов нужны dummy-переменные (реальные значения не нужны)
+export TELEGRAM_BOT_TOKEN="0000000000:CI_DUMMY_TOKEN_NOT_REAL"
+export ANTHROPIC_API_KEY="sk-ant-ci-dummy-not-real"
+export OPENAI_API_KEY="sk-ci-dummy-not-real"
+# DATABASE_URL не нужна — conftest.py создаёт in-memory SQLite
+```
+
+### Линтинг
+
+```bash
+# Проверить линтером
+ruff check .
+
+# Проверить форматирование
+ruff format --check .
+
+# Автоисправление
+ruff check --fix .
+ruff format .
+```
+
+Конфигурация ruff — в `pyproject.toml`. Строки >120 символов игнорируются (E501 — LLM-промпты намеренно длинные).
+
+### Деплой на сервер (Hetzner 116.203.213.137)
+
+```bash
+# Стандартный деплой (rsync кода + пересборка Docker + рестарт)
+./deploy.sh
+
+# Принудительная пересборка Docker без кэша (после изменений в requirements.txt)
+./deploy.sh --force-rebuild
+
+# Только рестарт контейнеров без пересборки (если менялась только конфигурация)
+./deploy.sh --skip-rebuild
+
+# Пропустить LLM prompt e2e-тесты после деплоя
+./deploy.sh --skip-llm-tests
+```
+
+⚠️ `./deploy.sh` синкает файлы через rsync **и пересобирает Docker-образ** — без пересборки изменения кода не применяются. `SERVER_PASSWORD` берётся из `.env` или переменной окружения.
+
+### Диагностика сервера
+
+```bash
+# Логи бота (последние 50 строк)
+ssh root@116.203.213.137 "docker logs healthvault_bot --tail 50"
+
+# Статус контейнера
+ssh root@116.203.213.137 "docker ps | grep healthvault"
+
+# Рестарт бота
+ssh root@116.203.213.137 "docker restart healthvault_bot"
+
+# psql на сервере
+ssh root@116.203.213.137 "docker exec healthvault_postgres psql -U healthvault -d healthvault"
+
+# Диагностика общего состояния
+./scripts/diagnose_server.sh
+```
+
+### Синк данных здоровья
+
+```bash
+# Синк KB конкретного пользователя (bind-mount + Postgres)
+python3 scripts/sync_user_health.py --user 895655 --apply
+
+# Все пользователи
+python3 scripts/sync_user_health.py --all --apply
+```
+
+---
+
 ## Skills (Claude Code)
 
 - `/sync` — обновить все источники данных, показать таблицу актуальности
@@ -235,6 +328,19 @@ python3 scripts/import/parse_apple_health_xml.py
 5. Дождаться `✅ Токен получен!` — токен сохранён в `data/cache/tokens.json`
 6. **Если после этого упала ошибка** (sshpass, сеть и т.п.) — **не передавать `--code` повторно!**
    OAuth-код одноразовый. Просто запустить `scripts/import/zepp_api.py` без флагов — токен уже в кэше.
+
+## Анти-паттерны кода (не повторять)
+
+- ❌ Импортировать `core.llm_router`, `core.menu_parser` и другие proxy-shims из корня `core/` — это re-exports из рефакторинга 22.03.2026. Импортировать напрямую: `from core.llm.router import …`, `from core.vision.menu_parser import …`
+- ❌ `SELECT … FROM nutrition_log` без `WHERE user_id = X` — суммируются все пользователи
+- ❌ Писать новые поля в таблицу `users` — настройки и цели живут в `user_settings`
+- ❌ Читать поле `totals->>'fat'` — поле называется `totals->>'fats'` (множественное число)
+- ❌ FK на `users.id` — PK таблицы users это `telegram_id` (BigInt), не синтетический `id`
+- ❌ Читать items только по одному ключу (`it["food"]`) — есть 3 схемы одновременно; использовать `_item_name()` из `core/food/fiber_table.py`
+- ❌ Писать items без поля `fiber` — прогонять через `enrich_items_with_fiber()` перед INSERT
+- ❌ Писать в orphan-таблицы `blood_pressure_logs / daily_summaries / sleep_records / workouts` — они не управляются ORM
+
+---
 
 ## Важные правила
 
@@ -300,6 +406,21 @@ python3 scripts/generate_exam_journal.py "Имя — Здоровье" --update-
 - knowledge_base.json в корне проекта — данные ТОЛЬКО owner-cohort
 - Данные бота (PostgreSQL) — только пользователи бота (см. `~/.claude/CLAUDE.md`)
 - Именование файлов: `{тип}_{YYYY-MM-DD}_{лаборатория}_{подтип}.{ext}`
+
+## BotkinClaw — AI-агент (in-process)
+
+AI-врач живёт **внутри** основного aiogram-бота (`@Botkin_md_bot`), не в отдельном контейнере.
+
+- **Точка входа:** `core/agent_chat.py:ask_agent()` — прямой вызов Anthropic Messages API (Claude)
+- **История диалога:** таблица `agent_chat_history` в Postgres
+- **Tools:** 18 endpoints в `telegram-bot/webhook/agent_tools_api.py` (JWT+RLS изоляция по cohort)
+- **JWT-контракт:** каждый запрос агента несёт `user_id` + `cohort` — RLS автоматически ограничивает видимость данных
+
+Ключевые agent tools: `get_weight_history`, `get_body_measurements`, `get_day_summary`, `get_indoor_air`, `get_outdoor_weather`, `get_user_settings`, `recent_workouts`, `/recent_biomarkers`, `/phenoage`, `/kb_value`, `/list_kb_keys`.
+
+Решение принято 21.05.2026 вместо NanoClaw (отдельной контейнерной инфры). Подробнее — [ADR-0002](docs/architecture/decisions/0002-rejecting-nanoclaw-for-simpler-agent.md).
+
+---
 
 ## Архитектура проекта (код)
 
