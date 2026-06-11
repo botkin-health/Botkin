@@ -5,6 +5,9 @@ import os
 from pathlib import Path
 from typing import Optional, Dict, Any
 
+import requests
+
+from config.models import WEIGHT_OCR_MODEL_GEMINI, WEIGHT_OCR_MODEL_OPENAI
 
 logger = logging.getLogger(__name__)
 
@@ -25,36 +28,46 @@ def parse_weight_screenshot(
         Dict with metrics or None if not found.
     """
 
-    # 1. Try Google Gemini
+    # 1. Try Google Gemini (raw REST — тот же паттерн, что gemini_vision.py;
+    #    SDK google.generativeai deprecated, не используем)
     if api_key:
         try:
-            import google.generativeai as genai
+            logger.info(f"Using Google Gemini ({WEIGHT_OCR_MODEL_GEMINI}) for Weight OCR...")
 
-            logger.info("Using Google Gemini for Weight OCR...")
-
-            genai.configure(api_key=api_key)
-            model_name = "gemini-1.5-flash"
-
-            content = []
-            prompt = _get_prompt()
-            content.append(prompt)
-
+            parts: list[dict] = [{"text": _get_prompt()}]
             for path in file_paths:
                 if not path.exists():
                     continue
+                parts.append(
+                    {
+                        "inline_data": {
+                            "mime_type": _get_mime_type(path),
+                            "data": _encode_image(path),
+                        }
+                    }
+                )
 
-                mime_type = _get_mime_type(path)
-                with open(path, "rb") as f:
-                    image_data = f.read()
-                content.append({"mime_type": mime_type, "data": image_data})
+            url = (
+                f"https://generativelanguage.googleapis.com/v1beta/models/"
+                f"{WEIGHT_OCR_MODEL_GEMINI}:generateContent?key={api_key}"
+            )
+            resp = requests.post(
+                url,
+                json={
+                    "contents": [{"parts": parts}],
+                    "generationConfig": {"temperature": 0.1, "response_mime_type": "application/json"},
+                },
+                headers={"Content-Type": "application/json"},
+                timeout=60,
+            )
+            resp.raise_for_status()
+            text = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
 
-            model = genai.GenerativeModel(model_name)
-            response = model.generate_content(content)
-
-            data = _parse_json_response(response.text)
+            data = _parse_json_response(text)
             if data and data.get("is_body_metrics") is True and "weight" in data:
                 w = data.get("weight")
                 if isinstance(w, (int, float)) and 25 <= float(w) <= 300:
+                    logger.info(f"Weight OCR engine: gemini ({WEIGHT_OCR_MODEL_GEMINI})")
                     return data
                 logger.info(f"Gemini OCR: вес вне диапазона 25–300 кг (получено {w}), не считаем весами")
 
@@ -99,7 +112,7 @@ def parse_weight_screenshot(
                 messages[0]["content"].append({"type": "image_url", "image_url": {"url": image_url}})
 
             response = client.chat.completions.create(
-                model="gpt-4o",
+                model=WEIGHT_OCR_MODEL_OPENAI,
                 messages=messages,
                 response_format={"type": "json_object"},
                 max_tokens=300,
@@ -117,6 +130,7 @@ def parse_weight_screenshot(
                 if mapped_data and "weight" in mapped_data:
                     w = mapped_data.get("weight")
                     if isinstance(w, (int, float)) and 25 <= float(w) <= 300:
+                        logger.info(f"Weight OCR engine: openai ({WEIGHT_OCR_MODEL_OPENAI})")
                         return mapped_data
                     logger.info(f"OpenAI OCR: вес вне диапазона 25–300 кг (получено {w}), не считаем весами")
             return None

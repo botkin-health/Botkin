@@ -17,6 +17,7 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from config import get_settings
+from config.models import VISION_MODEL_OPENAI
 
 try:
     from infrastructure.cache.image_cache import get_image_cache
@@ -207,7 +208,7 @@ def parse_menu_with_chatgpt(
 Возвращай ТОЛЬКО JSON."""
 
     payload = {
-        "model": "gpt-4o",  # или "gpt-4-vision-preview" для старых версий
+        "model": VISION_MODEL_OPENAI,
         "messages": [
             {
                 "role": "user",
@@ -529,7 +530,7 @@ basis может быть: "cooked" (готовое), "raw" (сырое), "dry" 
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
 
     payload = {
-        "model": "gpt-4o",  # Используем gpt-4o для текста тоже
+        "model": VISION_MODEL_OPENAI,  # та же модель и для текста
         "messages": [{"role": "user", "content": prompt}],
         "max_tokens": 2000,
         "temperature": 0.1,  # Низкая температура для более точных результатов

@@ -19,6 +19,7 @@ sys.path.insert(0, str(project_root))
 from config import get_settings
 from .models import parse_llm_response
 import logging
+from config.models import FOOD_TEXT_MODEL_ANTHROPIC, FOOD_TEXT_MODEL_OPENAI
 
 logger = logging.getLogger(__name__)
 
@@ -537,7 +538,7 @@ def analyze_message_claude(
         return None
 
     payload = {
-        "model": "claude-sonnet-4-6",
+        "model": FOOD_TEXT_MODEL_ANTHROPIC,
         "max_tokens": 2000,
         "temperature": 0.1,
         # Роутинг еды/добавок — простая классификация в JSON. effort="low"
@@ -588,7 +589,7 @@ def analyze_message_claude(
                 purpose = "food_photo" if image_paths else "food_text"
                 log_anthropic_response(
                     purpose=purpose,
-                    model=payload.get("model", "claude-sonnet-4-6"),
+                    model=payload.get("model", FOOD_TEXT_MODEL_ANTHROPIC),
                     response_json=result,
                     user_id=user_id,
                 )
@@ -657,7 +658,7 @@ def analyze_message(
 
     # Construct payload
     payload = {
-        "model": "gpt-4o",
+        "model": FOOD_TEXT_MODEL_OPENAI,
         "messages": [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": content}],
         "max_tokens": 2000,
         "temperature": 0.1,
