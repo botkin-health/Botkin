@@ -4,7 +4,7 @@
 
 ## ⚠ Важно — username бота
 
-**Реальный бот:** `@Botkin_md_bot` (display name «NutriLogBot»)
+**Реальный бот:** `@Botkin_md_bot` (display name «Botkin»)
 
 **Прямая ссылка:** [t.me/Botkin_md_bot](https://t.me/Botkin_md_bot)
 

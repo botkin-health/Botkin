@@ -96,6 +96,8 @@ knowledge_base.json
 # Личные roadmap, биомаркеры, цели здоровья — только в ~/FamilyHealth/<user>/
 HEALTH.md
 personal-*.md
+# …но канонический privacy-чек-лист — публичный (generic, без PII):
+!docs/operations/personal-data.md
 *-private.md
 knowledge_base.json
 knowledge_base_*.json
