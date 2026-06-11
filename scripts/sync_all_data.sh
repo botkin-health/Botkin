@@ -78,15 +78,15 @@ echo "2.5/4 🏋️  Агрегация тренировок в workouts_log.jso
 $PY scripts/util/parse_workouts.py
 echo "2.55/4 🎯 Точный aerobic_base_min по HR-сэмплам (115-132 bpm) — для CrossFit-метконов..."
 $PY scripts/util/compute_aerobic_base.py --days 30
-echo "2.6/4 🏋️  Пуш workouts_log → контейнер (для блока «Спорт» в дашборде)..."
-$PY scripts/import/push_workouts_to_container.py
+# Пуш workouts_log в контейнер делает серверный scripts/server/sync_all.sh (cron),
+# локальный push_workouts_to_container.py удалён из репо.
 echo "2.7/4 🏋️  Бэкфилл тренировок → workouts table (треугольники на главном графике)..."
 $PY scripts/backfill_to_postgres.py 2>&1 | grep -E "ТРЕНИРОВКИ|Вставлено|Нечего|Новых|ИТОГОВОЕ|Тренировки \(" || true
 
 echo "3/4 🌬 Загрузка данных климата в спальне из Netatmo..."
 $PY scripts/import/netatmo.py
-echo "3.5/4 🌬 Пуш Netatmo → контейнер (env_data для дашборда)..."
-$PY scripts/import/push_netatmo_to_container.py
+# Пуш env_data в контейнер делает серверный scripts/server/sync_all.sh (cron),
+# локальный push_netatmo_to_container.py удалён из репо.
 
 echo "4/4 📱 Загрузка экранного времени (iPhone, Mac)..."
 # Требует Full Disk Access у терминала!
