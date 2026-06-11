@@ -4,7 +4,7 @@ Used to show remaining calories after each meal save.
 """
 
 import logging
-from datetime import date as date_type, datetime, timezone, timedelta
+from datetime import date as date_type, datetime, timedelta
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 # All date math must use MSK to match meal save (db_save.py uses datetime.now(MSK).date()).
 # Server runs in UTC (Docker default) — without this, budget shows yesterday's totals
 # when user logs a meal between 21:00–24:00 UTC (i.e. midnight MSK).
-MSK = timezone(timedelta(hours=3))
+from core.infra.tz import MSK  # noqa: E402  (общая TZ проекта)
 
 
 def _today_msk() -> date_type:

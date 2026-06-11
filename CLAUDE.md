@@ -216,10 +216,7 @@ python3 scripts/import/parse_apple_health_xml.py
 # Запуск всех unit-тестов (integration и live LLM исключены по умолчанию)
 PYTHONPATH=. pytest tests/ -v \
   --ignore=tests/integration \
-  --ignore=tests/test_nutrition_parsing.py \
-  --deselect tests/test_agent_tools_api.py::test_log_meal_text_returns_200 \
-  --deselect tests/test_agent_tools_api.py::test_log_meal_text_defaults_to_today \
-  --deselect tests/test_user_model.py::test_user_has_cohort_field
+  --ignore=tests/test_nutrition_parsing.py
 
 # Запуск одного файла
 PYTHONPATH=. pytest tests/test_nutrition_logic.py -v
@@ -227,10 +224,8 @@ PYTHONPATH=. pytest tests/test_nutrition_logic.py -v
 # Запуск одного теста
 PYTHONPATH=. pytest tests/test_nutrition_logic.py::test_xxx -v
 
-# Для тестов нужны dummy-переменные (реальные значения не нужны)
-export TELEGRAM_BOT_TOKEN="0000000000:CI_DUMMY_TOKEN_NOT_REAL"
-export ANTHROPIC_API_KEY="sk-ant-ci-dummy-not-real"
-export OPENAI_API_KEY="sk-ci-dummy-not-real"
+# Env-переменные НЕ нужны: dummy-ключи ставит tests/conftest.py (setdefault +
+# autouse-фикстура, защищающая от реальных LLM-вызовов за деньги).
 # DATABASE_URL не нужна — conftest.py создаёт in-memory SQLite
 ```
 

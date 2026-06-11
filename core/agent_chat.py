@@ -17,6 +17,7 @@ BotkinClaw — conversational AI-agent для @Botkin_md_bot (in-process handler
 from __future__ import annotations
 
 import json
+import os
 import logging
 import re
 import sys
@@ -62,7 +63,10 @@ HISTORY_WINDOW = 20  # last N messages from agent_conversations
 # When running inside healthvault_bot container, this is localhost:8081 directly.
 TOOLS_API_BASE = "http://localhost:8081/api/agent"
 
-JWT_TTL_HOURS = 24  # short-lived; agent_chat regenerates per request
+# Единый TTL с webhook/jwt_auth.py (тот же env) — раньше тут было 24h против 1h
+# у валидатора, политика противоречила сама себе. Токен регенерируется на каждый
+# запрос пользователя, 1 часа хватает на самый длинный tool-loop с запасом.
+JWT_TTL_HOURS = int(os.getenv("AGENT_JWT_TTL_HOURS", "1"))
 
 # ---------------------------------------------------------------------------
 # Tool schema (BotkinClaw tools — wrap webhook/agent_tools_api.py endpoints)

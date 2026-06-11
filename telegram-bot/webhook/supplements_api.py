@@ -17,7 +17,7 @@ All endpoints require a valid Telegram WebApp initData via `get_tg_user`.
 """
 
 from collections import defaultdict, deque
-from datetime import date as date_type, datetime, timedelta, timezone
+from datetime import date as date_type, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -42,7 +42,7 @@ from webhook.tg_auth import get_tg_user
 
 router = APIRouter()
 
-MSK = timezone(timedelta(hours=3))
+from core.infra.tz import MSK  # noqa: E402  (общая TZ проекта)
 
 # Mirror the slot order used in the mini-app UI.
 SLOTS = ("morning_before", "morning_with", "evening")

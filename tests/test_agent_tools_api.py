@@ -110,7 +110,24 @@ def client(db_session, monkeypatch):
 # ── Task 5/6: Write endpoint tests ───────────────────────────────────────────
 
 
-def test_log_meal_text_returns_200(client, db_session):
+@pytest.fixture
+def mock_food_llm(monkeypatch):
+    """Мок analyze_message: unit-тесты не зовут реальный LLM (раньше эти тесты
+    были deselected как live-LLM — аудит 11.06.2026)."""
+    import core.llm.router as llm_router
+
+    def _fake_analyze(text: str, user_id: int = None, **kwargs):
+        return {
+            "type": "food",
+            "data": {
+                "items": [{"name": "Гречка", "weight": 200, "calories": 220, "protein": 8, "fats": 2, "carbs": 42}]
+            },
+        }
+
+    monkeypatch.setattr(llm_router, "analyze_message", _fake_analyze)
+
+
+def test_log_meal_text_returns_200(client, db_session, mock_food_llm):
     """POST /log_meal_text stores a meal and returns 200 with meal_id."""
     r = client.post(
         "/api/agent/log_meal_text",
@@ -128,7 +145,7 @@ def test_log_meal_text_returns_200(client, db_session):
     assert len(logs) == 1
 
 
-def test_log_meal_text_defaults_to_today(client, db_session):
+def test_log_meal_text_defaults_to_today(client, db_session, mock_food_llm):
     """POST /log_meal_text without date defaults to today."""
     r = client.post(
         "/api/agent/log_meal_text",
@@ -137,6 +154,17 @@ def test_log_meal_text_defaults_to_today(client, db_session):
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["date"] == date.today().isoformat()
+
+
+def test_log_meal_text_rejects_non_food(client, db_session, monkeypatch):
+    """Если LLM не распознал еду — ошибка с пояснением, в БД ничего не пишется."""
+    import core.llm.router as llm_router
+
+    monkeypatch.setattr(llm_router, "analyze_message", lambda text, user_id=None, **kw: {"type": "question"})
+    r = client.post("/api/agent/log_meal_text", json={"text": "как дела?"})
+    body = r.json()
+    assert body.get("status") != "ok"
+    assert db_session.query(NutritionLog).filter_by(user_id=895655).count() == 0
 
 
 def test_log_meal_text_invalid_slot_returns_400(client):
@@ -599,15 +627,48 @@ def test_day_summary_invalid_date(client):
 
 
 def test_day_summary_no_data(client):
-    """GET /day_summary for date without daily_summary row — graceful no_data/error.
-
-    SQLite-фикстура не создаёт daily_summaries (нет ORM-модели), endpoint
-    возвращает {"status": "error"} вместо 500. На Postgres вернёт no_data.
-    """
+    """GET /day_summary для пустой даты — no_data, не 500."""
     r = client.get("/api/agent/day_summary?date=2020-01-01")
     assert r.status_code == 200, r.text
     body = r.json()
-    assert body["status"] in ("no_data", "error")
+    assert body["status"] == "no_data"
+
+
+def test_day_summary_live_aggregation(client, db_session):
+    """day_summary агрегирует live из nutrition_log + activity_log + weights
+    (таблица daily_summaries никогда не заполнялась — аудит 11.06.2026)."""
+    d = date(2026, 6, 1)
+    create_nutrition_log(
+        db_session,
+        user_id=895655,
+        date=d,
+        meal_time=time(9, 0),
+        meal_name="Завтрак",
+        items=[{"product": "Овсянка", "weight_g": 60, "calories": 240, "protein": 8, "fats": 5, "carbs": 42}],
+        totals={"calories": 240, "protein": 8, "fats": 5, "carbs": 42, "fiber": 6},
+    )
+    create_nutrition_log(
+        db_session,
+        user_id=895655,
+        date=d,
+        meal_time=time(13, 0),
+        meal_name="Обед",
+        items=[{"product": "Суп", "weight_g": 300, "calories": 200, "protein": 10, "fats": 7, "carbs": 20}],
+        totals={"calories": 200, "protein": 10, "fats": 7, "carbs": 20, "fiber": 2},
+    )
+    create_or_update_activity(db_session, user_id=895655, date=d, steps=12000, sleep_hours=7.5)
+    create_weight(db_session, user_id=895655, measured_at=datetime(2026, 6, 1, 8, 0), weight=82.4)
+
+    r = client.get("/api/agent/day_summary?date=2026-06-01")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["status"] == "ok"
+    assert body["nutrition"]["calories"] == 440
+    assert body["nutrition"]["protein_g"] == 18
+    assert body["nutrition"]["meals_count"] == 2
+    assert body["activity"]["steps"] == 12000
+    assert body["sleep_hours"] == 7.5
+    assert body["weight_kg"] == 82.4
 
 
 def test_body_measurements_no_data(client):

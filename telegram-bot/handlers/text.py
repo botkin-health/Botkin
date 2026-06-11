@@ -5,10 +5,10 @@
 
 import re
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 # Московское время (UTC+3)
-MSK = timezone(timedelta(hours=3))
+from core.infra.tz import MSK  # noqa: E402  (общая TZ проекта)
 
 from aiogram import Router, F
 from aiogram.types import Message

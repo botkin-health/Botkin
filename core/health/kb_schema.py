@@ -105,7 +105,7 @@ CANONICAL: dict[str, CanonicalMarker] = {
     # ── CBC ──────────────────────────────────────────────────────────────────
     "WBC": CanonicalMarker("10⁹/л", {"WBC": 1, "wbc_10_9_l": 1}),
     "RBC": CanonicalMarker("10¹²/л", {"RBC": 1, "rbc_10_12_l": 1}),
-    "Hb": CanonicalMarker("г/л", {"Hb": 1, "HGB": 1, "hemoglobin": 1, "hgb_g_l": 1}),
+    "Hb": CanonicalMarker("г/л", {"Hb": 1, "HGB": 1, "hemoglobin": 1, "hemoglobin_g_L": 1, "hgb_g_l": 1}),
     "lymphocytes": CanonicalMarker(
         "%", {"lymphocytes": 1, "lymphocytes_percent": 1, "lymphocytes_rel": 1, "lymphocytes_pct": 1, "lymph_pct": 1}
     ),

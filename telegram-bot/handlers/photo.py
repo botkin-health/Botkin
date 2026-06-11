@@ -8,9 +8,9 @@ from aiogram.types import Message, CallbackQuery
 from aiogram import Bot
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.exceptions import TelegramBadRequest
-from datetime import datetime, timezone, timedelta
+from datetime import datetime
 
-MSK = timezone(timedelta(hours=3))
+from core.infra.tz import MSK  # noqa: E402  (общая TZ проекта)
 from pathlib import Path
 import os
 import logging

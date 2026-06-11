@@ -24,6 +24,9 @@ from sqlalchemy.orm import Session
 # Ensure project root on path for database imports
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
+from sqlalchemy import func  # noqa: E402
+
+from database.models import ActivityLog, NutritionLog, Weight  # noqa: E402
 from webhook.jwt_auth import get_agent_user, get_db  # noqa: E402
 
 logger = logging.getLogger(__name__)
@@ -2015,10 +2018,10 @@ async def day_summary(
     user=Depends(get_agent_user),
     db: Session = Depends(get_db),
 ):
-    """Сводка за конкретный день: ккал, БЖУ, сон, вес, АД, был ли воркаут.
+    """Сводка за конкретный день: ккал, БЖУ, шаги, сон, вес, АД, был ли воркаут.
 
-    Источник: `daily_summaries` table — агрегаты по дням, заполняется
-    скриптами (nightly sync) из nutrition_log, activity_log, weights, BP.
+    Live-агрегация из nutrition_log + activity_log + weights + blood_pressure_logs
+    (таблица daily_summaries никогда не заполнялась — аудит 11.06.2026).
 
     Используй для вопросов «что у меня было 14 марта», «как был день N»,
     «сравни такой-то день с другим».
@@ -2031,48 +2034,82 @@ async def day_summary(
     except ValueError:
         return {"status": "error", "error": f"invalid date format: {date!r} (expected YYYY-MM-DD)"}
 
-    try:
-        row = db.execute(
-            sql_text(
-                """
-                SELECT date, total_calories, total_protein, total_fats, total_carbs,
-                       had_workout, sleep_hours, weight, bp_systolic, bp_diastolic
-                FROM daily_summaries
-                WHERE user_id = :uid AND date = :d
-                """
-            ),
-            {"uid": user.telegram_id, "d": target_date},
-        ).fetchone()
-    except Exception as e:
-        # daily_summaries отсутствует как ORM-модель — таблицу не создают на SQLite
-        # (тестовая фикстура). На Postgres таблица есть. Если откат миграции —
-        # возвращаем мягкий error вместо 500.
-        logger.warning(f"day_summary query failed: {e}")
-        return {"status": "error", "date": target_date.isoformat(), "error": "daily_summaries table not available"}
+    uid = user.telegram_id
 
-    if not row:
-        return {"status": "no_data", "date": target_date.isoformat(), "reason": "no daily_summary for this date"}
+    # Питание: суммируем totals по всем приёмам за день
+    nutrition = None
+    meals = db.query(NutritionLog).filter(NutritionLog.user_id == uid, NutritionLog.date == target_date).all()
+    if meals:
+
+        def _tot(key: str) -> float:
+            return round(sum(float((m.totals or {}).get(key) or 0) for m in meals), 1)
+
+        nutrition = {
+            "calories": _tot("calories"),
+            "protein_g": _tot("protein"),
+            "fats_g": _tot("fats"),
+            "carbs_g": _tot("carbs"),
+            "fiber_g": _tot("fiber"),
+            "meals_count": len(meals),
+        }
+
+    # Активность: одна строка на день (HAE/Garmin upsert)
+    act = db.query(ActivityLog).filter(ActivityLog.user_id == uid, ActivityLog.date == target_date).first()
+    activity = None
+    sleep_hours = None
+    if act:
+        activity = {
+            "steps": act.steps,
+            "active_calories": act.active_calories,
+            "distance_km": act.distance_km,
+            "heart_rate_avg": act.heart_rate_avg,
+            "hrv": act.hrv,
+        }
+        sleep_hours = float(act.sleep_hours) if act.sleep_hours is not None else None
+
+    # Вес: последний замер за день
+    w = (
+        db.query(Weight)
+        .filter(Weight.user_id == uid, func.date(Weight.measured_at) == target_date)
+        .order_by(Weight.measured_at.desc())
+        .first()
+    )
+
+    # АД и воркауты — таблицы вне ORM (нет на SQLite в тестах) → guarded raw SQL
+    blood_pressure = None
+    had_workout = None
+    try:
+        bp = db.execute(
+            sql_text(
+                """SELECT systolic, diastolic, heart_rate FROM blood_pressure_logs
+                   WHERE user_id = :uid AND measured_at::date = :d
+                   ORDER BY measured_at DESC LIMIT 1"""
+            ),
+            {"uid": uid, "d": target_date},
+        ).fetchone()
+        if bp:
+            blood_pressure = {"systolic": bp.systolic, "diastolic": bp.diastolic, "pulse": bp.heart_rate}
+        wk = db.execute(
+            sql_text("SELECT COUNT(*) FROM workouts WHERE user_id = :uid AND start_time::date = :d"),
+            {"uid": uid, "d": target_date},
+        ).scalar()
+        had_workout = bool(wk)
+    except Exception as e:
+        logger.warning(f"day_summary raw-SQL part failed (ok on SQLite tests): {e}")
+        db.rollback()
+
+    if not meals and not act and not w and not blood_pressure:
+        return {"status": "no_data", "date": target_date.isoformat(), "reason": "no records for this date"}
 
     return {
         "status": "ok",
-        "date": row.date.isoformat(),
-        "nutrition": {
-            "calories": row.total_calories,
-            "protein_g": float(row.total_protein) if row.total_protein is not None else None,
-            "fats_g": float(row.total_fats) if row.total_fats is not None else None,
-            "carbs_g": float(row.total_carbs) if row.total_carbs is not None else None,
-        },
-        "activity": {
-            "had_workout": row.had_workout,
-        },
-        "sleep_hours": float(row.sleep_hours) if row.sleep_hours is not None else None,
-        "weight_kg": float(row.weight) if row.weight is not None else None,
-        "blood_pressure": {
-            "systolic": row.bp_systolic,
-            "diastolic": row.bp_diastolic,
-        }
-        if row.bp_systolic
-        else None,
+        "date": target_date.isoformat(),
+        "nutrition": nutrition,
+        "activity": activity,
+        "had_workout": had_workout,
+        "sleep_hours": sleep_hours,
+        "weight_kg": float(w.weight) if w else None,
+        "blood_pressure": blood_pressure,
     }
 
 

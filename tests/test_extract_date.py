@@ -63,3 +63,38 @@ def test_no_date_returns_none():
     date_str, clean = extract_date_from_text("омлет 300 ккал")
     assert date_str is None
     assert clean == "омлет 300 ккал"
+
+
+# Кейсы перенесены из tests/test_date_extraction.py (файл печатал ✅/❌ без
+# единого assert — физически не мог упасть; удалён при аудите 11.06.2026).
+
+import pytest  # noqa: E402
+
+
+@pytest.mark.parametrize(
+    "text, expected_date, expected_clean",
+    [
+        # Абсолютная дата ПЕРЕД названием приёма (классика)
+        ("29 января: каша", "2026-01-29", "каша"),
+        ("29-го января обед: суп", "2026-01-29", "обед: суп"),
+        # Регрессия: название приёма ПЕРЕД датой (исходный баг)
+        ("ужин 19-е апреля: сыр и тунец", "2026-04-19", "ужин сыр и тунец"),
+        ("завтрак 19-го апреля: омлет", "2026-04-19", "завтрак омлет"),
+        ("обед 19 апреля: суп", "2026-04-19", "обед суп"),
+    ],
+)
+def test_absolute_dates(text, expected_date, expected_clean):
+    date_str, clean = extract_date_from_text(text)
+    assert date_str == expected_date
+    assert clean == expected_clean
+
+
+def test_english_yesterday():
+    date_str, clean = extract_date_from_text("yesterday breakfast")
+    assert date_str == _ago(1)
+    assert clean == "breakfast"
+
+
+def test_no_date_passthrough():
+    assert extract_date_from_text("Просто текст") == (None, "Просто текст")
+    assert extract_date_from_text("Сегодня ужин") == (None, "Сегодня ужин")
