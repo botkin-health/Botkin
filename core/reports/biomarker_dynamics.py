@@ -30,169 +30,150 @@ logger = logging.getLogger(__name__)
 
 # ── Каноничные маркеры с алиасами ─────────────────────────────────────────────
 #
-# `aliases` — все варианты ключей, встречавшихся в реальных KB.
+# Алиасы сырых KB-ключей живут в core/health/kb_schema.py (единый реестр,
+# консолидация аудита 11.06.2026) — здесь только presentation-поля.
 # Если в новом юзере увидишь незнакомый ключ — добавь сюда.
 #
 # Reference ranges — взрослые мужчины, общая популяция.
+from core.health.kb_schema import reverse_index, to_canonical
+
+
+def _kb_reverse_index():
+    return reverse_index()
+
+
 MARKER_CONFIG = {
     "glucose": {
         "label": "Глюкоза",
         "unit": "ммоль/л",
         "ref_low": 3.9,
         "ref_high": 6.0,
-        "aliases": ["glucose", "Glucose", "glucose_mmol_L"],
     },
     "hba1c": {
         "label": "HbA1c",
         "unit": "%",
         "ref_low": 4.0,
         "ref_high": 5.7,
-        "aliases": ["HbA1c", "hba1c", "A1c", "a1c", "hba1c_pct"],
     },
     "hemoglobin": {
         "label": "Гемоглобин",
         "unit": "г/л",
         "ref_low": 130,
         "ref_high": 170,
-        "aliases": ["Hb", "hemoglobin", "haemoglobin", "hemoglobin_g_L"],
     },
     "rbc": {
         "label": "Эритроциты",
         "unit": "×10¹²/л",
         "ref_low": 4.0,
         "ref_high": 5.5,
-        "aliases": ["RBC", "rbc", "rbc_x10_12_L"],
     },
     "wbc": {
         "label": "Лейкоциты",
         "unit": "×10⁹/л",
         "ref_low": 4.0,
         "ref_high": 9.0,
-        "aliases": ["WBC", "wbc", "wbc_x10_9_L"],
     },
     "hematocrit": {
         "label": "Гематокрит",
         "unit": "%",
         "ref_low": 39,
         "ref_high": 49,
-        "aliases": ["Ht", "hematocrit", "hematocrit_pct", "haematocrit"],
     },
     "cholesterol_total": {
         "label": "Холестерин общий",
         "unit": "ммоль/л",
         "ref_low": 3.0,
         "ref_high": 5.2,
-        "aliases": [
-            "cholesterol_total",
-            "total_cholesterol",
-            "cholesterol",
-            "cholesterol_mmol_L",
-        ],
     },
     "ldl": {
         "label": "ЛПНП",
         "unit": "ммоль/л",
         "ref_low": 0,
         "ref_high": 3.0,
-        "aliases": ["LDL", "ldl", "ldl_mmol_L"],
     },
     "hdl": {
         "label": "ЛПВП",
         "unit": "ммоль/л",
         "ref_low": 1.0,
         "ref_high": 2.5,
-        "aliases": ["HDL", "hdl", "hdl_mmol_L"],
     },
     "triglycerides": {
         "label": "Триглицериды",
         "unit": "ммоль/л",
         "ref_low": 0,
         "ref_high": 1.7,
-        "aliases": ["triglycerides", "TG", "tg", "triglycerides_mmol_L"],
     },
     "apob": {
         "label": "ApoB",
         "unit": "г/л",
         "ref_low": 0,
         "ref_high": 0.9,
-        "aliases": ["ApoB", "apob", "apo_b", "apob_g_L"],
     },
     "alt": {
         "label": "АЛТ",
         "unit": "Ед/л",
         "ref_low": 0,
         "ref_high": 41,
-        "aliases": ["ALT", "alt", "alt_U_L"],
     },
     "ast": {
         "label": "АСТ",
         "unit": "Ед/л",
         "ref_low": 0,
         "ref_high": 40,
-        "aliases": ["AST", "ast", "ast_U_L"],
     },
     "creatinine": {
         "label": "Креатинин",
         "unit": "мкмоль/л",
         "ref_low": 64,
         "ref_high": 104,
-        "aliases": ["creatinine", "Creatinine", "creatinine_umol_L"],
     },
     "bilirubin_total": {
         "label": "Билирубин",
         "unit": "мкмоль/л",
         "ref_low": 5,
         "ref_high": 21,
-        "aliases": ["bilirubin_total", "total_bilirubin", "bilirubin_total_umol_L"],
     },
     "crp": {
         "label": "СРБ",
         "unit": "мг/л",
         "ref_low": 0,
         "ref_high": 5,
-        "aliases": ["crp", "CRP", "hs_CRP", "hs-CRP", "hscrp", "crp_mg_L"],
     },
     "ferritin": {
         "label": "Ферритин",
         "unit": "нг/мл",
         "ref_low": 30,
         "ref_high": 300,
-        "aliases": ["ferritin", "Ferritin", "ferritin_ng_mL"],
     },
     "psa": {
         "label": "ПСА",
         "unit": "нг/мл",
         "ref_low": 0,
         "ref_high": 4,
-        "aliases": ["psa", "PSA", "PSA_total", "psa_ng_mL"],
     },
     "tsh": {
         "label": "ТТГ",
         "unit": "мМЕ/л",
         "ref_low": 0.4,
         "ref_high": 4.0,
-        "aliases": ["TSH", "tsh", "tsh_mIU_L"],
     },
     "vitamin_d": {
         "label": "Витамин D",
         "unit": "нг/мл",
         "ref_low": 30,
         "ref_high": 100,
-        "aliases": ["vitamin_d", "vitamin_D", "vitamin_D3", "vitD", "vit_d", "vitamin_d_ng_mL"],
     },
     "testosterone": {
         "label": "Тестостерон",
         "unit": "нмоль/л",
         "ref_low": 8.6,
         "ref_high": 29,
-        "aliases": ["testosterone", "Testosterone", "total_testosterone"],
     },
     "iron": {
         "label": "Железо",
         "unit": "мкмоль/л",
         "ref_low": 10,
         "ref_high": 30,
-        "aliases": ["iron", "Iron", "Fe", "iron_umol_L"],
     },
 }
 
@@ -224,16 +205,33 @@ PRIORITY_ORDER = [
 ]
 
 
-def _build_alias_lookup() -> dict[str, str]:
-    """Plain dict alias → canonical. Алиасы регистрозависимые — KB как есть."""
-    out: dict[str, str] = {}
-    for canonical, cfg in MARKER_CONFIG.items():
-        for alias in cfg["aliases"]:
-            out[alias] = canonical
-    return out
-
-
-_ALIAS_TO_CANON = _build_alias_lookup()
+# kb_schema-канон → ключ MARKER_CONFIG. Сами алиасы и конверсия единиц —
+# в kb_schema.to_canonical (раньше здесь жил 4-й параллельный реестр алиасов).
+_KB_CANON_TO_LOCAL: dict[str, str] = {
+    "glucose": "glucose",
+    "HbA1c": "hba1c",
+    "Hb": "hemoglobin",
+    "HCT": "hematocrit",
+    "RBC": "rbc",
+    "WBC": "wbc",
+    "cholesterol_total": "cholesterol_total",
+    "LDL": "ldl",
+    "HDL": "hdl",
+    "triglycerides": "triglycerides",
+    "ApoB": "apob",
+    "ALT": "alt",
+    "AST": "ast",
+    "creatinine": "creatinine",
+    "bilirubin_total": "bilirubin_total",
+    "CRP": "crp",
+    "hs_CRP": "crp",
+    "ferritin": "ferritin",
+    "PSA_total": "psa",
+    "TSH": "tsh",
+    "vitamin_D": "vitamin_d",
+    "testosterone": "testosterone",
+    "iron": "iron",
+}
 
 
 def _collect_series(kb: dict) -> dict[str, list[tuple[str, float]]]:
@@ -245,16 +243,11 @@ def _collect_series(kb: dict) -> dict[str, list[tuple[str, float]]]:
             values = record.get("values") or {}
             if not date_str or not isinstance(values, dict):
                 continue
-            for key, val in values.items():
-                canonical = _ALIAS_TO_CANON.get(key)
+            # Канонизация ключей + конверсия единиц — единым реестром kb_schema
+            canon_values, _warnings = to_canonical(values)
+            for kb_key, val_float in canon_values.items():
+                canonical = _KB_CANON_TO_LOCAL.get(kb_key)
                 if canonical is None:
-                    continue
-                # Игнорируем *_unit метаключи (там строка типа "%", "g/l")
-                if isinstance(val, str):
-                    continue
-                try:
-                    val_float = float(val)
-                except (TypeError, ValueError):
                     continue
                 series.setdefault(canonical, []).append((date_str, val_float))
     # Дедуп: один маркер может оказаться в blood_tests И в hormones за одну дату.
@@ -301,11 +294,12 @@ def resolve_marker_key(query: str) -> Optional[str]:
         if q == cfg["label"].lower():
             return canonical
 
-    # 2) Совпадение с алиасом (любым регистром)
-    for canonical, cfg in MARKER_CONFIG.items():
-        for alias in cfg["aliases"]:
-            if q == alias.lower():
-                return canonical
+    # 2) Совпадение с алиасом из единого реестра kb_schema (регистронезависимо)
+    hit = _kb_reverse_index().get(q)
+    if hit:
+        local = _KB_CANON_TO_LOCAL.get(hit[0])
+        if local:
+            return local
 
     # 3) Русские/народные синонимы
     RU_SYNONYMS = {

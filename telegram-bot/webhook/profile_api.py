@@ -10,11 +10,11 @@ Endpoints:
   POST /api/profile/bmr — save manual override or switch back to auto
 """
 
-from datetime import date as date_cls, datetime as dt_cls, timedelta, timezone
+from datetime import date as date_cls, datetime as dt_cls, timedelta
 from typing import Optional, Literal
 
 # All date/age math uses MSK (project is Moscow-only; server runs in UTC).
-MSK = timezone(timedelta(hours=3))
+from core.infra.tz import MSK  # noqa: E402  (общая TZ проекта)
 
 
 def _today_msk() -> date_cls:

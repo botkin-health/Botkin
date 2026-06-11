@@ -5,11 +5,11 @@ Supplement Service - PostgreSQL Version
 """
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from typing import List, Dict, Optional
 
 # Московское время (UTC+3)
-MSK = timezone(timedelta(hours=3))
+from core.infra.tz import MSK  # noqa: E402  (общая TZ проекта)
 
 from database import SessionLocal, get_supplements_by_date, create_supplement_log
 from database.crud import create_nutrition_log

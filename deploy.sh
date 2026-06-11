@@ -73,14 +73,25 @@ echo "📤 Step 1/4: Uploading code to server..."
 export PATH="/opt/homebrew/bin:$PATH"
 sshpass -p "$SERVER_PASSWORD" rsync -avz -e "ssh $CM_OPTS" \
     --exclude 'venv' \
+    --exclude 'venv_mcp' \
     --exclude '__pycache__' \
     --exclude '*.pyc' \
     --exclude '.git' \
     --exclude 'logs/*' \
     --exclude 'data/garmin/*' \
+    --exclude 'data/backups' \
+    --exclude 'data/media' \
+    --exclude 'data/activities' \
+    --exclude 'data/analysis' \
+    --exclude 'data/sleepcycle' \
+    --exclude 'downloads' \
+    --exclude 'archive' \
     --exclude '.env' \
     --exclude '.env.*' \
     ./ ${SERVER_USER}@${SERVER_IP}:${SERVER_PATH}/
+# ⚠️ Не-код исключён сознательно (аудит 11.06.2026): SQL-дампы, фото еды,
+# Screen Time и пр. — ~260MB приватных данных, серверный код их не читает.
+# data/kb НЕ исключать — bind-mount для агента.
 
 # ⚠️ .env НЕ синкается: прод-.env (/opt/healthvault/.env) — источник правды,
 # у него свой POSTGRES_PASSWORD/DATABASE_URL и BOTKIN_ADMIN_ID. Локальный .env
