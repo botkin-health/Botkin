@@ -1,0 +1,193 @@
+"""Табличные тесты _hae_to_daily_payloads — ночной HAE-канал Apple Health всей семьи.
+
+Аудит 11.06.2026: 80% веток парсера были без тестов, при том что баги тут уже
+чинились дважды (int-коэрция, MJ/kJ). Фиксируем поведение всех конверсий.
+Чисто in-memory, без БД.
+"""
+
+import sys
+from pathlib import Path
+
+import pytest
+
+TG_BOT = Path(__file__).resolve().parent.parent / "telegram-bot"
+if str(TG_BOT) not in sys.path:
+    sys.path.insert(0, str(TG_BOT))
+
+from webhook.apple_health import _hae_to_daily_payloads
+
+D = "2026-06-01"
+
+
+def _metric(name, units, **rec):
+    rec.setdefault("date", f"{D} 00:00:00 +0300")
+    return {"name": name, "units": units, "data": [rec]}
+
+
+def _parse_one(*metrics):
+    out = _hae_to_daily_payloads(list(metrics))
+    assert D in out, f"дата {D} не распознана: {list(out)}"
+    return out[D]
+
+
+# ── Энергия: эвристика HAE-бага «МДж под видом kJ» ───────────────────────────
+
+
+@pytest.mark.parametrize(
+    "units, qty, expected_kcal",
+    [
+        # HAE-баг: units="kJ", но реально МДж (значение < 100) → ×239.006
+        ("kJ", 5.858, 1400.1),
+        ("kJ", 99.0, 23661.6),  # граница: 99 < 100 → трактуем как MJ
+        # Настоящие килоджоули (≥100) → /4.184
+        ("kJ", 100.0, 23.9),
+        ("kJ", 5858.0, 1400.1),
+        # Явные МДж
+        ("MJ", 5.858, 1400.1),
+        # kcal — как есть
+        ("kcal", 450.0, 450.0),
+    ],
+)
+def test_active_energy_units(units, qty, expected_kcal):
+    p = _parse_one(_metric("active_energy", units, qty=qty))
+    assert p.active_energy_kcal == pytest.approx(expected_kcal, abs=0.2)
+
+
+def test_basal_energy_same_heuristic():
+    p = _parse_one(_metric("basal_energy_burned", "kJ", qty=7.2))
+    assert p.basal_energy_kcal == pytest.approx(7.2 * 239.006, abs=0.5)
+
+
+# ── Дистанция: метры / мили / километры ──────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    "units, qty, expected_km",
+    [
+        ("m", 11158.0, 11.158),
+        ("mi", 5.0, 8.047),
+        ("km", 11.158, 11.158),
+    ],
+)
+def test_walking_distance_units(units, qty, expected_km):
+    p = _parse_one(_metric("walking_running_distance", units, qty=qty))
+    assert p.distance_walking_km == pytest.approx(expected_km, abs=0.001)
+
+
+# ── Сон: все 4 формата HAE ───────────────────────────────────────────────────
+
+
+def test_sleep_totalsleep_format_with_stages():
+    """Основной формат Apple Watch (summarize=ON): totalSleep + стадии."""
+    p = _parse_one(_metric("sleep_analysis", "hr", totalSleep=7.73, deep=1.2, rem=1.8, core=4.5, awake=0.4))
+    assert p.sleep_hours == 7.73
+    assert p.sleep_deep_h == 1.2
+    assert p.sleep_rem_h == 1.8
+    assert p.sleep_core_h == 4.5
+    assert p.sleep_awake_h == 0.4
+
+
+def test_sleep_legacy_asleep_field():
+    p = _parse_one(_metric("sleep_analysis", "hr", Asleep=6.5, InBed=8.0))
+    assert p.sleep_hours == 6.5
+
+
+def test_sleep_value_style_asleep_counted_inbed_skipped():
+    """value-стиль: Asleep учитывается, InBed — нет (это не сон)."""
+    asleep = {
+        "name": "sleep_analysis",
+        "units": "hr",
+        "data": [{"date": f"{D} 00:00:00 +0300", "qty": 6.9, "value": "Asleep"}],
+    }
+    inbed = {
+        "name": "sleep_analysis",
+        "units": "hr",
+        "data": [{"date": f"{D} 00:00:00 +0300", "qty": 8.4, "value": "InBed"}],
+    }
+    out = _hae_to_daily_payloads([asleep, inbed])
+    assert out[D].sleep_hours == 6.9
+
+
+def test_sleep_start_end_fallback():
+    """summarize=OFF: часы считаются из startDate/endDate."""
+    p = _parse_one(
+        _metric(
+            "sleep_analysis",
+            "hr",
+            startDate="2026-06-01 23:30:00 +0300",
+            endDate="2026-06-02 07:00:00 +0300",
+        )
+    )
+    assert p.sleep_hours == 7.5
+
+
+def test_sleep_under_30min_ignored():
+    """Микро-сон <0.5ч (артефакт) не пишется."""
+    p = _parse_one(_metric("sleep_analysis", "hr", totalSleep=0.3))
+    assert p.sleep_hours is None
+
+
+# ── Давление: оба формата ────────────────────────────────────────────────────
+
+
+def test_bp_combined_record():
+    p = _parse_one(_metric("blood_pressure", "mmHg", systolic=128.4, diastolic=83.6))
+    assert p.blood_pressure_systolic == 128
+    assert p.blood_pressure_diastolic == 84
+
+
+def test_bp_separate_metrics():
+    p = _parse_one(
+        _metric("blood_pressure_systolic", "mmHg", qty=119.0),
+        _metric("blood_pressure_diastolic", "mmHg", qty=76.0),
+    )
+    assert p.blood_pressure_systolic == 119
+    assert p.blood_pressure_diastolic == 76
+
+
+# ── Тело и походка ───────────────────────────────────────────────────────────
+
+
+def test_weight_and_body_fat():
+    p = _parse_one(
+        _metric("weight_body_mass", "kg", qty=82.456),
+        _metric("body_fat_percentage", "%", qty=27.43),
+    )
+    assert p.weight_kg == 82.46
+    assert p.body_fat_pct == 27.4
+
+
+def test_double_support_not_multiplied():
+    """Регрессия: HAE шлёт *_percentage уже в %, не во фракции — не умножать ×100."""
+    p = _parse_one(_metric("walking_double_support_percentage", "%", qty=29.5))
+    assert p.walking_double_support_pct == 29.5
+
+
+def test_walking_speed_ms_to_kmh():
+    p = _parse_one(_metric("walking_speed", "m/s", qty=1.39))
+    assert p.walking_speed_km_h == pytest.approx(5.0, abs=0.01)
+
+
+def test_hrv_rounded_to_int():
+    p = _parse_one(_metric("heart_rate_variability_sdnn", "ms", qty=46.7))
+    assert p.hrv == 47
+
+
+# ── Устойчивость к мусору ────────────────────────────────────────────────────
+
+
+def test_malformed_dates_skipped():
+    """Записи без валидной даты молча пропускаются, не роняя парс."""
+    bad = {"name": "step_count", "units": "count", "data": [{"date": "garbage", "qty": 100}, {"qty": 200}]}
+    ok = _metric("step_count", "count", qty=12000)
+    out = _hae_to_daily_payloads([bad, ok])
+    assert list(out) == [D]
+    assert out[D].steps == 12000
+
+
+def test_multiple_days_grouped():
+    m1 = _metric("step_count", "count", qty=10000)
+    m2 = {"name": "step_count", "units": "count", "data": [{"date": "2026-06-02 00:00:00 +0300", "qty": 8000}]}
+    out = _hae_to_daily_payloads([m1, m2])
+    assert out["2026-06-01"].steps == 10000
+    assert out["2026-06-02"].steps == 8000

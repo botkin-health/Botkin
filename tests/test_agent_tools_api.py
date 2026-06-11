@@ -712,3 +712,82 @@ def test_phenoage_marker_lookup_canonical_for_dima_keys():
             latest.setdefault(k, v)
     for need in ["albumin_g_l", "creatinine", "glucose", "hs_CRP", "lymphocytes", "MCV", "RDW_CV", "ALP", "WBC"]:
         assert need in latest, f"phenoage marker {need} не извлёкся из ключей Димы"
+
+
+# ── RLS / user isolation (аудит 11.06.2026: privacy-гарантия без тестов) ─────
+
+
+def _add_other_user(db_session, tid=111):
+    other = User(telegram_id=tid, first_name="Other", is_active=True, cohort="external", pack_name="generic")
+    db_session.add(other)
+    db_session.commit()
+    return other
+
+
+def test_weight_history_scoped_to_user(client, db_session):
+    """/weight_history не отдаёт замеры другого пользователя."""
+    _add_other_user(db_session)
+    create_weight(db_session, user_id=111, measured_at=datetime(2026, 6, 5, 8, 0), weight=99.9)
+    create_weight(db_session, user_id=895655, measured_at=datetime(2026, 6, 5, 8, 0), weight=82.0)
+
+    r = client.get("/api/agent/weight_history?days=30&series=true")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    text = str(body)
+    assert "99.9" not in text, "чужой вес просочился в ответ"
+    assert body["latest"]["weight_kg"] == 82.0
+
+
+def test_weight_history_other_user_only_data_invisible(client, db_session):
+    """Если данные есть ТОЛЬКО у чужого юзера — для нас это no_data, не утечка."""
+    _add_other_user(db_session, tid=222)
+    create_weight(db_session, user_id=222, measured_at=datetime(2026, 6, 5, 8, 0), weight=99.9)
+
+    r = client.get("/api/agent/weight_history?days=30")
+    assert r.status_code == 200, r.text
+    assert "99.9" not in str(r.json())
+
+
+def test_day_summary_scoped_to_user(client, db_session):
+    """/day_summary агрегирует только данные аутентифицированного юзера."""
+    d = date(2026, 6, 2)
+    _add_other_user(db_session)
+    create_nutrition_log(
+        db_session,
+        user_id=111,
+        date=d,
+        meal_time=time(13, 0),
+        meal_name="Чужой обед",
+        items=[{"product": "Бургер", "weight_g": 350, "calories": 777, "protein": 30, "fats": 40, "carbs": 60}],
+        totals={"calories": 777, "protein": 30, "fats": 40, "carbs": 60, "fiber": 2},
+    )
+    create_or_update_activity(db_session, user_id=111, date=d, steps=55555)
+
+    r = client.get("/api/agent/day_summary?date=2026-06-02")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    # У нашего юзера на эту дату данных нет — чужие не должны подмешаться
+    assert body["status"] == "no_data", body
+
+
+def test_recent_supplements_scoped_to_user(client, db_session, monkeypatch):
+    """/recent_supplements фильтрует по user_id (raw SQL → проверяем параметры).
+
+    Сам запрос использует ARRAY_AGG (Postgres) и не исполним на SQLite —
+    проверяем, что в него уходит именно telegram_id аутентифицированного юзера.
+    """
+    captured = {}
+    original_execute = db_session.execute
+
+    def spy_execute(stmt, params=None):
+        if params and "uid" in params:
+            captured["uid"] = params["uid"]
+            raise RuntimeError("stop after capture (SQLite can't run ARRAY_AGG)")
+        return original_execute(stmt, params)
+
+    monkeypatch.setattr(db_session, "execute", spy_execute)
+    try:
+        client.get("/api/agent/recent_supplements?days=30")
+    except RuntimeError:
+        pass  # ожидаемо: нарочно прерываем после захвата параметров
+    assert captured.get("uid") == 895655
