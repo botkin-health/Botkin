@@ -21,10 +21,7 @@ from collections import Counter, defaultdict
 from datetime import date, timedelta
 from pathlib import Path
 
-# Импорт из соседнего проекта (HealthVault-engine на GDrive)
-PROJECT_ROOT = Path(
-    "/Users/alexlyskovsky/Library/CloudStorage/GoogleDrive-lyskovsky@gmail.com/Мой диск/Projects/Vibe coding/HealthVault-engine"
-)
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.health.medas import compute_medas, classify_food, to_portions  # noqa: E402

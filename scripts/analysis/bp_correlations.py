@@ -7,7 +7,7 @@ from collections import defaultdict
 import statistics
 
 # Config
-DATA_DIR = Path("/Users/alexlyskovsky/HealthVault/data")
+DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 BP_FILE = DATA_DIR / "apple-health/parsed/blood_pressure_manual.csv"
 SLEEP_FILE = DATA_DIR / "apple-health/parsed/sleep.json"
 WORKOUT_FILE = DATA_DIR / "apple-health/parsed/workouts.json"

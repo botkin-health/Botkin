@@ -110,7 +110,7 @@ Telegram ID и личные данные пользователей — в `~/.c
 | PostgreSQL `blood_tests` (сырые `values`) | **дашборд** (`dashboard_generator._load_biomarkers_from_db` → `aggregate_biomarkers`) **и агент** (`/recent_biomarkers`, `/phenoage`) | канонизируется на лету `to_canonical` | `scripts/import/kb_to_blood_tests.py` |
 | `/app/data/kb/kb_<id>.json` (bind-mount) | агент (`/kb_value`, `/list_kb_keys`) | сырой полный KB | `scripts/sync_family_kb.py --apply` |
 
-Дашборд **больше не читает файл** `biomarkers_<id>.json` — он берёт биомаркеры из Postgres (durable, не теряются при rebuild контейнера — раньше у 4 family-юзеров дашборды пустели после деплоя). Legacy-файл оставлен как fallback за env `BOTKIN_LEGACY_BIOMARKERS_JSON=1` (на 1-2 недели, потом удалить).
+Дашборд **больше не читает файл** `biomarkers_<id>.json` — он берёт биомаркеры из Postgres (durable, не теряются при rebuild контейнера — раньше у 4 family-юзеров дашборды пустели после деплоя). Legacy-fallback `BOTKIN_LEGACY_BIOMARKERS_JSON` удалён 11.06.2026 (аудит): флаг нигде не включался.
 
 **Когда добавил новый анализ в KB → одна команда для ЛЮБОГО юзера:**
 ```bash
@@ -168,7 +168,7 @@ python3 scripts/sync_user_health.py --user <telegram_id> --apply   # или --al
 
 **Ручной экспорт:** в HAE → автоматизация Botkin (на iPhone может ещё называться «HealthVault» если не переименовали в HAE-приложении — переименовать) → внизу зелёная кнопка «Ручной экспорт» → выбрать диапазон → POST уйдёт сразу. Полезно для проверки свежей тренировки/замера на дашборде, не дожидаясь ночного автозапуска.
 
-**Старый endpoint `/apple_health` (v1)** — оставлен для обратной совместимости со старыми Shortcuts (если их ещё кто-то использует). Принимает плоский JSON. Рабочий, но новые автоматизации делать на v2.
+**Endpoint `/apple_health` (v1)** — поддерживаемый канал **бесплатного пути через iOS Shortcuts** (iCloud-шаблон из `docs/user_guide/ru/apple-health.md`, per-user токены `hvt_`). Принимает плоский JSON. Это не legacy: HAE v2 — надёжный платный путь, Shortcut v1 — официальный бесплатный (требует ручного/автоматизированного запуска Shortcut).
 
 **Документация HAE:**
 - [Help Center — REST API automation](https://help.healthyapps.dev/en/health-auto-export/automations/rest-api/)

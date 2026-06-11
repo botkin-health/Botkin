@@ -1,6 +1,9 @@
 #!/bin/bash
-# Deploy HealthVault bot to production server.
-# Usage: ./scripts/util/deploy.sh [--full-rebuild]
+# ⚠️ HOTFIX-инструмент, НЕ канонический деплой. Канон — ./deploy.sh в корне
+# (rsync + docker build + restart). Этот скрипт делает docker cp прямо в
+# работающий контейнер: образ при этом РАССИНХРОНИЗИРУЕТСЯ с кодом — следующий
+# обычный restart без rebuild откатит горячие правки. Использовать осознанно.
+# Usage: ./scripts/util/hotfix_deploy.sh [--full-rebuild]
 #
 # Default (fast): rsync source → docker cp changed files → restart bot
 # --full-rebuild: rsync source → docker compose build → force-recreate

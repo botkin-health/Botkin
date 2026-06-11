@@ -5,11 +5,7 @@ Integration smoke tests — требуют живой PostgreSQL на серве
 НЕ запускаются автоматически в CI (нет реальной БД).
 """
 
-import sys
-
 import pytest
-
-sys.path.insert(0, "/Users/alexlyskovsky/HealthVault")
 
 from database import SessionLocal, get_nutrition_logs_by_period, get_last_activity_date
 from datetime import date, timedelta
