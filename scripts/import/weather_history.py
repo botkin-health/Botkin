@@ -109,8 +109,11 @@ output = {
 
 import os
 
-os.makedirs("/Users/alexlyskovsky/HealthVault/data/weather", exist_ok=True)
-out_path = "/Users/alexlyskovsky/HealthVault/data/weather/weather_history.json"
+from pathlib import Path
+
+_weather_dir = Path(__file__).resolve().parents[2] / "data" / "weather"
+os.makedirs(_weather_dir, exist_ok=True)
+out_path = str(_weather_dir / "weather_history.json")
 with open(out_path, "w") as f:
     json.dump(output, f, ensure_ascii=False, indent=2)
 

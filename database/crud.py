@@ -783,16 +783,18 @@ def get_recent_product_names(db: Session, user_id: int, limit: int = 15, lookbac
     """Aggregate recent product usage from nutrition_log.items[]. Sort by last_used DESC."""
     from collections import OrderedDict
 
+    from core.food.fiber_table import _item_name, _item_weight
+
     end = date.today()
     start = end - timedelta(days=lookback_days)
     rows = get_nutrition_logs_by_period(db, user_id=user_id, start_date=start, end_date=end)
     by_name: Dict[str, Any] = OrderedDict()
     for r in sorted(rows, key=lambda x: (x.date, x.meal_time or time(0, 0)), reverse=True):
         for it in r.items or []:
-            name = (it.get("product") or "").strip()
+            name = _item_name(it).strip()
             if not name or name in by_name:
                 continue
-            w = float(it.get("weight_g") or 0)
+            w = _item_weight(it)
             if w <= 0:
                 continue
 

@@ -1085,10 +1085,6 @@ async def handle_description(
     state_manager.set_state(user_id, user_state)
 
     # Формируем ответ
-    # Функция format_meal_response должна существовать или импортироваться?
-    # Она была в photo.py но я ее не видел в view_file output?
-    # А, она скорее всего ниже или я пропустил.
-    # Если ее нет, напишем инлайн.
 
     response = f"🍽️ <b>{meal_name}</b>\n\n"
     for item in meal_items:
@@ -1207,70 +1203,6 @@ async def handle_menu_photo(message: Message, menu_data: dict, photo_path: Path,
         await processing_message.edit_text(response, parse_mode="HTML", reply_markup=keyboard)
     else:
         await message.answer(response, parse_mode="HTML", reply_markup=keyboard)
-
-
-def format_meal_response(
-    meal_items: list, meal_totals: dict, portion_multiplier: float, meal_name: str = None, date: str = None
-) -> str:
-    """Форматирует ответ с информацией о блюде"""
-
-    lines = []
-
-    # Добавляем дату, если она не сегодня
-    if date:
-        try:
-            date_obj = datetime.strptime(date, "%Y-%m-%d")
-            today_str = datetime.now(MSK).strftime("%Y-%m-%d")
-            if date != today_str:
-                lines.append(f"📅 <b>{date_obj.strftime('%d.%m.%Y')}</b>")
-        except ValueError:
-            pass
-    """Форматирует ответ с информацией о блюде"""
-
-    lines = []
-
-    # Добавляем название приёма пищи, если указано
-    if meal_name and meal_name != "Приём пищи":
-        lines.append(f"🍽️ <b>{meal_name}</b>\n")
-
-    # Добавляем информацию о каждом продукте
-    for item in meal_items:
-        product_name = item.get("product", "Неизвестный продукт")
-        weight = int(round(item.get("weight_g", 0)))
-        calories = int(round(item.get("calories", 0)))
-        protein = int(round(item.get("protein", 0)))
-        fats = int(round(item.get("fats", 0)))
-        carbs = int(round(item.get("carbs", 0)))
-        weight_source = item.get("weight_source", "unknown")
-
-        # Определяем источник веса для отображения
-        source_icon = "📷" if weight_source == "photo" else "📝" if weight_source == "description" else "⚖️"
-
-        lines.append(
-            f"• <b>{product_name}</b> ({weight}г) — {calories} ккал (Б:{protein} Ж:{fats} У:{carbs}) {source_icon}"
-        )
-
-    # Добавляем итоги
-    lines.append("\n<b>Итого:</b>")
-    lines.append(f"Калории: {int(round(meal_totals.get('calories', 0)))} ккал")
-    lines.append(f"Белки: {int(round(meal_totals.get('protein', 0)))} г")
-    lines.append(f"Жиры: {int(round(meal_totals.get('fats', 0)))} г")
-    lines.append(f"Углеводы: {int(round(meal_totals.get('carbs', 0)))} г")
-
-    # Добавляем информацию о точности
-    has_estimated = any(item.get("weight_estimated", False) for item in meal_items)
-    if has_estimated:
-        lines.append("\n⚠️ Точность: средняя (±15-25%)")
-    else:
-        lines.append("\n✅ Точность: высокая (±5-10%)")
-
-    if portion_multiplier != 1.0:
-        lines.append(f"\n📊 Учтена порция: {int(portion_multiplier * 100)}%")
-
-    # Убираем "✅ Сохранить?" - теперь это кнопки
-    # lines.append("\n✅ Сохранить?")
-
-    return "\n".join(lines)
 
 
 # Импортируем logger

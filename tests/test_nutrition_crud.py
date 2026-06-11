@@ -156,3 +156,28 @@ def test_get_recent_product_names_aggregates(test_db):
         assert "per_100" in r
         for k in ("kcal", "p", "f", "c", "fib"):
             assert k in r["per_100"]
+
+
+def test_get_recent_product_names_reads_bot_dialect(test_db):
+    """Основной путь Telegram-бота пишет items как {food, amount} — раздел
+    «Часто используемое» должен видеть и их, а не только {product, weight_g}."""
+    create_nutrition_log(
+        test_db,
+        user_id=895655,
+        date=date(2026, 6, 1),
+        meal_time=time(13, 0),
+        meal_name="Обед",
+        items=[
+            {"food": "Гречка", "amount": 150, "calories": 165, "protein": 6, "fats": 2, "carbs": 32, "fiber": 4},
+            {"name": "Курица", "weight": 120, "calories": 198, "protein": 37, "fats": 5, "carbs": 0, "fiber": 0},
+        ],
+        totals={"calories": 363, "protein": 43, "fats": 7, "carbs": 32, "fiber": 4},
+    )
+
+    recents = get_recent_product_names(test_db, user_id=895655, limit=15, lookback_days=90)
+    by_name = {r["name"]: r for r in recents}
+    assert "Гречка" in by_name
+    assert by_name["Гречка"]["default_weight"] == 150
+    assert by_name["Гречка"]["per_100"]["kcal"] == 110.0
+    assert "Курица" in by_name
+    assert by_name["Курица"]["default_weight"] == 120

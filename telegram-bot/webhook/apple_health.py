@@ -3,7 +3,7 @@ Apple Health Webhook — принимает данные от iPhone Shortcuts.
 Запускается параллельно с Telegram-ботом на порту 8080.
 Данные пишутся в PostgreSQL в те же таблицы что и Garmin/Zepp.
 
-Endpoint: POST https://health.orangegate.cc/apple_health
+Endpoint: POST https://botkin.health/apple_health (legacy-домен health.orangegate.cc остаётся redirect-каналом)
 Auth: Bearer token (APPLE_HEALTH_TOKEN из .env)
 """
 

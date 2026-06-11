@@ -737,7 +737,7 @@ async def cmd_share(message: Message, user_id: int):
     finally:
         db.close()
 
-    url = f"https://health.orangegate.cc/mc/{token}"
+    url = f"https://botkin.health/mc/{token}"
     keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔗 Открыть дашборд", url=url)]])
 
     await message.answer(

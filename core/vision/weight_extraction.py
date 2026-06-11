@@ -289,37 +289,6 @@ def extract_weights_from_photos(photo_paths: List[Path], api_key: Optional[str] 
     return weights
 
 
-def match_weights_to_products(products: List[str], weights: List[Optional[float]], description: str) -> dict:
-    """
-    Сопоставляет веса из фото с продуктами из описания.
-
-    Args:
-        products: Список названий продуктов из описания
-        weights: Список весов из фото
-        description: Описание блюда
-
-    Returns:
-        Словарь {продукт: вес} или {продукт: None} если вес не найден
-    """
-    result = {}
-
-    # Фильтруем None веса
-    available_weights = [w for w in weights if w is not None]
-
-    # Если весов меньше чем продуктов, пытаемся сопоставить по порядку
-    # или по ключевым словам в описании
-
-    # Простая стратегия: сопоставляем по порядку
-    # Если продуктов больше чем весов, оставшиеся получают None
-    for i, product in enumerate(products):
-        if i < len(available_weights):
-            result[product] = available_weights[i]
-        else:
-            result[product] = None
-
-    return result
-
-
 if __name__ == "__main__":
     # Тестирование
     import argparse

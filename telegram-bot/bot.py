@@ -305,6 +305,9 @@ async def main():
     # (или первого деплоя) Telegram не знает куда слать апдейты — сообщения
     # копятся в очереди и бот «молчит». Прецедент: 12.05.2026 при свитче
     # @HealthVault_bot → @Botkin_md_bot webhook не зарегистрировали вручную.
+    # Default — legacy-домен: прод-.env не задаёт TELEGRAM_WEBHOOK_URL, а nginx
+    # botkin.health не проксирует /telegram/ (проверено 11.06.2026). Перевод на
+    # botkin.health — только вместе с nginx-location и сменой webhook у Telegram.
     webhook_url = os.getenv("TELEGRAM_WEBHOOK_URL", "https://health.orangegate.cc/telegram/webhook")
     if webhook_enabled and webhook_url:
         try:

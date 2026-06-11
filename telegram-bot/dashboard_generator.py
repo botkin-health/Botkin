@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import json
 import math
-import os
 import re
 import sys
 from datetime import date, datetime, timedelta
@@ -878,21 +877,10 @@ def _build_payload(db: Session, user_id: int) -> dict:
     supp_days = sorted(r.date.isoformat() for r in supp_rows)
 
     # ── biomarkers: read from Postgres blood_tests (canonical via kb_schema) ───
-    # Fallback на legacy-файл biomarkers_<id>.json только если явно включён флаг
-    # BOTKIN_LEGACY_BIOMARKERS_JSON (страховка на переходный период).
-    biomarkers: dict = {}
-    if os.getenv("BOTKIN_LEGACY_BIOMARKERS_JSON") == "1":
-        bio_path = Path(__file__).parent / f"biomarkers_{user_id}.json"
-        if bio_path.exists():
-            try:
-                biomarkers = json.loads(bio_path.read_text())
-            except Exception:
-                pass
-    if not biomarkers:
-        try:
-            biomarkers = _load_biomarkers_from_db(db, user_id)
-        except Exception:
-            biomarkers = {}
+    try:
+        biomarkers = _load_biomarkers_from_db(db, user_id)
+    except Exception:
+        biomarkers = {}
 
     # ── environmental (optional, empty if no file) ────────────────────────────
     co2: dict[str, int] = {}

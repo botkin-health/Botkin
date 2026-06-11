@@ -37,7 +37,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 1. **Multi-user из коробки** — cohort-роли (owner / family / early_user / external), RLS-изоляция, JWT для агентов. Сделано в Sprint 1a (04.05.2026).
 2. **Гибридная приватность** — пользователь сам решает: что лежит на семейном сервере (доступно через AI), что только локально на его компе.
 3. **MCP — основной канал** между личным Claude пользователя и сервером Botkin. Server отдаёт tools, Claude (на компе пользователя) использует.
-4. **AI-врач = BotkinClaw** — in-process handler в основном aiogram-боте (решение от 21.05.2026 после спайка NanoClaw). Прямой вызов Anthropic Messages API из `@Botkin_md_bot`, история диалога в Postgres, tools через переиспользуемый `webhook/agent_tools_api.py` (JWT+RLS, 8 endpoints). Один бот для всех пользователей, без отдельной контейнерной инфры. История: [ADR-0001](docs/architecture/decisions/0001-nanoclaw-ephemeral-not-persistent.md) (ephemeral vs persistent — остаётся валидным архитектурным принципом *если* когда-нибудь вернёмся к контейнеризации) + [ADR-0002](docs/architecture/decisions/0002-rejecting-nanoclaw-for-simpler-agent.md) (почему отказались от NanoClaw, и почему «BotkinClaw» — игра слов NanoClaw → BotkinClaw, бот сам играет роль контейнера).
+4. **AI-врач = BotkinClaw** — in-process handler в основном aiogram-боте (решение от 21.05.2026 после спайка NanoClaw). Прямой вызов Anthropic Messages API из `@Botkin_md_bot`, история диалога в Postgres, tools через переиспользуемый `webhook/agent_tools_api.py` (JWT+RLS, 30+ endpoints). Один бот для всех пользователей, без отдельной контейнерной инфры. История: [ADR-0001](docs/architecture/decisions/0001-nanoclaw-ephemeral-not-persistent.md) (ephemeral vs persistent — остаётся валидным архитектурным принципом *если* когда-нибудь вернёмся к контейнеризации) + [ADR-0002](docs/architecture/decisions/0002-rejecting-nanoclaw-for-simpler-agent.md) (почему отказались от NanoClaw, и почему «BotkinClaw» — игра слов NanoClaw → BotkinClaw, бот сам играет роль контейнера).
 5. **Open source** — код публичный. Все приватные данные (имена, диагнозы, биомаркеры, личные планы) — только в `~/FamilyHealth/<user>/`. Правила: `docs/operations/personal-data.md`.
 
 **Что НЕ есть Botkin:**
@@ -110,7 +110,7 @@ Telegram ID и личные данные пользователей — в `~/.c
 | PostgreSQL `blood_tests` (сырые `values`) | **дашборд** (`dashboard_generator._load_biomarkers_from_db` → `aggregate_biomarkers`) **и агент** (`/recent_biomarkers`, `/phenoage`) | канонизируется на лету `to_canonical` | `scripts/import/kb_to_blood_tests.py` |
 | `/app/data/kb/kb_<id>.json` (bind-mount) | агент (`/kb_value`, `/list_kb_keys`) | сырой полный KB | `scripts/sync_family_kb.py --apply` |
 
-Дашборд **больше не читает файл** `biomarkers_<id>.json` — он берёт биомаркеры из Postgres (durable, не теряются при rebuild контейнера — раньше у 4 family-юзеров дашборды пустели после деплоя). Legacy-файл оставлен как fallback за env `BOTKIN_LEGACY_BIOMARKERS_JSON=1` (на 1-2 недели, потом удалить).
+Дашборд **больше не читает файл** `biomarkers_<id>.json` — он берёт биомаркеры из Postgres (durable, не теряются при rebuild контейнера — раньше у 4 family-юзеров дашборды пустели после деплоя). Legacy-fallback `BOTKIN_LEGACY_BIOMARKERS_JSON` удалён 11.06.2026 (аудит): флаг нигде не включался.
 
 **Когда добавил новый анализ в KB → одна команда для ЛЮБОГО юзера:**
 ```bash
@@ -168,7 +168,7 @@ python3 scripts/sync_user_health.py --user <telegram_id> --apply   # или --al
 
 **Ручной экспорт:** в HAE → автоматизация Botkin (на iPhone может ещё называться «HealthVault» если не переименовали в HAE-приложении — переименовать) → внизу зелёная кнопка «Ручной экспорт» → выбрать диапазон → POST уйдёт сразу. Полезно для проверки свежей тренировки/замера на дашборде, не дожидаясь ночного автозапуска.
 
-**Старый endpoint `/apple_health` (v1)** — оставлен для обратной совместимости со старыми Shortcuts (если их ещё кто-то использует). Принимает плоский JSON. Рабочий, но новые автоматизации делать на v2.
+**Endpoint `/apple_health` (v1)** — поддерживаемый канал **бесплатного пути через iOS Shortcuts** (iCloud-шаблон из `docs/user_guide/ru/apple-health.md`, per-user токены `hvt_`). Принимает плоский JSON. Это не legacy: HAE v2 — надёжный платный путь, Shortcut v1 — официальный бесплатный (требует ручного/автоматизированного запуска Shortcut).
 
 **Документация HAE:**
 - [Help Center — REST API automation](https://help.healthyapps.dev/en/health-auto-export/automations/rest-api/)
@@ -194,7 +194,7 @@ python3 scripts/import/parse_apple_health_xml.py
 - `data/apple_health_gait.json` → `gait_by_day[{date, speed_km_h, step_length_cm, double_support_pct, asymmetry_pct}]` — походка с 2020
 - `data/apple_health_weight_daily.json` + `apple_health_weight.json` — вес с 2015
 
-**ВАЖНО:** эти файлы НЕ устарели. /sync читает их, /dashboard тоже. Каждый раз когда приходит новый Apple Health экспорт — перезаписываем их через `regen_flat_files.py` и удаляем сырой XML (он 700 МБ+).
+**ВАЖНО:** эти файлы НЕ устарели. /sync читает их, /dashboard тоже. Каждый раз когда приходит новый Apple Health экспорт — перезаписываем их через `scripts/import/parse_apple_health_xml.py` и удаляем сырой XML (он 700 МБ+).
 
 ⚠️ **Текущий `apple_health_steps_daily.json` ЗАДВОЕН для 2023+** (баг старого парсера: суммировал все sourceName без дедупликации; в 2026 даёт ≈ ×2.57 от Garmin). Парсер починен 14.05.2026 — теперь выбирает один primary-источник по приоритету `Garmin → Apple Watch → iPhone → fallback-max`. Чтобы исправить flat-файлы — нужен **свежий экспорт Apple Health XML** (Health → Профиль → Экспорт всех данных) и повторный запуск `parse_apple_health_xml.py`. Сравнить можно через новый `apple_health_steps_by_source.json` (там видны все источники за день). Для аналитики **2023+ года** до этого момента — использовать **только** Garmin `data/garmin/daily-summary/`, а не AH-flat. История **до 2022** в файле корректна (тогда был фактически один источник).
 
@@ -284,7 +284,7 @@ ssh root@116.203.213.137 "docker restart healthvault_bot"
 ssh root@116.203.213.137 "docker exec healthvault_postgres psql -U healthvault -d healthvault"
 
 # Диагностика общего состояния
-./scripts/diagnose_server.sh
+./scripts/util/diagnose_server.sh
 ```
 
 ### Синк данных здоровья
@@ -338,7 +338,7 @@ python3 scripts/sync_user_health.py --all --apply
 - ❌ FK на `users.id` — PK таблицы users это `telegram_id` (BigInt), не синтетический `id`
 - ❌ Читать items только по одному ключу (`it["food"]`) — есть 3 схемы одновременно; использовать `_item_name()` из `core/food/fiber_table.py`
 - ❌ Писать items без поля `fiber` — прогонять через `enrich_items_with_fiber()` перед INSERT
-- ❌ Писать в orphan-таблицы `blood_pressure_logs / daily_summaries / sleep_records / workouts` — они не управляются ORM
+- ❌ Писать в orphan-таблицы `daily_summaries / sleep_records` — они не управляются ORM и пусты на проде. В `blood_pressure_logs / workouts` пишут только штатные raw-SQL пути (`webhook/apple_health.py`, `webhook/agent_tools_api.py`) — новые записи добавлять через них, не через ORM
 
 ---
 
@@ -412,11 +412,11 @@ python3 scripts/generate_exam_journal.py "Имя — Здоровье" --update-
 AI-врач живёт **внутри** основного aiogram-бота (`@Botkin_md_bot`), не в отдельном контейнере.
 
 - **Точка входа:** `core/agent_chat.py:ask_agent()` — прямой вызов Anthropic Messages API (Claude)
-- **История диалога:** таблица `agent_chat_history` в Postgres
-- **Tools:** 18 endpoints в `telegram-bot/webhook/agent_tools_api.py` (JWT+RLS изоляция по cohort)
+- **История диалога:** таблица `agent_conversations` в Postgres (DDL: `database/migrations/add_agent_chat.sql`)
+- **Tools:** 30+ endpoints в `telegram-bot/webhook/agent_tools_api.py` (JWT+RLS изоляция по cohort; актуальный список — `grep '@router\.'`)
 - **JWT-контракт:** каждый запрос агента несёт `user_id` + `cohort` — RLS автоматически ограничивает видимость данных
 
-Ключевые agent tools: `get_weight_history`, `get_body_measurements`, `get_day_summary`, `get_indoor_air`, `get_outdoor_weather`, `get_user_settings`, `recent_workouts`, `/recent_biomarkers`, `/phenoage`, `/kb_value`, `/list_kb_keys`.
+Ключевые agent tools: `get_weight_history`, `get_body_measurements`, `get_day_summary`, `get_indoor_air`, `get_outdoor_weather`, `get_user_settings`, `recent_workouts`, `recent_biomarkers`, `phenoage`, `kb_value`, `list_kb_keys`.
 
 Решение принято 21.05.2026 вместо NanoClaw (отдельной контейнерной инфры). Подробнее — [ADR-0002](docs/architecture/decisions/0002-rejecting-nanoclaw-for-simpler-agent.md).
 

@@ -1723,9 +1723,8 @@ def ask_agent(
         # https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching
         cached_tools = [dict(t) for t in TOOLS]
         cached_tools[-1]["cache_control"] = {"type": "ephemeral"}
-        anthropic_beta_header = {"anthropic-beta": "prompt-caching-2024-07-31"}
-        # Merge into headers (don't mutate the outer headers dict)
-        request_headers = {**headers, **anthropic_beta_header}
+        # Prompt caching давно GA — beta-хедер prompt-caching-2024-07-31 не нужен
+        request_headers = dict(headers)
 
         for iteration in range(MAX_TOOL_ITERATIONS):
             payload = {

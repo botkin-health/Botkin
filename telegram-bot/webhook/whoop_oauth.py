@@ -52,6 +52,9 @@ def _client_secret() -> str:
 
 
 def _redirect_uri() -> str:
+    # Default — legacy-домен: Whoop-app зарегистрирован на orangegate redirect (см.
+    # docs/operations/whoop-app-instruction-for-dima.md); на botkin.health нет
+    # nginx-location /whoop/. Менять только вместе с конфигом Whoop-app и nginx.
     return os.environ.get("WHOOP_REDIRECT_URI", "https://health.orangegate.cc/whoop/callback")
 
 

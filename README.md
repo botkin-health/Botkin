@@ -134,7 +134,7 @@ AGPL-3.0. Hosted-версия для русскоязычных пользова
 
 **Диагностика:**
 ```bash
-./scripts/diagnose_server.sh
+./scripts/util/diagnose_server.sh
 ```
 
 ---
