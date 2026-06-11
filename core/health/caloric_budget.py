@@ -136,27 +136,6 @@ def get_daily_budget(
         db.close()
 
 
-def make_macro_bar(consumed: float, target: float, invert: bool = False) -> tuple:
-    """
-    Returns (bar_string, pct) colored-square progress bar for a macro.
-
-    invert=False (default) — over target is bad (calories, fat, carbs):
-        🟩 < 80%  |  🟧 80–100%  |  🟥 > 100%
-
-    invert=True — under target is bad (protein, fiber):
-        🟥 < 50%  |  🟧 50–70%  |  🟩 >= 70%
-    """
-    pct = round(consumed / target * 100) if target else 0
-    filled = min(10, round(pct / 10))
-
-    if invert:
-        sq = "🟩" if pct >= 70 else ("🟧" if pct >= 50 else "🟥")
-    else:
-        sq = "🟥" if pct > 100 else ("🟧" if pct >= 80 else "🟩")
-
-    return sq * filled + "⬜" * (10 - filled), pct
-
-
 def make_block_bar(consumed: float, target: float, invert: bool = False) -> tuple:
     """
     Returns (bar_string, pct) — emoji progress bar, 10 squares, no hybrid chars.

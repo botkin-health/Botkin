@@ -5,9 +5,9 @@ Garmin data synchronization and retrieval functions
 
 import logging
 import os
-from datetime import datetime, date as date_type, timedelta, timezone
+from datetime import datetime, date as date_type, timezone
 from typing import Optional, Dict, Tuple
-from database import SessionLocal, get_activity_by_date, get_last_activity_date
+from database import SessionLocal, get_activity_by_date
 
 # Garth tokens dir (persistent volume: /opt/healthvault/data/garth/ on server)
 _GARTH_HOME = os.getenv("GARTH_HOME", "/app/data/garth")
@@ -56,42 +56,6 @@ def get_garmin_data_for_date(date: str, user_id: int) -> Optional[Dict]:
             "sleepingSeconds": activity.sleep_hours * 3600 if activity.sleep_hours else None,
             "averageHeartRate": activity.heart_rate_avg,
             "averageStressLevel": activity.stress_level,
-        }
-    finally:
-        db.close()
-
-
-def get_average_stats(user_id: int, days: int = 7) -> Dict:
-    """
-    Получает средние показатели за последние N дней
-
-    Args:
-        days: Количество дней для анализа
-        user_id: Telegram ID пользователя
-
-    Returns:
-        Словарь со средними значениями
-    """
-    from database import get_activity_logs_by_period
-
-    db = SessionLocal()
-    try:
-        end_date = date_type.today()
-        start_date = end_date - timedelta(days=days - 1)
-
-        logs = get_activity_logs_by_period(db, user_id, start_date, end_date)
-
-        if not logs:
-            return {"avg_steps": 0, "avg_active_calories": 0, "avg_total_calories": 0}
-
-        total_steps = sum(log.steps or 0 for log in logs)
-        total_active = sum(log.active_calories or 0 for log in logs)
-        total_cal = sum(log.total_calories or 0 for log in logs)
-
-        return {
-            "avg_steps": total_steps / len(logs),
-            "avg_active_calories": total_active / len(logs),
-            "avg_total_calories": total_cal / len(logs),
         }
     finally:
         db.close()
@@ -293,54 +257,5 @@ def sync_garmin_data(user_id: int, sync_date: Optional[date_type] = None):
     except Exception as e:
         logger.error(f"Error in sync_garmin_data: {e}", exc_info=True)
         return False
-    finally:
-        db.close()
-
-
-def sync_missing_garmin_days(user_id: int):
-    """
-    Умная синхронизация: синхронизирует только недостающие дни
-
-    Синхронизируется с последней даты в БД (полностью) до сегодня (включительно)
-    Это позволяет обновить частичные данные за последний день и добавить новые
-
-    Args:
-        user_id: Telegram ID пользователя
-    """
-    logger.info(f"Smart Garmin sync started for user {user_id}")
-
-    from database import get_user_by_telegram_id
-
-    db = SessionLocal()
-    try:
-        user = get_user_by_telegram_id(db, user_id)
-        if not user:
-            logger.error(f"User {user_id} not found for smart sync")
-            return
-
-        # Получаем последнюю дату с данными (по PK)
-        last_date = get_last_activity_date(db, user.telegram_id)
-
-        if last_date is None:
-            # Если данных нет - синхронизируем только сегодня
-            logger.info("No previous Garmin data found, syncing today only")
-            sync_garmin_data(user_id, date_type.today())
-            return
-
-        # Синхронизируем с последней даты (полностью) до сегодня
-        today = date_type.today()
-        current_date = last_date
-
-        synced_count = 0
-        while current_date <= today:
-            logger.info(f"Syncing Garmin data for {current_date}")
-            # sync_garmin_data принимает telegram_id, так что передаем user_id
-            success = sync_garmin_data(user_id, current_date)
-            if success:
-                synced_count += 1
-            current_date += timedelta(days=1)
-
-        logger.info(f"Smart sync completed: {synced_count} days synced")
-
     finally:
         db.close()

@@ -19,7 +19,6 @@ COPY core/ ./core/
 COPY services/ ./services/
 COPY database/ ./database/
 COPY helpers/ ./helpers/
-COPY domain/ ./domain/
 COPY infrastructure/ ./infrastructure/
 COPY scripts/ ./scripts/
 

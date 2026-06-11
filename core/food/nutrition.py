@@ -51,7 +51,6 @@ from .description_parser import (
     normalize_product_name,
     is_zero_calorie_drink,
 )
-from core.vision.weight_extraction import extract_weight_from_photo
 
 # Импортируем поиск продуктов
 try:
@@ -514,18 +513,7 @@ def process_meal_description(
     return meal_items, meal_totals
 
 
-# Реэкспорт menu_meal_processor для обратной совместимости
 # (process_llm_food_data определена ниже в этом файле)
-from .menu_meal_processor import process_meal_description_with_menu  # noqa: F401
-
-
-# Сохраняем старую функцию для обратной совместимости
-def extract_weight_from_photo_legacy(photo_path: Path, api_key: Optional[str] = None) -> Optional[float]:
-    """
-    Старая функция для обратной совместимости.
-    Использует новый модуль weight_extraction.
-    """
-    return extract_weight_from_photo(photo_path, api_key)
 
 
 def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List[Dict], Dict[str, float]]:

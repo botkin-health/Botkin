@@ -16,7 +16,7 @@
       │ скачивает JSON → data/garmin/daily-summary/
       │ токены хранит → data/cache/garth_tokens/
       │
-      ├─► push_garmin_to_db.sh
+      ├─► push_garmin_to_db.py
       │     ├── пушит JSON → activity_log на сервере (SSH psql)
       │     └── копирует токены → /opt/healthvault/data/garth/895655/ на сервере
       │
@@ -88,7 +88,7 @@ Garth автоматически обновляет `access_token` через `r
 
 ## Как обновить токены (плановое, раз в ~25 дней)
 
-Просто запустить `/sync` на маке. `push_garmin_to_db.sh` автоматически:
+Просто запустить `/sync` на маке. `push_garmin_to_db.py` автоматически:
 1. Скачивает свежие данные через `download_garmin_data.py` — garth обновляет токены
 2. Пушит данные в БД
 3. Копирует свежие токены на сервер
@@ -202,7 +202,7 @@ print('refresh ok:', exp > time.time(), f'({(exp-time.time())/86400:.0f}d left)'
 **Как лечили:**
 1. Убрали password fallback полностью из бота
 2. Скопировали garth-токены с мака на сервер
-3. Добавили автокопирование токенов в `push_garmin_to_db.sh`
+3. Добавили автокопирование токенов в `push_garmin_to_db.py`
 4. Теперь бот использует только garth-токены, пароль на сервере никогда не используется
 
 ---

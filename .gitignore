@@ -153,3 +153,6 @@ docs/research/2026-05-22_android-health-connect-export-webhook.md
 *.gtable
 *.gsite
 *.glink
+
+# Архив мёртвого кода (вынесен из публичного репо при аудите 2026-06)
+archive/
