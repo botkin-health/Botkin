@@ -15,6 +15,7 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from config import get_settings
+from config.models import VISION_MODEL_GEMINI
 
 try:
     import requests
@@ -73,7 +74,7 @@ def parse_menu_with_gemini(photo_paths: List[Path] | Path, api_key: Optional[str
                 }
             )
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{VISION_MODEL_GEMINI}:generateContent?key={api_key}"
 
     headers = {"Content-Type": "application/json"}
 

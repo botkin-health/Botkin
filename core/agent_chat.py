@@ -43,14 +43,12 @@ logger = logging.getLogger(__name__)
 
 ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
 ANTHROPIC_VERSION = "2023-06-01"
-# Sonnet 4.6 — рабочая модель агента (откат с Opus 4.8 01.06.2026 по стоимости:
-# Opus давал ~$7.5/активный день ≈ $100/мес, дорогие tool-итерации; Sonnet в ~5×
-# дешевле при достаточном качестве для семейного медбота). $3/$15 за MT.
-MODEL = "claude-sonnet-4-6"
-# Fallback на 4.5 если 4.6 вернул 529/503/429. Другой compute pool (обычно
-# свободнее). ⚠️ Sonnet 4.5 НЕ поддерживает output_config.effort → в fallback-
-# ветке effort снимается (см. _post_with_overload_retry), иначе 400.
-FALLBACK_MODEL = "claude-sonnet-4-5"
+# Выбор моделей и история откатов — config/models.py (env-переопределяемо).
+# ⚠️ Sonnet 4.5 НЕ поддерживает output_config.effort → в fallback-ветке effort
+# снимается (см. _post_with_overload_retry), иначе 400.
+from config.models import AGENT_FALLBACK_MODEL as FALLBACK_MODEL
+from config.models import AGENT_MODEL as MODEL
+
 # effort=medium — документированный sweet spot Sonnet 4.6 для чата: дешевле и
 # быстрее дефолтного high, без потери качества на разговорных задачах.
 AGENT_EFFORT = "medium"

@@ -10,6 +10,7 @@ from typing import Dict, Optional
 import requests
 import os
 import time
+from config.models import PRODUCT_SEARCH_MODEL
 
 try:
     from core.vision.chatgpt_vision import get_openai_api_key
@@ -277,7 +278,7 @@ def search_product_online(product_name: str, lang: str = "ru") -> Optional[Dict]
 Возвращай ТОЛЬКО JSON, без markdown."""
 
     payload = {
-        "model": "gpt-4o-mini",
+        "model": PRODUCT_SEARCH_MODEL,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.1,
         "max_tokens": 200,
@@ -313,7 +314,7 @@ def search_product_online(product_name: str, lang: str = "ru") -> Optional[Dict]
             "fats_per_100g": float(data.get("fats_per_100g", 0)),
             "carbs_per_100g": float(data.get("carbs_per_100g", 0)),
             "aliases": data.get("aliases", []),
-            "source": "gpt-4o-mini",
+            "source": PRODUCT_SEARCH_MODEL,
             "note": data.get("note", f"AI search: {product_name}"),
         }
 

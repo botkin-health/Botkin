@@ -8,10 +8,9 @@ requests
 
 # AI Services
 openai>=1.0.0
-google-generativeai>=0.3.0
 
 # Data Processing (Scripts)
-garminconnect==0.2.38
+garminconnect==0.2.40
 garth>=0.4.47
 lnetatmo>=4.2.0
 pandas>=2.0.0

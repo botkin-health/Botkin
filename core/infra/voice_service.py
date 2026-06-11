@@ -2,6 +2,7 @@ import os
 import logging
 from pathlib import Path
 from openai import AsyncOpenAI
+from config.models import VOICE_TRANSCRIBE_MODEL
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ class VoiceService:
 
             with open(file_path, "rb") as audio_file:
                 transcript = await self.client.audio.transcriptions.create(
-                    model="whisper-1", file=audio_file, response_format="text"
+                    model=VOICE_TRANSCRIBE_MODEL, file=audio_file, response_format="text"
                 )
 
             logger.info(f"✅ Успешно транскрибировано: {transcript[:50]}...")
