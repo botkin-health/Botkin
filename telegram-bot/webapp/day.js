@@ -360,6 +360,15 @@
   updateSwitcher();
   loadDay();
 
+  // Sync timezone from browser on every open — fire-and-forget, never blocks UI.
+  // Uses IANA name (e.g. "Asia/Jerusalem") which handles DST automatically.
+  (function () {
+    try {
+      var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (tz) API.patchTimezone(tz).catch(function () {});
+    } catch (_) {}
+  })();
+
 function showSnackbar(text, onUndo) {
   const bar = document.getElementById('snackbar');
   document.getElementById('snackbar-text').textContent = text;
