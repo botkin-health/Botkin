@@ -298,6 +298,7 @@ def extract_date_from_text(text: str, user_tz=None) -> tuple[str, str]:
     text_lower = text.lower().strip()
 
     from zoneinfo import ZoneInfo
+
     _tz = user_tz or ZoneInfo("Europe/Moscow")
 
     # Ключевые слова для "вчера" / "позавчера"
