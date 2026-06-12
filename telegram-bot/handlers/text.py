@@ -270,10 +270,10 @@ def extract_meal_name(text: str, meal_time: str = None, user_tz=None) -> str:
             pass
 
     # Если время не указано, используем текущее время в таймзоне пользователя
-    from datetime import datetime as _dt_tz
     from zoneinfo import ZoneInfo
+
     _tz = user_tz or ZoneInfo("Europe/Moscow")
-    current_hour = _dt_tz.now(_tz).hour
+    current_hour = datetime.now(_tz).hour
     if 5 <= current_hour < 11:
         return "Завтрак"
     elif 11 <= current_hour < 15:

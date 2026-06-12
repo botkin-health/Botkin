@@ -34,5 +34,4 @@ def get_user_tz(user_id: int):
         finally:
             db.close()
     except Exception:
-        from zoneinfo import ZoneInfo
         return ZoneInfo(_DEFAULT_TZ_NAME)

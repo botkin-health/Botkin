@@ -605,7 +605,13 @@ async def cmd_burn(message: Message, user_id: int):
 
     db = SessionLocal()
     try:
-        create_or_update_activity(db, user_id, datetime.now(get_user_tz(user_id)).date(), active_calories=float(cal), source="manual")
+        create_or_update_activity(
+            db,
+            user_id,
+            datetime.now(get_user_tz(user_id)).date(),
+            active_calories=float(cal),
+            source="manual",
+        )
         await message.answer(f"✅ Активность сегодня: {cal} ккал сохранена.")
     finally:
         db.close()
