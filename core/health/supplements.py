@@ -211,6 +211,22 @@ def needs_legacy_migration(supplements: list) -> bool:
     return no_dose or has_long_dose or has_deprecated_slot
 
 
+def _migrate_legacy_supplements(supplements: list) -> list:
+    """Fix structural issues (deprecated slots, long doses) without altering the user's supplement list."""
+    migrated = []
+    for item in supplements:
+        if not isinstance(item, dict) or not item.get("name"):
+            continue
+        slot = item.get("slot", "morning_with")
+        if slot == "post_workout":
+            slot = "evening"
+        dose = item.get("dose")
+        if dose and len(dose) > 12:
+            dose = dose[:12].strip()
+        migrated.append({"name": item["name"], "slot": slot, "dose": dose})
+    return migrated
+
+
 def default_dose_for(name: str) -> Optional[str]:
     """Return the planned `dose` string for a supplement name from DEFAULT_SUPPLEMENTS.
     Matches by normalized canonical name; first occurrence wins (utro по умолчанию)."""
@@ -221,20 +237,9 @@ def default_dose_for(name: str) -> Optional[str]:
     return None
 
 
-# Default supplement schedule — used for new users and migration.
+# Default supplement schedule — empty; each user configures their own.
 # `dose` — короткая строка для UI и для записи в supplements_log.dosage.
-DEFAULT_SUPPLEMENTS = [
-    {"name": "Псиллиум", "slot": "morning_before", "dose": "2 ч.л."},
-    {"name": "Витамин D3", "slot": "morning_with", "dose": "5000 IU"},
-    {"name": "Омега 3", "slot": "morning_with", "dose": "2 капс"},
-    {"name": "Plant Sterols", "slot": "morning_with", "dose": "2 капс"},
-    {"name": "Метилфолат", "slot": "morning_with", "dose": "400 мкг"},
-    {"name": "K2 MK-7", "slot": "morning_with", "dose": "100 мкг"},
-    {"name": "Plant Sterols", "slot": "evening", "dose": "2 капс"},
-    {"name": "Магний", "slot": "evening", "dose": "2 табл"},
-    {"name": "Креатин", "slot": "evening", "dose": "5 г"},
-    {"name": "Whey", "slot": "evening", "dose": "2 ложки"},
-]
+DEFAULT_SUPPLEMENTS: list = []
 
 # Maps internal slot names → display labels
 _SLOT_LABELS = {
@@ -386,13 +391,12 @@ class SupplementService:
         try:
             settings = get_user_settings(db, self.user_id)
             if settings is None or not settings.supplements:
-                upsert_user_settings(db, self.user_id, supplements=DEFAULT_SUPPLEMENTS)
-                raw = DEFAULT_SUPPLEMENTS
+                raw = []
             else:
                 raw = settings.supplements
                 if needs_legacy_migration(raw):
-                    upsert_user_settings(db, self.user_id, supplements=DEFAULT_SUPPLEMENTS)
-                    raw = DEFAULT_SUPPLEMENTS
+                    raw = _migrate_legacy_supplements(raw)
+                    upsert_user_settings(db, self.user_id, supplements=raw)
         finally:
             db.close()
 
@@ -450,6 +454,14 @@ class SupplementService:
             return False
 
         lines = ["💊 <b>Чек-лист витаминов на сегодня:</b>\n"]
+
+        if not any(self.schedule.values()):
+            lines.append("Список добавок не настроен.")
+            lines.append("")
+            lines.append("Напишите мне, что принимаете, например:")
+            lines.append("<i>«Принимаю витамин D3 5000 IU и магний 2 табл вечером»</i>")
+            lines.append("— и я запомню ваш протокол.")
+            return "\n".join(lines)
 
         for time_of_day, items in self.schedule.items():
             if not items:
