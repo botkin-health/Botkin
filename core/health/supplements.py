@@ -8,8 +8,7 @@ import logging
 from datetime import datetime
 from typing import List, Dict, Optional
 
-# Московское время (UTC+3)
-from core.infra.tz import MSK  # noqa: E402  (общая TZ проекта)
+from core.infra.tz import get_user_tz  # noqa: E402
 
 from database import SessionLocal, get_supplements_by_date, create_supplement_log
 from database.crud import create_nutrition_log
@@ -259,11 +258,12 @@ def save_supplements(items: List[str], user_id: int, date_str: Optional[str] = N
     if not items:
         return False
 
+    user_tz = get_user_tz(user_id)
     if not date_str:
-        date_str = datetime.now(MSK).strftime("%Y-%m-%d")
+        date_str = datetime.now(user_tz).strftime("%Y-%m-%d")
 
     target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-    current_time = datetime.now(MSK).time()
+    current_time = datetime.now(user_tz).time()
 
     db = SessionLocal()
     try:
@@ -303,7 +303,7 @@ def get_today_supplements(user_id: int, date_str: Optional[str] = None) -> List[
         List of dicts with 'name' and 'time' keys
     """
     if not date_str:
-        date_str = datetime.now(MSK).strftime("%Y-%m-%d")
+        date_str = datetime.now(get_user_tz(user_id)).strftime("%Y-%m-%d")
 
     target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
 
@@ -412,7 +412,7 @@ class SupplementService:
         Returns a formatted schedule string with checkboxes for taken items
 
         Args:
-            for_date: Date string YYYY-MM-DD (if None — today MSK)
+            for_date: Date string YYYY-MM-DD (if None — today in user's timezone)
         Returns:
             Formatted schedule with ✅/⬜ checkboxes
         """
@@ -472,7 +472,7 @@ class SupplementService:
         Short status for /day command
 
         Args:
-            for_date: Date string YYYY-MM-DD (if None — today MSK)
+            for_date: Date string YYYY-MM-DD (if None — today in user's timezone)
         Returns:
             Brief status string with taken supplements
         """

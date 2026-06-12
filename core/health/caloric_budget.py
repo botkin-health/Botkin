@@ -9,14 +9,7 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-# All date math must use MSK to match meal save (db_save.py uses datetime.now(MSK).date()).
-# Server runs in UTC (Docker default) — without this, budget shows yesterday's totals
-# when user logs a meal between 21:00–24:00 UTC (i.e. midnight MSK).
-from core.infra.tz import MSK  # noqa: E402  (общая TZ проекта)
-
-
-def _today_msk() -> date_type:
-    return datetime.now(MSK).date()
+from core.infra.tz import get_user_tz  # noqa: E402
 
 
 WARN_THRESHOLD = 0.80  # warn when consumed ≥ 80% of target
@@ -52,7 +45,8 @@ def get_daily_budget(
         get_activities_by_period,
     )
 
-    today = for_date or _today_msk()
+    user_tz = get_user_tz(user_id)
+    today = for_date or datetime.now(user_tz).date()
     db = SessionLocal()
     try:
         s = get_user_settings(db, user_id)
@@ -193,7 +187,7 @@ def format_budget_line(user_id: int, for_date: Optional[date_type] = None, show_
         tail = f"осталось {remaining} ккал"
 
     hint = "" if b["has_garmin"] else " (≈ среднее)"
-    today = _today_msk()
+    today = datetime.now(get_user_tz(user_id)).date()
     yesterday = today - timedelta(days=1)
     if for_date is None or for_date == today:
         day_label = "Сегодня"
