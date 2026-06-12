@@ -8,7 +8,7 @@ from aiogram.types import Message
 from aiogram.filters import Command
 from datetime import datetime, timedelta
 
-from core.infra.tz import MSK  # noqa: E402  (общая TZ проекта)
+from core.infra.tz import get_user_tz  # noqa: E402
 
 from core.health.garmin_data import get_garmin_data_for_date, sync_today_garmin
 from core.health.weekly_nutrition import analyze_weekly_nutrition
@@ -126,7 +126,7 @@ async def cmd_day(message: Message, user_id: int):
         _us = get_user_settings(db, user_id)
         show_bar = _us.show_calorie_budget_bar if _us else True
 
-        real_today = datetime.now(MSK).date()
+        real_today = datetime.now(get_user_tz(user_id)).date()
         today_date = real_today
 
         # Check if user asked for a specific date
@@ -582,7 +582,7 @@ async def cmd_activity(message: Message, user_id: int):
 
     db = SessionLocal()
     try:
-        today = datetime.now(MSK).date()
+        today = datetime.now(get_user_tz(user_id)).date()
         create_or_update_activity(db, user_id, today, active_calories=float(cal), source="manual")
         await message.answer(f"✅ Активность сегодня: {cal} ккал сохранена.")
     finally:
@@ -605,7 +605,7 @@ async def cmd_burn(message: Message, user_id: int):
 
     db = SessionLocal()
     try:
-        create_or_update_activity(db, user_id, datetime.now(MSK).date(), active_calories=float(cal), source="manual")
+        create_or_update_activity(db, user_id, datetime.now(get_user_tz(user_id)).date(), active_calories=float(cal), source="manual")
         await message.answer(f"✅ Активность сегодня: {cal} ккал сохранена.")
     finally:
         db.close()
