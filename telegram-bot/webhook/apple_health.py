@@ -248,7 +248,6 @@ async def receive_apple_health(
         from database import SessionLocal
         from database.crud import (
             create_or_update_activity,
-            create_weight,
             get_user_by_health_token,
             get_activity_by_date,
         )
@@ -361,17 +360,35 @@ async def receive_apple_health(
                 )
                 saved.append(f"blood_pressure: {payload.blood_pressure_systolic}/{payload.blood_pressure_diastolic}")
 
-            # ── 3. weights (если пришёл вес от Zepp через Apple Health) ─────
+            # ── 3. weights (если пришёл вес от весов через Apple Health) ─────
+            # Issue #56: раньше тут был create_weight(date=record_date, ...) —
+            # но сигнатура принимает measured_at: datetime, не date → TypeError,
+            # а у create_weight нет ON CONFLICT → повторная отправка за день падала
+            # на UniqueViolation. Зеркалим идемпотентный UPSERT из v2 (см. ниже).
             if payload.weight_kg and payload.weight_kg > 30:
-                weight_entry = create_weight(
-                    db=db,
-                    user_id=target_user_id,
-                    date=record_date,
-                    weight=payload.weight_kg,
-                    body_fat=payload.body_fat_pct,
-                    muscle_mass=payload.muscle_mass_kg,
-                    water=payload.water_pct,
-                    source="apple_health_shortcut",
+                from sqlalchemy import text as _text
+
+                weight_ts = datetime.combine(record_date, datetime.min.time().replace(hour=8))
+                db.execute(
+                    _text(
+                        """INSERT INTO weights
+                           (user_id, measured_at, weight, body_fat, muscle_mass, water, source)
+                           VALUES (:uid, :ts, :w, :bf, :mm, :wt, 'apple_health_shortcut')
+                           ON CONFLICT (user_id, measured_at) DO UPDATE
+                             SET weight = EXCLUDED.weight,
+                                 body_fat = EXCLUDED.body_fat,
+                                 muscle_mass = EXCLUDED.muscle_mass,
+                                 water = EXCLUDED.water,
+                                 source = EXCLUDED.source"""
+                    ),
+                    {
+                        "uid": target_user_id,
+                        "ts": weight_ts,
+                        "w": payload.weight_kg,
+                        "bf": payload.body_fat_pct,
+                        "mm": payload.muscle_mass_kg,
+                        "wt": payload.water_pct,
+                    },
                 )
                 saved.append(f"weights: {payload.weight_kg}kg, fat={payload.body_fat_pct}%")
 
