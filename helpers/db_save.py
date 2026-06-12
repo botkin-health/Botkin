@@ -388,6 +388,7 @@ def save_body_measurement_to_db(data: Dict[str, Any], user_id: int = None) -> bo
             )
             if height_cm := data.get("height_cm"):
                 from database.models import User
+
                 user = db.query(User).filter(User.telegram_id == user_id).first()
                 if user:
                     user.height_cm = int(height_cm)
