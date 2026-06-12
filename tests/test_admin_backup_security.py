@@ -33,7 +33,7 @@ def admin_client(monkeypatch, tmp_path):
     def fake_run(cmd, *args, **kwargs):
         captured["calls"].append({"cmd": cmd, "kwargs": kwargs})
         # Симулируем успешный pg_dump: создаём непустой файл-результат.
-        for token in (cmd if isinstance(cmd, (list, tuple)) else [cmd]):
+        for token in cmd if isinstance(cmd, (list, tuple)) else [cmd]:
             if isinstance(token, str) and token.endswith(".sql.gz"):
                 Path(token).write_bytes(b"\x1f\x8b\x08fake-gzip")
         # Если фикс стримит stdout pg_dump в gzip сам — отдадим байты и нулевой код.
@@ -83,7 +83,8 @@ def test_password_not_interpolated_into_shell(admin_client):
     # 3) Пароль передаётся через env, а не argv (если фикс использует env)
     env_used = any((call["kwargs"].get("env") or {}).get("PGPASSWORD") == MALICIOUS_PW for call in calls)
     argv_clean = all(
-        MALICIOUS_PW not in " ".join(str(t) for t in (call["cmd"] if isinstance(call["cmd"], (list, tuple)) else [call["cmd"]]))
+        MALICIOUS_PW
+        not in " ".join(str(t) for t in (call["cmd"] if isinstance(call["cmd"], (list, tuple)) else [call["cmd"]]))
         for call in calls
     )
     assert env_used or argv_clean
