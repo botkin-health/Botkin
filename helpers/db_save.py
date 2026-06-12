@@ -374,25 +374,36 @@ def save_body_measurement_to_db(data: Dict[str, Any], user_id: int = None) -> bo
 
         db = SessionLocal()
         try:
-            create_body_measurement(
-                db,
-                user_id=user_id,
-                date=measurement_date,
-                waist_cm=data.get("waist_cm"),
-                neck_cm=data.get("neck_cm"),
-                hips_cm=data.get("hips_cm"),
-                chest_cm=data.get("chest_cm"),
-                thigh_cm=data.get("thigh_cm"),
-                biceps_cm=data.get("biceps_cm"),
-                notes=data.get("notes"),
-            )
-            if height_cm := data.get("height_cm"):
+            # Рост — поле профиля (users.height_cm), а не обхват тела. Если кроме
+            # роста ничего не прислали, НЕ создаём строку обмеров — иначе плодятся
+            # пустые записи (прецедент 12.06.2026: «рост 171» давал пустой замер).
+            measurement_keys = ("waist_cm", "neck_cm", "hips_cm", "chest_cm", "thigh_cm", "biceps_cm")
+            if any(data.get(k) is not None for k in measurement_keys):
+                create_body_measurement(
+                    db,
+                    user_id=user_id,
+                    date=measurement_date,
+                    waist_cm=data.get("waist_cm"),
+                    neck_cm=data.get("neck_cm"),
+                    hips_cm=data.get("hips_cm"),
+                    chest_cm=data.get("chest_cm"),
+                    thigh_cm=data.get("thigh_cm"),
+                    biceps_cm=data.get("biceps_cm"),
+                    notes=data.get("notes"),
+                )
+            if (height_cm := data.get("height_cm")) is not None:
                 from database.models import User
 
-                user = db.query(User).filter(User.telegram_id == user_id).first()
-                if user:
-                    user.height_cm = int(height_cm)
-                    db.commit()
+                try:
+                    h = int(height_cm)
+                except (TypeError, ValueError):
+                    h = 0
+                # Санити-гард, как в update_profile_questionnaire (100–250 см).
+                if 100 <= h <= 250:
+                    user = db.query(User).filter(User.telegram_id == user_id).first()
+                    if user:
+                        user.height_cm = h
+                        db.commit()
             logger.info(f"Body measurement saved to DB for {measurement_date}")
             return True
         finally:

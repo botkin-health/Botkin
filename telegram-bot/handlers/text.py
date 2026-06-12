@@ -1211,6 +1211,16 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             data = router_result.get("data", {})
             from helpers.db_save import save_body_measurement_to_db
 
+            # Если роутер не извлёк ни одного поля — не делаем вид, что записали
+            # (прецедент 12.06.2026: «рост 171» давал пустой «✅ Записано»).
+            _measure_keys = ("height_cm", "waist_cm", "neck_cm", "hips_cm", "chest_cm", "thigh_cm", "biceps_cm")
+            if not any(data.get(k) is not None for k in _measure_keys):
+                await processing_msg.edit_text(
+                    "📏 Не понял замеры. Напиши, например: «рост 171», «талия 80» или «бицепс 35».",
+                    parse_mode="HTML",
+                )
+                return
+
             telegram_user_id = int(message.from_user.id)
             saved = save_body_measurement_to_db(data, user_id=telegram_user_id)
 
