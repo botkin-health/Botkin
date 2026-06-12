@@ -331,7 +331,7 @@ python3 scripts/sync_user_health.py --all --apply
 - ❌ Писать новые поля в таблицу `users` — настройки и цели живут в `user_settings`
 - ❌ Читать поле `totals->>'fat'` — поле называется `totals->>'fats'` (множественное число)
 - ❌ FK на `users.id` — PK таблицы users это `telegram_id` (BigInt), не синтетический `id`
-- ❌ Читать items только по одному ключу (`it["food"]`) — есть 3 схемы одовременно; использовать `_item_name()` из `core/food/fiber_table.py`
+- ❌ Читать items только по одному ключу (`it["food"]`) — есть 3 схемы одновременно; использовать `_item_name()` из `core/food/fiber_table.py`
 - ❌ Писать items без поля `fiber` — прогонять через `enrich_items_with_fiber()` перед INSERT
 - ❌ Писать в orphan-таблицы `daily_summaries / sleep_records` — они не управляются ORM и пусты на проде. В `blood_pressure_logs / workouts` пишут только штатные raw-SQL пути (`webhook/apple_health.py`, `webhook/agent_tools_api.py`) — новые записи добавлять через них, не через ORM
 
@@ -366,7 +366,6 @@ Notion-страница **«Хронолог разработки»** (ID `37bf1
 
 - **Язык**: всегда общаться с пользователем на русском
 - **AI_CHANGELOG**: после каждой задачи обновлять `docs/ai_context/AI_CHANGELOG.md`
-- **Локальный CHANGELOG**: после каждого PR обновлять `C:\Claude\Botkin\CHANGELOG.md` (хронолог сессий Игоря) — новая запись сверху, с номером PR и кратким итогом. Без этого следующая сессия не увидит контекст и пойдёт проверять git.
 - **Notion Хронолог**: при создании PR обновлять страницу `37bf1efb-961b-81cd-9145-cc24bca86e96`
 - **Синк перед анализом**: всегда запускать `/sync` перед анализом данных здоровья
 - **knowledge_base.json**: при добавлении новых анализов/УЗИ/МРТ/ЭКГ — обновлять этот файл

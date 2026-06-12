@@ -9,6 +9,9 @@ config/scout/seen.jsonl
 !database/init.sql
 !database/migrations/*.sql
 
+# Local overrides (machine-specific, not for sharing)
+CLAUDE.local.md
+
 # Environment
 .env*
 !.env.example
