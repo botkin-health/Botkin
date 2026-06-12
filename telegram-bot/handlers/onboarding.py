@@ -530,15 +530,19 @@ async def _finish_onboarding(user: User, db, chat_id: int) -> None:
     )
     if "Garmin" in wearables:
         msg += "Чтобы подключить Garmin — /garmin\n"
-    if "Apple Watch" in wearables or "Withings" in wearables or "Omron АД" in wearables:
-        msg += (
-            "\nДля автосинка с Apple Health поставь приложение Health Auto Export "
-            "($24.99) и пропиши:\n"
-            f"• URL: <code>https://botkin.health/apple_health_v2</code>\n"
-            f"• Header: <code>Authorization: Bearer {user.health_token}</code>\n"
-        )
 
     await send_message(chat_id, msg)
+
+    # Apple-устройства (Watch/Withings/Omron) пишут в Apple Health → предлагаем
+    # выбрать способ подключения: платный HAE или бесплатный iOS Shortcut.
+    if any(w in wearables for w in ("Apple Watch", "Withings", "Omron АД")):
+        from handlers.apple_health_connect import connect_intro_text, connect_keyboard_dict
+
+        await send_message(
+            chat_id,
+            connect_intro_text(user.health_token),
+            reply_markup=connect_keyboard_dict(),
+        )
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────

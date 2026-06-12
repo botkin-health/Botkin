@@ -762,6 +762,7 @@ async def cmd_health_token(message: Message, user_id: int):
     """
     from database import SessionLocal
     from database.crud import get_or_create_health_token, reset_health_token
+    from handlers.apple_health_connect import connect_intro_text, connect_keyboard_aiogram
 
     args = message.text.split()[1:] if message.text else []
     do_reset = bool(args) and args[0].lower() in ("rotate", "reset")
@@ -770,30 +771,21 @@ async def cmd_health_token(message: Message, user_id: int):
     try:
         if do_reset:
             token = reset_health_token(db, user_id)
-            action_text = "♻️ Ключ перевыпущен — старый больше не работает."
+            prefix = "♻️ Ключ перевыпущен — старый больше не работает.\n\n"
         else:
             token = get_or_create_health_token(db, user_id)
-            action_text = "🔑 Твой ключ для Apple Health:"
+            prefix = ""
     except Exception as e:
         await message.answer(f"❌ Ошибка: {e}")
         return
     finally:
         db.close()
 
-    guide = "https://github.com/Lyskovsky/Botkin/blob/main/docs/user_guide/ru/apple-health.md"
     await message.answer(
-        f"{action_text}\n\n"
-        f"<code>{token}</code>\n\n"
-        "Нужен, чтобы данные из Apple Health (Apple Watch, тонометр, весы) приходили именно тебе.\n\n"
-        "📲 <b>Подключение через Health Auto Export:</b>\n"
-        "1. Поставь Health Auto Export (App Store)\n"
-        "2. Add Automation → REST API\n"
-        "   • URL: <code>https://botkin.health/apple_health_v2</code>\n"
-        f"   • Header: <code>Authorization: Bearer {token}</code>\n"
-        "   • Format JSON · v2 · Aggregate ON · Group by Day · Range: Yesterday\n\n"
-        f"📖 Подробный гайд: {guide}\n\n"
-        "♻️ Перевыпустить ключ: /health_token rotate",
+        prefix + connect_intro_text(token),
         parse_mode="HTML",
+        reply_markup=connect_keyboard_aiogram(),
+        disable_web_page_preview=True,
     )
 
 
