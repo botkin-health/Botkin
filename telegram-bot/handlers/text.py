@@ -1211,6 +1211,8 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
 
             # Формируем ответ
             m_parts = []
+            if data.get("height_cm"):
+                m_parts.append(f"Рост: {data['height_cm']} см (обновлён в профиле)")
             if data.get("waist_cm"):
                 m_parts.append(f"Талия: {data['waist_cm']} см")
             if data.get("neck_cm"):

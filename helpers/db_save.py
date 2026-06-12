@@ -386,6 +386,13 @@ def save_body_measurement_to_db(data: Dict[str, Any], user_id: int = None) -> bo
                 biceps_cm=data.get("biceps_cm"),
                 notes=data.get("notes"),
             )
+            if height_cm := data.get("height_cm"):
+                from database.models import User
+
+                user = db.query(User).filter(User.telegram_id == user_id).first()
+                if user:
+                    user.height_cm = int(height_cm)
+                    db.commit()
             logger.info(f"Body measurement saved to DB for {measurement_date}")
             return True
         finally:
