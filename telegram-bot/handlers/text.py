@@ -61,6 +61,17 @@ _NUMERIC_DOSE_RE = re.compile(
     r"\d+\s*(?:г|мг|мл|кг|/|ме|iu|шт|капсул|таблеток)",
     re.IGNORECASE,
 )
+# Addendum intent: "забыл добавить/упомянуть", "нужно добавить/дописать".
+# Must route to BotkinClaw agent (returns True) so the agent can call
+# get_recent_meals, find the last slot, and log the addendum with that slot.
+# Checked BEFORE _FOOD_DISQUALIFIER_RE so food words don't suppress this.
+_ADDENDUM_RE = re.compile(
+    r"\b(забыл\s+(?:добавить|упомянуть|сказать|написать)|"
+    r"нужно\s+(?:добавить|дописать)|"
+    r"ещё\s+(?:добавь|допиши)|"
+    r"к\s+предыдущему\s+приёму|к\s+последнему\s+приёму)\b",
+    re.IGNORECASE,
+)
 
 
 def _inject_bp_to_agent_conv(
@@ -119,6 +130,10 @@ def _is_clearly_conversational(text: str) -> bool:
     if not text:
         return False
     t = text.strip()
+
+    # Addendum intent overrides food keywords — must go to agent
+    if _ADDENDUM_RE.search(t):
+        return True
 
     if _FOOD_DISQUALIFIER_RE.search(t):
         return False
