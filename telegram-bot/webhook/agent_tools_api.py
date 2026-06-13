@@ -1049,6 +1049,7 @@ async def dashboard_summary(
             "latest_date": latest_weight.measured_at.date().isoformat() if latest_weight else None,
             "body_fat_pct": latest_weight.body_fat if latest_weight else None,
         },
+        "dashboard_url": f"https://botkin.health/mc/{user.share_token}" if user.share_token else None,
     }
 
 

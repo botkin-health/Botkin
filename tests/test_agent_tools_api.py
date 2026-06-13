@@ -80,6 +80,7 @@ def _make_mock_user(health_token="hvt_old_token"):
     user.sex = "male"
     user.height_cm = 178
     user.birth_date = None
+    user.share_token = "testtoken123abc456def789ghi0"
     return user
 
 
@@ -558,6 +559,41 @@ def test_dashboard_summary_with_data(client, db_session):
     assert body["nutrition"]["avg_kcal_consumed"] == 1800.0
     assert body["weight"]["latest_kg"] == 82.5
     assert body["weight"]["body_fat_pct"] == 22.3
+
+
+def test_dashboard_summary_includes_dashboard_url(client):
+    """GET /dashboard_summary returns dashboard_url from user.share_token."""
+    r = client.get("/api/agent/dashboard_summary")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert "dashboard_url" in body
+    assert body["dashboard_url"] == "https://botkin.health/mc/testtoken123abc456def789ghi0"
+
+
+def test_dashboard_summary_no_share_token_returns_null_url(db_session, monkeypatch):
+    """GET /dashboard_summary returns dashboard_url=None when share_token is absent."""
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from webhook import agent_tools_api
+    from webhook.jwt_auth import get_agent_user, get_db
+
+    monkeypatch.setattr(db_session, "close", lambda: None)
+    monkeypatch.setattr(agent_tools_api, "get_db", lambda: iter([db_session]))
+
+    app = FastAPI()
+    app.include_router(agent_tools_api.router)
+
+    mock_no_token = _make_mock_user()
+    mock_no_token.share_token = None
+
+    app.dependency_overrides[get_agent_user] = lambda: mock_no_token
+    app.dependency_overrides[get_db] = lambda: db_session
+
+    c = TestClient(app)
+    r = c.get("/api/agent/dashboard_summary")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["dashboard_url"] is None
 
 
 def test_user_profile_returns_profile(client):
