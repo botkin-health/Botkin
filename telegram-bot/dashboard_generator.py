@@ -18,6 +18,7 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from core.health.staleness import days_ago_from_str, get_staleness_days, stale_label as _sl
 from core.health.supplements import check_lab_artefacts_for_user
 
 TEMPLATE_PATH = Path(__file__).parent / "mc_template.html"
@@ -1048,23 +1049,162 @@ def _build_payload(db: Session, user_id: int) -> dict:
         return (biomarkers.get(key) or {}).get("date", "—")
 
     biomarkers_latest = {
-        "HbA1c": {"val": bv("HbA1c"), "date": bd("HbA1c"), "unit": "%", "ok": 5.7},
-        "glucose": {"val": bv("glucose"), "date": bd("glucose"), "unit": "ммоль/л", "ok": 5.6},
-        "cholesterol": {"val": bv("cholesterol_total"), "date": bd("cholesterol_total"), "unit": "ммоль/л", "ok": 5.2},
-        "LDL": {"val": bv("LDL"), "date": bd("LDL"), "unit": "ммоль/л", "ok": 3.0},
-        "HDL": {"val": bv("HDL"), "date": bd("HDL"), "unit": "ммоль/л", "ok": 1.2},
-        "testosterone": {"val": bv("testosterone"), "date": bd("testosterone"), "unit": "нмоль/л", "ok": 12.1},
-        "vitamin_D": {"val": bv("vitamin_D"), "date": bd("vitamin_D"), "unit": "нг/мл", "ok": 30},
-        "ferritin": {"val": bv("ferritin"), "date": bd("ferritin"), "unit": "мкг/л", "ok": 300},
-        "ALT": {"val": bv("ALT"), "date": bd("ALT"), "unit": "Ед/л", "ok": 40},
-        "AST": {"val": bv("AST"), "date": bd("AST"), "unit": "Ед/л", "ok": 40},
-        "GGT": {"val": bv("GGT"), "date": bd("GGT"), "unit": "Ед/л", "ok": 35},
-        "TSH": {"val": bv("TSH"), "date": bd("TSH"), "unit": "мМЕ/л", "ok": 4.0},
-        "creatinine": {"val": bv("creatinine"), "date": bd("creatinine"), "unit": "мкмоль/л", "ok": 110},
-        "uric_acid": {"val": bv("uric_acid"), "date": bd("uric_acid"), "unit": "мкмоль/л", "ok": 420},
-        "hs_CRP": {"val": bv("hs_CRP"), "date": bd("hs_CRP"), "unit": "мг/л", "ok": 1.0},
-        "NT_proBNP": {"val": bv("NT_proBNP"), "date": bd("NT_proBNP"), "unit": "пг/мл", "ok": 125},
+        "HbA1c": {
+            "val": bv("HbA1c"),
+            "date": bd("HbA1c"),
+            "unit": "%",
+            "ok": 5.7,
+            "stale_note": _sl(days_ago_from_str(bd("HbA1c")), get_staleness_days("HbA1c")),
+        },
+        "glucose": {
+            "val": bv("glucose"),
+            "date": bd("glucose"),
+            "unit": "ммоль/л",
+            "ok": 5.6,
+            "stale_note": _sl(days_ago_from_str(bd("glucose")), get_staleness_days("glucose")),
+        },
+        "cholesterol": {
+            "val": bv("cholesterol_total"),
+            "date": bd("cholesterol_total"),
+            "unit": "ммоль/л",
+            "ok": 5.2,
+            "stale_note": _sl(days_ago_from_str(bd("cholesterol_total")), get_staleness_days("cholesterol_total")),
+        },
+        "LDL": {
+            "val": bv("LDL"),
+            "date": bd("LDL"),
+            "unit": "ммоль/л",
+            "ok": 3.0,
+            "stale_note": _sl(days_ago_from_str(bd("LDL")), get_staleness_days("LDL")),
+        },
+        "HDL": {
+            "val": bv("HDL"),
+            "date": bd("HDL"),
+            "unit": "ммоль/л",
+            "ok": 1.2,
+            "stale_note": _sl(days_ago_from_str(bd("HDL")), get_staleness_days("HDL")),
+        },
+        "testosterone": {
+            "val": bv("testosterone"),
+            "date": bd("testosterone"),
+            "unit": "нмоль/л",
+            "ok": 12.1,
+            "stale_note": _sl(days_ago_from_str(bd("testosterone")), get_staleness_days("testosterone")),
+        },
+        "vitamin_D": {
+            "val": bv("vitamin_D"),
+            "date": bd("vitamin_D"),
+            "unit": "нг/мл",
+            "ok": 30,
+            "stale_note": _sl(days_ago_from_str(bd("vitamin_D")), get_staleness_days("vitamin_D")),
+        },
+        "ferritin": {
+            "val": bv("ferritin"),
+            "date": bd("ferritin"),
+            "unit": "мкг/л",
+            "ok": 300,
+            "stale_note": _sl(days_ago_from_str(bd("ferritin")), get_staleness_days("ferritin")),
+        },
+        "ALT": {
+            "val": bv("ALT"),
+            "date": bd("ALT"),
+            "unit": "Ед/л",
+            "ok": 40,
+            "stale_note": _sl(days_ago_from_str(bd("ALT")), get_staleness_days("ALT")),
+        },
+        "AST": {
+            "val": bv("AST"),
+            "date": bd("AST"),
+            "unit": "Ед/л",
+            "ok": 40,
+            "stale_note": _sl(days_ago_from_str(bd("AST")), get_staleness_days("AST")),
+        },
+        "GGT": {
+            "val": bv("GGT"),
+            "date": bd("GGT"),
+            "unit": "Ед/л",
+            "ok": 35,
+            "stale_note": _sl(days_ago_from_str(bd("GGT")), get_staleness_days("GGT")),
+        },
+        "TSH": {
+            "val": bv("TSH"),
+            "date": bd("TSH"),
+            "unit": "мМЕ/л",
+            "ok": 4.0,
+            "stale_note": _sl(days_ago_from_str(bd("TSH")), get_staleness_days("TSH")),
+        },
+        "creatinine": {
+            "val": bv("creatinine"),
+            "date": bd("creatinine"),
+            "unit": "мкмоль/л",
+            "ok": 110,
+            "stale_note": _sl(days_ago_from_str(bd("creatinine")), get_staleness_days("creatinine")),
+        },
+        "uric_acid": {
+            "val": bv("uric_acid"),
+            "date": bd("uric_acid"),
+            "unit": "мкмоль/л",
+            "ok": 420,
+            "stale_note": _sl(days_ago_from_str(bd("uric_acid")), get_staleness_days("uric_acid")),
+        },
+        "hs_CRP": {
+            "val": bv("hs_CRP"),
+            "date": bd("hs_CRP"),
+            "unit": "мг/л",
+            "ok": 1.0,
+            "stale_note": _sl(days_ago_from_str(bd("hs_CRP")), get_staleness_days("hs_CRP")),
+        },
+        "NT_proBNP": {
+            "val": bv("NT_proBNP"),
+            "date": bd("NT_proBNP"),
+            "unit": "пг/мл",
+            "ok": 125,
+            "stale_note": _sl(days_ago_from_str(bd("NT_proBNP")), get_staleness_days("NT_proBNP")),
+        },
     }
+
+    # Staleness grouping for "Когда обновить" section
+    _DISPLAY_NAMES = {
+        "HbA1c": "HbA1c",
+        "glucose": "Глюкоза",
+        "cholesterol": "Холестерин",
+        "LDL": "LDL",
+        "HDL": "HDL",
+        "testosterone": "Тестостерон",
+        "vitamin_D": "Витамин D",
+        "ferritin": "Ферритин",
+        "ALT": "АЛТ",
+        "AST": "АСТ",
+        "GGT": "ГГТ",
+        "TSH": "ТТГ",
+        "creatinine": "Креатинин",
+        "uric_acid": "Мочевая кислота",
+        "hs_CRP": "hs-СРБ",
+        "NT_proBNP": "NT-proBNP",
+    }
+    _CANON_KEY = {"cholesterol": "cholesterol_total"}
+    _stale_list, _soon_list, _fresh_list = [], [], []
+    for _dkey, _entry in biomarkers_latest.items():
+        if _entry["val"] is None:
+            continue
+        _ckey = _CANON_KEY.get(_dkey, _dkey)
+        _da = days_ago_from_str(_entry["date"])
+        _thr = get_staleness_days(_ckey)
+        _name = _DISPLAY_NAMES.get(_dkey, _dkey)
+        _months = (_da // 30) if _da is not None else None
+        if _da is None or _thr is None:
+            _fresh_list.append(_name)
+        elif _da > _thr:
+            _stale_list.append(
+                {"name": _name, "date": _entry["date"], "months": _months, "threshold_months": _thr // 30}
+            )
+        elif _da > _thr * 3 // 4:
+            _soon_list.append(
+                {"name": _name, "date": _entry["date"], "months": _months, "threshold_months": _thr // 30}
+            )
+        else:
+            _fresh_list.append(_name)
+    stale_reminders = {"stale": _stale_list, "soon": _soon_list, "fresh": _fresh_list}
 
     # ── panels_data: 4 recognised panels (Attia / Metabolic / LE8 / PhenoAge) ──
     #   All values computed here so JS only renders pre-calculated data.
@@ -1589,15 +1729,6 @@ def _build_payload(db: Session, user_id: int) -> dict:
         "WBC": bd("WBC"),
     }
 
-    # Сколько дней назад был сделан замер (для алертов «> 24 мес»)
-    def _days_ago(date_str: str | None) -> int | None:
-        if not date_str or date_str == "—":
-            return None
-        try:
-            return (today - date.fromisoformat(date_str)).days
-        except Exception:
-            return None
-
     # NHANES median for ~48yo male (approximate):
     # albumin ~4.2 g/dL, creatinine ~1.05, glucose ~95, CRP_ln ~0 (CRP~1),
     # lymph% ~28%, MCV ~90, RDW ~13.8%, ALP ~68, WBC ~6.7
@@ -1609,13 +1740,8 @@ def _build_payload(db: Session, user_id: int) -> dict:
         else:
             return "younger" if val < nhanes_med else "older"
 
-    def _stale_label(days: int | None) -> str | None:
-        """Метка устаревания: если ≤ 12 мес — None, иначе подпись."""
-        if days is None or days <= 365:
-            return None
-        if days <= 730:
-            return f"⚠ {days // 30} мес назад"
-        return f"🚨 {round(days / 365, 1)} года назад"
+    def _stale_label(days: int | None, threshold: int | None = 365) -> str | None:
+        return _sl(days, threshold)
 
     _pheno_markers = [
         {
@@ -1624,7 +1750,7 @@ def _build_payload(db: Session, user_id: int) -> dict:
             "unit": "г/дл",
             "direction": _pheno_dir(_alb_gdl, 4.2, higher_is_younger=True),
             "date": _pheno_dates["albumin"],
-            "stale_note": _stale_label(_days_ago(_pheno_dates["albumin"])),
+            "stale_note": _stale_label(days_ago_from_str(_pheno_dates["albumin"])),
             "note": None,
         },
         {
@@ -1633,7 +1759,7 @@ def _build_payload(db: Session, user_id: int) -> dict:
             "unit": "мг/дл",
             "direction": _pheno_dir(_creat_mgdl, 1.05),
             "date": _pheno_dates["creatinine"],
-            "stale_note": _stale_label(_days_ago(_pheno_dates["creatinine"])),
+            "stale_note": _stale_label(days_ago_from_str(_pheno_dates["creatinine"])),
             # Артефакт-флаг: True если пользователь регулярно принимает креатин
             # в последние 14 дней. UI должен отрисовать предупреждение.
             "supplement_artefact": "creatine" if _creat_artefact else None,
@@ -1655,7 +1781,7 @@ def _build_payload(db: Session, user_id: int) -> dict:
             "unit": "мг/дл",
             "direction": _pheno_dir(_glc_mgdl, 95),
             "date": _pheno_dates["glucose"],
-            "stale_note": _stale_label(_days_ago(_pheno_dates["glucose"])),
+            "stale_note": _stale_label(days_ago_from_str(_pheno_dates["glucose"])),
         },
         {
             "name": "ln(CRP)",
@@ -1663,7 +1789,7 @@ def _build_payload(db: Session, user_id: int) -> dict:
             "unit": "",
             "direction": _pheno_dir(_crp_ln, 0.0),
             "date": _pheno_dates["hs_CRP"],
-            "stale_note": _stale_label(_days_ago(_pheno_dates["hs_CRP"])),
+            "stale_note": _stale_label(days_ago_from_str(_pheno_dates["hs_CRP"])),
         },
         {
             "name": "Лимфоциты",
@@ -1671,7 +1797,7 @@ def _build_payload(db: Session, user_id: int) -> dict:
             "unit": "%",
             "direction": _pheno_dir(_lymph_pct, 28, higher_is_younger=True),
             "date": _pheno_dates["lymphocytes"],
-            "stale_note": _stale_label(_days_ago(_pheno_dates["lymphocytes"])),
+            "stale_note": _stale_label(days_ago_from_str(_pheno_dates["lymphocytes"])),
         },
         {
             "name": "MCV",
@@ -1679,7 +1805,7 @@ def _build_payload(db: Session, user_id: int) -> dict:
             "unit": "фл",
             "direction": _pheno_dir(_mcv, 90),
             "date": _pheno_dates["MCV"],
-            "stale_note": _stale_label(_days_ago(_pheno_dates["MCV"])),
+            "stale_note": _stale_label(days_ago_from_str(_pheno_dates["MCV"])),
         },
         {
             "name": "RDW",
@@ -1687,7 +1813,7 @@ def _build_payload(db: Session, user_id: int) -> dict:
             "unit": "%",
             "direction": _pheno_dir(_rdw, 13.8),
             "date": _pheno_dates["RDW"],
-            "stale_note": _stale_label(_days_ago(_pheno_dates["RDW"])),
+            "stale_note": _stale_label(days_ago_from_str(_pheno_dates["RDW"])),
         },
         {
             "name": "ALP",
@@ -1695,7 +1821,7 @@ def _build_payload(db: Session, user_id: int) -> dict:
             "unit": "Ед/л",
             "direction": _pheno_dir(_alp, 68),
             "date": _pheno_dates["ALP"],
-            "stale_note": _stale_label(_days_ago(_pheno_dates["ALP"])),
+            "stale_note": _stale_label(days_ago_from_str(_pheno_dates["ALP"])),
         },
         {
             "name": "Лейкоциты",
@@ -1703,7 +1829,7 @@ def _build_payload(db: Session, user_id: int) -> dict:
             "unit": "×10³/мкл",
             "direction": _pheno_dir(_wbc, 6.7),
             "date": _pheno_dates["WBC"],
-            "stale_note": _stale_label(_days_ago(_pheno_dates["WBC"])),
+            "stale_note": _stale_label(days_ago_from_str(_pheno_dates["WBC"])),
         },
     ]
     _younger_count = sum(1 for m in _pheno_markers if m["direction"] == "younger")
@@ -2519,6 +2645,7 @@ def _build_payload(db: Session, user_id: int) -> dict:
         # ── computed ──────────────────────────────────────────────────────────
         "totals": totals,
         "biomarkers_latest": biomarkers_latest,
+        "stale_reminders": stale_reminders,
         "panels_data": panels_data,
         "radar": radar,
         "overall_score": overall_score,
