@@ -486,7 +486,10 @@ TOOLS: list[dict[str, Any]] = [
             "понедельник») — вычисли конкретную дату и передай её в `date` "
             "(YYYY-MM-DD), опираясь на сегодняшнее число. Без указания дня `date` "
             "НЕ передавай (запишется на сегодня). После записи ОБЯЗАТЕЛЬНО назови "
-            "дату в ответе, если она не сегодняшняя («записал на 29 мая»)."
+            "дату в ответе, если она не сегодняшняя («записал на 29 мая»).\n\n"
+            "When handling addendum messages ('забыл добавить', 'забыл упомянуть', etc.): "
+            "first call get_recent_meals(days=1) to find the most recent meal slot, "
+            "then use that same slot parameter when calling log_meal_text."
         ),
         "input_schema": {
             "type": "object",
