@@ -1,0 +1,41 @@
+# syntax=docker/dockerfile:1
+
+# ---- builder: компилируем wheels (gcc нужен только здесь) ----
+FROM python:3.11-slim AS builder
+WORKDIR /build
+RUN apt-get update && apt-get install -y --no-install-recommends gcc \
+    && rm -rf /var/lib/apt/lists/*
+COPY requirements.txt .
+RUN pip wheel --no-cache-dir --wheel-dir /wheels -r requirements.txt
+
+# ---- runtime: slim без gcc, non-root, код в образе ----
+FROM python:3.11-slim AS runtime
+# psql/pg_dump нужны скриптам в /app/scripts.
+RUN apt-get update && apt-get install -y --no-install-recommends postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+
+# Зависимости — из готовых wheels, без компиляции и без тулчейна.
+COPY --from=builder /wheels /wheels
+COPY requirements.txt .
+RUN pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.txt \
+    && rm -rf /wheels
+
+# Код приложения — источник истины образ, не сервер.
+COPY telegram-bot/ ./telegram-bot/
+COPY config/ ./config/
+COPY core/ ./core/
+COPY services/ ./services/
+COPY database/ ./database/
+COPY helpers/ ./helpers/
+COPY infrastructure/ ./infrastructure/
+COPY scripts/ ./scripts/
+
+# Non-root. data/logs — volume-mount'ы; пишем только в них и /tmp.
+RUN useradd --uid 10001 --create-home --shell /usr/sbin/nologin botkin \
+    && mkdir -p /app/logs /app/data \
+    && chown -R botkin:botkin /app
+USER botkin
+
+EXPOSE 8081
+CMD ["python", "telegram-bot/bot.py"]

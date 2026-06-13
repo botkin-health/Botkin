@@ -1,0 +1,81 @@
+name: Deploy prod
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Ветка/тег/SHA для выката"
+        default: main
+      image_tag:
+        description: "Готовый тег образа (откат). Задан → сборка пропускается."
+        default: ""
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: ${{ inputs.image_tag == '' }}
+    uses: ./.github/workflows/build-images.yml
+    with:
+      ref: ${{ inputs.branch }}
+    secrets: inherit
+
+  deploy:
+    needs: build
+    if: ${{ !cancelled() && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+
+      - name: Setup SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Trust host key
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+
+      # .env управляется на сервере (оператор кладёт /opt/botkin/.env один раз).
+      # Перенос секретов в GitHub/Vault — отдельная задача; здесь .env не трогаем.
+      - name: Sync compose to server
+        run: |
+          rsync -az --no-perms --omit-dir-times \
+            docker-compose.prod.yml \
+            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/botkin/"
+
+      - name: Pull & up (без сборки на сервере)
+        env:
+          IMAGE_TAG: ${{ inputs.image_tag != '' && inputs.image_tag || needs.build.outputs.image_sha }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+          SSH_TARGET: ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
+        run: |
+          ssh "$SSH_TARGET" bash -s "$IMAGE_TAG" "$GHCR_TOKEN" "$ACTOR" <<'REMOTE'
+          set -euo pipefail
+          IMAGE_TAG="$1"; TOKEN="$2"; ACTOR="$3"
+          cd /opt/botkin
+          [ -f .env ] || { echo "❌ /opt/botkin/.env отсутствует — положи его на сервер"; exit 1; }
+          echo "$TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
+          export IMAGE_TAG
+          docker compose -f docker-compose.prod.yml pull
+          docker compose -f docker-compose.prod.yml up -d --wait --wait-timeout 120
+          # Точечная чистка старых образов ТОЛЬКО botkin-bot (кроме текущего и latest).
+          docker images 'ghcr.io/lyskovsky/botkin-bot' --format '{{.Tag}} {{.ID}}' \
+            | while read -r tag id; do
+                [ "$tag" = latest ] && continue
+                [ "$tag" = "$IMAGE_TAG" ] && continue
+                docker rmi -f "$id" || true
+              done
+          docker logout ghcr.io
+          REMOTE
