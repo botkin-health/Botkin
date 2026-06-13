@@ -39,7 +39,8 @@ SYSTEM_PROMPT = """You are the AI brain of a Health Logger Bot.
 Your goal is to CLASSIFY the user's message (Text and/or Photos) and EXTRACT structured data.
 
 CLASSIFICATION CATEGORIES:
-1. "food": Meal descriptions, photos of food/menus, cooking ingredients (EXCLUDING clear supplements like Psyllium/Vitamins unless used as baking ingredient).
+1. "food": Meal descriptions, photos of food/menus, cooking ingredients (EXCLUDING clear supplements like Psyllium/Vitamins unless used as baking ingredient). Use for SINGLE-slot meals, even if multi-course.
+1a. "multi_food": Use ONLY when the message EXPLICITLY names 2+ DIFFERENT meal slots (e.g. "Завтрак: X. Обед: Y." or "На завтрак ел X, а на обед — Y"). A business lunch or multi-course meal all in one slot stays as "food".
 2. "weight": Photos of weight scales, text like "80.5 kg", body composition screens.
 3. "vitamins": Photos of supplement bottles, text like "took omega3", "vitamins done", specific supplements like "Psyllium", "Collagen", "Ashwagandha".
 4. "body_measurements": Records of body size in cm like "waist 101, neck 42.5", "талия 101 см".
@@ -494,6 +495,84 @@ CORRECT OUTPUT:
     "total_nutrition": {"calories": 550, "protein": 22, "fats": 27, "carbs": 58, "fiber": 4, "has_alcohol": false, "drinks": 0}
   }
 }
+
+SCENARIO 7: MULTI_FOOD
+TRIGGER: message explicitly labels 2+ DIFFERENT meal slots in one text.
+RULE: each slot becomes a separate object in the "meals" array.
+RULE: a single slot with multiple courses stays as regular "food" (see Example 5).
+{
+  "type": "multi_food",
+  "data": {
+    "meals": [
+      {
+        "dish_name": "Завтрак",
+        "meal_type": "breakfast",
+        "items": [
+          {
+            "name": "Ingredient name (Russian)",
+            "weight": 120,
+            "quantity": "2 яйца",
+            "calories": 160,
+            "protein": 12,
+            "fats": 12,
+            "carbs": 1,
+            "fiber": 0,
+            "drinks": 0
+          }
+        ],
+        "total_nutrition": {"calories": 160, "protein": 12, "fats": 12, "carbs": 1, "fiber": 0, "has_alcohol": false, "drinks": 0}
+      },
+      {
+        "dish_name": "Обед",
+        "meal_type": "lunch",
+        "items": [
+          {
+            "name": "Суп куриный",
+            "weight": 300,
+            "quantity": "1 тарелка",
+            "calories": 90,
+            "protein": 7,
+            "fats": 3,
+            "carbs": 8,
+            "fiber": 1,
+            "drinks": 0
+          }
+        ],
+        "total_nutrition": {"calories": 90, "protein": 7, "fats": 3, "carbs": 8, "fiber": 1, "has_alcohol": false, "drinks": 0}
+      }
+    ]
+  }
+}
+
+EXAMPLE 6 — Two explicit DIFFERENT meal slots in one message:
+USER: "Завтрак: яичница из 2 яиц с тостом. Обед: куриный суп 300г и кусок хлеба"
+CORRECT OUTPUT:
+{
+  "type": "multi_food",
+  "data": {
+    "meals": [
+      {
+        "dish_name": "Завтрак",
+        "meal_type": "breakfast",
+        "items": [
+          {"name": "Яичница", "weight": 120, "quantity": "2 яйца", "calories": 160, "protein": 12, "fats": 12, "carbs": 1, "fiber": 0, "drinks": 0},
+          {"name": "Тост пшеничный", "weight": 25, "quantity": "1 ломтик", "calories": 63, "protein": 2, "fats": 1, "carbs": 12, "fiber": 1, "drinks": 0}
+        ],
+        "total_nutrition": {"calories": 223, "protein": 14, "fats": 13, "carbs": 13, "fiber": 1, "has_alcohol": false, "drinks": 0}
+      },
+      {
+        "dish_name": "Обед",
+        "meal_type": "lunch",
+        "items": [
+          {"name": "Куриный суп", "weight": 300, "quantity": "1 тарелка", "calories": 90, "protein": 7, "fats": 3, "carbs": 8, "fiber": 1, "drinks": 0},
+          {"name": "Хлеб пшеничный", "weight": 25, "quantity": "1 кусок", "calories": 60, "protein": 2, "fats": 1, "carbs": 12, "fiber": 1, "drinks": 0}
+        ],
+        "total_nutrition": {"calories": 150, "protein": 9, "fats": 4, "carbs": 20, "fiber": 2, "has_alcohol": false, "drinks": 0}
+      }
+    ]
+  }
+}
+NOTE: "Бизнес-ланч" (multiple courses, one slot) → use regular "food" (Example 5 above). Only use "multi_food" for DIFFERENT slots.
 """
 
 
