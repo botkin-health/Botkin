@@ -1117,33 +1117,46 @@ bioRefs.map(([k, nm, lo, hi, sys]) => {
   const sr = D.stale_reminders;
   const el = document.getElementById('stale-reminders-section');
   if (!el || !sr) return;
-  if (!sr.stale.length && !sr.soon.length) return; // nothing stale — hide section
+  if (!sr.stale.length && !sr.soon.length) return;
   el.style.display = '';
-  let html = '<div style="font-size:10px;color:' + COLOR.muted + ';text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;">🗓 Когда обновить анализы</div>';
+
+  function mkRow(emoji, nameText, metaText, nameColor) {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;';
+    const nameSpan = document.createElement('span');
+    nameSpan.style.cssText = 'color:' + nameColor + ';font-weight:600;';
+    nameSpan.textContent = emoji + ' ' + nameText;
+    const metaSpan = document.createElement('span');
+    metaSpan.style.cssText = 'color:' + COLOR.muted + ';font-size:11px;';
+    metaSpan.textContent = metaText;
+    row.appendChild(nameSpan);
+    row.appendChild(metaSpan);
+    return row;
+  }
+
+  const hdr = document.createElement('div');
+  hdr.style.cssText = 'font-size:10px;color:' + COLOR.muted + ';text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;';
+  hdr.textContent = '🗓 Когда обновить анализы';
+  el.appendChild(hdr);
+
   if (sr.stale.length) {
-    html += '<div style="margin-bottom:8px;">';
-    sr.stale.forEach(m => {
-      html += '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;">'
-        + '<span style="color:' + COLOR.r + ';font-weight:600;">🔴 ' + m.name + '</span>'
-        + '<span style="color:' + COLOR.muted + ';font-size:11px;">' + m.date + ' · ' + m.months + ' мес · порог ' + m.threshold_months + ' мес</span>'
-        + '</div>';
-    });
-    html += '</div>';
+    const wrap = document.createElement('div');
+    wrap.style.marginBottom = '8px';
+    sr.stale.forEach(m => wrap.appendChild(mkRow('🔴', m.name, m.date + ' · ' + m.months + ' мес · порог ' + m.threshold_months + ' мес', COLOR.r)));
+    el.appendChild(wrap);
   }
   if (sr.soon.length) {
-    html += '<div style="margin-bottom:8px;">';
-    sr.soon.forEach(m => {
-      html += '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;">'
-        + '<span style="color:' + COLOR.y + ';font-weight:600;">🟡 ' + m.name + '</span>'
-        + '<span style="color:' + COLOR.muted + ';font-size:11px;">' + m.date + ' · ' + m.months + ' мес · порог ' + m.threshold_months + ' мес</span>'
-        + '</div>';
-    });
-    html += '</div>';
+    const wrap = document.createElement('div');
+    wrap.style.marginBottom = '8px';
+    sr.soon.forEach(m => wrap.appendChild(mkRow('🟡', m.name, m.date + ' · ' + m.months + ' мес · порог ' + m.threshold_months + ' мес', COLOR.y)));
+    el.appendChild(wrap);
   }
   if (sr.fresh.length) {
-    html += '<div style="font-size:11px;color:' + COLOR.muted + ';margin-top:6px;">✅ Актуально: ' + sr.fresh.join(', ') + '</div>';
+    const freshDiv = document.createElement('div');
+    freshDiv.style.cssText = 'font-size:11px;color:' + COLOR.muted + ';margin-top:6px;';
+    freshDiv.textContent = '✅ Актуально: ' + sr.fresh.join(', ');
+    el.appendChild(freshDiv);
   }
-  el.innerHTML = html;
 })();
 
 // === PANEL 1: Longevity · Attia ===

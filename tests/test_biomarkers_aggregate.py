@@ -41,8 +41,10 @@ def test_meta():
 
 # --- staleness fields ---
 
+
 def test_aggregate_includes_staleness_fields():
     from datetime import date, timedelta
+
     old_date = (date.today() - timedelta(days=400)).isoformat()
     bio = aggregate_biomarkers([{"date": old_date, "values": {"vitamin_D": 32.5}}])
     vd = bio["vitamin_D"]
@@ -53,6 +55,7 @@ def test_aggregate_includes_staleness_fields():
 
 def test_aggregate_stale_is_true_when_old():
     from datetime import date, timedelta
+
     # vitamin_D threshold = 365; 400 days > 365 → is_stale=True
     old_date = (date.today() - timedelta(days=400)).isoformat()
     bio = aggregate_biomarkers([{"date": old_date, "values": {"vitamin_D": 32.5}}])
@@ -63,6 +66,7 @@ def test_aggregate_stale_is_true_when_old():
 
 def test_aggregate_is_stale_false_when_fresh():
     from datetime import date, timedelta
+
     recent_date = (date.today() - timedelta(days=10)).isoformat()
     bio = aggregate_biomarkers([{"date": recent_date, "values": {"vitamin_D": 45.0}}])
     assert bio["vitamin_D"]["is_stale"] is False
@@ -70,5 +74,6 @@ def test_aggregate_is_stale_false_when_fresh():
 
 def test_aggregate_none_threshold_means_never_stale():
     from core.health.staleness import stale_label
+
     # Verify the stale_label function (used internally) returns None for None threshold
     assert stale_label(99999, None) is None
