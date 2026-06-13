@@ -1348,9 +1348,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                 )
                 if not sub_items:
                     continue
-                meal_name = meal.get("dish_name") or extract_meal_name(
-                    text, datetime.now(user_tz).strftime("%H:%M"), user_tz=user_tz
-                )
+                meal_name = meal.get("dish_name") or meal.get("meal_type", "Приём пищи").capitalize()
                 multi_meals.append(
                     {
                         "meal_name": meal_name,
@@ -1381,7 +1379,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             total_kcal = 0
             for m in multi_meals:
                 safe_name = html.escape(str(m["meal_name"]))
-                m_kcal = int(m["meal_totals"]["calories"])
+                m_kcal = int(m["meal_totals"].get("calories", 0))
                 total_kcal += m_kcal
                 response += f"<b>{safe_name}</b> — {m_kcal} ккал\n"
                 for item in m["meal_items"]:
