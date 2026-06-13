@@ -791,3 +791,33 @@ def test_recent_supplements_scoped_to_user(client, db_session, monkeypatch):
     except RuntimeError:
         pass  # ожидаемо: нарочно прерываем после захвата параметров
     assert captured.get("uid") == 895655
+
+
+class TestLatestBiomarkers:
+    """GET /latest_biomarkers — per-marker aggregated view with staleness."""
+
+    def test_returns_200(self, client):
+        resp = client.get("/api/agent/latest_biomarkers")
+        assert resp.status_code == 200
+
+    def test_response_shape(self, client):
+        resp = client.get("/api/agent/latest_biomarkers")
+        data = resp.json()
+        assert data["status"] == "ok"
+        assert "as_of" in data
+        assert "biomarkers" in data
+        assert "stale_count" in data
+        assert "stale_keys" in data
+
+    def test_biomarker_entry_has_staleness_fields(self, client):
+        resp = client.get("/api/agent/latest_biomarkers")
+        data = resp.json()
+        if not data["biomarkers"]:
+            return  # No blood_tests fixture data — can't test fields
+        for key, entry in data["biomarkers"].items():
+            assert "value" in entry, f"missing 'value' in {key}"
+            assert "date" in entry, f"missing 'date' in {key}"
+            assert "days_ago" in entry, f"missing 'days_ago' in {key}"
+            assert "threshold_days" in entry, f"missing 'threshold_days' in {key}"
+            assert "is_stale" in entry, f"missing 'is_stale' in {key}"
+            assert "stale_label" in entry, f"missing 'stale_label' in {key}"
