@@ -118,3 +118,11 @@ class TestStaleLabel:
         from core.health.staleness import stale_label
 
         assert stale_label(90, 60) is not None
+
+    def test_very_stale_shows_years_with_one_decimal(self):
+        from core.health.staleness import stale_label
+
+        # 800 days > 365*2=730 → 🚨 branch; 800/365 ≈ 2.19 → rounds to 2.2
+        label = stale_label(800, 365)
+        assert "2.2" in label
+        assert "года" in label

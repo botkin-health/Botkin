@@ -135,7 +135,10 @@ def get_staleness_days(canonical_key: str) -> int | None:
 
 
 def days_ago_from_str(date_str: str | None) -> int | None:
-    """Days between ISO-8601 *date_str* and today. Returns ``None`` on bad input."""
+    """Days between ISO-8601 *date_str* and today. Returns ``None`` on bad input.
+
+    The "—" em-dash sentinel is the dashboard placeholder when no date is available.
+    """
     if not date_str or date_str == "—":
         return None
     try:
