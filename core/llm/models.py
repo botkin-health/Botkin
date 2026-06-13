@@ -80,6 +80,15 @@ class FoodResponse(BaseModel):
     data: FoodData
 
 
+class MultiFoodData(BaseModel):
+    meals: List[FoodData] = Field(default_factory=list)
+
+
+class MultiFoodResponse(BaseModel):
+    type: Literal["multi_food"]
+    data: MultiFoodData
+
+
 # ---------------------------------------------------------------------------
 # Модели для WEIGHT
 # ---------------------------------------------------------------------------
@@ -157,6 +166,8 @@ def parse_llm_response(raw: Optional[dict]) -> Optional[dict]:
             return WeightResponse.model_validate(raw).model_dump()
         elif type_ == "vitamins":
             return VitaminsResponse.model_validate(raw).model_dump()
+        elif type_ == "multi_food":
+            return MultiFoodResponse.model_validate(raw).model_dump()
         else:
             # "other", "medical" — произвольная структура, пропускаем как есть
             return raw
