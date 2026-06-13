@@ -439,3 +439,21 @@ Botkin/                          # ~/Botkin/ — ТОЛЬКО КОД И OPERATIO
 ├── docs/                        # Документация + ai_context/
 └── archive/                     # Архив старого кода
 ```
+
+---
+
+## Agent skills
+
+Per-repo config consumed by the Matt Pocock engineering skills (`to-issues`, `triage`, `qa`, `review`, `tdd`, `improve-codebase-architecture`, etc.).
+
+### Issue tracker
+
+Issues live in the `Lyskovsky/Botkin` GitHub Issues, managed via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Canonical triage vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`) — defaults, label strings equal role names. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context repo: one `CONTEXT.md` (lazy) + ADRs at `docs/architecture/decisions/`. See `docs/agents/domain.md`.
