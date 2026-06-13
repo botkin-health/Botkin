@@ -496,7 +496,7 @@ CORRECT OUTPUT:
   }
 }
 
-SCENARIO 7: MULTI_FOOD
+SCENARIO 8: MULTI_FOOD
 TRIGGER: message explicitly labels 2+ DIFFERENT meal slots in one text.
 RULE: each slot becomes a separate object in the "meals" array.
 RULE: a single slot with multiple courses stays as regular "food" (see Example 5).
