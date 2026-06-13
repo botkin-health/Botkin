@@ -1358,9 +1358,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             multi_meals = []
             for meal in meals_data:
                 sub_router = {"type": "food", "data": meal}
-                sub_items, sub_totals = await loop.run_in_executor(
-                    None, process_llm_food_data, sub_router, text
-                )
+                sub_items, sub_totals = await loop.run_in_executor(None, process_llm_food_data, sub_router, text)
                 if not sub_items:
                     continue
                 meal_name = meal.get("dish_name") or meal.get("meal_type", "Приём пищи").capitalize()
