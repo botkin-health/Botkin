@@ -1333,6 +1333,87 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             await processing_msg.edit_text(response, parse_mode="HTML", reply_markup=builder.as_markup())
             return
 
+        elif msg_type == "multi_food":
+            # Несколько явных приёмов пищи в одном сообщении (#53)
+            meals_data = data.get("meals", [])
+            if not meals_data:
+                await processing_msg.edit_text("❌ Несколько приёмов, но данные пустые.")
+                return
+
+            multi_meals = []
+            for meal in meals_data:
+                sub_router = {"type": "food", "data": meal}
+                sub_items, sub_totals = await loop.run_in_executor(
+                    None, process_llm_food_data, sub_router, text
+                )
+                if not sub_items:
+                    continue
+                meal_name = meal.get("dish_name") or extract_meal_name(
+                    text, datetime.now(user_tz).strftime("%H:%M"), user_tz=user_tz
+                )
+                multi_meals.append(
+                    {
+                        "meal_name": meal_name,
+                        "meal_items": sub_items,
+                        "meal_totals": sub_totals,
+                    }
+                )
+
+            if not multi_meals:
+                await processing_msg.edit_text("❌ Несколько приёмов пищи, но продуктов не нашёл.")
+                return
+
+            from services.state import UserState
+
+            new_state = UserState(
+                user_id=user_id,
+                state="waiting_confirmation",
+                data={
+                    "description": text,
+                    "multi_meals": multi_meals,
+                    "date": custom_date,
+                },
+            )
+            state_manager.set_state(user_id, new_state)
+
+            # Формируем сводное подтверждение
+            response = "🍽️ <b>Несколько приёмов пищи:</b>\n\n"
+            total_kcal = 0
+            for m in multi_meals:
+                safe_name = html.escape(str(m["meal_name"]))
+                m_kcal = int(m["meal_totals"]["calories"])
+                total_kcal += m_kcal
+                response += f"<b>{safe_name}</b> — {m_kcal} ккал\n"
+                for item in m["meal_items"]:
+                    w_str = f"{item['weight_g']}г" if item.get("weight_g") else "?"
+                    safe_product = html.escape(str(item["product"]))
+                    response += f"  • {safe_product} ({w_str}) — {int(item.get('calories', 0))} ккал\n"
+                response += "\n"
+
+            response += f"📊 <b>Итого: {total_kcal} ккал</b>"
+            if custom_date:
+                try:
+                    date_obj = datetime.strptime(custom_date, "%Y-%m-%d")
+                    weekdays_ru = ["понедельник", "вторник", "среда", "четверг", "пятница", "суббота", "воскресенье"]
+                    response += f"\n📅 {date_obj.strftime('%d.%m.%Y')} ({weekdays_ru[date_obj.weekday()]})"
+                except Exception:
+                    response += f"\n📅 {custom_date}"
+
+            from handlers.callbacks import MealConfirmationCallback
+            from aiogram.utils.keyboard import InlineKeyboardBuilder
+
+            builder = InlineKeyboardBuilder()
+            builder.button(
+                text="✅ Сохранить всё",
+                callback_data=MealConfirmationCallback(action="save", meal_type="regular").pack(),
+            )
+            builder.button(
+                text="❌ Отмена",
+                callback_data=MealConfirmationCallback(action="cancel", meal_type="regular").pack(),
+            )
+            await processing_msg.edit_text(response, parse_mode="HTML", reply_markup=builder.as_markup())
+            return
+
         else:
             await processing_msg.edit_text(f"🤔 Тип сообщения: {msg_type}, но я пока не знаю что с этим делать.")
 
