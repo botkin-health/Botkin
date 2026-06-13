@@ -1386,11 +1386,12 @@ async def phenoage(
     elif latest["hs_CRP"]["value"] <= 0:
         error = "hs_CRP must be > 0 for ln()"
     else:
-        try:
-            # Levine 2018 formula — чистая функция (core.health.phenoage),
-            # биомаркеры уже в канонических единицах.
-            from core.health.phenoage import phenoage_from_markers
+        # Levine 2018 formula — чистая функция (core.health.phenoage),
+        # биомаркеры уже в канонических единицах. Импорт вне try, чтобы
+        # ImportError не маскировался под "calculation error".
+        from core.health.phenoage import phenoage_from_markers
 
+        try:
             bio_age = round(
                 phenoage_from_markers(
                     chrono_age,
@@ -1407,7 +1408,7 @@ async def phenoage(
         "chronological_age": chrono_age,
         "delta_years": round(bio_age - chrono_age, 1) if bio_age and chrono_age else None,
         "interpretation": (
-            "moложе паспорта"
+            "моложе паспорта"
             if bio_age and chrono_age and bio_age < chrono_age
             else "старше паспорта"
             if bio_age and chrono_age and bio_age > chrono_age
