@@ -1230,6 +1230,35 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
         return
 
     if callback_data.action == "save":
+        telegram_user_id = int(callback.from_user.id)
+
+        # Multi-meal path (from multi_food router type — issue #53)
+        if user_state.data.get("multi_meals"):
+            from helpers.db_save import save_meal_to_db
+
+            multi_meals = user_state.data["multi_meals"]
+            saved_count = 0
+            total_kcal = 0
+            for m in multi_meals:
+                meal_data = {
+                    "meal_items": m["meal_items"],
+                    "meal_totals": m["meal_totals"],
+                    "date": user_state.data.get("date"),
+                }
+                if save_meal_to_db(meal_data, m["meal_name"], user_id=telegram_user_id):
+                    saved_count += 1
+                    total_kcal += int(m["meal_totals"].get("calories", 0))
+
+            await callback.answer("✅ Сохранено!", show_alert=False)
+            await safe_edit_text(
+                callback.message,
+                f"✅ <b>Сохранено {saved_count} приёма пищи</b> · {total_kcal} ккал",
+                parse_mode="HTML",
+            )
+            state_manager.clear_state(user_id)
+            return
+
+        # Single-meal path (existing code — unchanged below this point)
         # Сохраняем блюдо
         # Для меню используем dish_name, для обычных блюд - используем meal_name из состояния
         if callback_data.meal_type == "menu":
@@ -1252,8 +1281,6 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
 
         # === ИЗМЕНЕНО: Используем PostgreSQL вместо JSON ===
         from helpers.db_save import save_meal_to_db
-
-        telegram_user_id = int(callback.from_user.id)
 
         logger.info(f"[BEFORE SAVE] user_state.data keys: {list(user_state.data.keys())}")
         logger.info(f"[BEFORE SAVE] meal_totals: {user_state.data.get('meal_totals')}")
