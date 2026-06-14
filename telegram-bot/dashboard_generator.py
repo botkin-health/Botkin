@@ -2658,6 +2658,18 @@ def _build_payload(db: Session, user_id: int) -> dict:
 # ── main entry point ──────────────────────────────────────────────────────────
 
 
+def _safe_payload_json(payload: dict) -> str:
+    """Сериализует payload в JSON, безопасный для вставки в <script>-блок.
+
+    json.dumps НЕ экранирует '</' и '<!--', поэтому пользовательская строка вида
+    '</script><script>…' закрыла бы inline-скрипт и исполнила инъекцию (XSS).
+    Экранируем '<' внутри этих последовательностей: '<\\/' и '<\\!--' — в JSON
+    это тот же символ, но браузер не распознаёт закрытие тега/комментария.
+    """
+    raw = json.dumps(payload, ensure_ascii=False)
+    return raw.replace("</", "<\\/").replace("<!--", "<\\!--")
+
+
 def generate_dashboard_html(db: Session, user_id: int) -> str:
     """Главная точка входа: данные из БД → HTML-строка (шаблон Mission Control).
 
@@ -2694,5 +2706,4 @@ def generate_dashboard_html(db: Session, user_id: int) -> str:
         caps["has_sleep"] = caps["has_garmin"]
         caps["has_heart"] = caps["has_garmin"] or caps["has_bp"]
 
-    payload_json = json.dumps(payload, ensure_ascii=False)
-    return template.replace("{{PAYLOAD}}", payload_json)
+    return template.replace("{{PAYLOAD}}", _safe_payload_json(payload))
