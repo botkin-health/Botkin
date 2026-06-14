@@ -12,7 +12,7 @@ description: Доводит готовую ветку Botkin до мержа в 
 - **Базовая ветка:** `dev`. Мерж — **merge-коммит** (`gh pr merge --merge`), как в истории репы.
 - **Worktree:** `.claude/worktrees/<ветка, `/`→`+`>`.
 - **Проверки (gate):** `ruff check .` · `ruff format --check .` · `PYTHONPATH=. pytest tests/ --ignore=tests/integration --ignore=tests/test_nutrition_parsing.py`.
-- **Деплой:** прод катится `./deploy.sh` (rsync + Docker на Hetzner). **Этот скилл прод НЕ деплоит — только мерж.**
+- **Деплой:** прод катится **только через GitHub Actions** (workflow «Deploy prod», `.github/workflows/deploy-prod.yml`). **Этот скилл прод НЕ деплоит — только мерж.**
 - **Язык:** русский.
 
 Любой шаг упал/неоднозначен → **СТОП**, спросить.
@@ -67,7 +67,7 @@ EOF
 ```bash
 gh pr merge --merge --delete-branch <PR>
 ```
-`Closes #N` закроет issue — проверить `gh issue view <N> --json state` = `CLOSED`, иначе закрыть вручную. Выставить статус **Done** (`98236657`) на доске Botkin #1 (см. «Доска»). **Прод НЕ деплоить** (`./deploy.sh` не запускать).
+`Closes #N` закроет issue — проверить `gh issue view <N> --json state` = `CLOSED`, иначе закрыть вручную. Выставить статус **Done** (`98236657`) на доске Botkin #1 (см. «Доска»). **Прод НЕ деплоить** (workflow «Deploy prod» не запускать).
 
 ### 10. Удалить worktree
 Перейти в основной чекаут, затем:
@@ -96,6 +96,6 @@ gh project item-edit --id "$ITEM_ID" --project-id PVT_kwDOEX3Lns4Bam1p \
 - Не мержить без явного «да».
 - Не пропускать MEDIUM+ (LOW/INFO — можно отложить после ревью, с пометкой в PR).
 - Не плодить E2E ради покрытия; generic e2e-генератор не использовать.
-- Прод не деплоить (`./deploy.sh`).
+- Прод не деплоить (workflow «Deploy prod»).
 - `--force` (worktree remove / push) — только по явной просьбе.
 - Статусы доски — Todo/In Progress/In Review/Done (другие не выдумывать).

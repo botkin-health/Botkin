@@ -15,7 +15,8 @@ Usage:
     git commit -m "release: v0.5.1"
     git tag -a v0.5.1 -m "..."
     git push && git push --tags
-    ./deploy.sh  (для бота) + rsync лендинга
+    Деплой бота — через GitHub Actions workflow «Deploy prod»
+    (gh workflow run deploy-prod.yml -f branch=main) + rsync лендинга
 """
 
 import re
