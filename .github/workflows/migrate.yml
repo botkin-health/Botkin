@@ -1,0 +1,104 @@
+name: Migrate DB
+
+# Накат миграций Alembic на стенд. Перед накатом — ВСЕГДА бэкап БД (и dev, и prod).
+# Запуск только вручную: Actions → "Migrate DB" → Run workflow → выбрать environment.
+# Прод защищается GitHub Environment protection rules (required reviewers).
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Стенд для наката миграций"
+        type: choice
+        options:
+          - dev
+          - prod
+        default: dev
+
+concurrency:
+  # Не накатывать на один стенд параллельно.
+  group: migrate-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    # Привязка к GitHub Environment: для prod можно включить required reviewers.
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Trust host key (pinned)
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Resolve stand
+        id: stand
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          case "$ENVIRONMENT" in
+            prod)
+              echo "pg=healthvault_postgres" >> "$GITHUB_OUTPUT"
+              echo "bot=healthvault_bot" >> "$GITHUB_OUTPUT"
+              echo "path=/opt/botkin" >> "$GITHUB_OUTPUT"
+              ;;
+            dev)
+              echo "pg=botkin_dev_postgres" >> "$GITHUB_OUTPUT"
+              echo "bot=botkin_dev_bot" >> "$GITHUB_OUTPUT"
+              echo "path=/opt/botkin-dev" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "❌ неизвестный environment: $ENVIRONMENT"; exit 1 ;;
+          esac
+
+      # Бэкап ОБЯЗАТЕЛЕН перед любым накатом — и на dev, и на prod.
+      # Дамп остаётся на сервере (PII пользователей — не тащим в артефакты публичного репо).
+      - name: Backup database (pg_dump -Fc)
+        env:
+          SSH_TARGET: ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
+          PG: ${{ steps.stand.outputs.pg }}
+          STAND_PATH: ${{ steps.stand.outputs.path }}
+        run: |
+          ssh "$SSH_TARGET" bash -s "$PG" "$STAND_PATH" <<'REMOTE'
+          set -euo pipefail
+          PG="$1"; STAND_PATH="$2"
+          ts="$(date +%Y-%m-%d_%H%M%S)"
+          dir="${STAND_PATH}/backups"
+          mkdir -p "$dir"
+          out="${dir}/pre-migrate-${ts}.dump"
+          docker exec "$PG" pg_dump -U healthvault -d healthvault -Fc > "$out"
+          size=$(stat -c%s "$out" 2>/dev/null || stat -f%z "$out")
+          if [ "$size" -lt 1000 ]; then
+            echo "❌ бэкап подозрительно мал ($size байт) — прерываю до наката"; exit 1
+          fi
+          echo "✅ бэкап: $out ($size байт)"
+          # Чистка: оставляем 10 последних дампов на стенде.
+          ls -1t "${dir}"/pre-migrate-*.dump | tail -n +11 | xargs -r rm -f
+          REMOTE
+
+      - name: Alembic current (до наката)
+        env:
+          SSH_TARGET: ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
+          BOT: ${{ steps.stand.outputs.bot }}
+        run: ssh "$SSH_TARGET" "docker exec -w /app $BOT alembic current"
+
+      - name: Alembic upgrade head
+        env:
+          SSH_TARGET: ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
+          BOT: ${{ steps.stand.outputs.bot }}
+        run: ssh "$SSH_TARGET" "docker exec -w /app $BOT alembic upgrade head"
+
+      - name: Alembic current (после наката)
+        env:
+          SSH_TARGET: ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
+          BOT: ${{ steps.stand.outputs.bot }}
+        run: ssh "$SSH_TARGET" "docker exec -w /app $BOT alembic current"
