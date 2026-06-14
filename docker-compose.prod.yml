@@ -34,7 +34,8 @@ services:
       - /opt/botkin/data:/app/data
       - /opt/botkin/logs:/app/logs
       # Nightly pg_dump из cron сервера — админ-панель читает их как /app/backups.
-      - /opt/backups:/app/backups
+      # read-only: бот их только показывает, не должен иметь права удалить бэкапы.
+      - /opt/backups:/app/backups:ro
     ports:
       # nginx на хосте проксирует https://health.orangegate.cc → 127.0.0.1:8081.
       # Bind на loopback — наружу порт не открыт. Caddy-ingress — отдельная задача.

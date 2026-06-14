@@ -10,6 +10,7 @@ on:
         description: "Готовый тег образа (откат). Задан → сборка пропускается."
         default: ""
 
+# Потолок прав для reusable build-job (ему нужен packages: write на push).
 permissions:
   contents: read
   packages: write
@@ -24,13 +25,18 @@ jobs:
     uses: ./.github/workflows/build-images.yml
     with:
       ref: ${{ inputs.branch }}
-    secrets: inherit
+    # secrets: inherit намеренно НЕ используем — build-job хватает автоматического
+    # GITHUB_TOKEN; не передаём ему SSH_PRIVATE_KEY и прочие секреты деплоя.
 
   deploy:
     needs: build
     if: ${{ !cancelled() && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
     runs-on: ubuntu-latest
     environment: prod
+    # Деплой только тянет образ (pull) — packages: read достаточно (least privilege).
+    permissions:
+      contents: read
+      packages: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -41,10 +47,13 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: Trust host key
+      - name: Trust host key (pinned)
+        # Пин known_hosts из секрета (а не TOFU ssh-keyscan) — защита от MITM.
+        # Секрет получить один раз: ssh-keyscan -H <host> на доверенной машине.
         run: |
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+          printf '%s\n' "${{ secrets.SSH_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
 
       # .env управляется на сервере (оператор кладёт /opt/botkin/.env один раз).
       # Перенос секретов в GitHub/Vault — отдельная задача; здесь .env не трогаем.
@@ -54,19 +63,40 @@ jobs:
             docker-compose.prod.yml \
             "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/botkin/"
 
+      - name: Resolve & validate IMAGE_TAG
+        id: tag
+        env:
+          IMAGE_TAG_IN: ${{ inputs.image_tag }}
+          BUILT_SHA: ${{ needs.build.outputs.image_sha }}
+        run: |
+          tag="${IMAGE_TAG_IN:-$BUILT_SHA}"
+          if [ -z "$tag" ]; then
+            echo "❌ нет image_tag и сборка не дала sha"; exit 1
+          fi
+          if ! printf '%s' "$tag" | grep -qE '^[A-Za-z0-9._-]+$'; then
+            echo "❌ недопустимый IMAGE_TAG: '$tag'"; exit 1
+          fi
+          echo "value=$tag" >> "$GITHUB_OUTPUT"
+
       - name: Pull & up (без сборки на сервере)
         env:
-          IMAGE_TAG: ${{ inputs.image_tag != '' && inputs.image_tag || needs.build.outputs.image_sha }}
+          IMAGE_TAG: ${{ steps.tag.outputs.value }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ACTOR: ${{ github.actor }}
           SSH_TARGET: ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
         run: |
-          ssh "$SSH_TARGET" bash -s "$IMAGE_TAG" "$GHCR_TOKEN" "$ACTOR" <<'REMOTE'
+          # GHCR_TOKEN уходит на сервер ПЕРВОЙ строкой stdin (как часть script для
+          # `bash -s`), а НЕ через argv — иначе виден в /proc/<pid>/cmdline другим
+          # пользователям общего хоста. IMAGE_TAG/ACTOR не секретны → argv ($1/$2).
+          {
+          printf "GHCR_TOKEN='%s'\n" "$GHCR_TOKEN"
+          cat <<'REMOTE'
           set -euo pipefail
-          IMAGE_TAG="$1"; TOKEN="$2"; ACTOR="$3"
+          IMAGE_TAG="$1"; ACTOR="$2"
           cd /opt/botkin
           [ -f .env ] || { echo "❌ /opt/botkin/.env отсутствует — положи его на сервер"; exit 1; }
-          echo "$TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
+          trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
           export IMAGE_TAG
           docker compose -f docker-compose.prod.yml pull
           docker compose -f docker-compose.prod.yml up -d --wait --wait-timeout 120
@@ -77,5 +107,5 @@ jobs:
                 [ "$tag" = "$IMAGE_TAG" ] && continue
                 docker rmi -f "$id" || true
               done
-          docker logout ghcr.io
           REMOTE
+          } | ssh "$SSH_TARGET" bash -s "$IMAGE_TAG" "$ACTOR"

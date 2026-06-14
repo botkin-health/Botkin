@@ -16,8 +16,10 @@ while IFS= read -r raw; do
   key="${raw%%#*}"
   key="$(printf '%s' "$key" | tr -d '[:space:]')"
   [ -z "$key" ] && continue
-  val="$(grep -E "^${key}=" "$ENV_FILE" | head -n1 | cut -d= -f2-)"
-  if [ -z "$val" ]; then
+  # Точное совпадение имени ключа (awk, без regex-инъекции из манифеста).
+  val="$(awk -F= -v k="$key" '$1==k {sub(/^[^=]*=/,""); print; exit}' "$ENV_FILE")"
+  # Значение из одних пробелов считаем пустым.
+  if [ -z "$(printf '%s' "$val" | tr -d '[:space:]')" ]; then
     echo "❌ отсутствует или пуст обязательный ключ: $key" >&2
     missing=1
   fi
