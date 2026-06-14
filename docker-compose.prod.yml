@@ -1,3 +1,7 @@
+# Фиксируем project name независимо от папки (/opt/healthvault → /opt/botkin).
+# Без этого Docker Compose берёт имя папки и конфликтует с уже запущенными контейнерами.
+name: healthvault
+
 services:
   postgres:
     image: postgres:15
