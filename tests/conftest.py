@@ -17,6 +17,10 @@ _DUMMY_KEYS = {
     "OPENAI_API_KEY": "sk-ci-dummy-not-real",
     "GEMINI_API_KEY": "ci-dummy-not-real",
     "GOOGLE_API_KEY": "ci-dummy-not-real",
+    # Прод-движок (database/__init__.py) требует DATABASE_URL и падает без неё.
+    # Тесты используют отдельный in-memory SQLite и патчат SessionLocal, поэтому
+    # сюда достаточно ленивого dummy-URL — реального коннекта по нему не будет.
+    "DATABASE_URL": "postgresql://botkin_ci:botkin_ci@localhost:5432/botkin_ci",
 }
 for _k, _v in _DUMMY_KEYS.items():
     os.environ.setdefault(_k, _v)
