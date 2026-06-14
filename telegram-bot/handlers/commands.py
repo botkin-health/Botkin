@@ -667,3 +667,119 @@ async def cmd_share(message: Message, user_id: int):
         parse_mode="HTML",
         reply_markup=keyboard,
     )
+
+
+# ==================== FAMILY-FORWARD: управление получателями фото еды ====================
+# Бот пересылает фото еды + КБЖУ этим получателям при сохранении приёма пищи.
+# Пересылается ТОЛЬКО еда; медданные не пересылаются. См. core/family/forward.py
+
+
+def _fmt_recipient(rid: int) -> str:
+    known = {1590991200: "Алла (жена)", 484360127: "Романова (эндокринолог)"}
+    return f"<code>{rid}</code>" + (f" — {known[rid]}" if rid in known else "")
+
+
+@router.message(Command("forward"))
+async def cmd_forward_list(message: Message, user_id: int):
+    """Показать список получателей пересылки фото еды."""
+    from database import SessionLocal
+    from database.crud import get_user_settings
+
+    db = SessionLocal()
+    try:
+        settings = get_user_settings(db, user_id)
+        recipients = list(getattr(settings, "food_forward_recipients", None) or [])
+    finally:
+        db.close()
+
+    if not recipients:
+        await message.answer(
+            "📤 <b>Пересылка фото еды</b>\n\nПолучатели не настроены.\n\n"
+            "Добавить: перешли мне любое сообщение от человека и ответь на него командой "
+            "<code>/forward_add</code>, либо <code>/forward_add &lt;chat_id&gt;</code>.\n"
+            "⚠️ Получатель должен сначала нажать /start у меня.",
+            parse_mode="HTML",
+        )
+        return
+
+    lines = "\n".join(f"• {_fmt_recipient(r)}" for r in recipients)
+    await message.answer(
+        f"📤 <b>Пересылка фото еды — получатели:</b>\n{lines}\n\n"
+        "Удалить: <code>/forward_remove &lt;chat_id&gt;</code>",
+        parse_mode="HTML",
+    )
+
+
+@router.message(Command("forward_add"))
+async def cmd_forward_add(message: Message, user_id: int):
+    """Добавить получателя: по chat_id или ответом на пересланное сообщение от человека."""
+    from database import SessionLocal
+    from database.crud import get_user_settings, upsert_user_settings
+
+    # 1) пробуем взять id из пересланного сообщения (reply на форвард)
+    new_id = None
+    target = message.reply_to_message or message
+    fwd = getattr(target, "forward_from", None)
+    if fwd is not None:
+        new_id = fwd.id
+    else:
+        # 2) пробуем аргумент команды: /forward_add 484360127
+        parts = (message.text or "").split()
+        if len(parts) >= 2 and parts[1].lstrip("-").isdigit():
+            new_id = int(parts[1])
+
+    if new_id is None:
+        await message.answer(
+            "Как добавить получателя:\n"
+            "• перешли мне сообщение от человека и ответь на него <code>/forward_add</code>, или\n"
+            "• <code>/forward_add &lt;chat_id&gt;</code>\n\n"
+            "⚠️ Получатель сначала должен нажать /start у меня, иначе я не смогу ему писать.",
+            parse_mode="HTML",
+        )
+        return
+
+    db = SessionLocal()
+    try:
+        settings = get_user_settings(db, user_id)
+        recipients = list(getattr(settings, "food_forward_recipients", None) or [])
+        if new_id in recipients:
+            await message.answer(f"Уже в списке: {_fmt_recipient(new_id)}", parse_mode="HTML")
+            return
+        recipients.append(new_id)
+        upsert_user_settings(db, user_id, food_forward_recipients=recipients)
+    finally:
+        db.close()
+
+    await message.answer(
+        f"✅ Добавлен получатель: {_fmt_recipient(new_id)}\n"
+        "Теперь ему будут уходить фото еды + КБЖУ.\n"
+        "⚠️ Если он ещё не нажал /start у меня — отправка не пройдёт, пока не нажмёт.",
+        parse_mode="HTML",
+    )
+
+
+@router.message(Command("forward_remove"))
+async def cmd_forward_remove(message: Message, user_id: int):
+    """Удалить получателя по chat_id: /forward_remove 484360127"""
+    from database import SessionLocal
+    from database.crud import get_user_settings, upsert_user_settings
+
+    parts = (message.text or "").split()
+    if len(parts) < 2 or not parts[1].lstrip("-").isdigit():
+        await message.answer("Укажи chat_id: <code>/forward_remove &lt;chat_id&gt;</code>", parse_mode="HTML")
+        return
+    rem_id = int(parts[1])
+
+    db = SessionLocal()
+    try:
+        settings = get_user_settings(db, user_id)
+        recipients = list(getattr(settings, "food_forward_recipients", None) or [])
+        if rem_id not in recipients:
+            await message.answer(f"Нет в списке: <code>{rem_id}</code>", parse_mode="HTML")
+            return
+        recipients = [r for r in recipients if r != rem_id]
+        upsert_user_settings(db, user_id, food_forward_recipients=recipients)
+    finally:
+        db.close()
+
+    await message.answer(f"🗑 Удалён получатель: <code>{rem_id}</code>", parse_mode="HTML")
