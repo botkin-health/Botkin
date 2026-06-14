@@ -64,7 +64,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Код проекта (эта папка):**
 `~/Library/CloudStorage/GoogleDrive-lyskovsky@gmail.com/Мой диск/Projects/Vibe coding/Botkin/`
 
-Git remote: `git@github.com:Lyskovsky/Botkin.git` (переименовано 12.05.2026, было `HealthVault`)
+Git remote: `git@github.com:botkin-health/Botkin.git` (перенесён в орг `botkin-health` 14.06.2026; ранее `Lyskovsky/Botkin`, ещё раньше `HealthVault`)
 
 **Медицинские данные семьи (отдельная папка, не путать!):**
 `~/Library/CloudStorage/GoogleDrive-lyskovsky@gmail.com/Мой диск/FamilyHealth/`
@@ -448,7 +448,7 @@ Per-repo config consumed by the Matt Pocock engineering skills (`to-issues`, `tr
 
 ### Issue tracker
 
-Issues live in the `Lyskovsky/Botkin` GitHub Issues, managed via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+Issues live in the `botkin-health/Botkin` GitHub Issues, managed via the `gh` CLI. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
