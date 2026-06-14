@@ -1,5 +1,4 @@
 services:
-  # PostgreSQL база данных
   postgres:
     image: postgres:15
     container_name: healthvault_postgres
@@ -9,21 +8,19 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
-      - healthvault_network
-    restart: always
+      - internal
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U healthvault"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # Telegram бот
   bot:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    # Образ из GHCR — собирается в GitHub Actions, на сервере только pull.
+    # IMAGE_TAG задаёт deploy-workflow (sha коммита) или откат на прошлый тег.
+    image: ghcr.io/botkin-health/botkin-bot:${IMAGE_TAG:-latest}
     container_name: healthvault_bot
     env_file:
       - .env
@@ -32,62 +29,35 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    ports:
-      # 8081 — FastAPI webhook сервер (Telegram webhook + /apple_health + /api/agent).
-      # Nginx на хосте проксирует http://127.0.0.1:8081 → внутрь контейнера.
-      # Bind на 127.0.0.1 — не публичный, доступно только локальному nginx.
-      # Был потерян при docker compose --force-recreate 18.05 → 502 на webhook.
-      - "127.0.0.1:8081:8081"
-      # 172.17.0.1 — docker bridge gateway. Нужен для spawn-контейнеров NanoClaw
-      # (agent stack) чтобы достучаться до /api/agent/* через host.docker.internal.
-      # JWT-auth на эндпойнтах обязательна; внешний доступ не открывается.
-      # См. docs/projects/2026-05_nanoclaw-agent-bot/STATUS.md § Архитектура.
-      - "172.17.0.1:8081:8081"
     volumes:
-      - ./logs:/app/logs
-      - ./data:/app/data
-      # Bind-mount исходников — чтобы деплой не требовал rebuild image и
-      # docker-compose up не сбрасывал свежие правки. Источник истины — хост.
-      # Без этих маунтов любое изменение скрипта/handler'а требовало
-      # docker cp + restart; теперь — scp + restart, и .py-файлы видны сразу.
-      - ./telegram-bot:/app/telegram-bot
-      - ./core:/app/core
-      - ./database:/app/database
-      - ./scripts:/app/scripts
-      - ./config:/app/config
-      - ./services:/app/services
-      - ./helpers:/app/helpers
-      - ./domain:/app/domain
-      # Per-user KB files live in data/kb/kb_<tid>.json — covered by the
-      # ./data:/app/data mount above. Adding a new user does NOT require
-      # editing this file. See agent_tools_api._resolve_user_kb_path().
+      # Операционные данные/логи — на хосте, переживают pull/up (не в образе).
+      - /opt/botkin/data:/app/data
+      - /opt/botkin/logs:/app/logs
+      # Nightly pg_dump из cron сервера — админ-панель читает их как /app/backups.
+      # read-only: бот их только показывает, не должен иметь права удалить бэкапы.
+      - /opt/backups:/app/backups:ro
+    ports:
+      # nginx на хосте проксирует https://health.orangegate.cc → 127.0.0.1:8081.
+      # Bind на loopback — наружу порт не открыт. Caddy-ingress — отдельная задача.
+      - "127.0.0.1:8081:8081"
     networks:
-      - healthvault_network
-    restart: always
+      - internal   # доступ к postgres
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pgrep -f bot.py || exit 1"]
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8081/health\", timeout=5)' || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
-
-  # Nginx (опционально, для веб-интерфейса в будущем)
-  # nginx:
-  #   image: nginx:alpine
-  #   container_name: healthvault_nginx
-  #   ports:
-  #     - "80:80"
-  #     - "443:443"
-  #   volumes:
-  #     - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-  #     - ./nginx/certs:/etc/nginx/certs
-  #   networks:
-  #     - healthvault_network
-  #   restart: always
+      start_period: 40s
 
 volumes:
   postgres_data:
+    # Пин на существующий volume прод-БД: иначе новый compose-проект (botkin)
+    # создал бы пустой том и поднял БД с нуля. Переезд /opt/healthvault → /opt/botkin
+    # переиспользует данные прод-постгреса.
+    name: healthvault_postgres_data
     driver: local
 
 networks:
-  healthvault_network:
+  internal:
     driver: bridge

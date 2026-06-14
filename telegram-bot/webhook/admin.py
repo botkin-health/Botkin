@@ -11,6 +11,7 @@ MVP scope. v1/v2 features are tracked in project todo.md.
 
 from __future__ import annotations
 
+import gzip
 import hashlib
 import hmac
 import logging
@@ -973,22 +974,28 @@ async def api_backups_create(_: str = Depends(admin_auth)) -> JSONResponse:
     fname = f"healthvault_{ts}.sql.gz"
     fpath = BACKUPS_DIR / fname
 
-    cmd = [
-        "/bin/sh",
-        "-c",
-        f"PGPASSWORD='{pg_password}' pg_dump -h postgres -U healthvault -d healthvault --no-owner --no-acl | gzip -9 > '{fpath}'",
-    ]
+    # pg_dump БЕЗ shell: аргументы списком, пароль через env (PGPASSWORD). Раньше
+    # пароль интерполировался в /bin/sh -c "PGPASSWORD='{pw}' …" — кавычка/$() в
+    # пароле давали command injection. gzip выполняем средствами Python.
+    env = {**os.environ, "PGPASSWORD": pg_password}
+    cmd = ["pg_dump", "-h", "postgres", "-U", "healthvault", "-d", "healthvault", "--no-owner", "--no-acl"]
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+        result = subprocess.run(cmd, capture_output=True, env=env, timeout=600)
     except subprocess.TimeoutExpired:
         raise HTTPException(504, "Backup timed out (>10 min)")
     if result.returncode != 0:
-        # Cleanup partial file
+        logger.error("[admin] pg_dump failed (rc=%s): %s", result.returncode, result.stderr[:500])
+        raise HTTPException(500, "Backup failed")
+    try:
+        with gzip.open(fpath, "wb", compresslevel=9) as gz:
+            gz.write(result.stdout)
+    except Exception as e:
         try:
             fpath.unlink(missing_ok=True)
         except Exception:
             pass
-        raise HTTPException(500, f"pg_dump failed: {result.stderr[:300]}")
+        logger.error("[admin] gzip write failed: %s", e)
+        raise HTTPException(500, "Backup failed")
 
     st = fpath.stat()
     logger.info(f"[admin] Backup created: {fname} ({_human(st.st_size)})")

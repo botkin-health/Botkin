@@ -1,0 +1,9 @@
+# Обязательные ключи прод-окружения Botkin (по одному на строку, "#" — комментарий).
+# Используется как документация + вход для scripts/ci/check-required-env.sh:
+# прогони хелпер на .env ПЕРЕД тем как класть его на сервер.
+POSTGRES_PASSWORD
+TELEGRAM_BOT_TOKEN
+TELEGRAM_WEBHOOK_SECRET
+TELEGRAM_USER_ID
+OPENAI_API_KEY
+ANTHROPIC_API_KEY
