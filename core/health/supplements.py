@@ -4,6 +4,7 @@ Supplement Service - PostgreSQL Version
 Управление добавками и витаминами через PostgreSQL
 """
 
+import html
 import logging
 from datetime import datetime
 from typing import List, Dict, Optional
@@ -210,7 +211,7 @@ def needs_legacy_migration(supplements: list) -> bool:
     return no_dose or has_long_dose or has_deprecated_slot
 
 
-def _migrate_legacy_supplements(supplements: list) -> list:
+def migrate_legacy_supplements(supplements: list) -> list:
     """Fix structural issues (deprecated slots, long doses) without altering the user's supplement list."""
     migrated = []
     for item in supplements:
@@ -226,12 +227,13 @@ def _migrate_legacy_supplements(supplements: list) -> list:
     return migrated
 
 
-def default_dose_for(name: str) -> Optional[str]:
-    """Return the planned `dose` string for a supplement name from DEFAULT_SUPPLEMENTS.
-    Matches by normalized canonical name; first occurrence wins (utro по умолчанию)."""
+def dose_from_user_schedule(supplements: list, name: str) -> Optional[str]:
+    """Return the user's own planned `dose` for a supplement name, looked up in
+    their configured schedule (`user_settings.supplements`). No cross-user defaults —
+    multi-user platform must not stamp one user's protocol onto another."""
     target = normalize_supplement_name(name)
-    for item in DEFAULT_SUPPLEMENTS:
-        if normalize_supplement_name(item.get("name", "")) == target:
+    for item in supplements or []:
+        if isinstance(item, dict) and normalize_supplement_name(item.get("name", "")) == target:
             return item.get("dose")
     return None
 
@@ -272,6 +274,11 @@ def save_supplements(items: List[str], user_id: int, date_str: Optional[str] = N
 
     db = SessionLocal()
     try:
+        from database.crud import get_user_settings
+
+        settings = get_user_settings(db, user_id)
+        planned = (settings.supplements or []) if settings else []
+
         # Add new items with timestamp
         for item in items:
             create_supplement_log(
@@ -280,7 +287,7 @@ def save_supplements(items: List[str], user_id: int, date_str: Optional[str] = N
                 date=target_date,
                 time=current_time,
                 supplement_name=item,
-                dosage=default_dose_for(item),
+                dosage=dose_from_user_schedule(planned, item),
             )
 
             # If this supplement has known nutritional value — also log it as food
@@ -382,7 +389,8 @@ class SupplementService:
     def _load_schedule(self) -> dict:
         """Load supplement schedule from user_settings.
 
-        If no settings exist, saves DEFAULT_SUPPLEMENTS and returns them.
+        Users with no configured supplements get an empty schedule (no DB write).
+        Existing users whose data is structurally outdated are migrated in place.
         Returns dict: {"☀️ УТРО (до еды)": [...], "🌅 УТРО (с завтраком)": [...], "🌙 ВЕЧЕР (с ужином)": [...]}
         """
         from database.crud import get_user_settings, upsert_user_settings
@@ -395,7 +403,7 @@ class SupplementService:
             else:
                 raw = settings.supplements
                 if needs_legacy_migration(raw):
-                    raw = _migrate_legacy_supplements(raw)
+                    raw = migrate_legacy_supplements(raw)
                     upsert_user_settings(db, self.user_id, supplements=raw)
         finally:
             db.close()
@@ -406,9 +414,7 @@ class SupplementService:
             name = item.get("name", "")
             label = _SLOT_LABELS.get(slot)
             if label and name:
-                # Per-item dose from settings, fallback to canonical default for legacy entries.
-                dose = item.get("dose") or default_dose_for(name)
-                result[label].append({"name": name, "dose": dose})
+                result[label].append({"name": name, "dose": item.get("dose")})
         return result
 
     def get_detailed_schedule(self, for_date: Optional[str] = None) -> str:
@@ -471,10 +477,12 @@ class SupplementService:
                 name = item["name"] if isinstance(item, dict) else item
                 dose = item.get("dose") if isinstance(item, dict) else None
                 status = "✅" if is_taken(name) else "⬜"
+                # Escape user-controlled name/dose — rendered into Telegram HTML parse mode.
+                safe_name = html.escape(str(name))
                 if dose:
-                    lines.append(f"{status} <b>{name}</b> — <i>{dose}</i>")
+                    lines.append(f"{status} <b>{safe_name}</b> — <i>{html.escape(str(dose))}</i>")
                 else:
-                    lines.append(f"{status} {name}")
+                    lines.append(f"{status} {safe_name}")
             lines.append("")  # Empty line between blocks
 
         return "\n".join(lines)
