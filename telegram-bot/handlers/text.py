@@ -803,6 +803,10 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
 
     # Wrap the rest in try..except to catch formatting/sending errors
     try:
+        # Bind loop unconditionally — food/multi_food branches call
+        # run_in_executor, and router_result may arrive via a pre-check path
+        # that skipped the earlier assignment.
+        loop = asyncio.get_running_loop()
         msg_type = router_result.get("type")
         data = router_result.get("data", {})
 
@@ -1377,12 +1381,14 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                 return
 
             multi_meals = []
+            skipped = []
             for meal in meals_data:
                 sub_router = {"type": "food", "data": meal}
                 sub_items, sub_totals = await loop.run_in_executor(None, process_llm_food_data, sub_router, text)
-                if not sub_items:
-                    continue
                 meal_name = meal.get("dish_name") or meal.get("meal_type", "Приём пищи").capitalize()
+                if not sub_items:
+                    skipped.append(meal_name)
+                    continue
                 multi_meals.append(
                     {
                         "meal_name": meal_name,
@@ -1423,6 +1429,8 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                 response += "\n"
 
             response += f"📊 <b>Итого: {total_kcal} ккал</b>"
+            if skipped:
+                response += "\n⚠️ Не разобрал: " + ", ".join(html.escape(str(s)) for s in skipped)
             if custom_date:
                 try:
                     date_obj = datetime.strptime(custom_date, "%Y-%m-%d")

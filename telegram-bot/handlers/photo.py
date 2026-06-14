@@ -1239,6 +1239,7 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
             multi_meals = user_state.data["multi_meals"]
             saved_count = 0
             total_kcal = 0
+            failed = []
             for m in multi_meals:
                 meal_data = {
                     "meal_items": m["meal_items"],
@@ -1248,13 +1249,17 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
                 if save_meal_to_db(meal_data, m["meal_name"], user_id=telegram_user_id):
                     saved_count += 1
                     total_kcal += int(m["meal_totals"].get("calories", 0))
+                else:
+                    failed.append(m["meal_name"])
+                    logger.error(
+                        "multi_food: save_meal_to_db failed for %r (user %s)", m["meal_name"], telegram_user_id
+                    )
 
+            confirm = f"✅ <b>Сохранено приёмов: {saved_count}</b> · {total_kcal} ккал"
+            if failed:
+                confirm += "\n⚠️ Не удалось сохранить: " + ", ".join(failed) + " — отправь их отдельно."
             await callback.answer("✅ Сохранено!", show_alert=False)
-            await safe_edit_text(
-                callback.message,
-                f"✅ <b>Сохранено {saved_count} приёма пищи</b> · {total_kcal} ккал",
-                parse_mode="HTML",
-            )
+            await safe_edit_text(callback.message, confirm, parse_mode="HTML")
             state_manager.clear_state(user_id)
             return
 
