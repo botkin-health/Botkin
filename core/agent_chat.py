@@ -226,6 +226,19 @@ TOOLS: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "get_latest_biomarkers",
+        "description": (
+            "Актуальное состояние всех биомаркеров: последнее значение каждого маркера "
+            "с полями days_ago, threshold_days, is_stale и stale_label. "
+            "Используй вместо get_recent_biomarkers когда нужно текущее значение маркера "
+            "(«какой у меня витамин D?», «мои анализы в норме?»). "
+            "Если is_stale=true — ОБЯЗАТЕЛЬНО упомяни давность: "
+            "'Последний анализ от [дата] — рекомендую обновить (прошло [N] мес)'. "
+            "Используй get_recent_biomarkers для исторических трендов."
+        ),
+        "input_schema": {"type": "object", "properties": {}},
+    },
+    {
         "name": "get_phenoage",
         "description": (
             "Биологический возраст по формуле Levine 2018 (Aging Cell). "
@@ -754,6 +767,8 @@ def _call_tool(name: str, args: dict, token: str) -> str:
                 headers=headers,
                 timeout=15,
             )
+        elif name == "get_latest_biomarkers":
+            r = requests.get(f"{TOOLS_API_BASE}/latest_biomarkers", headers=headers, timeout=15)
         elif name == "get_phenoage":
             r = requests.get(f"{TOOLS_API_BASE}/phenoage", headers=headers, timeout=15)
         elif name == "get_recent_workouts":
@@ -1421,6 +1436,7 @@ _TOOL_PROGRESS_LABEL = {
     "get_recent_trends": "📊 собираю динамику",
     "get_recent_workouts": "🏃 поднимаю тренировки",
     "get_recent_biomarkers": "🧪 смотрю анализы",
+    "get_latest_biomarkers": "🧪 проверяю свежесть анализов",
     "get_kb_value": "📋 ищу в карте здоровья",
     "list_kb_keys": "🗂 смотрю что есть в карте",
     "get_open_questions": "🚩 свеяю с открытыми вопросами",
@@ -1703,6 +1719,16 @@ def ask_agent(
             "Прецедент 01.06.2026: аудит 9 ответов одному пользователю — про его "
             "данные всё верно, но «глутамат в томатах», «углеводы на ночь толстят», "
             "завышенные пурины горошка (50-80 вместо ~15-25 мг) — неточности.\n"
+            "\n"
+            "# 🗓️ ДАВНОСТЬ БИОМАРКЕРОВ\n"
+            "\n"
+            "При вопросах про анализы крови и биомаркеры:\n"
+            "- Используй get_latest_biomarkers для получения актуального состояния всех маркеров.\n"
+            "- Если is_stale=true для запрошенного маркера — ОБЯЗАТЕЛЬНО упомяни дату:\n"
+            "  «Последний анализ от [дата] — рекомендую обновить (прошло [N] мес)».\n"
+            "- Если stale_label присутствует — используй его дословно.\n"
+            "- Не давай оценку «в норме / не в норме» для устаревших маркеров без предупреждения.\n"
+            "- Если все маркеры свежие (is_stale=false) — давность упоминать не нужно.\n"
             "\n"
             "---\n"
             "\n"
