@@ -83,6 +83,13 @@ if not BOT_TOKEN:
     logger.error("Создайте файл .env и добавьте: TELEGRAM_BOT_TOKEN=ваш_токен")
     sys.exit(1)
 
+if not os.getenv("TELEGRAM_WEBHOOK_SECRET"):
+    logger.error(
+        "⚠️  TELEGRAM_WEBHOOK_SECRET не задан — /telegram/webhook открыт для всех."
+        " Сгенерируй: openssl rand -hex 32, добавь в .env и перерегистрируй"
+        " webhook через setWebhook(secret_token=...)."
+    )
+
 
 # Инициализируем бота и диспетчер
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
