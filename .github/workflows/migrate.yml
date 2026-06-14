@@ -30,7 +30,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup SSH agent
-        uses: webfactory/ssh-agent@v0.9.0
+        uses: webfactory/ssh-agent@dc588b651fe13675774614f8e6a936a468676387  # v0.9.0 (пин по SHA — supply chain)
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
@@ -72,16 +72,25 @@ jobs:
         env:
           SSH_TARGET: ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
           BOT: ${{ vars.BOT_CONTAINER }}
-        run: ssh "$SSH_TARGET" "docker exec -w /app $BOT alembic current"
+        run: |
+          ssh "$SSH_TARGET" bash -s "$BOT" <<'REMOTE'
+          docker exec -w /app "$1" alembic current
+          REMOTE
 
       - name: Alembic upgrade head
         env:
           SSH_TARGET: ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
           BOT: ${{ vars.BOT_CONTAINER }}
-        run: ssh "$SSH_TARGET" "docker exec -w /app $BOT alembic upgrade head"
+        run: |
+          ssh "$SSH_TARGET" bash -s "$BOT" <<'REMOTE'
+          docker exec -w /app "$1" alembic upgrade head
+          REMOTE
 
       - name: Alembic current (после наката)
         env:
           SSH_TARGET: ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
           BOT: ${{ vars.BOT_CONTAINER }}
-        run: ssh "$SSH_TARGET" "docker exec -w /app $BOT alembic current"
+        run: |
+          ssh "$SSH_TARGET" bash -s "$BOT" <<'REMOTE'
+          docker exec -w /app "$1" alembic current
+          REMOTE
