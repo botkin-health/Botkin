@@ -488,6 +488,7 @@ html { scroll-behavior: smooth; }
       <div class="panel-source">Botkin · <span id="bio-count-1">—</span> ключевых биомаркеров · последние данные крови</div>
       <div class="panel-explainer">Ключевые маркеры с цветной разметкой целей — глюкоза, липиды, гормоны, витамины, воспаление. Реальные значения за последний анализ.</div>
       <table class="biotable" id="biotable"></table>
+      <div id="stale-reminders-section" style="margin-top:16px;display:none;"></div>
     </div>
 
     <!-- Panel 2 (in DOM order): Longevity · Attia -->
@@ -1107,9 +1108,56 @@ bioRefs.map(([k, nm, lo, hi, sys]) => {
     <td class="val"><span style="color:${color};">${v}</span> <span style="color:${COLOR.muted};font-size:10px;">${info.unit}</span></td>
     <td style="color:${COLOR.muted};font-size:11px;">${lo}–${hi}</td>
     <td><span class="bar"><div style="width:${pct}%; background:${color};"></div></span><span style="color:${color};font-size:11px;">${status}</span></td>
-    <td class="d">${info.date}</td>
+    <td class="d">${info.date}${info.stale_note ? ' <span style="color:' + (info.stale_note.startsWith('🚨') ? COLOR.r : COLOR.y) + ';font-size:10px;font-weight:700;">' + info.stale_note + '</span>' : ''}</td>
   </tr>`;
 }).join('') + '</tbody>';
+
+// === Когда обновить анализы ===
+(function() {
+  const sr = D.stale_reminders;
+  const el = document.getElementById('stale-reminders-section');
+  if (!el || !sr) return;
+  if (!sr.stale.length && !sr.soon.length) return;
+  el.style.display = '';
+
+  function mkRow(emoji, nameText, metaText, nameColor) {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;';
+    const nameSpan = document.createElement('span');
+    nameSpan.style.cssText = 'color:' + nameColor + ';font-weight:600;';
+    nameSpan.textContent = emoji + ' ' + nameText;
+    const metaSpan = document.createElement('span');
+    metaSpan.style.cssText = 'color:' + COLOR.muted + ';font-size:11px;';
+    metaSpan.textContent = metaText;
+    row.appendChild(nameSpan);
+    row.appendChild(metaSpan);
+    return row;
+  }
+
+  const hdr = document.createElement('div');
+  hdr.style.cssText = 'font-size:10px;color:' + COLOR.muted + ';text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;';
+  hdr.textContent = '🗓 Когда обновить анализы';
+  el.appendChild(hdr);
+
+  if (sr.stale.length) {
+    const wrap = document.createElement('div');
+    wrap.style.marginBottom = '8px';
+    sr.stale.forEach(m => wrap.appendChild(mkRow('🔴', m.name, m.date + ' · ' + m.months + ' мес · порог ' + m.threshold_months + ' мес', COLOR.r)));
+    el.appendChild(wrap);
+  }
+  if (sr.soon.length) {
+    const wrap = document.createElement('div');
+    wrap.style.marginBottom = '8px';
+    sr.soon.forEach(m => wrap.appendChild(mkRow('🟡', m.name, m.date + ' · ' + m.months + ' мес · порог ' + m.threshold_months + ' мес', COLOR.y)));
+    el.appendChild(wrap);
+  }
+  if (sr.fresh.length) {
+    const freshDiv = document.createElement('div');
+    freshDiv.style.cssText = 'font-size:11px;color:' + COLOR.muted + ';margin-top:6px;';
+    freshDiv.textContent = '✅ Актуально: ' + sr.fresh.join(', ');
+    el.appendChild(freshDiv);
+  }
+})();
 
 // === PANEL 1: Longevity · Attia ===
 (function() {

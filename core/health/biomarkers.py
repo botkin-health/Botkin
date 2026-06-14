@@ -9,11 +9,13 @@
 from __future__ import annotations
 
 from core.health.kb_schema import to_canonical
+from core.health.staleness import days_ago_from_str, get_staleness_days
 
 
 def aggregate_biomarkers(tests: list[dict]) -> dict:
     """tests=[{date, values}] (сырые KB values) →
-    {canon_key: {value, date[, earliest, peak_max, peak_min, n_history]}} + _meta.
+    {canon_key: {value, date, days_ago, staleness_threshold_days, is_stale
+                 [, earliest, peak_max, peak_min, n_history]}} + _meta.
     """
     # Свежие сверху — для seen берём первое попавшееся (самое свежее) значение.
     tests_sorted = sorted(tests, key=lambda t: t.get("date", ""), reverse=True)
@@ -25,7 +27,15 @@ def aggregate_biomarkers(tests: list[dict]) -> dict:
         canon, _warnings = to_canonical(t.get("values") or {})
         for k, v in canon.items():
             if k not in seen:
-                seen[k] = {"value": v, "date": date}
+                da = days_ago_from_str(date)
+                threshold = get_staleness_days(k)
+                seen[k] = {
+                    "value": v,
+                    "date": date,
+                    "days_ago": da,
+                    "staleness_threshold_days": threshold,
+                    "is_stale": (da is not None and threshold is not None and da > threshold),
+                }
             history.setdefault(k, []).append({"value": v, "date": date})
 
     bio: dict = {}

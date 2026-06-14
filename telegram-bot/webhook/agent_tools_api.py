@@ -1290,6 +1290,74 @@ async def recent_biomarkers(
     return {"status": "ok", "count": len(tests), "tests": tests}
 
 
+@router.get("/latest_biomarkers")
+async def latest_biomarkers(
+    user=Depends(get_agent_user),
+    db: Session = Depends(get_db),
+):
+    """Latest value per canonical biomarker with staleness info.
+
+    Unlike /recent_biomarkers (raw test rows, useful for trends),
+    this returns ONE entry per canonical key — the most recent value
+    and its staleness status.
+
+    Use this when the user asks about a specific marker or their overall
+    biomarker state. Use /recent_biomarkers for historical trends.
+    """
+    from datetime import date as _date
+
+    from sqlalchemy import text as sql_text
+
+    from core.health.biomarkers import aggregate_biomarkers
+    from core.health.kb_schema import CANONICAL
+    from core.health.staleness import stale_label
+
+    rows = db.execute(
+        sql_text('SELECT test_date, "values" FROM blood_tests WHERE user_id = :uid ORDER BY test_date DESC'),
+        {"uid": user.telegram_id},
+    ).fetchall()
+
+    # test_date is a date on Postgres but a str via SQLite (raw text query) — handle both.
+    tests = [
+        {
+            "date": r.test_date.isoformat() if hasattr(r.test_date, "isoformat") else str(r.test_date),
+            "values": _as_dict(r.values),
+        }
+        for r in rows
+    ]
+    bio = aggregate_biomarkers(tests)
+
+    result: dict[str, dict] = {}
+    stale_keys: list[str] = []
+
+    for key, entry in bio.items():
+        if key.startswith("_"):
+            continue
+        marker = CANONICAL.get(key)
+        unit = marker.unit if marker is not None else ""
+        sl = stale_label(entry.get("days_ago"), entry.get("staleness_threshold_days"))
+        if entry.get("is_stale"):
+            stale_keys.append(key)
+        result[key] = {
+            "value": entry["value"],
+            "unit": unit,
+            "date": entry["date"],
+            "days_ago": entry.get("days_ago"),
+            "threshold_days": entry.get("staleness_threshold_days"),
+            "is_stale": entry.get("is_stale", False),
+            "stale_label": sl,
+        }
+
+    return {
+        "status": "ok",
+        "as_of": _date.today().isoformat(),
+        "count": len(result),
+        "biomarkers": result,
+        "stale_count": len(stale_keys),
+        "stale_keys": stale_keys,
+    }
+
+
 @router.get("/phenoage")
 async def phenoage(
     user=Depends(get_agent_user),

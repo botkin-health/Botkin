@@ -8,7 +8,7 @@ description: Доводит готовую ветку Botkin до мержа в 
 ## Контекст репо (Botkin)
 
 - **Трекер:** GitHub Issues через `gh`, `botkin-health/Botkin` (`docs/agents/issue-tracker.md`).
-- **Проект (доска):** GitHub Project **Botkin #1** (owner `botkin-health`, id `PVT_kwDOEX3Lns4Bam1p`). Status-поле `PVTSSF_lADOEX3Lns4Bam1pzhVdNrw`, опции: **Todo** `f75ad846` · **In Progress** `47fc9ee4` · **Done** `98236657`. Колонки «In Review» нет — ревью идёт в статусе In Progress.
+- **Проект (доска):** GitHub Project **Botkin #1** (owner `botkin-health`, id `PVT_kwDOEX3Lns4Bam1p`). Status-поле `PVTSSF_lADOEX3Lns4Bam1pzhVdNrw`, опции: **Todo** `f75ad846` · **In Progress** `47fc9ee4` · **In Review** `c02f7d5b` · **Done** `98236657`.
 - **Базовая ветка:** `dev`. Мерж — **merge-коммит** (`gh pr merge --merge`), как в истории репы.
 - **Worktree:** `.claude/worktrees/<ветка, `/`→`+`>`.
 - **Проверки (gate):** `ruff check .` · `ruff format --check .` · `PYTHONPATH=. pytest tests/ --ignore=tests/integration --ignore=tests/test_nutrition_parsing.py`.
@@ -40,7 +40,7 @@ Closes #<N>
 EOF
 )"
 ```
-Перевести issue в ревью: `gh issue comment <N> --body "В ревью: <ссылка на PR>"`. Статус на доске **остаётся In Progress** (колонки In Review в проекте нет).
+Перевести issue в ревью: `gh issue comment <N> --body "В ревью: <ссылка на PR>"`. Выставить статус **In Review** (`c02f7d5b`) на доске Botkin #1 (см. «Доска»).
 
 ### 3. Code-review на PR
 `/everything-claude-code:python-review` (Python — основной ревьюер; при желании `/code-review`). Находки классифицировать по severity.
@@ -85,7 +85,7 @@ git worktree remove .claude/worktrees/<slug>
 # item id задачи в проекте Botkin #1
 ITEM_ID=$(gh project item-list 1 --owner botkin-health --format json \
   --jq ".items[] | select(.content.number==<N>) | .id")
-# статус: In Progress (47fc9ee4) / Done (98236657)
+# статус: In Progress (47fc9ee4) / In Review (c02f7d5b) / Done (98236657)
 gh project item-edit --id "$ITEM_ID" --project-id PVT_kwDOEX3Lns4Bam1p \
   --field-id PVTSSF_lADOEX3Lns4Bam1pzhVdNrw --single-select-option-id <option-id>
 ```
@@ -98,4 +98,4 @@ gh project item-edit --id "$ITEM_ID" --project-id PVT_kwDOEX3Lns4Bam1p \
 - Не плодить E2E ради покрытия; generic e2e-генератор не использовать.
 - Прод не деплоить (workflow «Deploy prod»).
 - `--force` (worktree remove / push) — только по явной просьбе.
-- Статусы доски — только Todo/In Progress/Done (In Review в проекте нет).
+- Статусы доски — Todo/In Progress/In Review/Done (другие не выдумывать).
