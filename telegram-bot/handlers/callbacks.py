@@ -9,3 +9,7 @@ class MealConfirmationCallback(CallbackData, prefix="meal"):
 
 class WeightConfirmationCallback(CallbackData, prefix="weight"):
     action: str  # "save" или "cancel"
+
+
+class HealthConnectCallback(CallbackData, prefix="ahconn"):
+    method: str  # "hae" (Health Auto Export) или "shortcut" (бесплатный iOS Shortcut)

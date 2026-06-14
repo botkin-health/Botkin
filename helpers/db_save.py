@@ -352,40 +352,75 @@ def save_supplements_to_db(items: list, user_id: int = None, date_str: Optional[
         return False
 
 
+# Plausible human height range (см). Same guard as update_profile_questionnaire.
+MIN_HEIGHT_CM = 100
+MAX_HEIGHT_CM = 250
+
+# Real circumference fields — presence of ANY one means this is a body-measurement
+# record. Height is a PROFILE field (users.height_cm), not a circumference.
+_MEASUREMENT_KEYS = ("waist_cm", "neck_cm", "hips_cm", "chest_cm", "thigh_cm", "biceps_cm")
+
+
+def valid_height_cm(raw: Any) -> Optional[int]:
+    """Parse a height value to int cm, or None if unparseable / outside the
+    plausible 100–250 cm range. Tolerates "171", 171, 171.5."""
+    try:
+        h = int(float(raw))
+    except (TypeError, ValueError):
+        return None
+    return h if MIN_HEIGHT_CM <= h <= MAX_HEIGHT_CM else None
+
+
 def save_body_measurement_to_db(data: Dict[str, Any], user_id: int = None) -> bool:
     """
-    Сохраняет замеры тела в PostgreSQL и JSON
+    Сохраняет замеры тела в PostgreSQL и JSON.
+
+    Рост (height_cm) — поле профиля (users.height_cm), а не обхват тела. Запись
+    обмеров (Postgres-строка + JSON) создаётся ТОЛЬКО если прислан хотя бы один
+    реальный обхват — иначе «рост 171» плодил бы пустые записи и затирал реальный
+    замер за тот же день в JSON (прецедент 12.06.2026).
     """
     if user_id is None:
         raise ValueError("save_body_measurement_to_db: user_id is required")
     try:
-        # 1. Сначала сохраняем в JSON (как исторически сложилось)
-        save_body_measurement_to_json(data)
-
-        # 2. Сохраняем в PostgreSQL
         date_input = data.get("date")
         if not date_input:
             measurement_date = datetime.now(MSK).date()
         else:
             try:
                 measurement_date = datetime.strptime(str(date_input), "%Y-%m-%d").date()
-            except:
+            except ValueError:
                 measurement_date = datetime.now(MSK).date()
+
+        has_measurement = any(data.get(k) is not None for k in _MEASUREMENT_KEYS)
 
         db = SessionLocal()
         try:
-            create_body_measurement(
-                db,
-                user_id=user_id,
-                date=measurement_date,
-                waist_cm=data.get("waist_cm"),
-                neck_cm=data.get("neck_cm"),
-                hips_cm=data.get("hips_cm"),
-                chest_cm=data.get("chest_cm"),
-                thigh_cm=data.get("thigh_cm"),
-                biceps_cm=data.get("biceps_cm"),
-                notes=data.get("notes"),
-            )
+            if has_measurement:
+                save_body_measurement_to_json(data)
+                create_body_measurement(
+                    db,
+                    user_id=user_id,
+                    date=measurement_date,
+                    waist_cm=data.get("waist_cm"),
+                    neck_cm=data.get("neck_cm"),
+                    hips_cm=data.get("hips_cm"),
+                    chest_cm=data.get("chest_cm"),
+                    thigh_cm=data.get("thigh_cm"),
+                    biceps_cm=data.get("biceps_cm"),
+                    notes=data.get("notes"),
+                )
+            if (height_raw := data.get("height_cm")) is not None:
+                h = valid_height_cm(height_raw)
+                if h is None:
+                    logger.warning("Ignoring implausible height_cm=%r for user %s", height_raw, user_id)
+                else:
+                    from database.models import User
+
+                    user = db.query(User).filter(User.telegram_id == user_id).first()
+                    if user:
+                        user.height_cm = h
+                        db.commit()
             logger.info(f"Body measurement saved to DB for {measurement_date}")
             return True
         finally:

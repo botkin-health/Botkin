@@ -8,7 +8,7 @@ from aiogram.types import Message
 from aiogram.filters import Command
 from datetime import datetime, timedelta
 
-from core.infra.tz import MSK  # noqa: E402  (общая TZ проекта)
+from core.infra.tz import get_user_tz  # noqa: E402
 
 from core.health.garmin_data import get_garmin_data_for_date, sync_today_garmin
 from core.health.weekly_nutrition import analyze_weekly_nutrition
@@ -75,9 +75,8 @@ async def cmd_start(message: Message, user_id: int, username: str, first_name: s
         "/day — итоги дня\n"
         "/week — анализ недели\n"
         "/vitamins — чек-лист добавок\n"
-        "/activity — шаги и тренировки\n"
+        "/share — личный дашборд здоровья\n"
         "/profile — твои данные (вес, рост, возраст)\n"
-        "/setup — настройка калорий (без Garmin)\n"
         "/help — полная справка\n\n"
         "🌐 botkin.health",
         parse_mode="HTML",
@@ -101,8 +100,10 @@ async def cmd_help(message: Message):
         "📝 <b>Текст:</b> 'Омега и Д3 плюс'.\n\n"
         "⚙️ <b>Команды:</b>\n"
         "/day [дата] — Итоги дня (можно 'вчера' или '26.02').\n"
-        "/vitamins — Чек-лист и схема приема.\n"
         "/week — Анализ рациона за неделю.\n"
+        "/vitamins — Чек-лист и схема приема.\n"
+        "/share — Личный дашборд здоровья (ссылка).\n"
+        "/profile — Настройка профиля (рост, возраст, цель).\n"
         "/setup — Настройка BMR и активных ккал (без Garmin).\n"
         "/activity &lt;число&gt; — Ввести активные калории за сегодня вручную.\n"
         "/help — Эта справка."
@@ -126,7 +127,7 @@ async def cmd_day(message: Message, user_id: int):
         _us = get_user_settings(db, user_id)
         show_bar = _us.show_calorie_budget_bar if _us else True
 
-        real_today = datetime.now(MSK).date()
+        real_today = datetime.now(get_user_tz(user_id)).date()
         today_date = real_today
 
         # Check if user asked for a specific date
@@ -582,7 +583,7 @@ async def cmd_activity(message: Message, user_id: int):
 
     db = SessionLocal()
     try:
-        today = datetime.now(MSK).date()
+        today = datetime.now(get_user_tz(user_id)).date()
         create_or_update_activity(db, user_id, today, active_calories=float(cal), source="manual")
         await message.answer(f"✅ Активность сегодня: {cal} ккал сохранена.")
     finally:
@@ -605,7 +606,13 @@ async def cmd_burn(message: Message, user_id: int):
 
     db = SessionLocal()
     try:
-        create_or_update_activity(db, user_id, datetime.now(MSK).date(), active_calories=float(cal), source="manual")
+        create_or_update_activity(
+            db,
+            user_id,
+            datetime.now(get_user_tz(user_id)).date(),
+            active_calories=float(cal),
+            source="manual",
+        )
         await message.answer(f"✅ Активность сегодня: {cal} ккал сохранена.")
     finally:
         db.close()
@@ -759,6 +766,7 @@ async def cmd_health_token(message: Message, user_id: int):
     """
     from database import SessionLocal
     from database.crud import get_or_create_health_token, reset_health_token
+    from handlers.apple_health_connect import connect_intro_text, connect_keyboard_aiogram
 
     args = message.text.split()[1:] if message.text else []
     do_reset = bool(args) and args[0].lower() in ("rotate", "reset")
@@ -767,30 +775,21 @@ async def cmd_health_token(message: Message, user_id: int):
     try:
         if do_reset:
             token = reset_health_token(db, user_id)
-            action_text = "♻️ Ключ перевыпущен — старый больше не работает."
+            prefix = "♻️ Ключ перевыпущен — старый больше не работает.\n\n"
         else:
             token = get_or_create_health_token(db, user_id)
-            action_text = "🔑 Твой ключ для Apple Health:"
+            prefix = ""
     except Exception as e:
         await message.answer(f"❌ Ошибка: {e}")
         return
     finally:
         db.close()
 
-    guide = "https://github.com/Lyskovsky/Botkin/blob/main/docs/user_guide/ru/apple-health.md"
     await message.answer(
-        f"{action_text}\n\n"
-        f"<code>{token}</code>\n\n"
-        "Нужен, чтобы данные из Apple Health (Apple Watch, тонометр, весы) приходили именно тебе.\n\n"
-        "📲 <b>Подключение через Health Auto Export:</b>\n"
-        "1. Поставь Health Auto Export (App Store)\n"
-        "2. Add Automation → REST API\n"
-        "   • URL: <code>https://botkin.health/apple_health_v2</code>\n"
-        f"   • Header: <code>Authorization: Bearer {token}</code>\n"
-        "   • Format JSON · v2 · Aggregate ON · Group by Day · Range: Yesterday\n\n"
-        f"📖 Подробный гайд: {guide}\n\n"
-        "♻️ Перевыпустить ключ: /health_token rotate",
+        prefix + connect_intro_text(token),
         parse_mode="HTML",
+        reply_markup=connect_keyboard_aiogram(),
+        disable_web_page_preview=True,
     )
 
 
