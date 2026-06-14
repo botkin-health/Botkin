@@ -12,13 +12,27 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-import database.models  # кастомный тип SafeArray, на который ссылается autogenerate
-
 # revision identifiers, used by Alembic.
 revision: str = "711fd5e3f1e8"
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
+
+
+class _SafeArray(sa.types.TypeDecorator):
+    """Инлайн-копия database.models.SafeArray — ревизия self-contained (#83).
+
+    На postgres колонка получает ARRAY(Text), на sqlite — JSON (для тестов).
+    Не импортируем из database.models, чтобы будущий рефактор моделей не сломал baseline.
+    """
+
+    impl = sa.JSON
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == "postgresql":
+            return sa.ARRAY(sa.Text())
+        return sa.JSON()
 
 
 def upgrade() -> None:
@@ -249,7 +263,7 @@ def upgrade() -> None:
         sa.Column(
             "totals", sa.JSON().with_variant(postgresql.JSONB(astext_type=sa.Text()), "postgresql"), nullable=False
         ),
-        sa.Column("photo_paths", database.models.SafeArray(), nullable=True),
+        sa.Column("photo_paths", _SafeArray(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=True),
         sa.ForeignKeyConstraint(["user_id"], ["users.telegram_id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
