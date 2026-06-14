@@ -1,0 +1,12 @@
+{
+  "extraKnownMarketplaces": {
+    "everything-claude-code": { "source": { "source": "github", "repo": "affaan-m/everything-claude-code" } },
+    "clamp-sh": { "source": { "source": "github", "repo": "clamp-sh/analytics-skills" } }
+  },
+  "enabledPlugins": {
+    "everything-claude-code@everything-claude-code": true,
+    "posthog@claude-plugins-official": true,
+    "chrome-devtools-mcp@claude-plugins-official": true,
+    "analytics-skills@clamp-sh": true
+  }
+}

@@ -16,17 +16,34 @@ IMPORTANT: Этот роутер НЕ парсит текст. Он только
 - onboarding-state → routing decision (новый юзер → onboarding wizard, иначе legacy)
 """
 
+import hmac
 import logging
 import os
 
 import httpx
-from fastapi import APIRouter
+from fastapi import APIRouter, Header, HTTPException
 
 from database import SessionLocal
 from database.models import User
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+def _verify_webhook_secret(secret_header: str | None) -> None:
+    """Проверяет X-Telegram-Bot-Api-Secret-Token против TELEGRAM_WEBHOOK_SECRET.
+
+    Telegram шлёт этот заголовок, если секрет передан в setWebhook. Без проверки
+    любой в docker-сети может слать поддельные Update от чужого user_id.
+    Если секрет не сконфигурирован — пропускаем (обратная совместимость на время
+    выкатки), но логируем предупреждение.
+    """
+    expected = os.getenv("TELEGRAM_WEBHOOK_SECRET", "")
+    if not expected:
+        logger.warning("TELEGRAM_WEBHOOK_SECRET не задан — /telegram/webhook без аутентификации")
+        return
+    if not secret_header or not hmac.compare_digest(secret_header, expected):
+        raise HTTPException(status_code=403, detail="Invalid webhook secret")
 
 
 async def handle_onboarding(payload: dict) -> None:
@@ -83,8 +100,13 @@ async def _send_fallback(chat_id: int, text: str) -> None:
 
 
 @router.post("/telegram/webhook")
-async def telegram_webhook(payload: dict):
+async def telegram_webhook(
+    payload: dict,
+    x_telegram_bot_api_secret_token: str | None = Header(default=None),
+):
     """Main Telegram webhook handler."""
+    _verify_webhook_secret(x_telegram_bot_api_secret_token)
+
     # callback_query (button press) — always forward to legacy aiogram dispatcher
     if "callback_query" in payload:
         cb = payload["callback_query"]

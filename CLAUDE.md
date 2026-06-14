@@ -64,7 +64,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Код проекта (эта папка):**
 `~/Library/CloudStorage/GoogleDrive-lyskovsky@gmail.com/Мой диск/Projects/Vibe coding/Botkin/`
 
-Git remote: `git@github.com:Lyskovsky/Botkin.git` (переименовано 12.05.2026, было `HealthVault`)
+Git remote: `git@github.com:botkin-health/Botkin.git` (перенесён в орг `botkin-health` 14.06.2026; ранее `Lyskovsky/Botkin`, ещё раньше `HealthVault`)
 
 **Медицинские данные семьи (отдельная папка, не путать!):**
 `~/Library/CloudStorage/GoogleDrive-lyskovsky@gmail.com/Мой диск/FamilyHealth/`
@@ -465,3 +465,21 @@ Botkin/                          # ~/Botkin/ — ТОЛЬКО КОД И OPERATIO
 ├── docs/                        # Документация + ai_context/
 └── archive/                     # Архив старого кода
 ```
+
+---
+
+## Agent skills
+
+Per-repo config consumed by the Matt Pocock engineering skills (`to-issues`, `triage`, `qa`, `review`, `tdd`, `improve-codebase-architecture`, etc.).
+
+### Issue tracker
+
+Issues live in the `botkin-health/Botkin` GitHub Issues, managed via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Canonical triage vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`) — defaults, label strings equal role names. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context repo: one `CONTEXT.md` (lazy) + ADRs at `docs/architecture/decisions/`. See `docs/agents/domain.md`.
