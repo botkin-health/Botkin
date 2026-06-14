@@ -7,8 +7,8 @@ description: Берёт задачу Botkin в работу и готовит п
 
 ## Контекст репо (Botkin)
 
-- **Трекер:** GitHub Issues через `gh`, репо `Lyskovsky/Botkin`. Конвенции — `docs/agents/issue-tracker.md`.
-- **Проект (доска):** GitHub Project **Botkin #1** (owner `Lyskovsky`, id `PVT_kwHOAPEZdM4BaijM`). Status-поле `PVTSSF_lAHOAPEZdM4BaijMzhVZdh4`, опции: **Todo** `f75ad846` · **In Progress** `47fc9ee4` · **Done** `98236657`. Все задачи заводим в этот проект. Колонки «In Review» нет — ревью идёт в статусе In Progress.
+- **Трекер:** GitHub Issues через `gh`, репо `botkin-health/Botkin`. Конвенции — `docs/agents/issue-tracker.md`.
+- **Проект (доска):** GitHub Project **Botkin #1** (owner `botkin-health`, id `PVT_kwDOEX3Lns4Bam1p`). Status-поле `PVTSSF_lADOEX3Lns4Bam1pzhVdNrw`, опции: **Todo** `f75ad846` · **In Progress** `47fc9ee4` · **In Review** `c02f7d5b` · **Done** `98236657`. Все задачи заводим в этот проект. Статус **In Review** выставляет complete-task при создании PR — prepare-task его не трогает.
 - **Базовая ветка:** `dev` (фич-ветки растут от `origin/dev`; в `main` льётся отдельно).
 - **Worktree:** `.claude/worktrees/<ветка, `/` → `+`>` (напр. ветка `fix/foo` → `.claude/worktrees/fix+foo`).
 - **Ветки:** `feat/ fix/ chore/ refactor/ test/ docs/` + короткий слаг. Номер issue в имя ветки НЕ кладём — связь через PR (`Closes #N`).
@@ -96,14 +96,14 @@ git worktree add .claude/worktrees/<slug> -b <feat|fix|…>/<slug> origin/dev
 ### Доска: добавить задачу и выставить статус
 ```bash
 # добавить issue в проект Botkin #1 (идемпотентно; вернёт item id)
-ITEM_ID=$(gh project item-add 1 --owner Lyskovsky --url <issue-url> --format json --jq '.id')
-# статус: Todo (f75ad846) / In Progress (47fc9ee4) / Done (98236657)
-gh project item-edit --id "$ITEM_ID" --project-id PVT_kwHOAPEZdM4BaijM \
-  --field-id PVTSSF_lAHOAPEZdM4BaijMzhVZdh4 --single-select-option-id <option-id>
+ITEM_ID=$(gh project item-add 1 --owner botkin-health --url <issue-url> --format json --jq '.id')
+# статус: Todo (f75ad846) / In Progress (47fc9ee4) / In Review (c02f7d5b) / Done (98236657)
+gh project item-edit --id "$ITEM_ID" --project-id PVT_kwDOEX3Lns4Bam1p \
+  --field-id PVTSSF_lADOEX3Lns4Bam1pzhVdNrw --single-select-option-id <option-id>
 ```
 
 ## Чего НЕ делать
-- Не заводить задачу мимо проекта **Botkin #1**; статусы только Todo/In Progress/Done (In Review в этом проекте нет — не выдумывать).
+- Не заводить задачу мимо проекта **Botkin #1**; статусы только Todo/In Progress/In Review/Done (другие не выдумывать). In Review ставит complete-task, не prepare-task.
 - Не пушить ветку/каждый коммит в origin сразу (пуш — в complete-task).
 - Не делать `cd`/`git checkout` в основном чекауте — только `git worktree add`.
 - Ветка только от `origin/dev` (не от локального dev, не от main).

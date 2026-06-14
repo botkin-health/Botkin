@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "telegram-bot"))
 
 import pytest
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from unittest.mock import MagicMock, patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -80,6 +80,7 @@ def _make_mock_user(health_token="hvt_old_token"):
     user.sex = "male"
     user.height_cm = 178
     user.birth_date = None
+    user.share_token = "testtoken123abc456def789ghi0"
     return user
 
 
@@ -560,6 +561,41 @@ def test_dashboard_summary_with_data(client, db_session):
     assert body["weight"]["body_fat_pct"] == 22.3
 
 
+def test_dashboard_summary_includes_dashboard_url(client):
+    """GET /dashboard_summary returns dashboard_url from user.share_token."""
+    r = client.get("/api/agent/dashboard_summary")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert "dashboard_url" in body
+    assert body["dashboard_url"] == "https://botkin.health/mc/testtoken123abc456def789ghi0"
+
+
+def test_dashboard_summary_no_share_token_returns_null_url(db_session, monkeypatch):
+    """GET /dashboard_summary returns dashboard_url=None when share_token is absent."""
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from webhook import agent_tools_api
+    from webhook.jwt_auth import get_agent_user, get_db
+
+    monkeypatch.setattr(db_session, "close", lambda: None)
+    monkeypatch.setattr(agent_tools_api, "get_db", lambda: iter([db_session]))
+
+    app = FastAPI()
+    app.include_router(agent_tools_api.router)
+
+    mock_no_token = _make_mock_user()
+    mock_no_token.share_token = None
+
+    app.dependency_overrides[get_agent_user] = lambda: mock_no_token
+    app.dependency_overrides[get_db] = lambda: db_session
+
+    c = TestClient(app)
+    r = c.get("/api/agent/dashboard_summary")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["dashboard_url"] is None
+
+
 def test_user_profile_returns_profile(client):
     """GET /user_profile returns expected profile fields."""
     r = client.get("/api/agent/user_profile")
@@ -791,3 +827,54 @@ def test_recent_supplements_scoped_to_user(client, db_session, monkeypatch):
     except RuntimeError:
         pass  # ожидаемо: нарочно прерываем после захвата параметров
     assert captured.get("uid") == 895655
+
+
+class TestLatestBiomarkers:
+    """GET /latest_biomarkers — per-marker aggregated view with staleness."""
+
+    def test_returns_200(self, client):
+        resp = client.get("/api/agent/latest_biomarkers")
+        assert resp.status_code == 200
+
+    def test_response_shape(self, client):
+        resp = client.get("/api/agent/latest_biomarkers")
+        data = resp.json()
+        assert data["status"] == "ok"
+        assert "as_of" in data
+        assert "biomarkers" in data
+        assert "stale_count" in data
+        assert "stale_keys" in data
+
+    def test_biomarker_entry_has_staleness_fields(self, client, db_session):
+        from database.models import BloodTest
+
+        # Seed a fresh (today) blood test so the assertions actually run.
+        db_session.add(BloodTest(user_id=895655, test_date=date.today(), values={"cholesterol": 5.1, "LDL": 3.0}))
+        db_session.commit()
+
+        resp = client.get("/api/agent/latest_biomarkers")
+        data = resp.json()
+        assert data["biomarkers"], "expected seeded biomarkers, got empty response"
+        for key, entry in data["biomarkers"].items():
+            assert "value" in entry, f"missing 'value' in {key}"
+            assert "date" in entry, f"missing 'date' in {key}"
+            assert "days_ago" in entry, f"missing 'days_ago' in {key}"
+            assert "threshold_days" in entry, f"missing 'threshold_days' in {key}"
+            assert "is_stale" in entry, f"missing 'is_stale' in {key}"
+            assert "stale_label" in entry, f"missing 'stale_label' in {key}"
+        # Freshly-dated test → nothing is stale, no badge.
+        assert data["stale_count"] == 0
+        assert all(e["is_stale"] is False and e["stale_label"] is None for e in data["biomarkers"].values())
+
+    def test_stale_biomarker_is_flagged(self, client, db_session):
+        from database.models import BloodTest
+
+        # A blood test from ~4 years ago must be flagged stale with a badge.
+        old_date = date.today() - timedelta(days=1500)
+        db_session.add(BloodTest(user_id=895655, test_date=old_date, values={"testosterone": 18.0}))
+        db_session.commit()
+
+        data = client.get("/api/agent/latest_biomarkers").json()
+        assert data["stale_count"] >= 1
+        stale = [e for e in data["biomarkers"].values() if e["is_stale"]]
+        assert stale and all(e["stale_label"] for e in stale)

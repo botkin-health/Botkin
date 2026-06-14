@@ -288,7 +288,6 @@ async def main():
         BotCommand(command="vitamins", description="Чек-лист витаминов"),
         BotCommand(command="share", description="Поделиться дашбордом здоровья"),
         BotCommand(command="profile", description="Настроить профиль (рост, возраст, цель)"),
-        BotCommand(command="sync", description="Подтянуть свежие данные (Garmin, весы, погода)"),
         BotCommand(command="agent_reset", description="Сбросить недавний контекст AI-ассистента"),
         BotCommand(command="help", description="Помощь"),
     ]
@@ -303,6 +302,14 @@ async def main():
     except ImportError:
         webhook_enabled = False
         logger.warning("⚠️ Apple Health webhook не загружен (webhook/apple_health.py не найден)")
+
+    # Регистрируем /android_health_v1 на том же FastAPI app (импорт достаточен — декоратор @app.post срабатывает при загрузке модуля)
+    try:
+        import webhook.android_health  # noqa: F401
+
+        logger.info("✅ Android Health Connect webhook зарегистрирован (/android_health_v1)")
+    except ImportError:
+        logger.warning("⚠️ Android Health webhook не загружен (webhook/android_health.py не найден)")
 
     try:
         # We only set bot commands here.
