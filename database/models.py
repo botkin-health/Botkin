@@ -238,6 +238,9 @@ class UserSettings(Base):
     supplement_reminders_enabled: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     supplement_reminder_time: Mapped[time] = mapped_column(Time, server_default="08:00:00")
     supplements: Mapped[list] = mapped_column(JSON, default=list, server_default="[]")
+    # family-forward: chat_id'ы, которым бот пересылает фото еды + КБЖУ (супруга, врач).
+    # Пересылается ТОЛЬКО еда; медданные не пересылаются. См. core/family/forward.py
+    food_forward_recipients: Mapped[list] = mapped_column(JSON, default=list, server_default="[]")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

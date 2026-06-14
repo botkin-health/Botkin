@@ -1185,6 +1185,25 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
                 f"{budget}",
                 parse_mode="HTML",
             )
+
+            # --- family-forward: фото еды + КБЖУ доверенным получателям (супруга, врач) ---
+            # Вспомогательный поток: НИКОГДА не ломает основное сохранение приёма пищи.
+            try:
+                from core.family.forward import forward_meal_to_recipients
+
+                _photo_path = user_state.data.get("photo_path") or next(
+                    iter(user_state.data.get("photo_paths") or []), None
+                )
+                await forward_meal_to_recipients(
+                    callback.message.bot,
+                    sender_id=telegram_user_id,
+                    meal_name=meal_name,
+                    totals=totals,
+                    photo_path=_photo_path,
+                    sender_name=callback.from_user.first_name or "Андрей",
+                )
+            except Exception:
+                logger.exception("family-forward hook failed (не критично, основной поток сохранён)")
         else:
             logger.error("[AFTER SAVE] save_meal_to_db returned False!")
             await callback.answer("❌ Ошибка при сохранении", show_alert=True)
