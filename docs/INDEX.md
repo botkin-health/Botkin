@@ -9,6 +9,7 @@
 | Вопрос | Куда смотреть |
 |---|---|
 | Что такое Botkin, куда движется | [`../CLAUDE.md`](../CLAUDE.md) — vision и архитектурные принципы |
+| **Я новый в команде — что настроить на старте** | [`getting-started.md`](getting-started.md) — Claude Code, плагины, запуск бота |
 | Что в работе сейчас / что дальше | [`ROADMAP.md`](ROADMAP.md) — NOW / NEXT / LATER / VISION / DONE |
 | История по версиям | [`../CHANGELOG.md`](../CHANGELOG.md) (если есть) или релизы на GitHub |
 | История по сессиям с Claude | [`ai_context/AI_CHANGELOG.md`](ai_context/AI_CHANGELOG.md) |

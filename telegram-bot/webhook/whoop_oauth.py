@@ -59,13 +59,19 @@ def _redirect_uri() -> str:
 
 
 def _state_secret() -> str:
-    # Отдельный секрет для подписи state; fallback на APPLE_HEALTH_TOKEN чтобы
-    # не плодить env, но лучше задать свой.
-    return os.environ.get("WHOOP_STATE_SECRET") or os.environ.get("APPLE_HEALTH_TOKEN", "botkin-whoop")
+    # Секрет для подписи OAuth state. Отдельный WHOOP_STATE_SECRET, иначе
+    # fallback на APPLE_HEALTH_TOKEN. НИКАКОГО публичного литерала: в open-source
+    # репо рабочий секрет = возможность подделать state и привязать чужой uid.
+    secret = os.environ.get("WHOOP_STATE_SECRET") or os.environ.get("APPLE_HEALTH_TOKEN")
+    if not secret:
+        raise RuntimeError("WHOOP_STATE_SECRET (или APPLE_HEALTH_TOKEN) не задан — нельзя подписать OAuth state")
+    return secret
 
 
 def _sign(uid: str) -> str:
-    return hmac.new(_state_secret().encode(), uid.encode(), hashlib.sha256).hexdigest()[:16]
+    # Полный SHA-256 hexdigest (64 симв.). Усечение до 16 симв. (64 бита) делало
+    # подпись brute-force-уязвимой при известном uid.
+    return hmac.new(_state_secret().encode(), uid.encode(), hashlib.sha256).hexdigest()
 
 
 def _make_state(uid: str) -> str:
