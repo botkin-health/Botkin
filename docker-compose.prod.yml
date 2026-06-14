@@ -51,6 +51,10 @@ services:
 
 volumes:
   postgres_data:
+    # Пин на существующий volume прод-БД: иначе новый compose-проект (botkin)
+    # создал бы пустой том и поднял БД с нуля. Переезд /opt/healthvault → /opt/botkin
+    # переиспользует данные прод-постгреса.
+    name: healthvault_postgres_data
     driver: local
 
 networks:
