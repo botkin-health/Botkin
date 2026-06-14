@@ -30,6 +30,8 @@ COPY database/ ./database/
 COPY helpers/ ./helpers/
 COPY infrastructure/ ./infrastructure/
 COPY scripts/ ./scripts/
+# Конфиг Alembic в корне образа — нужен `alembic upgrade head` в контейнере (migrate.yml).
+COPY alembic.ini ./alembic.ini
 
 # Non-root. data/logs — volume-mount'ы; пишем только в них и /tmp.
 RUN useradd --uid 10001 --create-home --shell /usr/sbin/nologin botkin \
