@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "telegram-bot"))
 
 import pytest
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from unittest.mock import MagicMock, patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -845,11 +845,16 @@ class TestLatestBiomarkers:
         assert "stale_count" in data
         assert "stale_keys" in data
 
-    def test_biomarker_entry_has_staleness_fields(self, client):
+    def test_biomarker_entry_has_staleness_fields(self, client, db_session):
+        from database.models import BloodTest
+
+        # Seed a fresh (today) blood test so the assertions actually run.
+        db_session.add(BloodTest(user_id=895655, test_date=date.today(), values={"cholesterol": 5.1, "LDL": 3.0}))
+        db_session.commit()
+
         resp = client.get("/api/agent/latest_biomarkers")
         data = resp.json()
-        if not data["biomarkers"]:
-            return  # No blood_tests fixture data — can't test fields
+        assert data["biomarkers"], "expected seeded biomarkers, got empty response"
         for key, entry in data["biomarkers"].items():
             assert "value" in entry, f"missing 'value' in {key}"
             assert "date" in entry, f"missing 'date' in {key}"
@@ -857,3 +862,19 @@ class TestLatestBiomarkers:
             assert "threshold_days" in entry, f"missing 'threshold_days' in {key}"
             assert "is_stale" in entry, f"missing 'is_stale' in {key}"
             assert "stale_label" in entry, f"missing 'stale_label' in {key}"
+        # Freshly-dated test → nothing is stale, no badge.
+        assert data["stale_count"] == 0
+        assert all(e["is_stale"] is False and e["stale_label"] is None for e in data["biomarkers"].values())
+
+    def test_stale_biomarker_is_flagged(self, client, db_session):
+        from database.models import BloodTest
+
+        # A blood test from ~4 years ago must be flagged stale with a badge.
+        old_date = date.today() - timedelta(days=1500)
+        db_session.add(BloodTest(user_id=895655, test_date=old_date, values={"testosterone": 18.0}))
+        db_session.commit()
+
+        data = client.get("/api/agent/latest_biomarkers").json()
+        assert data["stale_count"] >= 1
+        stale = [e for e in data["biomarkers"].values() if e["is_stale"]]
+        assert stale and all(e["stale_label"] for e in stale)

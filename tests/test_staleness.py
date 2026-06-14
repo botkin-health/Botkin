@@ -119,10 +119,12 @@ class TestStaleLabel:
 
         assert stale_label(90, 60) is not None
 
-    def test_very_stale_shows_years_with_one_decimal(self):
+    def test_very_stale_shows_years_with_correct_plural(self):
         from core.health.staleness import stale_label
 
-        # 800 days > 365*2=730 → 🚨 branch; 800/365 ≈ 2.19 → rounds to 2.2
-        label = stale_label(800, 365)
-        assert "2.2" in label
-        assert "года" in label
+        # 800 days > 365*2=730 → 🚨 years branch; 800//365 = 2 → "2 года".
+        assert stale_label(800, 365) == "🚨 2 года назад"
+        # 5+ years must read "лет", not "года".
+        assert stale_label(2000, 365).endswith("5 лет назад")
+        # exactly 1 year → "1 год".
+        assert stale_label(370, 180) == "🚨 1 год назад"

@@ -147,16 +147,32 @@ def days_ago_from_str(date_str: str | None) -> int | None:
         return None
 
 
+def _plural_years_ru(n: int) -> str:
+    """Russian plural for 'год': 1 год, 2–4 года, 5–20 лет."""
+    if 11 <= n % 100 <= 14:
+        return "лет"
+    d = n % 10
+    if d == 1:
+        return "год"
+    if 2 <= d <= 4:
+        return "года"
+    return "лет"
+
+
 def stale_label(days: int | None, threshold: int | None) -> str | None:
     """Human-readable staleness badge, or ``None`` when data is fresh.
 
     - ``None`` threshold → marker never goes stale → ``None``.
     - ``days`` ≤ ``threshold`` → fresh → ``None``.
     - ``days`` ≤ ``threshold * 2`` → moderately stale → ``"⚠ N мес назад"``.
-    - ``days`` > ``threshold * 2`` → very stale → ``"🚨 N.N года назад"``.
+    - very stale (``days`` > ``threshold * 2``): months if under a year,
+      otherwise whole years with correct RU plural (``"🚨 N год/года/лет назад"``).
     """
     if days is None or threshold is None or days <= threshold:
         return None
     if days <= threshold * 2:
         return f"⚠ {days // 30} мес назад"
-    return f"🚨 {round(days / 365, 1)} года назад"
+    if days < 365:
+        return f"🚨 {days // 30} мес назад"
+    years = days // 365
+    return f"🚨 {years} {_plural_years_ru(years)} назад"

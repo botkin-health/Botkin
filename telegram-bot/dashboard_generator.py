@@ -1741,6 +1741,9 @@ def _build_payload(db: Session, user_id: int) -> dict:
             return "younger" if val < nhanes_med else "older"
 
     def _stale_label(days: int | None, threshold: int | None = 365) -> str | None:
+        # PhenoAge panel intentionally uses a flat 1-year freshness threshold for
+        # all 9 markers — a PhenoAge estimate is only meaningful from one recent
+        # blood draw, so the per-marker STALENESS_DAYS (up to 730d) don't apply here.
         return _sl(days, threshold)
 
     _pheno_markers = [

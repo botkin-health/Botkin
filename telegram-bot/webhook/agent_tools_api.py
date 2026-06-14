@@ -1317,7 +1317,14 @@ async def latest_biomarkers(
         {"uid": user.telegram_id},
     ).fetchall()
 
-    tests = [{"date": r.test_date.isoformat(), "values": _as_dict(r.values)} for r in rows]
+    # test_date is a date on Postgres but a str via SQLite (raw text query) — handle both.
+    tests = [
+        {
+            "date": r.test_date.isoformat() if hasattr(r.test_date, "isoformat") else str(r.test_date),
+            "values": _as_dict(r.values),
+        }
+        for r in rows
+    ]
     bio = aggregate_biomarkers(tests)
 
     result: dict[str, dict] = {}
@@ -1326,7 +1333,8 @@ async def latest_biomarkers(
     for key, entry in bio.items():
         if key.startswith("_"):
             continue
-        unit = getattr(CANONICAL.get(key), "unit", "") if hasattr(CANONICAL, "get") else ""
+        marker = CANONICAL.get(key)
+        unit = marker.unit if marker is not None else ""
         sl = stale_label(entry.get("days_ago"), entry.get("staleness_threshold_days"))
         if entry.get("is_stale"):
             stale_keys.append(key)
