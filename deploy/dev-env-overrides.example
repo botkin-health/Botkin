@@ -1,0 +1,16 @@
+# Шаблон override-ключей для дев-стенда (botkin-dev).
+# Скопируй в dev-overrides.env, впиши РЕАЛЬНЫЕ дев-значения, затем:
+#   scripts/ci/make-env.sh /opt/botkin/.env dev-overrides.env > /opt/botkin-dev/.env
+# Реальные значения в git НЕ коммитить (.env* уже в .gitignore).
+
+# Отдельный дев-бот (создать в BotFather, напр. @Botkin_dev_bot):
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_WEBHOOK_SECRET=          # openssl rand -hex 32
+TELEGRAM_WEBHOOK_URL=https://dev.botkin.health/telegram/webhook
+
+# Отдельная дев-БД (свой пароль/volume):
+POSTGRES_PASSWORD=
+DATABASE_URL=postgresql://healthvault:ПАРОЛЬ_ИЗ_СТРОКИ_ВЫШЕ@postgres:5432/healthvault
+
+# Свой токен приёма Apple Health (чтобы прод-HAE-пуши не падали на дев):
+APPLE_HEALTH_TOKEN=               # openssl rand -hex 32

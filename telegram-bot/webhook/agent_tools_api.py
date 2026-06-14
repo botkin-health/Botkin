@@ -1049,6 +1049,7 @@ async def dashboard_summary(
             "latest_date": latest_weight.measured_at.date().isoformat() if latest_weight else None,
             "body_fat_pct": latest_weight.body_fat if latest_weight else None,
         },
+        "dashboard_url": f"https://botkin.health/mc/{user.share_token}" if user.share_token else None,
     }
 
 
@@ -1303,8 +1304,6 @@ async def phenoage(
     Returns: bio_age, chronological_age, delta, markers with direction
     ('younger'/'older' vs NHANES median for ~48yo male) and freshness.
     """
-    import math
-
     from sqlalchemy import text as sql_text
 
     # Required markers — keys in blood_tests.values JSONB.
@@ -1388,35 +1387,20 @@ async def phenoage(
     elif latest["hs_CRP"]["value"] <= 0:
         error = "hs_CRP must be > 0 for ln()"
     else:
-        try:
-            # Levine 2018 formula
-            alb_gL = latest["albumin_g_l"]["value"]  # already g/L
-            creat_umolL = latest["creatinine"]["value"]  # already µmol/L
-            gluc_mmolL = latest["glucose"]["value"]  # already mmol/L
-            lncrp = math.log(latest["hs_CRP"]["value"] * 0.1)  # ln(CRP mg/dL)
-            lymph_pct = latest["lymphocytes"]["value"]
-            mcv = latest["MCV"]["value"]
-            rdw = latest["RDW_CV"]["value"]
-            alp = latest["ALP"]["value"]
-            wbc = latest["WBC"]["value"]
+        # Levine 2018 formula — чистая функция (core.health.phenoage),
+        # биомаркеры уже в канонических единицах. Импорт вне try, чтобы
+        # ImportError не маскировался под "calculation error".
+        from core.health.phenoage import phenoage_from_markers
 
-            xb = (
-                -19.907
-                + 0.0804 * chrono_age
-                + (-0.0336) * alb_gL
-                + 0.0095 * creat_umolL
-                + 0.1953 * gluc_mmolL
-                + 0.0954 * lncrp
-                + (-0.0120) * lymph_pct
-                + 0.0268 * mcv
-                + 0.3306 * rdw
-                + (-0.00188) * alp
-                + 0.0554 * wbc
+        try:
+            bio_age = round(
+                phenoage_from_markers(
+                    chrono_age,
+                    {k: latest[k]["value"] for k in markers},
+                ),
+                1,
             )
-            mort = 1 - math.exp(-math.exp(xb) * (math.exp(0.0076927 * 120) - 1) / 0.0076927)
-            if 0 < mort < 1:
-                bio_age = round(141.50225 + math.log(-0.00553 * math.log(1 - mort)) / 0.090165, 1)
-        except (ValueError, OverflowError) as e:
+        except (ValueError, OverflowError, KeyError) as e:
             error = f"calculation error: {e}"
 
     return {
@@ -1425,7 +1409,7 @@ async def phenoage(
         "chronological_age": chrono_age,
         "delta_years": round(bio_age - chrono_age, 1) if bio_age and chrono_age else None,
         "interpretation": (
-            "moложе паспорта"
+            "моложе паспорта"
             if bio_age and chrono_age and bio_age < chrono_age
             else "старше паспорта"
             if bio_age and chrono_age and bio_age > chrono_age

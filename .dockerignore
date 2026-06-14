@@ -26,3 +26,11 @@ venv/
 # Логи бота
 telegram-bot/logs/
 data/cache/
+
+# Секреты и операционные данные — НЕ в build context/образ (defence in depth:
+# Dockerfile.bot копирует только перечисленные папки, но подстрахуемся).
+.env
+.env.*
+data/
+knowledge_base.json
+deploy/*.env

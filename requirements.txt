@@ -2,9 +2,9 @@
 
 # Core (Telegram Bot)
 aiogram>=3.0.0
-python-dotenv>=1.0.0
+python-dotenv>=1.2.2  # <1.2.2: GHSA-mf9w-mj56-hr94 (symlink-following в set_key)
 pyyaml>=6.0
-requests
+requests>=2.33.0  # <2.33: GHSA-9hjg-9r4m-mvj7 (.netrc leak), GHSA-gc5v-m9x4-r6x2 (temp-file reuse)
 
 # AI Services
 openai>=1.0.0
@@ -34,7 +34,8 @@ fastapi>=0.104.0
 uvicorn[standard]>=0.24.0
 
 # JWT auth (BotkinClaw — ex-NanoClaw, см. ADR-0002)
-pyjwt>=2.8.0
+# >=2.13.0: GHSA-752w-5fwx-jx9f (unknown crit header) + серия PYSEC-2026 (auth)
+pyjwt>=2.13.0
 
 # Rendering PNG-отчётов агентом (см. core/reports/biomarker_dynamics.py)
 matplotlib>=3.8

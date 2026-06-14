@@ -77,7 +77,6 @@ async def cmd_start(message: Message, user_id: int, username: str, first_name: s
         "/vitamins — чек-лист добавок\n"
         "/share — личный дашборд здоровья\n"
         "/profile — твои данные (вес, рост, возраст)\n"
-        "/sync — подтянуть данные (Garmin, весы, погода)\n"
         "/help — полная справка\n\n"
         "🌐 botkin.health",
         parse_mode="HTML",
@@ -105,7 +104,6 @@ async def cmd_help(message: Message):
         "/vitamins — Чек-лист и схема приема.\n"
         "/share — Личный дашборд здоровья (ссылка).\n"
         "/profile — Настройка профиля (рост, возраст, цель).\n"
-        "/sync — Подтянуть данные (Garmin, весы, погода).\n"
         "/setup — Настройка BMR и активных ккал (без Garmin).\n"
         "/activity &lt;число&gt; — Ввести активные калории за сегодня вручную.\n"
         "/help — Эта справка."
