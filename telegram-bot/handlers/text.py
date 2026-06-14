@@ -1209,14 +1209,25 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
         elif msg_type == "body_measurements":
             # Обработка замеров тела
             data = router_result.get("data", {})
-            from helpers.db_save import save_body_measurement_to_db
+            from helpers.db_save import save_body_measurement_to_db, valid_height_cm
+
+            # Если роутер не извлёк ни одного поля — не делаем вид, что записали
+            # (прецедент 12.06.2026: «рост 171» давал пустой «✅ Записано»).
+            _measure_keys = ("height_cm", "waist_cm", "neck_cm", "hips_cm", "chest_cm", "thigh_cm", "biceps_cm")
+            if not any(data.get(k) is not None for k in _measure_keys):
+                await processing_msg.edit_text(
+                    "📏 Не понял замеры. Напиши, например: «рост 171», «талия 80» или «бицепс 35».",
+                    parse_mode="HTML",
+                )
+                return
 
             telegram_user_id = int(message.from_user.id)
             saved = save_body_measurement_to_db(data, user_id=telegram_user_id)
 
-            # Формируем ответ
+            # Формируем ответ. Рост подтверждаем только если он реально сохранён
+            # (прошёл диапазон 100–250) — иначе не врём «обновлён в профиле».
             m_parts = []
-            if data.get("height_cm"):
+            if valid_height_cm(data.get("height_cm")) is not None:
                 m_parts.append(f"Рост: {data['height_cm']} см (обновлён в профиле)")
             if data.get("waist_cm"):
                 m_parts.append(f"Талия: {data['waist_cm']} см")
@@ -1230,6 +1241,16 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                 m_parts.append(f"Бедро: {data['thigh_cm']} см")
             if data.get("biceps_cm"):
                 m_parts.append(f"Бицепс: {data['biceps_cm']} см")
+
+            # Если после валидации показывать нечего (например прислали только
+            # «рост 70» — вне диапазона) — не делаем вид, что записали.
+            if not m_parts:
+                await processing_msg.edit_text(
+                    "📏 Не понял замеры или значение вне допустимого диапазона. "
+                    "Напиши, например: «рост 171», «талия 80» или «бицепс 35».",
+                    parse_mode="HTML",
+                )
+                return
 
             m_list = "\n".join([f"• {p}" for p in m_parts])
             status_text = "✅ <b>Записано</b>" if saved else "⚠️ <b>Ошибка записи</b>"

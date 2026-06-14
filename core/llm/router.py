@@ -42,7 +42,7 @@ CLASSIFICATION CATEGORIES:
 1. "food": Meal descriptions, photos of food/menus, cooking ingredients (EXCLUDING clear supplements like Psyllium/Vitamins unless used as baking ingredient).
 2. "weight": Photos of weight scales, text like "80.5 kg", body composition screens.
 3. "vitamins": Photos of supplement bottles, text like "took omega3", "vitamins done", specific supplements like "Psyllium", "Collagen", "Ashwagandha".
-4. "body_measurements": Records of body size in cm like "waist 101, neck 42.5", "талия 101 см".
+4. "body_measurements": Records of body size in cm like "waist 101, neck 42.5", "талия 101 см", "рост 171" (height → height_cm).
 5. "medical": Lab results, doctor notes (if clearly medical).
 6. "other": General chat, questions not related to logging, or unclear inputs.
 
@@ -332,6 +332,7 @@ Extract measurements in cm.
   "type": "body_measurements",
   "data": {
     "date": "YYYY-MM-DD" (if visible/stated, otherwise null),
+    "height_cm": number or null,
     "waist_cm": number or null,
     "neck_cm": number or null,
     "hips_cm": number or null,
