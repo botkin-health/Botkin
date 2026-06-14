@@ -7,8 +7,8 @@ description: Доводит готовую ветку Botkin до мержа в 
 
 ## Контекст репо (Botkin)
 
-- **Трекер:** GitHub Issues через `gh`, `Lyskovsky/Botkin` (`docs/agents/issue-tracker.md`).
-- **Проект (доска):** GitHub Project **Botkin #1** (owner `Lyskovsky`, id `PVT_kwHOAPEZdM4BaijM`). Status-поле `PVTSSF_lAHOAPEZdM4BaijMzhVZdh4`, опции: **Todo** `f75ad846` · **In Progress** `47fc9ee4` · **Done** `98236657`. Колонки «In Review» нет — ревью идёт в статусе In Progress.
+- **Трекер:** GitHub Issues через `gh`, `botkin-health/Botkin` (`docs/agents/issue-tracker.md`).
+- **Проект (доска):** GitHub Project **Botkin #1** (owner `botkin-health`, id `PVT_kwDOEX3Lns4Bam1p`). Status-поле `PVTSSF_lADOEX3Lns4Bam1pzhVdNrw`, опции: **Todo** `f75ad846` · **In Progress** `47fc9ee4` · **Done** `98236657`. Колонки «In Review» нет — ревью идёт в статусе In Progress.
 - **Базовая ветка:** `dev`. Мерж — **merge-коммит** (`gh pr merge --merge`), как в истории репы.
 - **Worktree:** `.claude/worktrees/<ветка, `/`→`+`>`.
 - **Проверки (gate):** `ruff check .` · `ruff format --check .` · `PYTHONPATH=. pytest tests/ --ignore=tests/integration --ignore=tests/test_nutrition_parsing.py`.
@@ -83,11 +83,11 @@ git worktree remove .claude/worktrees/<slug>
 ### Доска: выставить статус
 ```bash
 # item id задачи в проекте Botkin #1
-ITEM_ID=$(gh project item-list 1 --owner Lyskovsky --format json \
+ITEM_ID=$(gh project item-list 1 --owner botkin-health --format json \
   --jq ".items[] | select(.content.number==<N>) | .id")
 # статус: In Progress (47fc9ee4) / Done (98236657)
-gh project item-edit --id "$ITEM_ID" --project-id PVT_kwHOAPEZdM4BaijM \
-  --field-id PVTSSF_lAHOAPEZdM4BaijMzhVZdh4 --single-select-option-id <option-id>
+gh project item-edit --id "$ITEM_ID" --project-id PVT_kwDOEX3Lns4Bam1p \
+  --field-id PVTSSF_lADOEX3Lns4Bam1pzhVdNrw --single-select-option-id <option-id>
 ```
 
 ## Чего НЕ делать
