@@ -1,25 +1,60 @@
-version: '3.8'
-
+# Дев-стенд botkin-dev — изолированный стек на том же сервере, рядом с продом.
+# Свои контейнеры/порт/том/БД/бот-токен. Бот в режиме polling (BOTKIN_FORCE_POLLING=1):
+# Telegram-апдейты тянутся без публичного TLS, FastAPI-сервер (/health, дашборд,
+# /api/agent) при этом работает. Образ — общий из GHCR (как прод).
+#   docker compose -f docker-compose.dev.yml --project-name botkin-dev up -d
 services:
-  postgres_dev:
+  postgres:
     image: postgres:15
-    container_name: healthvault_postgres_dev
+    container_name: botkin_dev_postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-healthvault}
       POSTGRES_USER: ${POSTGRES_USER:-healthvault}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
-    ports:
-      - "5432:5432"
     volumes:
-      - postgres_dev_data:/var/lib/postgresql/data
-      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
-    restart: unless-stopped
+      - botkin_dev_postgres_data:/var/lib/postgresql/data
     networks:
-      - healthvault_dev
+      - internal
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-healthvault}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  bot:
+    image: ghcr.io/botkin-health/botkin-bot:${IMAGE_TAG:-latest}
+    container_name: botkin_dev_bot
+    env_file:
+      - .env
+    environment:
+      # Polling: дев-бот сам опрашивает Telegram (без webhook/TLS); сервер живёт.
+      - BOTKIN_FORCE_POLLING=1
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-healthvault}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-healthvault}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      # Отдельный хост-порт (прод занимает 8081). Только loopback — для /health
+      # и локального доступа к дашборду; наружу не открыт.
+      - "127.0.0.1:8082:8081"
+    volumes:
+      - /opt/botkin-dev/data:/app/data
+      - /opt/botkin-dev/logs:/app/logs
+    networks:
+      - internal
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8081/health\", timeout=5)' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
 volumes:
-  postgres_dev_data:
+  botkin_dev_postgres_data:
+    driver: local
 
 networks:
-  healthvault_dev:
+  internal:
     driver: bridge
