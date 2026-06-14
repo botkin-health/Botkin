@@ -31,9 +31,9 @@ from database.crud import (
 )
 from database.models import SupplementLog
 from core.health.supplements import (
-    DEFAULT_SUPPLEMENTS,
-    default_dose_for,
+    migrate_legacy_supplements,
     delete_mirror_nutrition_for,
+    dose_from_user_schedule,
     mirror_supplement_to_nutrition,
     needs_legacy_migration,
     normalize_supplement_name,
@@ -81,8 +81,8 @@ async def get_supplements_day(
         s = get_user_settings(db, user_id=user_id)
         planned = (s.supplements or []) if s else []
         if needs_legacy_migration(planned):
-            upsert_user_settings(db, user_id, supplements=DEFAULT_SUPPLEMENTS)
-            planned = DEFAULT_SUPPLEMENTS
+            planned = migrate_legacy_supplements(planned)
+            upsert_user_settings(db, user_id, supplements=planned)
         taken_logs = get_supplements_by_date(db, user_id=user_id, date=for_date)
 
         # Build a map: name → deque of (time_str, log_id) sorted ascending by time.
@@ -106,8 +106,8 @@ async def get_supplements_day(
             key = normalize_supplement_name(name)
             # Consume one log entry per scheduled occurrence (FIFO by time).
             entry = taken_by_name[key].popleft() if taken_by_name[key] else None
-            # Prefer per-item dose from user settings; fall back to canonical default.
-            dose = item.get("dose") or default_dose_for(name)
+            # Per-item dose from the user's own settings (no cross-user defaults).
+            dose = item.get("dose")
             slots[slot].append(
                 {
                     "name": name,
@@ -173,16 +173,8 @@ async def take_supplement(
             }
 
         now_msk = datetime.now(MSK).time().replace(microsecond=0)
-        # Look up dose: per-item from settings if present, else canonical default.
-        target_key = normalize_supplement_name(payload.name)
-        dose = None
-        for it in planned:
-            if normalize_supplement_name(it.get("name") or "") == target_key:
-                dose = it.get("dose")
-                if dose:
-                    break
-        if not dose:
-            dose = default_dose_for(payload.name)
+        # Dose from the user's own configured schedule (no cross-user defaults).
+        dose = dose_from_user_schedule(planned, payload.name)
         log = create_supplement_log(
             db,
             user_id=user_id,
