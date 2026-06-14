@@ -40,33 +40,16 @@ jobs:
           printf '%s\n' "${{ secrets.SSH_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
-      - name: Resolve stand
-        id: stand
-        env:
-          ENVIRONMENT: ${{ inputs.environment }}
-        run: |
-          case "$ENVIRONMENT" in
-            prod)
-              echo "pg=healthvault_postgres" >> "$GITHUB_OUTPUT"
-              echo "bot=healthvault_bot" >> "$GITHUB_OUTPUT"
-              echo "path=/opt/botkin" >> "$GITHUB_OUTPUT"
-              ;;
-            dev)
-              echo "pg=botkin_dev_postgres" >> "$GITHUB_OUTPUT"
-              echo "bot=botkin_dev_bot" >> "$GITHUB_OUTPUT"
-              echo "path=/opt/botkin-dev" >> "$GITHUB_OUTPUT"
-              ;;
-            *)
-              echo "❌ неизвестный environment: $ENVIRONMENT"; exit 1 ;;
-          esac
+      # Стенд-специфика (контейнеры/путь) — из environment-variables (vars.*),
+      # заданных в GitHub Environments dev/prod. Менять стенд = менять переменные, не workflow.
 
       # Бэкап ОБЯЗАТЕЛЕН перед любым накатом — и на dev, и на prod.
       # Дамп остаётся на сервере (PII пользователей — не тащим в артефакты публичного репо).
       - name: Backup database (pg_dump -Fc)
         env:
           SSH_TARGET: ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
-          PG: ${{ steps.stand.outputs.pg }}
-          STAND_PATH: ${{ steps.stand.outputs.path }}
+          PG: ${{ vars.PG_CONTAINER }}
+          STAND_PATH: ${{ vars.STAND_PATH }}
         run: |
           ssh "$SSH_TARGET" bash -s "$PG" "$STAND_PATH" <<'REMOTE'
           set -euo pipefail
@@ -88,17 +71,17 @@ jobs:
       - name: Alembic current (до наката)
         env:
           SSH_TARGET: ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
-          BOT: ${{ steps.stand.outputs.bot }}
+          BOT: ${{ vars.BOT_CONTAINER }}
         run: ssh "$SSH_TARGET" "docker exec -w /app $BOT alembic current"
 
       - name: Alembic upgrade head
         env:
           SSH_TARGET: ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
-          BOT: ${{ steps.stand.outputs.bot }}
+          BOT: ${{ vars.BOT_CONTAINER }}
         run: ssh "$SSH_TARGET" "docker exec -w /app $BOT alembic upgrade head"
 
       - name: Alembic current (после наката)
         env:
           SSH_TARGET: ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
-          BOT: ${{ steps.stand.outputs.bot }}
+          BOT: ${{ vars.BOT_CONTAINER }}
         run: ssh "$SSH_TARGET" "docker exec -w /app $BOT alembic current"
