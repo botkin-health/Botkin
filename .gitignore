@@ -92,8 +92,12 @@ HEALTH.md
 KNOWLEDGE_BASE.md
 knowledge_base.json
 
-# Claude Code session metadata
-.claude/
+# Claude Code: командные skills/settings версионируем (общие для всех в репе),
+# машинно-локальное — игнорим (git-worktrees агента, локальные оверрайды, lock).
+.claude/worktrees/
+.claude/settings.local.json
+.claude/*.local.json
+.claude/scheduled_tasks.lock
 
 # === Privacy: личные медицинские данные ===
 # Личные roadmap, биомаркеры, цели здоровья — только в ~/FamilyHealth/<user>/

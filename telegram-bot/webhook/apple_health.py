@@ -7,6 +7,7 @@ Endpoint: POST https://botkin.health/apple_health (legacy-домен health.oran
 Auth: Bearer token (APPLE_HEALTH_TOKEN из .env)
 """
 
+import hmac
 import os
 import logging
 from datetime import date, datetime, timezone
@@ -997,8 +998,19 @@ if _webapp_dir.exists():
 
 @app.post("/telegram/webhook")
 async def telegram_webhook(request: Request):
-    """Receives Telegram updates and feeds them to the aiogram dispatcher."""
+    """Receives Telegram updates and feeds them to the aiogram dispatcher.
+
+    NB: основной обработчик /telegram/webhook — в webhook/telegram_router.py.
+    Этот маршрут затенён роутером; защищаем тем же секретом на случай смены
+    порядка регистрации.
+    """
     from aiogram.types import Update as TgUpdate  # lazy import — avoids breaking tests
+
+    _expected_secret = os.getenv("TELEGRAM_WEBHOOK_SECRET", "")
+    if _expected_secret:
+        _got = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
+        if not hmac.compare_digest(_got, _expected_secret):
+            raise HTTPException(status_code=403, detail="Invalid webhook secret")
 
     if _tg_bot is None or _tg_dp is None:
         logger.error("Telegram dispatcher not initialised — update dropped")

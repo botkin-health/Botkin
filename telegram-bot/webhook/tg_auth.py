@@ -8,15 +8,20 @@ import hashlib
 import hmac
 import json
 import os
+import time
 import urllib.parse
 
 from fastapi import Header, HTTPException
 
 BOT_TOKEN = os.getenv("BOT_TOKEN") or os.getenv("TELEGRAM_BOT_TOKEN", "")
 
+# initData считается просроченным через сутки (replay-защита): перехваченный
+# токен не должен работать вечно. Telegram рекомендует такой TTL.
+INIT_DATA_TTL_SEC = 24 * 3600
+
 
 def verify_telegram_init_data(init_data_str: str) -> dict:
-    """Validate Telegram WebApp initData HMAC and return user dict."""
+    """Validate Telegram WebApp initData HMAC + freshness, return user dict."""
     if not init_data_str:
         raise ValueError("Empty initData")
 
@@ -31,6 +36,15 @@ def verify_telegram_init_data(init_data_str: str) -> dict:
 
     if not hmac.compare_digest(computed, received_hash):
         raise ValueError("initData HMAC mismatch")
+
+    # Freshness: отвергаем initData старше суток (защита от replay перехваченного
+    # токена). auth_date — unix-время выдачи Telegram'ом.
+    try:
+        auth_date = int(params.get("auth_date", "0"))
+    except (TypeError, ValueError):
+        auth_date = 0
+    if auth_date <= 0 or (time.time() - auth_date) > INIT_DATA_TTL_SEC:
+        raise ValueError("initData expired")
 
     return json.loads(params.get("user", "{}"))
 
