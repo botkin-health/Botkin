@@ -70,3 +70,54 @@ jobs:
 
       - name: Format check
         run: ruff format --check .
+
+  alembic:
+    name: alembic (round-trip)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    # Роль/БД healthvault — baseline использует ALTER DEFAULT PRIVILEGES FOR ROLE healthvault.
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: healthvault
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: healthvault
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U healthvault"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      PYTHONPATH: .
+      DATABASE_URL: postgresql://healthvault:postgres@localhost:5432/healthvault
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Upgrade to head (схема с нуля == прод)
+        run: alembic upgrade head
+
+      - name: Check (ORM == применённая схема, дифф пуст)
+        run: alembic check
+
+      - name: Round-trip (downgrade base -> upgrade head)
+        run: |
+          alembic downgrade base
+          alembic upgrade head
