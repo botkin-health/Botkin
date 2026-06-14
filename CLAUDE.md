@@ -64,7 +64,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Код проекта (эта папка):**
 `~/Library/CloudStorage/GoogleDrive-lyskovsky@gmail.com/Мой диск/Projects/Vibe coding/Botkin/`
 
-Git remote: `git@github.com:Lyskovsky/Botkin.git` (переименовано 12.05.2026, было `HealthVault`)
+Git remote: `git@github.com:botkin-health/Botkin.git` (перенесён в орг `botkin-health` 14.06.2026; ранее `Lyskovsky/Botkin`, ещё раньше `HealthVault`)
 
 **Медицинские данные семьи (отдельная папка, не путать!):**
 `~/Library/CloudStorage/GoogleDrive-lyskovsky@gmail.com/Мой диск/FamilyHealth/`
@@ -337,10 +337,36 @@ python3 scripts/sync_user_health.py --all --apply
 
 ---
 
+## Хронолог разработки в Notion
+
+Notion-страница **«Хронолог разработки»** (ID `37bf1efb-961b-81cd-9145-cc24bca86e96`, вложена в «Боткин») — краткая история изменений для всех участников проекта (не только разработчиков).
+
+**Когда обновлять:** при каждом создании PR или значимом изменении (сайт, база данных, новая функция, исправление заметного бага).
+
+**Формат одной записи** (добавлять в начало страницы, перед предыдущими):
+
+```
+## ДД месяца ГГГГ — Игорь Лысковский
+
+Короткий заголовок: что изменилось с точки зрения пользователя
+
+Одно-два предложения — что теперь работает иначе или лучше. Без технических деталей.
+За подробностями — на GitHub по ссылке ниже.
+
+[PR #NN](https://github.com/Lyskovsky/Botkin/pull/NN)
+```
+
+**Правила:**
+- Писать для не-разработчиков: что изменилось для пользователя, а не как это устроено внутри
+- Не дублировать `docs/ai_context/AI_CHANGELOG.md` — там технические детали, здесь — суть
+- Одна запись = один PR или логически связанная группа PR (объединять фиксы одной темы)
+- Обновлять через Notion MCP (`mcp__aa7ec113...notion-update-page` или `notion-create-pages` с parent `37bf1efb-961b-81cd-9145-cc24bca86e96`)
+
 ## Важные правила
 
 - **Язык**: всегда общаться с пользователем на русском
 - **AI_CHANGELOG**: после каждой задачи обновлять `docs/ai_context/AI_CHANGELOG.md`
+- **Notion Хронолог**: при создании PR обновлять страницу `37bf1efb-961b-81cd-9145-cc24bca86e96`
 - **Синк перед анализом**: всегда запускать `/sync` перед анализом данных здоровья
 - **knowledge_base.json**: при добавлении новых анализов/УЗИ/МРТ/ЭКГ — обновлять этот файл
 - **Бэкап**: БД на удалённом сервере, не на localhost. Для записи в БД нужен SSH к серверу.
@@ -439,3 +465,21 @@ Botkin/                          # ~/Botkin/ — ТОЛЬКО КОД И OPERATIO
 ├── docs/                        # Документация + ai_context/
 └── archive/                     # Архив старого кода
 ```
+
+---
+
+## Agent skills
+
+Per-repo config consumed by the Matt Pocock engineering skills (`to-issues`, `triage`, `qa`, `review`, `tdd`, `improve-codebase-architecture`, etc.).
+
+### Issue tracker
+
+Issues live in the `botkin-health/Botkin` GitHub Issues, managed via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Canonical triage vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`) — defaults, label strings equal role names. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context repo: one `CONTEXT.md` (lazy) + ADRs at `docs/architecture/decisions/`. See `docs/agents/domain.md`.

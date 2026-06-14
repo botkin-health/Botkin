@@ -1,13 +1,14 @@
-"""Profile API — BMR (Basal Metabolic Rate) settings.
+"""Profile API — BMR and user profile settings.
 
-Three modes:
+Three modes for BMR:
   • Garmin / Apple Health (auto): live from wearable; bot shows source badge.
   • Manual (Mifflin-St Jeor): user enters height / weight / age / sex / activity.
   • Default fallback: 2150 ккал when nothing else available.
 
 Endpoints:
-  GET  /api/profile/bmr — resolved value + source + manual params for the form
-  POST /api/profile/bmr — save manual override or switch back to auto
+  GET   /api/profile/bmr      — resolved value + source + manual params for the form
+  POST  /api/profile/bmr      — save manual override or switch back to auto
+  PATCH /api/profile/timezone — update user timezone (called by WebApp on every open)
 """
 
 from datetime import date as date_cls, datetime as dt_cls, timedelta
@@ -46,6 +47,10 @@ def mifflin_st_jeor(sex: str, weight_kg: float, height_cm: float, age: int) -> i
 
 
 # ── Schemas ──────────────────────────────────────────────────────────────────
+
+
+class TimezonePayload(BaseModel):
+    timezone: str
 
 
 class BmrManualPayload(BaseModel):
@@ -206,5 +211,38 @@ async def set_bmr(payload: BmrSettingsPayload, tg_user: dict = Depends(get_tg_us
             "tdee": tdee,
             "activity": activity_avg,
         }
+    finally:
+        db.close()
+
+
+# ── PATCH /api/profile/timezone ──────────────────────────────────────────────
+
+
+@router.patch("/api/profile/timezone", status_code=204)
+async def patch_timezone(payload: TimezonePayload, tg_user: dict = Depends(get_tg_user)):
+    """Called by WebApp on every open: updates users.timezone if the browser-detected value changed.
+
+    Accepts any valid IANA timezone name (e.g. "Asia/Jerusalem", "Europe/Moscow").
+    Returns 204 No Content — idempotent, safe to fire-and-forget from JS.
+    """
+    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+    from database import SessionLocal
+    from database.crud import get_user_by_telegram_id
+
+    user_id = tg_user.get("id")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="No user id in initData")
+
+    try:
+        ZoneInfo(payload.timezone)
+    except (ZoneInfoNotFoundError, KeyError):
+        raise HTTPException(status_code=400, detail=f"Unknown timezone: {payload.timezone!r}")
+
+    db = SessionLocal()
+    try:
+        user = get_user_by_telegram_id(db, user_id)
+        if user and user.timezone != payload.timezone:
+            user.timezone = payload.timezone
+            db.commit()
     finally:
         db.close()

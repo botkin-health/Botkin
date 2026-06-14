@@ -7,6 +7,7 @@ Endpoint: POST https://botkin.health/apple_health (legacy-домен health.oran
 Auth: Bearer token (APPLE_HEALTH_TOKEN из .env)
 """
 
+import hmac
 import os
 import logging
 from datetime import date, datetime, timezone
@@ -248,7 +249,6 @@ async def receive_apple_health(
         from database import SessionLocal
         from database.crud import (
             create_or_update_activity,
-            create_weight,
             get_user_by_health_token,
             get_activity_by_date,
         )
@@ -361,17 +361,35 @@ async def receive_apple_health(
                 )
                 saved.append(f"blood_pressure: {payload.blood_pressure_systolic}/{payload.blood_pressure_diastolic}")
 
-            # ── 3. weights (если пришёл вес от Zepp через Apple Health) ─────
+            # ── 3. weights (если пришёл вес от весов через Apple Health) ─────
+            # Issue #56: раньше тут был create_weight(date=record_date, ...) —
+            # но сигнатура принимает measured_at: datetime, не date → TypeError,
+            # а у create_weight нет ON CONFLICT → повторная отправка за день падала
+            # на UniqueViolation. Зеркалим идемпотентный UPSERT из v2 (см. ниже).
             if payload.weight_kg and payload.weight_kg > 30:
-                weight_entry = create_weight(
-                    db=db,
-                    user_id=target_user_id,
-                    date=record_date,
-                    weight=payload.weight_kg,
-                    body_fat=payload.body_fat_pct,
-                    muscle_mass=payload.muscle_mass_kg,
-                    water=payload.water_pct,
-                    source="apple_health_shortcut",
+                from sqlalchemy import text as _text
+
+                weight_ts = datetime.combine(record_date, datetime.min.time().replace(hour=8))
+                db.execute(
+                    _text(
+                        """INSERT INTO weights
+                           (user_id, measured_at, weight, body_fat, muscle_mass, water, source)
+                           VALUES (:uid, :ts, :w, :bf, :mm, :wt, 'apple_health_shortcut')
+                           ON CONFLICT (user_id, measured_at) DO UPDATE
+                             SET weight = EXCLUDED.weight,
+                                 body_fat = EXCLUDED.body_fat,
+                                 muscle_mass = EXCLUDED.muscle_mass,
+                                 water = EXCLUDED.water,
+                                 source = EXCLUDED.source"""
+                    ),
+                    {
+                        "uid": target_user_id,
+                        "ts": weight_ts,
+                        "w": payload.weight_kg,
+                        "bf": payload.body_fat_pct,
+                        "mm": payload.muscle_mass_kg,
+                        "wt": payload.water_pct,
+                    },
                 )
                 saved.append(f"weights: {payload.weight_kg}kg, fat={payload.body_fat_pct}%")
 
@@ -980,8 +998,19 @@ if _webapp_dir.exists():
 
 @app.post("/telegram/webhook")
 async def telegram_webhook(request: Request):
-    """Receives Telegram updates and feeds them to the aiogram dispatcher."""
+    """Receives Telegram updates and feeds them to the aiogram dispatcher.
+
+    NB: основной обработчик /telegram/webhook — в webhook/telegram_router.py.
+    Этот маршрут затенён роутером; защищаем тем же секретом на случай смены
+    порядка регистрации.
+    """
     from aiogram.types import Update as TgUpdate  # lazy import — avoids breaking tests
+
+    _expected_secret = os.getenv("TELEGRAM_WEBHOOK_SECRET", "")
+    if _expected_secret:
+        _got = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
+        if not hmac.compare_digest(_got, _expected_secret):
+            raise HTTPException(status_code=403, detail="Invalid webhook secret")
 
     if _tg_bot is None or _tg_dp is None:
         logger.error("Telegram dispatcher not initialised — update dropped")

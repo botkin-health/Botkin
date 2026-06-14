@@ -7,8 +7,7 @@ import re
 import asyncio
 from datetime import datetime, timedelta
 
-# Московское время (UTC+3)
-from core.infra.tz import MSK  # noqa: E402  (общая TZ проекта)
+from core.infra.tz import get_user_tz  # noqa: E402
 
 from aiogram import Router, F
 from aiogram.types import Message
@@ -193,7 +192,7 @@ def apply_slot_prefix(text: str, meal_name: str | None) -> str | None:
     return meal_name
 
 
-def extract_meal_name(text: str, meal_time: str = None) -> str:
+def extract_meal_name(text: str, meal_time: str = None, user_tz=None) -> str:
     """
     Извлекает название приёма пищи из текста.
     Если не найдено в тексте, определяет по времени суток.
@@ -270,8 +269,11 @@ def extract_meal_name(text: str, meal_time: str = None) -> str:
         except (ValueError, IndexError):
             pass
 
-    # Если время не указано, используем текущее время (Москва)
-    current_hour = datetime.now(MSK).hour
+    # Если время не указано, используем текущее время в таймзоне пользователя
+    from zoneinfo import ZoneInfo
+
+    _tz = user_tz or ZoneInfo("Europe/Moscow")
+    current_hour = datetime.now(_tz).hour
     if 5 <= current_hour < 11:
         return "Завтрак"
     elif 11 <= current_hour < 15:
@@ -284,7 +286,7 @@ def extract_meal_name(text: str, meal_time: str = None) -> str:
         return "Вечерний перекус"
 
 
-def extract_date_from_text(text: str) -> tuple[str, str]:
+def extract_date_from_text(text: str, user_tz=None) -> tuple[str, str]:
     """
     Извлекает дату "вчера" из начала текста.
     Возвращает (date_str, clean_text).
@@ -294,6 +296,10 @@ def extract_date_from_text(text: str) -> tuple[str, str]:
         return None, text
 
     text_lower = text.lower().strip()
+
+    from zoneinfo import ZoneInfo
+
+    _tz = user_tz or ZoneInfo("Europe/Moscow")
 
     # Ключевые слова для "вчера" / "позавчера"
     relative_keywords = [
@@ -311,7 +317,7 @@ def extract_date_from_text(text: str) -> tuple[str, str]:
     for kw, days_ago in relative_keywords:
         m = re.search(rf"\b{re.escape(kw)}\b", text_lower)
         if m:
-            target_date = datetime.now(MSK) - timedelta(days=days_ago)
+            target_date = datetime.now(_tz) - timedelta(days=days_ago)
             date_str = target_date.strftime("%Y-%m-%d")
 
             # Склеиваем префикс (до kw) и суффикс (после kw), срезая разделители.
@@ -329,11 +335,11 @@ def extract_date_from_text(text: str) -> tuple[str, str]:
         try:
             # Предполагаем текущий год. Если месяц больше текущего - значит прошлый год?
             # Нет, просто текущий год для простоты, или умная логика
-            current_year = datetime.now(MSK).year
+            current_year = datetime.now(_tz).year
             # Если дата в будущем (например, сегодня 01.02, а ввели 29.01) - это ок
-            target_date = datetime(current_year, month, day, tzinfo=MSK)
-            if target_date > datetime.now(MSK) + timedelta(days=1):
-                target_date = datetime(current_year - 1, month, day, tzinfo=MSK)
+            target_date = datetime(current_year, month, day, tzinfo=_tz)
+            if target_date > datetime.now(_tz) + timedelta(days=1):
+                target_date = datetime(current_year - 1, month, day, tzinfo=_tz)
 
             date_str = target_date.strftime("%Y-%m-%d")
             clean_text = text[date_match.end() :].strip()
@@ -376,10 +382,10 @@ def extract_date_from_text(text: str) -> tuple[str, str]:
 
         if month > 0:
             try:
-                current_year = datetime.now(MSK).year
-                target_date = datetime(current_year, month, day, tzinfo=MSK)
-                if target_date > datetime.now(MSK) + timedelta(days=1):
-                    target_date = datetime(current_year - 1, month, day, tzinfo=MSK)
+                current_year = datetime.now(_tz).year
+                target_date = datetime(current_year, month, day, tzinfo=_tz)
+                if target_date > datetime.now(_tz) + timedelta(days=1):
+                    target_date = datetime(current_year - 1, month, day, tzinfo=_tz)
 
                 date_str = target_date.strftime("%Y-%m-%d")
                 # Убираем всё до конца даты (включая само упоминание даты)
@@ -502,6 +508,9 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
     processing_msg = _Replier(message)
     debug_logger.info("✅ Replier shim ready (typing indicator via middleware)")
 
+    # Грузим таймзону пользователя один раз — используется для дат и времён ниже
+    user_tz = get_user_tz(int(user_id))
+
     # Извлекаем дату "Вчера / 23 мая / 29.01" — нужно для food-логирования
     # ("Вчера ужин: ..."), но НЕ для conversational вопросов
     # ("Как мои анализы от 23 мая?" → "23 мая" вырезалось и Claude получал
@@ -511,7 +520,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
 
     custom_date = None
     if not _is_clearly_conversational(text):
-        custom_date, clean_text = extract_date_from_text(text)
+        custom_date, clean_text = extract_date_from_text(text, user_tz=user_tz)
         if custom_date:
             text = clean_text
 
@@ -588,12 +597,8 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                 if 0 <= hh <= 23 and 0 <= mm <= 59:
                     from datetime import datetime as _dt
 
-                    # ВАЖНО: используем модульный MSK (объявлен в line 11).
-                    # НЕ объявлять MSK здесь локально — иначе Python сделает её
-                    # local для ВСЕЙ функции, и в food-flow ниже UnboundLocalError.
-                    # Прецедент 25.05.2026: Александр тестировал hot-fix, упало
-                    # на "Овсянка 150г" с этим же error'ом.
-                    measured_at = _dt.now(MSK).replace(hour=hh, minute=mm, second=0, microsecond=0)
+                    # user_tz загружен в начале handle_text_message — используем его.
+                    measured_at = _dt.now(user_tz).replace(hour=hh, minute=mm, second=0, microsecond=0)
 
             if pulse_v is not None and not (30 <= pulse_v <= 220):
                 pulse_v = None  # неправдоподобный пульс — отбрасываем но BP сохраняем
@@ -1075,7 +1080,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                     "description": text,
                     "meal_items": meal_items,
                     "meal_totals": meal_totals,
-                    "meal_time": datetime.now(MSK).strftime("%H:%M"),
+                    "meal_time": datetime.now(user_tz).strftime("%H:%M"),
                     "meal_name": meal_name,
                     "date": custom_date,
                 },
@@ -1169,7 +1174,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
 
                         hh, mm = map(int, time_str.split(":")[:2])
                         if 0 <= hh <= 23 and 0 <= mm <= 59:
-                            measured_at = _dt.now(MSK).replace(hour=hh, minute=mm, second=0, microsecond=0)
+                            measured_at = _dt.now(user_tz).replace(hour=hh, minute=mm, second=0, microsecond=0)
                     except (ValueError, IndexError):
                         pass
 
@@ -1252,7 +1257,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
 
             meal_name = data.get("dish_name") or data.get("meal_type")
             if not meal_name:
-                meal_name = extract_meal_name(text, datetime.now(MSK).strftime("%H:%M"))
+                meal_name = extract_meal_name(text, datetime.now(user_tz).strftime("%H:%M"), user_tz=user_tz)
             meal_name = apply_slot_prefix(text, meal_name)
 
             # Создаем состояние confirmation
@@ -1265,7 +1270,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                     "description": text,
                     "meal_items": meal_items,
                     "meal_totals": meal_totals,
-                    "meal_time": datetime.now(MSK).strftime("%H:%M"),
+                    "meal_time": datetime.now(user_tz).strftime("%H:%M"),
                     "meal_name": meal_name,
                     "date": custom_date,
                 },

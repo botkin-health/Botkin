@@ -66,6 +66,14 @@
       return request(`/api/favorites?limit=${limit}`);
     },
 
+    // PATCH /api/profile/timezone  {timezone: "Asia/Jerusalem"}
+    patchTimezone(timezone) {
+      return request('/api/profile/timezone', {
+        method: 'PATCH',
+        body: JSON.stringify({ timezone }),
+      });
+    },
+
     // Escape hatch for ad-hoc calls (e.g. /api/settings).
     request,
   };
