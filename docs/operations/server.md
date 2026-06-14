@@ -29,7 +29,7 @@ ssh -i ~/.ssh/botkin/botkin_igorn igorn@116.203.213.137
 |---|---|
 | Бот | контейнер `healthvault_bot` (FastAPI :8081, healthy) |
 | БД | контейнер `healthvault_postgres` (postgres:15, volume) |
-| Код (до cutover) | `/opt/healthvault` — rsync + `docker compose build` на сервере (legacy `deploy.sh`). После cutover → pull-only в `/opt/botkin` |
+| Код | `/opt/botkin` — pull-only через GitHub Actions «Deploy prod» (образ из GHCR, без сборки на сервере). Исторически до cutover код жил в `/opt/healthvault` со сборкой на сервере |
 | Бэкапы | `/opt/backups` — nightly `pg_dump` (cron), **root-only** |
 | Ingress | **nginx на хосте** терминирует TLS для `health.orangegate.cc` → `127.0.0.1:8081` |
 

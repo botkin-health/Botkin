@@ -1,212 +1,85 @@
 # Руководство по развёртыванию
 
-## После каждого обновления кода
-
-**Обязательно** выполните деплой и перезапуск, иначе на сервере будет работать старая версия:
-
-```bash
-./deploy.sh
-```
+**Деплой — только через GitHub Actions.** Shell-скриптов (`deploy.sh` и т.п.) больше нет.
+Workflow «Deploy prod» собирает Docker-образ бота, пушит его в GHCR и по SSH тянет
+образ на сервере (pull-only — сборки на сервере нет).
 
 ---
 
-## Важно: Обновление кода в Docker
+## Как запустить деплой
 
-⚠️ **КРИТИЧНО**: Код бота **встроен в Docker образ** при сборке.
+**Через UI:** GitHub → Actions → «Deploy prod» → **Run workflow**.
 
-Это значит:
-- ❌ `rsync` для обновления файлов + `docker restart` **НЕ применяет** изменения кода
-- ✅ Вы **ОБЯЗАНЫ пересобрать** Docker образ чтобы обновить код
-
-## Архитектура
-
-```
-Локальная машина
-/Users/.../HealthVault/
-        │
-        │ rsync (загружает файлы)
-        ▼
-Сервер 116.203.213.137
-/opt/healthvault/  ◄─── Файлы на диске
-        │
-        │ docker-compose build (встраивает код в образ)
-        ▼
-Docker Image
-healthvault-bot  ◄─── Код встроен при сборке
-        │
-        │ docker-compose up (создаёт контейнер)
-        ▼
-Запущенный контейнер
-healthvault_bot  ◄─── Использует код ИЗ ОБРАЗА,
-                      НЕ из /opt/healthvault/!
-
-⚠️ Поэтому rsync + restart НЕ обновляет код!
-   Нужен docker-compose build!
+**Через CLI:**
+```bash
+gh workflow run deploy-prod.yml -f branch=main
 ```
 
-## Неправильный способ ❌
+### Параметры workflow
+
+| Параметр | По умолчанию | Назначение |
+|---|---|---|
+| `branch` | `main` | Ветка/тег/SHA, из которой собирается образ и берётся `docker-compose.prod.yml` |
+| `image_tag` | `""` (пусто) | Готовый тег образа для **отката**. Если задан — сборка пропускается, деплоится указанный образ |
+
+## Что делает workflow
+
+1. **Build** (если `image_tag` пуст): собирает Docker-образ бота и пушит в GHCR
+   (`ghcr.io/botkin-health/botkin-bot`).
+2. **Deploy**: по SSH на сервере в каталоге `/opt/botkin` выполняет
+   ```bash
+   docker compose -f docker-compose.prod.yml pull
+   docker compose -f docker-compose.prod.yml up -d --wait
+   ```
+   То есть тянет готовый образ из GHCR и пересоздаёт контейнеры. **На сервере ничего не собирается.**
+
+Файл `.github/workflows/deploy-prod.yml` — единственный источник истины по шагам.
+
+## Откат
+
+Повторно запустить «Deploy prod» с параметром `image_tag=<готовый тег образа>` —
+тогда стадия сборки пропускается и деплоится уже существующий образ:
+```bash
+gh workflow run deploy-prod.yml -f image_tag=<sha-готового-образа>
+```
+
+## Конфигурация на сервере
+
+- Каталог стека: `/opt/botkin`
+- Файл `.env` **лежит на сервере** (оператор кладёт `/opt/botkin/.env` один раз) и
+  **не входит в репозиторий**. Workflow синкает на сервер только `docker-compose.prod.yml`.
+- Если на сервере нет `.env` — деплой упадёт с явной ошибкой.
+
+> ⚠️ Перед первым деплоем убедись, что в `/opt/botkin/.env` заданы
+> `TELEGRAM_WEBHOOK_SECRET` и `WHOOP_STATE_SECRET` — без них webhook останется
+> без аутентификации, а WHOOP-привязка упадёт.
+
+## Диагностика
 
 ```bash
-# Загрузить файлы
-rsync -avz core/ root@116.203.213.137:/opt/healthvault/core/
-
-# Перезапустить контейнер
-docker restart healthvault_bot
-
-# ❌ ПРОБЛЕМА: Контейнер всё ещё использует СТАРЫЙ код из образа!
-```
-
-## Правильный способ ✅
-
-### Вариант 1: Полная пересборка (рекомендуется)
-
-```bash
-# 1. Загрузить все изменения
-rsync -avz --exclude 'venv' --exclude '__pycache__' \
-    /local/healthvault/ root@116.203.213.137:/opt/healthvault/
-
-# 2. Пересобрать Docker образ с нуля
-ssh root@116.203.213.137 'cd /opt/healthvault && docker-compose build --no-cache bot'
-
-# 3. Пересоздать контейнеры с новым образом
-ssh root@116.203.213.137 'cd /opt/healthvault && docker-compose up -d'
-
-# 4. Проверить
-ssh root@116.203.213.137 'docker logs --tail 30 healthvault_bot'
-```
-
-### Вариант 2: Быстрая пересборка (быстрее, использует кэш)
-
-```bash
-# То же самое, но без --no-cache
-ssh root@116.203.213.137 'cd /opt/healthvault && docker-compose build bot && docker-compose up -d'
-```
-
-## Автоматизированный скрипт развёртывания
-
-Используйте улучшенный скрипт `deploy.sh`:
-
-```bash
-#!/bin/bash
-set -e
-
-SERVER="root@116.203.213.137"
-REMOTE_PATH="/opt/healthvault"
-SERVER_PASSWORD="SERVER_PASSWORD_REDACTED"
-
-echo "🚀 Развёртывание HealthVault на продакшн..."
-
-# 1. Загрузить код на сервер
-echo "📤 Шаг 1/4: Загрузка кода..."
-sshpass -p "$SERVER_PASSWORD" rsync -avz \
-    --exclude 'venv' \
-    --exclude '__pycache__' \
-    --exclude '*.pyc' \
-    --exclude '.git' \
-    --exclude 'logs/*' \
-    ./ ${SERVER}:${REMOTE_PATH}/
-
-# 2. Пересобрать Docker образ (КРИТИЧНО для изменений кода!)
-echo "🔨 Шаг 2/4: Пересборка Docker образа..."
-sshpass -p "$SERVER_PASSWORD" ssh ${SERVER} \
-    "cd ${REMOTE_PATH} && docker-compose build bot"
-
-# 3. Перезапустить контейнеры с новым образом
-echo "♻️ Шаг 3/4: Перезапуск контейнеров..."
-sshpass -p "$SERVER_PASSWORD" ssh ${SERVER} \
-    "cd ${REMOTE_PATH} && docker-compose up -d"
-
-# 4. Проверить здоровье
-echo "🏥 Шаг 4/4: Проверка развёртывания..."
-sleep 3
-sshpass -p "$SERVER_PASSWORD" ssh ${SERVER} \
-    "docker logs --tail 20 healthvault_bot"
-
-echo "✅ Развёртывание завершено!"
-```
-
-**Использование**:
-```bash
-chmod +x deploy.sh
-./deploy.sh
-```
-
-## Быстрая справка
-
-### Проверить дату кода в работающем контейнере
-
-```bash
-ssh root@116.203.213.137 'docker exec healthvault_bot ls -la /app/telegram-bot/handlers/photo.py'
-```
-
-Смотрите на дату файла - она должна совпадать с вашими недавними изменениями!
-
-### Просмотр логов
-
-```bash
-# Последние 50 строк
-ssh root@116.203.213.137 'docker logs --tail 50 healthvault_bot'
+# Логи бота (последние 50 строк)
+ssh root@116.203.213.137 "docker logs healthvault_bot --tail 50"
 
 # Следить в реальном времени
-ssh root@116.203.213.137 'docker logs -f healthvault_bot'
+ssh root@116.203.213.137 "docker logs -f healthvault_bot"
 
 # Поиск ошибок
-ssh root@116.203.213.137 'docker logs healthvault_bot 2>&1 | grep ERROR'
+ssh root@116.203.213.137 "docker logs healthvault_bot 2>&1 | grep ERROR"
+
+# Статус контейнеров
+ssh root@116.203.213.137 "docker ps | grep healthvault"
 ```
 
 ### Частые проблемы
 
-#### Проблема: "Изменения кода не применяются"
-**Причина**: Забыли пересобрать Docker образ
-**Решение**: Выполнить `docker-compose build bot && docker-compose up -d`
-
-#### Проблема: "Контейнер постоянно перезапускается"
-**Причина**: Синтаксическая ошибка или ошибка импорта в коде
-**Решение**: Проверить логи `docker logs healthvault_bot`
-
-#### Проблема: "Ошибка подключения к базе данных"
-**Причина**: Контейнер PostgreSQL не готов
-**Решение**: Проверить `docker-compose ps`, перезапустить при необходимости
-
-## Разработка vs Продакшн
-
-### Локальная разработка
-- Изменения кода применяются сразу (без Docker)
-- Запуск: `python telegram-bot/bot.py`
-
-### Продакшн (Docker)
-- Изменения кода требуют пересборки образа
-- Лучшая изоляция и управление зависимостями
-- Проще откатиться (использовать теги образов)
+| Проблема | Причина | Решение |
+|---|---|---|
+| Деплой упал на проверке `.env` | На сервере нет `/opt/botkin/.env` | Положить `.env` на сервер |
+| Контейнер постоянно перезапускается | Ошибка импорта/синтаксиса в коде | Проверить `docker logs healthvault_bot` |
+| Ошибка подключения к БД | Контейнер PostgreSQL не готов | Проверить `docker compose ps`, при необходимости перезапустить |
 
 ## Лучшие практики
 
-1. **Всегда тестировать локально** перед развёртыванием
-2. **Проверять логи сразу** после развёртывания
-3. **Мониторить 5-10 минут** после деплоя
-4. **Иметь план отката** (сохранить предыдущий образ)
-5. **Документировать breaking changes** в commit messages
-
-## Процедура отката
-
-Если развёртывание что-то сломало:
-
-```bash
-# 1. Показать недавние образы
-docker images healthvault-bot
-
-# 2. Запустить предыдущую версию
-docker tag healthvault-bot:previous healthvault-bot:latest
-docker-compose up -d
-
-# ИЛИ пересобрать из последнего рабочего коммита
-git checkout <last-working-commit>
-./deploy.sh
-```
-
-## Будущее улучшение: CI/CD
-
-Рассмотреть настройку GitHub Actions для:
-- ✅ Автозапуск тестов при push
-- ✅ Автодеплой при слиянии в main
-- ✅ Откат при провале health check
+1. Прогнать тесты и линтер локально перед мержем в `main`.
+2. Проверить логи сразу после деплоя.
+3. При проблеме — откатиться на предыдущий `image_tag` (см. «Откат»), не чинить на проде.

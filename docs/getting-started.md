@@ -83,8 +83,9 @@ ruff check . && ruff format --check .
 
 ### 2.3. Деплой
 
-Деплой — на сервер Hetzner через `./deploy.sh` (rsync кода + пересборка Docker). Подробности и
-диагностика — в [CLAUDE.md](../CLAUDE.md), раздел «Команды разработки».
+Деплой — **только через GitHub Actions** (workflow «Deploy prod»: Actions → «Deploy prod» →
+Run workflow, или `gh workflow run deploy-prod.yml -f branch=main`). Workflow собирает образ,
+пушит в GHCR и по SSH тянет его на сервере (pull-only). Подробности — в [docs/DEPLOYMENT.md](DEPLOYMENT.md).
 
 > ⚠️ Перед первым деплоем убедись, что на сервере в `.env` заданы `TELEGRAM_WEBHOOK_SECRET`
 > и `WHOOP_STATE_SECRET` — без них webhook останется без аутентификации, а WHOOP-привязка упадёт.

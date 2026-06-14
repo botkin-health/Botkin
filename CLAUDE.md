@@ -247,21 +247,17 @@ ruff format .
 
 ### Деплой на сервер (Hetzner 116.203.213.137)
 
+**Деплой — только через GitHub Actions.** Workflow «Deploy prod» (`.github/workflows/deploy-prod.yml`):
+
 ```bash
-# Стандартный деплой (rsync кода + пересборка Docker + рестарт)
-./deploy.sh
+# Запуск из CLI (ветка по умолчанию main)
+gh workflow run deploy-prod.yml -f branch=main
 
-# Принудительная пересборка Docker без кэша (после изменений в requirements.txt)
-./deploy.sh --force-rebuild
-
-# Только рестарт контейнеров без пересборки (если менялась только конфигурация)
-./deploy.sh --skip-rebuild
-
-# Пропустить LLM prompt e2e-тесты после деплоя
-./deploy.sh --skip-llm-tests
+# Откат на готовый образ — сборка пропускается
+gh workflow run deploy-prod.yml -f image_tag=<готовый-тег-образа>
 ```
 
-⚠️ `./deploy.sh` синкает файлы через rsync **и пересобирает Docker-образ** — без пересборки изменения кода не применяются. `SERVER_PASSWORD` берётся из `.env` или переменной окружения.
+Либо вручную: Actions → «Deploy prod» → Run workflow. Workflow собирает Docker-образ бота, пушит в GHCR (`ghcr.io/botkin-health/botkin-bot`), затем по SSH на сервере (каталог `/opt/botkin`) выполняет `docker compose -f docker-compose.prod.yml pull && up -d --wait` (pull-only, **без сборки на сервере**). Файл `.env` лежит на сервере (`/opt/botkin/.env`), в репозиторий не входит. Подробнее — `docs/DEPLOYMENT.md`.
 
 ### Диагностика сервера
 

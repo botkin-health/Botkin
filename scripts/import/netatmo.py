@@ -20,7 +20,7 @@ try:
 except ImportError:
     print(
         "❌ Модуль lnetatmo не установлен. Поставь `pip install lnetatmo>=4.2.0` "
-        "или пересобери Docker-образ через `deploy.sh --force-rebuild` "
+        "или пересобери образ через GitHub Actions workflow «Deploy prod» "
         "(requirements.txt уже содержит lnetatmo).",
         file=sys.stderr,
     )
