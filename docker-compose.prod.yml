@@ -20,7 +20,7 @@ services:
   bot:
     # Образ из GHCR — собирается в GitHub Actions, на сервере только pull.
     # IMAGE_TAG задаёт deploy-workflow (sha коммита) или откат на прошлый тег.
-    image: ghcr.io/lyskovsky/botkin-bot:${IMAGE_TAG:-latest}
+    image: ghcr.io/botkin-health/botkin-bot:${IMAGE_TAG:-latest}
     container_name: healthvault_bot
     env_file:
       - .env

@@ -41,7 +41,7 @@ ssh -i ~/.ssh/botkin/botkin_igorn igorn@116.203.213.137
 На машине крутятся и **другие, не связанные с Botkin, стеки** (включая отдельный
 LLM-proxy на `127.0.0.1:4000`). Отсюда правила для деплоя Botkin:
 
-- Чистка образов — **только** `ghcr.io/lyskovsky/botkin-bot` (никаких `prune -af`).
+- Чистка образов — **только** `ghcr.io/botkin-health/botkin-bot` (никаких `prune -af`).
 - **nginx на хосте занимает порты 80/443** и обслуживает несколько vhost'ов. Перевод
   Botkin на Caddy — это НЕ drop-in: Caddy не сможет co-bind 443, пока там nginx.
   Варианты: (а) оставить nginx и для Botkin; (б) мигрировать все vhost'ы на Caddy

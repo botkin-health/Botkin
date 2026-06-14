@@ -71,7 +71,7 @@ jobs:
           docker compose -f docker-compose.prod.yml pull
           docker compose -f docker-compose.prod.yml up -d --wait --wait-timeout 120
           # Точечная чистка старых образов ТОЛЬКО botkin-bot (кроме текущего и latest).
-          docker images 'ghcr.io/lyskovsky/botkin-bot' --format '{{.Tag}} {{.ID}}' \
+          docker images 'ghcr.io/botkin-health/botkin-bot' --format '{{.Tag}} {{.ID}}' \
             | while read -r tag id; do
                 [ "$tag" = latest ] && continue
                 [ "$tag" = "$IMAGE_TAG" ] && continue

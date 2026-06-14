@@ -44,7 +44,7 @@ jobs:
         include:
           - service: bot
             dockerfile: Dockerfile.bot
-            image: ghcr.io/lyskovsky/botkin-bot
+            image: ghcr.io/botkin-health/botkin-bot
     steps:
       - uses: actions/checkout@v4
         with:
