@@ -54,10 +54,10 @@ JSONBCompat = JSON().with_variant(JSONB(), "postgresql")
 class User(Base):
     __tablename__ = "users"
     __table_args__ = (
-        CheckConstraint("cohort IN ('owner','family','early_user','external')", name="ck_users_cohort"),
+        CheckConstraint("cohort IN ('owner','family','early_user','external')", name="users_cohort_check"),
         CheckConstraint(
             "pack_name IN ('generic','cardiac','bariatric','female-cycle','respiratory_allergic')",
-            name="ck_users_pack_name",
+            name="users_pack_name_check",
         ),
         # На проде kb_status имеет CHECK-констрейнт ck_kb_status.
         CheckConstraint(
@@ -66,7 +66,7 @@ class User(Base):
         ),
     )
 
-    telegram_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    telegram_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)
     username: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     first_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     last_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
