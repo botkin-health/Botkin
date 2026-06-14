@@ -37,6 +37,11 @@ def agent_db(monkeypatch):
 
     Base.metadata.create_all(bind=engine)
     with engine.connect() as c:
+        # agent_conversations теперь есть в ORM-метадате (Base.create_all её создаёт),
+        # но этот тест намеренно держит свою SQLite-схему таблицы (INTEGER PK AUTOINCREMENT,
+        # content TEXT — чтобы воспроизвести прод-CAST AS JSONB). Сносим ORM-версию и
+        # пересоздаём ровно в нужной форме.
+        c.execute(text("DROP TABLE IF EXISTS agent_conversations"))
         c.execute(
             text(
                 """CREATE TABLE agent_conversations (

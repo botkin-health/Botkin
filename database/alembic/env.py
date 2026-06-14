@@ -37,6 +37,22 @@ config.set_main_option("sqlalchemy.url", _db_url)
 # ... etc.
 
 
+def _compare_server_default(
+    context, inspected_column, metadata_column, inspected_default, metadata_default, rendered_metadata_default
+):
+    """Хук autogenerate: гасит ложный дифф по no-op-дефолту users.smoking_status.
+
+    На проде колонка имеет формальный `DEFAULT NULL::character varying` (no-op — NULL и так
+    дефолт). В ORM мы его НЕ объявляем, иначе ломается create_all на SQLite в тестах.
+    Возвращаем False («дефолты совпадают»), чтобы alembic check оставался пустым.
+    Для всех остальных колонок отдаём None — alembic решает сам (поведение по умолчанию).
+    """
+    table = getattr(metadata_column.table, "name", None)
+    if table == "users" and metadata_column.name == "smoking_status":
+        return False
+    return None
+
+
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
 
@@ -79,7 +95,7 @@ def run_migrations_online() -> None:
             connection=connection,
             target_metadata=target_metadata,
             compare_type=True,
-            compare_server_default=True,
+            compare_server_default=_compare_server_default,
         )
 
         with context.begin_transaction():
