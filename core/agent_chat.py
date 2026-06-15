@@ -655,6 +655,25 @@ TOOLS: list[dict[str, Any]] = [
             },
         },
     },
+    {
+        "name": "add_agent_correction",
+        "description": (
+            "Сохранить поправку или новый факт в KB пользователя. "
+            "Вызывай СРАЗУ когда пользователь исправляет факт или сообщает новые данные — "
+            "дату операции, диагноз, аллергию, новый препарат, любую другую медицинскую деталь. "
+            "Ключ — короткое snake_case имя (surgery_year, diabetes_status, new_medication). "
+            "Данные сохраняются в секцию agent_corrections KB и будут доступны при следующем разговоре."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "key": {"type": "string", "description": "Уникальный ключ факта (snake_case, ≤100 символов)"},
+                "value": {"type": "string", "description": "Значение (≤2000 символов)"},
+                "reason": {"type": "string", "description": "Откуда факт — цитата или пересказ слов пользователя"},
+            },
+            "required": ["key", "value"],
+        },
+    },
 ]
 
 # ---------------------------------------------------------------------------
@@ -879,6 +898,17 @@ def _call_tool(name: str, args: dict, token: str) -> str:
                 },
                 headers=headers,
                 timeout=30,
+            )
+        elif name == "add_agent_correction":
+            r = requests.post(
+                f"{TOOLS_API_BASE}/add_agent_correction",
+                json={
+                    "key": args.get("key", ""),
+                    "value": args.get("value", ""),
+                    "reason": args.get("reason", ""),
+                },
+                headers=headers,
+                timeout=10,
             )
         else:
             return json.dumps({"error": f"unknown tool: {name}"})
