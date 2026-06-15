@@ -713,7 +713,7 @@ async def receive_apple_health_v2(
                 raw_data=raw_extra if raw_extra else None,
             )
             saved.append(
-                f"activity (steps={payload.steps}, HR={heart_rate}, HRV={payload.hrv}, sleep={payload.sleep_hours}h)"
+                f"activity (steps={payload.steps}, HR={heart_rate}, HRV={payload.hrv}, sleep={f'{payload.sleep_hours}h' if payload.sleep_hours is not None else 'None'})"
             )
 
             if payload.blood_pressure_systolic and payload.blood_pressure_diastolic:
