@@ -283,6 +283,22 @@ TOOLS: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "get_menstrual_data",
+        "description": (
+            "Данные менструального цикла из Apple Health (таблица menstrual_log). "
+            "Возвращает: список дней с flow (none/light/medium/heavy/spotting), "
+            "вычисленные начала циклов (period_starts), длины циклов в днях, "
+            "статистику: avg_cycle_days, variation_days, total_periods. "
+            "Используй для вопросов 'насколько ровный у меня цикл', "
+            "'какая длина цикла', 'регулярен ли цикл', 'когда началась последняя менструация'. "
+            "По умолчанию months=6. Передавай months=12 для годовой статистики."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {"months": {"type": "integer", "minimum": 1, "maximum": 24, "default": 6}},
+        },
+    },
+    {
         "name": "get_recent_trends",
         "description": (
             "Per-day тренды HRV, Body Battery, Stress, Steps, RHR, Sleep + "
@@ -775,6 +791,13 @@ def _call_tool(name: str, args: dict, token: str) -> str:
             r = requests.get(
                 f"{TOOLS_API_BASE}/recent_workouts",
                 params={"days": int(args.get("days", 30))},
+                headers=headers,
+                timeout=15,
+            )
+        elif name == "get_menstrual_data":
+            r = requests.get(
+                f"{TOOLS_API_BASE}/menstrual_data",
+                params={"months": int(args.get("months", 6))},
                 headers=headers,
                 timeout=15,
             )
@@ -1435,6 +1458,7 @@ _TOOL_PROGRESS_LABEL = {
     "get_recent_sleep": "😴 проверяю сон",
     "get_recent_trends": "📊 собираю динамику",
     "get_recent_workouts": "🏃 поднимаю тренировки",
+    "get_menstrual_data": "🌸 проверяю цикл",
     "get_recent_biomarkers": "🧪 смотрю анализы",
     "get_latest_biomarkers": "🧪 проверяю свежесть анализов",
     "get_kb_value": "📋 ищу в карте здоровья",
