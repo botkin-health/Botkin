@@ -40,7 +40,7 @@ def _verify_webhook_secret(secret_header: str | None) -> None:
     """
     expected = os.getenv("TELEGRAM_WEBHOOK_SECRET", "")
     if not expected:
-        logger.warning("TELEGRAM_WEBHOOK_SECRET не задан — /telegram/webhook без аутентификации")
+        logger.error("TELEGRAM_WEBHOOK_SECRET не задан — /telegram/webhook без аутентификации")
         return
     if not secret_header or not hmac.compare_digest(secret_header, expected):
         raise HTTPException(status_code=403, detail="Invalid webhook secret")

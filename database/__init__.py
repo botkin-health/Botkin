@@ -10,8 +10,15 @@ from database.models import Base
 
 load_dotenv()
 
-# Database URL from environment
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://healthvault:***REMOVED-SECRET***@localhost:5432/healthvault")
+# Database URL from environment — required, no hardcoded fallback.
+# Раньше тут был дефолт с паролем (репозиторий публичный) — удалён.
+# Конфигурируется через .env / .env.production / переменную окружения.
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError(
+        "DATABASE_URL не задана. Укажите её через окружение (.env / .env.production). "
+        "Дефолт намеренно не предусмотрен, чтобы не коммитить креды в открытый код."
+    )
 
 # Create engine
 engine = create_engine(

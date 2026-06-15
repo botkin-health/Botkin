@@ -6,7 +6,6 @@ data/scout/
 config/scout/seen.jsonl
 *.xml
 *.sql
-!database/init.sql
 !database/migrations/*.sql
 
 # Local overrides (machine-specific, not for sharing)
@@ -163,3 +162,6 @@ docs/research/2026-05-22_android-health-connect-export-webhook.md
 
 # Архив мёртвого кода (вынесен из публичного репо при аудите 2026-06)
 archive/
+
+# Бэкапы БД (PII — не коммитить)
+/backups/

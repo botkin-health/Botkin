@@ -42,10 +42,10 @@ git push && git push --tags
 # 5. GitHub Release (опционально)
 gh release create v0.5.1 --notes "..."
 
-# 6. Деплой
-./deploy.sh                                    # бот
+# 6. Деплой бота — только через GitHub Actions «Deploy prod»
+gh workflow run deploy-prod.yml -f branch=main   # бот (собирает образ → GHCR → pull на сервере)
 rsync -avz --exclude='._*' docs/landing/ \
-      root@116.203.213.137:/opt/botkin-site/    # лендинг
+      root@116.203.213.137:/opt/botkin-site/      # лендинг
 ```
 
 ## История версий

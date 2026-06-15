@@ -9,6 +9,7 @@ from sqlalchemy import (
     SmallInteger,
     BigInteger,
     Float,
+    Numeric,
     Boolean,
     DateTime,
     Date,
@@ -21,7 +22,9 @@ from sqlalchemy import (
     CheckConstraint,
     Index,
     TypeDecorator,
+    text,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -42,27 +45,43 @@ class SafeArray(TypeDecorator):
         return JSON()
 
 
+# Тип, совместимый и с прод (PostgreSQL → JSONB), и с тестами (SQLite → JSON).
+# На postgres колонка получает JSONB (зеркалит прод-схему), на sqlite — обычный JSON,
+# чтобы in-memory тесты не падали (в sqlite типа JSONB нет).
+JSONBCompat = JSON().with_variant(JSONB(), "postgresql")
+
+
 class User(Base):
     __tablename__ = "users"
     __table_args__ = (
-        CheckConstraint("cohort IN ('owner','family','early_user','external')", name="ck_users_cohort"),
+        CheckConstraint("cohort IN ('owner','family','early_user','external')", name="users_cohort_check"),
         CheckConstraint(
             "pack_name IN ('generic','cardiac','bariatric','female-cycle','respiratory_allergic')",
-            name="ck_users_pack_name",
+            name="users_pack_name_check",
+        ),
+        # На проде kb_status имеет CHECK-констрейнт ck_kb_status.
+        CheckConstraint(
+            "kb_status IS NULL OR kb_status IN ('shared','private','none')",
+            name="ck_kb_status",
         ),
     )
 
-    telegram_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    telegram_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)
     username: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     first_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     last_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     phone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
-    role: Mapped[str] = mapped_column(String(50), default="user", server_default="user")
-    registered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # Зеркалим прод: эти колонки имеют server_default, но NULLable (NOT NULL добавим позже отдельной миграцией).
+    is_active: Mapped[Optional[bool]] = mapped_column(Boolean, default=True, server_default="true", nullable=True)
+    role: Mapped[Optional[str]] = mapped_column(String(50), default="user", server_default="user", nullable=True)
+    registered_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=True
+    )
     last_active: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    timezone: Mapped[str] = mapped_column(String(50), default="Europe/Moscow", server_default="Europe/Moscow")
+    timezone: Mapped[Optional[str]] = mapped_column(
+        String(50), default="Europe/Moscow", server_default="Europe/Moscow", nullable=True
+    )
 
     # Apple Health token for API authentication
     health_token: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, unique=True)
@@ -78,10 +97,15 @@ class User(Base):
     # Set once during /setup; required for panels to show meaningful scores.
     birth_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     height_cm: Mapped[Optional[int]] = mapped_column(SmallInteger, nullable=True)
-    sex: Mapped[str] = mapped_column(String(10), default="male", server_default="male")
+    # Зеркалим прод: server_default есть, но NULLable.
+    sex: Mapped[Optional[str]] = mapped_column(String(10), default="male", server_default="male", nullable=True)
     # Курительный статус для AHA Life's Essential 8.
     # Значения: "never" / "former_5plus" / "former_1to5" / "former_lt1" / "current".
     # NULL = неизвестно (LE8 покажет «нет данных»).
+    # Прод хранит формальный DEFAULT NULL::character varying (это no-op: NULL и так дефолт).
+    # В ORM server_default НЕ задаём — он ломает create_all на SQLite ("unrecognized token").
+    # Чтобы alembic check не показывал ложный дифф по этому no-op-дефолту, он отфильтрован
+    # в database/alembic/env.py через compare_server_default-хук (_compare_server_default).
     smoking_status: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
 
     # Manual calorie targets (for users without Garmin)
@@ -110,8 +134,17 @@ class User(Base):
 
     # Onboarding state machine (Sprint 1a Task 9)
     # Steps: name → age → sex → height → has_garmin → done
-    onboarding_step: Mapped[str] = mapped_column(String(30), default="done", server_default="done")
-    onboarding_data: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")
+    # Зеркалим прод: обе колонки server_default, но NULLable.
+    onboarding_step: Mapped[Optional[str]] = mapped_column(
+        String(30), default="done", server_default="done", nullable=True
+    )
+    onboarding_data: Mapped[Optional[dict]] = mapped_column(
+        JSONBCompat, default=dict, server_default="{}", nullable=True
+    )
+
+    # Статус публикации knowledge_base пользователя: shared / private / none.
+    # NULL = неизвестно. Прод имеет CHECK ck_kb_status (объявлен в __table_args__).
+    kb_status: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
 
     # Relationships
     nutrition_logs: Mapped[List["NutritionLog"]] = relationship(back_populates="user", cascade="all, delete-orphan")
@@ -130,19 +163,26 @@ class User(Base):
 class NutritionLog(Base):
     __tablename__ = "nutrition_log"
     __table_args__ = (
-        UniqueConstraint("user_id", "date", "meal_time", "meal_name", name="uq_nutrition_user_date_meal"),
+        UniqueConstraint(
+            "user_id", "date", "meal_time", "meal_name", name="nutrition_log_user_id_date_meal_time_meal_name_key"
+        ),
         Index("idx_nutrition_user_date", "user_id", "date"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"))
+    # Зеркалим прод: user_id NULLable.
+    user_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), nullable=True
+    )
     date: Mapped[date] = mapped_column(Date, nullable=False)
     meal_time: Mapped[Optional[time]] = mapped_column(Time, nullable=True)
     meal_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    items: Mapped[dict] = mapped_column(JSON, nullable=False)  # JSONB in PostgreSQL
-    totals: Mapped[dict] = mapped_column(JSON, nullable=False)
+    items: Mapped[dict] = mapped_column(JSONBCompat, nullable=False)
+    totals: Mapped[dict] = mapped_column(JSONBCompat, nullable=False)
     photo_paths: Mapped[Optional[List[str]]] = mapped_column(SafeArray, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=True
+    )
 
     # Relationship
     user: Mapped["User"] = relationship(back_populates="nutrition_logs")
@@ -155,12 +195,15 @@ class NutritionLog(Base):
 class Weight(Base):
     __tablename__ = "weights"
     __table_args__ = (
-        UniqueConstraint("user_id", "measured_at", name="uq_weight_user_datetime"),
+        UniqueConstraint("user_id", "measured_at", name="weights_user_id_measured_at_key"),
         Index("idx_weights_user_date", "user_id", "measured_at"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"))
+    # Зеркалим прод: user_id NULLable.
+    user_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), nullable=True
+    )
     measured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     weight: Mapped[float] = mapped_column(Float, nullable=False)
     body_fat: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
@@ -182,12 +225,17 @@ class SupplementLog(Base):
     __table_args__ = (Index("idx_supplements_user_date", "user_id", "date"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"))
+    # Зеркалим прод: user_id NULLable.
+    user_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), nullable=True
+    )
     date: Mapped[date] = mapped_column(Date, nullable=False)
     time: Mapped[Optional[time]] = mapped_column(Time, nullable=True)
     supplement_name: Mapped[str] = mapped_column(String(255), nullable=False)
     dosage: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=True
+    )
 
     # Relationship
     user: Mapped["User"] = relationship(back_populates="supplements")
@@ -196,12 +244,15 @@ class SupplementLog(Base):
 class ActivityLog(Base):
     __tablename__ = "activity_log"
     __table_args__ = (
-        UniqueConstraint("user_id", "date", name="uq_activity_user_date"),
+        UniqueConstraint("user_id", "date", name="activity_log_user_id_date_key"),
         Index("idx_activity_user_date", "user_id", "date"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"))
+    # Зеркалим прод: user_id NULLable.
+    user_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), nullable=True
+    )
     date: Mapped[date] = mapped_column(Date, nullable=False)
     steps: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     active_calories: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
@@ -212,11 +263,16 @@ class ActivityLog(Base):
     heart_rate_avg: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     hrv: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     stress_level: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    source: Mapped[str] = mapped_column(String(50), default="apple_health", server_default="apple_health")
+    # Зеркалим прод: server_default есть, но NULLable.
+    source: Mapped[Optional[str]] = mapped_column(
+        String(50), default="apple_health", server_default="apple_health", nullable=True
+    )
     raw_data: Mapped[Optional[dict]] = mapped_column(
-        JSON, nullable=True
+        JSONBCompat, nullable=True
     )  # For storing full Garmin/Apple Health payload
-    synced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    synced_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=True
+    )
 
     # Relationship
     user: Mapped["User"] = relationship(back_populates="activities")
@@ -224,16 +280,28 @@ class ActivityLog(Base):
 
 class BloodTest(Base):
     __tablename__ = "blood_tests"
-    __table_args__ = (Index("idx_blood_tests_user_date", "user_id", "test_date"),)
+    __table_args__ = (
+        Index("idx_blood_tests_user_date", "user_id", "test_date"),
+        # Уникальный индекс с прода (анализ за дату+тип у пользователя уникален).
+        Index("blood_tests_user_date_type_unique", "user_id", "test_date", "test_type", unique=True),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"))
+    # Зеркалим прод: user_id NULLable.
+    user_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), nullable=True
+    )
     test_date: Mapped[date] = mapped_column(Date, nullable=False)
     test_type: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # "Биохимия", "Гормоны"
-    values: Mapped[dict] = mapped_column(JSON, nullable=False)  # {"cholesterol": 5.66, "LDL": 3.2, ...}
+    values: Mapped[dict] = mapped_column(JSONBCompat, nullable=False)  # {"cholesterol": 5.66, "LDL": 3.2, ...}
     file_path: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Path to PDF file
-    status: Mapped[str] = mapped_column(String(50), default="current", server_default="current")  # current, historical
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # Зеркалим прод: server_default есть, но NULLable.
+    status: Mapped[Optional[str]] = mapped_column(
+        String(50), default="current", server_default="current", nullable=True
+    )  # current, historical
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=True
+    )
 
     # Relationship
     user: Mapped["User"] = relationship(back_populates="blood_tests")
@@ -241,10 +309,18 @@ class BloodTest(Base):
 
 class BodyMeasurement(Base):
     __tablename__ = "body_measurements"
-    __table_args__ = (Index("idx_measurements_user_date", "user_id", "date"),)
+    # На проде индекс idx_measurements_user_date построен по (user_id, measured_at).
+    __table_args__ = (Index("idx_measurements_user_date", "user_id", "measured_at"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"))
+    # Зеркалим прод: user_id NULLable.
+    user_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), nullable=True
+    )
+    # Прод: measured_at timestamptz DEFAULT now(), NULLable.
+    measured_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=True
+    )
     date: Mapped[date] = mapped_column(Date, nullable=False)
     waist_cm: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     neck_cm: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
@@ -253,7 +329,9 @@ class BodyMeasurement(Base):
     thigh_cm: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     biceps_cm: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=True
+    )
 
     # Relationship
     user: Mapped["User"] = relationship(back_populates="body_measurements")
@@ -281,12 +359,170 @@ class UserSettings(Base):
     calorie_goal_pct: Mapped[int] = mapped_column(Integer, default=-15, server_default="-15")
     supplement_reminders_enabled: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     supplement_reminder_time: Mapped[time] = mapped_column(Time, server_default="08:00:00")
-    supplements: Mapped[list] = mapped_column(JSON, default=list, server_default="[]")
+    supplements: Mapped[list] = mapped_column(JSONBCompat, default=list, server_default="[]")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     user: Mapped["User"] = relationship(back_populates="settings")
 
 
-# Таблица audit_log создаётся миграцией database/migrations/add_audit_log.sql
-# и наполняется DB-триггером; ORM-класса нет намеренно (никто не читал).
+class AgentConversation(Base):
+    """История диалога BotkinClaw (in-process AI-агент). Зеркалит прод-таблицу."""
+
+    __tablename__ = "agent_conversations"
+    __table_args__ = (
+        CheckConstraint(
+            "role IN ('user','assistant','tool_use','tool_result')",
+            name="agent_conversations_role_check",
+        ),
+        # На проде created_at DESC.
+        Index("idx_agent_conv_user_created", "user_id", text("created_at DESC")),
+        # Частичный индекс с прода: только строки, где source IS NOT NULL.
+        Index("idx_agent_conv_source", "source", postgresql_where=text("source IS NOT NULL")),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    role: Mapped[str] = mapped_column(Text, nullable=False)
+    content: Mapped[dict] = mapped_column(JSONBCompat, nullable=False)
+    tool_use_id: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    source: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
+class AuditLog(Base):
+    """Аудит доступа к данным (наполняется DB-триггером audit_admin_access). Зеркалит прод."""
+
+    __tablename__ = "audit_log"
+    __table_args__ = (
+        Index("idx_audit_ts", text("ts DESC")),
+        Index("idx_audit_user_table", "db_user", "table_name"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    db_user: Mapped[str] = mapped_column(Text, nullable=False)
+    query_type: Mapped[str] = mapped_column(Text, nullable=False)
+    table_name: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    query_excerpt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
+class BloodPressureLog(Base):
+    """Замеры артериального давления (Omron → Apple Health). Зеркалит прод-таблицу."""
+
+    __tablename__ = "blood_pressure_logs"
+    __table_args__ = (
+        UniqueConstraint("user_id", "measured_at", name="blood_pressure_logs_user_id_measured_at_key"),
+        Index("idx_bp_user_date", "user_id", text("measured_at DESC")),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), nullable=False
+    )
+    measured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    systolic: Mapped[int] = mapped_column(Integer, nullable=False)
+    diastolic: Mapped[int] = mapped_column(Integer, nullable=False)
+    heart_rate: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    source: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=True
+    )
+
+
+class DailySummary(Base):
+    """Дневные агрегаты (orphan-таблица: пуста на проде, не управляется бизнес-логикой). Зеркалит прод."""
+
+    __tablename__ = "daily_summaries"
+    __table_args__ = (
+        UniqueConstraint("user_id", "date", name="daily_summaries_user_id_date_key"),
+        Index("idx_summaries_user_date", "user_id", text("date DESC")),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), nullable=False
+    )
+    date: Mapped[date] = mapped_column(Date, nullable=False)
+    total_calories: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    total_protein: Mapped[Optional[float]] = mapped_column(Numeric(6, 2), nullable=True)
+    total_fats: Mapped[Optional[float]] = mapped_column(Numeric(6, 2), nullable=True)
+    total_carbs: Mapped[Optional[float]] = mapped_column(Numeric(6, 2), nullable=True)
+    had_workout: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
+    sleep_hours: Mapped[Optional[float]] = mapped_column(Numeric(4, 2), nullable=True)
+    weight: Mapped[Optional[float]] = mapped_column(Numeric(5, 2), nullable=True)
+    bp_systolic: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    bp_diastolic: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=True
+    )
+
+
+class LLMUsageLog(Base):
+    """Учёт расхода токенов/стоимости LLM-вызовов. Зеркалит прод-таблицу."""
+
+    __tablename__ = "llm_usage_log"
+    __table_args__ = (
+        Index("idx_llm_usage_created", text("created_at DESC")),
+        Index("idx_llm_usage_purpose", "purpose", text("created_at DESC")),
+        Index("idx_llm_usage_user", "user_id", text("created_at DESC")),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    purpose: Mapped[str] = mapped_column(Text, nullable=False)
+    model: Mapped[str] = mapped_column(Text, nullable=False)
+    input_tokens: Mapped[int] = mapped_column(Integer, server_default="0", nullable=False)
+    output_tokens: Mapped[int] = mapped_column(Integer, server_default="0", nullable=False)
+    cache_creation_tokens: Mapped[int] = mapped_column(Integer, server_default="0", nullable=False)
+    cache_read_tokens: Mapped[int] = mapped_column(Integer, server_default="0", nullable=False)
+    cost_usd: Mapped[float] = mapped_column(Numeric(10, 6), server_default="0", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class SleepRecord(Base):
+    """Записи сна (orphan-таблица: пуста на проде, не управляется бизнес-логикой). Зеркалит прод."""
+
+    __tablename__ = "sleep_records"
+    __table_args__ = (Index("idx_sleep_user_date", "user_id", text("date DESC")),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), nullable=False
+    )
+    date: Mapped[date] = mapped_column(Date, nullable=False)
+    sleep_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    sleep_end: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    duration_hours: Mapped[Optional[float]] = mapped_column(Numeric(4, 2), nullable=True)
+    quality_score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    deep_sleep_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    rem_sleep_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    light_sleep_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    awake_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    source: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=True
+    )
+
+
+class Workout(Base):
+    """Тренировки (пишутся raw-SQL путями apple_health/agent_tools_api). Зеркалит прод-таблицу."""
+
+    __tablename__ = "workouts"
+    __table_args__ = (Index("idx_workouts_user_date", "user_id", text("date DESC")),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), nullable=False
+    )
+    date: Mapped[date] = mapped_column(Date, nullable=False)
+    workout_type: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    duration_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    start_time: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    end_time: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    calories_burned: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    source: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=True
+    )
+    distance_km: Mapped[Optional[float]] = mapped_column(Numeric(8, 3), nullable=True)

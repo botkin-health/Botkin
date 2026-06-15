@@ -124,13 +124,14 @@ AGPL-3.0. Hosted-версия для русскоязычных пользова
 
 Проект работает на выделенном сервере Hetzner. Локальный запуск не поддерживается.
 
-**Деплой:**
+**Деплой — только через GitHub Actions.** Workflow «Deploy prod»: Actions → «Deploy prod» →
+Run workflow, или из CLI:
 ```bash
-./deploy.sh
+gh workflow run deploy-prod.yml -f branch=main
 ```
 
-Скрипт: загружает код на сервер, пересобирает Docker-образ, перезапускает контейнеры.
-Подробнее: `docs/DEPLOYMENT.md`.
+Workflow собирает Docker-образ бота, пушит в GHCR и по SSH тянет его на сервере
+(pull-only, без сборки на сервере). Подробнее: `docs/DEPLOYMENT.md`.
 
 **Диагностика:**
 ```bash
