@@ -26,6 +26,7 @@ function switchTab(tab) {
   const sectionMap = {
     'day': 'day-section',
     'supplements-tab': 'supplements-tab-section',
+    'dashboard': 'dashboard-tab-section',
     'settings': 'settings-section',
   };
   document.querySelectorAll('.tab-panel').forEach(s => s.classList.remove('active'));
@@ -41,6 +42,8 @@ function switchTab(tab) {
   if (tab === 'settings') go('home');
   // When switching to supplements log tab, load the data for current date
   if (tab === 'supplements-tab') loadSupplementsDay();
+  // When switching to dashboard tab, lazy-load the iframe (cached after first open)
+  if (tab === 'dashboard') loadDashboard();
 }
 
 // ── Load settings ───────────────────────────────────────────────────────────
