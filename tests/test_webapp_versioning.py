@@ -2,7 +2,7 @@
 
 Goal: verify that `/webapp/` serves index.html with a cache-busting hash
 substituted into `{{V}}` placeholders, and that the hash changes when
-any of the tracked files (day.js, api.js, day.css) is modified.
+any of the tracked files (day.js, api.js, day.css, settings.css, settings.js) is modified.
 """
 
 import sys
@@ -26,7 +26,7 @@ def test_index_substitutes_version_placeholder():
     # Tracked assets must include ?v=<hash>
     import re
 
-    matches = re.findall(r"(?:day\.js|api\.js|day\.css)\?v=([0-9a-f]+)", body)
+    matches = re.findall(r"(?:day\.js|api\.js|day\.css|settings\.css|settings\.js)\?v=([0-9a-f]+)", body)
     assert matches, f"no versioned assets found in body: {body[:500]}"
     # All versions in one response must be the same hash
     assert len(set(matches)) == 1
