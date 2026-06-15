@@ -9,6 +9,7 @@ Tasks 5-7 of HealthVault Sprint 1a:
   - Task 7: Read endpoints (recent_meals, kb_value, dashboard_summary, user_profile)
 """
 
+import re
 import sys
 import secrets
 import logging
@@ -582,6 +583,79 @@ async def list_kb_keys(user=Depends(get_agent_user)):
         keys.append({"key": k, "type": t, "count": n})
 
     return {"keys": keys, "source": source, "total": len(keys)}
+
+
+_CORRECTION_KEY_RE = re.compile(r"^[a-zA-Z0-9_-]{1,100}$")
+_CORRECTION_MAX_VALUE_LEN = 2000
+
+
+class AgentCorrectionRequest(BaseModel):
+    key: str = Field(..., description="Уникальный ключ факта (snake_case, ≤100 символов)")
+    value: str = Field(..., description="Значение (≤2000 символов)")
+    reason: str = Field("", description="Откуда факт — слова пользователя")
+
+
+@router.post("/add_agent_correction")
+async def add_agent_correction(
+    req: AgentCorrectionRequest,
+    user=Depends(get_agent_user),
+):
+    """Сохранить поправку или новый факт в секцию agent_corrections KB пользователя.
+
+    Агент должен вызывать этот endpoint СРАЗУ при получении корректирующей
+    информации от пользователя (дата операции, диагноз, новый препарат и т.п.).
+    Данные записываются в KB-файл — при следующем разговоре агент увидит их.
+
+    Ключ — только [a-zA-Z0-9_-], длина ≤100. Значение — строка ≤2000 символов.
+    При повторном вызове с тем же ключом значение обновляется.
+    """
+    import json
+    import tempfile
+
+    if not _CORRECTION_KEY_RE.match(req.key):
+        raise HTTPException(
+            status_code=422,
+            detail=f"Недопустимый ключ '{req.key}': только буквы, цифры, _ и -, длина ≤100",
+        )
+    if len(req.value) > _CORRECTION_MAX_VALUE_LEN:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Значение слишком длинное: {len(req.value)} > {_CORRECTION_MAX_VALUE_LEN}",
+        )
+
+    kb_path, source = _resolve_user_kb_path(user)
+    if kb_path is None or not kb_path.exists():
+        raise HTTPException(status_code=404, detail=f"KB не найден для пользователя {user.telegram_id}")
+
+    try:
+        kb = json.loads(kb_path.read_text(encoding="utf-8"))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка чтения {source}: {e}")
+
+    corrections = kb.setdefault("agent_corrections", {})
+    corrections[req.key] = {
+        "value": req.value,
+        "reason": req.reason,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    # Атомарная запись через временный файл
+    try:
+        tmp = tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=kb_path.parent,
+            suffix=".tmp",
+            delete=False,
+        )
+        json.dump(kb, tmp, ensure_ascii=False, indent=2)
+        tmp.flush()
+        tmp.close()
+        Path(tmp.name).replace(kb_path)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка записи KB: {e}")
+
+    return {"status": "ok", "key": req.key, "source": source}
 
 
 @router.get("/open_questions")
