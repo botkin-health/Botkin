@@ -598,5 +598,28 @@ if (picker) picker.addEventListener('change', () => {
   setTimeout(() => { if (isSupplementsTabActive()) loadSupplementsDay(); }, 50);
 });
 
+// ── Profile links ────────────────────────────────────────────────────────────
+let _dashboardUrl = null;
+
+async function loadLinks() {
+  try {
+    const data = await window.API.getLinks();
+    _dashboardUrl = data.dashboard_url || null;
+    const row = document.getElementById('link-dashboard-row');
+    if (row && !_dashboardUrl) {
+      row.classList.add('disabled');
+      row.onclick = null;
+      row.querySelector('.row-sub').textContent = 'Дашборд ещё не создан — напиши /share в боте';
+    }
+  } catch(e) {
+    console.error('Failed to load profile links', e);
+  }
+}
+
+function openDashboard() {
+  if (_dashboardUrl) tg.openLink(_dashboardUrl);
+}
+
 // ── Init ─────────────────────────────────────────────────────────────────────
 load();
+loadLinks();

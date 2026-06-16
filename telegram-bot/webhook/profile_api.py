@@ -215,6 +215,29 @@ async def set_bmr(payload: BmrSettingsPayload, tg_user: dict = Depends(get_tg_us
         db.close()
 
 
+# ── GET /api/profile/links ───────────────────────────────────────────────────
+
+
+@router.get("/api/profile/links")
+async def get_profile_links(tg_user: dict = Depends(get_tg_user)):
+    """Returns dashboard URL for this user (share_token from DB)."""
+    from database import SessionLocal
+    from database.crud import get_user_by_telegram_id
+
+    user_id = tg_user.get("id")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="No user id in initData")
+
+    db = SessionLocal()
+    try:
+        user = get_user_by_telegram_id(db, user_id)
+        token = user.share_token if user else None
+        dashboard_url = f"https://botkin.health/mc/{token}" if token else None
+        return {"dashboard_url": dashboard_url}
+    finally:
+        db.close()
+
+
 # ── PATCH /api/profile/timezone ──────────────────────────────────────────────
 
 

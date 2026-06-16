@@ -74,6 +74,11 @@
       });
     },
 
+    // GET /api/profile/links → {dashboard_url}
+    getLinks() {
+      return request('/api/profile/links');
+    },
+
     // Escape hatch for ad-hoc calls (e.g. /api/settings).
     request,
   };
