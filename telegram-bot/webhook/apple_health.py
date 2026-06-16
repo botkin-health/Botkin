@@ -977,9 +977,12 @@ def _webapp_version() -> str:
 
 async def _serve_index() -> HTMLResponse:
     """Serve index.html with {{V}} placeholder replaced by version hash."""
+    from core._version import __version__
+
     index_path = _webapp_dir / "index.html"
     html = index_path.read_text(encoding="utf-8")
     html = html.replace("{{V}}", _webapp_version())
+    html = html.replace("{{APP_VERSION}}", __version__)  # семантическая версия в футере (#86)
     # Prevent CDN/browser from caching the HTML itself — JS/CSS get cached via ?v=hash
     headers = {"Cache-Control": "no-cache, no-store, must-revalidate"}
     return HTMLResponse(content=html, headers=headers)
