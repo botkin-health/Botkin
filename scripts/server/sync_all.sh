@@ -4,8 +4,10 @@
 # Запускает все pull-источники последовательно, с обработкой ошибок:
 # если один упал — следующие продолжают, в конце выводится сводка.
 #
-# Запускается изнутри контейнера healthvault_bot. Cron на хосте:
-#   5 4 * * * docker exec healthvault_bot bash /app/scripts/server/sync_all.sh >> /var/log/botkin_sync.log 2>&1
+# Запускается изнутри контейнера healthvault_bot под uid 10001 (botkin). Cron на хосте
+# (каждые 30 мин в окне 04–20) с chown pre-step — иначе root-owned файлы от Mac-пайплайна
+# ломают sync с PermissionError (подробно: docs/DEPLOYMENT.md):
+#   */30 4-20 * * * docker exec -u 0 healthvault_bot chown -R 10001:10001 /app/data /app/logs >> /var/log/botkin_sync.log 2>&1 ; docker exec healthvault_bot bash /app/scripts/server/sync_all.sh >> /var/log/botkin_sync.log 2>&1
 #
 # Логи смотрятся одной командой:
 #   ssh root@server 'tail -50 /var/log/botkin_sync.log'
