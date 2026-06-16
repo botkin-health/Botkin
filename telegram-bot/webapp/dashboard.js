@@ -16,15 +16,16 @@ async function loadDashboard() {
     const r = await fetch('/api/dashboard_url', {
       headers: { Authorization: 'tma ' + (tgDash?.initData || '') },
     });
-    if (r.status === 404) {
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const { token } = await r.json();
+    if (!token) {
+      // no-user (mini-app открыт до /start): эндпоинт отдаёт 200 {token:null}.
+      // Подсказка без Retry — повтор всё равно вернёт null, пока юзер не нажал /start.
       container.innerHTML = dashboardEmptyState(
         'Открой бота командой /start, потом вернись сюда — дашборд появится.'
       );
       return;
     }
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    const { token } = await r.json();
-    if (!token) throw new Error('empty token');
 
     const iframe = document.createElement('iframe');
     iframe.className = 'dashboard-frame';
