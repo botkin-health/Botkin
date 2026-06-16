@@ -13,6 +13,7 @@ from datetime import datetime
 from core.infra.tz import MSK  # noqa: E402  (общая TZ проекта)
 from pathlib import Path
 import html
+import math
 import os
 import logging
 
@@ -24,12 +25,18 @@ MAX_COMPONENT_NAME_LEN = 100
 MAX_COMPONENTS = 20  # верхняя граница числа items из одного фото
 
 
-def _safe_float(value):
-    """Числовое поле из vision/LLM → float или None (не падаем на 'много')."""
+def _safe_float(value: object) -> float | None:
+    """Числовое поле из vision/LLM → конечный float или None.
+
+    Не падаем на 'много'/None и не пропускаем inf/nan дальше в арифметику ккал.
+    """
     try:
-        return float(value) if value is not None else None
+        result = float(value) if value is not None else None
     except (TypeError, ValueError):
         return None
+    if result is None or not math.isfinite(result):
+        return None
+    return result
 
 
 async def safe_edit_text(message: Message, text: str, **kwargs):
@@ -1040,7 +1047,12 @@ async def handle_description(
 
     # Это ЕДА
     llm_data = router_result
-    logger.info(f"📊 Calling process_llm_food_data with llm_data: {llm_data}")
+    # Не логируем сырой dict целиком: dish_name/items из LLM могут содержать \n
+    # (log injection). Логируем только тип и число позиций.
+    _ld_data = llm_data.get("data", {}) if isinstance(llm_data, dict) else {}
+    logger.info(
+        f"📊 Calling process_llm_food_data: type={llm_data.get('type')}, items={len(_ld_data.get('items', []))}"
+    )
     meal_items, meal_totals = process_llm_food_data(llm_data, description=full_description)
     logger.info(
         f"📊 process_llm_food_data returned: items={len(meal_items) if meal_items else 0}, totals={meal_totals}"
@@ -1089,11 +1101,12 @@ async def handle_description(
 
     # Формируем ответ
 
-    response = f"🍽️ <b>{meal_name}</b>\n\n"
+    # Экранируем названия из vision/LLM/подписи перед вставкой в HTML (issue #115, anti-XSS).
+    response = f"🍽️ <b>{html.escape(str(meal_name))}</b>\n\n"
     for item in meal_items:
         w_str = f"{item['weight_g']}г" if item.get("weight_g") else "?"
         cal = item.get("calories", 0)
-        response += f"• {item['product']} ({w_str}) — {int(cal)} ккал\n"
+        response += f"• {html.escape(str(item['product']))} ({w_str}) — {int(cal)} ккал\n"
 
     response += f"\n📊 <b>Итого: {int(meal_totals['calories'])} ккал</b>\n"
     response += f"Б: {int(meal_totals['protein'])} | Ж: {int(meal_totals['fats'])} | У: {int(meal_totals['carbs'])}"
@@ -1120,8 +1133,9 @@ def build_router_result_from_menu_data(menu_data: dict, caption: str = "") -> di
     """
     components = (menu_data.get("components") or [])[:MAX_COMPONENTS]
     base_dish = menu_data.get("dish_name", "Блюдо из меню")
-    # Экранируем и ограничиваем подпись: она идёт в dish_name (HTML-сообщения) и в БД.
-    caption_hint = html.escape((caption or "").strip()[:MAX_CAPTION_HINT_LEN])
+    # Подпись храним сырой (она идёт в БД как часть meal_name); HTML-экранирование —
+    # на рендере сообщения, не здесь, чтобы не пачкать данные сущностями.
+    caption_hint = (caption or "").strip()[:MAX_CAPTION_HINT_LEN]
 
     if len(components) >= 2:
         dish_name = f"{base_dish} ({caption_hint})" if caption_hint else base_dish

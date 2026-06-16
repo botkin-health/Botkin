@@ -3,6 +3,7 @@
 Сервис для расчёта КБЖУ с интеграцией новых модулей извлечения весов
 """
 
+import html
 import os
 import logging
 import re
@@ -40,7 +41,7 @@ SIDE_DISH_PORTION_WEIGHT_G = 150.0  # гарнир / каша
 
 _BOWL_KEYWORDS = ("боул", "bowl", "поке", "poke", "тарелк", "салат-боул")
 _SOUP_KEYWORDS = ("суп", "soup", "борщ", "щи", "солянк", "крем-суп", "бульон")
-_SIDE_DISH_KEYWORDS = ("гарнир", "каша", "каши", "овсянк")
+_SIDE_DISH_KEYWORDS = ("гарнир", "каша", "каши", "овсянк")  # «каши» (мн.ч.) ≠ подстрока «каша»
 
 
 def estimate_default_weight(dish_name: str) -> float:
@@ -343,7 +344,7 @@ def check_density_sanity(items: List[Dict], threshold: float = SALAD_DENSITY_THR
             calories = float(it.get("calories") or 0)
         except (TypeError, ValueError):
             continue
-        if weight <= 0:
+        if weight <= 0 or calories < 0:
             continue
         density = calories / weight * 100
         if density > threshold:
@@ -353,11 +354,13 @@ def check_density_sanity(items: List[Dict], threshold: float = SALAD_DENSITY_THR
 
 def _format_kcal_mismatch_line(w: Dict) -> str:
     sign = "+" if w["diff"] > 0 else ""
-    return f"• {w['name']}: записано {int(w['stated'])} ккал, по БЖУ ≈ {int(w['macro'])} ({sign}{int(w['diff'])})"
+    name = html.escape(str(w["name"]))  # имя из vision/LLM → HTML-сообщение
+    return f"• {name}: записано {int(w['stated'])} ккал, по БЖУ ≈ {int(w['macro'])} ({sign}{int(w['diff'])})"
 
 
 def _format_density_line(w: Dict) -> str:
-    return f"❓ {w['name']}: калорийнее обычного салата ({w['density']:.0f} ккал/100г) — проверь вес/заправку"
+    name = html.escape(str(w["name"]))  # имя из vision/LLM → HTML-сообщение
+    return f"❓ {name}: калорийнее обычного салата ({w['density']:.0f} ккал/100г) — проверь вес/заправку"
 
 
 def format_kcal_warning(meal_totals: Dict) -> str:

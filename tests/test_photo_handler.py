@@ -388,3 +388,31 @@ def test_build_router_result_single_component_collapses():
     items = result["data"]["items"]
     assert len(items) == 1
     assert items[0]["calories"] == 300
+
+
+def test_build_router_result_single_component_collapses_boundary():
+    """Ровно 1 компонент (граница условия ≥2) → один item из итогов menu_data."""
+    from handlers.photo import build_router_result_from_menu_data
+
+    menu_data = {
+        "dish_name": "Суп",
+        "calories": 200,
+        "weight": 300,
+        "components": [{"name": "суп", "weight": 300, "calories": 200}],
+    }
+
+    result = build_router_result_from_menu_data(menu_data, caption="обед")
+
+    assert len(result["data"]["items"]) == 1
+
+
+def test_safe_float_rejects_inf_nan_and_garbage():
+    """_safe_float: inf/nan/'много'/None → None; нормальные числа → float."""
+    from handlers.photo import _safe_float
+
+    assert _safe_float("много") is None
+    assert _safe_float(None) is None
+    assert _safe_float(float("inf")) is None
+    assert _safe_float(float("nan")) is None
+    assert _safe_float("12.5") == 12.5
+    assert _safe_float(0) == 0.0

@@ -248,3 +248,24 @@ def test_collect_meal_warnings_skips_kcal_check_for_alcohol():
     warns = _collect_meal_warnings(items, has_alcohol=True)
 
     assert warns == []
+
+
+def test_format_kcal_warning_escapes_html_in_name():
+    """Имя блюда от LLM с HTML-тегами экранируется (anti-XSS, issue #115)."""
+    from core.food.nutrition import format_kcal_warning
+
+    totals = {"kcal_warnings": [{"name": "<b>салат</b>", "density": 260.0, "weight": 100.0}]}
+
+    text = format_kcal_warning(totals)
+
+    assert "<b>салат</b>" not in text
+    assert "&lt;b&gt;салат&lt;/b&gt;" in text
+
+
+def test_check_density_sanity_ignores_negative_calories():
+    """Отрицательные ккал (галлюцинация LLM) не дают ложный/тихий density-флаг."""
+    from core.food.nutrition import check_density_sanity
+
+    items = [{"product": "салат", "weight_g": 100.0, "calories": -50.0}]
+
+    assert check_density_sanity(items) == []
