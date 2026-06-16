@@ -22,11 +22,15 @@ API неофициальный (pylibrelinkup) — может меняться; 
 import argparse
 import os
 import sys
+import logging
+import threading
 from pathlib import Path
 
 import psycopg2
 from psycopg2.extras import Json
 from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 load_dotenv(ROOT / ".env")
@@ -70,8 +74,12 @@ def measurement_to_row(m) -> dict:
 
 
 def dedupe_by_ts(rows: list[dict]) -> list[dict]:
-    """Схлопнуть точки с одинаковым ts (graph и latest пересекаются), сортировка по времени."""
-    by_ts = {r["ts"]: r for r in rows}
+    """Схлопнуть точки с одинаковым ts (graph и latest пересекаются), сортировка по времени.
+
+    Точки без ts (None — теоретически, если API не отдал factory_timestamp) отбрасываем,
+    иначе sort упадёт на сравнении None с datetime.
+    """
+    by_ts = {r["ts"]: r for r in rows if r["ts"] is not None}
     return sorted(by_ts.values(), key=lambda r: r["ts"])
 
 
@@ -108,16 +116,22 @@ def get_client():
 # на каждый вопрос про глюкозу. pylibrelinkup сам делает re-login при протухшем JWT;
 # на любой ошибке pull сбрасываем кэш (get_cached_client(reset=True)).
 _cached_client = None
+_cached_client_lock = threading.Lock()
 
 
 def get_cached_client(reset: bool = False):
-    """Вернуть переиспользуемый авторизованный клиент (создаёт при первом вызове)."""
+    """Вернуть переиспользуемый авторизованный клиент (создаёт при первом вызове).
+
+    Под защитой lock — on-demand refresh зовётся из asyncio.to_thread, возможны
+    параллельные вызовы (две глюкозы-вопроса одновременно).
+    """
     global _cached_client
-    if reset:
-        _cached_client = None
-    if _cached_client is None:
-        _cached_client = get_client()
-    return _cached_client
+    with _cached_client_lock:
+        if reset:
+            _cached_client = None
+        if _cached_client is None:
+            _cached_client = get_client()
+        return _cached_client
 
 
 def refresh_glucose_for_telegram(telegram_id: int, db_url: str | None = None) -> int:
@@ -146,8 +160,8 @@ def refresh_glucose_for_telegram(telegram_id: int, db_url: str | None = None) ->
                 measurements = [measurement_to_row(m) for m in client.graph(patient)]
                 try:
                     measurements.append(measurement_to_row(client.latest(patient)))
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("latest() недоступен для %s: %s", target_pid, e)
             except Exception:
                 # Протухший токен / сетевой сбой — сбросить кэш и повторить один раз.
                 client = get_cached_client(reset=True)
@@ -157,8 +171,8 @@ def refresh_glucose_for_telegram(telegram_id: int, db_url: str | None = None) ->
                 measurements = [measurement_to_row(m) for m in client.graph(patient)]
                 try:
                     measurements.append(measurement_to_row(client.latest(patient)))
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("latest() недоступен для %s: %s", target_pid, e)
 
             rows = dedupe_by_ts(measurements)
             ins, upd = upsert_rows(cur, telegram_id, rows)
