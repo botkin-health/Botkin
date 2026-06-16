@@ -122,3 +122,56 @@ def test_ambiguous_bare_keys_not_mapped():
     assert "HCT" not in canon
     assert "neutrophils" not in canon
     assert canon == {}
+
+
+# ── US-единицы (issue #95: панель Маккаби в g/dL · mg/dL) ────────────────────
+
+
+def test_alkp_alias_maps_to_alp():
+    # ALKP (Maccabi) — щелочная фосфатаза, должна маппиться в ALP.
+    canon, _ = to_canonical({"ALKP": 55})
+    assert canon["ALP"] == 55
+
+
+def test_us_conversion_via_unit_system_param():
+    # US-панель: g/dL · mg/dL → метрика. unit_system передан явно.
+    canon, _ = to_canonical(
+        {"albumin": 5.1, "glucose": 86, "creatinine": 0.97, "iron": 109, "LDL": 127.4},
+        unit_system="US",
+    )
+    assert math.isclose(canon["albumin_g_l"], 51.0, rel_tol=1e-6)  # 5.1 g/dL → 51 g/L (×10)
+    assert math.isclose(canon["glucose"], 86 / 18.0156, rel_tol=1e-6)  # mg/dL → ммоль/л
+    assert math.isclose(canon["creatinine"], 0.97 * 88.42, rel_tol=1e-6)  # mg/dL → мкмоль/л
+    assert math.isclose(canon["iron"], 109 * 0.1791, rel_tol=1e-6)  # µg/dL → мкмоль/л
+    assert math.isclose(canon["LDL"], 127.4 / 38.67, rel_tol=1e-6)  # mg/dL → ммоль/л
+
+
+def test_us_conversion_via_values_carrier_key():
+    # _unit_system в самом values (как доезжает из Postgres JSONB) включает конверсию;
+    # сам служебный ключ не попадает в canon.
+    canon, _ = to_canonical({"_unit_system": "US", "albumin": 5.1})
+    assert math.isclose(canon["albumin_g_l"], 51.0, rel_tol=1e-6)
+    assert "_unit_system" not in canon
+
+
+def test_metric_unchanged_without_unit_system():
+    # Анти-регресс: без признака US ничего не конвертируется (метрический KB).
+    canon, _ = to_canonical({"albumin_g_l": 42.0, "glucose": 5.3, "creatinine": 92})
+    assert canon["albumin_g_l"] == 42.0
+    assert canon["glucose"] == 5.3
+    assert canon["creatinine"] == 92
+
+
+def test_us_same_unit_analyte_unchanged():
+    # Аналиты с одинаковой единицей в US и метрике (Ед/л, %) под US не меняются.
+    canon, _ = to_canonical(
+        {"_unit_system": "US", "ALKP": 55, "ALT": 15},
+    )
+    assert canon["ALP"] == 55
+    assert canon["ALT"] == 15
+
+
+def test_explicit_unit_system_overrides_carrier():
+    # Явный параметр важнее ключа в values.
+    canon, _ = to_canonical({"_unit_system": "US", "albumin_g_l": 42.0}, unit_system="metric")
+    assert canon["albumin_g_l"] == 42.0
