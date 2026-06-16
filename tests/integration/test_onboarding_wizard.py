@@ -39,51 +39,63 @@ async def test_new_user_creates_row_and_asks_name(MockSession, mock_send):
 @pytest.mark.asyncio
 @patch("handlers.onboarding.send_message", new_callable=AsyncMock)
 @patch("handlers.onboarding.SessionLocal")
-async def test_age_step_advances_on_valid_number(MockSession, mock_send):
-    """User in 'age' step sends valid age → advances to 'sex' step."""
+async def test_birth_date_step_advances_on_valid_date(MockSession, mock_send):
+    """User in 'birth_date' step sends valid date → advances to 'sex' step.
+
+    Возраст в текущей FSM выводится из даты рождения (шаг 2/10), отдельного
+    шага 'age' нет — см. handlers.onboarding._run_step.
+    """
     db = MagicMock()
     MockSession.return_value = db
-    user = MagicMock(telegram_id=999888, onboarding_step="age", onboarding_data={"name": "Андрей"})
+    user = MagicMock(telegram_id=999888, onboarding_step="birth_date", onboarding_data={"name": "Андрей"})
     db.query.return_value.filter_by.return_value.first.return_value = user
 
     from handlers.onboarding import process_onboarding_message
 
-    payload = {"message": {"from": {"id": 999888}, "chat": {"id": 999888}, "text": "35"}}
+    payload = {"message": {"from": {"id": 999888}, "chat": {"id": 999888}, "text": "20.08.1990"}}
     await process_onboarding_message(payload)
 
     assert user.onboarding_step == "sex"
+    # Возраст посчитан из даты рождения и записан в onboarding_data
+    assert isinstance(user.onboarding_data.get("age"), int)
     mock_send.assert_awaited_once()
 
 
 @pytest.mark.asyncio
 @patch("handlers.onboarding.send_message", new_callable=AsyncMock)
 @patch("handlers.onboarding.SessionLocal")
-async def test_age_step_rejects_invalid(MockSession, mock_send):
-    """User in 'age' step sends non-number → stays at 'age'."""
+async def test_birth_date_step_rejects_invalid(MockSession, mock_send):
+    """User in 'birth_date' step sends garbage → stays at 'birth_date'."""
     db = MagicMock()
     MockSession.return_value = db
-    user = MagicMock(telegram_id=999888, onboarding_step="age", onboarding_data={"name": "Андрей"})
+    user = MagicMock(telegram_id=999888, onboarding_step="birth_date", onboarding_data={"name": "Андрей"})
     db.query.return_value.filter_by.return_value.first.return_value = user
 
     from handlers.onboarding import process_onboarding_message
 
-    payload = {"message": {"from": {"id": 999888}, "chat": {"id": 999888}, "text": "не число"}}
+    payload = {"message": {"from": {"id": 999888}, "chat": {"id": 999888}, "text": "не дата"}}
     await process_onboarding_message(payload)
 
-    assert user.onboarding_step == "age"  # didn't advance
+    assert user.onboarding_step == "birth_date"  # didn't advance
+    mock_send.assert_awaited_once()  # re-prompted with format hint
 
 
 @pytest.mark.asyncio
 @patch("handlers.onboarding.send_message", new_callable=AsyncMock)
 @patch("handlers.onboarding.SessionLocal")
-async def test_has_garmin_step_completes_onboarding(MockSession, mock_send):
-    """Last step: user gets health_token in message."""
+async def test_wearables_step_completes_onboarding(MockSession, mock_send):
+    """Last step ('wearables'): «Нет» finishes onboarding and issues health_token.
+
+    Завершение в текущей FSM происходит на шаге 'wearables' (ответ «Нет»/«Готово»),
+    отдельного шага 'has_garmin' нет — см. handlers.onboarding._run_step / _finish_onboarding.
+    """
     db = MagicMock()
     MockSession.return_value = db
     user = MagicMock(
         telegram_id=999888,
-        onboarding_step="has_garmin",
+        onboarding_step="wearables",
         onboarding_data={"name": "Андрей", "age": 35, "sex": "M", "height_cm": 178},
+        birth_date=None,  # возраст берётся из onboarding_data, без арифметики над MagicMock
         health_token=None,
     )
     db.query.return_value.filter_by.return_value.first.return_value = user
@@ -96,6 +108,8 @@ async def test_has_garmin_step_completes_onboarding(MockSession, mock_send):
     assert user.onboarding_step == "done"
     assert user.health_token is not None
     assert user.health_token.startswith("hvt_999888_")
-    # Check that health_token is mentioned in the final message
+    # Финальная сводка отправлена. Сырой health_token в чат больше НЕ печатается
+    # (он отдаётся через мини-аппу / apple-connect), поэтому проверяем сам факт
+    # сообщения о завершении, а не наличие токена в тексте.
     sent_text = mock_send.call_args.args[1]
-    assert "hvt_" in sent_text or "health" in sent_text.lower()
+    assert "Готово" in sent_text
