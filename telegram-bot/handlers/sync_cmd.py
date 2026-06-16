@@ -96,6 +96,13 @@ SOURCES = {
         "Zepp (весы)",
         "/app/data/zepp_export_latest.csv",
     ),
+    # CGM-глюкоза (Abbott Libre 3 → LibreLinkUp). Пишет в БД glucose_readings,
+    # файла свежести нет → в /sync status покажет "—". См. #96/#129.
+    "glucose": (
+        "/app/scripts/import/librelinkup.py",
+        "Глюкоза (CGM)",
+        None,
+    ),
 }
 
 

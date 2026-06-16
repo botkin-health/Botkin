@@ -11,8 +11,10 @@ Tasks 5-7 of HealthVault Sprint 1a:
 
 import re
 import sys
+import asyncio
 import secrets
 import logging
+import importlib.util
 from datetime import datetime, date, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -32,6 +34,23 @@ from webhook.jwt_auth import get_agent_user, get_db  # noqa: E402
 from core.health.glucose_stats import compute_glucose_stats  # noqa: E402
 
 logger = logging.getLogger(__name__)
+
+# On-demand refresh глюкозы (#129): импортёр живёт в scripts/import/ (не пакет — import зарезервирован).
+_glucose_importer = None
+
+
+def _load_glucose_importer():
+    global _glucose_importer
+    if _glucose_importer is None:
+        _p = Path(__file__).resolve().parents[2] / "scripts" / "import" / "librelinkup.py"
+        _spec = importlib.util.spec_from_file_location("librelinkup_import", _p)
+        if _spec is None or _spec.loader is None:
+            raise ImportError(f"Не удалось загрузить импортёр LibreLinkUp из {_p}")
+        _mod = importlib.util.module_from_spec(_spec)
+        _spec.loader.exec_module(_mod)
+        _glucose_importer = _mod
+    return _glucose_importer
+
 
 router = APIRouter(prefix="/api/agent", tags=["agent-tools"])
 
@@ -511,6 +530,13 @@ async def recent_glucose(
     """
     if hours < 1 or hours > 168:
         raise HTTPException(status_code=400, detail="hours must be between 1 and 168")
+
+    # On-demand: подтянуть свежую глюкозу для этого юзера прямо сейчас (#129).
+    # Сетевой sync-вызов — в threadpool; ошибка pull не валит ответ (fallback на данные БД).
+    try:
+        await asyncio.to_thread(_load_glucose_importer().refresh_glucose_for_telegram, user.telegram_id)
+    except Exception as e:
+        logger.warning("recent_glucose: on-demand refresh не удался для %s: %s", user.telegram_id, e)
 
     max_points = 96
     since = datetime.now(timezone.utc) - timedelta(hours=hours)

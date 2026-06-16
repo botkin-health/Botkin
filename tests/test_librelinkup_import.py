@@ -1,6 +1,7 @@
-"""Импортёр LibreLinkUp: парсинг измерений, конвертация единиц, дедуп (#96)."""
+"""Импортёр LibreLinkUp: парсинг измерений, конвертация единиц, дедуп, on-demand refresh (#96, #129)."""
 
 import importlib.util
+import types
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import UUID
@@ -14,10 +15,11 @@ llu = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(llu)
 
 
-def _gm(ts, mgdl):
+def _gm(factory, mgdl, local=None):
+    # factory = UTC (хранится в ts); local = наивное локальное (в ts попадать НЕ должно).
     return GlucoseMeasurement(
-        FactoryTimestamp=ts,
-        Timestamp=ts,
+        FactoryTimestamp=factory,
+        Timestamp=local or factory,
         Type=1,
         ValueInMgPerDl=mgdl,
         MeasurementColor=1,
@@ -28,10 +30,10 @@ def _gm(ts, mgdl):
     )
 
 
-def _gm_trend(ts, mgdl, trend):
+def _gm_trend(factory, mgdl, trend, local=None):
     return GlucoseMeasurementWithTrend(
-        FactoryTimestamp=ts,
-        Timestamp=ts,
+        FactoryTimestamp=factory,
+        Timestamp=local or factory,
         Type=1,
         ValueInMgPerDl=mgdl,
         MeasurementColor=1,
@@ -108,3 +110,81 @@ def test_collect_rows_dedups_graph_and_latest():
     rows = result["999b0098-6ac0-11ee-89dc-f22a02593d8c"]
     assert len(rows) == 2  # ts2 из graph и latest схлопнулись
     assert rows[1]["trend"] == 4  # UP_SLOW от latest перезаписал graph-точку
+
+
+def test_ts_uses_factory_timestamp_not_local():
+    """Регресс #129: ts = factory_timestamp (UTC, tz-aware), а НЕ наивное локальное .timestamp."""
+    factory = datetime(2026, 6, 16, 21, 50, tzinfo=timezone.utc)  # UTC
+    local = datetime(2026, 6, 17, 0, 50)  # наивное МСК (+3) — не должно попасть в ts
+    row = llu.measurement_to_row(_gm(factory, 99.0, local=local))
+    assert row["ts"] == factory
+    assert row["ts"].tzinfo is not None  # tz-aware → корректно ляжет в timestamptz
+    assert row["raw"]["timestamp_local"].startswith("2026-06-17T00:50")
+    assert row["raw"]["factory_timestamp"].startswith("2026-06-16T21:50")
+
+
+# ── on-demand refresh (#129) ──────────────────────────────────────────────────
+
+_PID = "999b0098-6ac0-11ee-89dc-f22a02593d8c"
+
+
+class _FakeCursor:
+    def __init__(self, pid):
+        self._pid = pid
+        self._last = ""
+        self.inserts = 0
+
+    def execute(self, sql, params=None):
+        self._last = sql
+        if "INSERT INTO glucose_readings" in sql:
+            self.inserts += 1
+
+    def fetchone(self):
+        if "SELECT patient_id" in self._last:
+            return (self._pid,) if self._pid else None
+        if "INSERT INTO glucose_readings" in self._last:
+            return (True,)  # was_inserted
+        return None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+
+class _FakeConn:
+    def __init__(self, cur):
+        self._cur = cur
+
+    def cursor(self):
+        return self._cur
+
+    def commit(self):
+        pass
+
+    def close(self):
+        pass
+
+
+def test_refresh_no_mapping_skips_network(monkeypatch):
+    cur = _FakeCursor(None)  # SELECT patient_id → None (юзер не привязан)
+    monkeypatch.setattr(llu, "psycopg2", types.SimpleNamespace(connect=lambda url: _FakeConn(cur)))
+    called = []
+    monkeypatch.setattr(llu, "get_cached_client", lambda reset=False: called.append(1))
+
+    n = llu.refresh_glucose_for_telegram(999, db_url="postgresql://x")
+    assert n == 0
+    assert not called  # без привязки в сеть не ходим
+
+
+def test_refresh_with_mapping_upserts(monkeypatch):
+    cur = _FakeCursor(_PID)
+    monkeypatch.setattr(llu, "psycopg2", types.SimpleNamespace(connect=lambda url: _FakeConn(cur)))
+    ts1 = datetime(2026, 6, 16, 12, 0, tzinfo=timezone.utc)
+    ts2 = datetime(2026, 6, 16, 12, 5, tzinfo=timezone.utc)
+    monkeypatch.setattr(llu, "get_cached_client", lambda reset=False: _FakeClient(ts1, ts2))
+
+    n = llu.refresh_glucose_for_telegram(895655, db_url="postgresql://x")
+    assert n == 2  # 2 дедуп-точки апсертнуты
+    assert cur.inserts == 2
