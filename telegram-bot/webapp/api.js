@@ -74,9 +74,9 @@
       });
     },
 
-    // GET /api/profile/links → {dashboard_url}
-    getLinks() {
-      return request('/api/profile/links');
+    // GET /api/dashboard_url → {token, dashboard_url} (единый дашборд-эндпоинт, #114)
+    getDashboardUrl() {
+      return request('/api/dashboard_url');
     },
 
     // Escape hatch for ad-hoc calls (e.g. /api/settings).
