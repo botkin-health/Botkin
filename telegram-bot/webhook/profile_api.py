@@ -11,6 +11,7 @@ Endpoints:
   PATCH /api/profile/timezone — update user timezone (called by WebApp on every open)
 """
 
+import os
 from datetime import date as date_cls, datetime as dt_cls, timedelta
 from typing import Optional, Literal
 
@@ -215,30 +216,6 @@ async def set_bmr(payload: BmrSettingsPayload, tg_user: dict = Depends(get_tg_us
         db.close()
 
 
-# ── GET /api/profile/links ───────────────────────────────────────────────────
-
-
-@router.get("/api/profile/links")
-async def get_profile_links(tg_user: dict = Depends(get_tg_user)):
-    """Returns dashboard URL, auto-creating share_token if the user doesn't have one yet."""
-    from database import SessionLocal
-    from database.crud import get_user_by_telegram_id, generate_share_token
-
-    user_id = tg_user.get("id")
-    if not user_id:
-        raise HTTPException(status_code=400, detail="No user id in initData")
-
-    db = SessionLocal()
-    try:
-        user = get_user_by_telegram_id(db, user_id)
-        if not user:
-            return {"dashboard_url": None}
-        token = generate_share_token(db, user_id)
-        return {"dashboard_url": f"https://botkin.health/mc/{token}"}
-    finally:
-        db.close()
-
-
 # ── PATCH /api/profile/timezone ──────────────────────────────────────────────
 
 
@@ -275,14 +252,25 @@ async def patch_timezone(payload: TimezonePayload, tg_user: dict = Depends(get_t
 # ── GET /api/dashboard_url ───────────────────────────────────────────────────
 
 
+def _public_base() -> str:
+    """Базовый публичный URL дашборда (без хвостового слэша).
+
+    Из env BOTKIN_PUBLIC_URL — чтобы не хардкодить домен (#114). Дефолт —
+    прод-домен botkin.health.
+    """
+    return os.getenv("BOTKIN_PUBLIC_URL", "https://botkin.health").rstrip("/")
+
+
 @router.get("/api/dashboard_url")
 async def get_dashboard_url(tg_user: dict = Depends(get_tg_user)):
-    """Return the current user's share token so the mini-app can embed the
-    dashboard (/mc/{token}) in an iframe.
+    """Единый дашборд-эндпоинт mini-app (#114): отдаёт `{token, dashboard_url}`.
 
-    Idempotent: reuses the user's existing share_token or generates one on first
-    call (same token as /share — never published anywhere but the user's own
-    mini-app). 404 if the user row doesn't exist yet (mini-app opened before /start).
+    - `token` → mini-app встраивает дашборд `/mc/{token}` в iframe (вкладка «Здоровье»).
+    - `dashboard_url` → абсолютная ссылка (Настройки: открыть/скопировать, поделиться).
+
+    Идемпотентен: переиспользует share_token юзера или создаёт при первом вызове
+    (тот же токен, что у /share). No-user (mini-app открыт до /start) → оба null.
+    Заменил дублирующий /api/profile/links.
     """
     from database import SessionLocal
     from database.crud import generate_share_token
@@ -295,8 +283,8 @@ async def get_dashboard_url(tg_user: dict = Depends(get_tg_user)):
     try:
         token = generate_share_token(db, user_id)
     except ValueError:
-        raise HTTPException(status_code=404, detail="User not found")
+        return {"token": None, "dashboard_url": None}  # юзера ещё нет
     finally:
         db.close()
 
-    return {"token": token}
+    return {"token": token, "dashboard_url": f"{_public_base()}/mc/{token}"}

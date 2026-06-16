@@ -1,8 +1,11 @@
-"""Tests for GET /api/dashboard_url — mini-app dashboard tab token endpoint.
+"""Tests for GET /api/dashboard_url — единый дашборд-эндпоинт mini-app (#114).
 
-The endpoint hands the authenticated Telegram user their share_token so the
-mini-app can embed /mc/{token} in an iframe. It must be idempotent (reuse the
-existing token) and 404 when the user row doesn't exist yet.
+Отдаёт авторизованному Telegram-юзеру `{token, dashboard_url}`:
+  - token        → для iframe `/mc/{token}` (вкладка «Здоровье»)
+  - dashboard_url → абсолютная ссылка (открыть/скопировать в Настройках)
+Идемпотентен (переиспользует share_token); no-user → оба null (200).
+Домен берётся из env BOTKIN_PUBLIC_URL (по умолчанию https://botkin.health).
+Заменил дублирующий /api/profile/links.
 """
 
 import sys
@@ -63,10 +66,21 @@ def test_dashboard_url_generates_token_for_user_without_one(client, api_db):
     # Act
     r = client.get("/api/dashboard_url")
 
-    # Assert
+    # Assert — token + absolute dashboard_url, согласованные между собой
     assert r.status_code == 200
-    token = r.json()["token"]
+    body = r.json()
+    token = body["token"]
     assert token  # non-empty
+    assert body["dashboard_url"] == f"https://botkin.health/mc/{token}"
+
+
+def test_dashboard_url_base_from_env(client, api_db, monkeypatch):
+    monkeypatch.setenv("BOTKIN_PUBLIC_URL", "https://example.test")
+    api_db.add(User(telegram_id=895655, first_name="Test", share_token="abc"))
+    api_db.commit()
+
+    body = client.get("/api/dashboard_url").json()
+    assert body["dashboard_url"] == "https://example.test/mc/abc"
 
 
 def test_dashboard_url_returns_existing_token(client, api_db):
@@ -89,7 +103,11 @@ def test_dashboard_url_is_idempotent(client, api_db):
     assert first == second  # token generated once, reused thereafter
 
 
-def test_dashboard_url_404_when_no_user(client):
-    # No user row inserted — mini-app opened before /start
+def test_dashboard_url_null_when_no_user(client):
+    # No user row inserted — mini-app opened before /start.
+    # null-friendly 200 (не 404), чтобы оба потребителя (вкладка + ссылка) отрабатывали штатно.
     r = client.get("/api/dashboard_url")
-    assert r.status_code == 404
+    assert r.status_code == 200
+    body = r.json()
+    assert body["token"] is None
+    assert body["dashboard_url"] is None
