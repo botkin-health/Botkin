@@ -114,7 +114,7 @@
 - 🟢 Telegram long-polling adapter, agent group "Alex"
 - 🟢 MCP server "botkin" с 7 tools → реальные данные Alex из Postgres через JWT
 - 🟢 Health context CLAUDE.local.md (семейный анамнез, текущие цифры, цели)
-- 🟢 Auto-chown systemd timer (фикс readonly-db после restart)
+- ~~🟢 Auto-chown systemd timer (фикс readonly-db после restart)~~ → **закрыто 16.06.2026**: systemd-таймер ушёл вместе с откатом NanoClaw (`systemctl list-timers` пуст). Права на bind-mount данных теперь чинит chown pre-step в host-cron перед `sync_all.sh` — см. [DEPLOYMENT.md → «Права на bind-mount данных и ночной sync»](DEPLOYMENT.md)
 - 📄 Документация в [`docs/projects/2026-05_nanoclaw-agent-bot/`](projects/2026-05_nanoclaw-agent-bot/): STATUS, SPEC, PLAN, QUESTIONS_FOR_ALEX
 
 ---
