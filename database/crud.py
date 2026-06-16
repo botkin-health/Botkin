@@ -426,23 +426,49 @@ def create_or_update_activity(
     stress_level: Optional[int] = None,
     source: str = "apple_health",
     raw_data: Optional[Dict] = None,
+    monotonic: bool = True,
 ) -> ActivityLog:
-    """Create or update activity log for a specific date"""
+    """Create or update activity log for a specific date.
+
+    monotonic=True (default): cumulative intraday metrics (steps, active/total/
+    bmr calories, distance) may only grow within the same day. A wearable's
+    daily summary is cumulative, so a fetch that returns a value *lower* than
+    what's already stored is a partial/stale sync (e.g. a get_stats() race
+    where the device hadn't finished uploading the day yet) and is ignored for
+    that field. Prevents a near-empty mid-sync snapshot from clobbering a full
+    day. Set monotonic=False for manual corrections / backfills that must
+    overwrite unconditionally.
+    """
     # Check if entry exists
     existing = db.query(ActivityLog).filter(ActivityLog.user_id == user_id, ActivityLog.date == date).first()
 
     if existing:
+        # Cumulative daily counters: keep the larger of (stored, incoming) so a
+        # partial sync can't drag a full day down. Non-cumulative fields below
+        # (sleep, HR, HRV, stress = averages/snapshots) always overwrite.
+        def _set_cumulative(field: str, new_val):
+            if new_val is None:
+                return
+            old_val = getattr(existing, field)
+            if monotonic and old_val is not None and new_val < old_val:
+                logger.warning(
+                    "activity[%s %s]: ignoring regression %s %s→%s (partial/stale %s sync)",
+                    user_id,
+                    date,
+                    field,
+                    old_val,
+                    new_val,
+                    source,
+                )
+                return
+            setattr(existing, field, new_val)
+
         # Update existing entry
-        if steps is not None:
-            existing.steps = steps
-        if active_calories is not None:
-            existing.active_calories = active_calories
-        if total_calories is not None:
-            existing.total_calories = total_calories
-        if bmr_calories is not None:
-            existing.bmr_calories = bmr_calories
-        if distance_km is not None:
-            existing.distance_km = distance_km
+        _set_cumulative("steps", steps)
+        _set_cumulative("active_calories", active_calories)
+        _set_cumulative("total_calories", total_calories)
+        _set_cumulative("bmr_calories", bmr_calories)
+        _set_cumulative("distance_km", distance_km)
         if sleep_hours is not None:
             existing.sleep_hours = sleep_hours
         if heart_rate_avg is not None:
