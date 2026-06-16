@@ -290,6 +290,10 @@
   </div>
 </section>
 
+<section id="dashboard-tab-section" class="section tab-panel">
+  <div id="dashboard-container"><!-- iframe injected by loadDashboard() in dashboard.js --></div>
+</section>
+
 <div id="add-sheet" class="sheet-overlay">
   <div class="sheet">
     <button class="sheet-close" id="add-sheet-close" aria-label="Закрыть">✕</button>
@@ -342,6 +346,10 @@
     <span class="tab-icon">💊</span>
     <span class="tab-label">Добавки</span>
   </button>
+  <button class="tab-item" data-tab="dashboard" onclick="switchTab('dashboard')">
+    <span class="tab-icon">📊</span>
+    <span class="tab-label">Здоровье</span>
+  </button>
   <button class="tab-item" data-tab="settings" onclick="switchTab('settings')">
     <span class="tab-icon">⚙️</span>
     <span class="tab-label">Настройки</span>
@@ -351,5 +359,6 @@
 <script src="api.js?v={{V}}"></script>
 <script src="day.js?v={{V}}"></script>
 <script src="settings.js?v={{V}}"></script>
+<script src="dashboard.js?v={{V}}"></script>
 </body>
 </html>

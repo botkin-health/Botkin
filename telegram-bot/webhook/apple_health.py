@@ -968,7 +968,7 @@ _webapp_dir = _Path(__file__).parent.parent / "webapp"
 def _webapp_version() -> str:
     """Short hash of mtimes for the webapp assets — forces cache bust on any change."""
     parts = []
-    for fname in ("day.js", "api.js", "day.css", "settings.css", "settings.js"):
+    for fname in ("day.js", "api.js", "day.css", "settings.css", "settings.js", "dashboard.js"):
         p = _webapp_dir / fname
         if p.exists():
             parts.append(str(p.stat().st_mtime_ns))
