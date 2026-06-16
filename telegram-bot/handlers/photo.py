@@ -185,6 +185,9 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
                     "fats": total_nutrition.get("fats", 0),
                     "carbs": total_nutrition.get("carbs", 0),
                     "weight": items[0].get("weight") if items else None,
+                    # Issue #115: сохраняем покомпонентную разбивку зрения, чтобы не
+                    # схлопывать фото-блюдо в один item при наличии подписи.
+                    "components": items,
                 }
             elif items:
                 menu_data = {
@@ -194,6 +197,7 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
                     "fats": sum(i.get("fats", 0) for i in items),
                     "carbs": sum(i.get("carbs", 0) for i in items),
                     "weight": items[0].get("weight") if items else None,
+                    "components": items,
                 }
             if menu_data and (menu_data.get("calories") or menu_data.get("protein") is not None):
                 logger.info(f"Распознано через LLM: {menu_data.get('dish_name')}, {menu_data.get('calories')} ккал")
@@ -815,25 +819,10 @@ async def handle_description(
     if use_menu_data:
         logger.info(f"✅ Используем ранее распознанные КБЖУ из меню: {menu_data}")
 
-        # Формируем результат в формате, ожидаемом дальше в коде
-        router_result = {
-            "type": "food",
-            "data": {
-                "dish_name": menu_data.get("dish_name", "Блюдо из меню"),
-                "meal_type": "meal",  # Определим позже по времени
-                "items": [
-                    {
-                        "name": menu_data.get("dish_name", "Блюдо из меню"),
-                        "weight": menu_data.get("weight"),
-                        "quantity": None,
-                        "calories": menu_data.get("calories"),
-                        "protein": menu_data.get("protein"),
-                        "fats": menu_data.get("fats"),
-                        "carbs": menu_data.get("carbs"),
-                    }
-                ],
-            },
-        }
+        # Issue #115: если зрение вернуло покомпонентную разбивку — раскладываем
+        # на несколько items, подпись используем как уточнение названия блюда,
+        # а не схлопываем всё в один item.
+        router_result = build_router_result_from_menu_data(menu_data, caption=full_description)
     else:
         # Нет распознанных КБЖУ из меню - используем LLM Router
         # Готовим пути к фото
@@ -1105,6 +1094,52 @@ async def handle_description(
     )
 
     await safe_edit_text(processing_message, response, parse_mode="HTML", reply_markup=builder.as_markup())
+
+
+def build_router_result_from_menu_data(menu_data: dict, caption: str = "") -> dict:
+    """Собирает router_result из ранее распознанного menu_data (issue #115).
+
+    Если зрение вернуло покомпонентную разбивку (`components`, ≥2 шт.) — отдаём
+    несколько items по компонентам, а подпись используем как уточнение названия
+    блюда, НЕ схлопывая всё в один item. Иначе — один item из итогов menu_data
+    (прежнее поведение для меню/чеков с одним блюдом).
+    """
+    components = menu_data.get("components") or []
+    base_dish = menu_data.get("dish_name", "Блюдо из меню")
+    caption_hint = (caption or "").strip()
+
+    if len(components) >= 2:
+        dish_name = f"{base_dish} ({caption_hint})" if caption_hint else base_dish
+        items = [
+            {
+                "name": c.get("name", "компонент"),
+                "weight": c.get("weight"),
+                "quantity": c.get("quantity"),
+                "calories": c.get("calories"),
+                "protein": c.get("protein"),
+                "fats": c.get("fats"),
+                "carbs": c.get("carbs"),
+            }
+            for c in components
+        ]
+    else:
+        dish_name = base_dish
+        items = [
+            {
+                "name": base_dish,
+                "weight": menu_data.get("weight"),
+                "quantity": None,
+                "calories": menu_data.get("calories"),
+                "protein": menu_data.get("protein"),
+                "fats": menu_data.get("fats"),
+                "carbs": menu_data.get("carbs"),
+            }
+        ]
+
+    return {
+        "type": "food",
+        "data": {"dish_name": dish_name, "meal_type": "meal", "items": items},
+    }
 
 
 def build_menu_meal_item(menu_data: dict) -> dict:
