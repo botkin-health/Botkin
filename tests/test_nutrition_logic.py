@@ -216,3 +216,35 @@ def test_format_kcal_warning_includes_density_line():
 
     assert "калорийнее обычного салата" in text
     assert "260" in text
+
+
+def test_estimate_default_weight_bowl_beats_side_dish():
+    """«тарелка каши» содержит и bowl-, и side-слово → побеждает боул (330), не гарнир."""
+    from core.food.nutrition import estimate_default_weight
+
+    assert estimate_default_weight("тарелка каши") == 330.0
+    assert estimate_default_weight("боул-каша") == 330.0
+
+
+def test_format_kcal_warning_density_only_header_not_mismatch():
+    """Только density-флаг → заголовок НЕ про «Расхождение ккал и БЖУ» (issue #115)."""
+    from core.food.nutrition import format_kcal_warning
+
+    totals = {"kcal_warnings": [{"name": "салат", "density": 260.0, "weight": 100.0}]}
+
+    text = format_kcal_warning(totals)
+
+    assert "Расхождение ккал и БЖУ" not in text
+    assert "Необычная калорийность" in text
+
+
+def test_collect_meal_warnings_skips_kcal_check_for_alcohol():
+    """has_alcohol=True → kcal↔БЖУ-расхождения не считаем (этанол не в формуле)."""
+    from core.food.nutrition import _collect_meal_warnings
+
+    # Вино: 80 ккал заявлено, по БЖУ ≈ 0 — без alcohol-флага был бы mismatch.
+    items = [{"product": "вино красное", "weight_g": 100.0, "calories": 80.0, "protein": 0, "fats": 0, "carbs": 0}]
+
+    warns = _collect_meal_warnings(items, has_alcohol=True)
+
+    assert warns == []

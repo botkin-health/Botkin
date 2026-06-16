@@ -12,10 +12,24 @@ from datetime import datetime
 
 from core.infra.tz import MSK  # noqa: E402  (общая TZ проекта)
 from pathlib import Path
+import html
 import os
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Issue #115: лимиты на пользовательский ввод/вывод vision при сборке items.
+MAX_CAPTION_HINT_LEN = 200  # подпись юзера → dish_name (Telegram caption ≤ 1024)
+MAX_COMPONENT_NAME_LEN = 100
+MAX_COMPONENTS = 20  # верхняя граница числа items из одного фото
+
+
+def _safe_float(value):
+    """Числовое поле из vision/LLM → float или None (не падаем на 'много')."""
+    try:
+        return float(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
 
 
 async def safe_edit_text(message: Message, text: str, **kwargs):
@@ -1104,21 +1118,22 @@ def build_router_result_from_menu_data(menu_data: dict, caption: str = "") -> di
     блюда, НЕ схлопывая всё в один item. Иначе — один item из итогов menu_data
     (прежнее поведение для меню/чеков с одним блюдом).
     """
-    components = menu_data.get("components") or []
+    components = (menu_data.get("components") or [])[:MAX_COMPONENTS]
     base_dish = menu_data.get("dish_name", "Блюдо из меню")
-    caption_hint = (caption or "").strip()
+    # Экранируем и ограничиваем подпись: она идёт в dish_name (HTML-сообщения) и в БД.
+    caption_hint = html.escape((caption or "").strip()[:MAX_CAPTION_HINT_LEN])
 
     if len(components) >= 2:
         dish_name = f"{base_dish} ({caption_hint})" if caption_hint else base_dish
         items = [
             {
-                "name": c.get("name", "компонент"),
-                "weight": c.get("weight"),
+                "name": str(c.get("name", "компонент"))[:MAX_COMPONENT_NAME_LEN],
+                "weight": _safe_float(c.get("weight")),
                 "quantity": c.get("quantity"),
-                "calories": c.get("calories"),
-                "protein": c.get("protein"),
-                "fats": c.get("fats"),
-                "carbs": c.get("carbs"),
+                "calories": _safe_float(c.get("calories")),
+                "protein": _safe_float(c.get("protein")),
+                "fats": _safe_float(c.get("fats")),
+                "carbs": _safe_float(c.get("carbs")),
             }
             for c in components
         ]

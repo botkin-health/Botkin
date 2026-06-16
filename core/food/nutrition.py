@@ -51,13 +51,16 @@ def estimate_default_weight(dish_name: str) -> float:
     Используется только как последний fallback, когда вес из vision/regex/LLM
     отсутствует.
     """
+    # Порядок: от специфичного к общему. «тарелка каши» / «боул-каша» должны
+    # дать вес боула (330), а не гарнира (150) — поэтому bowl проверяется раньше
+    # side_dish; суп первым (солянка/борщ объёмнее гарнира).
     name = (dish_name or "").lower()
-    if any(kw in name for kw in _SIDE_DISH_KEYWORDS):
-        return SIDE_DISH_PORTION_WEIGHT_G
     if any(kw in name for kw in _SOUP_KEYWORDS):
         return SOUP_PORTION_WEIGHT_G
     if any(kw in name for kw in _BOWL_KEYWORDS):
         return BOWL_PORTION_WEIGHT_G
+    if any(kw in name for kw in _SIDE_DISH_KEYWORDS):
+        return SIDE_DISH_PORTION_WEIGHT_G
     return DEFAULT_PORTION_WEIGHT_G
 
 
@@ -364,7 +367,16 @@ def format_kcal_warning(meal_totals: Dict) -> str:
     warns = meal_totals.get("kcal_warnings") if isinstance(meal_totals, dict) else None
     if not warns:
         return ""
-    lines = ["\n\n⚠️ <b>Расхождение ккал и БЖУ</b> (возможна ошибка распознавания):"]
+    # Заголовок по составу: density-флаги — это не расхождение ккал↔БЖУ (issue #115).
+    has_mismatch = any("diff" in w for w in warns)
+    has_density = any("density" in w for w in warns)
+    if has_mismatch and has_density:
+        header = "\n\n⚠️ <b>Проверь данные о блюде</b> (расхождение ккал/БЖУ и необычная плотность):"
+    elif has_mismatch:
+        header = "\n\n⚠️ <b>Расхождение ккал и БЖУ</b> (возможна ошибка распознавания):"
+    else:
+        header = "\n\n⚠️ <b>Необычная калорийность блюда</b> (проверь вес/заправку):"
+    lines = [header]
     for w in warns[:3]:  # cap at 3 to keep the message short
         if "density" in w:
             lines.append(_format_density_line(w))
@@ -374,6 +386,12 @@ def format_kcal_warning(meal_totals: Dict) -> str:
         lines.append(f"… и ещё {len(warns) - 3}")
     lines.append("Проверь значения перед сохранением.")
     return "\n".join(lines)
+
+
+def _clean_log_name(name: str) -> str:
+    """Убирает переводы строк/возвраты каретки из имени перед логированием —
+    защита от log injection (имя приходит из vision/LLM). Обрезает до 80 симв."""
+    return str(name).replace("\n", " ").replace("\r", " ")[:80]
 
 
 def _collect_meal_warnings(meal_items: List[Dict], has_alcohol: bool) -> List[Dict]:
@@ -386,12 +404,14 @@ def _collect_meal_warnings(meal_items: List[Dict], has_alcohol: bool) -> List[Di
     warnings: List[Dict] = []
     if not has_alcohol:
         for w in check_kcal_consistency(meal_items):
+            safe_name = _clean_log_name(w["name"])
             logger.warning(
-                f"⚠️ kcal mismatch for '{w['name']}': stated {w['stated']} vs macro {w['macro']} (diff {w['diff']:+})"
+                f"⚠️ kcal mismatch for '{safe_name}': stated {w['stated']} vs macro {w['macro']} (diff {w['diff']:+})"
             )
             warnings.append(w)
     for w in check_density_sanity(meal_items):
-        logger.warning(f"❓ high density for '{w['name']}': {w['density']} kcal/100g at {w['weight']}g")
+        safe_name = _clean_log_name(w["name"])
+        logger.warning(f"❓ high density for '{safe_name}': {w['density']} kcal/100g at {w['weight']}g")
         warnings.append(w)
     return warnings
 
