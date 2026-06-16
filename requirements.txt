@@ -40,3 +40,6 @@ pyjwt>=2.13.0
 # Rendering PNG-отчётов агентом (см. core/reports/biomarker_dynamics.py)
 matplotlib>=3.8
 defusedxml==0.7.1
+
+# CGM-глюкоза: клиент LibreLinkUp API (Abbott FreeStyle Libre 3), см. #96
+pylibrelinkup>=0.10.0
