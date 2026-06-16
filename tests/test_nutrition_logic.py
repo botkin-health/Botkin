@@ -156,3 +156,63 @@ def test_estimate_default_weight_unknown():
 
     assert estimate_default_weight("нечто непонятное") == 200.0
     assert estimate_default_weight("") == 200.0
+
+
+# ── Issue #115: sanity-флаг по плотности салатов/боулов ──────────────────────
+def test_check_density_sanity_flags_dense_salad():
+    """Салат 260 ккал/100г превышает порог 180 → warning."""
+    from core.food.nutrition import check_density_sanity
+
+    items = [{"product": "салат зелёный", "weight_g": 100.0, "calories": 260.0}]
+
+    warnings = check_density_sanity(items)
+
+    assert len(warnings) == 1
+    assert warnings[0]["name"] == "салат зелёный"
+    assert round(warnings[0]["density"]) == 260
+    assert warnings[0]["weight"] == 100.0
+
+
+def test_check_density_sanity_ok_light_salad():
+    """Салат 60 ккал/100г ниже порога → нет warning."""
+    from core.food.nutrition import check_density_sanity
+
+    items = [{"product": "салат овощной", "weight_g": 200.0, "calories": 120.0}]
+
+    warnings = check_density_sanity(items)
+
+    assert warnings == []
+
+
+def test_check_density_sanity_ignores_non_salad_dense_dish():
+    """Жирное НЕ-салатное блюдо (например, бекон) — флаг не ставим."""
+    from core.food.nutrition import check_density_sanity
+
+    items = [{"product": "бекон жареный", "weight_g": 100.0, "calories": 500.0}]
+
+    warnings = check_density_sanity(items)
+
+    assert warnings == []
+
+
+def test_check_density_sanity_skips_zero_weight():
+    """Нулевой/отсутствующий вес → деление невозможно, пропускаем."""
+    from core.food.nutrition import check_density_sanity
+
+    items = [{"product": "салат", "weight_g": 0.0, "calories": 300.0}]
+
+    warnings = check_density_sanity(items)
+
+    assert warnings == []
+
+
+def test_format_kcal_warning_includes_density_line():
+    """format_kcal_warning рендерит строку про плотность салата."""
+    from core.food.nutrition import format_kcal_warning
+
+    totals = {"kcal_warnings": [{"name": "салат", "density": 260.0, "weight": 100.0}]}
+
+    text = format_kcal_warning(totals)
+
+    assert "калорийнее обычного салата" in text
+    assert "260" in text

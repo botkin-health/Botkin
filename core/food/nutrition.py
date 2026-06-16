@@ -317,22 +317,83 @@ def check_kcal_consistency(items: List[Dict], threshold: float = 0.25) -> List[D
     return warnings
 
 
+# Issue #115: порог плотности для салатов/боулов. Зелёный салат с заправкой
+# редко плотнее ~180 ккал/100г; выше — вероятна ошибка веса или жирная заправка.
+SALAD_DENSITY_THRESHOLD = 180.0
+_SALAD_LIKE_KEYWORDS = ("салат", "овощи", "овощн", "боул", "bowl", "зелен", "poke", "поке")
+
+
+def check_density_sanity(items: List[Dict], threshold: float = SALAD_DENSITY_THRESHOLD) -> List[Dict]:
+    """Flag salad/veggie/bowl items whose calorie density is implausibly high.
+
+    For each item with weight>0 and a salad-like name, if calories/weight*100
+    exceeds `threshold`, emit a warning {name, density, weight}. Does NOT block
+    saving — the estimate is recorded as-is, the warning is surfaced to the user.
+    """
+    warnings = []
+    for it in items:
+        name = str(it.get("product") or it.get("name") or it.get("food") or "")
+        if not any(kw in name.lower() for kw in _SALAD_LIKE_KEYWORDS):
+            continue
+        try:
+            weight = float(it.get("weight_g") or it.get("weight") or 0)
+            calories = float(it.get("calories") or 0)
+        except (TypeError, ValueError):
+            continue
+        if weight <= 0:
+            continue
+        density = calories / weight * 100
+        if density > threshold:
+            warnings.append({"name": name, "density": round(density, 1), "weight": round(weight, 1)})
+    return warnings
+
+
+def _format_kcal_mismatch_line(w: Dict) -> str:
+    sign = "+" if w["diff"] > 0 else ""
+    return f"• {w['name']}: записано {int(w['stated'])} ккал, по БЖУ ≈ {int(w['macro'])} ({sign}{int(w['diff'])})"
+
+
+def _format_density_line(w: Dict) -> str:
+    return f"❓ {w['name']}: калорийнее обычного салата ({w['density']:.0f} ккал/100г) — проверь вес/заправку"
+
+
 def format_kcal_warning(meal_totals: Dict) -> str:
     """Build a user-facing warning string from meal_totals['kcal_warnings'].
-    Returns empty string if no warnings. Use in bot confirmation messages."""
+    Handles two warning shapes: kcal↔БЖУ mismatch ({stated,macro,diff}) and
+    density sanity ({density,weight}, issue #115). Returns empty string if none."""
     warns = meal_totals.get("kcal_warnings") if isinstance(meal_totals, dict) else None
     if not warns:
         return ""
     lines = ["\n\n⚠️ <b>Расхождение ккал и БЖУ</b> (возможна ошибка распознавания):"]
     for w in warns[:3]:  # cap at 3 to keep the message short
-        sign = "+" if w["diff"] > 0 else ""
-        lines.append(
-            f"• {w['name']}: записано {int(w['stated'])} ккал, по БЖУ ≈ {int(w['macro'])} ({sign}{int(w['diff'])})"
-        )
+        if "density" in w:
+            lines.append(_format_density_line(w))
+        else:
+            lines.append(_format_kcal_mismatch_line(w))
     if len(warns) > 3:
         lines.append(f"… и ещё {len(warns) - 3}")
     lines.append("Проверь значения перед сохранением.")
     return "\n".join(lines)
+
+
+def _collect_meal_warnings(meal_items: List[Dict], has_alcohol: bool) -> List[Dict]:
+    """Собирает все предупреждения по блюду в один список (issue #115).
+
+    Объединяет kcal↔БЖУ-расхождения (только для безалкогольных — формула не
+    учитывает этанол) и флаги завышенной плотности салатов/боулов. Логирует
+    каждое. Не затирает: density-флаги добавляются к kcal-флагам.
+    """
+    warnings: List[Dict] = []
+    if not has_alcohol:
+        for w in check_kcal_consistency(meal_items):
+            logger.warning(
+                f"⚠️ kcal mismatch for '{w['name']}': stated {w['stated']} vs macro {w['macro']} (diff {w['diff']:+})"
+            )
+            warnings.append(w)
+    for w in check_density_sanity(meal_items):
+        logger.warning(f"❓ high density for '{w['name']}': {w['density']} kcal/100g at {w['weight']}g")
+        warnings.append(w)
+    return warnings
 
 
 def calculate_meal_totals(meal_items: List[Dict]) -> Dict[str, float]:
@@ -531,16 +592,11 @@ def process_meal_description(
     # Если drinks не посчитан из items (старый код) — оставляем 0
     if "drinks" not in meal_totals:
         meal_totals["drinks"] = 0.0
-    # Sanity-check: ккал должны соответствовать БЖУ (4·P+9·F+4·C). Если LLM
+    # Sanity-check: ккал↔БЖУ + плотность салатов (issue #115). Если LLM
     # галлюцинирует — записываем предупреждение для последующего показа юзеру.
-    if not meal_totals.get("has_alcohol"):
-        warns = check_kcal_consistency(meal_items)
-        if warns:
-            meal_totals["kcal_warnings"] = warns
-            for w in warns:
-                logger.warning(
-                    f"⚠️ kcal mismatch for '{w['name']}': stated {w['stated']} vs macro {w['macro']} (diff {w['diff']:+})"
-                )
+    warns = _collect_meal_warnings(meal_items, bool(meal_totals.get("has_alcohol")))
+    if warns:
+        meal_totals["kcal_warnings"] = warns
     return meal_items, meal_totals
 
 
@@ -985,13 +1041,9 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
                 f"⚠️  Ignoring total_nutrition for multi-item meal (len={len(meal_items)}), using computed totals: {computed_totals}"
             )
 
-    # Sanity-check ккал↔БЖУ (см. process_meal_description).
-    if not computed_totals.get("has_alcohol"):
-        warns = check_kcal_consistency(meal_items)
-        if warns:
-            computed_totals["kcal_warnings"] = warns
-            for w in warns:
-                logger.warning(
-                    f"⚠️ kcal mismatch for '{w['name']}': stated {w['stated']} vs macro {w['macro']} (diff {w['diff']:+})"
-                )
+    # Sanity-check ккал↔БЖУ + плотность салатов (см. process_meal_description, issue #115).
+    has_alcohol = bool(computed_totals.get("has_alcohol")) or detect_alcohol(meal_items)
+    warns = _collect_meal_warnings(meal_items, has_alcohol)
+    if warns:
+        computed_totals["kcal_warnings"] = warns
     return meal_items, computed_totals
