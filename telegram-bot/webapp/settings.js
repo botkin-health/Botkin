@@ -606,10 +606,10 @@ let _dashboardUrl = null;
 
 async function loadLinks() {
   try {
-    const data = await window.API.getLinks();
+    const data = await window.API.getDashboardUrl();
     _dashboardUrl = data.dashboard_url || null;
   } catch(e) {
-    console.error('Failed to load profile links', e);
+    console.error('Failed to load dashboard url', e);
   }
 }
 
