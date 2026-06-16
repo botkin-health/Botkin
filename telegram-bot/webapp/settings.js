@@ -601,5 +601,35 @@ if (picker) picker.addEventListener('change', () => {
   setTimeout(() => { if (isSupplementsTabActive()) loadSupplementsDay(); }, 50);
 });
 
+// ── Profile links ────────────────────────────────────────────────────────────
+let _dashboardUrl = null;
+
+async function loadLinks() {
+  try {
+    const data = await window.API.getLinks();
+    _dashboardUrl = data.dashboard_url || null;
+  } catch(e) {
+    console.error('Failed to load profile links', e);
+  }
+}
+
+function openDashboard() {
+  if (_dashboardUrl) tg.openLink(_dashboardUrl);
+}
+
+function copyDashboard() {
+  if (!_dashboardUrl) return;
+  navigator.clipboard.writeText(_dashboardUrl).then(() => {
+    const toast = document.getElementById('links-toast');
+    if (!toast) return;
+    toast.classList.remove('hidden');
+    setTimeout(() => toast.classList.add('hidden'), 2000);
+  }).catch(() => {
+    // fallback: открыть вместо копирования
+    tg.openLink(_dashboardUrl);
+  });
+}
+
 // ── Init ─────────────────────────────────────────────────────────────────────
 load();
+loadLinks();

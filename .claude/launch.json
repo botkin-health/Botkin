@@ -8,6 +8,12 @@
       "port": 53660
     },
     {
+      "name": "botkin-webapp",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "53680", "--directory", "telegram-bot/webapp"],
+      "port": 53680
+    },
+    {
       "name": "botkin-site",
       "runtimeExecutable": "python3",
       "runtimeArgs": ["-m", "http.server", "53670", "--directory", "docs"],

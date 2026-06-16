@@ -33,6 +33,17 @@ def test_index_substitutes_version_placeholder():
     assert len(matches[0]) == 8
 
 
+def test_index_shows_app_version_in_footer():
+    """Футер mini-app показывает v<__version__> из core/_version.py; плейсхолдер подставлен."""
+    from core._version import __version__
+    from webhook import apple_health
+
+    client = TestClient(apple_health.app)
+    body = client.get("/webapp/").text
+    assert "{{APP_VERSION}}" not in body  # плейсхолдер подставлен сервером
+    assert f"v{__version__}" in body  # реальная версия в теле (футер)
+
+
 def test_index_cache_control_is_no_cache():
     """HTML itself must not be cached — only the referenced JS/CSS are cached via ?v=."""
     from webhook import apple_health

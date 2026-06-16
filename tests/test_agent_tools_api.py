@@ -750,6 +750,54 @@ def test_phenoage_marker_lookup_canonical_for_dima_keys():
         assert need in latest, f"phenoage marker {need} не извлёкся из ключей Димы"
 
 
+# ── US-биохимия на чтении (issue #95: панель Маккаби g/dL·mg/dL) ─────────────
+
+
+def test_recent_biomarkers_canonizes_us_biochemistry(client, db_session):
+    """US-запись biochemistry с _unit_system → метрика на чтении; служебный ключ не протекает."""
+    from database.models import BloodTest
+
+    db_session.add(
+        BloodTest(
+            user_id=895655,
+            test_date=date(2026, 6, 9),
+            test_type="biochemistry",
+            values={"_unit_system": "US", "albumin": 5.1, "ALKP": 55, "glucose": 86},
+        )
+    )
+    db_session.commit()
+
+    r = client.get("/api/agent/recent_biomarkers")
+    assert r.status_code == 200, r.text
+    vals = r.json()["tests"][0]["values"]
+    assert abs(vals["albumin_g_l"] - 51.0) < 1e-6  # 5.1 g/dL → 51 g/L
+    assert vals["ALP"] == 55  # ALKP → ALP (Ед/л, без конверсии)
+    assert abs(vals["glucose"] - 86 / 18.0156) < 1e-3  # mg/dL → ммоль/л
+    assert "_unit_system" not in vals  # служебный признак не отдаётся агенту
+
+
+def test_phenoage_sees_albumin_from_us_biochemistry(client, db_session):
+    """phenoage извлекает альбумин из US-биохимии в правильной единице (был «нет альбумина»)."""
+    from database.models import BloodTest
+
+    db_session.add(
+        BloodTest(
+            user_id=895655,
+            test_date=date(2026, 6, 9),
+            test_type="biochemistry",
+            values={"_unit_system": "US", "albumin": 5.1, "ALKP": 55},
+        )
+    )
+    db_session.commit()
+
+    r = client.get("/api/agent/phenoage")
+    assert r.status_code == 200, r.text
+    by_name = {m["name"]: m for m in r.json()["markers"]}
+    assert by_name["albumin_g_l"]["value"] is not None, "альбумин снова не виден"
+    assert abs(by_name["albumin_g_l"]["value"] - 51.0) < 1e-2  # метрика, не 5.1
+    assert by_name["ALP"]["value"] == 55  # из ключа ALKP
+
+
 # ── RLS / user isolation (аудит 11.06.2026: privacy-гарантия без тестов) ─────
 
 

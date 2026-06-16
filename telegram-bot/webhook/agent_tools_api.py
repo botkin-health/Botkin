@@ -1423,7 +1423,7 @@ async def recent_biomarkers(
     limit = max(1, min(limit, 100))
     sql = sql_text(
         """
-        SELECT test_date, test_type, values
+        SELECT test_date, test_type, "values"
         FROM blood_tests
         WHERE user_id = :uid
         ORDER BY test_date DESC
@@ -1436,7 +1436,9 @@ async def recent_biomarkers(
     tests = []
     for r in rows:
         canon, _w = to_canonical(_as_dict(r.values), passthrough_unmapped=True)
-        tests.append({"date": r.test_date.isoformat(), "type": r.test_type, "values": canon})
+        # test_date — date на Postgres, str через SQLite (raw text query); поддержим оба.
+        d = r.test_date.isoformat() if hasattr(r.test_date, "isoformat") else str(r.test_date)
+        tests.append({"date": d, "type": r.test_type, "values": canon})
     return {"status": "ok", "count": len(tests), "tests": tests}
 
 
@@ -1532,16 +1534,18 @@ async def phenoage(
     from core.health.kb_schema import to_canonical
 
     rows = db.execute(
-        sql_text("SELECT test_date, values FROM blood_tests WHERE user_id = :uid ORDER BY test_date DESC"),
+        sql_text('SELECT test_date, "values" FROM blood_tests WHERE user_id = :uid ORDER BY test_date DESC'),
         {"uid": user.telegram_id},
     ).fetchall()
 
     latest: dict[str, dict] = {}
     for r in rows:
         canon, _w = to_canonical(_as_dict(r.values))
+        # test_date — date на Postgres, str через SQLite (raw text query); поддержим оба.
+        d = r.test_date.isoformat() if hasattr(r.test_date, "isoformat") else str(r.test_date)
         for key in markers:
             if key in canon and key not in latest:
-                latest[key] = {"value": float(canon[key]), "date": r.test_date.isoformat()}
+                latest[key] = {"value": float(canon[key]), "date": d}
 
     # Chronological age
     chrono_age = None
