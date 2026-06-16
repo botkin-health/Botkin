@@ -190,6 +190,17 @@ def register_handlers(dp: Dispatcher):
         errors.append(f"Обработчик /sync: {e}")
         logger.error(f"❌ Ошибка регистрации обработчика /sync: {e}")
 
+    try:
+        from handlers.connect_cgm import router as connect_cgm_router
+
+        dp.include_router(connect_cgm_router)
+        count = len(connect_cgm_router.observers) if hasattr(connect_cgm_router, "observers") else 0
+        handlers_count += count
+        registered_modules.append("/connect_cgm")
+    except Exception as e:
+        errors.append(f"Обработчик /connect_cgm: {e}")
+        logger.error(f"❌ Ошибка регистрации обработчика /connect_cgm: {e}")
+
     # Apple Health handlers removed
     pass
 

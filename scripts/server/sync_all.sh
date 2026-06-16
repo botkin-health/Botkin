@@ -64,6 +64,13 @@ run workouts /app/scripts/util/build_workouts_log.py
 # делает сам каждую ночь. Идемпотентно: ON CONFLICT DO NOTHING / UPDATE.
 run pg_sync  /app/scripts/util/server_backfill_postgres.py
 
+# CGM-глюкоза (Abbott FreeStyle Libre 3 → LibreLinkUp). Тянет точки для всех,
+# кто пригласил follower dr@botkin.health (маппинг в cgm_connections). Креды
+# LLU_EMAIL/LLU_PASSWORD в .env. См. #96. Идемпотентно: ON CONFLICT (user_id, ts).
+# NB: для near-real-time глюкозы лучше отдельный cron каждые 5 мин (а не только
+# ночной sync_all) — LibreLinkUp graph отдаёт лишь ~12ч истории.
+run librelinkup /app/scripts/import/librelinkup.py
+
 # Zepp пока отключён — токен на сервере устарел, нужен reauth с Mac
 # Когда токен обновится, раскомментировать:
 # run zepp /app/scripts/import/zepp_api.py
