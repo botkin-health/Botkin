@@ -605,12 +605,6 @@ async function loadLinks() {
   try {
     const data = await window.API.getLinks();
     _dashboardUrl = data.dashboard_url || null;
-    const row = document.getElementById('link-dashboard-row');
-    if (row && !_dashboardUrl) {
-      row.classList.add('disabled');
-      row.onclick = null;
-      row.querySelector('.row-sub').textContent = 'Дашборд ещё не создан — напиши /share в боте';
-    }
   } catch(e) {
     console.error('Failed to load profile links', e);
   }
@@ -618,6 +612,19 @@ async function loadLinks() {
 
 function openDashboard() {
   if (_dashboardUrl) tg.openLink(_dashboardUrl);
+}
+
+function copyDashboard() {
+  if (!_dashboardUrl) return;
+  navigator.clipboard.writeText(_dashboardUrl).then(() => {
+    const toast = document.getElementById('links-toast');
+    if (!toast) return;
+    toast.classList.remove('hidden');
+    setTimeout(() => toast.classList.add('hidden'), 2000);
+  }).catch(() => {
+    // fallback: открыть вместо копирования
+    tg.openLink(_dashboardUrl);
+  });
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────

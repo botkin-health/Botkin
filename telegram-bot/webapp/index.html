@@ -191,12 +191,13 @@
   <!-- МОИ ССЫЛКИ -->
   <div class="group-title">Мои ссылки</div>
   <div class="settings-group">
-    <div class="settings-row clickable" id="link-dashboard-row" onclick="openDashboard()">
-      <div class="row-label">
+    <div class="settings-row" id="link-dashboard-row">
+      <div class="row-label" onclick="openDashboard()" style="cursor:pointer;flex:1">
         Мой дашборд
         <div class="row-sub">Персональная страница с данными</div>
       </div>
-      <div class="row-chevron">↗</div>
+      <button class="link-copy-btn" id="link-dashboard-copy" onclick="copyDashboard()" title="Скопировать ссылку">⎘</button>
+      <div class="row-chevron" onclick="openDashboard()" style="cursor:pointer">›</div>
     </div>
     <div class="settings-row disabled">
       <div class="row-label">
@@ -206,6 +207,7 @@
       <div class="row-badge">Скоро</div>
     </div>
   </div>
+  <div id="links-toast" class="links-toast hidden">Ссылка скопирована</div>
 
   <!-- ПРОЧЕЕ -->
   <div class="group-title">Прочее</div>
