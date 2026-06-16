@@ -30,6 +30,37 @@ def detect_alcohol(meal_items: List[Dict]) -> bool:
     return False
 
 
+# Issue #115: оценка веса порции по типу блюда вместо слепого дефолта 200г.
+# Ключевые слова подбираются по подстроке в нижнем регистре; порядок проверки —
+# от более специфичных категорий к общим. Веса — медианные порции «на глаз».
+DEFAULT_PORTION_WEIGHT_G = 200.0  # неизвестное блюдо
+BOWL_PORTION_WEIGHT_G = 330.0  # боул / поке / салат-как-блюдо / тарелка
+SOUP_PORTION_WEIGHT_G = 300.0  # суп
+SIDE_DISH_PORTION_WEIGHT_G = 150.0  # гарнир / каша
+
+_BOWL_KEYWORDS = ("боул", "bowl", "поке", "poke", "тарелк", "салат-боул")
+_SOUP_KEYWORDS = ("суп", "soup", "борщ", "щи", "солянк", "крем-суп", "бульон")
+_SIDE_DISH_KEYWORDS = ("гарнир", "каша", "каши", "овсянк")
+
+
+def estimate_default_weight(dish_name: str) -> float:
+    """Оценивает вес порции по типу блюда (issue #115).
+
+    Возвращает медианную порцию по ключевым словам в названии. Если тип не
+    распознан — DEFAULT_PORTION_WEIGHT_G (200г, прежнее поведение).
+    Используется только как последний fallback, когда вес из vision/regex/LLM
+    отсутствует.
+    """
+    name = (dish_name or "").lower()
+    if any(kw in name for kw in _SIDE_DISH_KEYWORDS):
+        return SIDE_DISH_PORTION_WEIGHT_G
+    if any(kw in name for kw in _SOUP_KEYWORDS):
+        return SOUP_PORTION_WEIGHT_G
+    if any(kw in name for kw in _BOWL_KEYWORDS):
+        return BOWL_PORTION_WEIGHT_G
+    return DEFAULT_PORTION_WEIGHT_G
+
+
 try:
     import requests
 except ImportError:
@@ -874,8 +905,10 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
                     }
                 )
             else:
-                # Совсем не знаем вес — берём 200г как стандартную порцию
-                estimated_weight = 200.0
+                # Совсем не знаем вес — оцениваем порцию по типу блюда (issue #115),
+                # а не берём слепые 200г. Срабатывает только когда веса реально нет
+                # (вес из vision/regex/LLM приоритетнее и обработан выше по ветке).
+                estimated_weight = estimate_default_weight(name)
                 cal = round(estimated_weight * 1.5, 1)
                 prot = round(estimated_weight * 0.08, 1)
                 fat = round(estimated_weight * 0.06, 1)

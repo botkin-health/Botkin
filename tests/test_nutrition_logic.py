@@ -123,3 +123,36 @@ def test_half_fruit_parsing_regression():
     banana = by_name["банан"]
     assert 40 <= banana["weight"] <= 80, f"Половина банана ~60г, получено {banana['weight']}"
     assert banana["weight"] < 200, "Баг: половина банана не должна быть >200г"
+
+
+# ── Issue #115: вес по типу блюда вместо слепого дефолта 200г ─────────────────
+def test_estimate_default_weight_bowl():
+    """Боул/поке/тарелка-как-блюдо → ~330г, а не слепые 200г."""
+    from core.food.nutrition import estimate_default_weight
+
+    assert estimate_default_weight("боул с курицей") == 330.0
+    assert estimate_default_weight("Поке с лососем") == 330.0
+
+
+def test_estimate_default_weight_side_dish():
+    """Гарнир/каша → ~150г."""
+    from core.food.nutrition import estimate_default_weight
+
+    assert estimate_default_weight("гарнир из риса") == 150.0
+    assert estimate_default_weight("овсяная каша") == 150.0
+
+
+def test_estimate_default_weight_soup():
+    """Суп → ~300г."""
+    from core.food.nutrition import estimate_default_weight
+
+    assert estimate_default_weight("борщ суп") == 300.0
+    assert estimate_default_weight("Крем-суп грибной") == 300.0
+
+
+def test_estimate_default_weight_unknown():
+    """Неизвестное блюдо → дефолт 200г (как раньше)."""
+    from core.food.nutrition import estimate_default_weight
+
+    assert estimate_default_weight("нечто непонятное") == 200.0
+    assert estimate_default_weight("") == 200.0
