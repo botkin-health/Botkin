@@ -47,11 +47,22 @@ def measurement_to_row(m) -> dict:
     trend есть только у latest() (GlucoseMeasurementWithTrend); у graph() — None.
     """
     trend = getattr(m, "trend", None)
+    # raw — явный allowlist (не model_dump): unofficial API может в будущем добавить
+    # PII-поля в измерение, и они не должны молча оседать в БД.
+    raw = {
+        "timestamp": m.timestamp.isoformat() if m.timestamp else None,
+        "value_in_mg_per_dl": m.value_in_mg_per_dl,
+        "type": getattr(m, "type", None),
+        "measurement_color": getattr(m, "measurement_color", None),
+        "glucose_units": getattr(m, "glucose_units", None),
+        "is_high": getattr(m, "is_high", None),
+        "is_low": getattr(m, "is_low", None),
+    }
     return {
         "ts": m.timestamp,
         "value": mgdl_to_mmol(m.value_in_mg_per_dl),
         "trend": int(trend) if trend is not None else None,
-        "raw": m.model_dump(mode="json"),
+        "raw": raw,
     }
 
 

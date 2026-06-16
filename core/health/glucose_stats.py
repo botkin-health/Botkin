@@ -13,14 +13,16 @@ def compute_glucose_stats(values: list[float]) -> dict:
     """Сводка по списку значений глюкозы (mmol/L).
 
     Возвращает count и (если есть данные) avg/min/max/std и проценты времени
-    ниже/в диапазоне/выше целевого (TIR). std — популяционное (делим на n).
+    ниже/в диапазоне/выше целевого (TIR). std — выборочное (делим на n-1, для %CV).
     """
     n = len(values)
     if n == 0:
         return {"count": 0}
 
     avg = sum(values) / n
-    variance = sum((v - avg) ** 2 for v in values) / n
+    # Выборочная дисперсия (n-1): международный консенсус CGM (Danne 2017) считает
+    # %CV = SD/mean по sample std. Для n=1 std не определена → 0.
+    variance = sum((v - avg) ** 2 for v in values) / (n - 1) if n > 1 else 0.0
     std = variance**0.5
 
     below = sum(1 for v in values if v < TIR_LOW)

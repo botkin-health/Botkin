@@ -506,29 +506,52 @@ async def recent_glucose(
 ):
     """Точки глюкозы CGM за последние N часов + сводка (TIR, avg, min/max).
 
-    Защита от token-blowup: сырых точек отдаём не более MAX_POINTS (самые свежие);
-    статистика всегда по всему окну.
+    Статистика — по всему окну (лёгкая проекция value, без JSONB raw). Точек для
+    отображения — не более max_points самых свежих (LIMIT в БД, защита от token-blowup).
     """
     if hours < 1 or hours > 168:
         raise HTTPException(status_code=400, detail="hours must be between 1 and 168")
 
     max_points = 96
     since = datetime.now(timezone.utc) - timedelta(hours=hours)
-    rows = (
-        db.query(GlucoseReading)
+
+    # Все значения для статистики — только колонка value (не тянем raw/source).
+    values = [
+        float(v)
+        for (v,) in db.query(GlucoseReading.value)
         .filter(GlucoseReading.user_id == user.telegram_id, GlucoseReading.ts >= since)
-        .order_by(GlucoseReading.ts)
+        .all()
+    ]
+    if not values:
+        return {
+            "status": "ok",
+            "hours": hours,
+            "total_count": 0,
+            "stats": {"count": 0},
+            "truncated": False,
+            "points": [],
+        }
+
+    # Свежие точки для отображения: DESC по индексу idx_glucose_user_ts + LIMIT.
+    rows = (
+        db.query(GlucoseReading.ts, GlucoseReading.value, GlucoseReading.trend)
+        .filter(GlucoseReading.user_id == user.telegram_id, GlucoseReading.ts >= since)
+        .order_by(GlucoseReading.ts.desc())
+        .limit(max_points)
         .all()
     )
-    values = [float(r.value) for r in rows]
-    points = [{"ts": _dt_isoformat_local(r.ts, user), "value": float(r.value), "trend": r.trend} for r in rows]
+    points = [
+        {"ts": _dt_isoformat_local(ts, user), "value": float(val), "trend": tr}
+        for ts, val, tr in reversed(rows)  # обратно в хронологический порядок
+    ]
 
     return {
         "status": "ok",
         "hours": hours,
+        "total_count": len(values),
         "stats": compute_glucose_stats(values),
-        "truncated": len(points) > max_points,
-        "points": points[-max_points:],
+        "truncated": len(values) > max_points,
+        "points": points,
     }
 
 
@@ -538,14 +561,25 @@ async def glucose_stats(
     user=Depends(get_agent_user),
     db: Session = Depends(get_db),
 ):
-    """Сводная статистика глюкозы за N дней: TIR%, среднее, разброс."""
+    """Сводная статистика глюкозы за N дней: TIR%, среднее, разброс + границы периода."""
     if days < 1 or days > 90:
         raise HTTPException(status_code=400, detail="days must be between 1 and 90")
 
-    since = datetime.now(timezone.utc) - timedelta(days=days)
-    rows = db.query(GlucoseReading).filter(GlucoseReading.user_id == user.telegram_id, GlucoseReading.ts >= since).all()
-    values = [float(r.value) for r in rows]
-    return {"status": "ok", "days": days, "stats": compute_glucose_stats(values)}
+    now = datetime.now(timezone.utc)
+    since = now - timedelta(days=days)
+    values = [
+        float(v)
+        for (v,) in db.query(GlucoseReading.value)
+        .filter(GlucoseReading.user_id == user.telegram_id, GlucoseReading.ts >= since)
+        .all()
+    ]
+    return {
+        "status": "ok",
+        "days": days,
+        "since": since.date().isoformat(),
+        "until": now.date().isoformat(),
+        "stats": compute_glucose_stats(values),
+    }
 
 
 @router.get("/kb_value")

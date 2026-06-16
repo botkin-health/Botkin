@@ -62,6 +62,9 @@ def upgrade() -> None:
         ALTER TABLE cgm_connections ENABLE ROW LEVEL SECURITY;
         ALTER TABLE glucose_readings ENABLE ROW LEVEL SECURITY;
 
+        -- Обе политики сверяют app.user_id с владельцем. ВНИМАНИЕ: в glucose_readings
+        -- это колонка user_id, в cgm_connections — telegram_id; обе ссылаются на
+        -- users.telegram_id (один домен). Не путать при будущих миграциях.
         CREATE POLICY user_isolation ON glucose_readings TO hv_app
             USING ((user_id = (NULLIF(current_setting('app.user_id'::text, true), ''::text))::bigint));
         CREATE POLICY user_isolation ON cgm_connections TO hv_app
