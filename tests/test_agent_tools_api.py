@@ -14,6 +14,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "telegram-bot"))
 
 import pytest
 from datetime import date, datetime, time, timedelta
+from zoneinfo import ZoneInfo
+
+# Эндпоинты считают «сегодня» в таймзоне пользователя (тест-юзер — Europe/Moscow,
+# фикс. UTC+3). Сравнивать с naive date.today() (UTC) нельзя: в окне 21:00–24:00 UTC
+# календарные сутки расходятся и тест флакает. Берём «сегодня» в той же tz.
+MSK = ZoneInfo("Europe/Moscow")
 from unittest.mock import MagicMock, patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -154,7 +160,7 @@ def test_log_meal_text_defaults_to_today(client, db_session, mock_food_llm):
     )
     assert r.status_code == 200, r.text
     body = r.json()
-    assert body["date"] == date.today().isoformat()
+    assert body["date"] == datetime.now(MSK).date().isoformat()
 
 
 def test_log_meal_text_rejects_non_food(client, db_session, monkeypatch):

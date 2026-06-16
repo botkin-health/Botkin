@@ -4,7 +4,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "telegram-bot"))
 
 import pytest
-from datetime import date, time
+from datetime import date, datetime, time
+from zoneinfo import ZoneInfo
+
+# /api/day определяет «сегодня» в МСК (фикс. UTC+3, см. nutrition_api.py).
+# Naive date.today() (UTC) в окне 21:00–24:00 UTC отстаёт на сутки и уводит
+# запрос в DB-ветку вместо sync-ветки → флак. Считаем «сегодня» в МСК.
+MSK = ZoneInfo("Europe/Moscow")
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -376,7 +382,6 @@ def test_get_favorites_respects_limit(client, api_db):
 
 def test_goals_activity_today_uses_garmin_for_today(client, monkeypatch):
     """For today's date we call sync_today_garmin, not the DB."""
-    from datetime import date
 
     from webhook import nutrition_api
 
@@ -393,7 +398,7 @@ def test_goals_activity_today_uses_garmin_for_today(client, monkeypatch):
     monkeypatch.setattr(nutrition_api, "sync_today_garmin", fake_sync)
     monkeypatch.setattr(nutrition_api, "get_activity_by_date", fake_db)
 
-    today = date.today().isoformat()
+    today = datetime.now(MSK).date().isoformat()
     r = client.get(f"/api/day?date={today}")
     assert r.status_code == 200
     assert r.json()["goals"]["activity_today"] == 487
@@ -425,13 +430,12 @@ def test_goals_activity_today_uses_db_for_past(client, api_db, monkeypatch):
 
 def test_goals_activity_today_null_when_no_data(client, monkeypatch):
     """When Garmin has no data for today, activity_today is null (not 0)."""
-    from datetime import date
 
     from webhook import nutrition_api
 
     monkeypatch.setattr(nutrition_api, "sync_today_garmin", lambda uid, d: (None, "no-data"))
 
-    r = client.get(f"/api/day?date={date.today().isoformat()}")
+    r = client.get(f"/api/day?date={datetime.now(MSK).date().isoformat()}")
     assert r.status_code == 200
     assert r.json()["goals"]["activity_today"] is None
 
