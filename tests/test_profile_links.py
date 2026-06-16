@@ -16,9 +16,11 @@ from unittest.mock import patch
 
 from database.models import Base, User
 from webhook.profile_api import router
+from webhook.tg_auth import get_tg_user
 
 
 # ── App fixture ───────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def app_client():
@@ -44,25 +46,29 @@ def app_client():
         db.add(user)
         db.commit()
 
-    def override_session():
-        with Session() as s:
-            yield s
+    # get_tg_user — FastAPI-зависимость; мокаем через dependency_overrides
+    # (patch модульного атрибута Depends не переопределяет). Дефолт — владелец 895655;
+    # тест с «неизвестным юзером» переопределяет на app.dependency_overrides.
+    app.dependency_overrides[get_tg_user] = lambda: {"id": 895655}
 
-    # Patch auth so tests don't need real Telegram initData
-    with patch("webhook.profile_api.get_tg_user", return_value={"id": 895655}):
-        # Patch SessionLocal used inside the endpoint
-        with patch("webhook.profile_api.SessionLocal", Session):
-            client = TestClient(app, raise_server_exceptions=True)
-            yield client, Session
+    # profile_api делает локальный `from database import SessionLocal` внутри
+    # эндпоинта — патчим источник (database.SessionLocal), его подхватит call-time
+    # импорт. Патч webhook.profile_api.SessionLocal не работал: модульного атрибута
+    # нет (issue #110).
+    with patch("database.SessionLocal", Session):
+        client = TestClient(app, raise_server_exceptions=True)
+        yield client, Session, app
 
+    app.dependency_overrides.clear()
     Base.metadata.drop_all(bind=engine)
 
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 
+
 def test_links_creates_share_token_if_missing(app_client):
     """Endpoint auto-creates share_token when user has none; returns dashboard URL."""
-    client, Session = app_client
+    client, Session, _ = app_client
     r = client.get("/api/profile/links")
     assert r.status_code == 200
     data = r.json()
@@ -77,7 +83,7 @@ def test_links_creates_share_token_if_missing(app_client):
 
 def test_links_returns_existing_token(app_client):
     """Endpoint returns the existing token without regenerating it."""
-    client, Session = app_client
+    client, Session, _ = app_client
 
     # Pre-set a token
     with Session() as db:
@@ -92,8 +98,8 @@ def test_links_returns_existing_token(app_client):
 
 def test_links_unknown_user_returns_null(app_client):
     """Endpoint returns null dashboard_url when user is not found."""
-    client, _ = app_client
-    with patch("webhook.profile_api.get_tg_user", return_value={"id": 999999}):
-        r = client.get("/api/profile/links")
+    client, _, app = app_client
+    app.dependency_overrides[get_tg_user] = lambda: {"id": 999999}
+    r = client.get("/api/profile/links")
     assert r.status_code == 200
     assert r.json()["dashboard_url"] is None
