@@ -34,7 +34,7 @@
 - [ ] **Локальные приватные потоки** — дневники family-cohort, Screen Time. Личный Claude через MCP + серверные данные. [сессия]
 - [ ] **Login-форма в админке** — вместо HTTP Basic. [полдня]
 - [ ] **Broadcast в админке** — массовая рассылка active-юзерам. [полдня]
-- [ ] **Bot health metrics** — uptime, webhook latency, последние ошибки. [1 день]
+- [ ] **Bot health metrics** — uptime, webhook latency, последние ошибки. [1 день] (расходы API уже есть в `/admin`)
 - [ ] **Sync в Claude Code + PDF→KB pipeline** — интерфейс для IDE. [1 день]
 
 ---
