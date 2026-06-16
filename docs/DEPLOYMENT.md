@@ -28,12 +28,27 @@ gh workflow run deploy-prod.yml -f branch=main
    (`ghcr.io/botkin-health/botkin-bot`).
 2. **Deploy**: по SSH на сервере в каталоге `/opt/botkin` выполняет
    ```bash
+   # idempotent upsert резолвнутого тега в .env (источник истины для compose)
    docker compose -f docker-compose.prod.yml pull
    docker compose -f docker-compose.prod.yml up -d --wait
    ```
    То есть тянет готовый образ из GHCR и пересоздаёт контейнеры. **На сервере ничего не собирается.**
 
 Файл `.github/workflows/deploy-prod.yml` — единственный источник истины по шагам.
+
+### Тег прод-образа хранится в `/opt/botkin/.env` (`IMAGE_TAG`)
+
+`docker-compose.prod.yml` резолвит образ как `ghcr.io/botkin-health/botkin-bot:${IMAGE_TAG:-latest}`,
+а `IMAGE_TAG` читается из `/opt/botkin/.env`. Поэтому **перед `up -d`** workflow идемпотентно
+вписывает резолвнутый тег в `.env` (upsert: `sed` по существующей строке либо `>>` append).
+Это работает и на выкате нового sha, и на **откате** (`-f image_tag=…`) — откат тоже
+перезаписывает `IMAGE_TAG` в `.env`, поэтому остаётся стабильным.
+
+Это критично: без записи в `.env` любой последующий `docker compose up` **без** переменной
+окружения `IMAGE_TAG` (ручной, auto-heal, рестарт docker-демона, чужой деплой) резолвил бы
+`${IMAGE_TAG:-latest}` из `.env`, где строки не было, и прод молча откатывался на
+закэшированный/прежний образ. Прецедент: 16.06.2026 фикс #125 (`:1edeccd`) задеплоился, но через
+несколько минут прод сам откатился на `:7699b30` — именно из-за отсутствия `IMAGE_TAG` в `.env`.
 
 ## Откат
 
@@ -77,6 +92,7 @@ ssh root@116.203.213.137 "docker ps | grep healthvault"
 | Деплой упал на проверке `.env` | На сервере нет `/opt/botkin/.env` | Положить `.env` на сервер |
 | Контейнер постоянно перезапускается | Ошибка импорта/синтаксиса в коде | Проверить `docker logs healthvault_bot` |
 | Ошибка подключения к БД | Контейнер PostgreSQL не готов | Проверить `docker compose ps`, при необходимости перезапустить |
+| Прод сам откатился на старый образ после успешного деплоя | В `/opt/botkin/.env` нет строки `IMAGE_TAG` → `docker compose up` без env резолвит `${IMAGE_TAG:-latest}` на закэшированный образ | Уже исправлено: workflow персистит `IMAGE_TAG` в `.env` перед `up -d`. Проверить, что строка есть: `grep '^IMAGE_TAG=' /opt/botkin/.env` |
 
 ## Лучшие практики
 
