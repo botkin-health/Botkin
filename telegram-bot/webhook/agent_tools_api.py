@@ -27,8 +27,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from sqlalchemy import func  # noqa: E402
 
-from database.models import ActivityLog, NutritionLog, Weight  # noqa: E402
+from database.models import ActivityLog, GlucoseReading, NutritionLog, Weight  # noqa: E402
 from webhook.jwt_auth import get_agent_user, get_db  # noqa: E402
+from core.health.glucose_stats import compute_glucose_stats  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -495,6 +496,56 @@ async def recent_meals(
         "end_date": end_date.isoformat(),
         "meals": result,
     }
+
+
+@router.get("/recent_glucose")
+async def recent_glucose(
+    hours: int = 24,
+    user=Depends(get_agent_user),
+    db: Session = Depends(get_db),
+):
+    """Точки глюкозы CGM за последние N часов + сводка (TIR, avg, min/max).
+
+    Защита от token-blowup: сырых точек отдаём не более MAX_POINTS (самые свежие);
+    статистика всегда по всему окну.
+    """
+    if hours < 1 or hours > 168:
+        raise HTTPException(status_code=400, detail="hours must be between 1 and 168")
+
+    max_points = 96
+    since = datetime.now(timezone.utc) - timedelta(hours=hours)
+    rows = (
+        db.query(GlucoseReading)
+        .filter(GlucoseReading.user_id == user.telegram_id, GlucoseReading.ts >= since)
+        .order_by(GlucoseReading.ts)
+        .all()
+    )
+    values = [float(r.value) for r in rows]
+    points = [{"ts": _dt_isoformat_local(r.ts, user), "value": float(r.value), "trend": r.trend} for r in rows]
+
+    return {
+        "status": "ok",
+        "hours": hours,
+        "stats": compute_glucose_stats(values),
+        "truncated": len(points) > max_points,
+        "points": points[-max_points:],
+    }
+
+
+@router.get("/glucose_stats")
+async def glucose_stats(
+    days: int = 7,
+    user=Depends(get_agent_user),
+    db: Session = Depends(get_db),
+):
+    """Сводная статистика глюкозы за N дней: TIR%, среднее, разброс."""
+    if days < 1 or days > 90:
+        raise HTTPException(status_code=400, detail="days must be between 1 and 90")
+
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    rows = db.query(GlucoseReading).filter(GlucoseReading.user_id == user.telegram_id, GlucoseReading.ts >= since).all()
+    values = [float(r.value) for r in rows]
+    return {"status": "ok", "days": days, "stats": compute_glucose_stats(values)}
 
 
 @router.get("/kb_value")

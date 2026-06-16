@@ -117,6 +117,34 @@ TOOLS: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "get_recent_glucose",
+        "description": (
+            "Глюкоза CGM (FreeStyle Libre 3) за последние N часов: точки (ts/value mmol/L/trend) "
+            "+ сводка (avg, min, max, TIR%). hours=1..168, по умолчанию 24. "
+            "Для вопросов про сахар «какой сейчас / после еды / ночью / скачки»."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "hours": {"type": "integer", "minimum": 1, "maximum": 168, "default": 24},
+            },
+        },
+    },
+    {
+        "name": "get_glucose_stats",
+        "description": (
+            "Сводная статистика глюкозы CGM за N дней: TIR% (время в диапазоне 3.9–10 mmol/L), "
+            "среднее, разброс (std), min/max, % ниже/выше. days=1..90, по умолчанию 7. "
+            "Для вопросов «как мой сахар за неделю/месяц», «какой TIR»."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "days": {"type": "integer", "minimum": 1, "maximum": 90, "default": 7},
+            },
+        },
+    },
+    {
         "name": "list_kb_keys",
         "description": (
             "Список реальных топ-уровневых ключей knowledge_base ЭТОГО пользователя "
@@ -785,6 +813,20 @@ def _call_tool(name: str, args: dict, token: str) -> str:
             r = requests.get(
                 f"{TOOLS_API_BASE}/recent_sleep",
                 params={"days": int(args.get("days", 14))},
+                headers=headers,
+                timeout=15,
+            )
+        elif name == "get_recent_glucose":
+            r = requests.get(
+                f"{TOOLS_API_BASE}/recent_glucose",
+                params={"hours": int(args.get("hours", 24))},
+                headers=headers,
+                timeout=15,
+            )
+        elif name == "get_glucose_stats":
+            r = requests.get(
+                f"{TOOLS_API_BASE}/glucose_stats",
+                params={"days": int(args.get("days", 7))},
                 headers=headers,
                 timeout=15,
             )
@@ -1485,6 +1527,8 @@ _TOOL_PROGRESS_LABEL = {
     "get_recent_meals": "🍽 собираю питание",
     "get_recent_supplements": "💊 смотрю добавки",
     "get_recent_bp": "🩸 поднимаю давление",
+    "get_recent_glucose": "🩸 смотрю глюкозу",
+    "get_glucose_stats": "🩸 считаю TIR",
     "get_recent_sleep": "😴 проверяю сон",
     "get_recent_trends": "📊 собираю динамику",
     "get_recent_workouts": "🏃 поднимаю тренировки",
