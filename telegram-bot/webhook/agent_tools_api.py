@@ -9,6 +9,7 @@ Tasks 5-7 of HealthVault Sprint 1a:
   - Task 7: Read endpoints (recent_meals, kb_value, dashboard_summary, user_profile)
 """
 
+import re
 import sys
 import secrets
 import logging
@@ -584,6 +585,79 @@ async def list_kb_keys(user=Depends(get_agent_user)):
     return {"keys": keys, "source": source, "total": len(keys)}
 
 
+_CORRECTION_KEY_RE = re.compile(r"^[a-zA-Z0-9_-]{1,100}$")
+_CORRECTION_MAX_VALUE_LEN = 2000
+
+
+class AgentCorrectionRequest(BaseModel):
+    key: str = Field(..., description="Уникальный ключ факта (snake_case, ≤100 символов)")
+    value: str = Field(..., description="Значение (≤2000 символов)")
+    reason: str = Field("", description="Откуда факт — слова пользователя")
+
+
+@router.post("/add_agent_correction")
+async def add_agent_correction(
+    req: AgentCorrectionRequest,
+    user=Depends(get_agent_user),
+):
+    """Сохранить поправку или новый факт в секцию agent_corrections KB пользователя.
+
+    Агент должен вызывать этот endpoint СРАЗУ при получении корректирующей
+    информации от пользователя (дата операции, диагноз, новый препарат и т.п.).
+    Данные записываются в KB-файл — при следующем разговоре агент увидит их.
+
+    Ключ — только [a-zA-Z0-9_-], длина ≤100. Значение — строка ≤2000 символов.
+    При повторном вызове с тем же ключом значение обновляется.
+    """
+    import json
+    import tempfile
+
+    if not _CORRECTION_KEY_RE.match(req.key):
+        raise HTTPException(
+            status_code=422,
+            detail=f"Недопустимый ключ '{req.key}': только буквы, цифры, _ и -, длина ≤100",
+        )
+    if len(req.value) > _CORRECTION_MAX_VALUE_LEN:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Значение слишком длинное: {len(req.value)} > {_CORRECTION_MAX_VALUE_LEN}",
+        )
+
+    kb_path, source = _resolve_user_kb_path(user)
+    if kb_path is None or not kb_path.exists():
+        raise HTTPException(status_code=404, detail=f"KB не найден для пользователя {user.telegram_id}")
+
+    try:
+        kb = json.loads(kb_path.read_text(encoding="utf-8"))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка чтения {source}: {e}")
+
+    corrections = kb.setdefault("agent_corrections", {})
+    corrections[req.key] = {
+        "value": req.value,
+        "reason": req.reason,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    # Атомарная запись через временный файл
+    try:
+        tmp = tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=kb_path.parent,
+            suffix=".tmp",
+            delete=False,
+        )
+        json.dump(kb, tmp, ensure_ascii=False, indent=2)
+        tmp.flush()
+        tmp.close()
+        Path(tmp.name).replace(kb_path)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка записи KB: {e}")
+
+    return {"status": "ok", "key": req.key, "source": source}
+
+
 @router.get("/open_questions")
 async def open_questions(user=Depends(get_agent_user)):
     """Открытые клинические вопросы и красные флаги из KB пользователя.
@@ -1110,6 +1184,82 @@ async def recent_bp(
     }
 
 
+@router.get("/menstrual_data")
+async def menstrual_data(
+    months: int = 6,
+    user=Depends(get_agent_user),
+    db: Session = Depends(get_db),
+):
+    """Menstrual cycle data from Apple Health (menstrual_log table).
+
+    Returns individual flow records and computed cycle lengths.
+    Use for questions about cycle regularity, length, flow intensity.
+    """
+    from sqlalchemy import text as sql_text
+
+    months = max(1, min(months, 24))
+    sql = sql_text(
+        """
+        SELECT date, flow, source
+        FROM menstrual_log
+        WHERE user_id = :uid
+          AND date >= CURRENT_DATE - (:months * 30)
+        ORDER BY date ASC
+        """
+    )
+    rows = db.execute(sql, {"uid": user.telegram_id, "months": months}).fetchall()
+
+    if not rows:
+        all_rows = db.execute(
+            sql_text("SELECT date, flow, source FROM menstrual_log WHERE user_id=:uid ORDER BY date ASC"),
+            {"uid": user.telegram_id},
+        ).fetchall()
+        if not all_rows:
+            return {"status": "ok", "count": 0, "items": [], "cycles": [], "stats": {}}
+        rows = all_rows
+
+    items = [{"date": str(r.date), "flow": r.flow} for r in rows]
+
+    # Вычислить начала циклов: первый день после перерыва >2 дней
+    from datetime import date as date_type
+
+    period_starts = []
+    prev_date = None
+    for item in items:
+        if item["flow"] == "none":
+            prev_date = None
+            continue
+        d = date_type.fromisoformat(item["date"])
+        if prev_date is None or (d - prev_date).days > 2:
+            period_starts.append(item["date"])
+        prev_date = d
+
+    cycles = []
+    for i in range(1, len(period_starts)):
+        d1 = date_type.fromisoformat(period_starts[i - 1])
+        d2 = date_type.fromisoformat(period_starts[i])
+        length = (d2 - d1).days
+        if 15 < length < 60:
+            cycles.append({"start": period_starts[i - 1], "length_days": length})
+
+    cycle_lengths = [c["length_days"] for c in cycles]
+    avg_cycle = round(sum(cycle_lengths) / len(cycle_lengths), 1) if cycle_lengths else None
+    variation = round(max(cycle_lengths) - min(cycle_lengths), 0) if len(cycle_lengths) > 1 else 0
+
+    return {
+        "status": "ok",
+        "count": len(items),
+        "period_starts": period_starts,
+        "cycles": cycles[-12:],
+        "stats": {
+            "avg_cycle_days": avg_cycle,
+            "variation_days": variation,
+            "total_periods": len(period_starts),
+        },
+        "items": items,
+    }
+
+
 @router.get("/recent_sleep")
 async def recent_sleep(
     days: int = 14,
@@ -1273,7 +1423,7 @@ async def recent_biomarkers(
     limit = max(1, min(limit, 100))
     sql = sql_text(
         """
-        SELECT test_date, test_type, values
+        SELECT test_date, test_type, "values"
         FROM blood_tests
         WHERE user_id = :uid
         ORDER BY test_date DESC
@@ -1286,7 +1436,9 @@ async def recent_biomarkers(
     tests = []
     for r in rows:
         canon, _w = to_canonical(_as_dict(r.values), passthrough_unmapped=True)
-        tests.append({"date": r.test_date.isoformat(), "type": r.test_type, "values": canon})
+        # test_date — date на Postgres, str через SQLite (raw text query); поддержим оба.
+        d = r.test_date.isoformat() if hasattr(r.test_date, "isoformat") else str(r.test_date)
+        tests.append({"date": d, "type": r.test_type, "values": canon})
     return {"status": "ok", "count": len(tests), "tests": tests}
 
 
@@ -1382,16 +1534,18 @@ async def phenoage(
     from core.health.kb_schema import to_canonical
 
     rows = db.execute(
-        sql_text("SELECT test_date, values FROM blood_tests WHERE user_id = :uid ORDER BY test_date DESC"),
+        sql_text('SELECT test_date, "values" FROM blood_tests WHERE user_id = :uid ORDER BY test_date DESC'),
         {"uid": user.telegram_id},
     ).fetchall()
 
     latest: dict[str, dict] = {}
     for r in rows:
         canon, _w = to_canonical(_as_dict(r.values))
+        # test_date — date на Postgres, str через SQLite (raw text query); поддержим оба.
+        d = r.test_date.isoformat() if hasattr(r.test_date, "isoformat") else str(r.test_date)
         for key in markers:
             if key in canon and key not in latest:
-                latest[key] = {"value": float(canon[key]), "date": r.test_date.isoformat()}
+                latest[key] = {"value": float(canon[key]), "date": d}
 
     # Chronological age
     chrono_age = None

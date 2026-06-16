@@ -215,6 +215,30 @@ async def set_bmr(payload: BmrSettingsPayload, tg_user: dict = Depends(get_tg_us
         db.close()
 
 
+# ── GET /api/profile/links ───────────────────────────────────────────────────
+
+
+@router.get("/api/profile/links")
+async def get_profile_links(tg_user: dict = Depends(get_tg_user)):
+    """Returns dashboard URL, auto-creating share_token if the user doesn't have one yet."""
+    from database import SessionLocal
+    from database.crud import get_user_by_telegram_id, generate_share_token
+
+    user_id = tg_user.get("id")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="No user id in initData")
+
+    db = SessionLocal()
+    try:
+        user = get_user_by_telegram_id(db, user_id)
+        if not user:
+            return {"dashboard_url": None}
+        token = generate_share_token(db, user_id)
+        return {"dashboard_url": f"https://botkin.health/mc/{token}"}
+    finally:
+        db.close()
+
+
 # ── PATCH /api/profile/timezone ──────────────────────────────────────────────
 
 
@@ -246,3 +270,33 @@ async def patch_timezone(payload: TimezonePayload, tg_user: dict = Depends(get_t
             db.commit()
     finally:
         db.close()
+
+
+# ── GET /api/dashboard_url ───────────────────────────────────────────────────
+
+
+@router.get("/api/dashboard_url")
+async def get_dashboard_url(tg_user: dict = Depends(get_tg_user)):
+    """Return the current user's share token so the mini-app can embed the
+    dashboard (/mc/{token}) in an iframe.
+
+    Idempotent: reuses the user's existing share_token or generates one on first
+    call (same token as /share — never published anywhere but the user's own
+    mini-app). 404 if the user row doesn't exist yet (mini-app opened before /start).
+    """
+    from database import SessionLocal
+    from database.crud import generate_share_token
+
+    user_id = tg_user.get("id")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="No user id in initData")
+
+    db = SessionLocal()
+    try:
+        token = generate_share_token(db, user_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="User not found")
+    finally:
+        db.close()
+
+    return {"token": token}

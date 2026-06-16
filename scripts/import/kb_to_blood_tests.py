@@ -65,6 +65,7 @@ def _extract_rows(kb: dict, user_id: int) -> Iterable[dict]:
     """
     for kb_section, default_type in (
         ("blood_tests", "blood"),
+        ("biochemistry", "biochemistry"),
         ("hormones", "hormones"),
         ("vitamins", "vitamins"),
     ):
@@ -90,6 +91,13 @@ def _extract_rows(kb: dict, user_id: int) -> Iterable[dict]:
                     f"Rename to 'values' — see docs/operations/kb-schema.md."
                 )
             values_dict = entry.get("values") or {}
+
+            # US-панели (g/dL·mg/dL, напр. Maccabi) несут признак единиц в JSONB,
+            # чтобы to_canonical сконвертировал в метрику на чтении (issue #95).
+            # Метрические записи (без поля units) остаются как есть.
+            units = (entry.get("units") or "").lower()
+            if values_dict and ("mg/dl" in units or "g/dl" in units or "us" in units):
+                values_dict = {**values_dict, "_unit_system": "US"}
 
             yield {
                 "user_id": user_id,

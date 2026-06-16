@@ -283,6 +283,22 @@ TOOLS: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "get_menstrual_data",
+        "description": (
+            "Данные менструального цикла из Apple Health (таблица menstrual_log). "
+            "Возвращает: список дней с flow (none/light/medium/heavy/spotting), "
+            "вычисленные начала циклов (period_starts), длины циклов в днях, "
+            "статистику: avg_cycle_days, variation_days, total_periods. "
+            "Используй для вопросов 'насколько ровный у меня цикл', "
+            "'какая длина цикла', 'регулярен ли цикл', 'когда началась последняя менструация'. "
+            "По умолчанию months=6. Передавай months=12 для годовой статистики."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {"months": {"type": "integer", "minimum": 1, "maximum": 24, "default": 6}},
+        },
+    },
+    {
         "name": "get_recent_trends",
         "description": (
             "Per-day тренды HRV, Body Battery, Stress, Steps, RHR, Sleep + "
@@ -655,6 +671,25 @@ TOOLS: list[dict[str, Any]] = [
             },
         },
     },
+    {
+        "name": "add_agent_correction",
+        "description": (
+            "Сохранить поправку или новый факт в KB пользователя. "
+            "Вызывай СРАЗУ когда пользователь исправляет факт или сообщает новые данные — "
+            "дату операции, диагноз, аллергию, новый препарат, любую другую медицинскую деталь. "
+            "Ключ — короткое snake_case имя (surgery_year, diabetes_status, new_medication). "
+            "Данные сохраняются в секцию agent_corrections KB и будут доступны при следующем разговоре."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "key": {"type": "string", "description": "Уникальный ключ факта (snake_case, ≤100 символов)"},
+                "value": {"type": "string", "description": "Значение (≤2000 символов)"},
+                "reason": {"type": "string", "description": "Откуда факт — цитата или пересказ слов пользователя"},
+            },
+            "required": ["key", "value"],
+        },
+    },
 ]
 
 # ---------------------------------------------------------------------------
@@ -778,6 +813,13 @@ def _call_tool(name: str, args: dict, token: str) -> str:
                 headers=headers,
                 timeout=15,
             )
+        elif name == "get_menstrual_data":
+            r = requests.get(
+                f"{TOOLS_API_BASE}/menstrual_data",
+                params={"months": int(args.get("months", 6))},
+                headers=headers,
+                timeout=15,
+            )
         elif name == "get_recent_trends":
             r = requests.get(
                 f"{TOOLS_API_BASE}/recent_trends",
@@ -879,6 +921,17 @@ def _call_tool(name: str, args: dict, token: str) -> str:
                 },
                 headers=headers,
                 timeout=30,
+            )
+        elif name == "add_agent_correction":
+            r = requests.post(
+                f"{TOOLS_API_BASE}/add_agent_correction",
+                json={
+                    "key": args.get("key", ""),
+                    "value": args.get("value", ""),
+                    "reason": args.get("reason", ""),
+                },
+                headers=headers,
+                timeout=10,
             )
         else:
             return json.dumps({"error": f"unknown tool: {name}"})
@@ -1435,6 +1488,7 @@ _TOOL_PROGRESS_LABEL = {
     "get_recent_sleep": "😴 проверяю сон",
     "get_recent_trends": "📊 собираю динамику",
     "get_recent_workouts": "🏃 поднимаю тренировки",
+    "get_menstrual_data": "🌸 проверяю цикл",
     "get_recent_biomarkers": "🧪 смотрю анализы",
     "get_latest_biomarkers": "🧪 проверяю свежесть анализов",
     "get_kb_value": "📋 ищу в карте здоровья",

@@ -1,63 +1,41 @@
-# Botkin Roadmap
+﻿# Botkin Roadmap
 
-> **Главная цель на сейчас:** показать проект на **FFF AI Tbilisi 28–31.05.2026**.
-> **Сегодня:** 19.05.2026 — осталось **9 дней**.
+> **Главная цель на сейчас:** пилотный запуск с трафиком Павла/Ани (Трек A).
+> **Сегодня:** 16.06.2026 — Фаза 0, подготовка продукта к пилоту.
 >
 > Этот файл — высокоуровневая карта движения. Низкоуровневые таски — в `todo.md`.
 > Обновлять при каждой смене направления.
 
 ---
 
-## 🎯 NOW — спринт до FFF Tbilisi (19–28 мая)
+## 🎯 NOW — Фаза 0: продукт под пилот (июнь 2026)
 
 Что обязательно успеть, чтобы был осмысленный демо на конференции.
 
-### Стабильность (must)
-- [x] Server-side sync всех 4 источников (weather, netatmo, garmin, zepp)
-- [x] Cron-задачи объединены в `sync_all.sh`
-- [x] `/sync` команда в боте (admin)
-- [x] Bind-mount всех .py-папок (деплой через `scp`)
-- ⏸ ~~Zepp reauth~~ — отложено. Вес тянется через Apple Health → HAE → server, висцеральный жир стабилен. Не до выходных как минимум, возможно вообще откажемся от Zepp.
+### Продукт под пилот (главное)
+- [ ] **Бесшовный онбординг** — объяснения базовых команд, «можно писать боту напрямую», мастер `/profile` доходит до конца. Барьер №1 против конкурентов. [2-3 дня]
+- [ ] **Health Reports для всех юзеров** — `/report` в боте, JWT-ссылка, публичная/приватная, кнопка «обновить с diff» к предыдущему. [3-5 дней]
+- [ ] **Ссылки на дашборд и отчёт в Telegram mini-app** [полдня]
 
-### AI-врач: BotkinClaw — упрощённая схема вместо NanoClaw
-
-🔴 **NanoClaw свёрнут 21.05.2026.** Инфра (`/opt/nanoclaw`, OneCLI, systemd-юниты, docker-образы) полностью снесена с Hetzner. Освобождено 3.8 GB. См. [ADR-0002](architecture/decisions/0002-rejecting-nanoclaw-for-simpler-agent.md) и [project STATUS](projects/2026-05_nanoclaw-agent-bot/STATUS.md).
-
-🟢 **BotkinClaw:** AI-врач = in-process handler внутри `@Botkin_md_bot` (aiogram), прямой вызов Anthropic Messages API через `core/agent_chat.py:ask_agent`, история в Postgres, tools — переиспользуем работающий `webhook/agent_tools_api.py` (JWT+RLS, **18 endpoints** на 21.05). Один бот для всех пользователей, без отдельной контейнерной инфры. Имя — игра слов NanoClaw → BotkinClaw, бот сам играет роль «контейнера» в JWT-контракте.
-
-**Прогресс 21.05.2026:** model bump до Sonnet 4.6, JWT-контракт устойчив к NULL container_id, добавлены tools `get_weight_history`, `get_body_measurements`, `get_day_summary`, `get_indoor_air`, `get_outdoor_weather`, `get_user_settings`, `recent_workouts` теперь multi-user safe (DB fallback). TypingMiddleware для нативного индикатора. E2E ping-pong проверен 32 запросами на 2 юзерах. См. [AI_CHANGELOG](ai_context/AI_CHANGELOG.md#2026-05-21).
-
-**TODO к FFF:** SPEC для BotkinClaw (документация архитектуры), решение по `@BotkinAgent_bot` (revoke или keep), обновление `users.agent_system_prompt` (убрать упоминания NanoClaw), provisioning `jwt_secret` для Нiki/Олег/Pavel.
-
-### Demo-подготовка под FFF
-- [ ] **Demo-сценарий** — последовательность: `/start` → лог еды → `/sync status` → `/day` → дашборд через `/share`. Записать скринкаст 2 мин. [полдня]
-- [ ] **Story для FFF** — рассказ как это построено для семьи (4 active юзера, server-side sync, мульти-юзер дашборд, переезд с Mac на сервер за 2 дня).
-
-### Биомаркеры под FFF (need)
-- [ ] **PhenoAge калькулятор** — после майских анализов (15.05). Биологический возраст = одна цифра на дашборде, понятная без объяснений. [1 день]
-- [ ] **DunedinPACE через Lola Health** — заказ теста сейчас, результат к FFF не успеет, но факт «уже в работе» — это сама по себе хорошая история на конференции.
-- [ ] **Sport-блок мульти-юзер** — early-users видят свои HRV/Maffetone-зоны на дашборде (сейчас только Alex). [1-2 дня, см. `todo.md` v1-секция]
-
-### Полировка (nice)
-- [ ] **`/sync` для не-admin** — early-users могут запускать свои источники (требует per-user creds в БД). [1 день]
-- [ ] **Sync в Claude Code + PDF→KB pipeline** — отдельный интерфейс для меня лично в IDE. Низкий приоритет, можно отложить в NEXT. [1 день]
+### BotkinClaw
+- [ ] **Per-user system prompts** — персональные промпты для papa/mama/Nika (сейчас только Alex) [1 день]
+- [x] ~~**BotkinClaw MVP**~~ — задеплоен 21.05, 30+ tools, история в Postgres
+- [x] ~~**PhenoAge на дашборде и в агенте**~~ — реализовано (биологический возраст, 9 маркеров Levine 2018)
+- [x] ~~**Индикатор свежести биомаркеров**~~ — бейджи на дашборде + агент упоминает дату (PR #77-79)
+- [x] ~~**add_agent_correction**~~ — агент сохраняет поправки пользователя в KB (PR #104)
 
 ---
 
-## ⏭ NEXT — после FFF (июнь)
+## ⏭ NEXT — после пилота (июль)
 
-Долги и фичи, которые отложили ради конференции.
-
-- [ ] **BotkinClaw-агенты для всей семьи** — per-user `agent_system_prompt` для papa / mama / Nika. (Старый план в NanoClaw-проекте устарел — см. ADR-0002.)
-- [x] ~~**NanoClaw v0.2: write-tools**~~ — Отменено вместе с NanoClaw. Write-tools (`log_meal_text`, `log_bp`, `log_supplement`) переживают в `webhook/agent_tools_api.py` и переиспользуются BotkinClaw.
 - [ ] **Per-user credentials в БД** — `garmin_email/password`, `apple_health_token` per user, OAuth для Fitbit/Whoop. [2-3 дня]
-- [ ] **Google Health Connect** — интеграция для Android-юзеров (папа на Samsung). Решение найдено: [`mcnaveen/health-connect-webhook`](https://github.com/mcnaveen/health-connect-webhook) — Kotlin APK, 24 типа данных, POST на произвольный URL. Задача на стороне Botkin — написать `telegram-bot/webhook/android_health.py` (аналог `apple_health.py`) + эндпоинт `/android_health_v1`. Ждём готовности папы к подключению. Ресёрч: `docs/research/2026-05-22_android-health-connect-export-webhook.md`. [2-3 часа]
-- [ ] **Локальные приватные потоки** — дневники family-cohort, Screen Time owner. Хранятся локально, личный Claude пользователя через MCP подцепляется к Botkin-серверу и комбинирует серверные данные с локальными приватными. **Test case для гибридного сетапа** «сервер + локально». [сессия]
-- [ ] **Login-форма в админке** — вместо HTTP Basic (см. `todo.md`).
-- [ ] **Broadcast в админке** — массовая рассылка active-юзерам.
-- [ ] **Bot health metrics** — uptime, webhook latency, последние ошибки.
-- [ ] **Sync в Claude Code + PDF→KB pipeline** — отдельный интерфейс для меня лично в IDE (перенесено из NOW).
-- [ ] **Health Reports — автоматические отчёты по здоровью** — генерация HTML-отчётов на сервере по шаблону (аналог `Отчёт_для_Павла_Леонидовича_*`). Триггер: `/report` в боте + BotkinClaw tool `generate_report`. Доступ — только владелец по JWT-ссылке. Все версии сохраняются. PDF = кнопка `window.print()` на клиенте (без Playwright). Стек: `services/report_generator.py` (matplotlib-графики → base64 PNG → Jinja2-шаблон → HTML), таблица `health_reports(id, user_id, created_at, report_html, token)`, эндпоинт `GET /r/{token}`. Шаблон и правила — на основе опыта с папой и мамой, дополняем итерационно. [3-5 дней]
+- [ ] **Мини-app Apple Health (grandma-proof)** — SwiftUI читает HealthKit и шлёт данные без HAE/Shortcuts при открытии. Референс: baccula/health-dashboard-export. «Тест бабушки» — рядовой юзер не настроит Shortcut. [3-5 дней]
+- [x] ~~**Google Health Connect**~~ — задеплоен (PR #93), папа на Samsung подключён.
+- [ ] **Локальные приватные потоки** — дневники family-cohort, Screen Time. Личный Claude через MCP + серверные данные. [сессия]
+- [ ] **Login-форма в админке** — вместо HTTP Basic. [полдня]
+- [ ] **Broadcast в админке** — массовая рассылка active-юзерам. [полдня]
+- [ ] **Bot health metrics** — uptime, webhook latency, последние ошибки. [1 день] (расходы API уже есть в `/admin`)
+- [ ] **Sync в Claude Code + PDF→KB pipeline** — интерфейс для IDE. [1 день]
 
 ---
 
@@ -89,6 +67,22 @@
 ## ✅ DONE — прошлые недели
 
 Хронологически. Чтобы было видно скорость и не повторять.
+
+### Июнь 2026 (пост-FFF: стабилизация и новые интеграции)
+- Alembic миграции — baseline схема прода + CI workflow + ADR-0003 (PR #83, #99)
+- Android Health Connect — эндпоинт + деплой, папа подключён (PR #90, #93)
+- Индикатор свежести биомаркеров — бейджи на дашборде + логика в агенте (PR #77-79)
+- Фиксы по итогам первого теста бота (PR #50-51, #57-59, #71-74): вес из чата, мастер /profile, /health_token, /start для non-admin, сохранение роста
+- Apple Health бесплатный путь через iOS Shortcuts — гайд + фикс дробных значений (PR #61, #63)
+- `add_agent_correction` — агент сохраняет поправки пользователя в KB (PR #102-104)
+- Рефактор webapp: settings.js + settings.css вынесены отдельно (PR #105-106)
+- Dashboard URL в API сводки здоровья; исправлена запись нескольких приёмов пищи (PR #77)
+
+### 21–28 мая (FFF Tbilisi + BotkinClaw)
+- 🟢 BotkinClaw задеплоен: in-process агент в @Botkin_md_bot, 30+ tools, история в Postgres
+- 🔴 NanoClaw свёрнут — инфра снесена с Hetzner (3.8 GB освобождено), ADR-0002
+- PhenoAge реализован: формула Levine 2018, дашборд, агент-тул, тесты
+- get_menstrual_data — новый тул агента
 
 ### 12–13 мая (ребрендинг + базовая инфраструктура)
 - Ребрендинг HealthVault → Botkin (бот, README, CLAUDE.md, лендинг botkin.health)
@@ -134,3 +128,7 @@
 - **DONE** — хронологически, для скорости видна.
 
 При завершении пункта в NOW — перенести в DONE (с датой). Если NOW пустеет — взять из NEXT.
+
+---
+
+[← Документация Botkin — Index](INDEX.md)
