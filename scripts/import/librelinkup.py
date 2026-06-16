@@ -22,11 +22,15 @@ API неофициальный (pylibrelinkup) — может меняться; 
 import argparse
 import os
 import sys
+import logging
+import threading
 from pathlib import Path
 
 import psycopg2
 from psycopg2.extras import Json
 from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 load_dotenv(ROOT / ".env")
@@ -47,10 +51,13 @@ def measurement_to_row(m) -> dict:
     trend есть только у latest() (GlucoseMeasurementWithTrend); у graph() — None.
     """
     trend = getattr(m, "trend", None)
-    # raw — явный allowlist (не model_dump): unofficial API может в будущем добавить
-    # PII-поля в измерение, и они не должны молча оседать в БД.
+    # ВАЖНО про время: LibreLinkUp отдаёт ДВА таймстампа —
+    #   .timestamp        = локальное время устройства, НАИВНОЕ (без tz) → нельзя писать в timestamptz;
+    #   .factory_timestamp = UTC (tz-aware) → канонический момент, его и храним в ts.
+    # Если хранить .timestamp, Postgres примет наивное локальное за UTC → сдвиг на смещение TZ (#129).
     raw = {
-        "timestamp": m.timestamp.isoformat() if m.timestamp else None,
+        "timestamp_local": m.timestamp.isoformat() if m.timestamp else None,
+        "factory_timestamp": m.factory_timestamp.isoformat() if m.factory_timestamp else None,
         "value_in_mg_per_dl": m.value_in_mg_per_dl,
         "type": getattr(m, "type", None),
         "measurement_color": getattr(m, "measurement_color", None),
@@ -59,7 +66,7 @@ def measurement_to_row(m) -> dict:
         "is_low": getattr(m, "is_low", None),
     }
     return {
-        "ts": m.timestamp,
+        "ts": m.factory_timestamp,  # UTC (tz-aware) — корректно ложится в timestamptz
         "value": mgdl_to_mmol(m.value_in_mg_per_dl),
         "trend": int(trend) if trend is not None else None,
         "raw": raw,
@@ -67,8 +74,12 @@ def measurement_to_row(m) -> dict:
 
 
 def dedupe_by_ts(rows: list[dict]) -> list[dict]:
-    """Схлопнуть точки с одинаковым ts (graph и latest пересекаются), сортировка по времени."""
-    by_ts = {r["ts"]: r for r in rows}
+    """Схлопнуть точки с одинаковым ts (graph и latest пересекаются), сортировка по времени.
+
+    Точки без ts (None — теоретически, если API не отдал factory_timestamp) отбрасываем,
+    иначе sort упадёт на сравнении None с datetime.
+    """
+    by_ts = {r["ts"]: r for r in rows if r["ts"] is not None}
     return sorted(by_ts.values(), key=lambda r: r["ts"])
 
 
@@ -99,6 +110,76 @@ def get_client():
     client = PyLibreLinkUp(email=email, password=password, api_url=APIUrl.EU)
     client.authenticate()
     return client
+
+
+# Кэш авторизованного клиента для on-demand refresh — чтобы не пере-авторизовываться
+# на каждый вопрос про глюкозу. pylibrelinkup сам делает re-login при протухшем JWT;
+# на любой ошибке pull сбрасываем кэш (get_cached_client(reset=True)).
+_cached_client = None
+_cached_client_lock = threading.Lock()
+
+
+def get_cached_client(reset: bool = False):
+    """Вернуть переиспользуемый авторизованный клиент (создаёт при первом вызове).
+
+    Под защитой lock — on-demand refresh зовётся из asyncio.to_thread, возможны
+    параллельные вызовы (две глюкозы-вопроса одновременно).
+    """
+    global _cached_client
+    with _cached_client_lock:
+        if reset:
+            _cached_client = None
+        if _cached_client is None:
+            _cached_client = get_client()
+        return _cached_client
+
+
+def refresh_glucose_for_telegram(telegram_id: int, db_url: str | None = None) -> int:
+    """On-demand pull+upsert глюкозы для ОДНОГО пользователя. Возвращает число затронутых точек.
+
+    No-op (0), если у юзера нет привязки в cgm_connections. Используется эндпоинтом
+    recent_glucose для свежих данных «в момент вопроса». Сетевой/синхронный — звать в threadpool.
+    """
+    db_url = db_url or os.getenv("DATABASE_URL")
+    if not db_url:
+        return 0
+    conn = psycopg2.connect(db_url)
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT patient_id FROM cgm_connections WHERE telegram_id = %s", (telegram_id,))
+            row = cur.fetchone()
+            if not row:
+                return 0
+            target_pid = str(row[0])
+
+            try:
+                client = get_cached_client()
+                patient = next((p for p in client.get_patients() if str(p.patient_id) == target_pid), None)
+                if patient is None:
+                    return 0
+                measurements = [measurement_to_row(m) for m in client.graph(patient)]
+                try:
+                    measurements.append(measurement_to_row(client.latest(patient)))
+                except Exception as e:
+                    logger.debug("latest() недоступен для %s: %s", target_pid, e)
+            except Exception:
+                # Протухший токен / сетевой сбой — сбросить кэш и повторить один раз.
+                client = get_cached_client(reset=True)
+                patient = next((p for p in client.get_patients() if str(p.patient_id) == target_pid), None)
+                if patient is None:
+                    return 0
+                measurements = [measurement_to_row(m) for m in client.graph(patient)]
+                try:
+                    measurements.append(measurement_to_row(client.latest(patient)))
+                except Exception as e:
+                    logger.debug("latest() недоступен для %s: %s", target_pid, e)
+
+            rows = dedupe_by_ts(measurements)
+            ins, upd = upsert_rows(cur, telegram_id, rows)
+        conn.commit()
+        return ins + upd
+    finally:
+        conn.close()
 
 
 def load_mapping(cur) -> dict[str, int]:
