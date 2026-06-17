@@ -22,6 +22,7 @@ API неофициальный (pylibrelinkup) — может меняться; 
 import argparse
 import os
 import sys
+import json
 import logging
 import threading
 from pathlib import Path
@@ -99,39 +100,82 @@ def collect_rows(client) -> dict[str, list[dict]]:
     return result
 
 
-def get_client():
-    """Авторизованный PyLibreLinkUp (регион EU). Креды из env."""
+# Персист JWT: LibreLinkUp login-эндпоинт временами отдаёт 476 на свежий authenticate(),
+# но уже выданный токен качает данные. Поэтому храним токен на диске и переиспользуем —
+# логин становится редким событием (только если токена нет/протух). Спасает и от рестарта
+# контейнера, и от login-блока. См. #135.
+TOKEN_CACHE = ROOT / "data" / "cache" / "llu_token.json"
+
+
+def _new_client():
+    """Сконструировать PyLibreLinkUp (регион EU) без авторизации. Креды из env."""
     email = os.getenv("LLU_EMAIL")
     password = os.getenv("LLU_PASSWORD")
     if not email or not password:
         raise RuntimeError("LLU_EMAIL / LLU_PASSWORD не заданы в .env")
     from pylibrelinkup import APIUrl, PyLibreLinkUp
 
-    client = PyLibreLinkUp(email=email, password=password, api_url=APIUrl.EU)
+    return PyLibreLinkUp(email=email, password=password, api_url=APIUrl.EU)
+
+
+def _save_token(client) -> None:
+    try:
+        TOKEN_CACHE.parent.mkdir(parents=True, exist_ok=True)
+        TOKEN_CACHE.write_text(json.dumps({"token": client.token, "account_id_hash": client.account_id_hash}))
+    except Exception as e:
+        logger.debug("не смог сохранить llu-токен: %s", e)
+
+
+def get_client():
+    """Авторизованный PyLibreLinkUp (регион EU): свежий логин + сохранение токена на диск."""
+    client = _new_client()
     client.authenticate()
+    _save_token(client)
     return client
 
 
-# Кэш авторизованного клиента для on-demand refresh — чтобы не пере-авторизовываться
-# на каждый вопрос про глюкозу. pylibrelinkup сам делает re-login при протухшем JWT;
-# на любой ошибке pull сбрасываем кэш (get_cached_client(reset=True)).
+def _client_from_saved_token():
+    """Клиент с восстановленным с диска токеном (без логина). None — если токена нет/битый."""
+    if not TOKEN_CACHE.exists():
+        return None
+    try:
+        d = json.loads(TOKEN_CACHE.read_text())
+        client = _new_client()
+        client._set_token(d["token"])  # noqa: SLF001 — приватный API pylibrelinkup (версия пиннится)
+        client._set_account_id_hash(d["account_id_hash"])  # noqa: SLF001
+        return client
+    except Exception as e:
+        logger.debug("не смог восстановить llu-токен: %s", e)
+        return None
+
+
+# Кэш авторизованного клиента в памяти процесса. Под lock — on-demand refresh зовётся
+# из asyncio.to_thread, возможны параллельные вызовы.
 _cached_client = None
 _cached_client_lock = threading.Lock()
 
 
 def get_cached_client(reset: bool = False):
-    """Вернуть переиспользуемый авторизованный клиент (создаёт при первом вызове).
+    """Переиспользуемый клиент: сперва токен с диска (без логина), иначе свежий логин.
 
-    Под защитой lock — on-demand refresh зовётся из asyncio.to_thread, возможны
-    параллельные вызовы (две глюкозы-вопроса одновременно).
+    reset=True — выкинуть протухший токен (и in-memory, и файл) → форсировать новый логин.
     """
     global _cached_client
     with _cached_client_lock:
         if reset:
             _cached_client = None
+            try:
+                TOKEN_CACHE.unlink()
+            except FileNotFoundError:
+                pass
         if _cached_client is None:
-            _cached_client = get_client()
+            _cached_client = _client_from_saved_token() or get_client()
         return _cached_client
+
+
+def fetch_patient_ids() -> list[str]:
+    """ID всех пациентов, видимых follower-аккаунтом (через кэш-клиент, без лишнего логина)."""
+    return [str(p.patient_id) for p in get_cached_client().get_patients()]
 
 
 def refresh_glucose_for_telegram(telegram_id: int, db_url: str | None = None) -> int:
@@ -218,7 +262,7 @@ def main():
     args = parser.parse_args()
 
     print("🩸 LibreLinkUp — импорт глюкозы CGM...")
-    client = get_client()
+    client = get_cached_client()  # переиспользует токен с диска, без лишнего логина (#135)
     by_patient = collect_rows(client)
     total = sum(len(v) for v in by_patient.values())
     print(f"   Пациентов: {len(by_patient)}, точек собрано: {total}")
