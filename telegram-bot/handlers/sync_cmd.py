@@ -311,9 +311,13 @@ async def cmd_sync(message: Message, command: CommandObject, user_id: int):
     if len(summary) > 3900:
         summary = summary[:3900] + "\n\n…[обрезано]"
 
-    # Заменяем progress-сообщение финальным
+    # Заменяем progress-сообщение финальным.
+    # parse_mode=None ОБЯЗАТЕЛЕН: сводка — plain text (emoji + текст), но текст ошибки
+    # источника может содержать «<...>» (напр. LibreLinkUp 476: «… <none> for url …»).
+    # Бот по умолчанию шлёт HTML → Telegram падает на «Unsupported start tag "none"»,
+    # и edit_text, и fallback answer → сводка не доставляется, прогресс висит вечно (#157).
     try:
-        await progress_msg.edit_text(summary)
+        await progress_msg.edit_text(summary, parse_mode=None)
     except Exception:
         # Если редактирование не удалось — пошлём новое
-        await message.answer(summary)
+        await message.answer(summary, parse_mode=None)
