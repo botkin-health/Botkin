@@ -1,6 +1,6 @@
 """Юнит-тесты backoff-механизма LibreLinkUp (#141)."""
+
 import time
-import types
 import sys
 import unittest.mock as mock
 import pytest
@@ -9,6 +9,7 @@ import pytest
 # Загрузка модуля через тот же путь, что glucose_runtime.py, но под отдельным
 # именем — чтобы не конфликтовать с prod-кэшем и иметь чистое состояние.
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture()
 def llu(tmp_path):
@@ -26,13 +27,16 @@ def llu(tmp_path):
     sys.modules[modname] = mod
 
     # Патчим тяжёлые зависимости до exec_module
-    with mock.patch.dict("sys.modules", {
-        "pylibrelinkup": mock.MagicMock(),
-        "requests": mock.MagicMock(),
-        "psycopg2": mock.MagicMock(),
-        "psycopg2.extras": mock.MagicMock(),
-        "dotenv": mock.MagicMock(),
-    }):
+    with mock.patch.dict(
+        "sys.modules",
+        {
+            "pylibrelinkup": mock.MagicMock(),
+            "requests": mock.MagicMock(),
+            "psycopg2": mock.MagicMock(),
+            "psycopg2.extras": mock.MagicMock(),
+            "dotenv": mock.MagicMock(),
+        },
+    ):
         spec.loader.exec_module(mod)
 
     # Сбрасываем backoff-состояние в «чистый» старт
@@ -51,6 +55,7 @@ def llu(tmp_path):
 # ---------------------------------------------------------------------------
 # Тесты
 # ---------------------------------------------------------------------------
+
 
 def test_cooldown_blocks_login(llu):
     """Активный cooldown не допускает сетевой вызов get_client()."""

@@ -526,7 +526,9 @@ async def recent_glucose(
         )
     except LoginOnCooldownError as e:
         refresh_skipped = True
-        logger.info("recent_glucose: логин на cooldown для %s, %.0fс до следующей попытки", user.telegram_id, e.retry_in)
+        logger.info(
+            "recent_glucose: логин на cooldown для %s, %.0fс до следующей попытки", user.telegram_id, e.retry_in
+        )
     except Exception as e:
         logger.warning("recent_glucose: on-demand refresh не удался для %s: %s", user.telegram_id, e)
 

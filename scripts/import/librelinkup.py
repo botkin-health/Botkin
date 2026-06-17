@@ -143,14 +143,6 @@ def _save_token(client) -> None:
         logger.debug("не смог сохранить llu-токен: %s", e)
 
 
-def get_client():
-    """Авторизованный PyLibreLinkUp (регион EU): свежий логин + сохранение токена на диск."""
-    client = _new_client()
-    client.authenticate()
-    _save_token(client)
-    return client
-
-
 def _client_from_saved_token():
     """Клиент с восстановленным с диска токеном (без логина). None — если токена нет/битый."""
     if not TOKEN_CACHE.exists():

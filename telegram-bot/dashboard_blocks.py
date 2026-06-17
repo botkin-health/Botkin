@@ -97,10 +97,7 @@ def has_weight_data(db: Session, user: User) -> bool:
 def has_cgm_data(db: Session, user: User) -> bool:
     """True if user has any CGM glucose readings in last 30 days."""
     row = db.execute(
-        text(
-            "SELECT 1 FROM glucose_readings"
-            " WHERE user_id=:uid AND ts >= NOW() - INTERVAL '30 days' LIMIT 1"
-        ),
+        text("SELECT 1 FROM glucose_readings WHERE user_id=:uid AND ts >= NOW() - INTERVAL '30 days' LIMIT 1"),
         {"uid": user.telegram_id},
     ).fetchone()
     return row is not None

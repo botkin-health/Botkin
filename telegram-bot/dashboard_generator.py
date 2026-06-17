@@ -656,10 +656,7 @@ def _build_cgm_block(db: Session, user_id: int) -> dict:
     from sqlalchemy import text as _text
 
     last_row = db.execute(
-        _text(
-            "SELECT value_mmol, ts FROM glucose_readings"
-            " WHERE user_id=:uid ORDER BY ts DESC LIMIT 1"
-        ),
+        _text("SELECT value_mmol, ts FROM glucose_readings WHERE user_id=:uid ORDER BY ts DESC LIMIT 1"),
         {"uid": user_id},
     ).fetchone()
 
@@ -679,8 +676,7 @@ def _build_cgm_block(db: Session, user_id: int) -> dict:
         {"uid": user_id},
     ).fetchall()
     readings_24h = [
-        {"ts": r[0].isoformat() if hasattr(r[0], "isoformat") else str(r[0]), "value": float(r[1])}
-        for r in rows_24h
+        {"ts": r[0].isoformat() if hasattr(r[0], "isoformat") else str(r[0]), "value": float(r[1])} for r in rows_24h
     ]
 
     avg_row = db.execute(
