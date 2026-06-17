@@ -909,8 +909,18 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                 # mode not enabled for them yet. Fall back to canned reply.
                 if "agent_system_prompt" in str(e):
                     debug_logger.info(f"agent_chat skipped: {e}")
-                    fallback = data.get("reply", "Не понял запрос.")
-                    await message.answer(html.escape(fallback))
+                    onboarding = (
+                        "Привет! Я Botkin — AI-агент по теме здоровья 👋\n\n"
+                        "Вот что я умею:\n"
+                        "• 🍽 Трекинг питания — логируй еду текстом, фото или голосом\n"
+                        "• 💊 Добавки и витамины — отслеживай приёмы\n"
+                        "• 🩸 Анализы крови — разбираю показатели, объясняю значения\n"
+                        "• 📊 Дашборд — биологический возраст (PhenoAge), динамика по месяцам\n"
+                        "• ⌚ Wearables — подключай Garmin, Apple Health\n"
+                        "• 💬 Отвечаю на вопросы про здоровье\n\n"
+                        "Чтобы начать, напиши @lyskovsky — он подключит тебя к боту."
+                    )
+                    await message.answer(onboarding)
                 else:
                     debug_logger.error(f"agent_chat failed: {e}", exc_info=True)
                     await message.answer("🤖 Разговорный агент временно недоступен. Попробуй через минуту.")
