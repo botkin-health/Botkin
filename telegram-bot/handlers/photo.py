@@ -687,8 +687,16 @@ async def handle_document_image(message: Message, album: list = None):
         is_image = mime_type.lower() in image_mime_types or any(
             file_name.lower().endswith(ext) for ext in image_extensions
         )
+        is_pdf = mime_type.lower() == "application/pdf" or file_name.lower().endswith(".pdf")
 
-        if not is_image:
+        if not is_image and not is_pdf:
+            continue
+
+        if is_pdf:
+            pdf_path = await _download_pdf(msg)
+            if pdf_path:
+                pages = _pdf_to_images(pdf_path)
+                photo_paths.extend(pages)
             continue
 
         # Сохраняем документ как изображение
@@ -729,6 +737,42 @@ async def save_photo(message: Message, file_id: str) -> Path:
     except Exception:
         logger.exception("Ошибка при сохранении фото")
         return None
+
+
+async def _download_pdf(message: Message) -> Path | None:
+    """Скачивает PDF-документ из Telegram на диск."""
+    try:
+        file = await message.bot.get_file(message.document.file_id)
+        date_str = datetime.now(MSK).strftime("%Y-%m-%d")
+        media_dir = Path(__file__).parent.parent.parent / "data" / "media" / "nutrition" / date_str
+        media_dir.mkdir(parents=True, exist_ok=True)
+        pdf_path = media_dir / f"{message.document.file_unique_id}.pdf"
+        await message.bot.download_file(file.file_path, pdf_path)
+        return pdf_path
+    except Exception as e:
+        logging.getLogger(__name__).error(f"PDF download error: {e}")
+        return None
+
+
+def _pdf_to_images(pdf_path: Path, max_pages: int = 3) -> list[Path]:
+    """Конвертирует первые max_pages страниц PDF в PNG через PyMuPDF."""
+    try:
+        import fitz  # PyMuPDF
+
+        doc = fitz.open(str(pdf_path))
+        out_paths = []
+        for i, page in enumerate(doc):
+            if i >= max_pages:
+                break
+            pix = page.get_pixmap(dpi=150)
+            out_path = pdf_path.with_name(f"{pdf_path.stem}_p{i + 1}.png")
+            pix.save(str(out_path))
+            out_paths.append(out_path)
+        doc.close()
+        return out_paths
+    except Exception as e:
+        logging.getLogger(__name__).error(f"PDF→image error: {e}")
+        return []
 
 
 async def save_document_as_image(message: Message, file_id: str, file_name: str = None) -> Path:
