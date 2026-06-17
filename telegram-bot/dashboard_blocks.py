@@ -94,6 +94,18 @@ def has_weight_data(db: Session, user: User) -> bool:
     return db.query(Weight).filter(Weight.user_id == user.telegram_id).first() is not None
 
 
+def has_cgm_data(db: Session, user: User) -> bool:
+    """True if user has any CGM glucose readings in last 30 days."""
+    row = db.execute(
+        text(
+            "SELECT 1 FROM glucose_readings"
+            " WHERE user_id=:uid AND ts >= NOW() - INTERVAL '30 days' LIMIT 1"
+        ),
+        {"uid": user.telegram_id},
+    ).fetchone()
+    return row is not None
+
+
 def get_available_blocks(db: Session, user: User) -> dict:
     """Return dict of block_name -> bool for all dashboard sections.
 
@@ -113,4 +125,5 @@ def get_available_blocks(db: Session, user: User) -> dict:
         "blood_pressure": apple,
         # Netatmo air quality — only the owner has the sensor
         "air": user.cohort == "owner",
+        "glucose": has_cgm_data(db, user),
     }
