@@ -55,6 +55,8 @@ UPSERT_TABLES=(
   "activity_log:user_id,date"
   "blood_pressure_logs:user_id,measured_at"
   "blood_tests:user_id,test_date,test_type"
+  "cgm_connections:patient_id"
+  "glucose_readings:user_id,ts"
 )
 # REPLACE: только serial id, без естественного ключа.
 REPLACE_TABLES=(

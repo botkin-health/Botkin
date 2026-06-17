@@ -20,7 +20,7 @@ GitHub Action (`sync-prod-to-dev.yml`, `schedule '0 0 * * *'` = 03:00 МСК + `
 1. **Прод строго read-only.** Единственный контакт с продом — `\copy … TO STDOUT`. Никаких записей.
 
 2. **Гибрид по типу ключа таблицы** (а не единое зеркало — чтобы дев-тест выживал):
-   - **Upsert** для таблиц с естественным ключом (`users`, `user_settings`, `nutrition_log`, `weights`, `activity_log`, `blood_pressure_logs`, `blood_tests`): прод-строки добавляются/обновляют совпадающие по ключу; дев-only строки сохраняются. Surrogate `id` **не переносим** — дев выдаёт свой → исключаем коллизию PK между двумя независимо инкрементящими БД.
+   - **Upsert** для таблиц с естественным ключом (`users`, `user_settings`, `nutrition_log`, `weights`, `activity_log`, `blood_pressure_logs`, `blood_tests`, `cgm_connections` по `patient_id`, `glucose_readings` по `user_id,ts`): прод-строки добавляются/обновляют совпадающие по ключу; дев-only строки сохраняются. Surrogate `id` **не переносим** — дев выдаёт свой → исключаем коллизию PK между двумя независимо инкрементящими БД.
    - **Full-replace** для таблиц только с serial `id` без естественного ключа (`body_measurements`, `supplements_log`, `workouts`, `agent_conversations`): `TRUNCATE` + копия + `setval`. Дев-only строки в них теряются (осознанно: там импорт, не ручной тест).
    - **Skip** служебных/orphan (`audit_log`, `llm_usage_log`, `daily_summaries`, `sleep_records`).
 
