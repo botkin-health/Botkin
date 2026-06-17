@@ -90,6 +90,11 @@ container_running "$DEV_PG"  || die "дев-Postgres '$DEV_PG' не запуще
 docker exec "$PROD_PG" pg_isready -U "$DB_USER" -d "$DB" >/dev/null 2>&1 \
   || die "прод-Postgres не отвечает на pg_isready"
 
+# data-пути монтируются в контейнер для cp — не дать увести их за пределы
+# ожидаемых префиксов (если кто-то переопределит env при ручном запуске).
+[[ "$PROD_DATA" == /opt/botkin/* ]]     || die "PROD_DATA вне /opt/botkin/: '$PROD_DATA'"
+[[ "$DEV_DATA"  == /opt/botkin-dev/* ]] || die "DEV_DATA вне /opt/botkin-dev/: '$DEV_DATA'"
+
 # Sanity-guard: прод реально отдаёт строки (ловит силент-пустоту при FORCE RLS).
 PROD_USERS="$(prod_psql -tAc 'SELECT count(*) FROM users')"
 [ "${PROD_USERS:-0}" -gt 0 ] 2>/dev/null \
@@ -118,16 +123,18 @@ FK_TARGETS="$(prod_psql -tAc "
 
 # ── Хелперы построения SQL ──────────────────────────────────────────────────
 # Список колонок таблицы (public), исключая 'id', по ordinal_position.
+# Имя таблицы — через psql-переменную :'t' (квотируется как литерал), не
+# string-интерполяцией → injection-safe, даже если хелпер переиспользуют.
 cols_no_id() {
-  dev_psql -tAc "SELECT string_agg(quote_ident(column_name), ',' ORDER BY ordinal_position)
+  dev_psql -v t="$1" -tAc "SELECT string_agg(quote_ident(column_name), ',' ORDER BY ordinal_position)
                  FROM information_schema.columns
-                 WHERE table_schema='public' AND table_name='$1' AND column_name <> 'id'"
+                 WHERE table_schema='public' AND table_name = :'t' AND column_name <> 'id'"
 }
 # Все колонки таблицы (для full-replace COPY с id).
 cols_all() {
-  dev_psql -tAc "SELECT string_agg(quote_ident(column_name), ',' ORDER BY ordinal_position)
+  dev_psql -v t="$1" -tAc "SELECT string_agg(quote_ident(column_name), ',' ORDER BY ordinal_position)
                  FROM information_schema.columns
-                 WHERE table_schema='public' AND table_name='$1'"
+                 WHERE table_schema='public' AND table_name = :'t'"
 }
 
 # ── 1. Заполнение staging-схемы прод-данными (прод READ-ONLY) ───────────────

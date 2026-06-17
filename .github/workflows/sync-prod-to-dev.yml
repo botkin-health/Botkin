@@ -47,12 +47,6 @@ jobs:
           printf '%s\n' "${{ secrets.SSH_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
-      - name: Sync script to server
-        run: |
-          rsync -az --no-perms --omit-dir-times \
-            scripts/ci/sync-prod-to-dev.sh \
-            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/botkin-dev/sync-prod-to-dev.sh"
-
       - name: Run sync on server
         env:
           SSH_TARGET: ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
@@ -61,6 +55,9 @@ jobs:
         run: |
           FLAG=""
           [ "$DRY_RUN" = "true" ] && FLAG="--dry-run"
-          # shellcheck disable=SC2029  # FLAG не секретен, подстановка намеренная.
+          # Скрипт стримим в stdin (bash -s) и передаём флаг позиционным
+          # аргументом — без остаточного файла на сервере и TOCTOU-окна между
+          # доставкой и запуском (как пайп в deploy-prod.yml). Пустой "$FLAG"
+          # безвреден: скрипт парсит ${1:-}.
           ssh -o ConnectTimeout=10 -o ServerAliveInterval=30 -o ServerAliveCountMax=3 \
-            "$SSH_TARGET" bash /opt/botkin-dev/sync-prod-to-dev.sh $FLAG
+            "$SSH_TARGET" bash -s -- "$FLAG" < scripts/ci/sync-prod-to-dev.sh
