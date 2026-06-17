@@ -247,6 +247,15 @@ def test_reset_drops_saved_token(monkeypatch, tmp_path):
     assert c.token == "FRESH"
 
 
+def test_ensure_user_agent_sets_header():
+    """#139: pylibrelinkup без User-Agent → Cloudflare 476. Проверяем, что UA проставляется."""
+    from pylibrelinkup import pylibrelinkup as pkg
+
+    pkg.HEADERS.pop("User-Agent", None)
+    llu._ensure_user_agent()
+    assert pkg.HEADERS.get("User-Agent", "").startswith("Mozilla/5.0")
+
+
 def test_fetch_patient_ids(monkeypatch):
     class _P:
         def __init__(self, pid):

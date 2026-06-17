@@ -107,6 +107,21 @@ def collect_rows(client) -> dict[str, list[dict]]:
 TOKEN_CACHE = ROOT / "data" / "cache" / "llu_token.json"
 
 
+# Cloudflare WAF на api-*.libreview.io временно банит запросы без User-Agent (выглядят как бот) →
+# HTTP 476 на логине. pylibrelinkup UA не шлёт. Добавляем UA как у рабочих клиентов
+# (nightscout-librelink-up) — иначе бан. См. #139.
+_LLU_USER_AGENT = (
+    "Mozilla/5.0 (iPhone; CPU OS 17_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148"
+)
+
+
+def _ensure_user_agent() -> None:
+    """Прописать User-Agent в общий HEADERS pylibrelinkup (_get_headers делает HEADERS.copy())."""
+    from pylibrelinkup import pylibrelinkup as _pkg
+
+    _pkg.HEADERS["User-Agent"] = _LLU_USER_AGENT
+
+
 def _new_client():
     """Сконструировать PyLibreLinkUp (регион EU) без авторизации. Креды из env."""
     email = os.getenv("LLU_EMAIL")
@@ -115,6 +130,7 @@ def _new_client():
         raise RuntimeError("LLU_EMAIL / LLU_PASSWORD не заданы в .env")
     from pylibrelinkup import APIUrl, PyLibreLinkUp
 
+    _ensure_user_agent()
     return PyLibreLinkUp(email=email, password=password, api_url=APIUrl.EU)
 
 
