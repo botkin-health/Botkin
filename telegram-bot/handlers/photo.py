@@ -662,6 +662,7 @@ async def handle_document_image(message: Message, album: list = None):
     logger.info(f"📸 Получено {len(messages_to_process)} документов-изображений от пользователя {message.from_user.id}")
 
     photo_paths = []
+    has_pdf = False
 
     for msg in messages_to_process:
         # Проверяем, является ли документ изображением
@@ -693,10 +694,18 @@ async def handle_document_image(message: Message, album: list = None):
             continue
 
         if is_pdf:
+            has_pdf = True
+            processing_msg = await message.answer("📄 Получил PDF, конвертирую страницы…")
             pdf_path = await _download_pdf(msg)
             if pdf_path:
                 pages = _pdf_to_images(pdf_path)
                 photo_paths.extend(pages)
+                await processing_msg.delete()
+            else:
+                await processing_msg.edit_text(
+                    "⚠️ Не удалось скачать PDF. Возможно, файл слишком большой (лимит Telegram — 20 МБ). "
+                    "Попробуй отправить скриншот страницы."
+                )
             continue
 
         # Сохраняем документ как изображение
@@ -706,7 +715,9 @@ async def handle_document_image(message: Message, album: list = None):
             photo_paths.append(photo_path)
 
     if not photo_paths:
-        # Либо это не изображения, либо ошибка сохранения
+        if not has_pdf:
+            # Не изображение и не PDF — молча игнорируем
+            pass
         return
 
     # Ищем caption в сообщениях альбома
