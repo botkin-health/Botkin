@@ -41,6 +41,8 @@
 
 | # | Название | Status |
 |---|---|---|
+| [0005](0005-cgm-librelinkup-integration.md) | Интеграция CGM (глюкоза) через LibreLinkUp | Accepted |
+| [0004](0004-nightly-prod-to-dev-data-sync.md) | Ночной синк данных prod→dev | Accepted |
 | [0003](0003-alembic-for-db-migrations.md) | Alembic как фреймворк миграций БД (вместо ручного SQL/Flyway) | Accepted |
 | [0002](0002-rejecting-nanoclaw-for-simpler-agent.md) | Отказ от NanoClaw в пользу более простой схемы AI-агента | Accepted |
 | [0001](0001-nanoclaw-ephemeral-not-persistent.md) | NanoClaw: ephemeral spawn-containers per session, не persistent per user | Accepted |
