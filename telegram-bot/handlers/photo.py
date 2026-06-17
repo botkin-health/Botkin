@@ -421,7 +421,7 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
             # logged_items, remaining_items = supplement_service.log_intake(dish_name)
             pass
 
-            response = f"💊 <b>По фото распознано:</b> {dish_name}\n"
+            response = f"💊 <b>По фото распознано:</b> {html.escape(dish_name)}\n"
             if logged_items:
                 response += f"✅ <b>Записано в журнал:</b> {', '.join(logged_items)}\n\n"
             else:
@@ -532,9 +532,10 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
             state_manager.set_state(user_id, new_state)
 
             # Формируем ответ
-            response = f"🍽️ <b>{p_name}</b> (найдено в базе)\n\n"
+            safe_p_name = html.escape(p_name)
+            response = f"🍽️ <b>{safe_p_name}</b> (найдено в базе)\n\n"
             response += "⚠️ Распознано по фото\n"
-            response += f"• {p_name} ({weight}г) — {int(meal_totals['calories'])} ккал\n"
+            response += f"• {safe_p_name} ({weight}г) — {int(meal_totals['calories'])} ккал\n"
             response += f"\n📊 <b>Итого: {int(meal_totals['calories'])} ккал</b>\n"
             response += (
                 f"Б: {int(meal_totals['protein'])} | Ж: {int(meal_totals['fats'])} | У: {int(meal_totals['carbs'])}"
@@ -1225,7 +1226,7 @@ async def handle_menu_photo(message: Message, menu_data: dict, photo_path: Path,
     # Формируем ответ
     response = (
         f"🍽️ <b>Распознано по фото</b>\n\n"
-        f"<b>{dish_name}</b>\n"
+        f"<b>{html.escape(dish_name)}</b>\n"
         f"⚖️ Вес: {weight_str}\n\n"
         f"📊 КБЖУ:\n"
         f"• Калории: {calories:.0f} ккал\n"
