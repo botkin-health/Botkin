@@ -654,6 +654,19 @@ html.embed { overflow-x: hidden; }
   <div class="card"><div class="card-label">💗 HRV (мс)</div><div class="chart-wrap short"><canvas id="ch-hrv"></canvas></div></div>
   <div class="card"><div class="card-label">😰 Стресс</div><div class="chart-wrap short"><canvas id="ch-stress"></canvas></div></div>
   <div class="card"><div class="card-label">🩺 Давление (сист / диаст)</div><div class="chart-wrap short"><canvas id="ch-bp"></canvas></div></div>
+  <!-- CGM glucose block — hidden until has_cgm -->
+  <div id="cgm-section" style="display:none" class="card">
+    <div class="card-label">🩸 Глюкоза (CGM · FreeStyle Libre 3)</div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px">
+      <div><div style="font-size:11px;color:var(--muted)">Сейчас</div><div style="font-size:22px;font-weight:700" id="cgm-current">—</div><div style="font-size:10px;color:var(--muted)">ммоль/л</div></div>
+      <div><div style="font-size:11px;color:var(--muted)">Ср. 7 дней</div><div style="font-size:18px;font-weight:600" id="cgm-avg7">—</div><div style="font-size:10px;color:var(--muted)">ммоль/л</div></div>
+      <div><div style="font-size:11px;color:var(--muted)">TIR 14д</div><div style="font-size:18px;font-weight:600;color:#4caf50" id="cgm-tir">—</div><div style="font-size:10px;color:var(--muted)">3.9–10 ммоль/л</div></div>
+      <div><div style="font-size:11px;color:#ff6b6b">Гипо</div><div style="font-size:16px" id="cgm-tir-low">—</div></div>
+      <div><div style="font-size:11px;color:#ff9800">Гипер</div><div style="font-size:16px" id="cgm-tir-high">—</div></div>
+    </div>
+    <div id="cgm-tir-bar" style="width:100%;height:8px;background:var(--card-bg);border-radius:3px;margin-bottom:10px;overflow:hidden"></div>
+    <div class="chart-wrap short"><canvas id="ch-cgm-24h"></canvas></div>
+  </div>
   <div class="card"><div class="card-label">👣 Шаги в день</div><div class="chart-wrap short"><canvas id="ch-steps"></canvas></div></div>
   <div class="card"><div class="card-label">🏠 Воздух спальни (CO₂ ppm)</div><div class="chart-wrap short"><canvas id="ch-co2"></canvas></div></div>
 </div>
@@ -959,6 +972,7 @@ const streams = [
   { name: '💓 Пульс покоя', val: dash(T.rhr_avg), unit: dashUnit(T.rhr_avg, 'уд/мин ср'), last_: lastLabel(D.rhr, 'сегодня'), data: D.rhr, color: COLOR.r },
   { name: '😰 Стресс', val: dash(T.stress_avg), unit: dashUnit(T.stress_avg, '/100 ср'), last_: lastLabel(D.stress, 'сегодня'), data: D.stress, color: COLOR.y },
   { name: '🩺 Давление', val: T.bp_last || '—', unit: '', last_: T.bp_last ? 'последнее измерение' : 'нет данных', data: D.bp_sys, color: COLOR.r },
+  ...(CAP.has_cgm && D.cgm && D.cgm.available ? [{ name: '🩸 Глюкоза', val: D.cgm.current != null ? D.cgm.current.toFixed(1) : '—', unit: 'ммоль/л', last_: D.cgm.tir_pct != null ? 'TIR ' + D.cgm.tir_pct + '%' : 'CGM', data: null, color: COLOR.g }] : []),
   // ── Строка 2: Что я делал (Activity & Nutrition) ───────────────────────────
   { name: '🏋️ Тренировки', val: dash(T.activities_total), unit: dashUnit(T.activities_total, 'всего'), last_: (T.activities_total ? T.activity_hours + ' ч · ' + T.activity_km + ' км' : 'нет данных'), data: null, color: COLOR.g, custom: 'workout' },
   { name: '👣 Шаги', val: T.steps_avg ? T.steps_avg.toLocaleString() : '—', unit: dashUnit(T.steps_avg, '/день ср'), last_: lastOr(D.steps), data: D.steps, color: COLOR.g },
@@ -1740,6 +1754,58 @@ miniLine('ch-co2', D.co2, COLOR.b, 'CO₂');
   });
 })();
 
+// === CGM BLOCK ===
+(function() {
+  const cgm = D.cgm || {};
+  if (!CAP.has_cgm || !cgm.available) return;
+  const sec = document.getElementById('cgm-section');
+  if (sec) sec.style.display = '';
+
+  const el = id => document.getElementById(id);
+  if (el('cgm-current')) el('cgm-current').textContent = cgm.current != null ? cgm.current.toFixed(1) : '—';
+  if (el('cgm-avg7')) el('cgm-avg7').textContent = cgm.avg_7d != null ? cgm.avg_7d.toFixed(1) : '—';
+  if (el('cgm-tir')) el('cgm-tir').textContent = cgm.tir_pct != null ? cgm.tir_pct + '%' : '—';
+  if (el('cgm-tir-low')) el('cgm-tir-low').textContent = cgm.tir_low_pct != null ? cgm.tir_low_pct + '%' : '—';
+  if (el('cgm-tir-high')) el('cgm-tir-high').textContent = cgm.tir_high_pct != null ? cgm.tir_high_pct + '%' : '—';
+
+  // TIR bar
+  const tirBar = el('cgm-tir-bar');
+  if (tirBar && cgm.tir_pct != null) {
+    tirBar.innerHTML = `
+      <div style="width:${cgm.tir_low_pct||0}%;background:#ff6b6b;height:100%;display:inline-block;border-radius:3px 0 0 3px" title="Гипо ${cgm.tir_low_pct||0}%"></div>
+      <div style="width:${cgm.tir_pct||0}%;background:#4caf50;height:100%;display:inline-block" title="В норме ${cgm.tir_pct||0}%"></div>
+      <div style="width:${cgm.tir_high_pct||0}%;background:#ff9800;height:100%;display:inline-block;border-radius:0 3px 3px 0" title="Гипер ${cgm.tir_high_pct||0}%"></div>`;
+  }
+
+  // 24h sparkline
+  const sparkCanvas = el('ch-cgm-24h');
+  if (sparkCanvas && cgm.readings_24h && cgm.readings_24h.length > 1) {
+    new Chart(sparkCanvas, {
+      type: 'line',
+      data: {
+        labels: cgm.readings_24h.map(r => r.ts.slice(11,16)),
+        datasets: [{
+          data: cgm.readings_24h.map(r => r.value),
+          borderColor: COLOR.g, backgroundColor: 'rgba(52,199,89,0.1)',
+          borderWidth: 1.8, pointRadius: 1.5, fill: true, tension: 0.4
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false },
+          annotation: { annotations: {
+            lo: { type:'line', yMin:3.9, yMax:3.9, borderColor:'rgba(255,59,109,0.5)', borderWidth:1, borderDash:[4,4] },
+            hi: { type:'line', yMin:10,  yMax:10,  borderColor:'rgba(255,149,0,0.5)',  borderWidth:1, borderDash:[4,4] }
+          }}},
+        scales: {
+          x: { grid:{ display:false }, ticks:{ font:{size:10}, maxTicksLimit:6 } },
+          y: { grid:{ color:COLOR.grid }, ticks:{ font:{size:10} }, min:2.5 }
+        }
+      }
+    });
+  }
+})();
+
 // === ACHIEVEMENTS ===
 const aEl = document.getElementById('achievements');
 D.achievements.forEach(([emoji, tt, dd, is_warn]) => {
@@ -1784,6 +1850,15 @@ if (D.achievements.length === 0) {
       title: 'Измерь давление',
       what: 'Появится: история АД и анализ сердечно-сосудистого риска',
       sources: 'Omron → Apple Health Shortcut · любой тонометр с ручным вводом'
+    });
+  }
+
+  if (!CAP.has_cgm) {
+    invites.push({
+      icon: '📈',
+      title: 'Подключи CGM-сенсор',
+      what: 'Появится: глюкоза в реальном времени · TIR (время в целевом диапазоне) · 24h паттерн',
+      sources: 'FreeStyle Libre 3 → LibreLinkUp · /connect_cgm в @Botkin_md_bot'
     });
   }
 
