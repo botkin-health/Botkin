@@ -171,12 +171,62 @@ def _client_from_saved_token():
 _cached_client = None
 _cached_client_lock = threading.Lock()
 
+# Backoff на логин (#141): при 476/бане не долбим эндпоинт снова и снова — это продлевает бан.
+# Экспоненциальные паузы: 15м → 30м → 60м → кап 120м.
+_login_blocked_until: float = 0.0  # time.monotonic() timestamp
+_login_fail_count: int = 0
+_LOGIN_BACKOFF_DELAYS = [15 * 60, 30 * 60, 60 * 60, 120 * 60]  # секунды
+
+
+class LoginOnCooldownError(RuntimeError):
+    """Логин заблокирован backoff-ом: недавняя попытка упала с 476/баном.
+
+    Вызывающий код деградирует к данным из БД вместо сетевого логина.
+    """
+
+    def __init__(self, retry_in: float) -> None:
+        self.retry_in = retry_in  # секунд до следующей разрешённой попытки
+        super().__init__(f"LLU login на cooldown ещё {retry_in:.0f}с")
+
+
+def get_client():
+    """Авторизованный PyLibreLinkUp (регион EU): свежий логин + сохранение токена на диск.
+
+    При сетевой ошибке / 476 выставляет экспоненциальный backoff (_login_blocked_until).
+    Успешный логин сбрасывает счётчик ошибок.
+    """
+    import time
+
+    global _login_blocked_until, _login_fail_count
+    client = _new_client()
+    try:
+        client.authenticate()
+    except Exception as exc:
+        _login_fail_count += 1
+        delay = _LOGIN_BACKOFF_DELAYS[min(_login_fail_count - 1, len(_LOGIN_BACKOFF_DELAYS) - 1)]
+        _login_blocked_until = time.monotonic() + delay
+        logger.warning(
+            "LLU authenticate() упал (попытка %d): %s. Следующий логин не раньше чем через %ds.",
+            _login_fail_count,
+            exc,
+            delay,
+        )
+        raise
+    _login_blocked_until = 0.0
+    _login_fail_count = 0
+    _save_token(client)
+    return client
+
 
 def get_cached_client(reset: bool = False):
     """Переиспользуемый клиент: сперва токен с диска (без логина), иначе свежий логин.
 
     reset=True — выкинуть протухший токен (и in-memory, и файл) → форсировать новый логин.
+    Если логин недавно упал с 476/баном и cooldown ещё активен — кидает LoginOnCooldownError
+    вместо сетевого вызова (чтобы не продлевать бан повторными запросами).
     """
+    import time
+
     global _cached_client
     with _cached_client_lock:
         if reset:
@@ -186,7 +236,16 @@ def get_cached_client(reset: bool = False):
             except FileNotFoundError:
                 pass
         if _cached_client is None:
-            _cached_client = _client_from_saved_token() or get_client()
+            # Есть сохранённый токен — используем без логина (backoff не мешает).
+            from_disk = _client_from_saved_token()
+            if from_disk is not None:
+                _cached_client = from_disk
+            else:
+                # Нет токена — нужен логин. Проверяем cooldown.
+                remaining = _login_blocked_until - time.monotonic()
+                if remaining > 0:
+                    raise LoginOnCooldownError(retry_in=remaining)
+                _cached_client = get_client()
         return _cached_client
 
 

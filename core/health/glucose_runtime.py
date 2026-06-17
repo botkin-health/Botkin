@@ -29,5 +29,6 @@ else:
 get_cached_client = _llu.get_cached_client
 fetch_patient_ids = _llu.fetch_patient_ids
 refresh_glucose_for_telegram = _llu.refresh_glucose_for_telegram
+LoginOnCooldownError = _llu.LoginOnCooldownError
 
-__all__ = ["get_cached_client", "fetch_patient_ids", "refresh_glucose_for_telegram"]
+__all__ = ["get_cached_client", "fetch_patient_ids", "refresh_glucose_for_telegram", "LoginOnCooldownError"]

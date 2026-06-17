@@ -31,7 +31,7 @@ from sqlalchemy import func  # noqa: E402
 from database.models import ActivityLog, GlucoseReading, NutritionLog, Weight  # noqa: E402
 from webhook.jwt_auth import get_agent_user, get_db  # noqa: E402
 from core.health.glucose_stats import compute_glucose_stats  # noqa: E402
-from core.health.glucose_runtime import refresh_glucose_for_telegram as _refresh_glucose  # noqa: E402
+from core.health.glucose_runtime import refresh_glucose_for_telegram as _refresh_glucose, LoginOnCooldownError  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -518,11 +518,15 @@ async def recent_glucose(
     # On-demand: подтянуть свежую глюкозу для этого юзера прямо сейчас (#129).
     # Сетевой sync-вызов — в threadpool с таймаутом (зависший LLU не должен держать воркер);
     # любая ошибка/таймаут не валит ответ — fallback на данные из БД.
+    refresh_skipped = False
     try:
         await asyncio.wait_for(
             asyncio.to_thread(_refresh_glucose, user.telegram_id),
             timeout=10.0,
         )
+    except LoginOnCooldownError as e:
+        refresh_skipped = True
+        logger.info("recent_glucose: логин на cooldown для %s, %.0fс до следующей попытки", user.telegram_id, e.retry_in)
     except Exception as e:
         logger.warning("recent_glucose: on-demand refresh не удался для %s: %s", user.telegram_id, e)
 
@@ -566,6 +570,7 @@ async def recent_glucose(
         "stats": compute_glucose_stats(values),
         "truncated": len(values) > max_points,
         "points": points,
+        "refresh_skipped": refresh_skipped,
     }
 
 
