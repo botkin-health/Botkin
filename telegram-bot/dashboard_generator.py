@@ -2673,6 +2673,22 @@ def _safe_payload_json(payload: dict) -> str:
     return raw.replace("</", "<\\/").replace("<!--", "<\\!--")
 
 
+def _apply_embed_mode(html: str, embed: bool) -> str:
+    """Fill the {{HTML_CLASS}} / {{VIEWPORT}} placeholders of mc_template.html.
+
+    embed=True (mini-app iframe): class="embed" + device-width viewport, so the
+    1440px desktop layout is scaled-to-fit on narrow screens (см. mc_template.html,
+    html.embed + zoom-скрипт).
+    embed=False (standalone /mc/, shared dashboards): desktop defaults — no class,
+    width=1440 — output unchanged.
+    """
+    html = html.replace("{{HTML_CLASS}}", ' class="embed"' if embed else "")
+    return html.replace(
+        "{{VIEWPORT}}",
+        "width=device-width, initial-scale=1" if embed else "width=1440",
+    )
+
+
 def generate_dashboard_html(db: Session, user_id: int, embed: bool = False) -> str:
     """Главная точка входа: данные из БД → HTML-строка (шаблон Mission Control).
 
@@ -2714,9 +2730,4 @@ def generate_dashboard_html(db: Session, user_id: int, embed: bool = False) -> s
         caps["has_heart"] = caps["has_garmin"] or caps["has_bp"]
 
     html = template.replace("{{PAYLOAD}}", _safe_payload_json(payload))
-    html = html.replace("{{HTML_CLASS}}", ' class="embed"' if embed else "")
-    html = html.replace(
-        "{{VIEWPORT}}",
-        "width=device-width, initial-scale=1" if embed else "width=1440",
-    )
-    return html
+    return _apply_embed_mode(html, embed)
