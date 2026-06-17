@@ -122,6 +122,7 @@ def _save_token(client) -> None:
     try:
         TOKEN_CACHE.parent.mkdir(parents=True, exist_ok=True)
         TOKEN_CACHE.write_text(json.dumps({"token": client.token, "account_id_hash": client.account_id_hash}))
+        TOKEN_CACHE.chmod(0o600)  # bearer-JWT мед-аккаунта — только владельцу (не umask 0o644)
     except Exception as e:
         logger.debug("не смог сохранить llu-токен: %s", e)
 
