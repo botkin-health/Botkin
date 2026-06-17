@@ -1,6 +1,7 @@
 """Импортёр LibreLinkUp: парсинг измерений, конвертация единиц, дедуп, on-demand refresh (#96, #129)."""
 
 import importlib.util
+import json
 import types
 from datetime import datetime, timezone
 from pathlib import Path
@@ -188,3 +189,72 @@ def test_refresh_with_mapping_upserts(monkeypatch):
     n = llu.refresh_glucose_for_telegram(895655, db_url="postgresql://x")
     assert n == 2  # 2 дедуп-точки апсертнуты
     assert cur.inserts == 2
+
+
+# ── персист/переиспользование токена (#135) ──────────────────────────────────
+
+
+class _FakeAuthClient:
+    token = None
+    account_id_hash = None
+
+    def __init__(self):
+        self.auth_calls = 0
+
+    def _set_token(self, t):
+        self.token = t
+
+    def _set_account_id_hash(self, h):
+        self.account_id_hash = h
+
+    def authenticate(self):
+        self.auth_calls += 1
+        self.token = "FRESH"
+        self.account_id_hash = "FRESH_HASH"
+
+
+def test_get_cached_client_restores_token_without_login(monkeypatch, tmp_path):
+    tok = tmp_path / "llu_token.json"
+    tok.write_text(json.dumps({"token": "T", "account_id_hash": "H"}))
+    monkeypatch.setattr(llu, "TOKEN_CACHE", tok)
+    monkeypatch.setattr(llu, "_cached_client", None)
+    fake = _FakeAuthClient()
+    monkeypatch.setattr(llu, "_new_client", lambda: fake)
+
+    c = llu.get_cached_client()
+    assert c.token == "T"  # восстановлен с диска
+    assert fake.auth_calls == 0  # НЕ логинились
+
+
+def test_get_client_persists_token(monkeypatch, tmp_path):
+    tok = tmp_path / "llu_token.json"
+    monkeypatch.setattr(llu, "TOKEN_CACHE", tok)
+    monkeypatch.setattr(llu, "_new_client", lambda: _FakeAuthClient())
+
+    llu.get_client()
+    assert json.loads(tok.read_text()) == {"token": "FRESH", "account_id_hash": "FRESH_HASH"}
+
+
+def test_reset_drops_saved_token(monkeypatch, tmp_path):
+    tok = tmp_path / "llu_token.json"
+    tok.write_text(json.dumps({"token": "OLD", "account_id_hash": "H"}))
+    monkeypatch.setattr(llu, "TOKEN_CACHE", tok)
+    monkeypatch.setattr(llu, "_cached_client", None)
+    monkeypatch.setattr(llu, "_new_client", lambda: _FakeAuthClient())
+
+    c = llu.get_cached_client(reset=True)  # выкинуть протухший токен → свежий логин
+    assert not tok.exists() or json.loads(tok.read_text())["token"] == "FRESH"
+    assert c.token == "FRESH"
+
+
+def test_fetch_patient_ids(monkeypatch):
+    class _P:
+        def __init__(self, pid):
+            self.patient_id = pid
+
+    class _C:
+        def get_patients(self):
+            return [_P("a"), _P("b")]
+
+    monkeypatch.setattr(llu, "get_cached_client", lambda reset=False: _C())
+    assert llu.fetch_patient_ids() == ["a", "b"]

@@ -14,8 +14,6 @@ import sys
 import asyncio
 import secrets
 import logging
-import threading
-import importlib.util
 from datetime import datetime, date, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -33,26 +31,9 @@ from sqlalchemy import func  # noqa: E402
 from database.models import ActivityLog, GlucoseReading, NutritionLog, Weight  # noqa: E402
 from webhook.jwt_auth import get_agent_user, get_db  # noqa: E402
 from core.health.glucose_stats import compute_glucose_stats  # noqa: E402
+from core.health.glucose_runtime import refresh_glucose_for_telegram as _refresh_glucose  # noqa: E402
 
 logger = logging.getLogger(__name__)
-
-# On-demand refresh глюкозы (#129): импортёр живёт в scripts/import/ (не пакет — import зарезервирован).
-_glucose_importer = None
-_glucose_importer_lock = threading.Lock()
-
-
-def _load_glucose_importer():
-    global _glucose_importer
-    with _glucose_importer_lock:  # зовётся из asyncio.to_thread — защита от гонки/двойной загрузки
-        if _glucose_importer is None:
-            _p = Path(__file__).resolve().parents[2] / "scripts" / "import" / "librelinkup.py"
-            _spec = importlib.util.spec_from_file_location("librelinkup_import", _p)
-            if _spec is None or _spec.loader is None:
-                raise ImportError(f"Не удалось загрузить импортёр LibreLinkUp из {_p}")
-            _mod = importlib.util.module_from_spec(_spec)
-            _spec.loader.exec_module(_mod)
-            _glucose_importer = _mod
-        return _glucose_importer
 
 
 router = APIRouter(prefix="/api/agent", tags=["agent-tools"])
@@ -539,7 +520,7 @@ async def recent_glucose(
     # любая ошибка/таймаут не валит ответ — fallback на данные из БД.
     try:
         await asyncio.wait_for(
-            asyncio.to_thread(_load_glucose_importer().refresh_glucose_for_telegram, user.telegram_id),
+            asyncio.to_thread(_refresh_glucose, user.telegram_id),
             timeout=10.0,
         )
     except Exception as e:
