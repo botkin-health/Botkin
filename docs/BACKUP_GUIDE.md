@@ -1,4 +1,4 @@
-# Бэкапы Botkin / HealthVault БД
+﻿# Бэкапы Botkin / HealthVault БД
 
 > Стратегия 3-2-1: 3 копии (живая БД + локальный `.gz` + облако), 2 носителя,
 > 1 копия offsite (Google Drive). Внедрено 06.06.2026.
@@ -89,3 +89,7 @@ docker exec healthvault_postgres psql -U healthvault -d healthvault \
   `offsite daily OK`, ежемесячно `restore OK`.
 - Если видишь `ERROR: offsite ... FAILED` — проверить `rclone listremotes` и
   токен gdrive (`rclone about gdrive:`).
+
+---
+
+[← Документация Botkin — Index](INDEX.md)

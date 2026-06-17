@@ -1,4 +1,4 @@
-# 02 · Реестр источников данных
+﻿# 02 · Реестр источников данных
 
 > **Last verified (SQL примеры):** 2026-04-21
 > **Last verified (источники):** 2026-04-02 (некоторые таблицы метрик могут отставать на 2-3 недели)
@@ -338,3 +338,7 @@ python3 scripts/import_zepp_api.py --reauth
 * **Актуальность**: Александр 75 тестов, latest 2026-05-23 ✅. Папа/Андрей/Олег/Игорь — per-user.
 * 💡 **Статус**: ✅ автоматизировано (с 24.05.2026, см. workflow 13 в `04_workflows.md`).
 * 🛠 **Как обновить**: одна команда **`python3 scripts/generate_biomarkers_json.py --deploy`** — обновляет все 3 канала за раз для Александра. Для других юзеров — пока через `sync_family_kb.py` + `kb_to_blood_tests.py` отдельно (TBD: расширить generate_biomarkers_json на `--all-users`).
+
+---
+
+[← Документация Botkin — Index](../INDEX.md)

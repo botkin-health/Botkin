@@ -1,4 +1,4 @@
-# CLAUDE.md
+﻿# CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -489,3 +489,7 @@ Canonical triage vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `r
 ### Domain docs
 
 Single-context repo: one `CONTEXT.md` (lazy) + ADRs at `docs/architecture/decisions/`. See `docs/agents/domain.md`.
+
+---
+
+[← Документация Botkin — Index](docs/INDEX.md)

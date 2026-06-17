@@ -1,4 +1,4 @@
-# HealthVault Crontab Setup Instructions
+﻿# HealthVault Crontab Setup Instructions
 
 ## Auto-Backup Configuration
 
@@ -56,3 +56,7 @@ cd /Users/alexlyskovsky/HealthVault && make db-backup-auto
 ```
 0 6,18 * * * cd /Users/alexlyskovsky/HealthVault && /usr/bin/make db-backup-auto >> /Users/alexlyskovsky/HealthVault/logs/cron_backup.log 2>&1
 ```
+
+---
+
+[← Документация Botkin — Index](INDEX.md)

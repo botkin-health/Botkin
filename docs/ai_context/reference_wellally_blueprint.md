@@ -1,4 +1,4 @@
-# WellAlly — Architecture Blueprint
+﻿# WellAlly — Architecture Blueprint
 
 > Версия: март 2026
 > Платформа: macOS M5, Python 3.11, SQLite, Telegram Bot, Anthropic Claude API
@@ -311,3 +311,7 @@ conversation_history -- история чата
 | Checkin extractor | claude-haiku-4-5 | JSON extraction |
 | Task extractor | claude-haiku-4-5 | JSON extraction из текста |
 | Chat arbiter | claude-haiku-4-5 | Фоновое извлечение фактов |
+
+---
+
+[← Документация Botkin — Index](../INDEX.md)
