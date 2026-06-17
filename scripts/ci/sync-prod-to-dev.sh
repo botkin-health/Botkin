@@ -117,6 +117,14 @@ load_staging() {
     # Единственный контакт с продом — экспорт. Пайп host-side между контейнерами.
     prod_psql -c "\copy public.$table TO STDOUT" \
       | dev_psql -c "\copy $STG_SCHEMA.$table FROM STDIN"
+    # Guard: staging обязан совпасть с продом по числу строк. Ловит частичный
+    # COPY и силент-пустоту при внезапном RLS на не-users таблице (иначе
+    # full-replace затёр бы дев-таблицу в ноль). Легитимно пустые таблицы
+    # (prod=0) проходят — сверяем равенство, не «>0».
+    local pc sc
+    pc="$(prod_psql -tAc "SELECT count(*) FROM public.$table")"
+    sc="$(dev_psql  -tAc "SELECT count(*) FROM $STG_SCHEMA.$table")"
+    [ "$pc" = "$sc" ] || die "несовпадение строк '$table': prod=$pc staging=$sc"
   done
 }
 
@@ -133,11 +141,15 @@ build_merge_sql() {
     table="${entry%%:*}"
     conflict="${entry#*:}"
     cols="$(cols_no_id "$table")"
+    [ -n "$cols" ] || die "пустой список колонок (без id) для '$table' — рассинхрон схемы?"
     # SET для DO UPDATE: все колонки кроме конфликт-ключа (id уже исключён).
+    # $cols идёт из quote_ident → токены в кавычках ("user_id"); $conflict —
+    # сырой ("user_id"). Сравниваем по сырому имени, иначе фильтр не сработает.
     set_clause=""
     IFS=',' read -ra _cols <<< "$cols"
     for c in "${_cols[@]}"; do
-      case ",$conflict," in *",$c,"*) continue ;; esac
+      c_raw="${c//\"/}"
+      case ",$conflict," in *",$c_raw,"*) continue ;; esac
       set_clause+="${set_clause:+, }$c = EXCLUDED.$c"
     done
     # NOT NULL по всем колонкам конфликт-ключа: иначе строки с NULL в ключе не
@@ -158,9 +170,12 @@ build_merge_sql() {
     fi
   done
 
-  # REPLACE
+  # REPLACE. TRUNCATE без CASCADE намеренно: на эти таблицы нет входящих FK
+  # (проверено по baseline-схеме). Если связь появится — TRUNCATE упадёт под
+  # ON_ERROR_STOP, транзакция откатится, дев останется в исходном состоянии.
   for table in "${REPLACE_TABLES[@]}"; do
     cols="$(cols_all "$table")"
+    [ -n "$cols" ] || die "пустой список колонок для '$table' — рассинхрон схемы?"
     echo "-- replace $table"
     echo "TRUNCATE public.$table;"
     echo "INSERT INTO public.$table ($cols) SELECT $cols FROM $STG_SCHEMA.$table;"
@@ -169,18 +184,22 @@ build_merge_sql() {
                         GREATEST((SELECT COALESCE(MAX(id),1) FROM public.$table), 1));"
   done
 
+  # COMMIT завершает транзакцию; session_replication_role сбрасывать не нужно —
+  # это per-session настройка, а сессия psql закрывается сразу после.
   echo "COMMIT;"
-  echo "SET session_replication_role = origin;"
 }
 
-# ── data-файлы: rsync без --delete (докладываем, дев-only файлы целы) ────────
+# ── data-файлы: cp -a без --delete (докладываем, дев-only файлы целы) ────────
 sync_data_files() {
-  log "rsync data-файлов: $PROD_DATA → $DEV_DATA (без --delete)…"
-  # Каталоги принадлежат uid 10001 → rsync через одноразовый privileged-контейнер.
+  log "Синк data-файлов: $PROD_DATA → $DEV_DATA (без удаления дев-only)…"
+  # Каталоги принадлежат uid 10001 → копируем через одноразовый root-контейнер.
+  # Образ postgres:15 уже на хосте (стек проекта) — не тянем сторонний образ и
+  # не ходим в сеть (apk). `cp -a SRC/. DST/` = рекурсивно с атрибутами, мерж в
+  # DST с сохранением дев-only файлов (семантика rsync без --delete).
   docker run --rm \
     -v "$PROD_DATA":/src:ro \
     -v "$DEV_DATA":/dst \
-    alpine:3 sh -c "apk add --no-cache rsync >/dev/null 2>&1 && rsync -a /src/ /dst/"
+    postgres:15 cp -a /src/. /dst/
 }
 
 # ── Оркестрация ─────────────────────────────────────────────────────────────
