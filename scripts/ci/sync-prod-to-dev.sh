@@ -65,8 +65,14 @@ REPLACE_TABLES=(
   workouts
   agent_conversations
 )
-# SKIP (для справки/логов; скрипт их просто не упоминает):
-#   audit_log, llm_usage_log, daily_summaries, sleep_records
+# SKIP: служебные/orphan таблицы, которые синкать не нужно. Явный массив (не
+# комментарий) — чтобы coverage-guard ниже видел их как «осознанно пропущенные».
+SKIP_TABLES=(
+  audit_log
+  llm_usage_log
+  daily_summaries
+  sleep_records
+)
 
 log()  { printf '%s %s\n' "[$(date -u +%H:%M:%S)]" "$*"; }
 die()  { printf '❌ %s\n' "$*" >&2; exit 1; }
@@ -89,6 +95,26 @@ PROD_USERS="$(prod_psql -tAc 'SELECT count(*) FROM users')"
 [ "${PROD_USERS:-0}" -gt 0 ] 2>/dev/null \
   || die "на проде 0 строк в users — экспорт отменён (FORCE RLS? пустая БД?)"
 log "Прод: users=$PROD_USERS — экспорт безопасен."
+
+# Coverage-guard: КАЖДАЯ прод-таблица должна быть классифицирована (UPSERT /
+# REPLACE / SKIP). Новая таблица из миграции (как недавно CGM) иначе молча
+# выпала бы из синка — здесь это становится громкой ошибкой.
+KNOWN_TABLES="$(printf '%s\n' "${UPSERT_TABLES[@]%%:*}" "${REPLACE_TABLES[@]}" "${SKIP_TABLES[@]}" | sort -u)"
+PROD_TABLES="$(prod_psql -tAc "SELECT tablename FROM pg_tables WHERE schemaname='public'" | sort -u)"
+UNCLASSIFIED="$(comm -23 <(printf '%s\n' "$PROD_TABLES") <(printf '%s\n' "$KNOWN_TABLES"))"
+[ -z "$UNCLASSIFIED" ] \
+  || die "неклассифицированные прод-таблицы: $(echo $UNCLASSIFIED) — внеси в UPSERT/REPLACE/SKIP"
+
+# Pre-flight: на REPLACE-таблицы не должно быть входящих FK (TRUNCATE без CASCADE
+# иначе упал бы ночью). Ловим в pre-flight, а не в 3 часа ночи.
+REPLACE_CSV="$(printf "'%s'," "${REPLACE_TABLES[@]}")"; REPLACE_CSV="${REPLACE_CSV%,}"
+FK_TARGETS="$(prod_psql -tAc "
+  SELECT DISTINCT c.relname FROM pg_constraint con
+  JOIN pg_class c ON c.oid = con.confrelid
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+  WHERE con.contype='f' AND n.nspname='public' AND c.relname IN ($REPLACE_CSV)")"
+[ -z "$FK_TARGETS" ] \
+  || die "на REPLACE-таблицы есть входящие FK: $(echo $FK_TARGETS) — TRUNCATE небезопасен, переведи в upsert"
 
 # ── Хелперы построения SQL ──────────────────────────────────────────────────
 # Список колонок таблицы (public), исключая 'id', по ordinal_position.
