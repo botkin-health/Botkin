@@ -18,10 +18,13 @@ router = APIRouter()
 
 
 @router.get("/mc/{token}", response_class=HTMLResponse, include_in_schema=False)
-async def share_dashboard(token: str):
+async def share_dashboard(token: str, embed: bool = False):
     """Render personal health dashboard for the given share token.
 
     Returns 404 for unknown/invalid tokens — no hints about why.
+
+    embed=1 (mini-app iframe): renders a scale-to-fit variant for narrow screens.
+    Without the param the standalone/shared dashboard renders unchanged.
     """
     from database import SessionLocal
     from database.crud import get_user_by_share_token
@@ -32,7 +35,7 @@ async def share_dashboard(token: str):
         user = get_user_by_share_token(db, token)
         if not user or not user.is_active:
             raise HTTPException(status_code=404, detail="Not found")
-        html = generate_dashboard_html(db, user.telegram_id)
+        html = generate_dashboard_html(db, user.telegram_id, embed=embed)
         return HTMLResponse(content=html)
     except HTTPException:
         raise

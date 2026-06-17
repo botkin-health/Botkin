@@ -2673,7 +2673,23 @@ def _safe_payload_json(payload: dict) -> str:
     return raw.replace("</", "<\\/").replace("<!--", "<\\!--")
 
 
-def generate_dashboard_html(db: Session, user_id: int) -> str:
+def _apply_embed_mode(html: str, embed: bool) -> str:
+    """Fill the {{HTML_CLASS}} / {{VIEWPORT}} placeholders of mc_template.html.
+
+    embed=True (mini-app iframe): class="embed" + device-width viewport, so the
+    1440px desktop layout is scaled-to-fit on narrow screens (см. mc_template.html,
+    html.embed + zoom-скрипт).
+    embed=False (standalone /mc/, shared dashboards): desktop defaults — no class,
+    width=1440 — output unchanged.
+    """
+    html = html.replace("{{HTML_CLASS}}", ' class="embed"' if embed else "")
+    return html.replace(
+        "{{VIEWPORT}}",
+        "width=device-width, initial-scale=1" if embed else "width=1440",
+    )
+
+
+def generate_dashboard_html(db: Session, user_id: int, embed: bool = False) -> str:
     """Главная точка входа: данные из БД → HTML-строка (шаблон Mission Control).
 
     Adaptive blocks: uses get_available_blocks() to skip sections that have
@@ -2681,6 +2697,10 @@ def generate_dashboard_html(db: Session, user_id: int) -> str:
     capabilities dict already drives show/hide in the template — we augment
     it with lifetime DB checks so new users with an empty date-range window
     still get correct False values for every empty section.
+
+    embed=True (mini-app iframe): adds class="embed" + a device-width viewport so
+    the 1440px desktop layout is scaled to fit a phone screen (see mc_template.html).
+    embed=False (standalone /mc/, shared dashboards) renders unchanged.
     """
     from dashboard_blocks import get_available_blocks
     from database.models import User
@@ -2709,4 +2729,5 @@ def generate_dashboard_html(db: Session, user_id: int) -> str:
         caps["has_sleep"] = caps["has_garmin"]
         caps["has_heart"] = caps["has_garmin"] or caps["has_bp"]
 
-    return template.replace("{{PAYLOAD}}", _safe_payload_json(payload))
+    html = template.replace("{{PAYLOAD}}", _safe_payload_json(payload))
+    return _apply_embed_mode(html, embed)
