@@ -83,6 +83,13 @@ if not BOT_TOKEN:
     logger.error("Создайте файл .env и добавьте: TELEGRAM_BOT_TOKEN=ваш_токен")
     sys.exit(1)
 
+if not os.getenv("TELEGRAM_WEBHOOK_SECRET"):
+    logger.error(
+        "⚠️  TELEGRAM_WEBHOOK_SECRET не задан — /telegram/webhook открыт для всех."
+        " Сгенерируй: openssl rand -hex 32, добавь в .env и перерегистрируй"
+        " webhook через setWebhook(secret_token=...)."
+    )
+
 
 # Инициализируем бота и диспетчер
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
@@ -182,6 +189,17 @@ def register_handlers(dp: Dispatcher):
     except Exception as e:
         errors.append(f"Обработчик /sync: {e}")
         logger.error(f"❌ Ошибка регистрации обработчика /sync: {e}")
+
+    try:
+        from handlers.connect_cgm import router as connect_cgm_router
+
+        dp.include_router(connect_cgm_router)
+        count = len(connect_cgm_router.observers) if hasattr(connect_cgm_router, "observers") else 0
+        handlers_count += count
+        registered_modules.append("/connect_cgm")
+    except Exception as e:
+        errors.append(f"Обработчик /connect_cgm: {e}")
+        logger.error(f"❌ Ошибка регистрации обработчика /connect_cgm: {e}")
 
     # Apple Health handlers removed
     pass

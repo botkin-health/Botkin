@@ -346,3 +346,73 @@ async def test_multiple_photos_with_one_weight(tmp_path):
 
     # Weight confirmation + food answer → at least 2 answer calls
     assert msg.answer.call_count >= 2
+
+
+# ── Issue #115: приоритет фото-декомпозиции над текстовой подписью ────────────
+def test_build_router_result_keeps_multiple_components():
+    """При фото с ≥2 компонентами подпись НЕ схлопывает блюдо в один item."""
+    from handlers.photo import build_router_result_from_menu_data
+
+    menu_data = {
+        "dish_name": "Боул",
+        "calories": 400,
+        "protein": 20,
+        "fats": 15,
+        "carbs": 40,
+        "weight": 320,
+        "components": [
+            {"name": "зелень", "weight": 120, "calories": 60, "protein": 3, "fats": 1, "carbs": 8},
+            {"name": "лосось", "weight": 100, "calories": 200, "protein": 17, "fats": 12, "carbs": 0},
+            {"name": "заправка лимонная", "weight": 30, "calories": 140, "protein": 0, "fats": 15, "carbs": 1},
+        ],
+    }
+
+    result = build_router_result_from_menu_data(menu_data, caption="Обед: салат зелёный с лимонной заправкой")
+
+    items = result["data"]["items"]
+    assert len(items) == 3
+    names = {i["name"] for i in items}
+    assert names == {"зелень", "лосось", "заправка лимонная"}
+    # Подпись используется как уточнение названия блюда, не как единственный item.
+    assert "салат зелёный с лимонной заправкой" in result["data"]["dish_name"]
+
+
+def test_build_router_result_single_component_collapses():
+    """Без покомпонентной разбивки (0/1 компонент) — один item, как раньше."""
+    from handlers.photo import build_router_result_from_menu_data
+
+    menu_data = {"dish_name": "Блюдо из меню", "calories": 300, "protein": 10, "fats": 8, "carbs": 40, "weight": 200}
+
+    result = build_router_result_from_menu_data(menu_data, caption="")
+
+    items = result["data"]["items"]
+    assert len(items) == 1
+    assert items[0]["calories"] == 300
+
+
+def test_build_router_result_single_component_collapses_boundary():
+    """Ровно 1 компонент (граница условия ≥2) → один item из итогов menu_data."""
+    from handlers.photo import build_router_result_from_menu_data
+
+    menu_data = {
+        "dish_name": "Суп",
+        "calories": 200,
+        "weight": 300,
+        "components": [{"name": "суп", "weight": 300, "calories": 200}],
+    }
+
+    result = build_router_result_from_menu_data(menu_data, caption="обед")
+
+    assert len(result["data"]["items"]) == 1
+
+
+def test_safe_float_rejects_inf_nan_and_garbage():
+    """_safe_float: inf/nan/'много'/None → None; нормальные числа → float."""
+    from handlers.photo import _safe_float
+
+    assert _safe_float("много") is None
+    assert _safe_float(None) is None
+    assert _safe_float(float("inf")) is None
+    assert _safe_float(float("nan")) is None
+    assert _safe_float("12.5") == 12.5
+    assert _safe_float(0) == 0.0

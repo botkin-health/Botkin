@@ -2,7 +2,7 @@
 
 Goal: verify that `/webapp/` serves index.html with a cache-busting hash
 substituted into `{{V}}` placeholders, and that the hash changes when
-any of the tracked files (day.js, api.js, day.css) is modified.
+any of the tracked files (day.js, api.js, day.css, settings.css, settings.js, dashboard.js) is modified.
 """
 
 import sys
@@ -26,11 +26,22 @@ def test_index_substitutes_version_placeholder():
     # Tracked assets must include ?v=<hash>
     import re
 
-    matches = re.findall(r"(?:day\.js|api\.js|day\.css)\?v=([0-9a-f]+)", body)
+    matches = re.findall(r"(?:day\.js|api\.js|day\.css|settings\.css|settings\.js|dashboard\.js)\?v=([0-9a-f]+)", body)
     assert matches, f"no versioned assets found in body: {body[:500]}"
     # All versions in one response must be the same hash
     assert len(set(matches)) == 1
     assert len(matches[0]) == 8
+
+
+def test_index_shows_app_version_in_footer():
+    """Футер mini-app показывает v<__version__> из core/_version.py; плейсхолдер подставлен."""
+    from core._version import __version__
+    from webhook import apple_health
+
+    client = TestClient(apple_health.app)
+    body = client.get("/webapp/").text
+    assert "{{APP_VERSION}}" not in body  # плейсхолдер подставлен сервером
+    assert f"v{__version__}" in body  # реальная версия в теле (футер)
 
 
 def test_index_cache_control_is_no_cache():

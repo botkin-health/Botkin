@@ -9,9 +9,13 @@ Tasks 5-7 of HealthVault Sprint 1a:
   - Task 7: Read endpoints (recent_meals, kb_value, dashboard_summary, user_profile)
 """
 
+import re
 import sys
+import asyncio
 import secrets
 import logging
+import threading
+import importlib.util
 from datetime import datetime, date, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -26,10 +30,30 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from sqlalchemy import func  # noqa: E402
 
-from database.models import ActivityLog, NutritionLog, Weight  # noqa: E402
+from database.models import ActivityLog, GlucoseReading, NutritionLog, Weight  # noqa: E402
 from webhook.jwt_auth import get_agent_user, get_db  # noqa: E402
+from core.health.glucose_stats import compute_glucose_stats  # noqa: E402
 
 logger = logging.getLogger(__name__)
+
+# On-demand refresh глюкозы (#129): импортёр живёт в scripts/import/ (не пакет — import зарезервирован).
+_glucose_importer = None
+_glucose_importer_lock = threading.Lock()
+
+
+def _load_glucose_importer():
+    global _glucose_importer
+    with _glucose_importer_lock:  # зовётся из asyncio.to_thread — защита от гонки/двойной загрузки
+        if _glucose_importer is None:
+            _p = Path(__file__).resolve().parents[2] / "scripts" / "import" / "librelinkup.py"
+            _spec = importlib.util.spec_from_file_location("librelinkup_import", _p)
+            if _spec is None or _spec.loader is None:
+                raise ImportError(f"Не удалось загрузить импортёр LibreLinkUp из {_p}")
+            _mod = importlib.util.module_from_spec(_spec)
+            _spec.loader.exec_module(_mod)
+            _glucose_importer = _mod
+        return _glucose_importer
+
 
 router = APIRouter(prefix="/api/agent", tags=["agent-tools"])
 
@@ -496,6 +520,101 @@ async def recent_meals(
     }
 
 
+@router.get("/recent_glucose")
+async def recent_glucose(
+    hours: int = 24,
+    user=Depends(get_agent_user),
+    db: Session = Depends(get_db),
+):
+    """Точки глюкозы CGM за последние N часов + сводка (TIR, avg, min/max).
+
+    Статистика — по всему окну (лёгкая проекция value, без JSONB raw). Точек для
+    отображения — не более max_points самых свежих (LIMIT в БД, защита от token-blowup).
+    """
+    if hours < 1 or hours > 168:
+        raise HTTPException(status_code=400, detail="hours must be between 1 and 168")
+
+    # On-demand: подтянуть свежую глюкозу для этого юзера прямо сейчас (#129).
+    # Сетевой sync-вызов — в threadpool с таймаутом (зависший LLU не должен держать воркер);
+    # любая ошибка/таймаут не валит ответ — fallback на данные из БД.
+    try:
+        await asyncio.wait_for(
+            asyncio.to_thread(_load_glucose_importer().refresh_glucose_for_telegram, user.telegram_id),
+            timeout=10.0,
+        )
+    except Exception as e:
+        logger.warning("recent_glucose: on-demand refresh не удался для %s: %s", user.telegram_id, e)
+
+    max_points = 96
+    since = datetime.now(timezone.utc) - timedelta(hours=hours)
+
+    # Все значения для статистики — только колонка value (не тянем raw/source).
+    values = [
+        float(v)
+        for (v,) in db.query(GlucoseReading.value)
+        .filter(GlucoseReading.user_id == user.telegram_id, GlucoseReading.ts >= since)
+        .all()
+    ]
+    if not values:
+        return {
+            "status": "ok",
+            "hours": hours,
+            "total_count": 0,
+            "stats": {"count": 0},
+            "truncated": False,
+            "points": [],
+        }
+
+    # Свежие точки для отображения: DESC по индексу idx_glucose_user_ts + LIMIT.
+    rows = (
+        db.query(GlucoseReading.ts, GlucoseReading.value, GlucoseReading.trend)
+        .filter(GlucoseReading.user_id == user.telegram_id, GlucoseReading.ts >= since)
+        .order_by(GlucoseReading.ts.desc())
+        .limit(max_points)
+        .all()
+    )
+    points = [
+        {"ts": _dt_isoformat_local(ts, user), "value": float(val), "trend": tr}
+        for ts, val, tr in reversed(rows)  # обратно в хронологический порядок
+    ]
+
+    return {
+        "status": "ok",
+        "hours": hours,
+        "total_count": len(values),
+        "stats": compute_glucose_stats(values),
+        "truncated": len(values) > max_points,
+        "points": points,
+    }
+
+
+@router.get("/glucose_stats")
+async def glucose_stats(
+    days: int = 7,
+    user=Depends(get_agent_user),
+    db: Session = Depends(get_db),
+):
+    """Сводная статистика глюкозы за N дней: TIR%, среднее, разброс + границы периода."""
+    if days < 1 or days > 90:
+        raise HTTPException(status_code=400, detail="days must be between 1 and 90")
+
+    now = datetime.now(timezone.utc)
+    since = now - timedelta(days=days)
+    values = [
+        float(v)
+        for (v,) in db.query(GlucoseReading.value)
+        .filter(GlucoseReading.user_id == user.telegram_id, GlucoseReading.ts >= since)
+        .all()
+    ]
+    return {
+        "status": "ok",
+        "days": days,
+        "since": since.date().isoformat(),
+        "until": now.date().isoformat(),
+        "stats": compute_glucose_stats(values),
+    }
+
+
 @router.get("/kb_value")
 async def kb_value(
     key: str,
@@ -582,6 +701,79 @@ async def list_kb_keys(user=Depends(get_agent_user)):
         keys.append({"key": k, "type": t, "count": n})
 
     return {"keys": keys, "source": source, "total": len(keys)}
+
+
+_CORRECTION_KEY_RE = re.compile(r"^[a-zA-Z0-9_-]{1,100}$")
+_CORRECTION_MAX_VALUE_LEN = 2000
+
+
+class AgentCorrectionRequest(BaseModel):
+    key: str = Field(..., description="Уникальный ключ факта (snake_case, ≤100 символов)")
+    value: str = Field(..., description="Значение (≤2000 символов)")
+    reason: str = Field("", description="Откуда факт — слова пользователя")
+
+
+@router.post("/add_agent_correction")
+async def add_agent_correction(
+    req: AgentCorrectionRequest,
+    user=Depends(get_agent_user),
+):
+    """Сохранить поправку или новый факт в секцию agent_corrections KB пользователя.
+
+    Агент должен вызывать этот endpoint СРАЗУ при получении корректирующей
+    информации от пользователя (дата операции, диагноз, новый препарат и т.п.).
+    Данные записываются в KB-файл — при следующем разговоре агент увидит их.
+
+    Ключ — только [a-zA-Z0-9_-], длина ≤100. Значение — строка ≤2000 символов.
+    При повторном вызове с тем же ключом значение обновляется.
+    """
+    import json
+    import tempfile
+
+    if not _CORRECTION_KEY_RE.match(req.key):
+        raise HTTPException(
+            status_code=422,
+            detail=f"Недопустимый ключ '{req.key}': только буквы, цифры, _ и -, длина ≤100",
+        )
+    if len(req.value) > _CORRECTION_MAX_VALUE_LEN:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Значение слишком длинное: {len(req.value)} > {_CORRECTION_MAX_VALUE_LEN}",
+        )
+
+    kb_path, source = _resolve_user_kb_path(user)
+    if kb_path is None or not kb_path.exists():
+        raise HTTPException(status_code=404, detail=f"KB не найден для пользователя {user.telegram_id}")
+
+    try:
+        kb = json.loads(kb_path.read_text(encoding="utf-8"))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка чтения {source}: {e}")
+
+    corrections = kb.setdefault("agent_corrections", {})
+    corrections[req.key] = {
+        "value": req.value,
+        "reason": req.reason,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    # Атомарная запись через временный файл
+    try:
+        tmp = tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=kb_path.parent,
+            suffix=".tmp",
+            delete=False,
+        )
+        json.dump(kb, tmp, ensure_ascii=False, indent=2)
+        tmp.flush()
+        tmp.close()
+        Path(tmp.name).replace(kb_path)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка записи KB: {e}")
+
+    return {"status": "ok", "key": req.key, "source": source}
 
 
 @router.get("/open_questions")
@@ -1110,6 +1302,82 @@ async def recent_bp(
     }
 
 
+@router.get("/menstrual_data")
+async def menstrual_data(
+    months: int = 6,
+    user=Depends(get_agent_user),
+    db: Session = Depends(get_db),
+):
+    """Menstrual cycle data from Apple Health (menstrual_log table).
+
+    Returns individual flow records and computed cycle lengths.
+    Use for questions about cycle regularity, length, flow intensity.
+    """
+    from sqlalchemy import text as sql_text
+
+    months = max(1, min(months, 24))
+    sql = sql_text(
+        """
+        SELECT date, flow, source
+        FROM menstrual_log
+        WHERE user_id = :uid
+          AND date >= CURRENT_DATE - (:months * 30)
+        ORDER BY date ASC
+        """
+    )
+    rows = db.execute(sql, {"uid": user.telegram_id, "months": months}).fetchall()
+
+    if not rows:
+        all_rows = db.execute(
+            sql_text("SELECT date, flow, source FROM menstrual_log WHERE user_id=:uid ORDER BY date ASC"),
+            {"uid": user.telegram_id},
+        ).fetchall()
+        if not all_rows:
+            return {"status": "ok", "count": 0, "items": [], "cycles": [], "stats": {}}
+        rows = all_rows
+
+    items = [{"date": str(r.date), "flow": r.flow} for r in rows]
+
+    # Вычислить начала циклов: первый день после перерыва >2 дней
+    from datetime import date as date_type
+
+    period_starts = []
+    prev_date = None
+    for item in items:
+        if item["flow"] == "none":
+            prev_date = None
+            continue
+        d = date_type.fromisoformat(item["date"])
+        if prev_date is None or (d - prev_date).days > 2:
+            period_starts.append(item["date"])
+        prev_date = d
+
+    cycles = []
+    for i in range(1, len(period_starts)):
+        d1 = date_type.fromisoformat(period_starts[i - 1])
+        d2 = date_type.fromisoformat(period_starts[i])
+        length = (d2 - d1).days
+        if 15 < length < 60:
+            cycles.append({"start": period_starts[i - 1], "length_days": length})
+
+    cycle_lengths = [c["length_days"] for c in cycles]
+    avg_cycle = round(sum(cycle_lengths) / len(cycle_lengths), 1) if cycle_lengths else None
+    variation = round(max(cycle_lengths) - min(cycle_lengths), 0) if len(cycle_lengths) > 1 else 0
+
+    return {
+        "status": "ok",
+        "count": len(items),
+        "period_starts": period_starts,
+        "cycles": cycles[-12:],
+        "stats": {
+            "avg_cycle_days": avg_cycle,
+            "variation_days": variation,
+            "total_periods": len(period_starts),
+        },
+        "items": items,
+    }
+
+
 @router.get("/recent_sleep")
 async def recent_sleep(
     days: int = 14,
@@ -1273,7 +1541,7 @@ async def recent_biomarkers(
     limit = max(1, min(limit, 100))
     sql = sql_text(
         """
-        SELECT test_date, test_type, values
+        SELECT test_date, test_type, "values"
         FROM blood_tests
         WHERE user_id = :uid
         ORDER BY test_date DESC
@@ -1286,7 +1554,9 @@ async def recent_biomarkers(
     tests = []
     for r in rows:
         canon, _w = to_canonical(_as_dict(r.values), passthrough_unmapped=True)
-        tests.append({"date": r.test_date.isoformat(), "type": r.test_type, "values": canon})
+        # test_date — date на Postgres, str через SQLite (raw text query); поддержим оба.
+        d = r.test_date.isoformat() if hasattr(r.test_date, "isoformat") else str(r.test_date)
+        tests.append({"date": d, "type": r.test_type, "values": canon})
     return {"status": "ok", "count": len(tests), "tests": tests}
 
 
@@ -1382,16 +1652,18 @@ async def phenoage(
     from core.health.kb_schema import to_canonical
 
     rows = db.execute(
-        sql_text("SELECT test_date, values FROM blood_tests WHERE user_id = :uid ORDER BY test_date DESC"),
+        sql_text('SELECT test_date, "values" FROM blood_tests WHERE user_id = :uid ORDER BY test_date DESC'),
         {"uid": user.telegram_id},
     ).fetchall()
 
     latest: dict[str, dict] = {}
     for r in rows:
         canon, _w = to_canonical(_as_dict(r.values))
+        # test_date — date на Postgres, str через SQLite (raw text query); поддержим оба.
+        d = r.test_date.isoformat() if hasattr(r.test_date, "isoformat") else str(r.test_date)
         for key in markers:
             if key in canon and key not in latest:
-                latest[key] = {"value": float(canon[key]), "date": r.test_date.isoformat()}
+                latest[key] = {"value": float(canon[key]), "date": d}
 
     # Chronological age
     chrono_age = None

@@ -123,3 +123,149 @@ def test_half_fruit_parsing_regression():
     banana = by_name["банан"]
     assert 40 <= banana["weight"] <= 80, f"Половина банана ~60г, получено {banana['weight']}"
     assert banana["weight"] < 200, "Баг: половина банана не должна быть >200г"
+
+
+# ── Issue #115: вес по типу блюда вместо слепого дефолта 200г ─────────────────
+def test_estimate_default_weight_bowl():
+    """Боул/поке/тарелка-как-блюдо → ~330г, а не слепые 200г."""
+    from core.food.nutrition import estimate_default_weight
+
+    assert estimate_default_weight("боул с курицей") == 330.0
+    assert estimate_default_weight("Поке с лососем") == 330.0
+
+
+def test_estimate_default_weight_side_dish():
+    """Гарнир/каша → ~150г."""
+    from core.food.nutrition import estimate_default_weight
+
+    assert estimate_default_weight("гарнир из риса") == 150.0
+    assert estimate_default_weight("овсяная каша") == 150.0
+
+
+def test_estimate_default_weight_soup():
+    """Суп → ~300г."""
+    from core.food.nutrition import estimate_default_weight
+
+    assert estimate_default_weight("борщ суп") == 300.0
+    assert estimate_default_weight("Крем-суп грибной") == 300.0
+
+
+def test_estimate_default_weight_unknown():
+    """Неизвестное блюдо → дефолт 200г (как раньше)."""
+    from core.food.nutrition import estimate_default_weight
+
+    assert estimate_default_weight("нечто непонятное") == 200.0
+    assert estimate_default_weight("") == 200.0
+
+
+# ── Issue #115: sanity-флаг по плотности салатов/боулов ──────────────────────
+def test_check_density_sanity_flags_dense_salad():
+    """Салат 260 ккал/100г превышает порог 180 → warning."""
+    from core.food.nutrition import check_density_sanity
+
+    items = [{"product": "салат зелёный", "weight_g": 100.0, "calories": 260.0}]
+
+    warnings = check_density_sanity(items)
+
+    assert len(warnings) == 1
+    assert warnings[0]["name"] == "салат зелёный"
+    assert round(warnings[0]["density"]) == 260
+    assert warnings[0]["weight"] == 100.0
+
+
+def test_check_density_sanity_ok_light_salad():
+    """Салат 60 ккал/100г ниже порога → нет warning."""
+    from core.food.nutrition import check_density_sanity
+
+    items = [{"product": "салат овощной", "weight_g": 200.0, "calories": 120.0}]
+
+    warnings = check_density_sanity(items)
+
+    assert warnings == []
+
+
+def test_check_density_sanity_ignores_non_salad_dense_dish():
+    """Жирное НЕ-салатное блюдо (например, бекон) — флаг не ставим."""
+    from core.food.nutrition import check_density_sanity
+
+    items = [{"product": "бекон жареный", "weight_g": 100.0, "calories": 500.0}]
+
+    warnings = check_density_sanity(items)
+
+    assert warnings == []
+
+
+def test_check_density_sanity_skips_zero_weight():
+    """Нулевой/отсутствующий вес → деление невозможно, пропускаем."""
+    from core.food.nutrition import check_density_sanity
+
+    items = [{"product": "салат", "weight_g": 0.0, "calories": 300.0}]
+
+    warnings = check_density_sanity(items)
+
+    assert warnings == []
+
+
+def test_format_kcal_warning_includes_density_line():
+    """format_kcal_warning рендерит строку про плотность салата."""
+    from core.food.nutrition import format_kcal_warning
+
+    totals = {"kcal_warnings": [{"name": "салат", "density": 260.0, "weight": 100.0}]}
+
+    text = format_kcal_warning(totals)
+
+    assert "калорийнее обычного салата" in text
+    assert "260" in text
+
+
+def test_estimate_default_weight_bowl_beats_side_dish():
+    """«тарелка каши» содержит и bowl-, и side-слово → побеждает боул (330), не гарнир."""
+    from core.food.nutrition import estimate_default_weight
+
+    assert estimate_default_weight("тарелка каши") == 330.0
+    assert estimate_default_weight("боул-каша") == 330.0
+
+
+def test_format_kcal_warning_density_only_header_not_mismatch():
+    """Только density-флаг → заголовок НЕ про «Расхождение ккал и БЖУ» (issue #115)."""
+    from core.food.nutrition import format_kcal_warning
+
+    totals = {"kcal_warnings": [{"name": "салат", "density": 260.0, "weight": 100.0}]}
+
+    text = format_kcal_warning(totals)
+
+    assert "Расхождение ккал и БЖУ" not in text
+    assert "Необычная калорийность" in text
+
+
+def test_collect_meal_warnings_skips_kcal_check_for_alcohol():
+    """has_alcohol=True → kcal↔БЖУ-расхождения не считаем (этанол не в формуле)."""
+    from core.food.nutrition import _collect_meal_warnings
+
+    # Вино: 80 ккал заявлено, по БЖУ ≈ 0 — без alcohol-флага был бы mismatch.
+    items = [{"product": "вино красное", "weight_g": 100.0, "calories": 80.0, "protein": 0, "fats": 0, "carbs": 0}]
+
+    warns = _collect_meal_warnings(items, has_alcohol=True)
+
+    assert warns == []
+
+
+def test_format_kcal_warning_escapes_html_in_name():
+    """Имя блюда от LLM с HTML-тегами экранируется (anti-XSS, issue #115)."""
+    from core.food.nutrition import format_kcal_warning
+
+    totals = {"kcal_warnings": [{"name": "<b>салат</b>", "density": 260.0, "weight": 100.0}]}
+
+    text = format_kcal_warning(totals)
+
+    assert "<b>салат</b>" not in text
+    assert "&lt;b&gt;салат&lt;/b&gt;" in text
+
+
+def test_check_density_sanity_ignores_negative_calories():
+    """Отрицательные ккал (галлюцинация LLM) не дают ложный/тихий density-флаг."""
+    from core.food.nutrition import check_density_sanity
+
+    items = [{"product": "салат", "weight_g": 100.0, "calories": -50.0}]
+
+    assert check_density_sanity(items) == []

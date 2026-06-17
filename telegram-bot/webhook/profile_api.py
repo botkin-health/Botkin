@@ -11,6 +11,7 @@ Endpoints:
   PATCH /api/profile/timezone — update user timezone (called by WebApp on every open)
 """
 
+import os
 from datetime import date as date_cls, datetime as dt_cls, timedelta
 from typing import Optional, Literal
 
@@ -246,3 +247,44 @@ async def patch_timezone(payload: TimezonePayload, tg_user: dict = Depends(get_t
             db.commit()
     finally:
         db.close()
+
+
+# ── GET /api/dashboard_url ───────────────────────────────────────────────────
+
+
+def _public_base() -> str:
+    """Базовый публичный URL дашборда (без хвостового слэша).
+
+    Из env BOTKIN_PUBLIC_URL — чтобы не хардкодить домен (#114). Дефолт —
+    прод-домен botkin.health.
+    """
+    return os.getenv("BOTKIN_PUBLIC_URL", "https://botkin.health").rstrip("/")
+
+
+@router.get("/api/dashboard_url")
+async def get_dashboard_url(tg_user: dict = Depends(get_tg_user)):
+    """Единый дашборд-эндпоинт mini-app (#114): отдаёт `{token, dashboard_url}`.
+
+    - `token` → mini-app встраивает дашборд `/mc/{token}` в iframe (вкладка «Здоровье»).
+    - `dashboard_url` → абсолютная ссылка (Настройки: открыть/скопировать, поделиться).
+
+    Идемпотентен: переиспользует share_token юзера или создаёт при первом вызове
+    (тот же токен, что у /share). No-user (mini-app открыт до /start) → оба null.
+    Заменил дублирующий /api/profile/links.
+    """
+    from database import SessionLocal
+    from database.crud import generate_share_token
+
+    user_id = tg_user.get("id")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="No user id in initData")
+
+    db = SessionLocal()
+    try:
+        token = generate_share_token(db, user_id)
+    except ValueError:
+        return {"token": None, "dashboard_url": None}  # юзера ещё нет
+    finally:
+        db.close()
+
+    return {"token": token, "dashboard_url": f"{_public_base()}/mc/{token}"}

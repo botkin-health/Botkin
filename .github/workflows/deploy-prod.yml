@@ -56,7 +56,9 @@ jobs:
           chmod 600 ~/.ssh/known_hosts
 
       # .env управляется на сервере (оператор кладёт /opt/botkin/.env один раз).
-      # Перенос секретов в GitHub/Vault — отдельная задача; здесь .env не трогаем.
+      # Перенос секретов в GitHub/Vault — отдельная задача. Из всего .env workflow
+      # трогает РОВНО одну управляемую строку — IMAGE_TAG (upsert ниже): это делает
+      # выкаченный тег источником истины, переживающим любой `docker compose up`.
       - name: Sync compose to server
         run: |
           rsync -az --no-perms --omit-dir-times \
@@ -98,6 +100,16 @@ jobs:
           trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
           printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
           export IMAGE_TAG
+          # Персистим резолвнутый тег в .env ДО up -d, чтобы он пережил любой
+          # последующий `docker compose up` (ручной/auto-heal/рестарт демона).
+          # Иначе ${IMAGE_TAG:-latest} в compose резолвится из .env, где тега нет,
+          # и прод молча откатывается на закэшированный/прежний образ.
+          # Срабатывает и на выкате нового sha, и на откате (-f image_tag=…).
+          if grep -q '^IMAGE_TAG=' .env; then
+            sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=$IMAGE_TAG/" .env
+          else
+            printf '\nIMAGE_TAG=%s\n' "$IMAGE_TAG" >> .env
+          fi
           docker compose -f docker-compose.prod.yml pull
           docker compose -f docker-compose.prod.yml up -d --wait --wait-timeout 120
           # Точечная чистка старых образов ТОЛЬКО botkin-bot (кроме текущего и latest).

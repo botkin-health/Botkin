@@ -4,8 +4,10 @@
 # Запускает все pull-источники последовательно, с обработкой ошибок:
 # если один упал — следующие продолжают, в конце выводится сводка.
 #
-# Запускается изнутри контейнера healthvault_bot. Cron на хосте:
-#   5 4 * * * docker exec healthvault_bot bash /app/scripts/server/sync_all.sh >> /var/log/botkin_sync.log 2>&1
+# Запускается изнутри контейнера healthvault_bot под uid 10001 (botkin). Cron на хосте
+# (каждые 30 мин в окне 04–20) с chown pre-step — иначе root-owned файлы от Mac-пайплайна
+# ломают sync с PermissionError (подробно: docs/DEPLOYMENT.md):
+#   */30 4-20 * * * docker exec -u 0 healthvault_bot chown -R 10001:10001 /app/data /app/logs >> /var/log/botkin_sync.log 2>&1 ; docker exec healthvault_bot bash /app/scripts/server/sync_all.sh >> /var/log/botkin_sync.log 2>&1
 #
 # Логи смотрятся одной командой:
 #   ssh root@server 'tail -50 /var/log/botkin_sync.log'
@@ -63,6 +65,13 @@ run workouts /app/scripts/util/build_workouts_log.py
 # с мака — и протух 16-24.05.2026 потому что мак не запускали. Теперь сервер
 # делает сам каждую ночь. Идемпотентно: ON CONFLICT DO NOTHING / UPDATE.
 run pg_sync  /app/scripts/util/server_backfill_postgres.py
+
+# CGM-глюкоза (Abbott FreeStyle Libre 3 → LibreLinkUp). Тянет точки для всех,
+# кто пригласил follower dr@botkin.health (маппинг в cgm_connections). Креды
+# LLU_EMAIL/LLU_PASSWORD в .env. См. #96. Идемпотентно: ON CONFLICT (user_id, ts).
+# NB: для near-real-time глюкозы лучше отдельный cron каждые 5 мин (а не только
+# ночной sync_all) — LibreLinkUp graph отдаёт лишь ~12ч истории.
+run librelinkup /app/scripts/import/librelinkup.py
 
 # Zepp пока отключён — токен на сервере устарел, нужен reauth с Mac
 # Когда токен обновится, раскомментировать:

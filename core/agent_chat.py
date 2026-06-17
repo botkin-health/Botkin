@@ -117,6 +117,34 @@ TOOLS: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "get_recent_glucose",
+        "description": (
+            "Глюкоза CGM (FreeStyle Libre 3) за последние N часов: точки (ts/value mmol/L/trend) "
+            "+ сводка (avg, min, max, TIR%). hours=1..168, по умолчанию 24. "
+            "Для вопросов про сахар «какой сейчас / после еды / ночью / скачки»."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "hours": {"type": "integer", "minimum": 1, "maximum": 168, "default": 24},
+            },
+        },
+    },
+    {
+        "name": "get_glucose_stats",
+        "description": (
+            "Сводная статистика глюкозы CGM за N дней: TIR% (время в диапазоне 3.9–10 mmol/L), "
+            "среднее, разброс (std), min/max, % ниже/выше. days=1..90, по умолчанию 7. "
+            "Для вопросов «как мой сахар за неделю/месяц», «какой TIR»."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "days": {"type": "integer", "minimum": 1, "maximum": 90, "default": 7},
+            },
+        },
+    },
+    {
         "name": "list_kb_keys",
         "description": (
             "Список реальных топ-уровневых ключей knowledge_base ЭТОГО пользователя "
@@ -280,6 +308,22 @@ TOOLS: list[dict[str, Any]] = [
         "input_schema": {
             "type": "object",
             "properties": {"days": {"type": "integer", "minimum": 1, "maximum": 180, "default": 30}},
+        },
+    },
+    {
+        "name": "get_menstrual_data",
+        "description": (
+            "Данные менструального цикла из Apple Health (таблица menstrual_log). "
+            "Возвращает: список дней с flow (none/light/medium/heavy/spotting), "
+            "вычисленные начала циклов (period_starts), длины циклов в днях, "
+            "статистику: avg_cycle_days, variation_days, total_periods. "
+            "Используй для вопросов 'насколько ровный у меня цикл', "
+            "'какая длина цикла', 'регулярен ли цикл', 'когда началась последняя менструация'. "
+            "По умолчанию months=6. Передавай months=12 для годовой статистики."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {"months": {"type": "integer", "minimum": 1, "maximum": 24, "default": 6}},
         },
     },
     {
@@ -655,6 +699,25 @@ TOOLS: list[dict[str, Any]] = [
             },
         },
     },
+    {
+        "name": "add_agent_correction",
+        "description": (
+            "Сохранить поправку или новый факт в KB пользователя. "
+            "Вызывай СРАЗУ когда пользователь исправляет факт или сообщает новые данные — "
+            "дату операции, диагноз, аллергию, новый препарат, любую другую медицинскую деталь. "
+            "Ключ — короткое snake_case имя (surgery_year, diabetes_status, new_medication). "
+            "Данные сохраняются в секцию agent_corrections KB и будут доступны при следующем разговоре."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "key": {"type": "string", "description": "Уникальный ключ факта (snake_case, ≤100 символов)"},
+                "value": {"type": "string", "description": "Значение (≤2000 символов)"},
+                "reason": {"type": "string", "description": "Откуда факт — цитата или пересказ слов пользователя"},
+            },
+            "required": ["key", "value"],
+        },
+    },
 ]
 
 # ---------------------------------------------------------------------------
@@ -753,6 +816,20 @@ def _call_tool(name: str, args: dict, token: str) -> str:
                 headers=headers,
                 timeout=15,
             )
+        elif name == "get_recent_glucose":
+            r = requests.get(
+                f"{TOOLS_API_BASE}/recent_glucose",
+                params={"hours": int(args.get("hours", 24))},
+                headers=headers,
+                timeout=15,
+            )
+        elif name == "get_glucose_stats":
+            r = requests.get(
+                f"{TOOLS_API_BASE}/glucose_stats",
+                params={"days": int(args.get("days", 7))},
+                headers=headers,
+                timeout=15,
+            )
         elif name == "get_recent_supplements":
             r = requests.get(
                 f"{TOOLS_API_BASE}/recent_supplements",
@@ -775,6 +852,13 @@ def _call_tool(name: str, args: dict, token: str) -> str:
             r = requests.get(
                 f"{TOOLS_API_BASE}/recent_workouts",
                 params={"days": int(args.get("days", 30))},
+                headers=headers,
+                timeout=15,
+            )
+        elif name == "get_menstrual_data":
+            r = requests.get(
+                f"{TOOLS_API_BASE}/menstrual_data",
+                params={"months": int(args.get("months", 6))},
                 headers=headers,
                 timeout=15,
             )
@@ -879,6 +963,17 @@ def _call_tool(name: str, args: dict, token: str) -> str:
                 },
                 headers=headers,
                 timeout=30,
+            )
+        elif name == "add_agent_correction":
+            r = requests.post(
+                f"{TOOLS_API_BASE}/add_agent_correction",
+                json={
+                    "key": args.get("key", ""),
+                    "value": args.get("value", ""),
+                    "reason": args.get("reason", ""),
+                },
+                headers=headers,
+                timeout=10,
             )
         else:
             return json.dumps({"error": f"unknown tool: {name}"})
@@ -1432,9 +1527,12 @@ _TOOL_PROGRESS_LABEL = {
     "get_recent_meals": "🍽 собираю питание",
     "get_recent_supplements": "💊 смотрю добавки",
     "get_recent_bp": "🩸 поднимаю давление",
+    "get_recent_glucose": "🩸 смотрю глюкозу",
+    "get_glucose_stats": "🩸 считаю TIR",
     "get_recent_sleep": "😴 проверяю сон",
     "get_recent_trends": "📊 собираю динамику",
     "get_recent_workouts": "🏃 поднимаю тренировки",
+    "get_menstrual_data": "🌸 проверяю цикл",
     "get_recent_biomarkers": "🧪 смотрю анализы",
     "get_latest_biomarkers": "🧪 проверяю свежесть анализов",
     "get_kb_value": "📋 ищу в карте здоровья",

@@ -64,7 +64,9 @@ CANONICAL: dict[str, CanonicalMarker] = {
     "ALT": CanonicalMarker("Ед/л", {"ALT": 1, "alt_u_l": 1}),
     "AST": CanonicalMarker("Ед/л", {"AST": 1, "ast_u_l": 1}),
     "GGT": CanonicalMarker("Ед/л", {"GGT": 1, "ggt_u_l": 1}),
-    "ALP": CanonicalMarker("Ед/л", {"ALP": 1, "alkaline_phosphatase": 1, "alkaline_phosphatase_u_l": 1, "alp_u_l": 1}),
+    "ALP": CanonicalMarker(
+        "Ед/л", {"ALP": 1, "ALKP": 1, "alkaline_phosphatase": 1, "alkaline_phosphatase_u_l": 1, "alp_u_l": 1}
+    ),
     "bilirubin_total": CanonicalMarker(
         "мкмоль/л", {"bilirubin_total": 1, "total_bilirubin": 1, "bilirubin_total_umol_l": 1}
     ),
@@ -169,6 +171,40 @@ CANONICAL: dict[str, CanonicalMarker] = {
 }
 
 
+# Конверсия US (conventional, g/dL · mg/dL · µg/dL) → каноническая (метрическая)
+# единица, по КАНОНИЧЕСКОМУ ключу. Применяется на чтении к записям, помеченным
+# unit_system="US" (KB-поле "units": "US (mg/dl)"). Маркеры, отсутствующие здесь,
+# считаются единично-идентичными US↔метрика (ферменты Ед/л, проценты, нг/мл=мкг/л).
+# Множители — стандартные клинические (источник: молекулярная масса аналита):
+#   albumin/total_protein: g/dL → г/л          ×10
+#   glucose:    mg/dL → ммоль/л   ÷18.0156   (MW 180.16)
+#   creatinine: mg/dL → мкмоль/л  ×88.42     (MW 113.12)
+#   uric_acid:  mg/dL → мкмоль/л  ×59.48     (MW 168.11)
+#   calcium:    mg/dL → ммоль/л   ×0.2495    (MW 40.08)
+#   iron:       µg/dL → мкмоль/л  ×0.1791    (MW 55.845)
+#   bilirubin_total: mg/dL → мкмоль/л ×17.104 (MW 584.66)
+#   cholesterol_total/HDL/LDL: mg/dL → ммоль/л ÷38.67
+#   triglycerides: mg/dL → ммоль/л ÷88.57
+US_TO_METRIC: dict[str, float] = {
+    "albumin_g_l": 10.0,
+    "total_protein": 10.0,
+    "glucose": 1 / 18.0156,
+    "creatinine": 88.42,
+    "uric_acid": 59.48,
+    "calcium": 0.2495,
+    "iron": 0.1791,
+    "bilirubin_total": 17.104,
+    "cholesterol_total": 1 / 38.67,
+    "HDL": 1 / 38.67,
+    "LDL": 1 / 38.67,
+    "triglycerides": 1 / 88.57,
+}
+
+# Служебный ключ в values, несущий систему единиц записи (инжектится импортом
+# биохимии из KB, см. scripts/import/kb_to_blood_tests.py). Не маркер.
+UNIT_SYSTEM_KEY = "_unit_system"
+
+
 def _build_reverse() -> dict[str, tuple[str, float]]:
     idx: dict[str, tuple[str, float]] = {}
     for canon_key, marker in CANONICAL.items():
@@ -188,19 +224,32 @@ def reverse_index() -> dict[str, tuple[str, float]]:
     return dict(_REVERSE)
 
 
-def to_canonical(values: dict, *, passthrough_unmapped: bool = False) -> tuple[dict[str, float], list[str]]:
+def to_canonical(
+    values: dict, *, passthrough_unmapped: bool = False, unit_system: str | None = None
+) -> tuple[dict[str, float], list[str]]:
     """Сырые KB-values → {canonical_key: converted_value}.
 
     Возвращает (canon, warnings). Числовые значения конвертируются множителем;
     нечисловые пропускаются. Алиас, не найденный в реестре, либо отбрасывается
     с предупреждением, либо (passthrough_unmapped=True) пробрасывается как есть.
     passthrough_unmapped=True пробрасывает немаппленные ключи без warning.
+
+    unit_system: система единиц записи ("US" → конверсия g/dL·mg/dL·µg/dL в
+    метрику по US_TO_METRIC). Если None — берётся из values[UNIT_SYSTEM_KEY]
+    (так признак доезжает из Postgres JSONB). Явный параметр важнее ключа.
     """
+    if unit_system is None:
+        carrier = values.get(UNIT_SYSTEM_KEY)
+        unit_system = str(carrier) if carrier else None
+    is_us = (unit_system or "").upper() == "US"
+
     canon: dict[str, float] = {}
     exact_source: dict[str, str] = {}  # canon_key → исходный alias, выигравший слот
     warnings: list[str] = []
 
     for raw_key, raw_val in values.items():
+        if raw_key == UNIT_SYSTEM_KEY:
+            continue  # служебный признак единиц, не маркер
         if not isinstance(raw_val, (int, float)) or isinstance(raw_val, bool):
             continue
         hit = _REVERSE.get(raw_key.lower())
@@ -212,6 +261,8 @@ def to_canonical(values: dict, *, passthrough_unmapped: bool = False) -> tuple[d
             continue
         canon_key, factor = hit
         new_val = raw_val * factor
+        if is_us:
+            new_val *= US_TO_METRIC.get(canon_key, 1.0)
         if canon_key in canon and exact_source.get(canon_key) != raw_key:
             prev = canon[canon_key]
             prior_alias = exact_source.get(canon_key, "?")

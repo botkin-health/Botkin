@@ -12,10 +12,31 @@ from datetime import datetime
 
 from core.infra.tz import MSK  # noqa: E402  (общая TZ проекта)
 from pathlib import Path
+import html
+import math
 import os
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Issue #115: лимиты на пользовательский ввод/вывод vision при сборке items.
+MAX_CAPTION_HINT_LEN = 200  # подпись юзера → dish_name (Telegram caption ≤ 1024)
+MAX_COMPONENT_NAME_LEN = 100
+MAX_COMPONENTS = 20  # верхняя граница числа items из одного фото
+
+
+def _safe_float(value: object) -> float | None:
+    """Числовое поле из vision/LLM → конечный float или None.
+
+    Не падаем на 'много'/None и не пропускаем inf/nan дальше в арифметику ккал.
+    """
+    try:
+        result = float(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
+    if result is None or not math.isfinite(result):
+        return None
+    return result
 
 
 async def safe_edit_text(message: Message, text: str, **kwargs):
@@ -185,6 +206,9 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
                     "fats": total_nutrition.get("fats", 0),
                     "carbs": total_nutrition.get("carbs", 0),
                     "weight": items[0].get("weight") if items else None,
+                    # Issue #115: сохраняем покомпонентную разбивку зрения, чтобы не
+                    # схлопывать фото-блюдо в один item при наличии подписи.
+                    "components": items,
                 }
             elif items:
                 menu_data = {
@@ -194,6 +218,7 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
                     "fats": sum(i.get("fats", 0) for i in items),
                     "carbs": sum(i.get("carbs", 0) for i in items),
                     "weight": items[0].get("weight") if items else None,
+                    "components": items,
                 }
             if menu_data and (menu_data.get("calories") or menu_data.get("protein") is not None):
                 logger.info(f"Распознано через LLM: {menu_data.get('dish_name')}, {menu_data.get('calories')} ккал")
@@ -815,25 +840,10 @@ async def handle_description(
     if use_menu_data:
         logger.info(f"✅ Используем ранее распознанные КБЖУ из меню: {menu_data}")
 
-        # Формируем результат в формате, ожидаемом дальше в коде
-        router_result = {
-            "type": "food",
-            "data": {
-                "dish_name": menu_data.get("dish_name", "Блюдо из меню"),
-                "meal_type": "meal",  # Определим позже по времени
-                "items": [
-                    {
-                        "name": menu_data.get("dish_name", "Блюдо из меню"),
-                        "weight": menu_data.get("weight"),
-                        "quantity": None,
-                        "calories": menu_data.get("calories"),
-                        "protein": menu_data.get("protein"),
-                        "fats": menu_data.get("fats"),
-                        "carbs": menu_data.get("carbs"),
-                    }
-                ],
-            },
-        }
+        # Issue #115: если зрение вернуло покомпонентную разбивку — раскладываем
+        # на несколько items, подпись используем как уточнение названия блюда,
+        # а не схлопываем всё в один item.
+        router_result = build_router_result_from_menu_data(menu_data, caption=full_description)
     else:
         # Нет распознанных КБЖУ из меню - используем LLM Router
         # Готовим пути к фото
@@ -1037,7 +1047,12 @@ async def handle_description(
 
     # Это ЕДА
     llm_data = router_result
-    logger.info(f"📊 Calling process_llm_food_data with llm_data: {llm_data}")
+    # Не логируем сырой dict целиком: dish_name/items из LLM могут содержать \n
+    # (log injection). Логируем только тип и число позиций.
+    _ld_data = llm_data.get("data", {}) if isinstance(llm_data, dict) else {}
+    logger.info(
+        f"📊 Calling process_llm_food_data: type={llm_data.get('type')}, items={len(_ld_data.get('items', []))}"
+    )
     meal_items, meal_totals = process_llm_food_data(llm_data, description=full_description)
     logger.info(
         f"📊 process_llm_food_data returned: items={len(meal_items) if meal_items else 0}, totals={meal_totals}"
@@ -1086,11 +1101,12 @@ async def handle_description(
 
     # Формируем ответ
 
-    response = f"🍽️ <b>{meal_name}</b>\n\n"
+    # Экранируем названия из vision/LLM/подписи перед вставкой в HTML (issue #115, anti-XSS).
+    response = f"🍽️ <b>{html.escape(str(meal_name))}</b>\n\n"
     for item in meal_items:
         w_str = f"{item['weight_g']}г" if item.get("weight_g") else "?"
         cal = item.get("calories", 0)
-        response += f"• {item['product']} ({w_str}) — {int(cal)} ккал\n"
+        response += f"• {html.escape(str(item['product']))} ({w_str}) — {int(cal)} ккал\n"
 
     response += f"\n📊 <b>Итого: {int(meal_totals['calories'])} ккал</b>\n"
     response += f"Б: {int(meal_totals['protein'])} | Ж: {int(meal_totals['fats'])} | У: {int(meal_totals['carbs'])}"
@@ -1105,6 +1121,54 @@ async def handle_description(
     )
 
     await safe_edit_text(processing_message, response, parse_mode="HTML", reply_markup=builder.as_markup())
+
+
+def build_router_result_from_menu_data(menu_data: dict, caption: str = "") -> dict:
+    """Собирает router_result из ранее распознанного menu_data (issue #115).
+
+    Если зрение вернуло покомпонентную разбивку (`components`, ≥2 шт.) — отдаём
+    несколько items по компонентам, а подпись используем как уточнение названия
+    блюда, НЕ схлопывая всё в один item. Иначе — один item из итогов menu_data
+    (прежнее поведение для меню/чеков с одним блюдом).
+    """
+    components = (menu_data.get("components") or [])[:MAX_COMPONENTS]
+    base_dish = menu_data.get("dish_name", "Блюдо из меню")
+    # Подпись храним сырой (она идёт в БД как часть meal_name); HTML-экранирование —
+    # на рендере сообщения, не здесь, чтобы не пачкать данные сущностями.
+    caption_hint = (caption or "").strip()[:MAX_CAPTION_HINT_LEN]
+
+    if len(components) >= 2:
+        dish_name = f"{base_dish} ({caption_hint})" if caption_hint else base_dish
+        items = [
+            {
+                "name": str(c.get("name", "компонент"))[:MAX_COMPONENT_NAME_LEN],
+                "weight": _safe_float(c.get("weight")),
+                "quantity": c.get("quantity"),
+                "calories": _safe_float(c.get("calories")),
+                "protein": _safe_float(c.get("protein")),
+                "fats": _safe_float(c.get("fats")),
+                "carbs": _safe_float(c.get("carbs")),
+            }
+            for c in components
+        ]
+    else:
+        dish_name = base_dish
+        items = [
+            {
+                "name": base_dish,
+                "weight": menu_data.get("weight"),
+                "quantity": None,
+                "calories": menu_data.get("calories"),
+                "protein": menu_data.get("protein"),
+                "fats": menu_data.get("fats"),
+                "carbs": menu_data.get("carbs"),
+            }
+        ]
+
+    return {
+        "type": "food",
+        "data": {"dish_name": dish_name, "meal_type": "meal", "items": items},
+    }
 
 
 def build_menu_meal_item(menu_data: dict) -> dict:

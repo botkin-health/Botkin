@@ -103,7 +103,9 @@ Telegram ID и личные данные пользователей — в `~/.c
 
 ### 🩸 Анализы (KB) — 2-source pipeline + read-time канонизация (унифицировано 01.06.2026)
 
-Источник истины — `~/FamilyHealth/<Имя>/knowledge_base.json` **на маке**. На сервере биомаркеры живут в **двух местах**, и канонизация ключей происходит **на чтении** через `core/health/kb_schema.py` (единый реестр алиасов + конверсия единиц с guard):
+Источник истины — `~/FamilyHealth/<Имя>/knowledge_base.json` **на маке**. На сервере биомаркеры живут в **двух местах**, и канонизация ключей происходит **на чтении** через `core/health/kb_schema.py` (единый реестр алиасов + конверсия единиц с guard + US→метрика по признаку `_unit_system`):
+
+В Postgres `blood_tests` импортируются KB-секции `blood_tests`/`biochemistry`/`hormones`/`vitamins` (`_extract_rows`). Записи в US-единицах (KB-поле `"units"` содержит `mg/dl`/`g/dl`) получают служебный ключ `_unit_system="US"` в JSONB `values` — `to_canonical` по нему конвертирует g/dL·mg/dL·µg/dL в метрику на чтении (таблица `US_TO_METRIC`).
 
 | Канал на сервере | Кто читает | Формат | Как туда попадают данные |
 |---|---|---|---|
@@ -120,7 +122,7 @@ python3 scripts/sync_user_health.py --user <telegram_id> --apply   # или --al
 
 ⚠️ `sync_user_health` льёт из **локального** KB. Если у юзера на сервере данные богаче локального (прецедент: KB Андрея беднее его старого дашборда) — сперва дополнить локальный `knowledge_base.json`, иначе перезатрёшь.
 
-**Прецеденты:** 24.05.2026 — забывали стадии синка (теперь одна команда). 01.06.2026 — унификация: 3 формата ключей (`LDL`/`ldl`/`ldl_mmol_l`) и битый ad-hoc файл Димы (сырые pmol/L под каноническими именами) → единый `kb_schema` с конверсией единиц.
+**Прецеденты:** 24.05.2026 — забывали стадии синка (теперь одна команда). 01.06.2026 — унификация: 3 формата ключей (`LDL`/`ldl`/`ldl_mmol_l`) и битый ad-hoc файл Димы (сырые pmol/L под каноническими именами) → единый `kb_schema` с конверсией единиц. 16.06.2026 (#95) — секция `biochemistry` вообще не импортировалась → phenoage не видел альбумин/железо/ALKP; плюс панель Маккаби в US-единицах писалась без конверсии (молча неверный bio_age). Фикс: импорт `biochemistry` + признак `_unit_system` + конверсия US→метрика на чтении + алиас `ALKP`→`ALP`.
 
 **Follow-up:** консолидировать `core/reports/biomarker_dynamics.py::MARKER_CONFIG` (4-й case-sensitive маппинг) на `kb_schema`.
 
@@ -135,6 +137,7 @@ python3 scripts/sync_user_health.py --user <telegram_id> --apply   # или --al
 | Вес, жир, висцеральный жир | Zepp API (CN3) | `data/zepp_export_latest.csv` | `scripts/import/zepp_api.py` (токен ~7 дней, reauth через `--code URL`) |
 | Воздух дома | Netatmo API | `data/environment/netatmo_history.json` | `scripts/import/netatmo.py` |
 | Погода | Open-Meteo | `data/weather/weather_history.json` | `scripts/import/weather.py` |
+| Глюкоза (CGM) | LibreLinkUp API (Abbott FreeStyle Libre 3) | таблица `glucose_readings` (mmol/L) | `scripts/import/librelinkup.py` (follower `dr@botkin.health`, регион EU; маппинг `cgm_connections`; онбординг `/connect_cgm`) |
 | Питание, добавки | PostgreSQL (сервер) | таблицы `nutrition_log`, `supplements_log` | `scripts/fetch_remote_nutrition.sh` |
 | iPhone Screen Time | ActivityWatch + Biome | `data/activities/iphone_screentime_perapp.json` | `aw-import-screentime` + `scripts/import/activitywatch.py` |
 | Mac Screen Time | ActivityWatch | `data/activities/mac_screentime_perapp.json` | `scripts/import/mac_screentime.py` |

@@ -526,3 +526,52 @@ class Workout(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=True
     )
     distance_km: Mapped[Optional[float]] = mapped_column(Numeric(8, 3), nullable=True)
+
+
+class CgmConnection(Base):
+    """Маппинг follower LibreLinkUp patient_id → пользователь Botkin (CGM-глюкоза, #96).
+
+    Один сервисный follower-аккаунт (dr@botkin.health) видит всех, кто его пригласил;
+    эта таблица связывает каждого patient_id из get_patients() с telegram_id юзера.
+    """
+
+    __tablename__ = "cgm_connections"
+
+    # BigInteger PK; на sqlite (тесты) рендерим как Integer, иначе sqlite не автоинкрементит.
+    id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer(), "sqlite"), primary_key=True, autoincrement=True
+    )
+    patient_id: Mapped[str] = mapped_column(String(36), nullable=False, unique=True)
+    telegram_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), nullable=False
+    )
+    connected_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=True
+    )
+
+
+class GlucoseReading(Base):
+    """Точки глюкозы CGM (Abbott FreeStyle Libre 3 → LibreLinkUp API, #96)."""
+
+    __tablename__ = "glucose_readings"
+    __table_args__ = (
+        UniqueConstraint("user_id", "ts", name="glucose_readings_user_id_ts_key"),
+        Index("idx_glucose_user_ts", "user_id", text("ts DESC")),
+    )
+
+    id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer(), "sqlite"), primary_key=True, autoincrement=True
+    )
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), nullable=False
+    )
+    ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    value: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False)  # mmol/L
+    trend: Mapped[Optional[int]] = mapped_column(SmallInteger, nullable=True)  # 0-5, LibreLinkUp trend arrow
+    source: Mapped[Optional[str]] = mapped_column(
+        String(50), default="librelinkup", server_default="librelinkup", nullable=True
+    )
+    raw: Mapped[Optional[dict]] = mapped_column(JSONBCompat, nullable=True)
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=True
+    )

@@ -14,6 +14,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "telegram-bot"))
 
 import pytest
 from datetime import date, datetime, time, timedelta
+from zoneinfo import ZoneInfo
+
+# Эндпоинты считают «сегодня» в таймзоне пользователя (тест-юзер — Europe/Moscow,
+# фикс. UTC+3). Сравнивать с naive date.today() (UTC) нельзя: в окне 21:00–24:00 UTC
+# календарные сутки расходятся и тест флакает. Берём «сегодня» в той же tz.
+MSK = ZoneInfo("Europe/Moscow")
 from unittest.mock import MagicMock, patch
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -154,7 +160,7 @@ def test_log_meal_text_defaults_to_today(client, db_session, mock_food_llm):
     )
     assert r.status_code == 200, r.text
     body = r.json()
-    assert body["date"] == date.today().isoformat()
+    assert body["date"] == datetime.now(MSK).date().isoformat()
 
 
 def test_log_meal_text_rejects_non_food(client, db_session, monkeypatch):
@@ -748,6 +754,54 @@ def test_phenoage_marker_lookup_canonical_for_dima_keys():
             latest.setdefault(k, v)
     for need in ["albumin_g_l", "creatinine", "glucose", "hs_CRP", "lymphocytes", "MCV", "RDW_CV", "ALP", "WBC"]:
         assert need in latest, f"phenoage marker {need} не извлёкся из ключей Димы"
+
+
+# ── US-биохимия на чтении (issue #95: панель Маккаби g/dL·mg/dL) ─────────────
+
+
+def test_recent_biomarkers_canonizes_us_biochemistry(client, db_session):
+    """US-запись biochemistry с _unit_system → метрика на чтении; служебный ключ не протекает."""
+    from database.models import BloodTest
+
+    db_session.add(
+        BloodTest(
+            user_id=895655,
+            test_date=date(2026, 6, 9),
+            test_type="biochemistry",
+            values={"_unit_system": "US", "albumin": 5.1, "ALKP": 55, "glucose": 86},
+        )
+    )
+    db_session.commit()
+
+    r = client.get("/api/agent/recent_biomarkers")
+    assert r.status_code == 200, r.text
+    vals = r.json()["tests"][0]["values"]
+    assert abs(vals["albumin_g_l"] - 51.0) < 1e-6  # 5.1 g/dL → 51 g/L
+    assert vals["ALP"] == 55  # ALKP → ALP (Ед/л, без конверсии)
+    assert abs(vals["glucose"] - 86 / 18.0156) < 1e-3  # mg/dL → ммоль/л
+    assert "_unit_system" not in vals  # служебный признак не отдаётся агенту
+
+
+def test_phenoage_sees_albumin_from_us_biochemistry(client, db_session):
+    """phenoage извлекает альбумин из US-биохимии в правильной единице (был «нет альбумина»)."""
+    from database.models import BloodTest
+
+    db_session.add(
+        BloodTest(
+            user_id=895655,
+            test_date=date(2026, 6, 9),
+            test_type="biochemistry",
+            values={"_unit_system": "US", "albumin": 5.1, "ALKP": 55},
+        )
+    )
+    db_session.commit()
+
+    r = client.get("/api/agent/phenoage")
+    assert r.status_code == 200, r.text
+    by_name = {m["name"]: m for m in r.json()["markers"]}
+    assert by_name["albumin_g_l"]["value"] is not None, "альбумин снова не виден"
+    assert abs(by_name["albumin_g_l"]["value"] - 51.0) < 1e-2  # метрика, не 5.1
+    assert by_name["ALP"]["value"] == 55  # из ключа ALKP
 
 
 # ── RLS / user isolation (аудит 11.06.2026: privacy-гарантия без тестов) ─────
