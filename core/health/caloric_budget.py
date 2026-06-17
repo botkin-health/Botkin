@@ -17,6 +17,40 @@ DEFAULT_TOTAL = 2150  # fallback if no Garmin data (≈ avg from analysis)
 DEFAULT_GOAL_PCT = -15  # default calorie goal: 15% deficit
 
 
+def get_day_actual_tdee(user_id: int, for_date: date_type, db=None) -> Optional[float]:
+    """Фактический расход энергии (BMR + активные) за конкретный день из activity_log.
+
+    Источник для today-boost (см. calculate_targets / get_daily_budget): на тяжёлый
+    тренировочный день фактический расход выше 14-дневного среднего, и цель должна
+    подняться по факту, а не по среднему.
+
+    Возвращает total_calories (как показывает Garmin Connect), либо bmr+active как
+    fallback, либо None если за день нет данных о расходе.
+
+    db: переиспользовать сессию вызывающего (без вложенных коннектов). Если None —
+    открыть свою.
+    """
+    own = db is None
+    if own:
+        from database import SessionLocal
+
+        db = SessionLocal()
+    try:
+        from database import get_activity_by_date
+
+        act = get_activity_by_date(db, user_id, for_date)
+        if not act:
+            return None
+        if act.total_calories and act.total_calories > 0:
+            return float(act.total_calories)
+        if act.bmr_calories and act.active_calories:
+            return float(act.bmr_calories) + float(act.active_calories)
+        return None
+    finally:
+        if own:
+            db.close()
+
+
 def get_daily_budget(
     user_id: int,
     for_date: Optional[date_type] = None,
@@ -95,6 +129,16 @@ def get_daily_budget(
         if calorie_goal_pct is None:
             calorie_goal_pct = s.calorie_goal_pct if s and s.calorie_goal_pct is not None else DEFAULT_GOAL_PCT
         ratio = 1.0 + calorie_goal_pct / 100.0  # -15 → 0.85, 0 → 1.0, +10 → 1.10
+
+        # Today-boost: цель считается по max(среднее, фактический расход за день).
+        # В день тяжёлой тренировки фактический TDEE из Garmin выше среднего → цель
+        # растёт, юзер не «недоедает». В неполный/ленивый день factual < среднего →
+        # выигрывает среднее, цель не падает. Среднее (activity_avg/bmr_avg ниже)
+        # остаётся для отображения как было — поднимается только сама цель.
+        actual_tdee = get_day_actual_tdee(user_id, today, db=db)
+        if actual_tdee and actual_tdee > total_burned:
+            total_burned = actual_tdee
+            has_garmin = True
         target = round(total_burned * ratio)
 
         # --- Consumed: today's nutrition_log ---

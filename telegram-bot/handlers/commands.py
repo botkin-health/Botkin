@@ -152,6 +152,18 @@ async def cmd_day(message: Message, user_id: int):
         today_formatted = today_date.strftime("%d.%m.%Y")
         activity_label = "сегодня" if today_date == real_today else today_formatted
 
+        # Garmin Data — для сегодня синхронизируем через API (с 15-мин кешем),
+        # для исторических дат читаем только из БД.
+        # ВАЖНО: синк идёт ДО расчёта цели (get_day_stats), чтобы today-boost
+        # увидел свежий фактический расход за день (иначе цель считается по стейлу).
+        garmin_error = False
+        if today_date == real_today:
+            active_calories, garmin_status = sync_today_garmin(user_id, today_date)
+            garmin_error = garmin_status == "error"
+        else:
+            garmin_data = get_garmin_data_for_date(today_str, user_id=user_id)
+            active_calories = garmin_data.get("activeKilocalories", 0.0) or 0.0 if garmin_data else 0.0
+
         # New Service Logic
         from services.nutrition_service import get_nutrition_service
 
@@ -161,16 +173,6 @@ async def cmd_day(message: Message, user_id: int):
         totals = stats["totals"]
         targets = stats["targets"]
         remaining = stats["remaining"]
-
-        # Garmin Data — для сегодня синхронизируем через API (с 15-мин кешем),
-        # для исторических дат читаем только из БД
-        garmin_error = False
-        if today_date == real_today:
-            active_calories, garmin_status = sync_today_garmin(user_id, today_date)
-            garmin_error = garmin_status == "error"
-        else:
-            garmin_data = get_garmin_data_for_date(today_str, user_id=user_id)
-            active_calories = garmin_data.get("activeKilocalories", 0.0) or 0.0 if garmin_data else 0.0
 
         # Supplements Status - create per-user instance
         from core.health.supplements import SupplementService

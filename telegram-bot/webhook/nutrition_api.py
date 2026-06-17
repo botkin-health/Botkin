@@ -103,11 +103,11 @@ async def get_day(
         totals_raw = get_nutrition_totals_by_date(db, user_id=user_id, date=for_date)
         totals_raw["fiber"] = round(total_fiber_enriched, 1)
         totals_day = _totals_to_wire(totals_raw)
-        goals = compute_goals(user_id=user_id, for_date=for_date)
-
         # Today's actual activity. Compute as (total - bmr) for math consistency
         # — DO NOT trust active_calories field directly (Apple Health may overwrite it).
         # Use MSK (matches db_save.py date logic; server runs UTC by default).
+        # ВАЖНО: синк сегодняшнего Garmin идёт ДО compute_goals — чтобы today-boost
+        # считал цель по свежему фактическому расходу, а не по стейлу из БД.
         from datetime import datetime as _dt, timezone as _tz, timedelta as _td
 
         real_today = _dt.now(_tz(_td(hours=3))).date()
@@ -122,6 +122,8 @@ async def get_day(
                 activity_today = max(0, float(act_row.total_calories) - float(act_row.bmr_calories))
             else:
                 activity_today = float(act_row.active_calories or 0) if act_row else None
+
+        goals = compute_goals(user_id=user_id, for_date=for_date)
         goals["activity_today"] = round(activity_today) if activity_today is not None else None
     finally:
         db.close()
