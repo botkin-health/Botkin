@@ -346,3 +346,11 @@ code { background: #f0f0f0; border-radius: 4px; padding: 1px 6px;
   z-index: 999;
 }
 .links-toast.hidden { opacity: 0; }
+
+/* Data sources section */
+.row-icon {
+  font-size: 18px; width: 28px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.source-status { color: #8e8e93; }
+.source-status.connected { color: #34c759; }

@@ -630,6 +630,40 @@ function copyDashboard() {
   });
 }
 
+// ── Data Sources ─────────────────────────────────────────────────────────────
+async function loadDataSources() {
+  const group = document.getElementById('data-sources-group');
+  if (!group) return;
+  try {
+    const res = await fetch('/api/profile/data_sources', {
+      headers: { Authorization: 'tma ' + tg.initData }
+    });
+    if (!res.ok) throw new Error(res.status);
+    const { sources } = await res.json();
+    group.innerHTML = sources.map(s => _renderSourceRow(s)).join('');
+  } catch(e) {
+    group.innerHTML = '<div class="settings-row disabled"><div class="row-label"><div class="row-sub">Не удалось загрузить</div></div></div>';
+  }
+}
+
+function _renderSourceRow(s) {
+  const statusClass = s.connected ? 'source-status connected' : 'source-status';
+  const statusText  = s.connected
+    ? `подключён · ${_fmtDate(s.last_updated)}`
+    : 'не подключён';
+  return `<div class="settings-row">
+    <div class="row-icon">${s.icon}</div>
+    <div class="row-label">${s.name}<div class="row-sub ${statusClass}">${statusText}</div></div>
+  </div>`;
+}
+
+function _fmtDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+}
+
 // ── Init ─────────────────────────────────────────────────────────────────────
 load();
 loadLinks();
+loadDataSources();

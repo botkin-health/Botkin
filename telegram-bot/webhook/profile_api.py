@@ -288,3 +288,92 @@ async def get_dashboard_url(tg_user: dict = Depends(get_tg_user)):
         db.close()
 
     return {"token": token, "dashboard_url": f"{_public_base()}/mc/{token}"}
+
+
+# ── Data Sources ─────────────────────────────────────────────────────────────
+
+_DATA_SOURCES_META = [
+    {"id": "garmin",       "name": "Garmin",          "icon": "⌚"},
+    {"id": "apple_health", "name": "Apple Health",    "icon": "🍎"},
+    {"id": "zepp",         "name": "Zepp / Mi Scale", "icon": "⚖️"},
+    {"id": "netatmo",      "name": "Netatmo",          "icon": "🌡️"},
+    {"id": "cgm",          "name": "LibreLink (CGM)", "icon": "🩸"},
+]
+
+
+@router.get("/api/profile/data_sources")
+async def get_data_sources(tg_user: dict = Depends(get_tg_user)):
+    """Статус подключения источников данных для текущего пользователя.
+
+    Возвращает список: id, name, icon, connected (bool), last_updated (ISO date | null).
+    """
+    import json as _json
+    from pathlib import Path as _Path
+    from datetime import datetime as _dt
+    from database import SessionLocal
+    from sqlalchemy import text
+
+    user_id = tg_user.get("id")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="No user id in initData")
+
+    cutoff_30 = _today_msk() - timedelta(days=30)
+    cutoff_14 = _today_msk() - timedelta(days=14)
+    cutoff_7 = _today_msk() - timedelta(days=7)
+
+    db = SessionLocal()
+    try:
+        def _scalar(sql: str, params: dict):
+            row = db.execute(text(sql), params).fetchone()
+            return row[0] if row and row[0] else None
+
+        garmin_last = _scalar(
+            "SELECT MAX(date) FROM activity_log WHERE user_id=:uid AND source ILIKE 'garmin%' AND date >= :cutoff",
+            {"uid": user_id, "cutoff": cutoff_30},
+        )
+        apple_last = _scalar(
+            "SELECT MAX(date) FROM activity_log WHERE user_id=:uid AND source ILIKE 'apple%' AND date >= :cutoff",
+            {"uid": user_id, "cutoff": cutoff_30},
+        )
+        zepp_last = _scalar(
+            "SELECT MAX(measured_at)::date FROM weights WHERE user_id=:uid AND source ILIKE 'zepp%' AND measured_at >= :cutoff",
+            {"uid": user_id, "cutoff": cutoff_30},
+        )
+        cgm_last = _scalar(
+            "SELECT MAX(measured_at)::date FROM glucose_readings WHERE user_id=:uid AND measured_at >= :cutoff",
+            {"uid": user_id, "cutoff": cutoff_14},
+        )
+    finally:
+        db.close()
+
+    # Netatmo — файловый источник, не привязан к user_id
+    netatmo_last = None
+    netatmo_path = _Path("/app/data/environment/netatmo_log.json")
+    if netatmo_path.exists():
+        try:
+            data = _json.loads(netatmo_path.read_text())
+            ts = data.get("timestamp") or data.get("time")
+            if ts:
+                parsed = _dt.fromisoformat(str(ts).replace("Z", "+00:00")).date()
+                if parsed >= cutoff_7:
+                    netatmo_last = parsed
+        except Exception:
+            pass
+
+    last_by_id = {
+        "garmin":       garmin_last,
+        "apple_health": apple_last,
+        "zepp":         zepp_last,
+        "netatmo":      netatmo_last,
+        "cgm":          cgm_last,
+    }
+
+    sources = [
+        {
+            **meta,
+            "connected": bool(last_by_id[meta["id"]]),
+            "last_updated": last_by_id[meta["id"]].isoformat() if last_by_id[meta["id"]] else None,
+        }
+        for meta in _DATA_SOURCES_META
+    ]
+    return {"sources": sources}
