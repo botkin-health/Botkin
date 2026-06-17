@@ -656,7 +656,7 @@ def _build_cgm_block(db: Session, user_id: int) -> dict:
     from sqlalchemy import text as _text
 
     last_row = db.execute(
-        _text("SELECT value_mmol, ts FROM glucose_readings WHERE user_id=:uid ORDER BY ts DESC LIMIT 1"),
+        _text("SELECT value, ts FROM glucose_readings WHERE user_id=:uid ORDER BY ts DESC LIMIT 1"),
         {"uid": user_id},
     ).fetchone()
 
@@ -669,7 +669,7 @@ def _build_cgm_block(db: Session, user_id: int) -> dict:
     rows_24h = db.execute(
         _text(
             "SELECT date_trunc('hour', ts) AS h,"
-            " round(percentile_cont(0.5) WITHIN GROUP (ORDER BY value_mmol)::numeric, 1) AS med"
+            " round(percentile_cont(0.5) WITHIN GROUP (ORDER BY value)::numeric, 1) AS med"
             " FROM glucose_readings WHERE user_id=:uid AND ts >= NOW() - INTERVAL '24 hours'"
             " GROUP BY h ORDER BY h"
         ),
@@ -681,7 +681,7 @@ def _build_cgm_block(db: Session, user_id: int) -> dict:
 
     avg_row = db.execute(
         _text(
-            "SELECT round(avg(value_mmol)::numeric, 1) FROM glucose_readings"
+            "SELECT round(avg(value)::numeric, 1) FROM glucose_readings"
             " WHERE user_id=:uid AND ts >= NOW() - INTERVAL '7 days'"
         ),
         {"uid": user_id},
@@ -691,9 +691,9 @@ def _build_cgm_block(db: Session, user_id: int) -> dict:
     tir_row = db.execute(
         _text(
             "SELECT"
-            "  count(*) FILTER (WHERE value_mmol BETWEEN 3.9 AND 10.0) AS in_range,"
-            "  count(*) FILTER (WHERE value_mmol < 3.9) AS low,"
-            "  count(*) FILTER (WHERE value_mmol > 10.0) AS high,"
+            "  count(*) FILTER (WHERE value BETWEEN 3.9 AND 10.0) AS in_range,"
+            "  count(*) FILTER (WHERE value < 3.9) AS low,"
+            "  count(*) FILTER (WHERE value > 10.0) AS high,"
             "  count(*) AS total"
             " FROM glucose_readings"
             " WHERE user_id=:uid AND ts >= NOW() - INTERVAL '14 days'"
