@@ -695,17 +695,46 @@ async def handle_document_image(message: Message, album: list = None):
 
         if is_pdf:
             has_pdf = True
-            processing_msg = await message.answer("📄 Получил PDF, конвертирую страницы…")
+            processing_msg = await message.answer("📄 Получил PDF, читаю…")
             pdf_path = await _download_pdf(msg)
-            if pdf_path:
-                pages = _pdf_to_images(pdf_path)
-                photo_paths.extend(pages)
-                await processing_msg.delete()
-            else:
+            if not pdf_path:
                 await processing_msg.edit_text(
                     "⚠️ Не удалось скачать PDF. Возможно, файл слишком большой (лимит Telegram — 20 МБ). "
                     "Попробуй отправить скриншот страницы."
                 )
+                continue
+
+            # Извлекаем текст напрямую (для текстовых PDF — анализы, бланки)
+            pdf_text = _extract_pdf_text(pdf_path)
+            if pdf_text:
+                import asyncio
+                from core.agent_chat import ask_agent
+                from core.tg_markdown import md_to_html
+
+                user_id = message.from_user.id
+                caption = msg.caption or ""
+                prompt = f"Вот содержимое PDF-документа:\n\n{pdf_text}"
+                if caption:
+                    prompt = f"{caption}\n\n{prompt}"
+
+                await processing_msg.edit_text("⏳ Анализирую документ…")
+                loop = asyncio.get_event_loop()
+                try:
+                    reply = await loop.run_in_executor(None, lambda: ask_agent(int(user_id), prompt))
+                    if reply:
+                        await processing_msg.edit_text(md_to_html(reply), parse_mode="HTML")
+                    else:
+                        await processing_msg.edit_text(
+                            "Получил документ, но не смог разобрать содержимое. Напиши вопрос текстом."
+                        )
+                except Exception as e:
+                    logger.error(f"PDF agent error: {e}")
+                    await processing_msg.edit_text("Получил PDF — напиши текстом что хочешь узнать, и я разберу.")
+            else:
+                # Сканированный PDF — конвертируем в изображения для vision-пайплайна
+                pages = _pdf_to_images(pdf_path)
+                photo_paths.extend(pages)
+                await processing_msg.delete()
             continue
 
         # Сохраняем документ как изображение
@@ -763,6 +792,25 @@ async def _download_pdf(message: Message) -> Path | None:
     except Exception as e:
         logging.getLogger(__name__).error(f"PDF download error: {e}")
         return None
+
+
+def _extract_pdf_text(pdf_path: Path, max_pages: int = 10) -> str:
+    """Извлекает текст из PDF (работает для текстовых PDF, не сканов). Возвращает '' если текста нет."""
+    try:
+        import fitz  # PyMuPDF
+
+        doc = fitz.open(str(pdf_path))
+        parts = []
+        for i, page in enumerate(doc):
+            if i >= max_pages:
+                break
+            parts.append(page.get_text())
+        doc.close()
+        text = "\n".join(parts).strip()
+        return text if len(text) > 50 else ""
+    except Exception as e:
+        logging.getLogger(__name__).error(f"PDF text extract error: {e}")
+        return ""
 
 
 def _pdf_to_images(pdf_path: Path, max_pages: int = 3) -> list[Path]:
