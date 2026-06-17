@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru"{{HTML_CLASS}}>
 <head>
 <meta charset="UTF-8">
 <title>Botkin · Mission Control</title>
-<meta name="viewport" content="width=1440">
+<meta name="viewport" content="{{VIEWPORT}}">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 <style>
@@ -337,13 +337,25 @@ html { scroll-behavior: smooth; }
 .sport-verdict-col li { margin-bottom: 6px; }
 
 @media (max-width: 900px) {
-  .sport-kpi-grid { grid-template-columns: repeat(2, 1fr); }
-  .polar-row { grid-template-columns: 90px 1fr; }
-  .polar-meta { display: none; }
-  .workout-row { grid-template-columns: 60px 1fr 80px; row-gap: 4px; }
-  .workout-row .wo-zones, .workout-row .wo-hr, .workout-row .wo-mins { grid-column: 1 / -1; }
-  .sport-verdict-grid { grid-template-columns: 1fr; }
+  /* Scoped to :not(.embed): in embed mode the body is forced to 1440px desktop
+     width and scaled to fit (see html.embed below), so this narrow-viewport
+     reflow must NOT fire there — it would cram the sport section inside a wide body. */
+  html:not(.embed) .sport-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  html:not(.embed) .polar-row { grid-template-columns: 90px 1fr; }
+  html:not(.embed) .polar-meta { display: none; }
+  html:not(.embed) .workout-row { grid-template-columns: 60px 1fr 80px; row-gap: 4px; }
+  html:not(.embed) .workout-row .wo-zones, html:not(.embed) .workout-row .wo-hr, html:not(.embed) .workout-row .wo-mins { grid-column: 1 / -1; }
+  html:not(.embed) .sport-verdict-grid { grid-template-columns: 1fr; }
 }
+
+/* ── Embed mode (mini-app iframe) — scale-to-fit ──
+   The dashboard is built for a 1440px desktop viewport. Inside the narrow
+   mini-app iframe (viewport=device-width) we keep the full desktop layout by
+   forcing body to 1440px, then shrink it with `zoom` (set in JS to
+   innerWidth/1440). `zoom` reflows the layout box, so the page fits the screen
+   width with no horizontal scroll and correct vertical scroll height. */
+html.embed body { width: 1440px; }
+html.embed { overflow-x: hidden; }
 </style>
 </head>
 <body>
@@ -1802,6 +1814,21 @@ if (D.achievements.length === 0) {
       </div>`;
     grid.appendChild(card);
   });
+})();
+</script>
+<script>
+// ── Embed scale-to-fit ──
+// Only active when <html class="embed"> (mini-app iframe). Shrinks the 1440px
+// desktop layout to the screen width via `zoom`; no-op on the standalone /mc/.
+(function () {
+  if (!document.documentElement.classList.contains('embed')) return;
+  var BASE = 1440;
+  function fit() {
+    document.body.style.zoom = Math.min(1, window.innerWidth / BASE);
+  }
+  fit();
+  window.addEventListener('resize', fit);
+  window.addEventListener('orientationchange', fit);
 })();
 </script>
 </body>
