@@ -1465,7 +1465,25 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             return
 
         else:
-            await processing_msg.edit_text(f"🤔 Тип сообщения: {msg_type}, но я пока не знаю что с этим делать.")
+            # Всё что не еда (medical, activity, supplement, other и т.д.) — в агент
+            from core.agent_chat import ask_agent
+            from core.tg_markdown import md_to_html, split_markdown_for_telegram
+
+            await processing_msg.edit_text("⏳ Думаю…")
+            try:
+                reply = await loop.run_in_executor(None, lambda: ask_agent(int(user_id), text))
+                if not reply:
+                    reply = "Хм, у меня нет внятного ответа. Попробуй переформулировать."
+                chunks = split_markdown_for_telegram(reply)
+                for i, chunk in enumerate(chunks):
+                    chunk_html = md_to_html(chunk)
+                    if i == 0:
+                        await processing_msg.edit_text(chunk_html, parse_mode="HTML")
+                    else:
+                        await message.answer(chunk_html, parse_mode="HTML")
+            except RuntimeError as e:
+                debug_logger.info(f"agent fallback skipped: {e}")
+                await processing_msg.edit_text("Напиши мне свой вопрос — я разберусь.")
 
     except Exception as e:
         logger.error(f"❌ Error processing message: {e}", exc_info=True)
