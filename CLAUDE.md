@@ -442,6 +442,7 @@ AI-врач живёт **внутри** основного aiogram-бота (`@B
 - **История диалога:** таблица `agent_conversations` в Postgres (DDL: `database/migrations/add_agent_chat.sql`)
 - **Tools:** 30+ endpoints в `telegram-bot/webhook/agent_tools_api.py` (JWT+RLS изоляция по cohort; актуальный список — `grep '@router\.'`)
 - **JWT-контракт:** каждый запрос агента несёт `user_id` + `cohort` — RLS автоматически ограничивает видимость данных
+- **Доступ — у всех (#165, 18.06.2026):** разговорный агент работает для **любого** зарегистрированного пользователя. `users.agent_system_prompt` — **опциональный override** (богатая семейная персона из `onboard_family_user.py`), а НЕ гейт. Если он пуст — `ask_agent` использует `build_default_agent_prompt(user)` (лёгкий промпт из `onboarding_data`). Никакого деления на «семью» для доступа к агенту.
 
 Ключевые agent tools: `get_weight_history`, `get_body_measurements`, `get_day_summary`, `get_indoor_air`, `get_outdoor_weather`, `get_user_settings`, `recent_workouts`, `recent_biomarkers`, `phenoage`, `kb_value`, `list_kb_keys`.
 
