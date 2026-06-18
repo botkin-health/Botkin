@@ -905,23 +905,16 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                 for i, chunk in enumerate(chunks):
                     await _send_chunk(chunk, edit_target=progress_msg if i == 0 else None)
             except RuntimeError as e:
-                # Common: user has no agent_system_prompt → conversational
-                # mode not enabled for them yet. Fall back to canned reply.
-                if "agent_system_prompt" in str(e):
-                    debug_logger.info(f"agent_chat skipped: {e}")
-                    onboarding = (
-                        "Привет! Я Botkin — AI-агент по теме здоровья 👋\n\n"
-                        "Вот что я умею:\n"
-                        "• 🍽 Трекинг питания — логируй еду текстом, фото или голосом\n"
-                        "• 💊 Добавки и витамины — отслеживай приёмы\n"
-                        "• 🩸 Анализы крови — разбираю показатели, объясняю значения\n"
-                        "• 📄 PDF с анализами — кидай прямо в чат, прочитаю и разберу\n"
-                        "• 📊 Дашборд — биологический возраст (PhenoAge), динамика по месяцам\n"
-                        "• ⌚ Wearables — подключай Garmin, Apple Health\n"
-                        "• 💬 Отвечаю на вопросы про здоровье\n\n"
-                        "Чтобы начать, напиши @lyskovsky — он подключит тебя к боту."
+                # Промпт-гейта больше нет — у каждого юзера есть дефолтный
+                # системный промпт (#165). ask_agent кидает RuntimeError только
+                # если юзер не найден/неактивен → зовём пройти онбординг.
+                if "not found" in str(e) or "inactive" in str(e):
+                    debug_logger.info(f"agent_chat skipped (unregistered): {e}")
+                    await message.answer(
+                        "Чтобы начать пользоваться Botkin — нажми /start. "
+                        "Задам пару вопросов, и сразу можно логировать еду "
+                        "и задавать вопросы о здоровье 👋"
                     )
-                    await message.answer(onboarding)
                 else:
                     debug_logger.error(f"agent_chat failed: {e}", exc_info=True)
                     await message.answer("🤖 Разговорный агент временно недоступен. Попробуй через минуту.")
