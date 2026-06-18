@@ -1577,6 +1577,51 @@ _TOOL_PROGRESS_LABEL = {
 }
 
 
+def build_default_agent_prompt(user) -> str:
+    """Лёгкий дефолтный per-user системный промпт для любого пользователя без
+    индивидуального ``agent_system_prompt`` (само-онбординг через бота/сайт).
+
+    Собирается из ``onboarding_data`` + полей ``users`` (имя, цель, возраст, пол),
+    без вызова Claude и без PROFILE.md/KB. Никаких «семейных» привилегий — каждый
+    зарегистрированный пользователь получает полный разговорный функционал (#165).
+    Богатый промпт из ``onboard_family_user.py`` (если задан) имеет приоритет —
+    этот билдер только fallback.
+    """
+    data = getattr(user, "onboarding_data", None) or {}
+    name = (data.get("name") or getattr(user, "first_name", None) or "пользователь").strip() or "пользователь"
+    goal = (data.get("goal") or "общее здоровье, профилактика и долголетие").strip()
+
+    bits = []
+    if data.get("age"):
+        bits.append(f"{data['age']} лет")
+    sex_ru = {"male": "муж.", "female": "жен."}.get(data.get("sex"))
+    if sex_ru:
+        bits.append(sex_ru)
+    who = name + (f" ({', '.join(bits)})" if bits else "")
+
+    return (
+        f"Ты — личный AI-агент по теме здоровья для пользователя {name}. "
+        "Часть проекта Botkin (botkin.health), канал Telegram @Botkin_md_bot.\n\n"
+        "## Пользователь\n\n"
+        f"**{who}.** Цель: {goal}.\n"
+        "Это пользователь без подробной медицинской истории в системе — помогай "
+        "освоиться и подсказывай, как пользоваться ботом, когда уместно.\n\n"
+        "## Что ты умеешь и как пользователь это делает\n\n"
+        "- **Логирование еды** — пользователь пишет «съел банан и кофе», шлёт фото "
+        "тарелки или голосовое; ты распознаёшь и считаешь калории/БЖУ. На вопрос "
+        "«как вносить еду» — объясни этими словами с примерами.\n"
+        "- **Добавки и витамины** — «выпил витамин D» логируется как приём.\n"
+        "- **Анализы крови** — пользователь кидает PDF/фото анализов, ты разбираешь показатели.\n"
+        "- **Дашборд и отчёты** — биологический возраст (PhenoAge), динамика по месяцам.\n"
+        "- **Wearables** — Garmin, Apple Health, Google Health.\n"
+        "- **Вопросы о здоровье** — питание, сон, активность, корреляции в данных.\n\n"
+        "## Данные пользователя — через tools\n\n"
+        "Бери цифры из tools (get_recent_biomarkers, get_recent_meals, get_recent_supplements, "
+        "вес/тело, сон, давление). Не угадывай. Если данных ещё нет (новый пользователь) — "
+        "так и скажи и предложи начать логировать.\n"
+    )
+
+
 def ask_agent(
     user_id: int,
     user_text: str,
@@ -1603,10 +1648,6 @@ def ask_agent(
         user = db.query(User).filter_by(telegram_id=user_id).first()
         if not user or not user.is_active:
             raise RuntimeError(f"User {user_id} not found or inactive")
-        if not user.agent_system_prompt:
-            raise RuntimeError(
-                f"User {user_id} has no agent_system_prompt — conversational agent not enabled for this user yet"
-            )
 
         token = _generate_jwt(user)
 
@@ -1920,7 +1961,9 @@ def ask_agent(
             "---\n"
             "\n"
         )
-        per_user_prompt = user.agent_system_prompt or ""
+        # Семейный override (onboard_family_user.py) приоритетен; иначе — лёгкий
+        # дефолт, чтобы разговорный агент работал у любого пользователя (#165).
+        per_user_prompt = (user.agent_system_prompt or "").strip() or build_default_agent_prompt(user)
         # 📅 Инжектим сегодняшнюю дату в таймзоне юзера. Без неё LLM угадывает
         # «сегодня» (и ошибается: e2e 01.06.2026 — агент решил, что сегодня 02.06,
         # и «вчера» посчитал как 01.06). Нужно для корректного log_meal_text с
