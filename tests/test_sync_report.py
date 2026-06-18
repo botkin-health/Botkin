@@ -98,3 +98,55 @@ def test_every_outcome_has_icon():
         sync_cmd.OUTCOME_ERROR,
     ):
         assert outcome in sync_cmd.OUTCOME_ICON
+
+
+# --- Рендер отчёта ------------------------------------------------------------
+
+
+def test_report_all_good_no_reassurance():
+    results = [
+        ("garmin", "Garmin (часы)", sync_cmd.OUTCOME_OK, "обновлено"),
+        ("netatmo", "Netatmo (воздух дома)", sync_cmd.OUTCOME_NOOP, "актуально, новых данных нет"),
+    ]
+    text = sync_cmd._build_sync_report(results, "12с", [])
+    assert text.startswith("✅")  # всё хорошо → зелёный заголовок
+    assert "Готово: 1 обновлено, 1 актуально." in text
+    assert "Данные не потеряны" not in text  # нечему теряться
+
+
+def test_report_mixed_has_icons_and_reassurance():
+    results = [
+        ("garmin", "Garmin (часы)", sync_cmd.OUTCOME_OK, "обновлено"),
+        ("glucose", "Глюкоза (CGM)", sync_cmd.OUTCOME_UNAVAILABLE, "сервис Abbott временно недоступен"),
+        ("weather", "Погода (Open-Meteo)", sync_cmd.OUTCOME_ERROR, "не удалось обновить — записал в журнал"),
+    ]
+    text = sync_cmd._build_sync_report(results, "1м 3с", [])
+    assert "⏳ Глюкоза —" in text
+    assert "⚠️ Погода —" in text
+    assert "✅ Garmin —" in text
+    assert "1 обновлено" in text and "1 ждёт" in text and "1 с ошибкой" in text
+    assert "Данные не потеряны." in text
+
+
+def test_report_header_warns_on_error():
+    results = [("weather", "Погода (Open-Meteo)", sync_cmd.OUTCOME_ERROR, "не удалось")]
+    assert sync_cmd._build_sync_report(results, "2с", []).startswith("⚠️")
+
+
+def test_report_header_waits_when_only_unavailable():
+    results = [("glucose", "Глюкоза (CGM)", sync_cmd.OUTCOME_UNAVAILABLE, "сервис недоступен")]
+    assert sync_cmd._build_sync_report(results, "2с", []).startswith("⏳")
+
+
+def test_report_lists_cooldown_skips():
+    results = [("garmin", "Garmin (часы)", sync_cmd.OUTCOME_OK, "обновлено")]
+    text = sync_cmd._build_sync_report(results, "2с", [("zepp", 120)])
+    assert "кулдаун" in text.lower()
+    assert "Zepp" in text
+
+
+def test_report_truncates_overlong():
+    results = [("garmin", "Garmin (часы)", sync_cmd.OUTCOME_OK, "x" * 5000)]
+    text = sync_cmd._build_sync_report(results, "2с", [])
+    assert len(text) <= 3920
+    assert "обрезано" in text
