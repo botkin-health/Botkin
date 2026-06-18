@@ -59,9 +59,6 @@ OUTCOME_ICON = {
     OUTCOME_ERROR: "⚠️",
 }
 
-# Исходы, при которых данные пользователя в порядке (свежие или просто без обновлений).
-_GOOD_OUTCOMES = (OUTCOME_OK, OUTCOME_NOOP)
-
 # Маркеры в выводе успешного скрипта: «отработал, но тянуть было нечего».
 _NOOP_MARKERS = (
     "новых данных нет",
@@ -256,6 +253,61 @@ def _format_log_mtime(pattern: str | None) -> str:
     return mtime.strftime("%Y-%m-%d %H:%M")
 
 
+def _build_sync_report(
+    results: list[tuple[str, str, str, str]],
+    elapsed_str: str,
+    cooldown_skipped: list[tuple[str, int]],
+) -> str:
+    """Собирает человекочитаемый отчёт /sync (#138).
+
+    results: [(src, label, outcome, friendly_detail)] в порядке запуска.
+    Каждый источник — отдельной строкой с иконкой исхода; в конце — спокойная
+    итоговая строка. Никаких техдеталей (это гарантирует классификатор).
+    """
+    counts = {OUTCOME_OK: 0, OUTCOME_NOOP: 0, OUTCOME_UNAVAILABLE: 0, OUTCOME_ERROR: 0}
+    for _, _, outcome, _ in results:
+        counts[outcome] = counts.get(outcome, 0) + 1
+
+    # Заголовок: спокойный по худшему исходу (ошибка > ожидание > всё хорошо).
+    if counts[OUTCOME_ERROR]:
+        head_icon = "⚠️"
+    elif counts[OUTCOME_UNAVAILABLE]:
+        head_icon = "⏳"
+    else:
+        head_icon = "✅"
+    lines = [f"{head_icon} Синхронизация · {elapsed_str}", ""]
+
+    # Построчно по каждому источнику (в порядке запуска).
+    for _, label, outcome, detail in results:
+        short_label = label.split(" (")[0]
+        lines.append(f"{OUTCOME_ICON[outcome]} {short_label} — {detail}")
+
+    # Итоговая строка — что обновилось, теряются ли данные.
+    parts = []
+    if counts[OUTCOME_OK]:
+        parts.append(f"{counts[OUTCOME_OK]} обновлено")
+    if counts[OUTCOME_NOOP]:
+        parts.append(f"{counts[OUTCOME_NOOP]} актуально")
+    if counts[OUTCOME_UNAVAILABLE]:
+        parts.append(f"{counts[OUTCOME_UNAVAILABLE]} ждёт")
+    if counts[OUTCOME_ERROR]:
+        parts.append(f"{counts[OUTCOME_ERROR]} с ошибкой")
+    summary_line = "Готово: " + ", ".join(parts) + "."
+    # Успокаиваем только когда есть что объяснять (ожидание/ошибка): данные целы.
+    if counts[OUTCOME_UNAVAILABLE] or counts[OUTCOME_ERROR]:
+        summary_line += " Данные не потеряны."
+    lines.extend(["", summary_line])
+
+    if cooldown_skipped:
+        skipped = ", ".join(SOURCES[s][1].split(" (")[0] for s, _ in cooldown_skipped)
+        lines.extend(["", f"⏳ Пропущено (кулдаун): {skipped}"])
+
+    text = "\n".join(lines)
+    if len(text) > 3900:
+        text = text[:3900] + "\n\n…[обрезано]"
+    return text
+
+
 @router.message(Command("sync"))
 async def cmd_sync(message: Message, command: CommandObject, user_id: int):
     """`/sync` — запустить pull-синхронизации.
@@ -331,37 +383,7 @@ async def cmd_sync(message: Message, command: CommandObject, user_id: int):
     elapsed = int(time.time() - started)
     elapsed_str = f"{elapsed}с" if elapsed < 60 else f"{elapsed // 60}м {elapsed % 60}с"
 
-    ok_count = sum(1 for _, _, outcome, _ in results if outcome in _GOOD_OUTCOMES)
-    total = len(results)
-
-    # Header
-    if ok_count == total:
-        lines = [f"✅ Sync чисто ({elapsed_str}) · все {total} источника обновлены"]
-    elif ok_count == 0:
-        lines = [f"❌ Sync упал ({elapsed_str}) · 0/{total}"]
-    else:
-        lines = [f"🔄 Sync ({elapsed_str}) · {ok_count}/{total} ✅"]
-
-    # OK sources — одной строкой через ·
-    ok_labels = [label for _, label, outcome, _ in results if outcome in _GOOD_OUTCOMES]
-    if ok_labels:
-        # Сокращённые имена для одной строки (убираем "(...)" в скобках)
-        short = [lbl.split(" (")[0] for lbl in ok_labels]
-        lines.append("\n✅ " + " · ".join(short))
-
-    # Failures — каждая отдельной строкой с дружелюбной причиной
-    failures = [(label, detail) for _, label, outcome, detail in results if outcome not in _GOOD_OUTCOMES]
-    for label, detail in failures:
-        short_label = label.split(" (")[0]
-        lines.append(f"❌ {short_label} — {detail}")
-
-    if cooldown_skipped:
-        skipped = ", ".join(SOURCES[s][1].split(" (")[0] for s, _ in cooldown_skipped)
-        lines.append(f"\n⏳ Пропущено (кулдаун): {skipped}")
-
-    summary = "\n".join(lines)
-    if len(summary) > 3900:
-        summary = summary[:3900] + "\n\n…[обрезано]"
+    summary = _build_sync_report(results, elapsed_str, cooldown_skipped)
 
     # Заменяем progress-сообщение финальным.
     # parse_mode=None ОБЯЗАТЕЛЕН: сводка — plain text (emoji + текст), но текст ошибки
