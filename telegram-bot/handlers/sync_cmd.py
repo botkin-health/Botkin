@@ -28,6 +28,8 @@ MVP-ограничения:
 """
 
 import asyncio
+import logging
+import re
 import time
 from pathlib import Path
 
@@ -38,10 +40,67 @@ from aiogram.filters import Command, CommandObject
 from config.users import is_admin
 
 router = Router()
+logger = logging.getLogger(__name__)
 
 # Кулдауны: {source_name: last_run_timestamp}
 _LAST_RUN: dict[str, float] = {}
 COOLDOWN_SECONDS = 300  # 5 минут между ручными синками одного источника
+
+# Исходы синка одного источника — человекочитаемая классификация для отчёта (#138).
+OUTCOME_OK = "ok"  # обновлено, есть свежие данные
+OUTCOME_NOOP = "noop"  # отработал, но новых данных не было
+OUTCOME_UNAVAILABLE = "unavailable"  # внешний сервис временно недоступен — данные не потеряны
+OUTCOME_ERROR = "error"  # внутренняя ошибка — детали только в серверном логе
+
+OUTCOME_ICON = {
+    OUTCOME_OK: "✅",
+    OUTCOME_NOOP: "➖",
+    OUTCOME_UNAVAILABLE: "⏳",
+    OUTCOME_ERROR: "⚠️",
+}
+
+# Исходы, при которых данные пользователя в порядке (свежие или просто без обновлений).
+_GOOD_OUTCOMES = (OUTCOME_OK, OUTCOME_NOOP)
+
+# Маркеры в выводе успешного скрипта: «отработал, но тянуть было нечего».
+_NOOP_MARKERS = (
+    "новых данных нет",
+    "нет новых",
+    "ничего нового",
+    "уже актуал",
+    "актуально",
+    "up to date",
+    "no new",
+    "0 new",
+    "nothing to",
+    "no updates",
+)
+
+# Маркеры временной недоступности внешнего сервиса (сеть / HTTP / rate-limit).
+_TEMPORARY_MARKERS = (
+    "connectionerror",
+    "connection aborted",
+    "connection reset",
+    "connection refused",
+    "max retries",
+    "newconnectionerror",
+    "failed to establish",
+    "timeouterror",
+    "timed out",
+    "timeout",
+    "read timed out",
+    "temporarily unavailable",
+    "service unavailable",
+    "gaierror",
+    "name or service not known",
+    "cloudflare",
+    "sslerror",
+    "недоступ",
+)
+
+# HTTP-коды временных сбоев (rate-limit / серверные / Libre 476). Ловим как
+# отдельный токен по границе слова, чтобы не сматчить число внутри пути/ID.
+_TEMPORARY_HTTP_RE = re.compile(r"\b(408|425|429|476|500|502|503|504)\b")
 
 # Карта sources: name → (script path в контейнере, человекочитаемое имя,
 #                       glob-pattern для freshness — mtime самого свежего матча).
@@ -106,11 +165,45 @@ SOURCES = {
 }
 
 
-async def _run_script(script_path: str, timeout: int = 300) -> tuple[bool, str]:
-    """Запускает Python-скрипт в текущем процессе бота (мы уже в контейнере).
+def _looks_noop(output: str) -> bool:
+    """Похоже ли, что успешный скрипт ничего нового не подтянул."""
+    low = output.lower()
+    return any(marker in low for marker in _NOOP_MARKERS)
 
-    Возвращает (success, summary) — для упавшего скрипта это короткая
-    причина (одна осмысленная строка), для успешного — пустая строка.
+
+def _looks_temporary(output: str) -> bool:
+    """Похож ли провал на временную недоступность внешнего сервиса (сеть/HTTP)."""
+    low = output.lower()
+    if any(marker in low for marker in _TEMPORARY_MARKERS):
+        return True
+    return bool(_TEMPORARY_HTTP_RE.search(output))
+
+
+def _classify_success(output: str) -> tuple[str, str]:
+    """rc==0: различить «обновлено» и «новых данных не было»."""
+    if _looks_noop(output):
+        return OUTCOME_NOOP, "актуально, новых данных нет"
+    return OUTCOME_OK, "обновлено"
+
+
+def _classify_failure(source_key: str, output: str) -> tuple[str, str]:
+    """rc!=0 / исключение: временная недоступность сервиса vs внутренняя ошибка.
+
+    Возвращает ТОЛЬКО дружелюбный текст — без traceback/Errno/внутренних путей.
+    Сырой вывод пишет в серверный лог вызывающая сторона (`_run_script`).
+    """
+    if _looks_temporary(output):
+        if source_key == "glucose":
+            return OUTCOME_UNAVAILABLE, "сервис Abbott временно недоступен, подтянем автоматически позже"
+        return OUTCOME_UNAVAILABLE, "сервис временно недоступен, подтянем автоматически позже"
+    return OUTCOME_ERROR, "не удалось обновить — записал в журнал, разберёмся"
+
+
+async def _run_script(source_key: str, script_path: str, timeout: int = 300) -> tuple[str, str]:
+    """Запускает скрипт источника и классифицирует исход (см. #138).
+
+    Возвращает (outcome, friendly_detail). Сырой вывод/traceback уходит ТОЛЬКО
+    в серверный лог — пользователю показывается короткий человекочитаемый текст.
     """
     try:
         proc = await asyncio.create_subprocess_exec(
@@ -123,63 +216,22 @@ async def _run_script(script_path: str, timeout: int = 300) -> tuple[bool, str]:
             stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout)
         except asyncio.TimeoutError:
             proc.kill()
-            return False, f"таймаут {timeout}с"
+            logger.warning("sync %s: таймаут %sс", source_key, timeout)
+            return OUTCOME_UNAVAILABLE, "долго отвечает — подтянем автоматически позже"
 
         output = (stdout or b"").decode("utf-8", errors="replace")
         if proc.returncode == 0:
-            return True, ""
+            return _classify_success(output)
 
-        # Failure: выбрать одну информативную строку для пользователя
-        return False, _summarize_error(output)
+        # Провал: сырой вывод — только в серверный лог, пользователю — friendly-текст.
+        logger.warning("sync %s: exit=%s\n%s", source_key, proc.returncode, output)
+        return _classify_failure(source_key, output)
     except FileNotFoundError as e:
-        return False, f"скрипт не найден: {e}"
-    except Exception as e:
-        return False, f"{type(e).__name__}: {e}"
-
-
-def _summarize_error(stderr_output: str) -> str:
-    """Извлекает одну читабельную строку из stdout/stderr упавшего скрипта.
-
-    Стратегия (по приоритету):
-      1. Последняя строка Traceback («ModuleNotFoundError: ...», «401 ...»)
-      2. Строка с «Error», «error», «Exception», «failed», «401», «403», «500»
-      3. Просто последняя непустая строка
-
-    Обрезает до 200 символов чтобы влезло в общий summary.
-    """
-    lines = [line.strip() for line in stderr_output.strip().split("\n") if line.strip()]
-    if not lines:
-        return "пустой вывод (exit != 0)"
-
-    # 1. Tail of Traceback — usually the actual error type+msg
-    for line in reversed(lines):
-        if any(
-            line.startswith(prefix)
-            for prefix in (
-                "ModuleNotFoundError",
-                "ImportError",
-                "ConnectionError",
-                "TimeoutError",
-                "ValueError",
-                "KeyError",
-                "AttributeError",
-                "TypeError",
-                "RuntimeError",
-                "OSError",
-                "FileNotFoundError",
-            )
-        ):
-            return line[:200]
-
-    # 2. Any line with error-ish keywords
-    for line in reversed(lines):
-        low = line.lower()
-        if any(kw in low for kw in ("error:", "exception:", "failed", "401", "403", "500", "❌", "⚠")):
-            # Strip leading "❌ " etc emoji noise
-            return line[:200]
-
-    # 3. Just the last non-trivial line
-    return lines[-1][:200]
+        logger.error("sync %s: скрипт не найден: %s", source_key, e)
+        return OUTCOME_ERROR, "не удалось обновить — записал в журнал, разберёмся"
+    except Exception:
+        logger.exception("sync %s: неожиданная ошибка", source_key)
+        return OUTCOME_ERROR, "не удалось обновить — записал в журнал, разберёмся"
 
 
 def _format_log_mtime(pattern: str | None) -> str:
@@ -269,17 +321,17 @@ async def cmd_sync(message: Message, command: CommandObject, user_id: int):
 
     # Запуск последовательно (Garmin самый долгий, параллельность не критична)
     started = time.time()
-    results: list[tuple[str, str, bool, str]] = []  # (src, label, success, error_summary)
+    results: list[tuple[str, str, str, str]] = []  # (src, label, outcome, detail)
     for src in actually_run:
         script, label, _ = SOURCES[src]
         _LAST_RUN[src] = time.time()
-        success, err_summary = await _run_script(script)
-        results.append((src, label, success, err_summary))
+        outcome, detail = await _run_script(src, script)
+        results.append((src, label, outcome, detail))
 
     elapsed = int(time.time() - started)
     elapsed_str = f"{elapsed}с" if elapsed < 60 else f"{elapsed // 60}м {elapsed % 60}с"
 
-    ok_count = sum(1 for _, _, s, _ in results if s)
+    ok_count = sum(1 for _, _, outcome, _ in results if outcome in _GOOD_OUTCOMES)
     total = len(results)
 
     # Header
@@ -291,17 +343,17 @@ async def cmd_sync(message: Message, command: CommandObject, user_id: int):
         lines = [f"🔄 Sync ({elapsed_str}) · {ok_count}/{total} ✅"]
 
     # OK sources — одной строкой через ·
-    ok_labels = [label for _, label, success, _ in results if success]
+    ok_labels = [label for _, label, outcome, _ in results if outcome in _GOOD_OUTCOMES]
     if ok_labels:
         # Сокращённые имена для одной строки (убираем "(...)" в скобках)
         short = [lbl.split(" (")[0] for lbl in ok_labels]
         lines.append("\n✅ " + " · ".join(short))
 
-    # Failures — каждая отдельной строкой с причиной
-    failures = [(label, err) for _, label, success, err in results if not success]
-    for label, err in failures:
+    # Failures — каждая отдельной строкой с дружелюбной причиной
+    failures = [(label, detail) for _, label, outcome, detail in results if outcome not in _GOOD_OUTCOMES]
+    for label, detail in failures:
         short_label = label.split(" (")[0]
-        lines.append(f"❌ {short_label} — {err}")
+        lines.append(f"❌ {short_label} — {detail}")
 
     if cooldown_skipped:
         skipped = ", ".join(SOURCES[s][1].split(" (")[0] for s, _ in cooldown_skipped)
