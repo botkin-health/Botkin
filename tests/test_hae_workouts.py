@@ -147,6 +147,49 @@ def test_unknown_type_defaults_to_workout():
     assert rows[0]["workout_type"] == "Workout"
 
 
+# --- Legacy v1: нет duration / нет id (#174) ----------------------------------
+
+
+def test_v1_duration_computed_from_start_end_when_missing():
+    # v1 legacy не присылает duration → считаем из start/end
+    rows = _hae_workouts_to_rows(
+        [{"name": "Run", "start": "2026-06-14 08:00:00 +0300", "end": "2026-06-14 08:50:00 +0300"}],
+        USER,
+    )
+    assert rows[0]["duration_minutes"] == 50
+
+
+def test_v1_duration_none_when_no_duration_and_no_end():
+    rows = _hae_workouts_to_rows([{"name": "Run", "start": "2026-06-14 08:00:00 +0300"}], USER)
+    assert rows[0]["duration_minutes"] is None
+
+
+def test_v1_source_from_name_start_end_when_no_id():
+    # две v1-тренировки с одинаковым стартом, но разным концом — НЕ должны схлопнуться
+    w1 = {"name": "Run", "start": "2026-06-14 08:00:00 +0300", "end": "2026-06-14 08:30:00 +0300"}
+    w2 = {"name": "Run", "start": "2026-06-14 08:00:00 +0300", "end": "2026-06-14 09:00:00 +0300"}
+    rows = _hae_workouts_to_rows([w1, w2], USER)
+    assert rows[0]["source"] != rows[1]["source"]
+    assert "Run" in rows[0]["source"]
+
+
+def test_v2_with_id_source_and_duration_unchanged():
+    rows = _hae_workouts_to_rows(
+        [
+            {
+                "id": "ABC",
+                "name": "Run",
+                "start": "2026-06-14 08:00:00 +0300",
+                "end": "2026-06-14 08:45:00 +0300",
+                "duration": 2700,
+            }
+        ],
+        USER,
+    )
+    assert rows[0]["source"] == "hae_ABC"  # id-путь не тронут
+    assert rows[0]["duration_minutes"] == 45  # из duration, не из start/end
+
+
 # --- Вставка с дедупом (фейковая БД, без реального Postgres) -------------------
 
 
