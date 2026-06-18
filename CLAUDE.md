@@ -157,6 +157,8 @@ python3 scripts/sync_user_health.py --user <telegram_id> --apply   # или --al
 | Вес, % жира, мышечная масса (Mi-весы → Apple Health) | `weights` |
 | VO2 Max, частота дыхания, температура запястья | `activity_log.raw_data` |
 
+**Тренировки** приходят **отдельным POST** `data.workouts[]` (своя автоматизация HAE типа Workouts, не Health Metrics) → таблица `workouts`, дедуп по `source=hae_<id>`. Парсинг в `webhook/apple_health.py` (`_hae_workouts_to_rows`/`_insert_new_workouts`). Формат, грабли и ручная настройка — [docs/researches/2026-06-18-hae-workouts.md](docs/researches/2026-06-18-hae-workouts.md) (#100). HAE не умеет шэрить конфиги автоматизаций — настройка только ручная.
+
 **Стек:**
 - **iOS-приложение:** [Health Auto Export – JSON+CSV](https://apps.apple.com/app/health-auto-export-json-csv/id1115567069) (Lybron Sobers, $24.99 lifetime)
 - **Webhook:** `POST https://health.orangegate.cc/apple_health_v2` (Bearer token из `.env: APPLE_HEALTH_TOKEN`)
