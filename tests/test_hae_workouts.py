@@ -145,3 +145,62 @@ def test_unknown_type_defaults_to_workout():
         USER,
     )
     assert rows[0]["workout_type"] == "Workout"
+
+
+# --- Вставка с дедупом (фейковая БД, без реального Postgres) -------------------
+
+
+class _FakeDB:
+    """Минимальный stub SQLAlchemy session: SELECT отдаёт preset existing-source,
+    INSERT-вызовы копятся в self.inserts."""
+
+    def __init__(self, existing_sources):
+        self._existing = [(s,) for s in existing_sources]
+        self.inserts = []
+
+    def execute(self, stmt, params=None):
+        sql = str(stmt).upper()
+        if sql.strip().startswith("SELECT"):
+            return list(self._existing)
+        self.inserts.append(params)
+        return None
+
+
+def _rows(*sources):
+    base = {
+        "user_id": USER,
+        "date": "2026-06-14",
+        "workout_type": "Running",
+        "duration_minutes": 45,
+        "start_time": datetime(2026, 6, 14, 8, 0, 0),
+        "end_time": datetime(2026, 6, 14, 8, 45, 0),
+        "calories_burned": 350,
+        "distance_km": 5.2,
+    }
+    return [{**base, "source": s} for s in sources]
+
+
+def test_insert_skips_existing_sources():
+    from webhook.apple_health import _insert_new_workouts
+
+    db = _FakeDB(existing_sources={"hae_A"})
+    inserted = _insert_new_workouts(db, USER, _rows("hae_A", "hae_B"))
+    assert inserted == 1
+    assert [p["source"] for p in db.inserts] == ["hae_B"]
+
+
+def test_insert_dedups_within_same_batch():
+    from webhook.apple_health import _insert_new_workouts
+
+    db = _FakeDB(existing_sources=set())
+    inserted = _insert_new_workouts(db, USER, _rows("hae_A", "hae_A", "hae_B"))
+    assert inserted == 2
+    assert [p["source"] for p in db.inserts] == ["hae_A", "hae_B"]
+
+
+def test_insert_empty_returns_zero():
+    from webhook.apple_health import _insert_new_workouts
+
+    db = _FakeDB(existing_sources=set())
+    assert _insert_new_workouts(db, USER, []) == 0
+    assert db.inserts == []
