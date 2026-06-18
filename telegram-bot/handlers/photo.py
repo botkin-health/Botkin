@@ -666,7 +666,12 @@ async def _handle_libreview_csv(message: Message, msg: Message) -> bool:
     processing = await message.answer("📄 Получил CSV, читаю историю глюкозы…")
     try:
         buf = await message.bot.download(msg.document)
-        content = buf.read().decode("utf-8-sig", errors="replace")
+        raw_bytes = buf.read()
+        # Русскоязычный экспорт LibreView бывает в cp1251, не UTF-8 → пробуем оба.
+        try:
+            content = raw_bytes.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            content = raw_bytes.decode("cp1251", errors="replace")
     except Exception as e:
         logger.error(f"LibreView CSV download error: {e}")
         await processing.edit_text("⚠️ Не удалось скачать файл. Попробуй отправить ещё раз.", parse_mode=None)

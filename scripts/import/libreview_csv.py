@@ -50,18 +50,41 @@ def _norm(s: str) -> str:
     return (s or "").strip().lower()
 
 
+# Заголовки LibreView ЛОКАЛИЗОВАНЫ по языку аккаунта. Матчим языконезависимо
+# по подстрокам (EN + RU; RU — стандартные термины Abbott). Если перевод чуть иной —
+# парсер упадёт с понятной ошибкой, а не молча испортит данные.
+def _is_timestamp_col(c: str) -> bool:
+    return "device timestamp" in c or "метка времени" in c
+
+
+def _is_record_type_col(c: str) -> bool:
+    return "record type" in c or "тип записи" in c
+
+
+def _is_historic_glucose_col(c: str) -> bool:
+    return "historic glucose" in c or ("глюкоз" in c and "прошл" in c)
+
+
+def _is_scan_glucose_col(c: str) -> bool:
+    return "scan glucose" in c or ("глюкоз" in c and "скан" in c)
+
+
+def _is_mgdl(c: str) -> bool:
+    return "mg/dl" in c or "мг/дл" in c
+
+
 def _find_glucose_columns(header: list[str]) -> tuple[int | None, int | None, str]:
     """Вернуть (idx_historic, idx_scan, unit). unit ∈ {'mmol','mgdl'}."""
     idx_hist = idx_scan = None
     unit = "mmol"
     for i, col in enumerate(header):
         c = _norm(col)
-        if "historic glucose" in c:
+        if _is_historic_glucose_col(c):
             idx_hist = i
-            unit = "mgdl" if "mg/dl" in c else "mmol"
-        elif "scan glucose" in c:
+            unit = "mgdl" if _is_mgdl(c) else "mmol"
+        elif _is_scan_glucose_col(c):
             idx_scan = i
-            if "mg/dl" in c:
+            if _is_mgdl(c):
                 unit = "mgdl"
     return idx_hist, idx_scan, unit
 
@@ -108,9 +131,9 @@ def parse_libreview_csv(content: str, tz: ZoneInfo) -> tuple[list[dict], dict]:
     """
     # Разделитель: LibreView обычно ',', но локали бывают ';' (и десятичная запятая внутри).
     # Сниффер на таких смешанных данных промахивается → выбираем по строке-заголовку:
-    # тот разделитель, что даёт больше всего полей в строке с "device timestamp".
+    # тот разделитель, что даёт больше всего полей в строке с маркером таймстампа (EN/RU).
     header_line = next(
-        (ln for ln in content.splitlines() if "device timestamp" in ln.lower()),
+        (ln for ln in content.splitlines() if _is_timestamp_col(ln.lower())),
         "",
     )
     delimiter = max(",;\t", key=lambda d: header_line.count(d)) if header_line else ","
@@ -118,23 +141,24 @@ def parse_libreview_csv(content: str, tz: ZoneInfo) -> tuple[list[dict], dict]:
     reader = csv.reader(io.StringIO(content), delimiter=delimiter)
     all_rows = [r for r in reader if r and any(cell.strip() for cell in r)]
 
-    # Найти строку-заголовок (содержит "Device Timestamp" и "Record Type").
+    # Найти строку-заголовок (маркеры таймстампа + типа записи; язык аккаунта любой).
     header_idx = None
     for i, row in enumerate(all_rows[:10]):
         joined = _norm(delimiter.join(row))
-        if "device timestamp" in joined and "record type" in joined:
+        if _is_timestamp_col(joined) and _is_record_type_col(joined):
             header_idx = i
             break
     if header_idx is None:
-        raise LibreViewParseError("Не найдена строка-заголовок LibreView (нет 'Device Timestamp' / 'Record Type')")
+        raise LibreViewParseError(
+            "Не найдена строка-заголовок LibreView (нет колонок таймстампа устройства / типа записи)"
+        )
 
     header = all_rows[header_idx]
     norm_header = [_norm(c) for c in header]
-    try:
-        idx_ts = norm_header.index("device timestamp")
-        idx_rt = norm_header.index("record type")
-    except ValueError as e:
-        raise LibreViewParseError(f"Нет обязательной колонки: {e}")
+    idx_ts = next((i for i, c in enumerate(norm_header) if _is_timestamp_col(c)), None)
+    idx_rt = next((i for i, c in enumerate(norm_header) if _is_record_type_col(c)), None)
+    if idx_ts is None or idx_rt is None:
+        raise LibreViewParseError("Нет обязательной колонки (таймстамп устройства / тип записи)")
 
     idx_hist, idx_scan, unit = _find_glucose_columns(header)
     if idx_hist is None and idx_scan is None:

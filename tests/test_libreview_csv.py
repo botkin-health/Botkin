@@ -117,6 +117,33 @@ def test_empty_data_returns_empty():
     assert meta["first_ts"] is None
 
 
+def test_russian_localized_headers():
+    """Аккаунт RU-локали: заголовки на русском — должны распознаться (язык не важен)."""
+    content = (
+        "Имя пациента,Селезнёва Ника\n"
+        "Прибор,Серийный номер,Метка времени устройства,Тип записи,"
+        "Глюкоза за прошлый период ммоль/л,Глюкоза при сканировании ммоль/л,Заметки\n"
+        "FreeStyle Libre 3,A1,15-06-2026 08:00,0,5.4,,\n"
+        "FreeStyle Libre 3,A1,15-06-2026 08:20,1,,6.1,\n"
+    )
+    rows, meta = parse_libreview_csv(content, MSK)
+    assert meta["unit"] == "mmol"
+    assert meta["glucose_points"] == 2
+    assert [r["value"] for r in rows] == [5.4, 6.1]
+
+
+def test_russian_mgdl_unit():
+    content = (
+        "Имя пациента,Ника\n"
+        "Прибор,Серийный номер,Метка времени устройства,Тип записи,"
+        "Глюкоза за прошлый период мг/дл,Глюкоза при сканировании мг/дл\n"
+        "FreeStyle Libre 3,A1,15-06-2026 08:00,0,90,\n"
+    )
+    rows, meta = parse_libreview_csv(content, MSK)
+    assert meta["unit"] == "mgdl"
+    assert rows[0]["value"] == pytest.approx(5.0, abs=0.05)
+
+
 def test_semicolon_delimiter_and_comma_decimal():
     content = (
         "Имя пациента;Ника\n"
