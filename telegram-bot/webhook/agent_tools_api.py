@@ -504,16 +504,36 @@ async def recent_meals(
 @router.get("/recent_glucose")
 async def recent_glucose(
     hours: int = 24,
+    date: Optional[str] = None,
     user=Depends(get_agent_user),
     db: Session = Depends(get_db),
 ):
-    """Точки глюкозы CGM за последние N часов + сводка (TIR, avg, min/max).
+    """Точки глюкозы CGM + сводка (TIR, avg, min/max).
 
-    Статистика — по всему окну (лёгкая проекция value, без JSONB raw). Точек для
-    отображения — не более max_points самых свежих (LIMIT в БД, защита от token-blowup).
+    Окно: либо `hours` (последние N часов, по умолчанию 24), либо `date`
+    (конкретный календарный день YYYY-MM-DD в локальной TZ юзера; приоритетнее `hours`).
+
+    Статистика — по ВСЕМ точкам окна. Точки для отображения прорежены РАВНОМЕРНО по
+    всему окну (децимация), а не обрезаны до последних N — иначе при широком окне агент
+    видел бы только последнюю ночь и не мог сопоставить еду с дневной кривой (#163).
     """
-    if hours < 1 or hours > 168:
-        raise HTTPException(status_code=400, detail="hours must be between 1 and 168")
+    # ── Определяем окно: конкретный день (date) или последние N часов (hours) ──
+    if date is not None:
+        try:
+            day = datetime.strptime(date, "%Y-%m-%d").date()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="date must be YYYY-MM-DD")
+        tz = _get_user_tz(user)
+        start_local = datetime(day.year, day.month, day.day, tzinfo=tz)
+        since = start_local.astimezone(timezone.utc)
+        until = (start_local + timedelta(days=1)).astimezone(timezone.utc)
+        window_desc = {"date": date}
+    else:
+        if hours < 1 or hours > 168:
+            raise HTTPException(status_code=400, detail="hours must be between 1 and 168")
+        since = datetime.now(timezone.utc) - timedelta(hours=hours)
+        until = None
+        window_desc = {"hours": hours}
 
     # On-demand: подтянуть свежую глюкозу для этого юзера прямо сейчас (#129).
     # Сетевой sync-вызов — в threadpool с таймаутом (зависший LLU не должен держать воркер);
@@ -533,44 +553,49 @@ async def recent_glucose(
         logger.warning("recent_glucose: on-demand refresh не удался для %s: %s", user.telegram_id, e)
 
     max_points = 96
-    since = datetime.now(timezone.utc) - timedelta(hours=hours)
 
-    # Все значения для статистики — только колонка value (не тянем raw/source).
-    values = [
-        float(v)
-        for (v,) in db.query(GlucoseReading.value)
-        .filter(GlucoseReading.user_id == user.telegram_id, GlucoseReading.ts >= since)
-        .all()
-    ]
-    if not values:
+    # Все точки окна в хронологическом порядке (одним запросом — и для статистики, и для прореживания).
+    q = db.query(GlucoseReading.ts, GlucoseReading.value, GlucoseReading.trend).filter(
+        GlucoseReading.user_id == user.telegram_id, GlucoseReading.ts >= since
+    )
+    if until is not None:
+        q = q.filter(GlucoseReading.ts < until)
+    rows = q.order_by(GlucoseReading.ts.asc()).all()
+
+    if not rows:
         return {
             "status": "ok",
-            "hours": hours,
+            **window_desc,
             "total_count": 0,
             "stats": {"count": 0},
-            "truncated": False,
+            "downsampled": False,
             "points": [],
+            "refresh_skipped": refresh_skipped,
         }
 
-    # Свежие точки для отображения: DESC по индексу idx_glucose_user_ts + LIMIT.
-    rows = (
-        db.query(GlucoseReading.ts, GlucoseReading.value, GlucoseReading.trend)
-        .filter(GlucoseReading.user_id == user.telegram_id, GlucoseReading.ts >= since)
-        .order_by(GlucoseReading.ts.desc())
-        .limit(max_points)
-        .all()
-    )
-    points = [
-        {"ts": _dt_isoformat_local(ts, user), "value": float(val), "trend": tr}
-        for ts, val, tr in reversed(rows)  # обратно в хронологический порядок
-    ]
+    values = [float(val) for _, val, _ in rows]
+
+    # Прореживание: равномерно выбрать max_points точек по всему окну (сохраняет форму
+    # кривой). Глобальные min/max в stats считаются по ВСЕМ точкам, не по выборке.
+    total = len(rows)
+    if total > max_points:
+        step = total / max_points
+        idxs = sorted({min(int(i * step), total - 1) for i in range(max_points)})
+        sampled = [rows[i] for i in idxs]
+        downsampled = True
+    else:
+        sampled = rows
+        downsampled = False
+
+    points = [{"ts": _dt_isoformat_local(ts, user), "value": float(val), "trend": tr} for ts, val, tr in sampled]
 
     return {
         "status": "ok",
-        "hours": hours,
-        "total_count": len(values),
+        **window_desc,
+        "total_count": total,
+        "returned_count": len(points),
         "stats": compute_glucose_stats(values),
-        "truncated": len(values) > max_points,
+        "downsampled": downsampled,
         "points": points,
         "refresh_skipped": refresh_skipped,
     }
