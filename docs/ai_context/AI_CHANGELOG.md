@@ -7,6 +7,13 @@
 
 ---
 
+## 2026-06-18 — Разговорный агент доступен всем пользователям (#165)
+
+- **Корень:** разговорный агент (BotkinClaw) был заперт за непустым `users.agent_system_prompt`, который проставлял только ручной `scripts/onboard_family_user.py` (персона из PROFILE.md+KB, под семью). Само-онбордингованные юзеры (cohort `external`, регистрация через бота/сайт) на любой свободный вопрос получали заглушку «напиши @lyskovsky — он подключит тебя к боту». Прецедент: Кристина Очкина прошла онбординг, залогировала еду, спросила «как мне вносить еду?» → заглушка.
+- **Решение:** `core/agent_chat.py::build_default_agent_prompt(user)` — лёгкий дефолтный per-user промпт из `onboarding_data` (имя/цель/возраст/пол), без Claude и без PROFILE/KB. В `ask_agent` снят `raise` по пустому промпту: `per_user_prompt = (agent_system_prompt or '').strip() or build_default_agent_prompt(user)`. Семейный промпт остаётся приоритетным override. Изоляция данных (JWT cohort + RLS) не менялась — дефолт не даёт доступа к чужим данным.
+- **text.py:** ветка-заглушка переписана — «напиши @lyskovsky» убрана; для не-зарегистрированных/неактивных зовём `/start`.
+- Тесты: 4 новых в `tests/test_ask_agent.py` (билдер, fallback, приоритет override). Полный прогон 777 passed.
+
 ## 2026-06-17 — CGM: интеграция глюкозы завершена + фикс зависания /sync
 
 - **PR #152** (backoff + дашборд-блок): `scripts/import/librelinkup.py` — exponential backoff 15→30→60→120м при HTTP 476 (`LoginOnCooldownError`); `telegram-bot/dashboard_generator.py` — блок глюкозы (текущее значение, TIR 14д, 24h-спарклайн, invite-карточка для юзеров без CGM).

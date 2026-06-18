@@ -219,3 +219,75 @@ def test_inactive_user_rejected(agent_db, monkeypatch):
     with pytest.raises(RuntimeError):
         agent_chat.ask_agent(999999, "привет")
     assert fake.anthropic_calls == []
+
+
+# ── Дефолтный системный промпт для всех пользователей (#165) ──────────────────
+
+
+def test_build_default_agent_prompt_includes_name_and_goal():
+    """Билдер собирает непустой промпт с именем и целью из onboarding_data."""
+    u = User(
+        telegram_id=1,
+        first_name="Кристина",
+        onboarding_data={"name": "Кристина", "goal": "Долголетие/профилактика", "age": 33, "sex": "female"},
+    )
+
+    prompt = agent_chat.build_default_agent_prompt(u)
+
+    assert "Кристина" in prompt
+    assert "Долголетие" in prompt
+    assert "Botkin" in prompt  # рамка проекта на месте
+
+
+def test_build_default_agent_prompt_never_empty_without_data():
+    """Даже без onboarding_data и first_name промпт не пустой (fallback-имя)."""
+    u = User(telegram_id=2, first_name=None, onboarding_data=None)
+
+    prompt = agent_chat.build_default_agent_prompt(u)
+
+    assert prompt.strip()
+    assert "AI-агент" in prompt
+
+
+def test_user_without_system_prompt_uses_default(agent_db, monkeypatch):
+    """Зарегистрированный юзер без agent_system_prompt НЕ отвергается —
+    агент работает на дефолтном промпте, в system уходит имя/цель юзера."""
+    s = agent_db()
+    s.add(
+        User(
+            telegram_id=700700,
+            first_name="Кристина",
+            cohort="external",
+            jwt_secret="sek",
+            is_active=True,
+            agent_system_prompt=None,
+            onboarding_data={"name": "Кристина", "goal": "Долголетие/профилактика"},
+        )
+    )
+    s.commit()
+    s.close()
+    fake = FakeRequests([_anthropic_text("Просто напиши «съел банан» или пришли фото тарелки.")])
+    monkeypatch.setattr(agent_chat, "requests", fake)
+
+    reply = agent_chat.ask_agent(700700, "как мне вносить еду?")
+
+    assert "банан" in reply
+    sys_text = fake.anthropic_calls[0]["payload"]["system"][0]["text"]
+    assert "Кристина" in sys_text
+
+
+def test_per_user_prompt_takes_precedence_over_default(agent_db, monkeypatch):
+    """Если agent_system_prompt задан (семейный override) — используется он,
+    дефолтный билдер не вызывается."""
+    fake = FakeRequests([_anthropic_text("ок")])
+    monkeypatch.setattr(agent_chat, "requests", fake)
+
+    def _boom(_user):
+        raise AssertionError("build_default_agent_prompt не должен вызываться при заданном промпте")
+
+    monkeypatch.setattr(agent_chat, "build_default_agent_prompt", _boom)
+
+    agent_chat.ask_agent(895655, "привет")  # у 895655 agent_system_prompt задан в фикстуре
+
+    sys_text = fake.anthropic_calls[0]["payload"]["system"][0]["text"]
+    assert "семейный AI-врач" in sys_text
