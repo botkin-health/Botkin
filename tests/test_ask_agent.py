@@ -276,6 +276,51 @@ def test_user_without_system_prompt_uses_default(agent_db, monkeypatch):
     assert "Кристина" in sys_text
 
 
+def _insert_router_row(TestSession, user_id, source, text_str):
+    s = TestSession()
+    s.execute(
+        text("INSERT INTO agent_conversations (user_id, role, content, source) VALUES (:u, 'user', :c, :s)"),
+        {"u": user_id, "c": json.dumps([{"text": text_str, "type": "text"}], ensure_ascii=False), "s": source},
+    )
+    s.commit()
+    s.close()
+
+
+def test_recent_tracker_events_summarizes_parser_rows(agent_db):
+    """router_*/llm_text user-строки попадают в сводку (issue #169)."""
+    _insert_router_row(agent_db, 895655, "router_weight", "54")
+    _insert_router_row(agent_db, 895655, "router_food", "съела яблоко")
+
+    s = agent_db()
+    block = agent_chat._recent_tracker_events(s, 895655)
+    s.close()
+
+    assert "54" in block
+    assert "яблоко" in block
+    assert "[вес]" in block and "[еда]" in block
+
+
+def test_recent_tracker_events_empty_when_no_parser_rows(agent_db):
+    """Без parser-записей сводка пустая (не мусорит system-prompt)."""
+    s = agent_db()
+    block = agent_chat._recent_tracker_events(s, 895655)
+    s.close()
+    assert block == ""
+
+
+def test_parser_rows_injected_into_system_prompt(agent_db, monkeypatch):
+    """ask_agent подмешивает parser-записи в system — агент видит, что вес записан."""
+    _insert_router_row(agent_db, 895655, "router_weight", "54")
+    fake = FakeRequests([_anthropic_text("Твой вес 54 кг.")])
+    monkeypatch.setattr(agent_chat, "requests", fake)
+
+    agent_chat.ask_agent(895655, "какой у меня вес?")
+
+    sys_text = fake.anthropic_calls[0]["payload"]["system"][0]["text"]
+    assert "ЗАПИСАЛ ЧЕРЕЗ ТРЕКЕР" in sys_text
+    assert "54" in sys_text
+
+
 def test_per_user_prompt_takes_precedence_over_default(agent_db, monkeypatch):
     """Если agent_system_prompt задан (семейный override) — используется он,
     дефолтный билдер не вызывается."""
