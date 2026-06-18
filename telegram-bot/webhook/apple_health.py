@@ -661,8 +661,9 @@ def _hae_workout_calories(rec: dict) -> int | None:
 def _hae_workouts_to_rows(workouts: list[dict], user_id: int) -> list[dict]:
     """HAE `data.workouts[]` → строки для таблицы `workouts`.
 
-    Невалидные записи (без распознаваемой даты старта) пропускаются. `source` —
-    детерминированный `hae_<id|start>` для дедупа на уровне приложения.
+    Невалидные записи (без распознаваемой даты старта) пропускаются. Поддержаны
+    обе схемы HAE: v2 (есть `id` и `duration`) и v1/legacy (нет `id` — duration
+    считается из `start`/`end`, ключ дедупа `source` строится из `name+start+end`).
     """
     rows: list[dict] = []
     for rec in workouts:
@@ -679,15 +680,27 @@ def _hae_workouts_to_rows(workouts: list[dict], user_id: int) -> list[dict]:
         except (TypeError, ValueError):
             end_dt = None
 
+        workout_type = _hae_workout_type(rec)
+        # v1/legacy не присылает duration — считаем из интервала.
+        duration_min = _hae_workout_duration_min(rec)
+        if duration_min is None and end_dt is not None:
+            duration_min = round((end_dt - start_dt).total_seconds() / 60)
+
+        # Ключ дедупа: v2 — стабильный id; v1 — name+start+end (id отсутствует).
         wid = rec.get("id")
-        source = f"hae_{wid}" if wid else f"hae_{start_dt.isoformat()}"
+        if wid:
+            source = f"hae_{wid}"
+        elif end_dt is not None:
+            source = f"hae_{workout_type}_{start_dt.isoformat()}_{end_dt.isoformat()}"
+        else:
+            source = f"hae_{workout_type}_{start_dt.isoformat()}"
 
         rows.append(
             {
                 "user_id": user_id,
                 "date": start_dt.date().isoformat(),
-                "workout_type": _hae_workout_type(rec),
-                "duration_minutes": _hae_workout_duration_min(rec),
+                "workout_type": workout_type,
+                "duration_minutes": duration_min,
                 "start_time": start_dt,
                 "end_time": end_dt,
                 "calories_burned": _hae_workout_calories(rec),
