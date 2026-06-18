@@ -129,3 +129,43 @@ def test_successful_login_resets_backoff(llu):
 
     assert llu._login_fail_count == 0
     assert llu._login_blocked_until == 0.0
+
+
+def test_collect_rows_with_retry_resets_on_stale_token(llu):
+    """Протух токен → 400 на первом collect_rows → сброс + повторный логин (#162).
+
+    Регрессия: путь /sync (main → collect_rows) раньше НЕ ретраил и падал, пока
+    кэш-токен не удаляли вручную.
+    """
+    calls = {"n": 0}
+
+    def fake_collect(client):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise Exception("400 Client Error: Bad Request for url: .../llu/connections")
+        return {"pid1": [{"ts": "t", "value": 5.0}]}
+
+    reset_flags = []
+
+    def fake_get_cached(reset=False):
+        reset_flags.append(reset)
+        return mock.MagicMock()
+
+    with mock.patch.object(llu, "collect_rows", side_effect=fake_collect):
+        with mock.patch.object(llu, "get_cached_client", side_effect=fake_get_cached):
+            result = llu.collect_rows_with_retry()
+
+    assert calls["n"] == 2  # упал, повторил
+    assert reset_flags == [False, True]  # второй вызов — со сбросом токена
+    assert result == {"pid1": [{"ts": "t", "value": 5.0}]}
+
+
+def test_collect_rows_with_retry_propagates_cooldown(llu):
+    """LoginOnCooldownError (нет токена + backoff) пробрасывается без ретрая."""
+
+    def fake_get_cached(reset=False):
+        raise llu.LoginOnCooldownError(retry_in=120)
+
+    with mock.patch.object(llu, "get_cached_client", side_effect=fake_get_cached):
+        with pytest.raises(llu.LoginOnCooldownError):
+            llu.collect_rows_with_retry()
