@@ -650,6 +650,92 @@ async def handle_photo_message(message: Message, bot: Bot, user_id: int, album: 
     await process_photos_list(message_with_caption, photo_paths, message.media_group_id)
 
 
+async def _handle_libreview_csv(message: Message, msg: Message) -> bool:
+    """CSV-экспорт глюкозы из LibreView → импорт в glucose_readings (#163 follow-up).
+
+    Возвращает True, если документ распознан и обработан как LibreView CSV.
+    """
+    import asyncio
+    import logging
+    import os
+    from zoneinfo import ZoneInfo
+
+    logger = logging.getLogger(__name__)
+    user_id = message.from_user.id
+
+    processing = await message.answer("📄 Получил CSV, читаю историю глюкозы…")
+    try:
+        buf = await message.bot.download(msg.document)
+        content = buf.read().decode("utf-8-sig", errors="replace")
+    except Exception as e:
+        logger.error(f"LibreView CSV download error: {e}")
+        await processing.edit_text("⚠️ Не удалось скачать файл. Попробуй отправить ещё раз.", parse_mode=None)
+        return True
+
+    # TZ пользователя для корректной конверсии наивного локального времени LibreView → UTC.
+    tz = ZoneInfo("Europe/Moscow")
+    try:
+        from database import SessionLocal
+        from database.models import User
+
+        db = SessionLocal()
+        try:
+            u = db.query(User).filter(User.telegram_id == user_id).first()
+            if u and getattr(u, "timezone", None):
+                tz = ZoneInfo(u.timezone)
+        finally:
+            db.close()
+    except Exception as e:
+        logger.warning(f"LibreView CSV: TZ lookup failed, using MSK: {e}")
+
+    # Импортёр грузим через importlib — scripts/import/ не пакет (import зарезервирован).
+    import importlib.util
+
+    mod_path = Path(__file__).resolve().parents[2] / "scripts" / "import" / "libreview_csv.py"
+    spec = importlib.util.spec_from_file_location("libreview_csv_import", mod_path)
+    libreview = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(libreview)
+
+    db_url = os.getenv("DATABASE_URL")
+    if not db_url:
+        await processing.edit_text("⚠️ Внутренняя ошибка: нет доступа к базе. Сообщи разработчику.", parse_mode=None)
+        return True
+
+    try:
+        result = await asyncio.to_thread(libreview.import_libreview_csv, content, user_id, tz, db_url)
+    except libreview.LibreViewParseError:
+        # Не похоже на экспорт глюкозы LibreView — отдаём обычному пайплайну (картинка/PDF/агент).
+        await processing.delete()
+        return False
+    except Exception as e:
+        logger.error(f"LibreView CSV import error: {e}")
+        await processing.edit_text(
+            "⚠️ Не смог разобрать файл как экспорт LibreView. Проверь, что это CSV из выгрузки глюкозы.",
+            parse_mode=None,
+        )
+        return True
+
+    if result.get("glucose_points", 0) == 0:
+        await processing.edit_text("В файле не нашёл точек глюкозы. Это точно выгрузка из LibreView?", parse_mode=None)
+        return True
+
+    # Диапазон дат — чтобы пользователь сразу заметил, если перепутан порядок день/месяц.
+    first = (result.get("first_ts") or "")[:10]
+    last = (result.get("last_ts") or "")[:10]
+    inserted = result.get("inserted", 0)
+    total = result.get("total_in_file", result.get("glucose_points", 0))
+    await processing.edit_text(
+        f"✅ Загрузил историю глюкозы из LibreView.\n\n"
+        f"Точек в файле: {total}\n"
+        f"Новых добавлено: {inserted}\n"
+        f"Период: {first} — {last}\n\n"
+        f"Теперь могу анализировать эти дни — спрашивай про сахар за любой день и про реакцию на еду.",
+        parse_mode=None,
+    )
+    logger.info(f"LibreView CSV импорт для {user_id}: {result}")
+    return True
+
+
 @router.message(F.document)
 async def handle_document_image(message: Message, album: list = None):
     """Обработка документов с изображениями (например, при перетаскивании из приложения 'Фото' macOS)"""
@@ -672,6 +758,14 @@ async def handle_document_image(message: Message, album: list = None):
         # Проверяем MIME-тип или расширение файла
         mime_type = msg.document.mime_type or ""
         file_name = msg.document.file_name or ""
+
+        # CSV → возможный экспорт глюкозы LibreView. Пробуем импортировать; если это не
+        # LibreView-CSV, helper вернёт False и документ пойдёт обычным пайплайном.
+        is_csv = mime_type.lower() in ("text/csv", "text/comma-separated-values") or file_name.lower().endswith(".csv")
+        if is_csv:
+            handled = await _handle_libreview_csv(message, msg)
+            if handled:
+                continue
 
         # Список поддерживаемых типов изображений
         image_mime_types = [
