@@ -1095,6 +1095,74 @@ def _load_history(db, user_id: int, limit: int = HISTORY_WINDOW) -> list[dict]:
     return _validate_history(messages)
 
 
+def _recent_tracker_events(db, user_id: int, limit: int = 8) -> str:
+    """Краткая сводка последних записей пользователя через быстрые парсеры
+    (вес/еда/добавки/АД) — source `router_*`/`llm_text`.
+
+    Эти сообщения намеренно исключены из истории диалога агента (`_load_history`),
+    поэтому без сводки агент «не знает», что пользователь только что записал, и
+    противоречит ему («ты не вносил вес»). Возвращает блок для system-prompt или
+    '' если событий нет. Issue #169.
+    """
+    import json as _json
+
+    from sqlalchemy import text as _sql_text
+
+    sql = _sql_text(
+        """
+        SELECT source, content
+        FROM agent_conversations
+        WHERE user_id = :uid AND role = 'user'
+          AND (source LIKE 'router_%' OR source = 'llm_text')
+        ORDER BY id DESC
+        LIMIT :lim
+        """
+    )
+    rows = db.execute(sql, {"uid": user_id, "lim": limit}).fetchall()
+    if not rows:
+        return ""
+
+    labels = {
+        "router_weight": "вес",
+        "router_food": "еда",
+        "router_vitamins": "добавки",
+        "router_bp": "давление",
+        "llm_text": "запись",
+    }
+
+    def _text_of(content) -> str:
+        data = content
+        if isinstance(data, str):
+            try:
+                data = _json.loads(data)
+            except Exception:
+                return data.strip()[:120]
+        if isinstance(data, list):
+            parts = [b.get("text", "") for b in data if isinstance(b, dict) and b.get("type") == "text"]
+            return " ".join(p for p in parts if p).strip()[:120]
+        if isinstance(data, str):
+            return data.strip()[:120]
+        return ""
+
+    lines = []
+    for source, content in reversed(rows):  # chronological
+        txt = _text_of(content)
+        if txt:
+            lines.append(f"• [{labels.get(source, 'запись')}] {txt}")
+    if not lines:
+        return ""
+
+    return (
+        "# 📝 ПОЛЬЗОВАТЕЛЬ НЕДАВНО ЗАПИСАЛ ЧЕРЕЗ ТРЕКЕР (вне истории чата)\n"
+        "\n"
+        "Эти записи прошли через быстрый обработчик и НЕ видны в истории диалога,\n"
+        "но они РЕАЛЬНЫ и уже в БД. Учитывай их, НЕ переспрашивай и НЕ отрицай:\n"
+        + "\n".join(lines)
+        + "\nДля точных цифр всё равно вызывай соответствующий инструмент.\n"
+        "\n---\n\n"
+    )
+
+
 def _validate_history(messages: list[dict]) -> list[dict]:
     """Strip orphan tool_use/tool_result blocks that violate Anthropic API.
 
@@ -1745,6 +1813,34 @@ def ask_agent(
             "Прецедент 17.06.2026: у пользователя 233 замера за сутки, агент ответил\n"
             "«нет CGM-сенсора» — не вызвал get_recent_glucose, доверился контексту.\n"
             "\n"
+            "---\n"
+            "\n"
+            "# ⚖️ ДАННЫЕ ВЕСА — ОБЯЗАТЕЛЬНО ЧЕРЕЗ ИНСТРУМЕНТ (универсальный)\n"
+            "\n"
+            "При ЛЮБОМ вопросе про вес (текущий, динамика, расчёт нормы белка/калорий\n"
+            "по весу) — ВСЕГДА вызывай `get_weight_history` ЗАНОВО прямо сейчас.\n"
+            "\n"
+            "❌ ЗАПРЕЩЕНО:\n"
+            "- Говорить «веса нет / ты его не вносил(а)», НЕ вызвав get_weight_history\n"
+            "  в ЭТОМ ходе. Вес поступает через быстрый regex-обработчик и может НЕ\n"
+            "  отражаться в истории чата — но он уже в БД, инструмент его видит.\n"
+            "- Если get_weight_history раньше в диалоге вернул пусто — это устарело,\n"
+            "  пользователь мог записать вес ПОСЛЕ. Вызови инструмент заново.\n"
+            "\n"
+            "Прецедент 18.06.2026: пользователь написал «54» (✅ Записано), агент трижды\n"
+            "ответил «веса нет, ты не вносила» — не перевызвал get_weight_history.\n"
+            "\n"
+            "---\n"
+            "\n"
+            "# 🙅 НЕ ПРОТИВОРЕЧЬ ПОЛЬЗОВАТЕЛЮ О ТОМ, ЧТО ОН ВВОДИЛ (универсальный)\n"
+            "\n"
+            "Если пользователь говорит «я же написал(а) выше / я уже вносил(а) это», а\n"
+            "ты этого не видишь в истории — НЕ заявляй «ты не вводил / не называл». Его\n"
+            "запись веса/еды/АД/добавок могла пройти через быстрый обработчик и не\n"
+            "попасть в историю чата. Скажи нейтрально «сейчас проверю» и ВЫЗОВИ\n"
+            "соответствующий инструмент (get_weight_history / recent_bp / get_recent_meals\n"
+            "/ get_recent_supplements). Источник истины — инструмент и БД, не твоя память.\n"
+            "\n"
             "## Конкретный прошлый день и сопоставление с едой\n"
             "Для «глюкоза за вчера / за 17 июня» и для корреляции еды с сахаром бери\n"
             "конкретный день: `get_recent_glucose(date='YYYY-MM-DD')`. НЕ пытайся вытащить\n"
@@ -1998,6 +2094,10 @@ def ask_agent(
             "«позавчера», «на той неделе» считай строго от этой даты.\n\n"
         )
         merged_system_prompt = _date_line + UNIVERSAL_META_PROMPT + per_user_prompt
+        # Tracker-события (вес/еда/АД из парсеров) меняются КАЖДОЕ сообщение —
+        # держим их ОТДЕЛЬНЫМ system-блоком БЕЗ cache_control, чтобы не
+        # инвалидировать кэш стабильного промпта на каждый ход (#169 ревью).
+        tracker_block = _recent_tracker_events(db, user_id)
         # Prompt caching: system prompt + tool definitions cached at $0.30/MT
         # instead of $3.00/MT on subsequent calls (Sonnet 4.6). Cache TTL 5 min
         # default, refreshed by every cache hit. Within a single conversation
@@ -2021,7 +2121,8 @@ def ask_agent(
                         "text": merged_system_prompt,
                         "cache_control": {"type": "ephemeral"},
                     }
-                ],
+                ]
+                + ([{"type": "text", "text": tracker_block}] if tracker_block else []),
                 "tools": cached_tools,
                 "messages": history,
             }
