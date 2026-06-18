@@ -595,6 +595,148 @@ def _hae_to_daily_payloads(metrics: list[dict]) -> dict[str, AppleHealthPayload]
     return {d: AppleHealthPayload(**fields) for d, fields in by_date.items()}
 
 
+# ── Workouts (HAE data.workouts[]) ────────────────────────────────────────────
+# HAE шлёт тренировки отдельным POST. Формат между вики HAE и примером issue
+# расходится (name vs workoutActivityType, секунды vs {qty,units}) — поддерживаем
+# обе схемы (#100).
+
+_MILES_TO_KM = 1.60934
+_WORKOUT_DATE_FMT = "%Y-%m-%d %H:%M:%S %z"
+
+
+def _hae_quantity(value) -> float | None:
+    """Число из поля HAE: либо {'qty': N, 'units': ...}, либо само число."""
+    if isinstance(value, dict):
+        value = value.get("qty")
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _hae_workout_type(rec: dict) -> str:
+    """Тип активности: HKWorkoutActivityType* (снять префикс) либо поле name."""
+    raw = _hae_pick(rec, "workoutActivityType", "name")
+    if not raw:
+        return "Workout"
+    raw = str(raw)
+    prefix = "HKWorkoutActivityType"
+    return raw[len(prefix) :] if raw.startswith(prefix) else raw
+
+
+def _hae_workout_duration_min(rec: dict) -> int | None:
+    """Длительность → минуты. Принимает секунды (число) или {'qty','units'}."""
+    dur = rec.get("duration")
+    qty = _hae_quantity(dur)
+    if qty is None:
+        return None
+    if isinstance(dur, dict):
+        units = str(dur.get("units") or "").lower()
+        if units.startswith("min"):
+            return round(qty)
+        if units.startswith("h"):
+            return round(qty * 60)
+        return round(qty / 60)  # секунды по умолчанию
+    return round(qty / 60)  # голое число = секунды (формат вики HAE)
+
+
+def _hae_workout_distance_km(rec: dict) -> float | None:
+    dist = rec.get("distance")
+    qty = _hae_quantity(dist)
+    if qty is None:
+        return None
+    units = str(dist.get("units") if isinstance(dist, dict) else "").lower()
+    if units in ("mi", "mile", "miles"):
+        return round(qty * _MILES_TO_KM, 3)
+    return round(qty, 3)
+
+
+def _hae_workout_calories(rec: dict) -> int | None:
+    val = _hae_quantity(_hae_pick(rec, "activeEnergyBurned", "activeEnergy", "totalEnergy"))
+    return round(val) if val is not None else None
+
+
+def _hae_workouts_to_rows(workouts: list[dict], user_id: int) -> list[dict]:
+    """HAE `data.workouts[]` → строки для таблицы `workouts`.
+
+    Невалидные записи (без распознаваемой даты старта) пропускаются. `source` —
+    детерминированный `hae_<id|start>` для дедупа на уровне приложения.
+    """
+    rows: list[dict] = []
+    for rec in workouts:
+        if not isinstance(rec, dict):
+            continue
+        start_raw = _hae_pick(rec, "start", "startDate")
+        try:
+            start_dt = datetime.strptime(str(start_raw), _WORKOUT_DATE_FMT)
+        except (TypeError, ValueError):
+            continue
+        end_raw = _hae_pick(rec, "end", "endDate")
+        try:
+            end_dt = datetime.strptime(str(end_raw), _WORKOUT_DATE_FMT)
+        except (TypeError, ValueError):
+            end_dt = None
+
+        wid = rec.get("id")
+        source = f"hae_{wid}" if wid else f"hae_{start_dt.isoformat()}"
+
+        rows.append(
+            {
+                "user_id": user_id,
+                "date": start_dt.date().isoformat(),
+                "workout_type": _hae_workout_type(rec),
+                "duration_minutes": _hae_workout_duration_min(rec),
+                "start_time": start_dt,
+                "end_time": end_dt,
+                "calories_burned": _hae_workout_calories(rec),
+                "distance_km": _hae_workout_distance_km(rec),
+                "source": source,
+            }
+        )
+    return rows
+
+
+def _insert_new_workouts(db, user_id: int, rows: list[dict]) -> int:
+    """Вставляет тренировки в `workouts`, пропуская уже известные по `source`.
+
+    Дедуп на уровне приложения (HAE может слать несколько тренировок за день,
+    а Garmin-путь дедупит по дате) — без миграции схемы. `db` — SQLAlchemy
+    session. Возвращает число реально вставленных строк.
+    """
+    if not rows:
+        return 0
+    from sqlalchemy import text as _text
+
+    sources = [r["source"] for r in rows]
+    existing = {
+        row[0]
+        for row in db.execute(
+            _text("SELECT source FROM workouts WHERE user_id = :uid AND source = ANY(:srcs)"),
+            {"uid": user_id, "srcs": sources},
+        )
+    }
+    inserted = 0
+    for r in rows:
+        if r["source"] in existing:
+            continue
+        db.execute(
+            _text(
+                """INSERT INTO workouts
+                   (user_id, date, workout_type, duration_minutes, start_time,
+                    end_time, calories_burned, distance_km, source)
+                   VALUES (:user_id, :date, :workout_type, :duration_minutes,
+                           :start_time, :end_time, :calories_burned, :distance_km, :source)
+                   ON CONFLICT DO NOTHING"""
+            ),
+            r,
+        )
+        existing.add(r["source"])
+        inserted += 1
+    return inserted
+
+
 @app.post("/apple_health_v2")
 async def receive_apple_health_v2(
     request: Request,
@@ -623,10 +765,14 @@ async def receive_apple_health_v2(
     metrics = data_block.get("metrics") or []
     if not isinstance(metrics, list):
         raise HTTPException(status_code=400, detail="'data.metrics' must be a list")
+    # HAE шлёт тренировки отдельным POST с data.workouts[] (без data.metrics) — #100.
+    workouts_raw = data_block.get("workouts") or []
+    if not isinstance(workouts_raw, list):
+        raise HTTPException(status_code=400, detail="'data.workouts' must be a list")
 
     daily = _hae_to_daily_payloads(metrics)
-    if not daily:
-        return {"status": "ok", "days": 0, "details": []}
+    if not daily and not workouts_raw:
+        return {"status": "ok", "days": 0, "details": [], "workouts_inserted": 0}
 
     # Resolve target user (та же логика, что в v1)
     import sys
@@ -651,6 +797,7 @@ async def receive_apple_health_v2(
         target_user_id = _user.telegram_id
 
     details = []
+    workouts_inserted = 0
     db = SessionLocal()
     try:
         for d_str, payload in sorted(daily.items()):
@@ -766,6 +913,12 @@ async def receive_apple_health_v2(
 
             details.append({"date": d_str, "saved": saved})
 
+        # Тренировки (#100): отдельный data.workouts[], дедуп по source.
+        workout_rows = _hae_workouts_to_rows(workouts_raw, target_user_id)
+        workouts_inserted = _insert_new_workouts(db, target_user_id, workout_rows)
+        if workouts_inserted:
+            logger.info("HAE_v2 workouts inserted: %s", workouts_inserted)
+
         db.commit()
     except Exception as e:
         db.rollback()
@@ -779,6 +932,7 @@ async def receive_apple_health_v2(
         "status": "ok",
         "days": len(daily),
         "details": details,
+        "workouts_inserted": workouts_inserted,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
