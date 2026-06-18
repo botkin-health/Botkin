@@ -2093,9 +2093,11 @@ def ask_agent(
             f"таймзона пользователя {_tz_name}. Все относительные даты «вчера», "
             "«позавчера», «на той неделе» считай строго от этой даты.\n\n"
         )
-        merged_system_prompt = (
-            _date_line + _recent_tracker_events(db, user_id) + UNIVERSAL_META_PROMPT + per_user_prompt
-        )
+        merged_system_prompt = _date_line + UNIVERSAL_META_PROMPT + per_user_prompt
+        # Tracker-события (вес/еда/АД из парсеров) меняются КАЖДОЕ сообщение —
+        # держим их ОТДЕЛЬНЫМ system-блоком БЕЗ cache_control, чтобы не
+        # инвалидировать кэш стабильного промпта на каждый ход (#169 ревью).
+        tracker_block = _recent_tracker_events(db, user_id)
         # Prompt caching: system prompt + tool definitions cached at $0.30/MT
         # instead of $3.00/MT on subsequent calls (Sonnet 4.6). Cache TTL 5 min
         # default, refreshed by every cache hit. Within a single conversation
@@ -2119,7 +2121,8 @@ def ask_agent(
                         "text": merged_system_prompt,
                         "cache_control": {"type": "ephemeral"},
                     }
-                ],
+                ]
+                + ([{"type": "text", "text": tracker_block}] if tracker_block else []),
                 "tools": cached_tools,
                 "messages": history,
             }

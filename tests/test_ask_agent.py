@@ -316,9 +316,13 @@ def test_parser_rows_injected_into_system_prompt(agent_db, monkeypatch):
 
     agent_chat.ask_agent(895655, "какой у меня вес?")
 
-    sys_text = fake.anthropic_calls[0]["payload"]["system"][0]["text"]
+    system_blocks = fake.anthropic_calls[0]["payload"]["system"]
+    sys_text = " ".join(b["text"] for b in system_blocks)
     assert "ЗАПИСАЛ ЧЕРЕЗ ТРЕКЕР" in sys_text
     assert "54" in sys_text
+    # tracker — отдельный блок БЕЗ cache_control (не бьёт prompt-кэш)
+    tracker_blocks = [b for b in system_blocks if "ЗАПИСАЛ ЧЕРЕЗ ТРЕКЕР" in b["text"]]
+    assert tracker_blocks and "cache_control" not in tracker_blocks[0]
 
 
 def test_per_user_prompt_takes_precedence_over_default(agent_db, monkeypatch):
