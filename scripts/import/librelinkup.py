@@ -100,6 +100,24 @@ def collect_rows(client) -> dict[str, list[dict]]:
     return result
 
 
+def collect_rows_with_retry() -> dict[str, list[dict]]:
+    """collect_rows с одним ретраем при протухшем токене (#162).
+
+    Токен с диска переиспользуется без валидации; если он протух, Cloudflare/Abbott
+    отдаёт 400 на /llu/connections уже в get_patients(). Тогда сбрасываем токен и
+    логинимся заново один раз. Симметрично retry-логике в refresh_glucose_for_telegram
+    (раньше её имел только on-demand путь агента, а /sync — нет, отсюда повторные сбои).
+    LoginOnCooldownError (нет токена + активный backoff) пробрасываем без ретрая.
+    """
+    try:
+        return collect_rows(get_cached_client())
+    except LoginOnCooldownError:
+        raise
+    except Exception as exc:
+        logger.warning("LLU pull упал (%s) — сброс протухшего токена и повторный логин (#162)", exc)
+        return collect_rows(get_cached_client(reset=True))
+
+
 # Персист JWT: LibreLinkUp login-эндпоинт временами отдаёт 476 на свежий authenticate(),
 # но уже выданный токен качает данные. Поэтому храним токен на диске и переиспользуем —
 # логин становится редким событием (только если токена нет/протух). Спасает и от рестарта
@@ -330,8 +348,8 @@ def main():
     args = parser.parse_args()
 
     print("🩸 LibreLinkUp — импорт глюкозы CGM...")
-    client = get_cached_client()  # переиспользует токен с диска, без лишнего логина (#135)
-    by_patient = collect_rows(client)
+    # Токен с диска (#135) + ретрай со сбросом, если он протух → 400 на /llu/connections (#162).
+    by_patient = collect_rows_with_retry()
     total = sum(len(v) for v in by_patient.values())
     print(f"   Пациентов: {len(by_patient)}, точек собрано: {total}")
 
