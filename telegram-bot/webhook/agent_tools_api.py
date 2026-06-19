@@ -471,9 +471,9 @@ async def recent_meals(
     for log in logs:
         if compact:
             names = [
-                (it.get("product") or it.get("name") or "").strip()
+                (it.get("food") or it.get("product") or it.get("name") or "").strip()
                 for it in (log.items or [])
-                if (it.get("product") or it.get("name"))
+                if (it.get("food") or it.get("product") or it.get("name"))
             ]
             items_out = names
             totals_out = {"calories": (log.totals or {}).get("calories")}
