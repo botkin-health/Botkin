@@ -30,6 +30,11 @@ body {
   font-family: 'SF Pro Display','Inter',-apple-system,sans-serif;
   font-size: 14px;
   line-height: 1.4;
+  /* Disable iOS WebKit automatic text inflation ("font boosting"): in a narrow
+     webview it enlarges text non-uniformly, blowing captions out of their cards
+     and overlapping neighbours. We control sizing ourselves. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
   padding: 20px;
   box-sizing: border-box;
   background-image: radial-gradient(circle at 20% 0%, rgba(0,255,157,0.03) 0%, transparent 50%),
@@ -1895,11 +1900,20 @@ if (D.achievements.length === 0) {
 // ── Embed scale-to-fit ──
 // Only active when <html class="embed"> (mini-app iframe). Shrinks the 1440px
 // desktop layout to the screen width via `zoom`; no-op on the standalone /mc/.
+//
+// Screen width MUST come from documentElement.clientWidth, NOT window.innerWidth:
+// `html.embed body { width: 1440px }` forces a 1440px body, and in narrow
+// WebViews window.innerWidth then reports the 1440px content width (not the
+// real device width), so `zoom` would compute to 1 and the scale-to-fit would
+// silently do nothing (the 1440 layout overflows the phone screen). clientWidth
+// is the layout viewport (overflow-x is hidden on html), so it stays the true
+// screen width regardless of the forced body width.
 (function () {
   if (!document.documentElement.classList.contains('embed')) return;
   var BASE = 1440;
   function fit() {
-    document.body.style.zoom = Math.min(1, window.innerWidth / BASE);
+    var screenW = document.documentElement.clientWidth || window.innerWidth;
+    document.body.style.zoom = Math.min(1, screenW / BASE);
   }
   fit();
   window.addEventListener('resize', fit);
