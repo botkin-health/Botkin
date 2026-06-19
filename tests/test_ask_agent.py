@@ -340,3 +340,48 @@ def test_per_user_prompt_takes_precedence_over_default(agent_db, monkeypatch):
 
     sys_text = fake.anthropic_calls[0]["payload"]["system"][0]["text"]
     assert "семейный AI-врач" in sys_text
+
+
+# ── Гарды еды (#181) ──────────────────────────────────────────────────────────
+
+
+def test_meal_guard_in_universal_meta_prompt(agent_db, monkeypatch):
+    """system-prompt к Anthropic содержит блок 🍽️ с запретом галлюцинировать состав и ложного ✅."""
+    fake = FakeRequests([_anthropic_text("ок")])
+    monkeypatch.setattr(agent_chat, "requests", fake)
+
+    agent_chat.ask_agent(895655, "что я ел вчера?")
+
+    sys_text = " ".join(b["text"] for b in fake.anthropic_calls[0]["payload"]["system"])
+    assert "edit_meal" in sys_text
+    assert "get_recent_meals" in sys_text
+    assert "ЗАПРЕЩЕНО" in sys_text
+
+
+def test_edit_meal_tool_registered():
+    """edit_meal зарегистрирован в TOOLS с обязательным полем meal_id и enum new_slot."""
+    tool_names = [t["name"] for t in agent_chat.TOOLS]
+    assert "edit_meal" in tool_names
+
+    edit_tool = next(t for t in agent_chat.TOOLS if t["name"] == "edit_meal")
+    props = edit_tool["input_schema"]["properties"]
+    assert "meal_id" in props
+    assert "new_slot" in props
+    assert "lunch" in props["new_slot"]["enum"]
+
+
+def test_compact_mode_food_key_priority():
+    """Compact-режим recent_meals читает ключ 'food' для composite items (прецедент 19.06.2026)."""
+    composite_item = {"food": "Боул с киноа, креветками и авокадо", "calories": 511, "protein": 40}
+    legacy_item = {"product": "Яблоко", "calories": 52}
+    items = [composite_item, legacy_item]
+
+    names = [
+        (it.get("food") or it.get("product") or it.get("name") or "").strip()
+        for it in items
+        if (it.get("food") or it.get("product") or it.get("name"))
+    ]
+
+    assert len(names) == 2
+    assert "киноа" in names[0]
+    assert "Яблоко" in names[1]
