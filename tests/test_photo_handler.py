@@ -129,8 +129,13 @@ async def test_food_llm_response_triggers_menu_flow(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_vitamins_photo_calls_save_supplements(tmp_path):
-    """LLM returns type='vitamins' → save_supplements is called, confirmation shown."""
+async def test_vitamins_photo_shows_confirmation(tmp_path):
+    """LLM returns type='vitamins' → confirmation keyboard shown, state saved.
+
+    Since 5a8b910 feat(supplements): vitamins are no longer saved immediately.
+    A confirmation keyboard is shown and state=waiting_supplement_confirmation is
+    set. save_supplements is called only after the user taps confirm.
+    """
     from handlers.photo import process_photos_list
     from services.state import state_manager
 
@@ -144,20 +149,23 @@ async def test_vitamins_photo_calls_save_supplements(tmp_path):
         "data": {"items": ["Vitamin D 5000 IU", "Omega-3 1000mg"]},
     }
 
-    mock_save = MagicMock(return_value=True)
-
     with (
         patch(OCR_WEIGHT, return_value=None),
         patch(LLM_ANALYZE, return_value=llm_result),
         patch(MENU_PARSER, return_value=None),
-        patch(SAVE_SUPPS, mock_save),
     ):
         await process_photos_list(msg, [photo])
 
-    mock_save.assert_called_once()
+    # Confirmation message must mention supplements
     processing_msg.edit_text.assert_called_once()
     call_text = processing_msg.edit_text.call_args[0][0]
-    assert "💊" in call_text or "витамин" in call_text.lower()
+    assert "💊" in call_text or "добавк" in call_text.lower()
+
+    # State must be waiting_supplement_confirmation with items stored
+    st = state_manager.get_state("895655")
+    assert st is not None
+    assert st.state == "waiting_supplement_confirmation"
+    assert "Vitamin D 5000 IU" in st.data.get("supplements", [])
 
 
 @pytest.mark.asyncio
