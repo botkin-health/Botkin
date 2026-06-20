@@ -197,6 +197,27 @@ def detect_slot_prefix(text: str) -> str | None:
     return _SLOT_PREFIX_MAP.get(m.group(1).lower())
 
 
+def _temporal_phrase_to_time(text: str) -> str | None:
+    """Извлекает meal_time из временны́х фраз в тексте.
+
+    Возвращает HH:MM строку если найдена фраза, иначе None.
+    """
+    text_lower = text.lower()
+    # Порядок важен: более специфичные паттерны первыми
+    patterns = [
+        (r"\bранн\w+\s+утр\w+\b|\bна\s+рассвет\w*\b", "06:00"),
+        (r"\bутр\w+\b|\bна\s+завтрак\b|\bзавтрак\w*\b", "08:00"),
+        (r"\bдн[её]\w*\b|\bв\s+обед\b|\bобед\w*\b|\bполдн\w+\b", "13:00"),
+        (r"\bполдни\w*\b|\bдневн\w+\s+перекус\b", "15:30"),
+        (r"\bвечер\w*\b|\bна\s+ужин\b|\bужин\w*\b", "20:00"),
+        (r"\bноч\w+\b|\bпоздн\w+\s+вечер\w*\b|\bперед\s+сном\b", "22:30"),
+    ]
+    for pattern, time_str in patterns:
+        if re.search(pattern, text_lower):
+            return time_str
+    return None
+
+
 def apply_slot_prefix(text: str, meal_name: str | None) -> str | None:
     """Если у пользовательского текста есть префикс слота, приклеить его к meal_name."""
     if not meal_name:
@@ -1103,7 +1124,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                     "description": text,
                     "meal_items": meal_items,
                     "meal_totals": meal_totals,
-                    "meal_time": datetime.now(user_tz).strftime("%H:%M"),
+                    "meal_time": _temporal_phrase_to_time(text) or datetime.now(user_tz).strftime("%H:%M"),
                     "meal_name": meal_name,
                     "date": custom_date,
                 },
@@ -1314,7 +1335,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                     "description": text,
                     "meal_items": meal_items,
                     "meal_totals": meal_totals,
-                    "meal_time": datetime.now(user_tz).strftime("%H:%M"),
+                    "meal_time": _temporal_phrase_to_time(text) or datetime.now(user_tz).strftime("%H:%M"),
                     "meal_name": meal_name,
                     "date": custom_date,
                 },
