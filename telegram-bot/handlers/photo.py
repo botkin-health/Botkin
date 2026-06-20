@@ -57,7 +57,7 @@ from core.vision.menu_parser import parse_menu_photo
 router = Router()
 
 
-from handlers.callbacks import MealConfirmationCallback, WeightConfirmationCallback
+from handlers.callbacks import MealConfirmationCallback, SupplementConfirmationCallback, WeightConfirmationCallback
 
 from typing import List
 
@@ -231,30 +231,34 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
         if router_result and router_result.get("type") == "vitamins":
             data = router_result.get("data", {})
             items = data.get("items", [])
-            action = data.get("action", "logged")  # default "logged" для обратной совместимости
             if items:
-                # 🐛 FIX task #65: фото банок добавок с intent='metadata' не должно
-                # логироваться как факт приёма. Прецедент 25.05.2026: Александр
-                # прислал фото 8 добавок «решил отправить фото всех, чтобы ты знал
-                # марки» — бот залогировал 8 «приёмов» с длинными именами.
-                if action == "metadata":
-                    items_list = "\n".join([f"• {item}" for item in items])
-                    await processing_msg.edit_text(
-                        f"📋 <b>Распознал твои добавки:</b>\n{items_list}\n\n"
-                        f"Это <b>не приём</b> — просто запись марок для профиля. "
-                        f"Когда реально их выпьешь — напиши обычным сообщением "
-                        f"(например, «выпил магний»).",
-                        parse_mode="HTML",
-                    )
-                    return
-
-                from core.health.supplements import save_supplements
-
-                telegram_user_id = int(message.from_user.id)
-                saved = save_supplements(items, user_id=telegram_user_id)
                 items_list = "\n".join([f"• {item}" for item in items])
-                status = "✅ Записано" if saved else "⚠️ Ошибка записи"
-                await processing_msg.edit_text(f"💊 <b>Витамины:</b>\n{items_list}\n\n{status}", parse_mode="HTML")
+                s_builder = InlineKeyboardBuilder()
+                s_builder.button(
+                    text="✅ Записать как приём",
+                    callback_data=SupplementConfirmationCallback(action="save").pack(),
+                )
+                s_builder.button(
+                    text="❌ Не сейчас",
+                    callback_data=SupplementConfirmationCallback(action="cancel").pack(),
+                )
+
+                if not user_state:
+                    user_state = UserState(
+                        user_id=user_id,
+                        state="waiting_supplement_confirmation",
+                        data={"supplements": items},
+                    )
+                else:
+                    user_state.state = "waiting_supplement_confirmation"
+                    user_state.data["supplements"] = items
+                state_manager.set_state(user_id, user_state)
+
+                await processing_msg.edit_text(
+                    f"💊 <b>Распознал добавки:</b>\n{items_list}\n\nЗаписать как приём сейчас?",
+                    parse_mode="HTML",
+                    reply_markup=s_builder.as_markup(),
+                )
                 return
         if router_result and router_result.get("type") == "weight":
             data = router_result.get("data", {})
@@ -1642,6 +1646,44 @@ async def handle_weight_confirmation(callback: CallbackQuery, callback_data: Wei
         await safe_edit_text(
             callback.message,
             callback.message.text.replace("Сохранить запись в журнал?", "\n❌ <b>Сохранение отменено</b>"),
+            parse_mode="HTML",
+        )
+
+    state_manager.clear_state(user_id)
+
+
+@router.callback_query(SupplementConfirmationCallback.filter())
+async def handle_supplement_confirmation(callback: CallbackQuery, callback_data: SupplementConfirmationCallback):
+    """Обработчик подтверждения записи добавок из фото"""
+
+    user_id = str(callback.from_user.id)
+    user_state = state_manager.get_state(user_id)
+    logger = logging.getLogger(__name__)
+
+    if not user_state or "supplements" not in user_state.data:
+        await callback.answer("⚠️ Данные устарели", show_alert=True)
+        await callback.message.delete()
+        return
+
+    if callback_data.action == "save":
+        from core.health.supplements import save_supplements
+
+        telegram_user_id = int(callback.from_user.id)
+        items = user_state.data["supplements"]
+        saved = save_supplements(items, user_id=telegram_user_id)
+        status_text = "✅ <b>Записано как приём!</b>" if saved else "⚠️ Ошибка записи"
+        await callback.answer("✅ Записано" if saved else "⚠️ Ошибка", show_alert=False)
+        await safe_edit_text(
+            callback.message,
+            callback.message.text.replace("Записать как приём сейчас?", status_text),
+            parse_mode="HTML",
+        )
+        logger.info(f"Supplements confirmed by user {telegram_user_id}: {items}")
+    else:
+        await callback.answer("Окей", show_alert=False)
+        await safe_edit_text(
+            callback.message,
+            callback.message.text.replace("Записать как приём сейчас?", "❌ <b>Не записано</b>"),
             parse_mode="HTML",
         )
 

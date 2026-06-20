@@ -13,3 +13,7 @@ class WeightConfirmationCallback(CallbackData, prefix="weight"):
 
 class HealthConnectCallback(CallbackData, prefix="ahconn"):
     method: str  # "hae" (Health Auto Export) или "shortcut" (бесплатный iOS Shortcut)
+
+
+class SupplementConfirmationCallback(CallbackData, prefix="suppl"):
+    action: str  # "save" или "cancel"
