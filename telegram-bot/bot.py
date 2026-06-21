@@ -17,7 +17,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.types import Update, BotCommand, BotCommandScopeAllPrivateChats
+from aiogram.types import Update, BotCommand, BotCommandScopeAllPrivateChats, MenuButtonWebApp, WebAppInfo
 from dotenv import load_dotenv
 import os
 
@@ -330,11 +330,21 @@ async def main():
         logger.warning("⚠️ Android Health webhook не загружен (webhook/android_health.py не найден)")
 
     try:
-        # We only set bot commands here.
         await bot.set_my_commands(commands, scope=BotCommandScopeAllPrivateChats())
         logger.info("✅ Команды бота установлены")
     except Exception as e:
         logger.error(f"❌ Не удалось установить команды: {e}")
+
+    # Кнопка «Дневник» (Menu Button) — WebApp мини-приложение.
+    # URL берётся из PUBLIC_BASE_URL (задать в .env каждого бота).
+    # Дефолт — прод-URL. Идемпотентно: Telegram принимает повторные вызовы.
+    webapp_base = os.getenv("PUBLIC_BASE_URL", "https://health.orangegate.cc")
+    webapp_url = f"{webapp_base.rstrip('/')}/webapp/"
+    try:
+        await bot.set_chat_menu_button(menu_button=MenuButtonWebApp(text="Дневник", web_app=WebAppInfo(url=webapp_url)))
+        logger.info(f"✅ Menu button 'Дневник' установлен → {webapp_url}")
+    except Exception as e:
+        logger.error(f"❌ Не удалось установить menu button: {e}")
 
     # Регистрируем webhook у Telegram. Идемпотентно: ставим только если
     # текущий URL отличается. Без этого после смены TELEGRAM_BOT_TOKEN
