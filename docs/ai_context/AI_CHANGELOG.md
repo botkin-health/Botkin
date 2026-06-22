@@ -5,6 +5,25 @@
 
 ---
 
+## 2026-06-22 — #191 #192
+
+**CGM sync: persisted backoff + Trend._missing_ патч**
+
+- `scripts/import/librelinkup.py`: backoff на логин теперь сохраняется на диск
+  (`data/cache/llu_backoff.json`). Раньше `_login_blocked_until` жил только в памяти
+  процесса → каждый `/sync` в новом subprocess сбрасывал его в 0 → повторные попытки
+  аутентификации продлевали Cloudflare-бан (Retry-After 86400с).
+- `scripts/import/librelinkup.py`: `Trend._missing_` патч — `pylibrelinkup.Trend`
+  (IntEnum 1–5) падал с Pydantic ValidationError на `TrendArrow=0` (новый сенсор).
+  Патч: неизвестные значения → STABLE.
+- `scripts/import/librelinkup.py`: `client.graph()` обёрнут в try/except аналогично
+  `client.latest()`.
+
+Прецедент: CGM не синхронизировалась с 20.06; данные за 21.06 были в телефоне, но
+отсутствовали в БД. Cloudflare-бан истекает ~22.06 21:00 UTC.
+
+---
+
 ## 2026-06-21 — #190 / PR #194
 
 **Общий гард: не заявлять что видишь данные без вызова инструмента**
