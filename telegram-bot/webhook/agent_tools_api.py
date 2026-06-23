@@ -30,7 +30,7 @@ from sqlalchemy import func  # noqa: E402
 
 from database.models import ActivityLog, GlucoseReading, NutritionLog, Weight  # noqa: E402
 from webhook.jwt_auth import get_agent_user, get_db  # noqa: E402
-from core.health.glucose_stats import compute_glucose_stats  # noqa: E402
+from core.health.glucose_stats import compute_glucose_stats, glucose_staleness  # noqa: E402
 from core.health.glucose_runtime import refresh_glucose_for_telegram as _refresh_glucose, LoginOnCooldownError  # noqa: E402
 
 logger = logging.getLogger(__name__)
@@ -571,6 +571,7 @@ async def recent_glucose(
             "downsampled": False,
             "points": [],
             "refresh_skipped": refresh_skipped,
+            **glucose_staleness(None, datetime.now(timezone.utc), refresh_skipped),
         }
 
     values = [float(val) for _, val, _ in rows]
@@ -589,6 +590,7 @@ async def recent_glucose(
 
     points = [{"ts": _dt_isoformat_local(ts, user), "value": float(val), "trend": tr} for ts, val, tr in sampled]
 
+    last_ts = rows[-1][0]  # хронологический порядок → последняя точка окна
     return {
         "status": "ok",
         **window_desc,
@@ -598,6 +600,8 @@ async def recent_glucose(
         "downsampled": downsampled,
         "points": points,
         "refresh_skipped": refresh_skipped,
+        "last_point_local": _dt_isoformat_local(last_ts, user),
+        **glucose_staleness(last_ts, datetime.now(timezone.utc), refresh_skipped),
     }
 
 
