@@ -959,10 +959,9 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             # 🐛 FIX task #65: text-route — если LLM понял intent='metadata' (а не intake),
             # не логировать как приём. Симметрично photo.py.
             if action == "metadata" and items:
-                items_list = "\n".join([
-                    f"• {html.escape(i['name'] if isinstance(i, dict) else str(i))}"
-                    for i in items
-                ])
+                items_list = "\n".join(
+                    [f"• {html.escape(i['name'] if isinstance(i, dict) else str(i))}" for i in items]
+                )
                 e2e_prefix = "🧪 [E2E] " if is_e2e else ""
                 await processing_msg.edit_text(
                     f"{e2e_prefix}📋 <b>Распознал:</b>\n{items_list}\n\n"
@@ -1050,10 +1049,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             saved = save_supplements(items, user_id=telegram_user_id, date_str=custom_date)
 
             # Формируем красивый список
-            items_list = "\n".join([
-                f"• {html.escape(i['name'] if isinstance(i, dict) else str(i))}"
-                for i in items
-            ])
+            items_list = "\n".join([f"• {html.escape(i['name'] if isinstance(i, dict) else str(i))}" for i in items])
 
             status_text = "✅ <b>Записано</b>" if saved else "⚠️ <b>Ошибка записи</b>"
 
