@@ -232,7 +232,13 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
             data = router_result.get("data", {})
             items = data.get("items", [])
             if items:
-                items_list = "\n".join([f"• {item}" for item in items])
+                def _fmt_supplement(i) -> str:
+                    if isinstance(i, dict):
+                        name = html.escape(i.get("name", ""))
+                        dosage = i.get("dosage")
+                        return f"• {name} — <i>{html.escape(dosage)}</i>" if dosage else f"• {name}"
+                    return f"• {html.escape(str(i))}"
+                items_list = "\n".join([_fmt_supplement(i) for i in items])
                 s_builder = InlineKeyboardBuilder()
                 s_builder.button(
                     text="✅ Записать как приём",
@@ -1087,7 +1093,10 @@ async def handle_description(
             saved = save_supplements(items, user_id=telegram_user_id)
 
             # Формируем красивый список
-            items_list = "\n".join([f"• {item}" for item in items])
+            items_list = "\n".join([
+                f"• {html.escape(i['name'] if isinstance(i, dict) else str(i))}"
+                for i in items
+            ])
 
             status_text = "✅ <b>Записано</b>" if saved else "⚠️ <b>Ошибка записи</b>"
 
