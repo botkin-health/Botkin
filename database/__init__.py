@@ -68,6 +68,7 @@ from database.crud import (
     delete_nutrition_log,
     # Weight operations
     create_weight,
+    upsert_manual_weight,
     get_latest_weight,
     get_weights_by_period,
     get_weight_stats,
@@ -108,6 +109,7 @@ __all__ = [
     "get_nutrition_totals_by_date",
     "delete_nutrition_log",
     "create_weight",
+    "upsert_manual_weight",
     "get_latest_weight",
     "get_weights_by_period",
     "get_weight_stats",
