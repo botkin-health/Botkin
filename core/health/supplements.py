@@ -250,12 +250,15 @@ _SLOT_LABELS = {
 }
 
 
-def save_supplements(items: List[str], user_id: int, date_str: Optional[str] = None) -> bool:
+def save_supplements(items: List, user_id: int, date_str: Optional[str] = None) -> bool:
     """
-    Сохраняет список принятых витаминов/БАДов в PostgreSQL
+    Сохраняет список принятых витаминов/БАДов в PostgreSQL.
+
+    items может содержать строки ("Омега-3") или объекты {"name": "Омега-3", "dosage": "2000мг"}.
+    Дозировка из объекта имеет приоритет над расписанием пользователя.
 
     Args:
-        items: Список названий (например ["Magnesium", "Zinc"])
+        items: Список названий или объектов {name, dosage} из LLM-роутера
         user_id: Telegram ID пользователя
         date_str: Дата YYYY-MM-DD
 
@@ -279,21 +282,31 @@ def save_supplements(items: List[str], user_id: int, date_str: Optional[str] = N
         settings = get_user_settings(db, user_id)
         planned = (settings.supplements or []) if settings else []
 
-        # Add new items with timestamp
         for item in items:
+            if isinstance(item, dict):
+                name = item.get("name", "")
+                # LLM-extracted dosage takes priority; fall back to user schedule
+                dosage = item.get("dosage") or dose_from_user_schedule(planned, name)
+            else:
+                name = str(item)
+                dosage = dose_from_user_schedule(planned, name)
+
+            if not name:
+                continue
+
             create_supplement_log(
                 db,
                 user_id=user_id,
                 date=target_date,
                 time=current_time,
-                supplement_name=item,
-                dosage=dose_from_user_schedule(planned, item),
+                supplement_name=name,
+                dosage=dosage,
             )
 
             # If this supplement has known nutritional value — also log it as food
             # so fiber/calories/protein are counted in the daily budget
             # (e.g. psyllium → fiber, whey → protein).
-            mirror_supplement_to_nutrition(db, user_id, target_date, current_time, item)
+            mirror_supplement_to_nutrition(db, user_id, target_date, current_time, name)
 
         return True
     except Exception as e:
