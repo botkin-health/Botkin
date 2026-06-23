@@ -312,6 +312,8 @@ Extract weight and body composition.
 
 SCENARIO 3: VITAMINS
 IMPORTANT: Return "items" in RUSSIAN language (e.g. "Витамин С", "Магний").
+Each item is an object with "name" (required) and "dosage" (optional string, null if not visible).
+Extract dosage from the label/packaging if visible — e.g. "2000мг", "EPA 660мг + DHA 440мг", "5000 IU".
 
 CRITICAL — distinguish INTENT:
 - "logged" (intake) — user just TOOK them: «выпил магний», «принял Д3», «съел омегу» — log as taken
@@ -322,7 +324,11 @@ CRITICAL — distinguish INTENT:
 {
   "type": "vitamins",
   "data": {
-    "items": ["Витамин С", "Омега-3"],
+    "items": [
+      {"name": "Витамин С", "dosage": "500мг"},
+      {"name": "Омега-3", "dosage": "2000мг (EPA 660мг + DHA 440мг)"},
+      {"name": "Магний", "dosage": null}
+    ],
     "action": "logged"  // OR "metadata" — see CRITICAL note above
   }
 }
@@ -401,7 +407,11 @@ Example: "30г сывороточного протеина, креатин, ма
       ],
       "total_nutrition": {"calories": 120, "protein": 24, "fats": 1, "carbs": 3, "fiber": 0}
     },
-    "supplements": ["Креатин", "Магний", "Plant Sterols"]
+    "supplements": [
+      {"name": "Креатин", "dosage": "5г"},
+      {"name": "Магний", "dosage": null},
+      {"name": "Plant Sterols", "dosage": null}
+    ]
   }
 }
 
