@@ -291,6 +291,19 @@ def test_system_prompt_instructs_supplement_logging(agent_db, monkeypatch):
     assert "напиши схему" in sys_text.lower()
 
 
+def test_system_prompt_forbids_claiming_data_without_tool(agent_db, monkeypatch):
+    """#190: в system-prompt есть гард — не заявлять что видишь данные из БД
+    без вызова инструмента в этом ходе."""
+    fake = FakeRequests([_anthropic_text("Сейчас проверю.")])
+    monkeypatch.setattr(agent_chat, "requests", fake)
+
+    agent_chat.ask_agent(895655, "я же отправил фото добавок")
+
+    sys_text = fake.anthropic_calls[0]["payload"]["system"][0]["text"]
+    assert "НЕ ЗАЯВЛЯЙ ЧТО ВИДИШЬ ДАННЫЕ БЕЗ ВЫЗОВА ИНСТРУМЕНТА" in sys_text
+    assert "прямого доступа к базе данных" in sys_text
+
+
 def _insert_router_row(TestSession, user_id, source, text_str):
     s = TestSession()
     s.execute(
