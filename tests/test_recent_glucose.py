@@ -189,3 +189,25 @@ def test_empty_window_ok(client, db_session):
     assert body["total_count"] == 0
     assert body["points"] == []
     assert body["downsampled"] is False
+
+
+# ── Свежесть данных (#156) ────────────────────────────────────────────────────
+
+
+def test_stale_when_last_point_old(client, db_session):
+    """Последняя точка 8ч назад → is_stale=true, last_point_age_min большой."""
+    _seed_readings(db_session, datetime.now(timezone.utc) - timedelta(hours=8), count=1)
+
+    body = client.get("/api/agent/recent_glucose", params={"hours": 24}).json()
+    assert body["is_stale"] is True
+    assert body["last_point_age_min"] >= 30
+    assert body["last_point_local"]
+
+
+def test_fresh_when_last_point_recent(client, db_session):
+    """Последняя точка 5 мин назад → is_stale=false."""
+    _seed_readings(db_session, datetime.now(timezone.utc) - timedelta(minutes=5), count=1)
+
+    body = client.get("/api/agent/recent_glucose", params={"hours": 24}).json()
+    assert body["is_stale"] is False
+    assert body["last_point_age_min"] < 30
