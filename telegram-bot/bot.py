@@ -354,8 +354,14 @@ async def main():
     # Default — legacy-домен: прод-.env не задаёт TELEGRAM_WEBHOOK_URL, а nginx
     # botkin.health не проксирует /telegram/ (проверено 11.06.2026). Перевод на
     # botkin.health — только вместе с nginx-location и сменой webhook у Telegram.
+    # Дев-стенд без публичного TLS-эндпойнта: Telegram-апдейты тянем polling'ом,
+    # но FastAPI-сервер (/health, дашборд, /api/agent) ВСЁ РАВНО поднимаем —
+    # поэтому отключаем только webhook-регистрацию, а не сервер целиком.
+    # Включается переменной BOTKIN_FORCE_POLLING=1 (см. docker-compose.dev.yml).
+    force_polling = os.getenv("BOTKIN_FORCE_POLLING") == "1"
+
     webhook_url = os.getenv("TELEGRAM_WEBHOOK_URL", "https://health.orangegate.cc/telegram/webhook")
-    if webhook_enabled and webhook_url:
+    if webhook_enabled and not force_polling and webhook_url:
         try:
             info = await bot.get_webhook_info()
             if info.url != webhook_url:
@@ -365,17 +371,28 @@ async def main():
                 logger.info(f"✅ Webhook уже актуален: {webhook_url}")
         except Exception as e:
             logger.error(f"❌ Не удалось установить webhook: {e}")
+    elif force_polling:
+        # polling и webhook у Telegram взаимоисключающи — снимаем webhook,
+        # иначе getUpdates вернёт 409 и дев-бот «молчит».
+        try:
+            await bot.delete_webhook(drop_pending_updates=False)
+            logger.info("⚙️ BOTKIN_FORCE_POLLING=1 — webhook снят, Telegram через polling")
+        except Exception as e:
+            logger.error(f"❌ Не удалось снять webhook: {e}")
 
-    # Start FastAPI server (serves /telegram/webhook + /apple_health + /webapp).
-    # No polling — Telegram updates arrive via webhook.
+    # Запуск: FastAPI-сервер (/telegram/webhook + /apple_health + /webapp + /api/agent
+    # + дашборд) и/или polling. В проде — только сервер (webhook). На дев-стенде —
+    # сервер И polling одновременно (force_polling): сервер нужен для /health,
+    # дашборда и agent-tools, а апдейты Telegram тянутся polling'ом без публичного TLS.
     try:
+        tasks = []
         if webhook_enabled:
             logger.info("🌐 Запуск webhook-сервера на порту 8081...")
-            await start_webhook_server()
-        else:
-            # Fallback: polling if FastAPI server not available
-            logger.warning("⚠️ Webhook-сервер не доступен, запускаем polling...")
-            await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+            tasks.append(start_webhook_server())
+        if force_polling or not webhook_enabled:
+            logger.info("📡 Запуск polling...")
+            tasks.append(dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types()))
+        await asyncio.gather(*tasks)
     except Exception as e:
         error_msg = "❌ ⚠️ 🚨 Botkin НЕ ЗАПУЩЕН!\n\n"
         error_msg += f"Ошибка при запуске: {e}\n"
