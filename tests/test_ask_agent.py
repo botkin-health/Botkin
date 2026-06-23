@@ -276,6 +276,21 @@ def test_user_without_system_prompt_uses_default(agent_db, monkeypatch):
     assert "Кристина" in sys_text
 
 
+def test_system_prompt_instructs_supplement_logging(agent_db, monkeypatch):
+    """#191: в system-prompt есть инструкция логировать приём добавок из текста
+    и давать фидбек по схеме (а не просить написать её заново)."""
+    fake = FakeRequests([_anthropic_text("Записал омегу.")])
+    monkeypatch.setattr(agent_chat, "requests", fake)
+
+    agent_chat.ask_agent(895655, "выпил омегу 3")
+
+    sys_text = fake.anthropic_calls[0]["payload"]["system"][0]["text"]
+    assert "log_supplement" in sys_text
+    assert "ДОБАВКИ" in sys_text
+    # не просить переписать уже описанную схему
+    assert "напиши схему" in sys_text.lower()
+
+
 def _insert_router_row(TestSession, user_id, source, text_str):
     s = TestSession()
     s.execute(

@@ -959,7 +959,9 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             # 🐛 FIX task #65: text-route — если LLM понял intent='metadata' (а не intake),
             # не логировать как приём. Симметрично photo.py.
             if action == "metadata" and items:
-                items_list = "\n".join([f"• {item}" for item in items])
+                items_list = "\n".join(
+                    [f"• {html.escape(i['name'] if isinstance(i, dict) else str(i))}" for i in items]
+                )
                 e2e_prefix = "🧪 [E2E] " if is_e2e else ""
                 await processing_msg.edit_text(
                     f"{e2e_prefix}📋 <b>Распознал:</b>\n{items_list}\n\n"
@@ -1011,23 +1013,32 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                 ]
             )
 
+            # items may be dicts {name, dosage} (from photo/LLM) or plain strings (legacy)
             normalized = []
             has_plain_sterols = False
+            sterols_dosage = None
             for item in items:
-                key = item.strip().lower()
-                canonical = _NORMALIZE.get(key, item)
+                if isinstance(item, dict):
+                    raw_name = item.get("name", "")
+                    dosage = item.get("dosage")
+                else:
+                    raw_name = str(item)
+                    dosage = None
+                key = raw_name.strip().lower()
+                canonical = _NORMALIZE.get(key, raw_name)
                 if canonical == "Plant Sterols":
                     has_plain_sterols = True
-                elif canonical not in normalized:
-                    normalized.append(canonical)
+                    sterols_dosage = dosage
+                elif not any((n["name"] if isinstance(n, dict) else n) == canonical for n in normalized):
+                    normalized.append({"name": canonical, "dosage": dosage})
 
             # Plant Sterols: если «оба» — разворачиваем в утро + вечер; если просто один — только Plant Sterols
             if has_plain_sterols:
                 if both_sterols:
-                    normalized.append("Plant Sterols (Утро)")
-                    normalized.append("Plant Sterols (Вечер)")
+                    normalized.append({"name": "Plant Sterols (Утро)", "dosage": sterols_dosage})
+                    normalized.append({"name": "Plant Sterols (Вечер)", "dosage": sterols_dosage})
                 else:
-                    normalized.append("Plant Sterols")
+                    normalized.append({"name": "Plant Sterols", "dosage": sterols_dosage})
 
             items = normalized
 
@@ -1038,7 +1049,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             saved = save_supplements(items, user_id=telegram_user_id, date_str=custom_date)
 
             # Формируем красивый список
-            items_list = "\n".join([f"• {html.escape(str(item))}" for item in items])
+            items_list = "\n".join([f"• {html.escape(i['name'] if isinstance(i, dict) else str(i))}" for i in items])
 
             status_text = "✅ <b>Записано</b>" if saved else "⚠️ <b>Ошибка записи</b>"
 
@@ -1080,10 +1091,16 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             }
             normalized_supp = []
             for item in supplement_items:
-                key = item.strip().lower()
-                canonical = _NORMALIZE_MX.get(key, item)
-                if canonical not in normalized_supp:
-                    normalized_supp.append(canonical)
+                if isinstance(item, dict):
+                    raw_name = item.get("name", "")
+                    dosage = item.get("dosage")
+                else:
+                    raw_name = str(item)
+                    dosage = None
+                key = raw_name.strip().lower()
+                canonical = _NORMALIZE_MX.get(key, raw_name)
+                if not any((n["name"] if isinstance(n, dict) else n) == canonical for n in normalized_supp):
+                    normalized_supp.append({"name": canonical, "dosage": dosage})
 
             from core.health.supplements import save_supplements
 

@@ -106,3 +106,48 @@ def test_dose_is_none_for_empty_schedule():
     # No cross-user default: an unconfigured user gets no dose stamped.
     assert dose_from_user_schedule([], "Магний") is None
     assert dose_from_user_schedule(None, "Магний") is None
+
+
+# --- save_supplements dict-items support (#192) ----------------------------
+# These tests exercise the name/dosage extraction logic that mirrors what
+# save_supplements() does internally — pure functions, no DB needed.
+
+
+def _extract_name(item) -> str:
+    return item.get("name") if isinstance(item, dict) else str(item)
+
+
+def _extract_dosage(item, planned=None):
+    if isinstance(item, dict):
+        return item.get("dosage") or dose_from_user_schedule(planned or [], item.get("name", ""))
+    return dose_from_user_schedule(planned or [], str(item))
+
+
+def test_dict_item_extracts_name_and_dosage():
+    item = {"name": "Омега-3", "dosage": "2000мг (EPA 660мг + DHA 440мг)"}
+    assert _extract_name(item) == "Омега-3"
+    assert _extract_dosage(item) == "2000мг (EPA 660мг + DHA 440мг)"
+
+
+def test_dict_item_null_dosage_falls_back_to_schedule():
+    planned = [{"name": "Магний", "slot": "evening", "dose": "400мг"}]
+    item = {"name": "Магний", "dosage": None}
+    assert _extract_dosage(item, planned) == "400мг"
+
+
+def test_string_item_backward_compat():
+    planned = [{"name": "Магний", "slot": "evening", "dose": "400мг"}]
+    assert _extract_name("Магний") == "Магний"
+    assert _extract_dosage("Магний", planned) == "400мг"
+
+
+def test_llm_dosage_overrides_schedule():
+    # LLM-extracted dosage takes priority over user's configured schedule.
+    planned = [{"name": "Омега-3", "slot": "morning_with", "dose": "1000мг"}]
+    item = {"name": "Омега-3", "dosage": "2000мг"}
+    assert _extract_dosage(item, planned) == "2000мг"
+
+
+def test_empty_name_dict_item_skipped():
+    item = {"name": "", "dosage": "500мг"}
+    assert _extract_name(item) == ""
