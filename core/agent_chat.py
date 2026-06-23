@@ -24,6 +24,8 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+from sqlalchemy import text
 from typing import Any, Callable, Optional
 
 import jwt as pyjwt
@@ -1104,11 +1106,7 @@ def _recent_tracker_events(db, user_id: int, limit: int = 8) -> str:
     противоречит ему («ты не вносил вес»). Возвращает блок для system-prompt или
     '' если событий нет. Issue #169.
     """
-    import json as _json
-
-    from sqlalchemy import text as _sql_text
-
-    sql = _sql_text(
+    sql = text(
         """
         SELECT source, content
         FROM agent_conversations
@@ -1134,14 +1132,12 @@ def _recent_tracker_events(db, user_id: int, limit: int = 8) -> str:
         data = content
         if isinstance(data, str):
             try:
-                data = _json.loads(data)
+                data = json.loads(data)
             except Exception:
                 return data.strip()[:120]
         if isinstance(data, list):
             parts = [b.get("text", "") for b in data if isinstance(b, dict) and b.get("type") == "text"]
             return " ".join(p for p in parts if p).strip()[:120]
-        if isinstance(data, str):
-            return data.strip()[:120]
         return ""
 
     lines = []
