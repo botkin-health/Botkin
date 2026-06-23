@@ -1,0 +1,130 @@
+name: Deploy dev
+
+# Выкат на дев-стенд botkin-dev (@botkin_dev_bot, /opt/botkin-dev) — изолированный
+# стек рядом с продом. Аналог Deploy prod, но: окружение dev, по умолчанию ветка
+# dev, авто-триггер на push в dev (плюс ручной запуск/откат).
+#
+# Зачем sha-пин (а не :latest): build-images тегирует КАЖДУЮ сборку и как :<sha>,
+# и как :latest, поэтому прод-сборки из main перетирают :latest. Чтобы дев-бот не
+# поднимался молча на чужом (non-polling) образе, резолвнутый тег персистится в
+# /opt/botkin-dev/.env ДО up -d — дев всегда тянет ровно свой образ. (issue #89)
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Ветка/тег/SHA для выката"
+        default: dev
+      image_tag:
+        description: "Готовый тег образа (откат). Задан → сборка пропускается."
+        default: ""
+  push:
+    branches: [dev]
+
+# Потолок прав для reusable build-job (ему нужен packages: write на push).
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: ${{ inputs.image_tag == '' }}
+    uses: ./.github/workflows/build-images.yml
+    with:
+      # push в dev → github.ref_name=dev; ручной запуск → inputs.branch (дефолт dev).
+      ref: ${{ inputs.branch || github.ref_name }}
+    # secrets: inherit намеренно НЕ используем — build-job хватает автоматического
+    # GITHUB_TOKEN; не передаём ему SSH_PRIVATE_KEY и прочие секреты деплоя.
+
+  deploy:
+    needs: build
+    if: ${{ !cancelled() && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    environment: dev
+    # Деплой только тянет образ (pull) — packages: read достаточно (least privilege).
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch || github.ref_name }}
+
+      - name: Setup SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Trust host key (pinned)
+        # Пин known_hosts из секрета (а не TOFU ssh-keyscan) — защита от MITM.
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      # .env управляется на сервере (оператор кладёт /opt/botkin-dev/.env один раз:
+      # дев-токен бота, POSTGRES_PASSWORD и пр.). Workflow трогает РОВНО одну
+      # управляемую строку — IMAGE_TAG (upsert ниже).
+      - name: Sync compose to server
+        run: |
+          rsync -az --no-perms --omit-dir-times \
+            docker-compose.dev.yml \
+            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/botkin-dev/"
+
+      - name: Resolve & validate IMAGE_TAG
+        id: tag
+        env:
+          IMAGE_TAG_IN: ${{ inputs.image_tag }}
+          BUILT_SHA: ${{ needs.build.outputs.image_sha }}
+        run: |
+          tag="${IMAGE_TAG_IN:-$BUILT_SHA}"
+          if [ -z "$tag" ]; then
+            echo "❌ нет image_tag и сборка не дала sha"; exit 1
+          fi
+          if ! printf '%s' "$tag" | grep -qE '^[A-Za-z0-9._-]+$'; then
+            echo "❌ недопустимый IMAGE_TAG: '$tag'"; exit 1
+          fi
+          echo "value=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Pull & up (без сборки на сервере)
+        env:
+          IMAGE_TAG: ${{ steps.tag.outputs.value }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+          SSH_TARGET: ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
+        run: |
+          # GHCR_TOKEN уходит на сервер ПЕРВОЙ строкой stdin (как часть script для
+          # `bash -s`), а НЕ через argv — иначе виден в /proc/<pid>/cmdline другим
+          # пользователям общего хоста. IMAGE_TAG/ACTOR не секретны → argv ($1/$2).
+          {
+          printf "GHCR_TOKEN='%s'\n" "$GHCR_TOKEN"
+          cat <<'REMOTE'
+          set -euo pipefail
+          IMAGE_TAG="$1"; ACTOR="$2"
+          cd /opt/botkin-dev
+          [ -f .env ] || { echo "❌ /opt/botkin-dev/.env отсутствует — положи его на сервер"; exit 1; }
+          trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
+          export IMAGE_TAG
+          # Персистим резолвнутый тег в .env ДО up -d, чтобы дев пережил любой
+          # последующий `docker compose up` и не съехал на перетёртый :latest.
+          if grep -q '^IMAGE_TAG=' .env; then
+            sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=$IMAGE_TAG/" .env
+          else
+            printf '\nIMAGE_TAG=%s\n' "$IMAGE_TAG" >> .env
+          fi
+          docker compose -f docker-compose.dev.yml --project-name botkin-dev pull
+          docker compose -f docker-compose.dev.yml --project-name botkin-dev up -d --wait --wait-timeout 120
+          # Точечная чистка старых образов ТОЛЬКО botkin-bot (кроме текущего и latest).
+          docker images 'ghcr.io/botkin-health/botkin-bot' --format '{{.Tag}} {{.ID}}' \
+            | while read -r tag id; do
+                [ "$tag" = latest ] && continue
+                [ "$tag" = "$IMAGE_TAG" ] && continue
+                docker rmi -f "$id" || true
+              done
+          REMOTE
+          } | ssh "$SSH_TARGET" bash -s "$IMAGE_TAG" "$ACTOR"
