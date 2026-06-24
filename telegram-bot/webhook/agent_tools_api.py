@@ -33,6 +33,7 @@ from webhook.jwt_auth import get_agent_user, get_db  # noqa: E402
 from core.health.glucose_stats import compute_glucose_stats, glucose_staleness  # noqa: E402
 from core.health.glucose_runtime import refresh_glucose_for_telegram as _refresh_glucose, LoginOnCooldownError  # noqa: E402
 from bot_token import resolve_bot_token  # noqa: E402
+from config.settings import public_base_url  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -1258,7 +1259,7 @@ async def dashboard_summary(
             "latest_date": latest_weight.measured_at.date().isoformat() if latest_weight else None,
             "body_fat_pct": latest_weight.body_fat if latest_weight else None,
         },
-        "dashboard_url": f"https://botkin.health/mc/{user.share_token}" if user.share_token else None,
+        "dashboard_url": f"{public_base_url()}/mc/{user.share_token}" if user.share_token else None,
     }
 
 

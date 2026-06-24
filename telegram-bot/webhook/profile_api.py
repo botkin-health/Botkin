@@ -11,7 +11,6 @@ Endpoints:
   PATCH /api/profile/timezone — update user timezone (called by WebApp on every open)
 """
 
-import os
 from datetime import date as date_cls, datetime as dt_cls, timedelta
 from typing import Optional, Literal
 
@@ -27,6 +26,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
 from webhook.tg_auth import get_tg_user
+from config.settings import public_base_url
 
 router = APIRouter()
 
@@ -255,10 +255,10 @@ async def patch_timezone(payload: TimezonePayload, tg_user: dict = Depends(get_t
 def _public_base() -> str:
     """Базовый публичный URL дашборда (без хвостового слэша).
 
-    Из env BOTKIN_PUBLIC_URL — чтобы не хардкодить домен (#114). Дефолт —
-    прод-домен botkin.health.
+    Тонкая обёртка над единым `config.settings.public_base_url` (#114, #205) —
+    источник один для всех билдеров публичных ссылок.
     """
-    return os.getenv("BOTKIN_PUBLIC_URL", "https://botkin.health").rstrip("/")
+    return public_base_url()
 
 
 @router.get("/api/dashboard_url")

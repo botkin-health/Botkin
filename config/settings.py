@@ -98,5 +98,15 @@ def get_settings() -> Settings:
     return Settings()
 
 
+def public_base_url() -> str:
+    """Базовый публичный URL для ссылок бота (дашборд /mc/, отчёт /r/), без хвостового слэша.
+
+    Единый источник для всех билдеров публичных ссылок (#114, #205): берётся из env
+    BOTKIN_PUBLIC_URL, чтобы дев-стенд мог отдавать дев-домен, а не хардкоженный прод.
+    Дефолт — прод-домен botkin.health.
+    """
+    return os.getenv("BOTKIN_PUBLIC_URL", "https://botkin.health").rstrip("/")
+
+
 # Backward compatibility: allow importing directly
-__all__ = ["Settings", "get_settings"]
+__all__ = ["Settings", "get_settings", "public_base_url"]
