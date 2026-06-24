@@ -1101,6 +1101,10 @@ from webhook.dashboard import router as dashboard_router
 
 app.include_router(dashboard_router)
 
+from webhook.report import router as report_router
+
+app.include_router(report_router)
+
 from webhook.profile_api import router as profile_router
 
 app.include_router(profile_router)
