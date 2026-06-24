@@ -12,7 +12,6 @@ Public API:
 """
 
 import logging
-import os
 import secrets
 import uuid
 from datetime import date, datetime
@@ -20,6 +19,7 @@ from typing import Optional
 
 import httpx
 
+from bot_token import resolve_bot_token
 from database import SessionLocal
 from database.models import User, UserSettings, Weight
 
@@ -70,7 +70,7 @@ SMOKING_MAP = {
 
 async def send_message(chat_id: int, text: str, reply_markup: Optional[dict] = None) -> None:
     """Send a message via Telegram Bot API."""
-    bot_token = os.getenv("BOT_TOKEN") or os.getenv("TELEGRAM_BOT_TOKEN", "")
+    bot_token = resolve_bot_token()
     if not bot_token:
         logger.warning("No BOT_TOKEN — cannot send message")
         return
