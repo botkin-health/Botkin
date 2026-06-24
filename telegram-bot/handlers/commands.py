@@ -14,6 +14,7 @@ from core.health.garmin_data import get_garmin_data_for_date, sync_today_garmin
 from core.health.weekly_nutrition import analyze_weekly_nutrition
 from core.health.nutrition_targets import check_feasibility
 from config.users import ADMIN_USER_ID, is_admin
+from config.settings import public_base_url
 # NOTE: SupplementService imported per-request to support multi-user
 
 router = Router()
@@ -747,7 +748,7 @@ async def cmd_share(message: Message, user_id: int):
     finally:
         db.close()
 
-    url = f"https://botkin.health/mc/{token}"
+    url = f"{public_base_url()}/mc/{token}"
     keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔗 Открыть дашборд", url=url)]])
 
     await message.answer(
@@ -780,7 +781,7 @@ async def cmd_report(message: Message, user_id: int):
     finally:
         db.close()
 
-    url = f"https://botkin.health/r/{token}"
+    url = f"{public_base_url()}/r/{token}"
     keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="📋 Открыть отчёт", url=url)]])
 
     if diff:
