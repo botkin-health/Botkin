@@ -25,9 +25,6 @@ def upgrade() -> None:
     bind = op.get_bind()
     is_postgres = bind.dialect.name == "postgresql"
 
-    if is_postgres:
-        op.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto")
-
     op.create_table(
         "health_reports",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
@@ -54,12 +51,6 @@ def upgrade() -> None:
     )
     op.create_index("ix_health_reports_user_id", "health_reports", ["user_id"])
     op.create_index("ix_health_reports_token", "health_reports", ["token"], unique=True)
-
-    if is_postgres:
-        # Дефолтный токен через gen_random_uuid() — только Postgres
-        op.execute(
-            "ALTER TABLE health_reports ALTER COLUMN token SET DEFAULT gen_random_uuid()::text"
-        )
 
 
 def downgrade() -> None:
