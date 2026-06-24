@@ -781,9 +781,7 @@ async def cmd_report(message: Message, user_id: int):
         db.close()
 
     url = f"https://botkin.health/r/{token}"
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[[InlineKeyboardButton(text="📋 Открыть отчёт", url=url)]]
-    )
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="📋 Открыть отчёт", url=url)]])
 
     if diff:
         intro = f"✅ Отчёт обновлён ({diff})."
