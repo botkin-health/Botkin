@@ -575,3 +575,26 @@ class GlucoseReading(Base):
     created_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=True
     )
+
+
+class HealthReport(Base):
+    """HTML-отчёт пользователя, доступный по публичному токену GET /r/{token}."""
+
+    __tablename__ = "health_reports"
+    __table_args__ = (
+        Index("ix_health_reports_user_id", "user_id"),
+        Index("ix_health_reports_token", "token", unique=True),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), nullable=False
+    )
+    token: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    html: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )

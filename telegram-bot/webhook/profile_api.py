@@ -282,9 +282,18 @@ async def get_dashboard_url(tg_user: dict = Depends(get_tg_user)):
     db = SessionLocal()
     try:
         token = generate_share_token(db, user_id)
+        from services.report_generator import get_report_token
+
+        report_token = get_report_token(db, user_id)
     except ValueError:
-        return {"token": None, "dashboard_url": None}  # юзера ещё нет
+        return {"token": None, "dashboard_url": None, "report_url": None}  # юзера ещё нет
     finally:
         db.close()
 
-    return {"token": token, "dashboard_url": f"{_public_base()}/mc/{token}"}
+    base = _public_base()
+    report_url = f"{base}/r/{report_token}" if report_token else None
+    return {
+        "token": token,
+        "dashboard_url": f"{base}/mc/{token}",
+        "report_url": report_url,
+    }
