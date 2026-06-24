@@ -32,6 +32,7 @@ from database.models import ActivityLog, GlucoseReading, NutritionLog, Weight  #
 from webhook.jwt_auth import get_agent_user, get_db  # noqa: E402
 from core.health.glucose_stats import compute_glucose_stats, glucose_staleness  # noqa: E402
 from core.health.glucose_runtime import refresh_glucose_for_telegram as _refresh_glucose, LoginOnCooldownError  # noqa: E402
+from bot_token import resolve_bot_token  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -874,7 +875,6 @@ async def render_report(
     умеет принимать image на вход модели, но передать картинку дальше в
     Telegram всё равно надо отдельным вызовом. Проще, чтобы тул сам слал.
     """
-    import os
     import requests as _requests
     from core.reports.biomarker_dynamics import (
         render_biomarker_dynamics_png,
@@ -920,7 +920,7 @@ async def render_report(
             "sent": False,
         }
 
-    bot_token = os.getenv("BOT_TOKEN") or os.getenv("TELEGRAM_BOT_TOKEN", "")
+    bot_token = resolve_bot_token()
     if not bot_token:
         return {"status": "error", "error": "bot-token-missing", "sent": False}
 
@@ -1066,7 +1066,7 @@ async def render_chart(
     import os
     import requests as _requests
 
-    bot_token = os.getenv("BOT_TOKEN") or os.getenv("TELEGRAM_BOT_TOKEN", "")
+    bot_token = resolve_bot_token()
     if not bot_token:
         return {"status": "error", "error": "bot-token-missing", "sent": False}
 

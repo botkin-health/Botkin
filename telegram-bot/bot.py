@@ -22,6 +22,7 @@ from dotenv import load_dotenv
 import os
 
 from core._version import __version__
+from bot_token import resolve_bot_token
 
 # Загружаем переменные окружения
 load_dotenv(override=True)
@@ -77,7 +78,7 @@ logger = logging.getLogger(__name__)
 Path("logs").mkdir(exist_ok=True)
 
 # Получаем токен бота
-BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+BOT_TOKEN = resolve_bot_token()
 if not BOT_TOKEN:
     logger.error("❌ TELEGRAM_BOT_TOKEN не найден в переменных окружения!")
     logger.error("Создайте файл .env и добавьте: TELEGRAM_BOT_TOKEN=ваш_токен")

@@ -17,6 +17,7 @@ from fastapi import FastAPI, HTTPException, Depends, Header, Request
 from pydantic import BaseModel, Field, field_validator
 import uvicorn
 
+from bot_token import resolve_bot_token
 from core.health.hr_artifact import classify_hr_min
 
 logger = logging.getLogger(__name__)
@@ -38,7 +39,7 @@ def set_telegram_dispatcher(bot, dp):
 
 
 APPLE_HEALTH_TOKEN = os.getenv("APPLE_HEALTH_TOKEN", "")
-BOT_TOKEN = os.getenv("BOT_TOKEN") or os.getenv("TELEGRAM_BOT_TOKEN", "")
+BOT_TOKEN = resolve_bot_token()
 # Fallback user for backward compat (single-user setup).
 # In multi-user setup each user has their own health_token in users.health_token.
 _target_user_id = int(os.getenv("TELEGRAM_USER_ID", "895655"))
