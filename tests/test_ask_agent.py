@@ -304,6 +304,22 @@ def test_system_prompt_forbids_claiming_data_without_tool(agent_db, monkeypatch)
     assert "прямого доступа к базе данных" in sys_text
 
 
+def test_system_prompt_forces_fresh_meal_tool_call(agent_db, monkeypatch):
+    """#207: в system-prompt есть гард — на вопрос об истории еды ВСЕГДА свежий вызов
+    get_recent_meals/get_day_summary, нельзя отвечать «лог пуст» из устаревшего контекста."""
+    fake = FakeRequests([_anthropic_text("Сейчас гляну лог.")])
+    monkeypatch.setattr(agent_chat, "requests", fake)
+
+    agent_chat.ask_agent(895655, "что я ел сегодня?")
+
+    sys_text = fake.anthropic_calls[0]["payload"]["system"][0]["text"]
+    assert "ВСЕГДА СВЕЖИЙ ВЫЗОВ ТУЛЗЫ" in sys_text
+    assert "get_recent_meals" in sys_text and "get_day_summary" in sys_text
+    # ядро фикса: прежний вывод мог устареть → не отвечать из памяти
+    assert "мог УСТАРЕТЬ" in sys_text
+    assert "без НОВОГО вызова тулзы" in sys_text
+
+
 def _insert_router_row(TestSession, user_id, source, text_str):
     s = TestSession()
     s.execute(
