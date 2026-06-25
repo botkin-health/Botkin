@@ -62,7 +62,10 @@ def _is_record_type_col(c: str) -> bool:
 
 
 def _is_historic_glucose_col(c: str) -> bool:
-    return "historic glucose" in c or ("глюкоз" in c and "прошл" in c)
+    # EN: "Historic Glucose mmol/L". RU (реальный экспорт Abbott): "Ретроспективные данные
+    # по глюкозе ммоль/л". Раньше матчили только "за прошлый период" (угадано) → на реальном
+    # RU-файле Андрея historic-колонка не находилась и терялось ~89% точек (оставались сканы).
+    return "historic glucose" in c or ("глюкоз" in c and ("прошл" in c or "ретроспектив" in c))
 
 
 def _is_scan_glucose_col(c: str) -> bool:

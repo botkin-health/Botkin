@@ -152,3 +152,25 @@ def test_semicolon_delimiter_and_comma_decimal():
     )
     rows, meta = parse_libreview_csv(content, MSK)
     assert rows[0]["value"] == 5.4
+
+
+def test_russian_retrospective_historic_header():
+    """Реальный RU-экспорт Abbott: historic = «Ретроспективные данные по глюкозе ммоль/л».
+
+    Регрессия (живой файл Андрея): матч только «за прошлый период» НЕ ловил «ретроспективные»
+    → все historic-замеры (Record Type 0) отбрасывались, оставались одни сканы (~11% точек).
+    """
+    content = (
+        "Данные по уровню глюкозы,Дата формирования отчета,03-05-2026 20:52 UTC,Автор,Тест\n"
+        "Устройство,Серийный номер,Отметка времени устройства,Тип записи,"
+        "Ретроспективные данные по глюкозе ммоль/л,Сканирование уровня глюкозы ммоль/л,Примечания\n"
+        'FreeStyle Libre 2,A1,12-12-2025 16:39,0,"5,1",,\n'
+        'FreeStyle Libre 2,A1,12-12-2025 16:54,0,"5,2",,\n'
+        'FreeStyle Libre 2,A1,12-12-2025 17:00,1,,"4,7",\n'
+        "FreeStyle Libre 2,A1,12-12-2025 17:05,6,,,заметка\n"
+    )
+    rows, meta = parse_libreview_csv(content, MSK)
+    assert meta["unit"] == "mmol"
+    assert meta["glucose_points"] == 3  # 2 historic + 1 scan, НЕ 1
+    assert meta["skipped_non_glucose"] == 1  # только заметка
+    assert [r["value"] for r in rows] == [5.1, 5.2, 4.7]
