@@ -23,6 +23,7 @@ import os
 
 from core._version import __version__
 from bot_token import resolve_bot_token
+from config.settings import public_base_url
 
 # Загружаем переменные окружения
 load_dotenv(override=True)
@@ -337,10 +338,12 @@ async def main():
         logger.error(f"❌ Не удалось установить команды: {e}")
 
     # Кнопка «Дневник» (Menu Button) — WebApp мини-приложение.
-    # URL берётся из PUBLIC_BASE_URL (задать в .env каждого бота).
-    # Дефолт — прод-URL. Идемпотентно: Telegram принимает повторные вызовы.
-    webapp_base = os.getenv("PUBLIC_BASE_URL", "https://health.orangegate.cc")
-    webapp_url = f"{webapp_base.rstrip('/')}/webapp/"
+    # URL берётся из того же хелпера public_base_url() (env BOTKIN_PUBLIC_URL), что и
+    # публичные ссылки /share, /report (#205) — единый источник, чтобы дев-стенд открывал
+    # дев-вебапп, а не прод. Раньше кнопка читала отдельную PUBLIC_BASE_URL (дефолт
+    # health.orangegate.cc) → дев-бот вёл мини-апп на прод, прод-сервер валидировал
+    # дев-initData прод-токеном → 403 на вкладках. Идемпотентно: Telegram принимает повторные вызовы.
+    webapp_url = f"{public_base_url()}/webapp/"
     try:
         await bot.set_chat_menu_button(menu_button=MenuButtonWebApp(text="Дневник", web_app=WebAppInfo(url=webapp_url)))
         logger.info(f"✅ Menu button 'Дневник' установлен → {webapp_url}")
