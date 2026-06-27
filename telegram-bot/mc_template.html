@@ -960,7 +960,7 @@ new Chart(document.getElementById('timeline'), {
         callbacks: {
           label: function(ctx) {
             if (ctx.dataset.label === 'Тренировки') {
-              const d = ctx.label ? ctx.label.slice(0,10) : '';
+              const d = chartDates[ctx.dataIndex] || '';
               const ws = workoutByDate[d];
               if (!ws || !ws.length) return null;
               const LABELS = {
