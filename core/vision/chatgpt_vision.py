@@ -18,6 +18,7 @@ sys.path.insert(0, str(project_root))
 
 from config import get_settings
 from config.models import VISION_MODEL_OPENAI
+from core.food.calorie_validator import validate_weight_calorie_sync
 
 try:
     from infrastructure.cache.image_cache import get_image_cache
@@ -310,8 +311,6 @@ def parse_menu_with_chatgpt(
             # Кросс-валидация вес↔калории: пересчитываем от nutrition_per_100g × weight_grams,
             # чтобы устранить рассинхрон когда LLM оценил ккал за полную порцию (~350г),
             # а weight_grams = вес основного ингредиента (150г).
-            from core.food.calorie_validator import validate_weight_calorie_sync
-
             data = validate_weight_calorie_sync(data)
 
             nutrition_per_100g = data.get("nutrition_per_100g", {})

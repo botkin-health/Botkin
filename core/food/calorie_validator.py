@@ -38,10 +38,10 @@ def validate_weight_calorie_sync(data: dict) -> dict:
         multiplier = weight_grams / 100.0
         return {
             **data,
-            "calories": nutrition_per_100g.get("calories", 0) * multiplier,
-            "protein": nutrition_per_100g.get("protein", 0) * multiplier,
-            "fats": nutrition_per_100g.get("fats", 0) * multiplier,
-            "carbs": nutrition_per_100g.get("carbs", 0) * multiplier,
+            "calories": round(nutrition_per_100g.get("calories", 0) * multiplier, 1),
+            "protein": round(nutrition_per_100g.get("protein", 0) * multiplier, 1),
+            "fats": round(nutrition_per_100g.get("fats", 0) * multiplier, 1),
+            "carbs": round(nutrition_per_100g.get("carbs", 0) * multiplier, 1),
         }
 
     calories = data.get("calories", 0)
