@@ -14,6 +14,7 @@ from core.health.garmin_data import get_garmin_data_for_date, sync_today_garmin
 from core.health.weekly_nutrition import analyze_weekly_nutrition
 from core.health.nutrition_targets import check_feasibility
 from config.users import ADMIN_USER_ID, is_admin
+from config.settings import public_base_url
 # NOTE: SupplementService imported per-request to support multi-user
 
 router = Router()
@@ -76,6 +77,7 @@ async def cmd_start(message: Message, user_id: int, username: str, first_name: s
         "/week — анализ недели\n"
         "/vitamins — чек-лист добавок\n"
         "/share — личный дашборд здоровья\n"
+        "/report — HTML-отчёт о здоровье (ссылка)\n"
         "/profile — твои данные (вес, рост, возраст)\n"
         "/help — полная справка\n\n"
         "🌐 botkin.health",
@@ -152,6 +154,18 @@ async def cmd_day(message: Message, user_id: int):
         today_formatted = today_date.strftime("%d.%m.%Y")
         activity_label = "сегодня" if today_date == real_today else today_formatted
 
+        # Garmin Data — для сегодня синхронизируем через API (с 15-мин кешем),
+        # для исторических дат читаем только из БД.
+        # ВАЖНО: синк идёт ДО расчёта цели (get_day_stats), чтобы today-boost
+        # увидел свежий фактический расход за день (иначе цель считается по стейлу).
+        garmin_error = False
+        if today_date == real_today:
+            active_calories, garmin_status = sync_today_garmin(user_id, today_date)
+            garmin_error = garmin_status == "error"
+        else:
+            garmin_data = get_garmin_data_for_date(today_str, user_id=user_id)
+            active_calories = garmin_data.get("activeKilocalories", 0.0) or 0.0 if garmin_data else 0.0
+
         # New Service Logic
         from services.nutrition_service import get_nutrition_service
 
@@ -161,16 +175,6 @@ async def cmd_day(message: Message, user_id: int):
         totals = stats["totals"]
         targets = stats["targets"]
         remaining = stats["remaining"]
-
-        # Garmin Data — для сегодня синхронизируем через API (с 15-мин кешем),
-        # для исторических дат читаем только из БД
-        garmin_error = False
-        if today_date == real_today:
-            active_calories, garmin_status = sync_today_garmin(user_id, today_date)
-            garmin_error = garmin_status == "error"
-        else:
-            garmin_data = get_garmin_data_for_date(today_str, user_id=user_id)
-            active_calories = garmin_data.get("activeKilocalories", 0.0) or 0.0 if garmin_data else 0.0
 
         # Supplements Status - create per-user instance
         from core.health.supplements import SupplementService
@@ -744,7 +748,7 @@ async def cmd_share(message: Message, user_id: int):
     finally:
         db.close()
 
-    url = f"https://botkin.health/mc/{token}"
+    url = f"{public_base_url()}/mc/{token}"
     keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔗 Открыть дашборд", url=url)]])
 
     await message.answer(
@@ -752,6 +756,43 @@ async def cmd_share(message: Message, user_id: int):
         f"<code>{url}</code>\n\n"
         "Кидай ссылку друзьям — дашборд обновляется автоматически при каждом открытии.\n"
         "Хочешь сменить ссылку (старая перестанет работать)? Напиши /share reset",
+        parse_mode="HTML",
+        reply_markup=keyboard,
+    )
+
+
+@router.message(Command("report"))
+async def cmd_report(message: Message, user_id: int):
+    """/report — сгенерировать/обновить персональный HTML-отчёт о здоровье и получить ссылку."""
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+
+    from database import SessionLocal
+
+    await message.answer("⏳ Генерирую отчёт…")
+
+    db = SessionLocal()
+    try:
+        from services.report_generator import generate_and_save_report
+
+        token, diff = generate_and_save_report(db, user_id)
+    except Exception as e:
+        await message.answer(f"❌ Не удалось сгенерировать отчёт: {e}")
+        return
+    finally:
+        db.close()
+
+    url = f"{public_base_url()}/r/{token}"
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="📋 Открыть отчёт", url=url)]])
+
+    if diff:
+        intro = f"✅ Отчёт обновлён ({diff})."
+    else:
+        intro = "✅ Отчёт готов."
+
+    await message.answer(
+        f"{intro}\n\n"
+        f"<code>{url}</code>\n\n"
+        "Ссылка постоянная — при повторном /report URL не меняется, данные обновляются.",
         parse_mode="HTML",
         reply_markup=keyboard,
     )

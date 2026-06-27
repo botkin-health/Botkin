@@ -22,7 +22,9 @@ EXPECTED_TABLES = {
     "blood_pressure_logs",
     "blood_tests",
     "body_measurements",
+    "cgm_connections",
     "daily_summaries",
+    "glucose_readings",
     "llm_usage_log",
     "nutrition_log",
     "sleep_records",
@@ -30,10 +32,12 @@ EXPECTED_TABLES = {
     "user_settings",
     "users",
     "weights",
+    "health_reports",
     "workouts",
 }
 
-BASELINE_REVISION = "711fd5e3f1e8"
+# Актуальный head миграций. Обновляется при каждой новой ревизии.
+HEAD_REVISION = "rep0health01"
 
 
 def _alembic_config() -> Config:
@@ -47,6 +51,6 @@ def test_all_orm_tables_registered():
     assert set(Base.metadata.tables) == EXPECTED_TABLES
 
 
-def test_single_alembic_head_is_baseline():
+def test_single_alembic_head():
     heads = ScriptDirectory.from_config(_alembic_config()).get_heads()
-    assert heads == [BASELINE_REVISION]
+    assert heads == [HEAD_REVISION]

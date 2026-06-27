@@ -47,7 +47,6 @@
 - [ ] **Cohort-aware BotkinClaw** — пользователи в когортах (early_users + family, посторонние = public). Per-cohort системные промпты и доступные tools. [Sprint 1a инфра уже есть]
 - [ ] **Self-serve onboarding** — публичная регистрация через сайт, не только через приглашение в Telegram.
 - [ ] **Audit log** — кто что менял (для прозрачности при работе вдвоём с Андреем).
-- [ ] **CGM (FreeStyle Libre 3 Plus)** — 2-недельный протокол интеграции с дашбордом. [`todo.md`]
 - [ ] **Centenarian Decathlon** — функциональные тесты долголетия (Аттиа), квартальный лог в боте.
 
 ---
@@ -69,6 +68,7 @@
 Хронологически. Чтобы было видно скорость и не повторять.
 
 ### Июнь 2026 (пост-FFF: стабилизация и новые интеграции)
+- CGM (FreeStyle Libre 3) через LibreLinkUp — импорт глюкозы, on-demand refresh, /sync, токен на диске + User-Agent + backoff при 476, дашборд-блок (TIR/24h/спарклайн). Осталась живая проверка рендера после снятия Cloudflare-бана (#153). PR #129/#135/#139/#152, ADR-0005
 - Alembic миграции — baseline схема прода + CI workflow + ADR-0003 (PR #83, #99)
 - Android Health Connect — эндпоинт + деплой, папа подключён (PR #90, #93)
 - Индикатор свежести биомаркеров — бейджи на дашборде + логика в агенте (PR #77-79)
@@ -114,7 +114,7 @@
 - 🟢 Telegram long-polling adapter, agent group "Alex"
 - 🟢 MCP server "botkin" с 7 tools → реальные данные Alex из Postgres через JWT
 - 🟢 Health context CLAUDE.local.md (семейный анамнез, текущие цифры, цели)
-- 🟢 Auto-chown systemd timer (фикс readonly-db после restart)
+- ~~🟢 Auto-chown systemd timer (фикс readonly-db после restart)~~ → **закрыто 16.06.2026**: systemd-таймер ушёл вместе с откатом NanoClaw (`systemctl list-timers` пуст). Права на bind-mount данных теперь чинит chown pre-step в host-cron перед `sync_all.sh` — см. [DEPLOYMENT.md → «Права на bind-mount данных и ночной sync»](DEPLOYMENT.md)
 - 📄 Документация в [`docs/projects/2026-05_nanoclaw-agent-bot/`](projects/2026-05_nanoclaw-agent-bot/): STATUS, SPEC, PLAN, QUESTIONS_FOR_ALEX
 
 ---

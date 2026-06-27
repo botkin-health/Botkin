@@ -219,3 +219,213 @@ def test_inactive_user_rejected(agent_db, monkeypatch):
     with pytest.raises(RuntimeError):
         agent_chat.ask_agent(999999, "привет")
     assert fake.anthropic_calls == []
+
+
+# ── Дефолтный системный промпт для всех пользователей (#165) ──────────────────
+
+
+def test_build_default_agent_prompt_includes_name_and_goal():
+    """Билдер собирает непустой промпт с именем и целью из onboarding_data."""
+    u = User(
+        telegram_id=1,
+        first_name="Кристина",
+        onboarding_data={"name": "Кристина", "goal": "Долголетие/профилактика", "age": 33, "sex": "female"},
+    )
+
+    prompt = agent_chat.build_default_agent_prompt(u)
+
+    assert "Кристина" in prompt
+    assert "Долголетие" in prompt
+    assert "Botkin" in prompt  # рамка проекта на месте
+
+
+def test_build_default_agent_prompt_never_empty_without_data():
+    """Даже без onboarding_data и first_name промпт не пустой (fallback-имя)."""
+    u = User(telegram_id=2, first_name=None, onboarding_data=None)
+
+    prompt = agent_chat.build_default_agent_prompt(u)
+
+    assert prompt.strip()
+    assert "AI-агент" in prompt
+
+
+def test_user_without_system_prompt_uses_default(agent_db, monkeypatch):
+    """Зарегистрированный юзер без agent_system_prompt НЕ отвергается —
+    агент работает на дефолтном промпте, в system уходит имя/цель юзера."""
+    s = agent_db()
+    s.add(
+        User(
+            telegram_id=700700,
+            first_name="Кристина",
+            cohort="external",
+            jwt_secret="sek",
+            is_active=True,
+            agent_system_prompt=None,
+            onboarding_data={"name": "Кристина", "goal": "Долголетие/профилактика"},
+        )
+    )
+    s.commit()
+    s.close()
+    fake = FakeRequests([_anthropic_text("Просто напиши «съел банан» или пришли фото тарелки.")])
+    monkeypatch.setattr(agent_chat, "requests", fake)
+
+    reply = agent_chat.ask_agent(700700, "как мне вносить еду?")
+
+    assert "банан" in reply
+    sys_text = fake.anthropic_calls[0]["payload"]["system"][0]["text"]
+    assert "Кристина" in sys_text
+
+
+def test_system_prompt_instructs_supplement_logging(agent_db, monkeypatch):
+    """#191: в system-prompt есть инструкция логировать приём добавок из текста
+    и давать фидбек по схеме (а не просить написать её заново)."""
+    fake = FakeRequests([_anthropic_text("Записал омегу.")])
+    monkeypatch.setattr(agent_chat, "requests", fake)
+
+    agent_chat.ask_agent(895655, "выпил омегу 3")
+
+    sys_text = fake.anthropic_calls[0]["payload"]["system"][0]["text"]
+    assert "log_supplement" in sys_text
+    assert "ДОБАВКИ" in sys_text
+    # не просить переписать уже описанную схему
+    assert "напиши схему" in sys_text.lower()
+
+
+def test_system_prompt_forbids_claiming_data_without_tool(agent_db, monkeypatch):
+    """#190: в system-prompt есть гард — не заявлять что видишь данные из БД
+    без вызова инструмента в этом ходе."""
+    fake = FakeRequests([_anthropic_text("Сейчас проверю.")])
+    monkeypatch.setattr(agent_chat, "requests", fake)
+
+    agent_chat.ask_agent(895655, "я же отправил фото добавок")
+
+    sys_text = fake.anthropic_calls[0]["payload"]["system"][0]["text"]
+    assert "НЕ ЗАЯВЛЯЙ ЧТО ВИДИШЬ ДАННЫЕ БЕЗ ВЫЗОВА ИНСТРУМЕНТА" in sys_text
+    assert "прямого доступа к базе данных" in sys_text
+
+
+def test_system_prompt_forces_fresh_meal_tool_call(agent_db, monkeypatch):
+    """#207: в system-prompt есть гард — на вопрос об истории еды ВСЕГДА свежий вызов
+    get_recent_meals/get_day_summary, нельзя отвечать «лог пуст» из устаревшего контекста."""
+    fake = FakeRequests([_anthropic_text("Сейчас гляну лог.")])
+    monkeypatch.setattr(agent_chat, "requests", fake)
+
+    agent_chat.ask_agent(895655, "что я ел сегодня?")
+
+    sys_text = fake.anthropic_calls[0]["payload"]["system"][0]["text"]
+    assert "ВСЕГДА СВЕЖИЙ ВЫЗОВ ТУЛЗЫ" in sys_text
+    assert "get_recent_meals" in sys_text and "get_day_summary" in sys_text
+    # ядро фикса: прежний вывод мог устареть → не отвечать из памяти
+    assert "мог УСТАРЕТЬ" in sys_text
+    assert "без НОВОГО вызова тулзы" in sys_text
+
+
+def _insert_router_row(TestSession, user_id, source, text_str):
+    s = TestSession()
+    s.execute(
+        text("INSERT INTO agent_conversations (user_id, role, content, source) VALUES (:u, 'user', :c, :s)"),
+        {"u": user_id, "c": json.dumps([{"text": text_str, "type": "text"}], ensure_ascii=False), "s": source},
+    )
+    s.commit()
+    s.close()
+
+
+def test_recent_tracker_events_summarizes_parser_rows(agent_db):
+    """router_*/llm_text user-строки попадают в сводку (issue #169)."""
+    _insert_router_row(agent_db, 895655, "router_weight", "54")
+    _insert_router_row(agent_db, 895655, "router_food", "съела яблоко")
+
+    s = agent_db()
+    block = agent_chat._recent_tracker_events(s, 895655)
+    s.close()
+
+    assert "54" in block
+    assert "яблоко" in block
+    assert "[вес]" in block and "[еда]" in block
+
+
+def test_recent_tracker_events_empty_when_no_parser_rows(agent_db):
+    """Без parser-записей сводка пустая (не мусорит system-prompt)."""
+    s = agent_db()
+    block = agent_chat._recent_tracker_events(s, 895655)
+    s.close()
+    assert block == ""
+
+
+def test_parser_rows_injected_into_system_prompt(agent_db, monkeypatch):
+    """ask_agent подмешивает parser-записи в system — агент видит, что вес записан."""
+    _insert_router_row(agent_db, 895655, "router_weight", "54")
+    fake = FakeRequests([_anthropic_text("Твой вес 54 кг.")])
+    monkeypatch.setattr(agent_chat, "requests", fake)
+
+    agent_chat.ask_agent(895655, "какой у меня вес?")
+
+    system_blocks = fake.anthropic_calls[0]["payload"]["system"]
+    sys_text = " ".join(b["text"] for b in system_blocks)
+    assert "ЗАПИСАЛ ЧЕРЕЗ ТРЕКЕР" in sys_text
+    assert "54" in sys_text
+    # tracker — отдельный блок БЕЗ cache_control (не бьёт prompt-кэш)
+    tracker_blocks = [b for b in system_blocks if "ЗАПИСАЛ ЧЕРЕЗ ТРЕКЕР" in b["text"]]
+    assert tracker_blocks and "cache_control" not in tracker_blocks[0]
+
+
+def test_per_user_prompt_takes_precedence_over_default(agent_db, monkeypatch):
+    """Если agent_system_prompt задан (семейный override) — используется он,
+    дефолтный билдер не вызывается."""
+    fake = FakeRequests([_anthropic_text("ок")])
+    monkeypatch.setattr(agent_chat, "requests", fake)
+
+    def _boom(_user):
+        raise AssertionError("build_default_agent_prompt не должен вызываться при заданном промпте")
+
+    monkeypatch.setattr(agent_chat, "build_default_agent_prompt", _boom)
+
+    agent_chat.ask_agent(895655, "привет")  # у 895655 agent_system_prompt задан в фикстуре
+
+    sys_text = fake.anthropic_calls[0]["payload"]["system"][0]["text"]
+    assert "семейный AI-врач" in sys_text
+
+
+# ── Гарды еды (#181) ──────────────────────────────────────────────────────────
+
+
+def test_meal_guard_in_universal_meta_prompt(agent_db, monkeypatch):
+    """system-prompt к Anthropic содержит блок 🍽️ с запретом галлюцинировать состав и ложного ✅."""
+    fake = FakeRequests([_anthropic_text("ок")])
+    monkeypatch.setattr(agent_chat, "requests", fake)
+
+    agent_chat.ask_agent(895655, "что я ел вчера?")
+
+    sys_text = " ".join(b["text"] for b in fake.anthropic_calls[0]["payload"]["system"])
+    assert "edit_meal" in sys_text
+    assert "get_recent_meals" in sys_text
+    assert "ЗАПРЕЩЕНО" in sys_text
+
+
+def test_edit_meal_tool_registered():
+    """edit_meal зарегистрирован в TOOLS с обязательным полем meal_id и enum new_slot."""
+    tool_names = [t["name"] for t in agent_chat.TOOLS]
+    assert "edit_meal" in tool_names
+
+    edit_tool = next(t for t in agent_chat.TOOLS if t["name"] == "edit_meal")
+    props = edit_tool["input_schema"]["properties"]
+    assert "meal_id" in props
+    assert "new_slot" in props
+    assert "lunch" in props["new_slot"]["enum"]
+
+
+def test_compact_mode_food_key_priority():
+    """Compact-режим recent_meals читает ключ 'food' для composite items (прецедент 19.06.2026)."""
+    composite_item = {"food": "Боул с киноа, креветками и авокадо", "calories": 511, "protein": 40}
+    legacy_item = {"product": "Яблоко", "calories": 52}
+    items = [composite_item, legacy_item]
+
+    names = [
+        (it.get("food") or it.get("product") or it.get("name") or "").strip()
+        for it in items
+        if (it.get("food") or it.get("product") or it.get("name"))
+    ]
+
+    assert len(names) == 2
+    assert "киноа" in names[0]
+    assert "Яблоко" in names[1]

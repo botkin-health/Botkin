@@ -1,4 +1,4 @@
-# Релизы Botkin
+﻿# Релизы Botkin
 
 Версии — **SemVer** (`MAJOR.MINOR.PATCH`). Сейчас pre-stable (`0.x.y`).
 До `1.0.0` API/схема БД может меняться без предупреждения.
@@ -54,3 +54,7 @@ rsync -avz --exclude='._*' docs/landing/ \
 |---|---|---|
 | `v0.4.0` | 2026-05-12 | Ретроактивно: ребрендинг HealthVault → Botkin, лендинг botkin.health, mkdocs гайд |
 | `v0.5.0` | 2026-05-12 | Webhook auto-register, чистка остатков бренда HealthVault, SemVer + bump-скрипт |
+
+---
+
+[← Документация Botkin — Index](INDEX.md)

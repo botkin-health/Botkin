@@ -1,4 +1,4 @@
-# Research: MCP-серверы для wearables (Pace, Fitness MCP, garmin_mcp, Open Wearables)
+﻿# Research: MCP-серверы для wearables (Pace, Fitness MCP, garmin_mcp, Open Wearables)
 
 Дата: 2026-04-17 · По запросу: «Pace MCP и Fitness MCP — брать готовый или строить свой?»
 
@@ -148,3 +148,7 @@ from garmin_mcp import get_hrv_data, get_sleep_score
 - [garmin_mcp GitHub](https://github.com/Taxuspt/garmin_mcp)
 - [ChatForest: Fitness MCP Servers review](https://chatforest.com/reviews/fitness-wearables-mcp-servers/)
 - [Garmin chat connector overview](https://gadgetsandwearables.com/2026/03/16/garmin-chat-connector/)
+
+---
+
+[← Документация Botkin — Index](../INDEX.md)

@@ -29,7 +29,8 @@ async function loadDashboard() {
 
     const iframe = document.createElement('iframe');
     iframe.className = 'dashboard-frame';
-    iframe.src = '/mc/' + encodeURIComponent(token);
+    // ?embed=1 — scale-to-fit вариант дашборда под узкий экран мини-аппа.
+    iframe.src = '/mc/' + encodeURIComponent(token) + '?embed=1';
     iframe.addEventListener('error', () => {
       _dashboardLoaded = false;
       container.innerHTML =

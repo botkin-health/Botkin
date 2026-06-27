@@ -59,12 +59,18 @@ class NutritionService:
             user = get_user_by_telegram_id(db, self.user_id)
             try:
                 avg_stats = get_average_activity_stats(db, self.user_id, days=14)
+                # Today-boost: цель = max(14-дн среднее, фактический расход за день).
+                # Закрывает занижение цели в день тяжёлой тренировки (см. calculate_targets).
+                from core.health.caloric_budget import get_day_actual_tdee
+
+                today_tdee = get_day_actual_tdee(self.user_id, day, db=db)
                 user_bmr = getattr(user, "bmr", None) if user else None
                 user_active = getattr(user, "avg_active_calories", None) if user else None
                 logger.info(
-                    f"[day_stats] user_id={self.user_id} user.bmr={user_bmr} user.avg_active={user_active} avg_stats={avg_stats}"
+                    f"[day_stats] user_id={self.user_id} user.bmr={user_bmr} user.avg_active={user_active} "
+                    f"avg_stats={avg_stats} today_tdee={today_tdee}"
                 )
-                targets_dict = calculate_targets(stats=avg_stats, user=user)
+                targets_dict = calculate_targets(stats=avg_stats, user=user, today_tdee=today_tdee)
             except Exception as e:
                 logger.error(f"Error calculating targets: {e}", exc_info=True)
                 targets_dict = calculate_targets(stats=None, user=user)

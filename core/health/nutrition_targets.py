@@ -28,10 +28,22 @@ def get_user_settings() -> Dict:
     }
 
 
-def calculate_targets(avg_tdee: Optional[float] = None, stats: Optional[Dict] = None, user: Any = None) -> Dict:
+def calculate_targets(
+    avg_tdee: Optional[float] = None,
+    stats: Optional[Dict] = None,
+    user: Any = None,
+    today_tdee: Optional[float] = None,
+) -> Dict:
     """
     Рассчитывает целевые калории и макросы.
     Источники TDEE: user.bmr+user.avg_active > stats/avg_tdee > fallback.
+
+    today_tdee: фактический расход (BMR+активные) за конкретный день из Garmin.
+        Если он выше базового (среднего/ручного) — берётся он. Это «пол по среднему»:
+        в тяжёлый тренировочный день цель растёт по факту, а в неполный/ленивый
+        день (today_tdee мал) max() сохраняет стабильную цель по среднему.
+        Так одна формула закрывает обе стороны бага: и заниженную цель в день
+        тренировки, и скачущую вниз цель из-за неполных Garmin-дней (фикс 04.04.2026).
     """
     settings = get_user_settings()
     weight = settings["weight_kg"]
@@ -70,6 +82,13 @@ def calculate_targets(avg_tdee: Optional[float] = None, stats: Optional[Dict] = 
     else:
         estimated_tdee = FALLBACK_TDEE
         logger.info(f"[targets] TDEE fallback (нет user.bmr и stats): {FALLBACK_TDEE:.0f}")
+
+    # Today-boost: реальный сегодняшний расход важнее среднего, если выше.
+    # Берём max — никогда не занижаем цель в день тренировки, но и не роняем её
+    # в неполный/ленивый день (там today_tdee мал → выигрывает базовый TDEE).
+    if today_tdee and today_tdee > estimated_tdee:
+        logger.info(f"[targets] today-boost: {estimated_tdee:.0f} → {today_tdee:.0f} (факт за день > среднего)")
+        estimated_tdee = float(today_tdee)
 
     # 1. Считаем целевые калории
     target_calories = round(estimated_tdee * (1 - deficit_pct))

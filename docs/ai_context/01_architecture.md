@@ -1,4 +1,4 @@
-# 01 · Архитектура HealthVault
+﻿# 01 · Архитектура HealthVault
 
 > **Last verified:** 2026-04-21 (после редизайна мини-аппа и удаления `/my_products`)
 
@@ -261,3 +261,7 @@ ssh root@116.203.213.137 "docker restart healthvault_bot"
 **Mini App auth через Telegram `initData`.** Решение: пользователю не надо отдельно логиниться, при открытии в Telegram WebView токен уже есть. Цена — нельзя протестировать API из браузера без mock'а initData.
 
 **Fiber backfill в 4 слоя.** LLM prompt → write-time enrichment → read-time fallback → migration script. Решение: исторические данные уже разнородные, нужна defense in depth. См. `AI_CHANGELOG.md` 2026-04-20.
+
+---
+
+[← Документация Botkin — Index](../INDEX.md)

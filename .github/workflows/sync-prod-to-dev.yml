@@ -1,0 +1,63 @@
+name: Sync prod → dev
+
+# Ночной однонаправленный синк данных прод-стенда на дев-стенд (issue #101).
+# Прод строго read-only. Логика — в scripts/ci/sync-prod-to-dev.sh (на сервере).
+#
+# ⚠️ schedule/workflow_dispatch активны только когда файл на default-ветке (main).
+# После мержа в dev нужен dev→main, иначе cron не запустится.
+
+on:
+  schedule:
+    # 00:00 UTC = 03:00 МСК, каждую ночь.
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Сухой прогон (счётчики строк, без изменений)"
+        type: boolean
+        default: false
+
+# Не запускать два синка одновременно; текущий не отменять на полпути.
+concurrency:
+  group: sync-prod-to-dev
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    environment: prod
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup SSH agent
+        # Пин на commit SHA: action получает SSH-ключ с доступом к серверу —
+        # мутабельный тег можно подменить при компрометации upstream.
+        uses: webfactory/ssh-agent@dc588b651fe13675774614f8e6a936a468676387 # v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Trust host key (pinned)
+        # Пин known_hosts из секрета (не TOFU ssh-keyscan) — защита от MITM.
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Run sync on server
+        env:
+          SSH_TARGET: ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
+          # scheduled-прогоны: dry_run пуст → боевой запуск.
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          FLAG=""
+          [ "$DRY_RUN" = "true" ] && FLAG="--dry-run"
+          # Скрипт стримим в stdin (bash -s) и передаём флаг позиционным
+          # аргументом — без остаточного файла на сервере и TOCTOU-окна между
+          # доставкой и запуском (как пайп в deploy-prod.yml). Пустой "$FLAG"
+          # безвреден: скрипт парсит ${1:-}.
+          ssh -o ConnectTimeout=10 -o ServerAliveInterval=30 -o ServerAliveCountMax=3 \
+            "$SSH_TARGET" bash -s -- "$FLAG" < scripts/ci/sync-prod-to-dev.sh

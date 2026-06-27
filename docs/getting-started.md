@@ -1,4 +1,4 @@
-# Онбординг нового члена команды
+﻿# Онбординг нового члена команды
 
 Что сделать на старте, чтобы заработали и Claude Code (агентский тулинг), и сам бот Botkin.
 
@@ -97,3 +97,7 @@ Run workflow, или `gh workflow run deploy-prod.yml -f branch=main`). Workflow
 - [docs/INDEX.md](INDEX.md) — карта документации
 - [CLAUDE.md](../CLAUDE.md) — архитектура, источники данных, команды
 - [docs/ROADMAP.md](ROADMAP.md) — NOW / NEXT / LATER / DONE
+
+---
+
+[← Документация Botkin — Index](INDEX.md)
