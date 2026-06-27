@@ -189,6 +189,9 @@ def _classify_failure(source_key: str, output: str) -> tuple[str, str]:
     Возвращает ТОЛЬКО дружелюбный текст — без traceback/Errno/внутренних путей.
     Сырой вывод пишет в серверный лог вызывающая сторона (`_run_script`).
     """
+    if source_key == "zepp" and "токен устарел" in output.lower():
+        return OUTCOME_ERROR, "токен Zepp устарел — нужна повторная авторизация (zepp_api.py --reauth)"
+
     if _looks_temporary(output):
         if source_key == "glucose":
             return OUTCOME_UNAVAILABLE, "сервис Abbott временно недоступен, подтянем автоматически позже"
