@@ -7,7 +7,6 @@ pyyaml>=6.0
 requests>=2.33.0  # <2.33: GHSA-9hjg-9r4m-mvj7 (.netrc leak), GHSA-gc5v-m9x4-r6x2 (temp-file reuse)
 
 # AI Services
-anthropic>=0.109.0
 openai>=1.0.0
 
 # Data Processing (Scripts)
