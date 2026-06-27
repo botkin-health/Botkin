@@ -867,6 +867,11 @@ const alcoSet = new Set(D.alco_days);
 const kFoodArr = dates.map(d => D.kcal[d] != null ? Math.max(0, D.kcal[d] - (alcoKcal[d] || 0)) : null);
 const kAlcoArr = dates.map(d => alcoKcal[d] ? alcoKcal[d] : null);
 const workoutSet = new Set(D.activities.map(a => a.date));
+const workoutByDate = {};
+D.activities.forEach(a => {
+  if (!workoutByDate[a.date]) workoutByDate[a.date] = [];
+  workoutByDate[a.date].push(a);
+});
 
 function smooth(arr, win=7) {
   const out = []; const valid = [];
@@ -950,7 +955,30 @@ new Chart(document.getElementById('timeline'), {
     },
     plugins: {
       legend: { position:'top', labels:{boxWidth:12, font:{size:11}} },
-      tooltip: { backgroundColor:'#0a0e17', borderColor: COLOR.grid, borderWidth: 1 }
+      tooltip: {
+        backgroundColor:'#0a0e17', borderColor: COLOR.grid, borderWidth: 1,
+        callbacks: {
+          label: function(ctx) {
+            if (ctx.dataset.label === 'Тренировки') {
+              const d = ctx.label ? ctx.label.slice(0,10) : '';
+              const ws = workoutByDate[d];
+              if (!ws || !ws.length) return null;
+              const LABELS = {
+                'strength_training': 'Силовая', 'yoga': 'Йога', 'running': 'Бег',
+                'cycling': 'Велосипед', 'swimming': 'Плавание', 'walking': 'Ходьба',
+                'hiit': 'HIIT', 'cardio': 'Кардио', 'fitness': 'Фитнес'
+              };
+              return ws.map(w => {
+                const name = LABELS[w.type] || w.type || 'Тренировка';
+                const dur = w.duration_min ? ` ${w.duration_min} мин` : '';
+                const cal = w.calories ? ` · ${w.calories} ккал` : '';
+                return `🏋️ ${name}${dur}${cal}`;
+              });
+            }
+            return `${ctx.dataset.label}: ${ctx.formattedValue}`;
+          }
+        }
+      }
     }
   }
 });
