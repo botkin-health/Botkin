@@ -7,13 +7,14 @@ webhook modules (e.g. nutrition_api) need get_tg_user as a dependency.
 import hashlib
 import hmac
 import json
-import os
 import time
 import urllib.parse
 
 from fastapi import Header, HTTPException
 
-BOT_TOKEN = os.getenv("BOT_TOKEN") or os.getenv("TELEGRAM_BOT_TOKEN", "")
+from bot_token import resolve_bot_token
+
+BOT_TOKEN = resolve_bot_token()
 
 # initData считается просроченным через сутки (replay-защита): перехваченный
 # токен не должен работать вечно. Telegram рекомендует такой TTL.

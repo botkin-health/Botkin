@@ -41,7 +41,9 @@ async def test_sync_summary_sent_as_plain_text_when_error_has_angle_brackets():
 
     with (
         patch.object(sync_cmd, "is_admin", return_value=True),
-        patch.object(sync_cmd, "_run_script", new=AsyncMock(return_value=(False, DANGEROUS_ERR))),
+        patch.object(
+            sync_cmd, "_run_script", new=AsyncMock(return_value=(sync_cmd.OUTCOME_UNAVAILABLE, DANGEROUS_ERR))
+        ),
     ):
         await sync_cmd.cmd_sync(message, command, user_id=895655)
 

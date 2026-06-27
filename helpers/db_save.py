@@ -12,7 +12,13 @@ from typing import Dict, Any, Optional
 
 MSK = timezone(timedelta(hours=3))
 
-from database import SessionLocal, create_nutrition_log, create_weight, create_supplement_log, create_body_measurement
+from database import (
+    SessionLocal,
+    create_nutrition_log,
+    upsert_manual_weight,
+    create_supplement_log,
+    create_body_measurement,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -222,7 +228,7 @@ def save_weight_to_db(data: Dict[str, Any], user_id: int = None) -> str:
         # Сохраняем в БД
         db = SessionLocal()
         try:
-            create_weight(
+            upsert_manual_weight(
                 db,
                 user_id=user_id,
                 measured_at=measured_at,

@@ -30,6 +30,11 @@ body {
   font-family: 'SF Pro Display','Inter',-apple-system,sans-serif;
   font-size: 14px;
   line-height: 1.4;
+  /* Disable iOS WebKit automatic text inflation ("font boosting"): in a narrow
+     webview it enlarges text non-uniformly, blowing captions out of their cards
+     and overlapping neighbours. We control sizing via the @media rules below. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
   padding: 20px;
   box-sizing: border-box;
   background-image: radial-gradient(circle at 20% 0%, rgba(0,255,157,0.03) 0%, transparent 50%),
@@ -336,25 +341,48 @@ html { scroll-behavior: smooth; }
 .sport-verdict-col ul { margin: 0; padding-left: 18px; font-size: 12px; color: var(--text); line-height: 1.55; }
 .sport-verdict-col li { margin-bottom: 6px; }
 
+/* ── Mobile / mini-app reflow ──
+   The dashboard is a 1440px desktop layout. The standalone /mc/ keeps
+   viewport=1440 (desktop + doctor sharing), so these narrow-viewport rules
+   never fire there — they only apply when the viewport is device-width, i.e.
+   the mini-app embed (?embed=1) on a phone. There we reflow the grids to 1–2
+   columns at NATIVE font size: no zoom, no horizontal overflow, no iOS
+   font-boosting (см. также -webkit-text-size-adjust на body). */
 @media (max-width: 900px) {
-  /* Scoped to :not(.embed): in embed mode the body is forced to 1440px desktop
-     width and scaled to fit (see html.embed below), so this narrow-viewport
-     reflow must NOT fire there — it would cram the sport section inside a wide body. */
-  html:not(.embed) .sport-kpi-grid { grid-template-columns: repeat(2, 1fr); }
-  html:not(.embed) .polar-row { grid-template-columns: 90px 1fr; }
-  html:not(.embed) .polar-meta { display: none; }
-  html:not(.embed) .workout-row { grid-template-columns: 60px 1fr 80px; row-gap: 4px; }
-  html:not(.embed) .workout-row .wo-zones, html:not(.embed) .workout-row .wo-hr, html:not(.embed) .workout-row .wo-mins { grid-column: 1 / -1; }
-  html:not(.embed) .sport-verdict-grid { grid-template-columns: 1fr; }
+  body { padding: 12px; }
+
+  /* topbar: logo / live / countdown wrap instead of overflowing */
+  .topbar { flex-wrap: wrap; gap: 10px 16px; padding: 12px 16px; }
+  .countdown { flex-wrap: wrap; gap: 12px 16px; }
+  /* "Период наблюдения" block: drop the left divider/indent when wrapped */
+  .countdown > div[style*="border-left"] { border-left: 0 !important; padding-left: 0 !important; }
+
+  /* hero KPIs: 4 → 1 column (each is a distinct headline metric) */
+  .hero-grid { grid-template-columns: 1fr; }
+
+  /* data-stream / achievement / context utility grids → 2 columns */
+  .grid-3, .grid-4, .grid-5, .grid-6, .ach-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid-2 { grid-template-columns: 1fr; }
+
+  /* biomarker split (ring/radar + table) → stacked single column */
+  #medical-section > .grid { grid-template-columns: 1fr !important; }
+
+  /* sport section (previously scoped out of embed via :not(.embed)) */
+  .sport-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .sport-verdict-grid { grid-template-columns: 1fr; }
+  .polar-row { grid-template-columns: 90px 1fr; }
+  .polar-meta { display: none; }
+  .workout-row { grid-template-columns: 60px 1fr 80px; row-gap: 4px; }
+  .workout-row .wo-zones, .workout-row .wo-hr, .workout-row .wo-mins { grid-column: 1 / -1; }
 }
 
-/* ── Embed mode (mini-app iframe) — scale-to-fit ──
-   The dashboard is built for a 1440px desktop viewport. Inside the narrow
-   mini-app iframe (viewport=device-width) we keep the full desktop layout by
-   forcing body to 1440px, then shrink it with `zoom` (set in JS to
-   innerWidth/1440). `zoom` reflows the layout box, so the page fits the screen
-   width with no horizontal scroll and correct vertical scroll height. */
-html.embed body { width: 1440px; }
+@media (max-width: 440px) {
+  /* very narrow phones: cards that stay too cramped at 2 cols drop to 1 */
+  .ach-grid { grid-template-columns: 1fr; }
+}
+
+/* Embed (mini-app iframe): viewport is device-width, so the responsive rules
+   above own the layout. overflow-x guard catches any stray wide child. */
 html.embed { overflow-x: hidden; }
 </style>
 </head>
@@ -839,6 +867,11 @@ const alcoSet = new Set(D.alco_days);
 const kFoodArr = dates.map(d => D.kcal[d] != null ? Math.max(0, D.kcal[d] - (alcoKcal[d] || 0)) : null);
 const kAlcoArr = dates.map(d => alcoKcal[d] ? alcoKcal[d] : null);
 const workoutSet = new Set(D.activities.map(a => a.date));
+const workoutByDate = {};
+D.activities.forEach(a => {
+  if (!workoutByDate[a.date]) workoutByDate[a.date] = [];
+  workoutByDate[a.date].push(a);
+});
 
 function smooth(arr, win=7) {
   const out = []; const valid = [];
@@ -922,7 +955,30 @@ new Chart(document.getElementById('timeline'), {
     },
     plugins: {
       legend: { position:'top', labels:{boxWidth:12, font:{size:11}} },
-      tooltip: { backgroundColor:'#0a0e17', borderColor: COLOR.grid, borderWidth: 1 }
+      tooltip: {
+        backgroundColor:'#0a0e17', borderColor: COLOR.grid, borderWidth: 1,
+        callbacks: {
+          label: function(ctx) {
+            if (ctx.dataset.label === 'Тренировки') {
+              const d = chartDates[ctx.dataIndex] || '';
+              const ws = workoutByDate[d];
+              if (!ws || !ws.length) return null;
+              const LABELS = {
+                'strength_training': 'Силовая', 'yoga': 'Йога', 'running': 'Бег',
+                'cycling': 'Велосипед', 'swimming': 'Плавание', 'walking': 'Ходьба',
+                'hiit': 'HIIT', 'cardio': 'Кардио', 'fitness': 'Фитнес'
+              };
+              return ws.map(w => {
+                const name = LABELS[w.type] || w.type || 'Тренировка';
+                const dur = w.duration_min ? ` ${w.duration_min} мин` : '';
+                const cal = w.calories ? ` · ${w.calories} ккал` : '';
+                return `🏋️ ${name}${dur}${cal}`;
+              });
+            }
+            return `${ctx.dataset.label}: ${ctx.formattedValue}`;
+          }
+        }
+      }
     }
   }
 });
@@ -1892,19 +1948,10 @@ if (D.achievements.length === 0) {
 })();
 </script>
 <script>
-// ── Embed scale-to-fit ──
-// Only active when <html class="embed"> (mini-app iframe). Shrinks the 1440px
-// desktop layout to the screen width via `zoom`; no-op on the standalone /mc/.
-(function () {
-  if (!document.documentElement.classList.contains('embed')) return;
-  var BASE = 1440;
-  function fit() {
-    document.body.style.zoom = Math.min(1, window.innerWidth / BASE);
-  }
-  fit();
-  window.addEventListener('resize', fit);
-  window.addEventListener('orientationchange', fit);
-})();
+// ── Embed mode (mini-app iframe) ──
+// Layout is handled purely by CSS: viewport=device-width + the @media reflow
+// rules (see <style>). No zoom/scaling here — kept as a marker for any future
+// embed-only JS behaviour.
 </script>
 </body>
 </html>

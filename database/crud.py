@@ -289,6 +289,75 @@ def create_weight(
     return weight_entry
 
 
+# Источники веса, вводимые человеком вручную (текстом/фото). Их дедупим за день.
+# Device-синки (apple_health/garmin/zepp/screenshot_ocr) пишут реальные замеры с
+# intraday-таймстампами — их НЕ дедупим и НЕ перезаписываем.
+MANUAL_WEIGHT_SOURCES = {"manual", "llm_text"}
+
+
+def upsert_manual_weight(
+    db: Session,
+    user_id: int,
+    measured_at: datetime,
+    weight: float,
+    body_fat: Optional[float] = None,
+    muscle_mass: Optional[float] = None,
+    water: Optional[float] = None,
+    bmi: Optional[float] = None,
+    visceral_fat: Optional[int] = None,
+    bone_mass: Optional[float] = None,
+    source: str = "manual",
+) -> Weight:
+    """Создать/обновить вес, не плодя дублей за календарный день (#170).
+
+    Повторный ручной ввод веса текстом создаёт `measured_at=now()` с микросекундами,
+    который не коллизит UniqueConstraint(user_id, measured_at) → два ряда за день.
+    Для ручных источников (`MANUAL_WEIGHT_SOURCES`) обновляем существующий ряд того
+    же дня вместо вставки. Device-синки идут обычным INSERT (реальные замеры).
+    """
+    if source in MANUAL_WEIGHT_SOURCES:
+        day_start = datetime(measured_at.year, measured_at.month, measured_at.day)
+        day_end = day_start + timedelta(days=1)
+        existing = (
+            db.query(Weight)
+            .filter(
+                Weight.user_id == user_id,
+                Weight.source.in_(MANUAL_WEIGHT_SOURCES),
+                Weight.measured_at >= day_start,
+                Weight.measured_at < day_end,
+            )
+            .order_by(desc(Weight.measured_at))
+            .first()
+        )
+        if existing is not None:
+            existing.measured_at = measured_at
+            existing.weight = weight
+            existing.body_fat = body_fat
+            existing.muscle_mass = muscle_mass
+            existing.water = water
+            existing.bmi = bmi
+            existing.visceral_fat = visceral_fat
+            existing.bone_mass = bone_mass
+            existing.source = source
+            db.commit()
+            db.refresh(existing)
+            return existing
+
+    return create_weight(
+        db,
+        user_id=user_id,
+        measured_at=measured_at,
+        weight=weight,
+        body_fat=body_fat,
+        muscle_mass=muscle_mass,
+        water=water,
+        bmi=bmi,
+        visceral_fat=visceral_fat,
+        bone_mass=bone_mass,
+        source=source,
+    )
+
+
 def get_latest_weight(db: Session, user_id: int) -> Optional[Weight]:
     """Get the most recent weight measurement"""
     return db.query(Weight).filter(Weight.user_id == user_id).order_by(desc(Weight.measured_at)).first()

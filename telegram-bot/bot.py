@@ -17,11 +17,13 @@ from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.types import Update, BotCommand, BotCommandScopeAllPrivateChats
+from aiogram.types import Update, BotCommand, BotCommandScopeAllPrivateChats, MenuButtonWebApp, WebAppInfo
 from dotenv import load_dotenv
 import os
 
 from core._version import __version__
+from bot_token import resolve_bot_token
+from config.settings import public_base_url
 
 # Загружаем переменные окружения
 load_dotenv(override=True)
@@ -77,7 +79,7 @@ logger = logging.getLogger(__name__)
 Path("logs").mkdir(exist_ok=True)
 
 # Получаем токен бота
-BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+BOT_TOKEN = resolve_bot_token()
 if not BOT_TOKEN:
     logger.error("❌ TELEGRAM_BOT_TOKEN не найден в переменных окружения!")
     logger.error("Создайте файл .env и добавьте: TELEGRAM_BOT_TOKEN=ваш_токен")
@@ -330,11 +332,23 @@ async def main():
         logger.warning("⚠️ Android Health webhook не загружен (webhook/android_health.py не найден)")
 
     try:
-        # We only set bot commands here.
         await bot.set_my_commands(commands, scope=BotCommandScopeAllPrivateChats())
         logger.info("✅ Команды бота установлены")
     except Exception as e:
         logger.error(f"❌ Не удалось установить команды: {e}")
+
+    # Кнопка «Дневник» (Menu Button) — WebApp мини-приложение.
+    # URL берётся из того же хелпера public_base_url() (env BOTKIN_PUBLIC_URL), что и
+    # публичные ссылки /share, /report (#205) — единый источник, чтобы дев-стенд открывал
+    # дев-вебапп, а не прод. Раньше кнопка читала отдельную PUBLIC_BASE_URL (дефолт
+    # health.orangegate.cc) → дев-бот вёл мини-апп на прод, прод-сервер валидировал
+    # дев-initData прод-токеном → 403 на вкладках. Идемпотентно: Telegram принимает повторные вызовы.
+    webapp_url = f"{public_base_url()}/webapp/"
+    try:
+        await bot.set_chat_menu_button(menu_button=MenuButtonWebApp(text="Дневник", web_app=WebAppInfo(url=webapp_url)))
+        logger.info(f"✅ Menu button 'Дневник' установлен → {webapp_url}")
+    except Exception as e:
+        logger.error(f"❌ Не удалось установить menu button: {e}")
 
     # Регистрируем webhook у Telegram. Идемпотентно: ставим только если
     # текущий URL отличается. Без этого после смены TELEGRAM_BOT_TOKEN
@@ -344,8 +358,14 @@ async def main():
     # Default — legacy-домен: прод-.env не задаёт TELEGRAM_WEBHOOK_URL, а nginx
     # botkin.health не проксирует /telegram/ (проверено 11.06.2026). Перевод на
     # botkin.health — только вместе с nginx-location и сменой webhook у Telegram.
+    # Дев-стенд без публичного TLS-эндпойнта: Telegram-апдейты тянем polling'ом,
+    # но FastAPI-сервер (/health, дашборд, /api/agent) ВСЁ РАВНО поднимаем —
+    # поэтому отключаем только webhook-регистрацию, а не сервер целиком.
+    # Включается переменной BOTKIN_FORCE_POLLING=1 (см. docker-compose.dev.yml).
+    force_polling = os.getenv("BOTKIN_FORCE_POLLING") == "1"
+
     webhook_url = os.getenv("TELEGRAM_WEBHOOK_URL", "https://health.orangegate.cc/telegram/webhook")
-    if webhook_enabled and webhook_url:
+    if webhook_enabled and not force_polling and webhook_url:
         try:
             info = await bot.get_webhook_info()
             if info.url != webhook_url:
@@ -355,17 +375,28 @@ async def main():
                 logger.info(f"✅ Webhook уже актуален: {webhook_url}")
         except Exception as e:
             logger.error(f"❌ Не удалось установить webhook: {e}")
+    elif force_polling:
+        # polling и webhook у Telegram взаимоисключающи — снимаем webhook,
+        # иначе getUpdates вернёт 409 и дев-бот «молчит».
+        try:
+            await bot.delete_webhook(drop_pending_updates=False)
+            logger.info("⚙️ BOTKIN_FORCE_POLLING=1 — webhook снят, Telegram через polling")
+        except Exception as e:
+            logger.error(f"❌ Не удалось снять webhook: {e}")
 
-    # Start FastAPI server (serves /telegram/webhook + /apple_health + /webapp).
-    # No polling — Telegram updates arrive via webhook.
+    # Запуск: FastAPI-сервер (/telegram/webhook + /apple_health + /webapp + /api/agent
+    # + дашборд) и/или polling. В проде — только сервер (webhook). На дев-стенде —
+    # сервер И polling одновременно (force_polling): сервер нужен для /health,
+    # дашборда и agent-tools, а апдейты Telegram тянутся polling'ом без публичного TLS.
     try:
+        tasks = []
         if webhook_enabled:
             logger.info("🌐 Запуск webhook-сервера на порту 8081...")
-            await start_webhook_server()
-        else:
-            # Fallback: polling if FastAPI server not available
-            logger.warning("⚠️ Webhook-сервер не доступен, запускаем polling...")
-            await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+            tasks.append(start_webhook_server())
+        if force_polling or not webhook_enabled:
+            logger.info("📡 Запуск polling...")
+            tasks.append(dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types()))
+        await asyncio.gather(*tasks)
     except Exception as e:
         error_msg = "❌ ⚠️ 🚨 Botkin НЕ ЗАПУЩЕН!\n\n"
         error_msg += f"Ошибка при запуске: {e}\n"

@@ -57,7 +57,7 @@ from core.vision.menu_parser import parse_menu_photo
 router = Router()
 
 
-from handlers.callbacks import MealConfirmationCallback, WeightConfirmationCallback
+from handlers.callbacks import MealConfirmationCallback, SupplementConfirmationCallback, WeightConfirmationCallback
 
 from typing import List
 
@@ -231,30 +231,42 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
         if router_result and router_result.get("type") == "vitamins":
             data = router_result.get("data", {})
             items = data.get("items", [])
-            action = data.get("action", "logged")  # default "logged" для обратной совместимости
             if items:
-                # 🐛 FIX task #65: фото банок добавок с intent='metadata' не должно
-                # логироваться как факт приёма. Прецедент 25.05.2026: Александр
-                # прислал фото 8 добавок «решил отправить фото всех, чтобы ты знал
-                # марки» — бот залогировал 8 «приёмов» с длинными именами.
-                if action == "metadata":
-                    items_list = "\n".join([f"• {item}" for item in items])
-                    await processing_msg.edit_text(
-                        f"📋 <b>Распознал твои добавки:</b>\n{items_list}\n\n"
-                        f"Это <b>не приём</b> — просто запись марок для профиля. "
-                        f"Когда реально их выпьешь — напиши обычным сообщением "
-                        f"(например, «выпил магний»).",
-                        parse_mode="HTML",
+
+                def _fmt_supplement(i) -> str:
+                    if isinstance(i, dict):
+                        name = html.escape(i.get("name", ""))
+                        dosage = i.get("dosage")
+                        return f"• {name} — <i>{html.escape(dosage)}</i>" if dosage else f"• {name}"
+                    return f"• {html.escape(str(i))}"
+
+                items_list = "\n".join([_fmt_supplement(i) for i in items])
+                s_builder = InlineKeyboardBuilder()
+                s_builder.button(
+                    text="✅ Записать как приём",
+                    callback_data=SupplementConfirmationCallback(action="save").pack(),
+                )
+                s_builder.button(
+                    text="❌ Не сейчас",
+                    callback_data=SupplementConfirmationCallback(action="cancel").pack(),
+                )
+
+                if not user_state:
+                    user_state = UserState(
+                        user_id=user_id,
+                        state="waiting_supplement_confirmation",
+                        data={"supplements": items},
                     )
-                    return
+                else:
+                    user_state.state = "waiting_supplement_confirmation"
+                    user_state.data["supplements"] = items
+                state_manager.set_state(user_id, user_state)
 
-                from core.health.supplements import save_supplements
-
-                telegram_user_id = int(message.from_user.id)
-                saved = save_supplements(items, user_id=telegram_user_id)
-                items_list = "\n".join([f"• {item}" for item in items])
-                status = "✅ Записано" if saved else "⚠️ Ошибка записи"
-                await processing_msg.edit_text(f"💊 <b>Витамины:</b>\n{items_list}\n\n{status}", parse_mode="HTML")
+                await processing_msg.edit_text(
+                    f"💊 <b>Распознал добавки:</b>\n{items_list}\n\nЗаписать как приём сейчас?",
+                    parse_mode="HTML",
+                    reply_markup=s_builder.as_markup(),
+                )
                 return
         if router_result and router_result.get("type") == "weight":
             data = router_result.get("data", {})
@@ -650,6 +662,97 @@ async def handle_photo_message(message: Message, bot: Bot, user_id: int, album: 
     await process_photos_list(message_with_caption, photo_paths, message.media_group_id)
 
 
+async def _handle_libreview_csv(message: Message, msg: Message) -> bool:
+    """CSV-экспорт глюкозы из LibreView → импорт в glucose_readings (#163 follow-up).
+
+    Возвращает True, если документ распознан и обработан как LibreView CSV.
+    """
+    import asyncio
+    import logging
+    import os
+    from zoneinfo import ZoneInfo
+
+    logger = logging.getLogger(__name__)
+    user_id = message.from_user.id
+
+    processing = await message.answer("📄 Получил CSV, читаю историю глюкозы…")
+    try:
+        buf = await message.bot.download(msg.document)
+        raw_bytes = buf.read()
+        # Русскоязычный экспорт LibreView бывает в cp1251, не UTF-8 → пробуем оба.
+        try:
+            content = raw_bytes.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            content = raw_bytes.decode("cp1251", errors="replace")
+    except Exception as e:
+        logger.error(f"LibreView CSV download error: {e}")
+        await processing.edit_text("⚠️ Не удалось скачать файл. Попробуй отправить ещё раз.", parse_mode=None)
+        return True
+
+    # TZ пользователя для корректной конверсии наивного локального времени LibreView → UTC.
+    tz = ZoneInfo("Europe/Moscow")
+    try:
+        from database import SessionLocal
+        from database.models import User
+
+        db = SessionLocal()
+        try:
+            u = db.query(User).filter(User.telegram_id == user_id).first()
+            if u and getattr(u, "timezone", None):
+                tz = ZoneInfo(u.timezone)
+        finally:
+            db.close()
+    except Exception as e:
+        logger.warning(f"LibreView CSV: TZ lookup failed, using MSK: {e}")
+
+    # Импортёр грузим через importlib — scripts/import/ не пакет (import зарезервирован).
+    import importlib.util
+
+    mod_path = Path(__file__).resolve().parents[2] / "scripts" / "import" / "libreview_csv.py"
+    spec = importlib.util.spec_from_file_location("libreview_csv_import", mod_path)
+    libreview = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(libreview)
+
+    db_url = os.getenv("DATABASE_URL")
+    if not db_url:
+        await processing.edit_text("⚠️ Внутренняя ошибка: нет доступа к базе. Сообщи разработчику.", parse_mode=None)
+        return True
+
+    try:
+        result = await asyncio.to_thread(libreview.import_libreview_csv, content, user_id, tz, db_url)
+    except libreview.LibreViewParseError:
+        # Не похоже на экспорт глюкозы LibreView — отдаём обычному пайплайну (картинка/PDF/агент).
+        await processing.delete()
+        return False
+    except Exception as e:
+        logger.error(f"LibreView CSV import error: {e}")
+        await processing.edit_text(
+            "⚠️ Не смог разобрать файл как экспорт LibreView. Проверь, что это CSV из выгрузки глюкозы.",
+            parse_mode=None,
+        )
+        return True
+
+    if result.get("glucose_points", 0) == 0:
+        await processing.edit_text("В файле не нашёл точек глюкозы. Это точно выгрузка из LibreView?", parse_mode=None)
+        return True
+
+    # Диапазон дат — чтобы пользователь сразу заметил, если перепутан порядок день/месяц.
+    first = (result.get("first_ts") or "")[:10]
+    last = (result.get("last_ts") or "")[:10]
+    inserted = result.get("inserted", 0)
+    total = result.get("total_in_file", result.get("glucose_points", 0))
+    await processing.edit_text(
+        f"✅ Загрузил историю глюкозы из LibreView.\n\n"
+        f"Точек в файле: {total}\n"
+        f"Новых добавлено: {inserted}\n"
+        f"Период: {first} — {last}\n\n"
+        f"Теперь могу анализировать эти дни — спрашивай про сахар за любой день и про реакцию на еду.",
+        parse_mode=None,
+    )
+    logger.info(f"LibreView CSV импорт для {user_id}: {result}")
+    return True
+
+
 @router.message(F.document)
 async def handle_document_image(message: Message, album: list = None):
     """Обработка документов с изображениями (например, при перетаскивании из приложения 'Фото' macOS)"""
@@ -672,6 +775,14 @@ async def handle_document_image(message: Message, album: list = None):
         # Проверяем MIME-тип или расширение файла
         mime_type = msg.document.mime_type or ""
         file_name = msg.document.file_name or ""
+
+        # CSV → возможный экспорт глюкозы LibreView. Пробуем импортировать; если это не
+        # LibreView-CSV, helper вернёт False и документ пойдёт обычным пайплайном.
+        is_csv = mime_type.lower() in ("text/csv", "text/comma-separated-values") or file_name.lower().endswith(".csv")
+        if is_csv:
+            handled = await _handle_libreview_csv(message, msg)
+            if handled:
+                continue
 
         # Список поддерживаемых типов изображений
         image_mime_types = [
@@ -984,7 +1095,7 @@ async def handle_description(
             saved = save_supplements(items, user_id=telegram_user_id)
 
             # Формируем красивый список
-            items_list = "\n".join([f"• {item}" for item in items])
+            items_list = "\n".join([f"• {html.escape(i['name'] if isinstance(i, dict) else str(i))}" for i in items])
 
             status_text = "✅ <b>Записано</b>" if saved else "⚠️ <b>Ошибка записи</b>"
 
@@ -1543,6 +1654,44 @@ async def handle_weight_confirmation(callback: CallbackQuery, callback_data: Wei
         await safe_edit_text(
             callback.message,
             callback.message.text.replace("Сохранить запись в журнал?", "\n❌ <b>Сохранение отменено</b>"),
+            parse_mode="HTML",
+        )
+
+    state_manager.clear_state(user_id)
+
+
+@router.callback_query(SupplementConfirmationCallback.filter())
+async def handle_supplement_confirmation(callback: CallbackQuery, callback_data: SupplementConfirmationCallback):
+    """Обработчик подтверждения записи добавок из фото"""
+
+    user_id = str(callback.from_user.id)
+    user_state = state_manager.get_state(user_id)
+    logger = logging.getLogger(__name__)
+
+    if not user_state or "supplements" not in user_state.data:
+        await callback.answer("⚠️ Данные устарели", show_alert=True)
+        await callback.message.delete()
+        return
+
+    if callback_data.action == "save":
+        from core.health.supplements import save_supplements
+
+        telegram_user_id = int(callback.from_user.id)
+        items = user_state.data["supplements"]
+        saved = save_supplements(items, user_id=telegram_user_id)
+        status_text = "✅ <b>Записано как приём!</b>" if saved else "⚠️ Ошибка записи"
+        await callback.answer("✅ Записано" if saved else "⚠️ Ошибка", show_alert=False)
+        await safe_edit_text(
+            callback.message,
+            callback.message.text.replace("Записать как приём сейчас?", status_text),
+            parse_mode="HTML",
+        )
+        logger.info(f"Supplements confirmed by user {telegram_user_id}: {items}")
+    else:
+        await callback.answer("Окей", show_alert=False)
+        await safe_edit_text(
+            callback.message,
+            callback.message.text.replace("Записать как приём сейчас?", "❌ <b>Не записано</b>"),
             parse_mode="HTML",
         )
 
