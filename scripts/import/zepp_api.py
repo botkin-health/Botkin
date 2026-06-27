@@ -313,10 +313,10 @@ def main():
         try:
             items = fetch_via_hetzner(user_id, app_token, start, end)
         except PermissionError:
-            print("   ⚠️  Токен устарел!")
+            print("   ⚠️  Токен устарел! Требуется повторная авторизация.")
             print(f"   Нужна авторизация. Открой:\n   {XIAOMI_OAUTH_URL}")
             print("   Затем запусти: python3 scripts/import/zepp_api.py --code 'REDIRECT_URL'")
-            return
+            sys.exit(1)
 
         print(f"   Получено {len(items)} записей от CN3 API")
 
