@@ -184,7 +184,7 @@ def parse_menu_with_chatgpt(
   "fats": число (сумма),
   "carbs": число (сумма),
   "fiber": число (пищевые волокна в граммах — ОБЯЗАТЕЛЬНО. Оценка: овощи/зелень ~2-3г/100г, бобовые ~6-8г, цельнозерновые ~3-10г (сухие) / 1-2г (варёные), хлеб цельнозерн. ~7г / белый ~2г, фрукты ~2-3г, ягоды ~3-5г, орехи ~6-10г, мясо/рыба/молочка/сыр/яйца/масло = 0),
-  "weight_grams": число (общий вес) — ОБЯЗАТЕЛЬНО, никогда не null. Если точный вес неизвестен — используй стандартную порцию: 100г для готовых блюд, объём упаковки для фасованных продуктов.,
+  "weight_grams": число (общий вес ВСЕЙ ПОРЦИИ, не только основного ингредиента) — ОБЯЗАТЕЛЬНО, никогда не null. Если точный вес неизвестен — используй стандартную порцию: 350г для смешанного блюда (боул/поке/рис с мясом), 200г для гарнира, 100г для закусок/снеков, объём упаковки для фасованных продуктов. ВАЖНО: calories и nutrition_per_100g должны соответствовать этому weight_grams: calories ≈ nutrition_per_100g.calories × weight_grams / 100.,
   "nutrition_per_100g": {{
     "calories": число,
     "protein": число,
@@ -307,25 +307,19 @@ def parse_menu_with_chatgpt(
 
             data = json.loads(content)
 
-            # Если есть nutrition_per_100g и weight_grams, пересчитываем КБЖУ для всей порции
+            # Кросс-валидация вес↔калории: пересчитываем от nutrition_per_100g × weight_grams,
+            # чтобы устранить рассинхрон когда LLM оценил ккал за полную порцию (~350г),
+            # а weight_grams = вес основного ингредиента (150г).
+            from core.food.calorie_validator import validate_weight_calorie_sync
+
+            data = validate_weight_calorie_sync(data)
+
             nutrition_per_100g = data.get("nutrition_per_100g", {})
             weight_grams = data.get("weight_grams")
 
             if nutrition_per_100g and weight_grams and weight_grams > 0:
-                # Пересчитываем КБЖУ для всей порции
                 multiplier = weight_grams / 100.0
-
-                # Если основные поля не заполнены или равны 0, пересчитываем из nutrition_per_100g
-                if not data.get("calories") or data.get("calories", 0) == 0:
-                    data["calories"] = nutrition_per_100g.get("calories", 0) * multiplier
-                if not data.get("protein") or data.get("protein", 0) == 0:
-                    data["protein"] = nutrition_per_100g.get("protein", 0) * multiplier
-                if not data.get("fats") or data.get("fats", 0) == 0:
-                    data["fats"] = nutrition_per_100g.get("fats", 0) * multiplier
-                if not data.get("carbs") or data.get("carbs", 0) == 0:
-                    data["carbs"] = nutrition_per_100g.get("carbs", 0) * multiplier
-
-                print(f"    ✅ Пересчитано КБЖУ для порции {weight_grams}г:")
+                print(f"    ✅ КБЖУ пересчитано для порции {weight_grams}г:")
                 print(
                     f"       Калории: {nutrition_per_100g.get('calories', 0)} ккал/100г × {multiplier:.2f} = {data.get('calories', 0):.1f} ккал"
                 )
