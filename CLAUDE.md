@@ -1,4 +1,4 @@
-# CLAUDE.md
+﻿# CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -156,6 +156,8 @@ python3 scripts/sync_user_health.py --user <telegram_id> --apply   # или --al
 | Походка: скорость, длина шага, двойная опора, асимметрия | `activity_log.raw_data` |
 | Вес, % жира, мышечная масса (Mi-весы → Apple Health) | `weights` |
 | VO2 Max, частота дыхания, температура запястья | `activity_log.raw_data` |
+
+**Тренировки** приходят **отдельным POST** `data.workouts[]` (своя автоматизация HAE типа Workouts, не Health Metrics) → таблица `workouts`, дедуп по `source=hae_<id>`. Парсинг в `webhook/apple_health.py` (`_hae_workouts_to_rows`/`_insert_new_workouts`). Формат, грабли и ручная настройка — [docs/researches/2026-06-18-hae-workouts.md](docs/researches/2026-06-18-hae-workouts.md) (#100). HAE не умеет шэрить конфиги автоматизаций — настройка только ручная.
 
 **Стек:**
 - **iOS-приложение:** [Health Auto Export – JSON+CSV](https://apps.apple.com/app/health-auto-export-json-csv/id1115567069) (Lybron Sobers, $24.99 lifetime)
@@ -340,7 +342,7 @@ python3 scripts/sync_user_health.py --all --apply
 
 Notion-страница **«Хронолог разработки»** (ID `37bf1efb-961b-81cd-9145-cc24bca86e96`, вложена в «Боткин») — краткая история изменений для всех участников проекта (не только разработчиков).
 
-**Когда обновлять:** при каждом создании PR или значимом изменении (сайт, база данных, новая функция, исправление заметного бага).
+**Когда обновлять:** когда изменение важно для всех участников проекта, а не только для отдела разработки — сайт, база данных, новая функция, заметный для пользователя баг, изменение в работе бота. Чисто внутренний тулинг/процесс без видимого эффекта (agent-скилы, CI, рефакторинг, метки трекера) сюда НЕ пишем — для него есть `docs/ai_context/AI_CHANGELOG.md`.
 
 **Формат одной записи** (добавлять в начало страницы, перед предыдущими):
 
@@ -361,7 +363,8 @@ Notion-страница **«Хронолог разработки»** (ID `37bf1
   - **Что писать в заголовок:** человекочитаемое ФИО на русском (как в существующих записях), НЕ GitHub-логин и НЕ `git %an`. Соответствие логин → имя:
     - `Igor-Lysk` → **Игорь Лысковский**
     - `Lyskovsky` → **Александр Лысковский**
-    - Хронолог ведут в основном они двое; для автора не из этого списка — уточнить имя у Игоря, не угадывать.
+    - `Alegas` → **Олег Лысковский**
+    - для автора не из этого списка — уточнить имя у Игоря, не угадывать.
 - Писать для не-разработчиков: что изменилось для пользователя, а не как это устроено внутри
 - Не дублировать `docs/ai_context/AI_CHANGELOG.md` — там технические детали, здесь — суть
 - Одна запись = один PR или логически связанная группа PR (объединять фиксы одной темы)
@@ -372,7 +375,7 @@ Notion-страница **«Хронолог разработки»** (ID `37bf1
 - **Язык**: всегда общаться с пользователем на русском
 - **AI_CHANGELOG**: после каждой задачи обновлять `docs/ai_context/AI_CHANGELOG.md`
 - **Research-grounded решения — фиксировать durable**: если нетривиальное решение опирается на внешний ресёрч / опыт сообщества / реверс-инжиниринг (особенно интеграции с неофициальными API), оформить **ADR** в `docs/architecture/decisions/` (+ строка в индексе README) и, если есть повторяющиеся грабли — раздел **«Known issues / troubleshooting»** в соответствующем research-доке `docs/researches/`, **со ссылками на источники**. Цель: сторонний разработчик понимает *что делали, почему и на чём основано* без археологии по issue. Issue/PR/коммиты — не замена durable-докам. Пример: [ADR-0005](docs/architecture/decisions/0005-cgm-librelinkup-integration.md) (CGM/LibreLinkUp).
-- **Notion Хронолог**: при создании PR обновлять страницу `37bf1efb-961b-81cd-9145-cc24bca86e96`
+- **Notion Хронолог**: обновлять страницу `37bf1efb-961b-81cd-9145-cc24bca86e96`, когда изменение важно для всех участников проекта (не только отдела разработки) — см. раздел «Хронолог разработки в Notion»
 - **Синк перед анализом**: всегда запускать `/sync` перед анализом данных здоровья
 - **knowledge_base.json**: при добавлении новых анализов/УЗИ/МРТ/ЭКГ — обновлять этот файл
 - **Бэкап**: БД на удалённом сервере, не на localhost. Для записи в БД нужен SSH к серверу.
@@ -442,6 +445,7 @@ AI-врач живёт **внутри** основного aiogram-бота (`@B
 - **История диалога:** таблица `agent_conversations` в Postgres (DDL: `database/migrations/add_agent_chat.sql`)
 - **Tools:** 30+ endpoints в `telegram-bot/webhook/agent_tools_api.py` (JWT+RLS изоляция по cohort; актуальный список — `grep '@router\.'`)
 - **JWT-контракт:** каждый запрос агента несёт `user_id` + `cohort` — RLS автоматически ограничивает видимость данных
+- **Доступ — у всех (#165, 18.06.2026):** разговорный агент работает для **любого** зарегистрированного пользователя. `users.agent_system_prompt` — **опциональный override** (богатая семейная персона из `onboard_family_user.py`), а НЕ гейт. Если он пуст — `ask_agent` использует `build_default_agent_prompt(user)` (лёгкий промпт из `onboarding_data`). Никакого деления на «семью» для доступа к агенту.
 
 Ключевые agent tools: `get_weight_history`, `get_body_measurements`, `get_day_summary`, `get_indoor_air`, `get_outdoor_weather`, `get_user_settings`, `recent_workouts`, `recent_biomarkers`, `phenoage`, `kb_value`, `list_kb_keys`.
 
@@ -489,3 +493,7 @@ Canonical triage vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `r
 ### Domain docs
 
 Single-context repo: one `CONTEXT.md` (lazy) + ADRs at `docs/architecture/decisions/`. See `docs/agents/domain.md`.
+
+---
+
+[← Документация Botkin — Index](docs/INDEX.md)

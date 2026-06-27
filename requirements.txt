@@ -41,6 +41,9 @@ pyjwt>=2.13.0
 matplotlib>=3.8
 defusedxml==0.7.1
 
+# PDF → изображения (анализы крови в PDF от лабораторий, конвертация для vision-пайплайна)
+pymupdf>=1.24.0
+
 # CGM-глюкоза: клиент LibreLinkUp API (Abbott FreeStyle Libre 3), см. #96.
 # Пин minor: unofficial API, между минорами менялись auth и URL — апгрейд только с ревью диффа
 # (клиент шлёт креды dr@botkin.health на эндпоинт Abbott; смена URL = утечка кредов).

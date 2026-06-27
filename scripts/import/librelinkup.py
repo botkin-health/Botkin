@@ -91,7 +91,12 @@ def collect_rows(client) -> dict[str, list[dict]]:
     """
     result: dict[str, list[dict]] = {}
     for patient in client.get_patients():
-        rows = [measurement_to_row(m) for m in client.graph(patient)]
+        try:
+            rows = [measurement_to_row(m) for m in client.graph(patient)]
+        except Exception as e:
+            # TrendArrow=0 (новый сенсор) или иная ValidationError в pylibrelinkup → не валим pull
+            print(f"   ⚠️  graph() недоступен для {patient.patient_id}: {e}")
+            rows = []
         try:
             rows.append(measurement_to_row(client.latest(patient)))
         except Exception as e:  # latest опционален — не валим весь pull из-за одного пациента
@@ -100,11 +105,32 @@ def collect_rows(client) -> dict[str, list[dict]]:
     return result
 
 
+def collect_rows_with_retry() -> dict[str, list[dict]]:
+    """collect_rows с одним ретраем при протухшем токене (#162).
+
+    Токен с диска переиспользуется без валидации; если он протух, Cloudflare/Abbott
+    отдаёт 400 на /llu/connections уже в get_patients(). Тогда сбрасываем токен и
+    логинимся заново один раз. Симметрично retry-логике в refresh_glucose_for_telegram
+    (раньше её имел только on-demand путь агента, а /sync — нет, отсюда повторные сбои).
+    LoginOnCooldownError (нет токена + активный backoff) пробрасываем без ретрая.
+    """
+    try:
+        return collect_rows(get_cached_client())
+    except LoginOnCooldownError:
+        raise
+    except Exception as exc:
+        logger.warning("LLU pull упал (%s) — сброс протухшего токена и повторный логин (#162)", exc)
+        return collect_rows(get_cached_client(reset=True))
+
+
 # Персист JWT: LibreLinkUp login-эндпоинт временами отдаёт 476 на свежий authenticate(),
 # но уже выданный токен качает данные. Поэтому храним токен на диске и переиспользуем —
 # логин становится редким событием (только если токена нет/протух). Спасает и от рестарта
 # контейнера, и от login-блока. См. #135.
 TOKEN_CACHE = ROOT / "data" / "cache" / "llu_token.json"
+# Backoff-состояние на диске — переживает перезапуск процесса/контейнера.
+# Формат: {"blocked_until_epoch": float, "fail_count": int}
+BACKOFF_CACHE = ROOT / "data" / "cache" / "llu_backoff.json"
 
 
 # Cloudflare WAF на api-*.libreview.io временно банит запросы без User-Agent (выглядят как бот) →
@@ -116,10 +142,19 @@ _LLU_USER_AGENT = (
 
 
 def _ensure_user_agent() -> None:
-    """Прописать User-Agent в общий HEADERS pylibrelinkup (_get_headers делает HEADERS.copy())."""
+    """Прописать User-Agent в общий HEADERS pylibrelinkup (_get_headers делает HEADERS.copy()).
+
+    Заодно патчим Trend._missing_ — LibreLink иногда возвращает TrendArrow=0 (новый сенсор /
+    нет данных тренда); pylibrelinkup IntEnum не принимает 0 → ValidationError. Патч безопасен:
+    возвращаем STABLE вместо краша.
+    """
     from pylibrelinkup import pylibrelinkup as _pkg
+    from pylibrelinkup.models.data import Trend
 
     _pkg.HEADERS["User-Agent"] = _LLU_USER_AGENT
+    if not hasattr(Trend, "_missing_patched"):
+        Trend._missing_ = classmethod(lambda cls, value: cls.STABLE)  # type: ignore[attr-defined]
+        Trend._missing_patched = True  # type: ignore[attr-defined]
 
 
 def _new_client():
@@ -143,14 +178,6 @@ def _save_token(client) -> None:
         logger.debug("не смог сохранить llu-токен: %s", e)
 
 
-def get_client():
-    """Авторизованный PyLibreLinkUp (регион EU): свежий логин + сохранение токена на диск."""
-    client = _new_client()
-    client.authenticate()
-    _save_token(client)
-    return client
-
-
 def _client_from_saved_token():
     """Клиент с восстановленным с диска токеном (без логина). None — если токена нет/битый."""
     if not TOKEN_CACHE.exists():
@@ -171,12 +198,108 @@ def _client_from_saved_token():
 _cached_client = None
 _cached_client_lock = threading.Lock()
 
+# Backoff на логин (#141): при 476/бане не долбим эндпоинт снова и снова — это продлевает бан.
+# Экспоненциальные паузы: 15м → 30м → 60м → кап 120м.
+# ВАЖНО: _login_blocked_until хранится в time.monotonic() для in-process проверок,
+# но дублируется на диск (BACKOFF_CACHE) чтобы пережить перезапуск процесса/контейнера.
+_login_blocked_until: float = 0.0  # time.monotonic() timestamp
+_login_fail_count: int = 0
+_LOGIN_BACKOFF_DELAYS = [15 * 60, 30 * 60, 60 * 60, 120 * 60]  # секунды
+
+
+def _save_backoff(blocked_until_monotonic: float, fail_count: int) -> None:
+    """Сохранить backoff-состояние на диск (wall-clock epoch вместо monotonic)."""
+    import time
+
+    try:
+        BACKOFF_CACHE.parent.mkdir(parents=True, exist_ok=True)
+        epoch_offset = time.time() - time.monotonic()
+        BACKOFF_CACHE.write_text(
+            json.dumps({"blocked_until_epoch": blocked_until_monotonic + epoch_offset, "fail_count": fail_count})
+        )
+    except Exception as e:
+        logger.debug("не смог сохранить llu-backoff: %s", e)
+
+
+def _load_backoff() -> None:
+    """Восстановить backoff из диска при старте процесса. Мутирует глобальные переменные."""
+    import time
+
+    global _login_blocked_until, _login_fail_count
+    if not BACKOFF_CACHE.exists():
+        return
+    try:
+        d = json.loads(BACKOFF_CACHE.read_text())
+        epoch_offset = time.time() - time.monotonic()
+        remaining = d["blocked_until_epoch"] - time.time()
+        if remaining > 0:
+            _login_blocked_until = time.monotonic() + remaining
+            _login_fail_count = d.get("fail_count", 1)
+            logger.info(
+                "LLU backoff восстановлен с диска: cooldown ещё %.0fс (fail_count=%d)", remaining, _login_fail_count
+            )
+        else:
+            # Backoff истёк — удаляем файл, счётчики не трогаем
+            BACKOFF_CACHE.unlink(missing_ok=True)
+    except Exception as e:
+        logger.debug("не смог загрузить llu-backoff: %s", e)
+
+
+# Загрузить backoff при импорте модуля (до любых вызовов get_client/get_cached_client).
+_load_backoff()
+
+
+class LoginOnCooldownError(RuntimeError):
+    """Логин заблокирован backoff-ом: недавняя попытка упала с 476/баном.
+
+    Вызывающий код деградирует к данным из БД вместо сетевого логина.
+    """
+
+    def __init__(self, retry_in: float) -> None:
+        self.retry_in = retry_in  # секунд до следующей разрешённой попытки
+        super().__init__(f"LLU login на cooldown ещё {retry_in:.0f}с")
+
+
+def get_client():
+    """Авторизованный PyLibreLinkUp (регион EU): свежий логин + сохранение токена на диск.
+
+    При сетевой ошибке / 476 выставляет экспоненциальный backoff (_login_blocked_until).
+    Успешный логин сбрасывает счётчик ошибок.
+    """
+    import time
+
+    global _login_blocked_until, _login_fail_count
+    client = _new_client()
+    try:
+        client.authenticate()
+    except Exception as exc:
+        _login_fail_count += 1
+        delay = _LOGIN_BACKOFF_DELAYS[min(_login_fail_count - 1, len(_LOGIN_BACKOFF_DELAYS) - 1)]
+        _login_blocked_until = time.monotonic() + delay
+        _save_backoff(_login_blocked_until, _login_fail_count)  # persist — пережить перезапуск
+        logger.warning(
+            "LLU authenticate() упал (попытка %d): %s. Следующий логин не раньше чем через %ds.",
+            _login_fail_count,
+            exc,
+            delay,
+        )
+        raise
+    _login_blocked_until = 0.0
+    _login_fail_count = 0
+    BACKOFF_CACHE.unlink(missing_ok=True)  # успешный логин — сбросить backoff с диска
+    _save_token(client)
+    return client
+
 
 def get_cached_client(reset: bool = False):
     """Переиспользуемый клиент: сперва токен с диска (без логина), иначе свежий логин.
 
     reset=True — выкинуть протухший токен (и in-memory, и файл) → форсировать новый логин.
+    Если логин недавно упал с 476/баном и cooldown ещё активен — кидает LoginOnCooldownError
+    вместо сетевого вызова (чтобы не продлевать бан повторными запросами).
     """
+    import time
+
     global _cached_client
     with _cached_client_lock:
         if reset:
@@ -186,7 +309,16 @@ def get_cached_client(reset: bool = False):
             except FileNotFoundError:
                 pass
         if _cached_client is None:
-            _cached_client = _client_from_saved_token() or get_client()
+            # Есть сохранённый токен — используем без логина (backoff не мешает).
+            from_disk = _client_from_saved_token()
+            if from_disk is not None:
+                _cached_client = from_disk
+            else:
+                # Нет токена — нужен логин. Проверяем cooldown.
+                remaining = _login_blocked_until - time.monotonic()
+                if remaining > 0:
+                    raise LoginOnCooldownError(retry_in=remaining)
+                _cached_client = get_client()
         return _cached_client
 
 
@@ -279,8 +411,8 @@ def main():
     args = parser.parse_args()
 
     print("🩸 LibreLinkUp — импорт глюкозы CGM...")
-    client = get_cached_client()  # переиспользует токен с диска, без лишнего логина (#135)
-    by_patient = collect_rows(client)
+    # Токен с диска (#135) + ретрай со сбросом, если он протух → 400 на /llu/connections (#162).
+    by_patient = collect_rows_with_retry()
     total = sum(len(v) for v in by_patient.values())
     print(f"   Пациентов: {len(by_patient)}, точек собрано: {total}")
 

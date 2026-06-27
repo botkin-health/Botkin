@@ -12,6 +12,10 @@
 (function () {
   'use strict';
 
+  // When served from /dev/webapp/, API calls must go to /dev/api/…
+  // so nginx routes them to the dev bot (port 8082) instead of prod (port 8081).
+  const API_PREFIX = window.location.pathname.startsWith('/dev/') ? '/dev' : '';
+
   function authHeader() {
     const initData = window.Telegram?.WebApp?.initData || '';
     return { 'Authorization': `tma ${initData}` };
@@ -23,7 +27,7 @@
       'Content-Type': 'application/json',
       ...(options.headers || {}),
     };
-    const r = await fetch(path, { ...options, headers });
+    const r = await fetch(API_PREFIX + path, { ...options, headers });
     if (!r.ok) {
       const body = await r.text();
       throw new Error(`${r.status} ${body}`);

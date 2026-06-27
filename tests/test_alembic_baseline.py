@@ -32,11 +32,12 @@ EXPECTED_TABLES = {
     "user_settings",
     "users",
     "weights",
+    "health_reports",
     "workouts",
 }
 
 # Актуальный head миграций. Обновляется при каждой новой ревизии.
-HEAD_REVISION = "cgm0glucose01"
+HEAD_REVISION = "rep0health01"
 
 
 def _alembic_config() -> Config:

@@ -197,6 +197,33 @@ def detect_slot_prefix(text: str) -> str | None:
     return _SLOT_PREFIX_MAP.get(m.group(1).lower())
 
 
+def _temporal_phrase_to_time(text: str) -> str | None:
+    """Извлекает meal_time из временны́х фраз в тексте.
+
+    Возвращает HH:MM строку если найдена фраза, иначе None.
+    """
+    text_lower = text.lower()
+    # Порядок важен: более специфичные паттерны первыми.
+    #
+    # ⚠️ Здесь ТОЛЬКО настоящие фразы о времени суток («утром», «вечером»,
+    # «в полдень»). Названия приёмов пищи (завтрак/обед/ужин/перекус/полдник) —
+    # это ЯРЛЫК блюда, а НЕ время: человек ест «завтрак» в произвольное время.
+    # Раньше «завтрак»→08:00 и т.п. ломали meal_time (сообщение в 10:04 с ярлыком
+    # «завтрак» писалось как 08:00, ломая наложение CGM). Теперь голый ярлык даёт
+    # None → вызывающий код подставляет время сообщения (см. использование ниже).
+    patterns = [
+        (r"\bранн\w+\s+утр\w+\b|\bрано\s+утр\w+\b|\bна\s+рассвет\w*\b", "06:00"),
+        (r"\bутр\w+\b|\bс\s+утра\b", "08:00"),
+        (r"\bдн[её]\w*\b|\bв\s+полдень\b|\bполдень\b", "13:00"),
+        (r"\bвечер\w*\b|\bпод\s+вечер\b", "20:00"),
+        (r"\bноч\w+\b|\bпоздн\w+\s+вечер\w*\b|\bперед\s+сном\b|\bна\s+ночь\b", "22:30"),
+    ]
+    for pattern, time_str in patterns:
+        if re.search(pattern, text_lower):
+            return time_str
+    return None
+
+
 def apply_slot_prefix(text: str, meal_name: str | None) -> str | None:
     """Если у пользовательского текста есть префикс слота, приклеить его к meal_name."""
     if not meal_name:
@@ -905,12 +932,16 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                 for i, chunk in enumerate(chunks):
                     await _send_chunk(chunk, edit_target=progress_msg if i == 0 else None)
             except RuntimeError as e:
-                # Common: user has no agent_system_prompt → conversational
-                # mode not enabled for them yet. Fall back to canned reply.
-                if "agent_system_prompt" in str(e):
-                    debug_logger.info(f"agent_chat skipped: {e}")
-                    fallback = data.get("reply", "Не понял запрос.")
-                    await message.answer(html.escape(fallback))
+                # Промпт-гейта больше нет — у каждого юзера есть дефолтный
+                # системный промпт (#165). ask_agent кидает RuntimeError только
+                # если юзер не найден/неактивен → зовём пройти онбординг.
+                if "not found" in str(e) or "inactive" in str(e):
+                    debug_logger.info(f"agent_chat skipped (unregistered): {e}")
+                    await message.answer(
+                        "Чтобы начать пользоваться Botkin — нажми /start. "
+                        "Задам пару вопросов, и сразу можно логировать еду "
+                        "и задавать вопросы о здоровье 👋"
+                    )
                 else:
                     debug_logger.error(f"agent_chat failed: {e}", exc_info=True)
                     await message.answer("🤖 Разговорный агент временно недоступен. Попробуй через минуту.")
@@ -934,7 +965,9 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             # 🐛 FIX task #65: text-route — если LLM понял intent='metadata' (а не intake),
             # не логировать как приём. Симметрично photo.py.
             if action == "metadata" and items:
-                items_list = "\n".join([f"• {item}" for item in items])
+                items_list = "\n".join(
+                    [f"• {html.escape(i['name'] if isinstance(i, dict) else str(i))}" for i in items]
+                )
                 e2e_prefix = "🧪 [E2E] " if is_e2e else ""
                 await processing_msg.edit_text(
                     f"{e2e_prefix}📋 <b>Распознал:</b>\n{items_list}\n\n"
@@ -986,23 +1019,32 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                 ]
             )
 
+            # items may be dicts {name, dosage} (from photo/LLM) or plain strings (legacy)
             normalized = []
             has_plain_sterols = False
+            sterols_dosage = None
             for item in items:
-                key = item.strip().lower()
-                canonical = _NORMALIZE.get(key, item)
+                if isinstance(item, dict):
+                    raw_name = item.get("name", "")
+                    dosage = item.get("dosage")
+                else:
+                    raw_name = str(item)
+                    dosage = None
+                key = raw_name.strip().lower()
+                canonical = _NORMALIZE.get(key, raw_name)
                 if canonical == "Plant Sterols":
                     has_plain_sterols = True
-                elif canonical not in normalized:
-                    normalized.append(canonical)
+                    sterols_dosage = dosage
+                elif not any((n["name"] if isinstance(n, dict) else n) == canonical for n in normalized):
+                    normalized.append({"name": canonical, "dosage": dosage})
 
             # Plant Sterols: если «оба» — разворачиваем в утро + вечер; если просто один — только Plant Sterols
             if has_plain_sterols:
                 if both_sterols:
-                    normalized.append("Plant Sterols (Утро)")
-                    normalized.append("Plant Sterols (Вечер)")
+                    normalized.append({"name": "Plant Sterols (Утро)", "dosage": sterols_dosage})
+                    normalized.append({"name": "Plant Sterols (Вечер)", "dosage": sterols_dosage})
                 else:
-                    normalized.append("Plant Sterols")
+                    normalized.append({"name": "Plant Sterols", "dosage": sterols_dosage})
 
             items = normalized
 
@@ -1013,7 +1055,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             saved = save_supplements(items, user_id=telegram_user_id, date_str=custom_date)
 
             # Формируем красивый список
-            items_list = "\n".join([f"• {html.escape(str(item))}" for item in items])
+            items_list = "\n".join([f"• {html.escape(i['name'] if isinstance(i, dict) else str(i))}" for i in items])
 
             status_text = "✅ <b>Записано</b>" if saved else "⚠️ <b>Ошибка записи</b>"
 
@@ -1055,10 +1097,16 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             }
             normalized_supp = []
             for item in supplement_items:
-                key = item.strip().lower()
-                canonical = _NORMALIZE_MX.get(key, item)
-                if canonical not in normalized_supp:
-                    normalized_supp.append(canonical)
+                if isinstance(item, dict):
+                    raw_name = item.get("name", "")
+                    dosage = item.get("dosage")
+                else:
+                    raw_name = str(item)
+                    dosage = None
+                key = raw_name.strip().lower()
+                canonical = _NORMALIZE_MX.get(key, raw_name)
+                if not any((n["name"] if isinstance(n, dict) else n) == canonical for n in normalized_supp):
+                    normalized_supp.append({"name": canonical, "dosage": dosage})
 
             from core.health.supplements import save_supplements
 
@@ -1099,7 +1147,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                     "description": text,
                     "meal_items": meal_items,
                     "meal_totals": meal_totals,
-                    "meal_time": datetime.now(user_tz).strftime("%H:%M"),
+                    "meal_time": _temporal_phrase_to_time(text) or datetime.now(user_tz).strftime("%H:%M"),
                     "meal_name": meal_name,
                     "date": custom_date,
                 },
@@ -1310,7 +1358,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                     "description": text,
                     "meal_items": meal_items,
                     "meal_totals": meal_totals,
-                    "meal_time": datetime.now(user_tz).strftime("%H:%M"),
+                    "meal_time": _temporal_phrase_to_time(text) or datetime.now(user_tz).strftime("%H:%M"),
                     "meal_name": meal_name,
                     "date": custom_date,
                 },
@@ -1455,7 +1503,25 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             return
 
         else:
-            await processing_msg.edit_text(f"🤔 Тип сообщения: {msg_type}, но я пока не знаю что с этим делать.")
+            # Всё что не еда (medical, activity, supplement, other и т.д.) — в агент
+            from core.agent_chat import ask_agent
+            from core.tg_markdown import md_to_html, split_markdown_for_telegram
+
+            await processing_msg.edit_text("⏳ Думаю…")
+            try:
+                reply = await loop.run_in_executor(None, lambda: ask_agent(int(user_id), text))
+                if not reply:
+                    reply = "Хм, у меня нет внятного ответа. Попробуй переформулировать."
+                chunks = split_markdown_for_telegram(reply)
+                for i, chunk in enumerate(chunks):
+                    chunk_html = md_to_html(chunk)
+                    if i == 0:
+                        await processing_msg.edit_text(chunk_html, parse_mode="HTML")
+                    else:
+                        await message.answer(chunk_html, parse_mode="HTML")
+            except RuntimeError as e:
+                debug_logger.info(f"agent fallback skipped: {e}")
+                await processing_msg.edit_text("Напиши мне свой вопрос — я разберусь.")
 
     except Exception as e:
         logger.error(f"❌ Error processing message: {e}", exc_info=True)

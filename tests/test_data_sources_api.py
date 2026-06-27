@@ -30,20 +30,6 @@ def engine():
         poolclass=StaticPool,
     )
     Base.metadata.create_all(bind=eng)
-    with eng.connect() as conn:
-        conn.execute(text(
-            "CREATE TABLE IF NOT EXISTS activity_log "
-            "(id INTEGER PRIMARY KEY, user_id INTEGER, date TEXT, source TEXT, total_calories REAL)"
-        ))
-        conn.execute(text(
-            "CREATE TABLE IF NOT EXISTS weights "
-            "(id INTEGER PRIMARY KEY, user_id INTEGER, measured_at TEXT, weight REAL, source TEXT)"
-        ))
-        conn.execute(text(
-            "CREATE TABLE IF NOT EXISTS glucose_readings "
-            "(id INTEGER PRIMARY KEY, user_id INTEGER, measured_at TEXT, value REAL)"
-        ))
-        conn.commit()
     yield eng
     Base.metadata.drop_all(bind=eng)
 
@@ -73,12 +59,12 @@ def client(api_db, monkeypatch):
     return TestClient(app)
 
 
-def test_data_sources_returns_all_five_services(client):
+def test_data_sources_returns_all_services(client):
     r = client.get("/api/profile/data_sources")
     assert r.status_code == 200
     sources = r.json()["sources"]
     ids = {s["id"] for s in sources}
-    assert ids == {"garmin", "apple_health", "zepp", "netatmo", "cgm"}
+    assert ids == {"garmin", "apple_health", "health_connect", "zepp", "netatmo", "cgm"}
 
 
 def test_data_sources_response_schema(client):
@@ -120,6 +106,19 @@ def test_apple_health_connected_when_recent_activity(client, api_db):
 
     sources = {s["id"]: s for s in client.get("/api/profile/data_sources").json()["sources"]}
     assert sources["apple_health"]["connected"] is True
+
+
+def test_health_connect_connected_when_recent_activity(client, api_db):
+    today = date.today().isoformat()
+    api_db.execute(
+        text("INSERT INTO activity_log (user_id, date, source) VALUES (:uid, :d, :src)"),
+        {"uid": 895655, "d": today, "src": "health_connect"},
+    )
+    api_db.commit()
+
+    sources = {s["id"]: s for s in client.get("/api/profile/data_sources").json()["sources"]}
+    assert sources["health_connect"]["connected"] is True
+    assert sources["health_connect"]["last_updated"] == today
 
 
 def test_old_data_not_counted_as_connected(client, api_db):

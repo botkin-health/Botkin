@@ -637,6 +637,89 @@ def _build_sport_block(user_id: int, user_age: int | None = None) -> dict:
     }
 
 
+# ── CGM block ─────────────────────────────────────────────────────────────────
+
+
+def _build_cgm_block(db: Session, user_id: int) -> dict:
+    """Глюкоза CGM (FreeStyle Libre 3 / LibreLinkUp) за последние 24 часа + TIR за 14 дней.
+
+    Возвращает:
+      available   bool — есть ли данные вообще
+      current     float | None — последнее значение (mmol/L)
+      current_ts  str | None — время последнего замера (ISO)
+      tir_pct     float | None — % времени в диапазоне 3.9-10 mmol/L (14 дней)
+      tir_low_pct float | None — % ниже 3.9 (гипо)
+      tir_high_pct float | None — % выше 10 (гипер)
+      readings_24h list[{ts, value}] — почасовые медианы за 24 ч (для мини-графика)
+      avg_7d      float | None — среднее за 7 дней
+    """
+    from sqlalchemy import text as _text
+
+    last_row = db.execute(
+        _text("SELECT value, ts FROM glucose_readings WHERE user_id=:uid ORDER BY ts DESC LIMIT 1"),
+        {"uid": user_id},
+    ).fetchone()
+
+    if last_row is None:
+        return {"available": False}
+
+    current = round(float(last_row[0]), 1)
+    current_ts = last_row[1].isoformat() if hasattr(last_row[1], "isoformat") else str(last_row[1])
+
+    rows_24h = db.execute(
+        _text(
+            "SELECT date_trunc('hour', ts) AS h,"
+            " round(percentile_cont(0.5) WITHIN GROUP (ORDER BY value)::numeric, 1) AS med"
+            " FROM glucose_readings WHERE user_id=:uid AND ts >= NOW() - INTERVAL '24 hours'"
+            " GROUP BY h ORDER BY h"
+        ),
+        {"uid": user_id},
+    ).fetchall()
+    readings_24h = [
+        {"ts": r[0].isoformat() if hasattr(r[0], "isoformat") else str(r[0]), "value": float(r[1])} for r in rows_24h
+    ]
+
+    avg_row = db.execute(
+        _text(
+            "SELECT round(avg(value)::numeric, 1) FROM glucose_readings"
+            " WHERE user_id=:uid AND ts >= NOW() - INTERVAL '7 days'"
+        ),
+        {"uid": user_id},
+    ).fetchone()
+    avg_7d = float(avg_row[0]) if avg_row and avg_row[0] is not None else None
+
+    tir_row = db.execute(
+        _text(
+            "SELECT"
+            "  count(*) FILTER (WHERE value BETWEEN 3.9 AND 10.0) AS in_range,"
+            "  count(*) FILTER (WHERE value < 3.9) AS low,"
+            "  count(*) FILTER (WHERE value > 10.0) AS high,"
+            "  count(*) AS total"
+            " FROM glucose_readings"
+            " WHERE user_id=:uid AND ts >= NOW() - INTERVAL '14 days'"
+        ),
+        {"uid": user_id},
+    ).fetchone()
+
+    tir_pct = tir_low_pct = tir_high_pct = None
+    if tir_row and tir_row[3]:
+        total = tir_row[3]
+        tir_pct = round(tir_row[0] / total * 100, 1)
+        tir_low_pct = round(tir_row[1] / total * 100, 1)
+        tir_high_pct = round(tir_row[2] / total * 100, 1)
+
+    return {
+        "available": True,
+        "current": current,
+        "current_ts": current_ts,
+        "tir_pct": tir_pct,
+        "tir_low_pct": tir_low_pct,
+        "tir_high_pct": tir_high_pct,
+        "readings_24h": readings_24h,
+        "avg_7d": avg_7d,
+    }
+
+
 # ── payload builder ───────────────────────────────────────────────────────────
 
 
@@ -2655,6 +2738,7 @@ def _build_payload(db: Session, user_id: int) -> dict:
         "achievements": achievements,
         "heatmap": heatmap_data,
         "sport": sport_block,
+        "cgm": _build_cgm_block(db, user_id),
     }
 
 
@@ -2728,6 +2812,7 @@ def generate_dashboard_html(db: Session, user_id: int, embed: bool = False) -> s
         # New capability keys used directly from available blocks
         caps["has_sleep"] = caps["has_garmin"]
         caps["has_heart"] = caps["has_garmin"] or caps["has_bp"]
+        caps["has_cgm"] = available["glucose"]
 
     html = template.replace("{{PAYLOAD}}", _safe_payload_json(payload))
     return _apply_embed_mode(html, embed)

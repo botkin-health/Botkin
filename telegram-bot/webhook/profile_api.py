@@ -11,7 +11,6 @@ Endpoints:
   PATCH /api/profile/timezone — update user timezone (called by WebApp on every open)
 """
 
-import os
 from datetime import date as date_cls, datetime as dt_cls, timedelta
 from typing import Optional, Literal
 
@@ -27,6 +26,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
 from webhook.tg_auth import get_tg_user
+from config.settings import public_base_url
 
 router = APIRouter()
 
@@ -255,10 +255,10 @@ async def patch_timezone(payload: TimezonePayload, tg_user: dict = Depends(get_t
 def _public_base() -> str:
     """Базовый публичный URL дашборда (без хвостового слэша).
 
-    Из env BOTKIN_PUBLIC_URL — чтобы не хардкодить домен (#114). Дефолт —
-    прод-домен botkin.health.
+    Тонкая обёртка над единым `config.settings.public_base_url` (#114, #205) —
+    источник один для всех билдеров публичных ссылок.
     """
-    return os.getenv("BOTKIN_PUBLIC_URL", "https://botkin.health").rstrip("/")
+    return public_base_url()
 
 
 @router.get("/api/dashboard_url")
@@ -282,22 +282,32 @@ async def get_dashboard_url(tg_user: dict = Depends(get_tg_user)):
     db = SessionLocal()
     try:
         token = generate_share_token(db, user_id)
+        from services.report_generator import get_report_token
+
+        report_token = get_report_token(db, user_id)
     except ValueError:
-        return {"token": None, "dashboard_url": None}  # юзера ещё нет
+        return {"token": None, "dashboard_url": None, "report_url": None}  # юзера ещё нет
     finally:
         db.close()
 
-    return {"token": token, "dashboard_url": f"{_public_base()}/mc/{token}"}
+    base = _public_base()
+    report_url = f"{base}/r/{report_token}" if report_token else None
+    return {
+        "token": token,
+        "dashboard_url": f"{base}/mc/{token}",
+        "report_url": report_url,
+    }
 
 
 # ── Data Sources ─────────────────────────────────────────────────────────────
 
 _DATA_SOURCES_META = [
-    {"id": "garmin",       "name": "Garmin",          "icon": "⌚"},
-    {"id": "apple_health", "name": "Apple Health",    "icon": "🍎"},
-    {"id": "zepp",         "name": "Zepp / Mi Scale", "icon": "⚖️"},
-    {"id": "netatmo",      "name": "Netatmo",          "icon": "🌡️"},
-    {"id": "cgm",          "name": "LibreLink (CGM)", "icon": "🩸"},
+    {"id": "garmin", "name": "Garmin", "icon": "⌚"},
+    {"id": "apple_health", "name": "Apple Health", "icon": "🍎"},
+    {"id": "health_connect", "name": "Google Health Connect", "icon": "🤖"},
+    {"id": "zepp", "name": "Zepp / Mi Scale", "icon": "⚖️"},
+    {"id": "netatmo", "name": "Netatmo", "icon": "🌡️"},
+    {"id": "cgm", "name": "LibreLink (CGM)", "icon": "🩸"},
 ]
 
 
@@ -323,24 +333,29 @@ async def get_data_sources(tg_user: dict = Depends(get_tg_user)):
 
     db = SessionLocal()
     try:
+
         def _scalar(sql: str, params: dict):
             row = db.execute(text(sql), params).fetchone()
             return row[0] if row and row[0] else None
 
         garmin_last = _scalar(
-            "SELECT MAX(date) FROM activity_log WHERE user_id=:uid AND source ILIKE 'garmin%' AND date >= :cutoff",
+            "SELECT MAX(date) FROM activity_log WHERE user_id=:uid AND LOWER(source) LIKE 'garmin%' AND date >= :cutoff",
             {"uid": user_id, "cutoff": cutoff_30},
         )
         apple_last = _scalar(
-            "SELECT MAX(date) FROM activity_log WHERE user_id=:uid AND source ILIKE 'apple%' AND date >= :cutoff",
+            "SELECT MAX(date) FROM activity_log WHERE user_id=:uid AND LOWER(source) LIKE 'apple%' AND date >= :cutoff",
+            {"uid": user_id, "cutoff": cutoff_30},
+        )
+        health_connect_last = _scalar(
+            "SELECT MAX(date) FROM activity_log WHERE user_id=:uid AND LOWER(source) LIKE 'health_connect%' AND date >= :cutoff",
             {"uid": user_id, "cutoff": cutoff_30},
         )
         zepp_last = _scalar(
-            "SELECT MAX(measured_at)::date FROM weights WHERE user_id=:uid AND source ILIKE 'zepp%' AND measured_at >= :cutoff",
+            "SELECT DATE(MAX(measured_at)) FROM weights WHERE user_id=:uid AND LOWER(source) LIKE 'zepp%' AND measured_at >= :cutoff",
             {"uid": user_id, "cutoff": cutoff_30},
         )
         cgm_last = _scalar(
-            "SELECT MAX(measured_at)::date FROM glucose_readings WHERE user_id=:uid AND measured_at >= :cutoff",
+            "SELECT DATE(MAX(ts)) FROM glucose_readings WHERE user_id=:uid AND ts >= :cutoff",
             {"uid": user_id, "cutoff": cutoff_14},
         )
     finally:
@@ -361,18 +376,19 @@ async def get_data_sources(tg_user: dict = Depends(get_tg_user)):
             pass
 
     last_by_id = {
-        "garmin":       garmin_last,
+        "garmin": garmin_last,
         "apple_health": apple_last,
-        "zepp":         zepp_last,
-        "netatmo":      netatmo_last,
-        "cgm":          cgm_last,
+        "health_connect": health_connect_last,
+        "zepp": zepp_last,
+        "netatmo": netatmo_last,
+        "cgm": cgm_last,
     }
 
     sources = [
         {
             **meta,
             "connected": bool(last_by_id[meta["id"]]),
-            "last_updated": last_by_id[meta["id"]].isoformat() if last_by_id[meta["id"]] else None,
+            "last_updated": str(last_by_id[meta["id"]]) if last_by_id[meta["id"]] else None,
         }
         for meta in _DATA_SOURCES_META
     ]

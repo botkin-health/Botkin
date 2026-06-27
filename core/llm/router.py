@@ -120,10 +120,10 @@ STEP 3 — FOR PROTEIN PRODUCTS specifically:
   - NOT like a regular nut/chocolate bar: ~200+ kcal, protein ~3-5g, fats ~15-20g
 
 EXAMPLES of known brands (use if macros not visible):
-  - Bombbar Original glazed bar (40g, "в шоколаде", any flavor — Coconut Cake, Banana Pudding, etc.): 142 kcal, Б:10г, Ж:6.9г, У:2.6г, клетчатка:15г. Все вкусы Original glazed line имеют почти одинаковые КБЖУ.
+  - Bombbar glazed bar — линейка "No sugar added / Natural / 25% protein" (40g, "в шоколаде / глазированный", любой вкус — Pistachio Meringue / фисташковая меренга, Chocolate Brownie / шоколадный брауни, Coconut Cake, Banana Pudding, etc.): 142 kcal, Б:10г, Ж:6.9г, У:2.6г, клетчатка:15г. Все вкусы этой глазированной линейки имеют почти одинаковые КБЖУ. ⚠️ Сладость даёт сахарный спирт МАЛЬТИТ — "без сахара" НЕ значит "нейтрально по глюкозе". Это другой продукт, чем старый неглазированный Bombbar Original/Slim.
   - Bombbar Pro (60g): 240 kcal, Б:20г, Ж:9г, У:20г
   - Fit Kit Chocolate Bar (50g): 173 kcal, Б:14г, Ж:5г, У:18г
-  - DEFAULT for unidentified Bombbar protein bar 35-40g — use Original glazed values above (142 kcal / 40g), NOT 116 kcal. Прежний шаблон "116 kcal, 10/3/4" был некорректным — не используй его.
+  - DEFAULT for unidentified Bombbar protein bar 35-40g — use the glazed line values above (142 kcal / 40g, клетчатка 15г), NOT 116 kcal. Прежний шаблон "116 kcal, 10/3/4" был некорректным — не используй его.
 
 SCENARIO 1.3: FOOD ON A KITCHEN SCALE (CRITICAL — highest priority for weight)
 When the photo shows food placed ON a kitchen scale (цифровые весы, кухонные весы):
@@ -312,6 +312,8 @@ Extract weight and body composition.
 
 SCENARIO 3: VITAMINS
 IMPORTANT: Return "items" in RUSSIAN language (e.g. "Витамин С", "Магний").
+Each item is an object with "name" (required) and "dosage" (optional string, null if not visible).
+Extract dosage from the label/packaging if visible — e.g. "2000мг", "EPA 660мг + DHA 440мг", "5000 IU".
 
 CRITICAL — distinguish INTENT:
 - "logged" (intake) — user just TOOK them: «выпил магний», «принял Д3», «съел омегу» — log as taken
@@ -322,7 +324,11 @@ CRITICAL — distinguish INTENT:
 {
   "type": "vitamins",
   "data": {
-    "items": ["Витамин С", "Омега-3"],
+    "items": [
+      {"name": "Витамин С", "dosage": "500мг"},
+      {"name": "Омега-3", "dosage": "2000мг (EPA 660мг + DHA 440мг)"},
+      {"name": "Магний", "dosage": null}
+    ],
     "action": "logged"  // OR "metadata" — see CRITICAL note above
   }
 }
@@ -401,7 +407,11 @@ Example: "30г сывороточного протеина, креатин, ма
       ],
       "total_nutrition": {"calories": 120, "protein": 24, "fats": 1, "carbs": 3, "fiber": 0}
     },
-    "supplements": ["Креатин", "Магний", "Plant Sterols"]
+    "supplements": [
+      {"name": "Креатин", "dosage": "5г"},
+      {"name": "Магний", "dosage": null},
+      {"name": "Plant Sterols", "dosage": null}
+    ]
   }
 }
 

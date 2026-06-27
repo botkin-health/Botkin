@@ -603,11 +603,13 @@ if (picker) picker.addEventListener('change', () => {
 
 // ── Profile links ────────────────────────────────────────────────────────────
 let _dashboardUrl = null;
+let _reportUrl = null;
 
 async function loadLinks() {
   try {
     const data = await window.API.getDashboardUrl();
     _dashboardUrl = data.dashboard_url || null;
+    _reportUrl = data.report_url || null;
   } catch(e) {
     console.error('Failed to load dashboard url', e);
   }
@@ -615,6 +617,22 @@ async function loadLinks() {
 
 function openDashboard() {
   if (_dashboardUrl) tg.openLink(_dashboardUrl);
+}
+
+function openReport() {
+  if (_reportUrl) tg.openLink(_reportUrl);
+}
+
+function copyReport() {
+  if (!_reportUrl) return;
+  navigator.clipboard.writeText(_reportUrl).then(() => {
+    const toast = document.getElementById('links-toast');
+    if (!toast) return;
+    toast.classList.remove('hidden');
+    setTimeout(() => toast.classList.add('hidden'), 2000);
+  }).catch(() => {
+    tg.openLink(_reportUrl);
+  });
 }
 
 function copyDashboard() {

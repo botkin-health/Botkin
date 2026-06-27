@@ -23,6 +23,7 @@ import os
 import httpx
 from fastapi import APIRouter, Header, HTTPException
 
+from bot_token import resolve_bot_token
 from database import SessionLocal
 from database.models import User
 
@@ -84,7 +85,7 @@ async def _feed_legacy_bot(payload: dict) -> bool:
 
 async def _send_fallback(chat_id: int, text: str) -> None:
     """Send a fallback message via Telegram Bot API."""
-    bot_token = os.getenv("BOT_TOKEN") or os.getenv("TELEGRAM_BOT_TOKEN", "")
+    bot_token = resolve_bot_token()
     if not bot_token:
         logger.warning("No BOT_TOKEN set, cannot send fallback message")
         return

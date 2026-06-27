@@ -199,12 +199,13 @@
       <button class="link-copy-btn" id="link-dashboard-copy" onclick="copyDashboard()" title="Скопировать ссылку">⎘</button>
       <div class="row-chevron" onclick="openDashboard()" style="cursor:pointer">›</div>
     </div>
-    <div class="settings-row disabled">
-      <div class="row-label">
+    <div class="settings-row" id="link-report-row">
+      <div class="row-label" onclick="openReport()" style="cursor:pointer;flex:1">
         Медицинский отчёт
-        <div class="row-sub">Страница с анализами для врача</div>
+        <div class="row-sub">HTML-страница для врача или себя</div>
       </div>
-      <div class="row-badge">Скоро</div>
+      <button class="link-copy-btn" id="link-report-copy" onclick="copyReport()" title="Скопировать ссылку">⎘</button>
+      <div class="row-chevron" onclick="openReport()" style="cursor:pointer">›</div>
     </div>
   </div>
   <div id="links-toast" class="links-toast hidden">Ссылка скопирована</div>
