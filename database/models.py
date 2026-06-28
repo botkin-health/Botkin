@@ -418,9 +418,7 @@ class FoodInteraction(Base):
 
     # BIGINT на проде (высоконаполняемая таблица), но на SQLite автоинкремент
     # работает только у INTEGER PRIMARY KEY (rowid) — отсюда with_variant.
-    id: Mapped[int] = mapped_column(
-        BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True
-    )
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     source: Mapped[str] = mapped_column(Text, nullable=False)
