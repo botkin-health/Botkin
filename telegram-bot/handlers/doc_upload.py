@@ -106,11 +106,12 @@ async def _download_file(bot_token: str, file_id: str) -> tuple[bytes, str]:
 
 
 def _save_file(user_id: int, file_bytes: bytes, ext: str) -> str:
-    """Сохраняет файл в data/uploads/<user_id>/. Возвращает имя файла."""
+    """Сохраняет файл в data/uploads/<user_id>/ как .pending. Возвращает имя файла (без .pending)."""
     user_dir = _UPLOADS_DIR / str(user_id)
     user_dir.mkdir(parents=True, exist_ok=True)
     filename = _make_filename(ext)
-    (user_dir / filename).write_bytes(file_bytes)
+    # Сохраняем как .pending — переименуется в filename только при подтверждении
+    (user_dir / f"{filename}.pending").write_bytes(file_bytes)
     return filename
 
 
@@ -169,6 +170,8 @@ async def handle_document_or_photo(message: Message) -> None:
             ext = mime_type.split("/")[-1] if "/" in mime_type else "pdf"
             if ext == "jpeg":
                 ext = "jpg"
+            # Sanitize ext to prevent path traversal
+            ext = "".join(c for c in ext if c.isalnum())[:10] or "bin"
         else:
             file_id = message.photo[-1].file_id
             mime_type = "image/jpeg"
@@ -228,7 +231,13 @@ async def callback_save(callback: CallbackQuery) -> None:
         return
 
     try:
-        filename = data["filename"]  # уже сохранён на диске
+        filename = data["filename"]
+        user_dir = _UPLOADS_DIR / user_id
+        pending_path = user_dir / f"{filename}.pending"
+        final_path = user_dir / filename
+        # Переименовываем из .pending в финальное имя
+        if pending_path.exists():
+            pending_path.rename(final_path)
         _write_to_kb(int(user_id), filename, data["extracted"], user_confirmed=True)
 
         state_manager.clear_state(user_id)
@@ -251,8 +260,11 @@ async def callback_cancel(callback: CallbackQuery) -> None:
 
     # Удаляем сохранённый файл если есть
     if state and state.data.get("filename"):
-        file_path = _UPLOADS_DIR / user_id / state.data["filename"]
-        file_path.unlink(missing_ok=True)
+        filename = state.data["filename"]
+        user_dir = _UPLOADS_DIR / user_id
+        # Удаляем .pending файл (финальный не должен существовать — пользователь не подтвердил)
+        (user_dir / f"{filename}.pending").unlink(missing_ok=True)
+        (user_dir / filename).unlink(missing_ok=True)  # на всякий случай
 
     state_manager.clear_state(user_id)
     await callback.message.edit_text("❌ Отменено. Ничего не сохранено.")
