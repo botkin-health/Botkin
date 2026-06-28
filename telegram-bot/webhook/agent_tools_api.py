@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -29,7 +29,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from sqlalchemy import func  # noqa: E402
 
 from database.models import ActivityLog, GlucoseReading, NutritionLog, Weight  # noqa: E402
-from webhook.jwt_auth import get_agent_user, get_db  # noqa: E402
+from webhook.jwt_auth import get_agent_user, get_db, require_agent_scope  # noqa: E402
+from webhook.rate_limit import SlidingWindowRateLimiter  # noqa: E402
 from core.health.glucose_stats import compute_glucose_stats, glucose_staleness  # noqa: E402
 from core.health.glucose_runtime import refresh_glucose_for_telegram as _refresh_glucose, LoginOnCooldownError  # noqa: E402
 from bot_token import resolve_bot_token  # noqa: E402
@@ -39,6 +40,59 @@ logger = logging.getLogger(__name__)
 
 
 router = APIRouter(prefix="/api/agent", tags=["agent-tools"])
+
+
+# ── PAT → JWT exchange (публичный bootstrap для MCP-коннектора, #228) ──────────
+
+# Лимит на публичный exchange: не больше 10 попыток в минуту с одного IP,
+# чтобы перебор PAT по сети упирался в стену. Состояние в памяти процесса.
+_EXCHANGE_RATE_LIMIT = 10
+_EXCHANGE_RATE_WINDOW_S = 60.0
+_exchange_limiter = SlidingWindowRateLimiter(_EXCHANGE_RATE_LIMIT, _EXCHANGE_RATE_WINDOW_S)
+
+
+class ExchangePATRequest(BaseModel):
+    pat: str = Field(..., min_length=10, max_length=128)
+
+
+@router.post("/exchange_pat_for_jwt")
+async def exchange_pat_for_jwt(
+    body: ExchangePATRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Обменять долгоживущий PAT на короткоживущий агентский JWT.
+
+    Единственный публичный (без JWT) эндпоинт. Коннектор Claude Desktop хранит
+    durable PAT в keychain и дёргает этот метод, чтобы получить JWT для /api/agent/*.
+    JWT наследует scope токена: 'ro'-PAT → 'ro'-JWT (write-эндпоинты вернут 403).
+    """
+    from database.crud import get_active_pat_by_token
+    from database.models import User
+    from core.agent_chat import agent_id_for
+    from webhook.jwt_auth import generate_agent_jwt, JWT_TTL_HOURS
+
+    client_ip = request.client.host if request.client else "unknown"
+    if not _exchange_limiter.allow(client_ip):
+        raise HTTPException(status_code=429, detail="Слишком много запросов. Попробуйте через минуту.")
+
+    pat = get_active_pat_by_token(db, body.pat)
+    if not pat:
+        raise HTTPException(status_code=401, detail="Недействительный или отозванный токен")
+
+    user = db.query(User).filter_by(telegram_id=pat.user_id).first()
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="Пользователь не найден или неактивен")
+    if not user.jwt_secret:
+        raise HTTPException(status_code=401, detail="Пользователь не инициализирован (нет jwt_secret)")
+
+    token = generate_agent_jwt(user.telegram_id, agent_id_for(user), user.jwt_secret, scope=pat.scope)
+    return {
+        "access_token": token,
+        "token_type": "Bearer",
+        "expires_in": JWT_TTL_HOURS * 3600,
+        "scope": pat.scope,
+    }
 
 
 # ── Timezone helpers ──────────────────────────────────────────────────────────
@@ -219,7 +273,7 @@ def _resolve_user_kb_path(user) -> tuple[Optional[Path], str]:
 @router.post("/log_meal_text")
 async def log_meal_text(
     req: LogMealTextRequest,
-    user=Depends(get_agent_user),
+    user=Depends(require_agent_scope("rw")),
     db: Session = Depends(get_db),
 ):
     """Parse free-text meal description and save to nutrition_log.
@@ -292,7 +346,7 @@ async def log_meal_text(
 @router.post("/edit_meal")
 async def edit_meal(
     req: EditMealRequest,
-    user=Depends(get_agent_user),
+    user=Depends(require_agent_scope("rw")),
     db: Session = Depends(get_db),
 ):
     """Изменить уже залогированный приём пищи: перенести на дату (new_date),
@@ -332,7 +386,7 @@ async def edit_meal(
 @router.post("/delete_meal")
 async def delete_meal(
     req: DeleteMealRequest,
-    user=Depends(get_agent_user),
+    user=Depends(require_agent_scope("rw")),
     db: Session = Depends(get_db),
 ):
     """Удалить залогированный приём пищи по meal_id (из recent_meals)."""
@@ -347,7 +401,7 @@ async def delete_meal(
 @router.post("/log_supplement")
 async def log_supplement(
     req: LogSupplementRequest,
-    user=Depends(get_agent_user),
+    user=Depends(require_agent_scope("rw")),
     db: Session = Depends(get_db),
 ):
     """Save a supplement entry to supplements_log."""
@@ -377,7 +431,7 @@ async def log_supplement(
 @router.post("/log_bp")
 async def log_bp(
     req: LogBPRequest,
-    user=Depends(get_agent_user),
+    user=Depends(require_agent_scope("rw")),
     db: Session = Depends(get_db),
 ):
     """Save a blood pressure reading to blood_pressure_logs."""
@@ -423,7 +477,7 @@ async def log_bp(
 
 @router.post("/regenerate_health_token")
 async def regenerate_health_token(
-    user=Depends(get_agent_user),
+    user=Depends(require_agent_scope("rw")),
     db: Session = Depends(get_db),
 ):
     """Generate a new health_token for the user and save it to users table."""
@@ -735,7 +789,7 @@ class AgentCorrectionRequest(BaseModel):
 @router.post("/add_agent_correction")
 async def add_agent_correction(
     req: AgentCorrectionRequest,
-    user=Depends(get_agent_user),
+    user=Depends(require_agent_scope("rw")),
 ):
     """Сохранить поправку или новый факт в секцию agent_corrections KB пользователя.
 
@@ -864,7 +918,7 @@ class RenderReportRequest(BaseModel):
 @router.post("/render_report")
 async def render_report(
     req: RenderReportRequest,
-    user=Depends(get_agent_user),
+    user=Depends(require_agent_scope("rw")),
 ):
     """Сгенерировать PNG-инфографику и отправить юзеру в Telegram.
 
@@ -2544,7 +2598,7 @@ async def profile_questionnaire(
 @router.post("/update_profile_questionnaire")
 async def update_profile_questionnaire(
     req: UpdateProfileRequest,
-    user=Depends(get_agent_user),
+    user=Depends(require_agent_scope("rw")),
     db: Session = Depends(get_db),
 ):
     """Обновить анкетные поля. Только те что переданы — остальные не трогаются.
@@ -2598,7 +2652,7 @@ async def update_profile_questionnaire(
 @router.post("/update_user_settings")
 async def update_user_settings_endpoint(
     req: UpdateUserSettingsRequest,
-    user=Depends(get_agent_user),
+    user=Depends(require_agent_scope("rw")),
     db: Session = Depends(get_db),
 ):
     """Обновить настройки в user_settings table. Только переданные поля.
