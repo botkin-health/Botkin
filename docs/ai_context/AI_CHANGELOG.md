@@ -7,6 +7,11 @@
 
 ---
 
+## 2026-06-28 — get_recent_meals guard: days=2 по умолчанию (#183)
+
+- **`core/agent_chat.py`** — в инструкции `log_meal_text` (addendum-сценарий) и в секции «Коррекция типа приёма» заменено `get_recent_meals(days=1)` → `days=2`. Guard «ПОИСК ЕДЫ» усилен: явный запрет начинать с `days=1`, добавлен прецедент Кристины (20.06.2026). Fallback: при пустом `days=2` → повторить с `days=3`.
+- **`tests/test_ask_agent.py`** — 2 новых теста: `test_recent_meals_days_guard_in_meta_prompt`, `test_addendum_tool_description_uses_days2`.
+
 ## 2026-06-28 — Mini-app: кнопка «Подключить» для источников данных (PR #150)
 
 - **`telegram-bot/webhook/profile_api.py`** — `get_data_sources()` расширен полем `connect_info` для каждого источника: `flow` (coming_soon / inline_token / tg_deeplink) + `health_token` для inline_token-источников (apple_health, health_connect) когда не подключены. Токен достаётся через `get_or_create_health_token` в рамках того же DB-сеанса. CGM → deeplink `tg://...start=connect_cgm`. Garmin/Zepp/Netatmo → coming_soon.
