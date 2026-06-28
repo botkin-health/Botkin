@@ -7,6 +7,17 @@
 
 ---
 
+## 2026-06-29 — Команда /connect_mcp вместо /connect_claude (#235)
+
+- **`telegram-bot/handlers/connect_claude.py`** — `Command("connect_mcp")`, `cmd_connect_mcp`, user-facing строки
+- **`telegram-bot/bot.py`** — `BotCommand(command="connect_mcp", description="Подключить AI-коннектор (MCP)")`
+- **`scripts/mcp/botkin_client.py`, `botkin_pat_mcp.py`** — error-сообщения `/connect_mcp`
+- **`docs/user_guide/ru/mcp-claude-desktop.md`, `docs/architecture/decisions/0006-mcp-connector-pat-jwt.md`** — обновлены ссылки
+
+Причина: MCP — открытый протокол (Cursor, Cline, Continue.dev, Zed), название `/connect_claude` было misleading.
+
+---
+
 ## 2026-06-29 — MCP-коннектор для Claude Desktop: PAT + JWT + scope (#228)
 
 - **`database/models.py`** — модель `PersonalAccessToken` (id, user_id FK→users.telegram_id, token, name, scope ro/rw, created_at, last_used_at, revoked_at). CheckConstraint на scope, два индекса (unique token, user_id).
