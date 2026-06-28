@@ -41,6 +41,7 @@
 
 | # | Название | Status |
 |---|---|---|
+| [0006](0006-mcp-connector-pat-jwt.md) | MCP-коннектор для Claude Desktop через PAT→JWT | Proposed |
 | [0005](0005-cgm-librelinkup-integration.md) | Интеграция CGM (глюкоза) через LibreLinkUp | Accepted |
 | [0004](0004-nightly-prod-to-dev-data-sync.md) | Ночной синк данных prod→dev | Accepted |
 | [0003](0003-alembic-for-db-migrations.md) | Alembic как фреймворк миграций БД (вместо ручного SQL/Flyway) | Accepted |

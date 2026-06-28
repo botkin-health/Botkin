@@ -7,10 +7,27 @@
 
 ---
 
-## 2026-06-28 — Самостоятельная загрузка медицинских документов через /doc (feat/settings-services)
+## 2026-06-29 — MCP-коннектор для Claude Desktop: PAT + JWT + scope (#228)
+
+- **`database/models.py`** — модель `PersonalAccessToken` (id, user_id FK→users.telegram_id, token, name, scope ro/rw, created_at, last_used_at, revoked_at). CheckConstraint на scope, два индекса (unique token, user_id).
+- **`database/alembic/versions/pat0token01_add_personal_access_tokens.py`** — Alembic-ревизия: CREATE TABLE + индексы + GRANT SELECT/INSERT/UPDATE к hv_app. Явно без RLS (публичный exchange-endpoint ищет токен до того как знает user_id).
+- **`database/crud.py`** — PAT CRUD: `create_pat`, `get_active_pat_by_token` (бампит last_used_at), `list_pats`, `revoke_pat` (soft-delete). `ALLOWED_PAT_SCOPES = ("ro", "rw")`.
+- **`telegram-bot/webhook/jwt_auth.py`** — `generate_agent_jwt` + опциональный `scope`; `get_agent_user` сохраняет scope в `request.state.agent_scope`; `require_agent_scope(required_scope)` — dependency-factory.
+- **`telegram-bot/webhook/rate_limit.py`** (новый) — `SlidingWindowRateLimiter(max_requests, window_seconds)` с инъектируемым `now`.
+- **`telegram-bot/webhook/agent_tools_api.py`** — новый публичный endpoint `POST /api/agent/exchange_pat_for_jwt` (rate-limit 10/60s, возвращает `{access_token, token_type, expires_in, scope}`); 10 mutating-эндпоинтов переключены на `require_agent_scope("rw")`.
+- **`telegram-bot/handlers/connect_claude.py`** (новый) — команды `/connect_claude` (выбор rw/ro → выдача PAT) и `/my_connections` (список + отзыв через inline-кнопки).
+- **`telegram-bot/bot.py`** — регистрация `connect_claude_router` + команда в меню.
+- **`scripts/mcp/botkin_client.py`** (новый) — HTTP-клиент без mcp-зависимости: PAT→JWT обмен, кэш JWT, 401-retry, 403→BotkinAuthError.
+- **`scripts/mcp/botkin_pat_mcp.py`** (новый) — FastMCP stdio-сервер: 10 инструментов над `/api/agent/*`.
+- **`scripts/mcp/manifest.json`** (новый) — `.mcpb` v0.3 манифест, `user_config.pat` (sensitive→keychain) + `base_url`.
+- **`docs/user_guide/ru/mcp-claude-desktop.md`** — руководство пользователя (команды, установка, инструменты, troubleshooting).
+- **`docs/architecture/decisions/0006-mcp-connector-pat-jwt.md`** — ADR принят (Proposed→Accepted).
+- **Тесты:** `tests/test_pat_crud.py` (15), `tests/test_rate_limit.py` (8), `tests/test_pat_exchange.py` (8), `tests/test_connect_claude.py` (11), `tests/test_botkin_client.py` (11).
+
+## 2026-06-28 — Самостоятельная загрузка медицинских документов через /doc (PR #227)
 
 - **`core/health/doc_extractor.py`** — Claude Haiku читает PDF/фото, извлекает дату, лабораторию и числовые значения. Возвращает `{}` при любой ошибке.
-- **`core/health/kb_writer.py`** — атомарная запись записи в `documents[]` секцию `kb_<user_id>.json` через tempfile + replace. Не трогает другие секции KB.
+- **`core/health/kb_writer.py`** — атомарная запись в `documents[]` секцию `kb_<user_id>.json` через tempfile + replace. Не трогает другие секции KB.
 - **`telegram-bot/handlers/doc_upload.py`** — state machine `/doc`: ждёт файл → вызывает экстрактор → показывает превью с кнопками «Сохранить / Отмена». Файл сохраняется как `.pending` до подтверждения. Санация `ext` для защиты от path traversal. Блокировка двойной отправки.
 - **`telegram-bot/bot.py`** — `doc_upload_router` зарегистрирован перед `photo_router`.
 - **`telegram-bot/handlers/onboarding.py`** — финал онбординга упоминает `/doc`.
@@ -22,6 +39,20 @@
 - **`tests/test_data_sources_api.py`** — +6 тестов: `connect_info` schema, flows по каждому типу, токен присутствует только для отключённых inline_token-источников. Итого 14 тестов.
 - **`telegram-bot/webapp/settings.css`** — новые классы: `.source-row-wrap`, `.connect-btn`, `.connect-panel`/`.open` (max-height accordion), `.connect-content`, `.method-btn`, `.connect-tg-btn`, `.coming-soon`, `.copy-btn`. Тёмная тема через prefers-color-scheme.
 - **`telegram-bot/webapp/settings.js`** — заменён `_renderSourceRow` (аккордеон); добавлены `_renderConnectPanel`, `_renderAppleHealthPanel`, `_renderHealthConnectPanel`, `selectAppleMethod`, `toggleConnect`, `copyToken`. Безопасный `JSON.stringify(token)` в onclick-атрибутах вместо `'${safeToken}'`. `apple-detail-<id>` вместо глобального singleton id.
+
+## 2026-06-28 — Кросс-валидация вес↔калории в записях питания (#211, PR #220)
+
+- **`core/food/calorie_validator.py`** (новый модуль): `validate_weight_calorie_sync(data)` — при наличии `nutrition_per_100g` и `weight_grams > 0` **всегда** пересчитывает все макронутриенты от `nutrition_per_100g × weight_grams` (ранее — только при `calories == 0`). Иммутабельный, добавлен `round(..., 1)` для согласованности с `nutrition.py`.
+- **`core/vision/chatgpt_vision.py`**: условный пересчёт заменён на вызов `validate_weight_calorie_sync()`; промпт уточнён — `weight_grams` = вес ПОЛНОЙ порции (дефолты: 350г боул/поке, 200г гарнир, 100г снек).
+- **`scripts/audit/audit_nutrition_sync.py`** (новый): SQL-аудит `nutrition_log`, флагует записи с ккал/100г > порога (дефолт 400) → CSV.
+- **`tests/test_calorie_validator.py`**: 8 unit-тестов (TDD, RED→GREEN).
+- Корень бага: LLM оценивал ккал за полную порцию (~350г), парсер ставил weight_grams = 150г (основной ингредиент) → поке 150г → 317 ккал/100г вместо ~150-200.
+
+## 2026-06-27 — Онбординг Alegas: настройка окружения + закрытый ложный баг #217
+
+- Настроено dev-окружение для нового контрибьютора (Alegas): Python 3.13, pip, pytest (901 passed), gh CLI, `.claude/settings.json`, skills `prepare-task`/`complete-task`, rules `ecc/`.
+- `.gitignore` уточнён: `.claude/` больше не игнорируется целиком — коммитятся `skills/`, `rules/`, `settings.json`; игнорируются только `worktrees/`, `settings.local.json`, `scheduled_tasks.lock`.
+- Issue #217 «anthropic SDK не указан» закрыт как «won't fix»: кодовая база не использует Python SDK `anthropic` — все вызовы Anthropic API делаются через `requests.post` напрямую. Ошибка `ModuleNotFoundError: No module named 'anthropic'` возникла при ручной проверке в терминале, но бот `import anthropic` не делает нигде.
 
 ## 2026-06-17 — CGM: интеграция глюкозы завершена + фикс зависания /sync
 

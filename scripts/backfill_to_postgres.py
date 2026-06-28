@@ -188,20 +188,20 @@ _TYPE_MAP = {
 def backfill_workouts(dry_run: bool):
     print("\n=== 2. ТРЕНИРОВКИ (Garmin JSON) ===")
 
-    # Существующие в БД (включая distance_km для UPDATE)
+    # Существующие в БД (ключ — source, не date: поддержка нескольких тренировок в день)
     existing_raw = run_sql(
-        f"SELECT date::text, distance_km::text FROM workouts WHERE user_id={USER_ID} AND date >= '{START_DATE}'",
+        f"SELECT source, distance_km::text FROM workouts WHERE user_id={USER_ID} AND date >= '{START_DATE}' AND source LIKE 'garmin_%'",
         dry_run=False,
     )
-    existing_dates: dict[str, str | None] = {}
+    existing_sources: dict[str, str | None] = {}
     for line in existing_raw.splitlines():
         parts = [p.strip() for p in line.split("|")]
         if parts[0]:
-            existing_dates[parts[0]] = parts[1] if len(parts) > 1 else None
-    print(f"Уже в БД: {len(existing_dates)} записей (по датам)")
+            existing_sources[parts[0]] = parts[1] if len(parts) > 1 else None
+    print(f"Уже в БД: {len(existing_sources)} записей (по source)")
 
     rows_to_insert = []
-    rows_to_update = []  # (date, distance_km) — обновляем дистанцию у существующих
+    rows_to_update = []  # (source, distance_km) — обновляем дистанцию у существующих
     files = sorted([f for f in GARMIN_ACTS.glob("*.json") if "detail" not in f.name])
     for f in files:
         dt_prefix = f.name[:10]  # YYYY-MM-DD
@@ -232,11 +232,12 @@ def backfill_workouts(dry_run: bool):
             continue
 
         work_date = start_local[:10]
+        src_key = f"garmin_{data.get('activityId', '')}"
 
-        if work_date in existing_dates:
+        if src_key in existing_sources:
             # Строка уже есть — обновляем дистанцию если она появилась
-            if distance_km and (existing_dates[work_date] in (None, "", "None")):
-                rows_to_update.append((work_date, distance_km))
+            if distance_km and (existing_sources[src_key] in (None, "", "None")):
+                rows_to_update.append((src_key, distance_km))
         else:
             rows_to_insert.append(
                 (
@@ -247,10 +248,10 @@ def backfill_workouts(dry_run: bool):
                     end_dt.isoformat(),
                     calories,
                     distance_km,
-                    data.get("activityId", ""),
+                    src_key,
                 )
             )
-            existing_dates[work_date] = str(distance_km)
+            existing_sources[src_key] = str(distance_km)
 
     print(f"Новых для вставки: {len(rows_to_insert)}, обновить дистанцию: {len(rows_to_update)}")
     if not rows_to_insert and not rows_to_update:
@@ -261,11 +262,11 @@ def backfill_workouts(dry_run: bool):
 
     if rows_to_insert:
         vals = []
-        for work_date, wtype, dur_min, sdt, edt, cal, dist_km, src_id in rows_to_insert:
+        for work_date, wtype, dur_min, sdt, edt, cal, dist_km, src_key in rows_to_insert:
             dist_str = str(dist_km) if dist_km else "NULL"
             vals.append(
                 f"({USER_ID}, '{work_date}', '{wtype}', {dur_min}, "
-                f"'{sdt}', '{edt}', {cal if cal else 'NULL'}, {dist_str}, 'garmin_{src_id}')"
+                f"'{sdt}', '{edt}', {cal if cal else 'NULL'}, {dist_str}, '{src_key}')"
             )
         sqls.append(
             "INSERT INTO workouts (user_id, date, workout_type, duration_minutes, start_time, end_time, calories_burned, distance_km, source) VALUES\n"
@@ -273,8 +274,8 @@ def backfill_workouts(dry_run: bool):
             + "\nON CONFLICT DO NOTHING;"
         )
 
-    for work_date, dist_km in rows_to_update:
-        sqls.append(f"UPDATE workouts SET distance_km={dist_km} WHERE user_id={USER_ID} AND date='{work_date}';")
+    for src_key, dist_km in rows_to_update:
+        sqls.append(f"UPDATE workouts SET distance_km={dist_km} WHERE user_id={USER_ID} AND source='{src_key}';")
 
     sql = "\n".join(sqls)
     out = run_sql_file(sql, dry_run)
