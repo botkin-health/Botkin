@@ -2,7 +2,7 @@
 
 from unittest.mock import patch
 
-from core.food.interaction_log import log_food_interaction
+from core.food.interaction_log import get_food_interactions, log_food_interaction
 from database.models import FoodInteraction
 
 
@@ -76,3 +76,37 @@ def test_never_raises_on_db_error():
     with patch("core.food.interaction_log.SessionLocal", side_effect=RuntimeError("db down")):
         result = log_food_interaction(user_id=5, source="text", raw_text="x")
     assert result is None
+
+
+# ── read-side: get_food_interactions ─────────────────────────────────────────
+
+
+def _add(db, user_id, raw_text):
+    db.add(FoodInteraction(user_id=user_id, source="text", raw_text=raw_text, status="saved"))
+    db.commit()
+
+
+def test_get_food_interactions_filters_by_user_and_newest_first(test_db):
+    _add(test_db, 100, "первое")
+    _add(test_db, 100, "второе")
+    _add(test_db, 999, "чужое")
+    _add(test_db, 100, "третье")
+
+    rows = get_food_interactions(test_db, 100)
+
+    # только user 100, новые первыми (id desc при равном created_at)
+    assert [r.raw_text for r in rows] == ["третье", "второе", "первое"]
+    assert all(r.user_id == 100 for r in rows)
+
+
+def test_get_food_interactions_respects_limit(test_db):
+    for i in range(5):
+        _add(test_db, 200, f"msg{i}")
+
+    rows = get_food_interactions(test_db, 200, limit=2)
+    assert len(rows) == 2
+
+
+def test_get_food_interactions_empty_for_unknown_user(test_db):
+    _add(test_db, 300, "x")
+    assert get_food_interactions(test_db, 404) == []

@@ -78,3 +78,19 @@ def log_food_interaction(
             db.close()
     except Exception as e:
         logger.warning("log_food_interaction failed for user %s: %s", user_id, e)
+
+
+def get_food_interactions(db, user_id: int, limit: int = 50) -> list[FoodInteraction]:
+    """Возвращает пищевые взаимодействия пользователя, новые первыми (read-side аудита).
+
+    Принимает готовую сессию ``db`` (не открывает свою) — для тестируемости и
+    переиспользования из скрипта/админки. Восстанавливает цепочку
+    «что прислал → что распознал → что ответил → что записалось».
+    """
+    return (
+        db.query(FoodInteraction)
+        .filter(FoodInteraction.user_id == user_id)
+        .order_by(FoodInteraction.created_at.desc(), FoodInteraction.id.desc())
+        .limit(limit)
+        .all()
+    )
