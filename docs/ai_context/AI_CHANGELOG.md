@@ -7,6 +7,13 @@
 
 ---
 
+## 2026-06-28 — Mini-app: кнопка «Подключить» для источников данных (PR #150)
+
+- **`telegram-bot/webhook/profile_api.py`** — `get_data_sources()` расширен полем `connect_info` для каждого источника: `flow` (coming_soon / inline_token / tg_deeplink) + `health_token` для inline_token-источников (apple_health, health_connect) когда не подключены. Токен достаётся через `get_or_create_health_token` в рамках того же DB-сеанса. CGM → deeplink `tg://...start=connect_cgm`. Garmin/Zepp/Netatmo → coming_soon.
+- **`tests/test_data_sources_api.py`** — +6 тестов: `connect_info` schema, flows по каждому типу, токен присутствует только для отключённых inline_token-источников. Итого 14 тестов.
+- **`telegram-bot/webapp/settings.css`** — новые классы: `.source-row-wrap`, `.connect-btn`, `.connect-panel`/`.open` (max-height accordion), `.connect-content`, `.method-btn`, `.connect-tg-btn`, `.coming-soon`, `.copy-btn`. Тёмная тема через prefers-color-scheme.
+- **`telegram-bot/webapp/settings.js`** — заменён `_renderSourceRow` (аккордеон); добавлены `_renderConnectPanel`, `_renderAppleHealthPanel`, `_renderHealthConnectPanel`, `selectAppleMethod`, `toggleConnect`, `copyToken`. Безопасный `JSON.stringify(token)` в onclick-атрибутах вместо `'${safeToken}'`. `apple-detail-<id>` вместо глобального singleton id.
+
 ## 2026-06-17 — CGM: интеграция глюкозы завершена + фикс зависания /sync
 
 - **PR #152** (backoff + дашборд-блок): `scripts/import/librelinkup.py` — exponential backoff 15→30→60→120м при HTTP 476 (`LoginOnCooldownError`); `telegram-bot/dashboard_generator.py` — блок глюкозы (текущее значение, TIR 14д, 24h-спарклайн, invite-карточка для юзеров без CGM).
