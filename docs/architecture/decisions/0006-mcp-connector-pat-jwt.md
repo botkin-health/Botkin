@@ -1,7 +1,7 @@
 # ADR-0006: MCP-коннектор для Claude Desktop через PAT→JWT
 
 **Дата:** 2026-06-28
-**Статус:** Proposed
+**Статус:** Accepted
 **Автор:** Александр Лысковский
 **Связи:** [#228](https://github.com/botkin-health/Botkin/issues/228), ресёрч `docs/researches/2026-06-28-mcp-connector.md`, [ADR-0002](0002-rejecting-nanoclaw-for-simpler-agent.md), [ADR-0003](0003-alembic-for-db-migrations.md)
 
