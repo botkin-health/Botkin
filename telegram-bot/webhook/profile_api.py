@@ -345,6 +345,7 @@ async def get_data_sources(tg_user: dict = Depends(get_tg_user)):
     cutoff_14 = _today_msk() - timedelta(days=14)
     cutoff_7 = _today_msk() - timedelta(days=7)
 
+    health_token: str | None = None
     db = SessionLocal()
     try:
 
@@ -372,6 +373,31 @@ async def get_data_sources(tg_user: dict = Depends(get_tg_user)):
             "SELECT DATE(MAX(ts)) FROM glucose_readings WHERE user_id=:uid AND ts >= :cutoff",
             {"uid": user_id, "cutoff": cutoff_14},
         )
+
+        # health_token нужен только для inline_token-источников, только когда не подключены.
+        # Проверяем здесь по DB-результатам (netatmo — file-based, flow="coming_soon", не inline_token).
+        db_last_by_id = {
+            "garmin": garmin_last,
+            "apple_health": apple_last,
+            "health_connect": health_connect_last,
+            "zepp": zepp_last,
+            "cgm": cgm_last,
+        }
+        needs_token = any(
+            _CONNECT_INFO[meta["id"]]["flow"] == "inline_token" and not bool(db_last_by_id.get(meta["id"]))
+            for meta in _DATA_SOURCES_META
+        )
+        if needs_token:
+            import logging
+
+            from database.crud import get_or_create_health_token
+
+            try:
+                health_token = get_or_create_health_token(db, user_id)
+            except Exception:
+                logging.getLogger(__name__).warning(
+                    "get_or_create_health_token failed for user %s", user_id, exc_info=True
+                )
     finally:
         db.close()
 
@@ -397,24 +423,6 @@ async def get_data_sources(tg_user: dict = Depends(get_tg_user)):
         "netatmo": netatmo_last,
         "cgm": cgm_last,
     }
-
-    # health_token нужен только для inline_token-источников, только когда не подключены
-    needs_token = any(
-        _CONNECT_INFO[meta["id"]]["flow"] == "inline_token" and not bool(last_by_id[meta["id"]])
-        for meta in _DATA_SOURCES_META
-    )
-    health_token: str | None = None
-    if needs_token:
-        from database import SessionLocal as _SL
-        from database.crud import get_or_create_health_token
-
-        _db = _SL()
-        try:
-            health_token = get_or_create_health_token(_db, user_id)
-        except Exception:
-            pass
-        finally:
-            _db.close()
 
     sources = []
     for meta in _DATA_SOURCES_META:
