@@ -390,6 +390,44 @@ class AgentConversation(Base):
     source: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 
+class FoodInteraction(Base):
+    """Наблюдаемость пищевого pipeline (#193).
+
+    Пишется В ДОПОЛНЕНИЕ к nutrition_log (не вместо): сохраняет сырое сообщение
+    пользователя, что бот распознал (состав/БЖУ/ккал до подтверждения), ответ бота
+    и связь с итоговой записью nutrition_log + статус. Позволяет ретро-аудит
+    «что прислал → что распознал → что ответил → что записалось» (см.
+    core.food.interaction_log.log_food_interaction).
+
+    nutrition_log_id — БЕЗ FK намеренно: аудит-след должен переживать удаление/
+    правку самой записи еды (status='cancelled'/'edited').
+    """
+
+    __tablename__ = "food_interactions"
+    __table_args__ = (
+        CheckConstraint(
+            "source IN ('text','photo','voice')",
+            name="food_interactions_source_check",
+        ),
+        CheckConstraint(
+            "status IN ('saved','cancelled','edited')",
+            name="food_interactions_status_check",
+        ),
+        Index("idx_food_inter_user_created", "user_id", text("created_at DESC")),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    source: Mapped[str] = mapped_column(Text, nullable=False)
+    raw_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    media_path: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    recognized: Mapped[Optional[dict]] = mapped_column(JSONBCompat, nullable=True)
+    bot_reply: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    nutrition_log_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'saved'"))
+
+
 class AuditLog(Base):
     """Аудит доступа к данным (наполняется DB-триггером audit_admin_access). Зеркалит прод."""
 
