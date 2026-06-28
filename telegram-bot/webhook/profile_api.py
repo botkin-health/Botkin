@@ -297,3 +297,150 @@ async def get_dashboard_url(tg_user: dict = Depends(get_tg_user)):
         "dashboard_url": f"{base}/mc/{token}",
         "report_url": report_url,
     }
+
+
+# ── Data Sources ─────────────────────────────────────────────────────────────
+
+_DATA_SOURCES_META = [
+    {"id": "garmin", "name": "Garmin", "icon": "⌚"},
+    {"id": "apple_health", "name": "Apple Health", "icon": "🍎"},
+    {"id": "health_connect", "name": "Google Health Connect", "icon": "🤖"},
+    {"id": "zepp", "name": "Zepp / Mi Scale", "icon": "⚖️"},
+    {"id": "netatmo", "name": "Netatmo", "icon": "🌡️"},
+    {"id": "cgm", "name": "LibreLink (CGM)", "icon": "🩸"},
+]
+
+_CONNECT_INFO: dict[str, dict] = {
+    "garmin": {"flow": "coming_soon"},
+    "apple_health": {"flow": "inline_token"},
+    "health_connect": {"flow": "inline_token"},
+    "zepp": {"flow": "coming_soon"},
+    "netatmo": {"flow": "coming_soon"},
+    "cgm": {
+        "flow": "tg_deeplink",
+        "deeplink": "tg://resolve?domain=Botkin_md_bot&start=connect_cgm",
+    },
+}
+
+
+@router.get("/api/profile/data_sources")
+async def get_data_sources(tg_user: dict = Depends(get_tg_user)):
+    """Статус подключения источников данных для текущего пользователя.
+
+    Возвращает список: id, name, icon, connected, last_updated, connect_info.
+    connect_info.flow: 'inline_token' | 'tg_deeplink' | 'coming_soon'
+    connect_info.health_token: только для inline_token + connected=False
+    """
+    import json as _json
+    from pathlib import Path as _Path
+    from datetime import datetime as _dt
+    from database import SessionLocal
+    from sqlalchemy import text
+
+    user_id = tg_user.get("id")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="No user id in initData")
+
+    cutoff_30 = _today_msk() - timedelta(days=30)
+    cutoff_14 = _today_msk() - timedelta(days=14)
+    cutoff_7 = _today_msk() - timedelta(days=7)
+
+    health_token: str | None = None
+    db = SessionLocal()
+    try:
+
+        def _scalar(sql: str, params: dict):
+            row = db.execute(text(sql), params).fetchone()
+            return row[0] if row and row[0] else None
+
+        garmin_last = _scalar(
+            "SELECT MAX(date) FROM activity_log WHERE user_id=:uid AND LOWER(source) LIKE 'garmin%' AND date >= :cutoff",
+            {"uid": user_id, "cutoff": cutoff_30},
+        )
+        apple_last = _scalar(
+            "SELECT MAX(date) FROM activity_log WHERE user_id=:uid AND LOWER(source) LIKE 'apple%' AND date >= :cutoff",
+            {"uid": user_id, "cutoff": cutoff_30},
+        )
+        health_connect_last = _scalar(
+            "SELECT MAX(date) FROM activity_log WHERE user_id=:uid AND LOWER(source) LIKE 'health_connect%' AND date >= :cutoff",
+            {"uid": user_id, "cutoff": cutoff_30},
+        )
+        zepp_last = _scalar(
+            "SELECT DATE(MAX(measured_at)) FROM weights WHERE user_id=:uid AND LOWER(source) LIKE 'zepp%' AND measured_at >= :cutoff",
+            {"uid": user_id, "cutoff": cutoff_30},
+        )
+        cgm_last = _scalar(
+            "SELECT DATE(MAX(ts)) FROM glucose_readings WHERE user_id=:uid AND ts >= :cutoff",
+            {"uid": user_id, "cutoff": cutoff_14},
+        )
+
+        # health_token нужен только для inline_token-источников, только когда не подключены.
+        # Проверяем здесь по DB-результатам (netatmo — file-based, flow="coming_soon", не inline_token).
+        db_last_by_id = {
+            "garmin": garmin_last,
+            "apple_health": apple_last,
+            "health_connect": health_connect_last,
+            "zepp": zepp_last,
+            "cgm": cgm_last,
+        }
+        needs_token = any(
+            _CONNECT_INFO[meta["id"]]["flow"] == "inline_token" and not bool(db_last_by_id.get(meta["id"]))
+            for meta in _DATA_SOURCES_META
+        )
+        if needs_token:
+            import logging
+
+            from database.crud import get_or_create_health_token
+
+            try:
+                health_token = get_or_create_health_token(db, user_id)
+            except Exception:
+                logging.getLogger(__name__).warning(
+                    "get_or_create_health_token failed for user %s", user_id, exc_info=True
+                )
+    finally:
+        db.close()
+
+    # Netatmo — файловый источник, не привязан к user_id
+    netatmo_last = None
+    netatmo_path = _Path("/app/data/environment/netatmo_log.json")
+    if netatmo_path.exists():
+        try:
+            data = _json.loads(netatmo_path.read_text())
+            ts = data.get("timestamp") or data.get("time")
+            if ts:
+                parsed = _dt.fromisoformat(str(ts).replace("Z", "+00:00")).date()
+                if parsed >= cutoff_7:
+                    netatmo_last = parsed
+        except Exception:
+            pass
+
+    last_by_id = {
+        "garmin": garmin_last,
+        "apple_health": apple_last,
+        "health_connect": health_connect_last,
+        "zepp": zepp_last,
+        "netatmo": netatmo_last,
+        "cgm": cgm_last,
+    }
+
+    sources = []
+    for meta in _DATA_SOURCES_META:
+        src_id = meta["id"]
+        connected = bool(last_by_id[src_id])
+        info = dict(_CONNECT_INFO[src_id])  # shallow copy
+
+        # Добавить токен только если: flow=inline_token AND не подключён
+        if info["flow"] == "inline_token":
+            info["health_token"] = health_token if not connected else None
+
+        sources.append(
+            {
+                **meta,
+                "connected": connected,
+                "last_updated": str(last_by_id[src_id]) if last_by_id[src_id] else None,
+                "connect_info": info,
+            }
+        )
+
+    return {"sources": sources}
