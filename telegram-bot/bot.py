@@ -203,6 +203,17 @@ def register_handlers(dp: Dispatcher):
         errors.append(f"Обработчик /connect_cgm: {e}")
         logger.error(f"❌ Ошибка регистрации обработчика /connect_cgm: {e}")
 
+    try:
+        from handlers.connect_claude import router as connect_claude_router
+
+        dp.include_router(connect_claude_router)
+        count = len(connect_claude_router.observers) if hasattr(connect_claude_router, "observers") else 0
+        handlers_count += count
+        registered_modules.append("/connect_claude")
+    except Exception as e:
+        errors.append(f"Обработчик /connect_claude: {e}")
+        logger.error(f"❌ Ошибка регистрации обработчика /connect_claude: {e}")
+
     # Apple Health handlers removed
     pass
 
@@ -308,6 +319,7 @@ async def main():
         BotCommand(command="vitamins", description="Чек-лист витаминов"),
         BotCommand(command="share", description="Поделиться дашбордом здоровья"),
         BotCommand(command="profile", description="Настроить профиль (рост, возраст, цель)"),
+        BotCommand(command="connect_claude", description="Подключить Claude Desktop"),
         BotCommand(command="agent_reset", description="Сбросить недавний контекст AI-ассистента"),
         BotCommand(command="help", description="Помощь"),
     ]

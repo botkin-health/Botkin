@@ -636,3 +636,49 @@ class HealthReport(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
+
+
+class PersonalAccessToken(Base):
+    """Долгоживущий PAT для MCP-коннектора Claude Desktop (#228).
+
+    Пользователь сам выпускает токен в боте/мини-аппе (self-service, без ручной
+    выдачи Александром). Коннектор обменивает его на короткоживущий JWT через
+    POST /api/agent/exchange_pat_for_jwt, дальше дёргает существующие /api/agent/*.
+
+    Формат токена: ``pat_<telegram_id>_<hex32>`` (зеркалит ``hvt_`` Apple Health).
+    Scope:
+      • ``rw`` — личный токен владельца (чтение + запись);
+      • ``ro`` — read-only, эту строку владелец отдаёт врачу/близкому, чтобы
+        поделиться своими данными без права что-либо менять.
+    Отзыв — выставлением ``revoked_at`` (старый токен сразу перестаёт работать).
+    """
+
+    __tablename__ = "personal_access_tokens"
+    __table_args__ = (
+        CheckConstraint("scope IN ('ro', 'rw')", name="personal_access_tokens_scope_check"),
+        Index("ix_personal_access_tokens_token", "token", unique=True),
+        Index("ix_personal_access_tokens_user_id", "user_id"),
+    )
+
+    # BigInteger PK; на sqlite (тесты) рендерим как Integer, иначе нет автоинкремента.
+    id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer(), "sqlite"), primary_key=True, autoincrement=True
+    )
+    # Чьи данные открывает токен. FK на users.telegram_id (PK таблицы users), НЕ на users.id.
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), nullable=False
+    )
+    token: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
+    # Человекочитаемая метка («Мой ноут», «Психолог Ника») — задаёт пользователь.
+    name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    scope: Mapped[str] = mapped_column(String(2), default="rw", server_default="rw", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    last_used_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Аудит: кто выпустил токен (telegram_id). В self-service-потоке == user_id.
+    created_by_user: Mapped[int] = mapped_column(BigInteger, nullable=False)
+
+    @property
+    def is_active(self) -> bool:
+        """Токен действителен, пока не отозван."""
+        return self.revoked_at is None
