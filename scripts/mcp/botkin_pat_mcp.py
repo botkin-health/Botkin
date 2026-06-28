@@ -34,14 +34,14 @@ mcp = FastMCP("Botkin")
 _client = BotkinClient(BASE_URL, PAT) if PAT else None
 if _client is None:
     print(
-        "Botkin MCP: BOTKIN_PAT не задан. Выпусти токен в боте: /connect_claude",
+        "Botkin MCP: BOTKIN_PAT не задан. Выпусти токен в боте: /connect_mcp",
         file=sys.stderr,
     )
 
 
 def _api() -> BotkinClient:
     if _client is None:
-        raise RuntimeError("Не задан BOTKIN_PAT. Выпусти токен в боте Botkin: /connect_claude")
+        raise RuntimeError("Не задан BOTKIN_PAT. Выпусти токен в боте Botkin: /connect_mcp")
     return _client
 
 
