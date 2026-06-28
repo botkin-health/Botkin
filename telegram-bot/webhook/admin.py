@@ -23,8 +23,9 @@ import time
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
+from urllib.parse import parse_qs
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from sqlalchemy import text
@@ -559,13 +560,17 @@ async def admin_login_page(request: Request, creds: Optional[HTTPBasicCredential
 
 
 @router.post("/login")
-async def admin_login_submit(request: Request, password: str = Form("")):
+async def admin_login_submit(request: Request):
     ip = _client_ip(request)
     if _is_locked(ip):
         return HTMLResponse(
             content=_login_page("Слишком много попыток. Подождите несколько минут."),
             status_code=429,
         )
+    # Парсим urlencoded-тело вручную (а не через FastAPI Form) — чтобы не тянуть
+    # зависимость python-multipart ради одного поля пароля.
+    body = (await request.body()).decode("utf-8", errors="ignore")
+    password = parse_qs(body).get("password", [""])[0]
     if not _password_ok(password):
         _record_failed_login(ip)
         return HTMLResponse(content=_login_page("Неверный пароль."), status_code=401)
