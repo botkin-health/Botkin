@@ -7,6 +7,20 @@
 
 ---
 
+## 2026-06-28 — Кросс-валидация вес↔калории в записях питания (#211, PR #220)
+
+- **`core/food/calorie_validator.py`** (новый модуль): `validate_weight_calorie_sync(data)` — при наличии `nutrition_per_100g` и `weight_grams > 0` **всегда** пересчитывает все макронутриенты от `nutrition_per_100g × weight_grams` (ранее — только при `calories == 0`). Иммутабельный, добавлен `round(..., 1)` для согласованности с `nutrition.py`.
+- **`core/vision/chatgpt_vision.py`**: условный пересчёт заменён на вызов `validate_weight_calorie_sync()`; промпт уточнён — `weight_grams` = вес ПОЛНОЙ порции (дефолты: 350г боул/поке, 200г гарнир, 100г снек).
+- **`scripts/audit/audit_nutrition_sync.py`** (новый): SQL-аудит `nutrition_log`, флагует записи с ккал/100г > порога (дефолт 400) → CSV.
+- **`tests/test_calorie_validator.py`**: 8 unit-тестов (TDD, RED→GREEN).
+- Корень бага: LLM оценивал ккал за полную порцию (~350г), парсер ставил weight_grams = 150г (основной ингредиент) → поке 150г → 317 ккал/100г вместо ~150-200.
+
+## 2026-06-27 — Онбординг Alegas: настройка окружения + закрытый ложный баг #217
+
+- Настроено dev-окружение для нового контрибьютора (Alegas): Python 3.13, pip, pytest (901 passed), gh CLI, `.claude/settings.json`, skills `prepare-task`/`complete-task`, rules `ecc/`.
+- `.gitignore` уточнён: `.claude/` больше не игнорируется целиком — коммитятся `skills/`, `rules/`, `settings.json`; игнорируются только `worktrees/`, `settings.local.json`, `scheduled_tasks.lock`.
+- Issue #217 «anthropic SDK не указан» закрыт как «won't fix»: кодовая база не использует Python SDK `anthropic` — все вызовы Anthropic API делаются через `requests.post` напрямую. Ошибка `ModuleNotFoundError: No module named 'anthropic'` возникла при ручной проверке в терминале, но бот `import anthropic` не делает нигде.
+
 ## 2026-06-17 — CGM: интеграция глюкозы завершена + фикс зависания /sync
 
 - **PR #152** (backoff + дашборд-блок): `scripts/import/librelinkup.py` — exponential backoff 15→30→60→120м при HTTP 476 (`LoginOnCooldownError`); `telegram-bot/dashboard_generator.py` — блок глюкозы (текущее значение, TIR 14д, 24h-спарклайн, invite-карточка для юзеров без CGM).
