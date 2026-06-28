@@ -7,6 +7,15 @@
 
 ---
 
+## 2026-06-28 — Самостоятельная загрузка медицинских документов через /doc (feat/settings-services)
+
+- **`core/health/doc_extractor.py`** — Claude Haiku читает PDF/фото, извлекает дату, лабораторию и числовые значения. Возвращает `{}` при любой ошибке.
+- **`core/health/kb_writer.py`** — атомарная запись записи в `documents[]` секцию `kb_<user_id>.json` через tempfile + replace. Не трогает другие секции KB.
+- **`telegram-bot/handlers/doc_upload.py`** — state machine `/doc`: ждёт файл → вызывает экстрактор → показывает превью с кнопками «Сохранить / Отмена». Файл сохраняется как `.pending` до подтверждения. Санация `ext` для защиты от path traversal. Блокировка двойной отправки.
+- **`telegram-bot/bot.py`** — `doc_upload_router` зарегистрирован перед `photo_router`.
+- **`telegram-bot/handlers/onboarding.py`** — финал онбординга упоминает `/doc`.
+- **Тесты:** 11 новых тестов (3 + 3 + 5).
+
 ## 2026-06-28 — Mini-app: кнопка «Подключить» для источников данных (PR #150)
 
 - **`telegram-bot/webhook/profile_api.py`** — `get_data_sources()` расширен полем `connect_info` для каждого источника: `flow` (coming_soon / inline_token / tg_deeplink) + `health_token` для inline_token-источников (apple_health, health_connect) когда не подключены. Токен достаётся через `get_or_create_health_token` в рамках того же DB-сеанса. CGM → deeplink `tg://...start=connect_cgm`. Garmin/Zepp/Netatmo → coming_soon.
