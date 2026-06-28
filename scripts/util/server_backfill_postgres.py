@@ -83,16 +83,21 @@ _TYPE_MAP = {
 
 
 def sync_workouts(conn, user_id: int, since: str, dry_run: bool) -> dict:
-    """Заливает новые Garmin activities в таблицу workouts. Идемпотентно."""
+    """Заливает новые Garmin activities в таблицу workouts. Идемпотентно.
+
+    Дедупликация по source (garmin_<activity_id>), а не по дате — это позволяет
+    хранить несколько тренировок в один день (йога + силовая и т.п.).
+    """
     cur = conn.cursor()
+    # Ключ — source, не date: одна дата может содержать несколько тренировок.
     cur.execute(
-        "SELECT date::text, distance_km FROM workouts WHERE user_id=%s AND date >= %s",
+        "SELECT source, distance_km FROM workouts WHERE user_id=%s AND date >= %s AND source LIKE 'garmin_%%'",
         (user_id, since),
     )
     existing: dict[str, float | None] = {row[0]: row[1] for row in cur.fetchall()}
 
     to_insert: list[tuple] = []
-    to_update_dist: list[tuple[str, float]] = []
+    to_update_dist: list[tuple[str, float]] = []  # (source, distance_km)
 
     if not GARMIN_ACTS.exists():
         return {"status": "no_source", "inserted": 0, "updated": 0}
@@ -127,12 +132,12 @@ def sync_workouts(conn, user_id: int, since: str, dry_run: bool) -> dict:
             continue
 
         work_date = start_local[:10]
-        src_id = data.get("activityId", "")
+        src_key = f"garmin_{data.get('activityId', '')}"
 
-        if work_date in existing:
-            # Уже есть запись — обновляем дистанцию если её раньше не было
-            if distance_km and existing[work_date] is None:
-                to_update_dist.append((work_date, distance_km))
+        if src_key in existing:
+            # Уже есть — обновляем дистанцию если её раньше не было
+            if distance_km and existing[src_key] is None:
+                to_update_dist.append((src_key, distance_km))
         else:
             to_insert.append(
                 (
@@ -144,10 +149,10 @@ def sync_workouts(conn, user_id: int, since: str, dry_run: bool) -> dict:
                     end_dt,
                     calories,
                     distance_km,
-                    f"garmin_{src_id}",
+                    src_key,
                 )
             )
-            existing[work_date] = distance_km
+            existing[src_key] = distance_km
 
     if dry_run:
         print(f"  [dry-run] workouts: вставить {len(to_insert)}, обновить дистанцию у {len(to_update_dist)}")
@@ -164,10 +169,10 @@ def sync_workouts(conn, user_id: int, since: str, dry_run: bool) -> dict:
             to_insert,
         )
 
-    for work_date, dist_km in to_update_dist:
+    for src_key, dist_km in to_update_dist:
         cur.execute(
-            "UPDATE workouts SET distance_km=%s WHERE user_id=%s AND date=%s AND distance_km IS NULL",
-            (dist_km, user_id, work_date),
+            "UPDATE workouts SET distance_km=%s WHERE user_id=%s AND source=%s AND distance_km IS NULL",
+            (dist_km, user_id, src_key),
         )
 
     conn.commit()
