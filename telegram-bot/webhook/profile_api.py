@@ -310,12 +310,26 @@ _DATA_SOURCES_META = [
     {"id": "cgm", "name": "LibreLink (CGM)", "icon": "🩸"},
 ]
 
+_CONNECT_INFO: dict[str, dict] = {
+    "garmin": {"flow": "coming_soon"},
+    "apple_health": {"flow": "inline_token"},
+    "health_connect": {"flow": "inline_token"},
+    "zepp": {"flow": "coming_soon"},
+    "netatmo": {"flow": "coming_soon"},
+    "cgm": {
+        "flow": "tg_deeplink",
+        "deeplink": "tg://resolve?domain=Botkin_md_bot&start=connect_cgm",
+    },
+}
+
 
 @router.get("/api/profile/data_sources")
 async def get_data_sources(tg_user: dict = Depends(get_tg_user)):
     """Статус подключения источников данных для текущего пользователя.
 
-    Возвращает список: id, name, icon, connected (bool), last_updated (ISO date | null).
+    Возвращает список: id, name, icon, connected, last_updated, connect_info.
+    connect_info.flow: 'inline_token' | 'tg_deeplink' | 'coming_soon'
+    connect_info.health_token: только для inline_token + connected=False
     """
     import json as _json
     from pathlib import Path as _Path
@@ -384,12 +398,41 @@ async def get_data_sources(tg_user: dict = Depends(get_tg_user)):
         "cgm": cgm_last,
     }
 
-    sources = [
-        {
-            **meta,
-            "connected": bool(last_by_id[meta["id"]]),
-            "last_updated": str(last_by_id[meta["id"]]) if last_by_id[meta["id"]] else None,
-        }
+    # health_token нужен только для inline_token-источников, только когда не подключены
+    needs_token = any(
+        _CONNECT_INFO[meta["id"]]["flow"] == "inline_token" and not bool(last_by_id[meta["id"]])
         for meta in _DATA_SOURCES_META
-    ]
+    )
+    health_token: str | None = None
+    if needs_token:
+        from database import SessionLocal as _SL
+        from database.crud import get_or_create_health_token
+
+        _db = _SL()
+        try:
+            health_token = get_or_create_health_token(_db, user_id)
+        except Exception:
+            pass
+        finally:
+            _db.close()
+
+    sources = []
+    for meta in _DATA_SOURCES_META:
+        src_id = meta["id"]
+        connected = bool(last_by_id[src_id])
+        info = dict(_CONNECT_INFO[src_id])  # shallow copy
+
+        # Добавить токен только если: flow=inline_token AND не подключён
+        if info["flow"] == "inline_token":
+            info["health_token"] = health_token if not connected else None
+
+        sources.append(
+            {
+                **meta,
+                "connected": connected,
+                "last_updated": str(last_by_id[src_id]) if last_by_id[src_id] else None,
+                "connect_info": info,
+            }
+        )
+
     return {"sources": sources}

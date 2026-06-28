@@ -138,3 +138,74 @@ def test_netatmo_not_connected_when_no_file(client, monkeypatch):
     monkeypatch.setattr(Path, "exists", lambda self: False)
     sources = {s["id"]: s for s in client.get("/api/profile/data_sources").json()["sources"]}
     assert sources["netatmo"]["connected"] is False
+
+
+VALID_FLOWS = {"inline_token", "tg_deeplink", "coming_soon"}
+
+
+def test_connect_info_schema(client):
+    """Каждый источник возвращает connect_info с допустимым flow."""
+    sources = client.get("/api/profile/data_sources").json()["sources"]
+    for s in sources:
+        assert "connect_info" in s, f"no connect_info for {s['id']}"
+        assert s["connect_info"]["flow"] in VALID_FLOWS, f"bad flow for {s['id']}"
+
+
+def test_garmin_zepp_netatmo_flow_coming_soon(client):
+    """Garmin, Zepp, Netatmo всегда coming_soon."""
+    sources = {s["id"]: s for s in client.get("/api/profile/data_sources").json()["sources"]}
+    for src_id in ("garmin", "zepp", "netatmo"):
+        assert sources[src_id]["connect_info"]["flow"] == "coming_soon"
+
+
+def test_cgm_flow_tg_deeplink(client):
+    """CGM возвращает tg_deeplink с командой connect_cgm."""
+    sources = {s["id"]: s for s in client.get("/api/profile/data_sources").json()["sources"]}
+    info = sources["cgm"]["connect_info"]
+    assert info["flow"] == "tg_deeplink"
+    assert "connect_cgm" in info["deeplink"]
+
+
+def test_apple_health_returns_token_when_disconnected(client, monkeypatch):
+    """Apple Health возвращает health_token когда не подключён."""
+    monkeypatch.setattr(
+        "database.crud.get_or_create_health_token",
+        lambda db, uid: "hvt_test_token",
+    )
+    sources = {s["id"]: s for s in client.get("/api/profile/data_sources").json()["sources"]}
+    info = sources["apple_health"]["connect_info"]
+    assert info["flow"] == "inline_token"
+    assert info["health_token"] == "hvt_test_token"
+
+
+def test_apple_health_no_token_when_connected(client, api_db, monkeypatch):
+    """Apple Health не возвращает health_token когда подключён."""
+    from datetime import date
+    from sqlalchemy import text
+
+    today = date.today().isoformat()
+    api_db.execute(
+        text("INSERT INTO activity_log (user_id, date, source) VALUES (:uid, :d, :src)"),
+        {"uid": 895655, "d": today, "src": "apple_health_v2"},
+    )
+    api_db.commit()
+    monkeypatch.setattr(
+        "database.crud.get_or_create_health_token",
+        lambda db, uid: "hvt_test_token",
+    )
+    sources = {s["id"]: s for s in client.get("/api/profile/data_sources").json()["sources"]}
+    info = sources["apple_health"]["connect_info"]
+    assert info["flow"] == "inline_token"
+    assert info["health_token"] is None
+
+
+def test_health_connect_returns_token_when_disconnected(client, monkeypatch):
+    """Health Connect возвращает health_token когда не подключён."""
+    monkeypatch.setattr(
+        "database.crud.get_or_create_health_token",
+        lambda db, uid: "hvt_test_token",
+    )
+    sources = {s["id"]: s for s in client.get("/api/profile/data_sources").json()["sources"]}
+    info = sources["health_connect"]["connect_info"]
+    assert info["flow"] == "inline_token"
+    assert info["health_token"] == "hvt_test_token"
