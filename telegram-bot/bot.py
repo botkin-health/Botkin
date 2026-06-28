@@ -138,6 +138,17 @@ def register_handlers(dp: Dispatcher):
         logger.error(f"❌ Ошибка регистрации обработчика apple-health-connect: {e}")
 
     try:
+        from handlers.doc_upload import router as doc_upload_router
+
+        dp.include_router(doc_upload_router)
+        count = len(doc_upload_router.observers) if hasattr(doc_upload_router, "observers") else 0
+        handlers_count += count
+        registered_modules.append("doc_upload")
+    except Exception as e:
+        errors.append(f"Обработчик doc_upload: {e}")
+        logger.error(f"❌ Ошибка регистрации обработчика doc_upload: {e}")
+
+    try:
         from handlers.photo import router as photo_router
 
         dp.include_router(photo_router)
