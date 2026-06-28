@@ -669,10 +669,117 @@ function _renderSourceRow(s) {
   const statusText  = s.connected
     ? `подключён · ${_fmtDate(s.last_updated)}`
     : 'не подключён';
-  return `<div class="settings-row">
-    <div class="row-icon">${s.icon}</div>
-    <div class="row-label">${s.name}<div class="row-sub ${statusClass}">${statusText}</div></div>
+  const connectBtn = s.connected
+    ? ''
+    : `<button class="connect-btn" onclick="toggleConnect('${escapeHtml(s.id)}')">Подключить ›</button>`;
+  const panel = s.connected
+    ? ''
+    : `<div class="connect-panel" id="panel-${escapeHtml(s.id)}">${_renderConnectPanel(s)}</div>`;
+  return `<div class="source-row-wrap">
+    <div class="settings-row">
+      <div class="row-icon">${s.icon}</div>
+      <div class="row-label">${escapeHtml(s.name)}<div class="row-sub ${statusClass}">${statusText}</div></div>
+      ${connectBtn}
+    </div>
+    ${panel}
   </div>`;
+}
+
+function _renderConnectPanel(s) {
+  const flow = s.connect_info && s.connect_info.flow;
+  if (flow === 'coming_soon') {
+    return `<div class="connect-content coming-soon">Поддержка подключения появится в следующем обновлении.</div>`;
+  }
+  if (flow === 'tg_deeplink') {
+    const deeplink = escapeHtml(s.connect_info.deeplink || '');
+    return `<div class="connect-content">
+      <ol>
+        <li>Открой приложение <strong>FreeStyle Libre 3</strong> → ☰ → <strong>Connected Apps</strong> → <strong>LibreLinkUp</strong></li>
+        <li>Нажми <strong>Invite Follower</strong> и введи email: <code>dr@botkin.health</code></li>
+      </ol>
+      <p style="color:#8e8e93;font-size:12px">После отправки приглашения — запусти ожидание в боте. Бот сам поймает подключение (до 10 мин).</p>
+      <a class="connect-tg-btn" href="${deeplink}">Запустить ожидание в боте →</a>
+    </div>`;
+  }
+  if (flow === 'inline_token') {
+    const token = s.connect_info.health_token || '';
+    if (s.id === 'health_connect') {
+      return _renderHealthConnectPanel(token);
+    }
+    return _renderAppleHealthPanel(token);
+  }
+  return `<div class="connect-content coming-soon">Подключение недоступно.</div>`;
+}
+
+function _renderAppleHealthPanel(token) {
+  const safeToken = escapeHtml(token);
+  return `<div class="connect-content">
+    <p>Выбери способ подключения:</p>
+    <div class="connect-method-btns">
+      <button class="method-btn" onclick="selectAppleMethod('hae', '${safeToken}')">💰 Health Auto Export</button>
+      <button class="method-btn" onclick="selectAppleMethod('shortcut', '${safeToken}')">🆓 iOS Shortcuts</button>
+    </div>
+    <div id="apple-method-detail"></div>
+  </div>`;
+}
+
+function _renderHealthConnectPanel(token) {
+  const safeToken = escapeHtml(token);
+  return `<div class="connect-content">
+    <p>Только для <strong>Android</strong>. Использует тот же ключ что и Apple Health.</p>
+    <ol>
+      <li>Установи APK: <a href="https://github.com/mcnaveen/health-connect-webhook/releases/latest" target="_blank">health-connect-webhook (GitHub Releases)</a></li>
+      <li>В приложении укажи URL:<br><code>https://botkin.health/android_health_v1</code></li>
+      <li>Твой ключ: <code>${safeToken}</code><button class="copy-btn" onclick="copyToken('${safeToken}', this)">Скопировать</button></li>
+      <li>Выдай разрешения Health Connect и нажми Sync.</li>
+    </ol>
+  </div>`;
+}
+
+function selectAppleMethod(method, token) {
+  const detail = document.getElementById('apple-method-detail');
+  if (!detail) return;
+  const safeToken = escapeHtml(token);
+  if (method === 'hae') {
+    detail.innerHTML = `<ol>
+      <li>Установи <strong>Health Auto Export</strong> (App Store, $24.99 разово)</li>
+      <li>Add Automation → REST API:<br>
+        URL: <code>https://botkin.health/apple_health_v2</code><br>
+        Header: <code>Authorization: Bearer ${safeToken}</code><button class="copy-btn" onclick="copyToken('Bearer ${safeToken}', this)">Скопировать</button></li>
+      <li>Format: JSON · v2 · Aggregate ON · Group by Day · Range: Yesterday</li>
+      <li>Выбери нужные метрики и сохрани.</li>
+    </ol>
+    <p style="color:#8e8e93;font-size:12px">Данные начнут поступать ночью (или через ручной экспорт в HAE).</p>`;
+  } else {
+    detail.innerHTML = `<ol>
+      <li>Установи шаблон: <a href="https://www.icloud.com/shortcuts/61542a7b1edb42ad86b0b99137c00a94" target="_blank">Botkin Health Export (iCloud)</a></li>
+      <li>В поле «Текст» вставь ключ целиком:<br>
+        <code>Bearer ${safeToken}</code><button class="copy-btn" onclick="copyToken('Bearer ${safeToken}', this)">Скопировать</button></li>
+      <li>Настройки → Команды → Дополнения → включи «Разрешить публикацию большого количества данных»</li>
+      <li>Автоматизация → + → Приложение → Telegram → «Открывается» → запустить команду → «Выполнять немедленно»</li>
+    </ol>
+    <p style="color:#8e8e93;font-size:12px">⚠️ Shortcut шлёт только метрики Apple Watch за сегодня. Вес, давление и сон — только через HAE.</p>`;
+  }
+}
+
+function toggleConnect(id) {
+  document.querySelectorAll('.connect-panel.open').forEach(p => {
+    if (p.id !== `panel-${id}`) p.classList.remove('open');
+  });
+  const panel = document.getElementById(`panel-${id}`);
+  if (panel) panel.classList.toggle('open');
+}
+
+function copyToken(text, btn) {
+  navigator.clipboard.writeText(text).then(() => {
+    if (btn) {
+      const orig = btn.textContent;
+      btn.textContent = '✓';
+      setTimeout(() => { btn.textContent = orig; }, 1500);
+    }
+  }).catch(() => {
+    // clipboard unavailable in some environments — silently ignore
+  });
 }
 
 function _fmtDate(iso) {
