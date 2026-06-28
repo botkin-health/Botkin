@@ -62,7 +62,7 @@ def _format_preview(extracted: dict[str, Any]) -> str:
 
     values = extracted.get("values", {})
     for key, val in list(values.items())[:15]:
-        lines.append(f"• {key}: {val}")
+        lines.append(f"• {key}: {str(val)[:50]}")
 
     if len(values) > 15:
         lines.append(f"  <i>...и ещё {len(values) - 15} показателей</i>")
@@ -150,6 +150,9 @@ async def handle_document_or_photo(message: Message) -> None:
     state = state_manager.get_state(user_id)
 
     if not state or state.state != "awaiting_doc":
+        # Если уже ожидаем подтверждения — напомнить пользователю
+        if state and state.state == "awaiting_doc_confirm":
+            await message.answer("⏳ Сначала подтверди или отмени предыдущий файл.")
         return
 
     await message.answer("⏳ Читаю документ...")
@@ -174,6 +177,9 @@ async def handle_document_or_photo(message: Message) -> None:
         file_bytes, _ = await _download_file(bot_token, file_id)
         extracted = await extract_medical_data(file_bytes, mime_type)
 
+        # Сохраняем файл на диск сразу — не храним bytes в памяти
+        filename = _save_file(int(user_id), file_bytes, ext)
+
         state_key = secrets.token_hex(4)
         state_manager.set_state(
             user_id,
@@ -181,8 +187,7 @@ async def handle_document_or_photo(message: Message) -> None:
                 user_id=user_id,
                 state="awaiting_doc_confirm",
                 data={
-                    "file_bytes": file_bytes,
-                    "ext": ext,
+                    "filename": filename,  # только имя, не bytes
                     "extracted": extracted,
                     "state_key": state_key,
                 },
@@ -223,11 +228,7 @@ async def callback_save(callback: CallbackQuery) -> None:
         return
 
     try:
-        filename = _save_file(
-            int(user_id),
-            data["file_bytes"],
-            data["ext"],
-        )
+        filename = data["filename"]  # уже сохранён на диске
         _write_to_kb(int(user_id), filename, data["extracted"], user_confirmed=True)
 
         state_manager.clear_state(user_id)
@@ -246,6 +247,13 @@ async def callback_save(callback: CallbackQuery) -> None:
 async def callback_cancel(callback: CallbackQuery) -> None:
     """Пользователь отменил сохранение."""
     user_id = str(callback.from_user.id)
+    state = state_manager.get_state(user_id)
+
+    # Удаляем сохранённый файл если есть
+    if state and state.data.get("filename"):
+        file_path = _UPLOADS_DIR / user_id / state.data["filename"]
+        file_path.unlink(missing_ok=True)
+
     state_manager.clear_state(user_id)
     await callback.message.edit_text("❌ Отменено. Ничего не сохранено.")
     await callback.answer()
