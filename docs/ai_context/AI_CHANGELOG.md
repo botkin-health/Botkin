@@ -7,6 +7,23 @@
 
 ---
 
+## 2026-06-29 — MCP-коннектор для Claude Desktop: PAT + JWT + scope (#228)
+
+- **`database/models.py`** — модель `PersonalAccessToken` (id, user_id FK→users.telegram_id, token, name, scope ro/rw, created_at, last_used_at, revoked_at). CheckConstraint на scope, два индекса (unique token, user_id).
+- **`database/alembic/versions/pat0token01_add_personal_access_tokens.py`** — Alembic-ревизия: CREATE TABLE + индексы + GRANT SELECT/INSERT/UPDATE к hv_app. Явно без RLS (публичный exchange-endpoint ищет токен до того как знает user_id).
+- **`database/crud.py`** — PAT CRUD: `create_pat`, `get_active_pat_by_token` (бампит last_used_at), `list_pats`, `revoke_pat` (soft-delete). `ALLOWED_PAT_SCOPES = ("ro", "rw")`.
+- **`telegram-bot/webhook/jwt_auth.py`** — `generate_agent_jwt` + опциональный `scope`; `get_agent_user` сохраняет scope в `request.state.agent_scope`; `require_agent_scope(required_scope)` — dependency-factory.
+- **`telegram-bot/webhook/rate_limit.py`** (новый) — `SlidingWindowRateLimiter(max_requests, window_seconds)` с инъектируемым `now`.
+- **`telegram-bot/webhook/agent_tools_api.py`** — новый публичный endpoint `POST /api/agent/exchange_pat_for_jwt` (rate-limit 10/60s, возвращает `{access_token, token_type, expires_in, scope}`); 10 mutating-эндпоинтов переключены на `require_agent_scope("rw")`.
+- **`telegram-bot/handlers/connect_claude.py`** (новый) — команды `/connect_claude` (выбор rw/ro → выдача PAT) и `/my_connections` (список + отзыв через inline-кнопки).
+- **`telegram-bot/bot.py`** — регистрация `connect_claude_router` + команда в меню.
+- **`scripts/mcp/botkin_client.py`** (новый) — HTTP-клиент без mcp-зависимости: PAT→JWT обмен, кэш JWT, 401-retry, 403→BotkinAuthError.
+- **`scripts/mcp/botkin_pat_mcp.py`** (новый) — FastMCP stdio-сервер: 10 инструментов над `/api/agent/*`.
+- **`scripts/mcp/manifest.json`** (новый) — `.mcpb` v0.3 манифест, `user_config.pat` (sensitive→keychain) + `base_url`.
+- **`docs/user_guide/ru/mcp-claude-desktop.md`** — руководство пользователя (команды, установка, инструменты, troubleshooting).
+- **`docs/architecture/decisions/0006-mcp-connector-pat-jwt.md`** — ADR принят (Proposed→Accepted).
+- **Тесты:** `tests/test_pat_crud.py` (15), `tests/test_rate_limit.py` (8), `tests/test_pat_exchange.py` (8), `tests/test_connect_claude.py` (11), `tests/test_botkin_client.py` (11).
+
 ## 2026-06-28 — Mini-app: кнопка «Подключить» для источников данных (PR #150)
 
 - **`telegram-bot/webhook/profile_api.py`** — `get_data_sources()` расширен полем `connect_info` для каждого источника: `flow` (coming_soon / inline_token / tg_deeplink) + `health_token` для inline_token-источников (apple_health, health_connect) когда не подключены. Токен достаётся через `get_or_create_health_token` в рамках того же DB-сеанса. CGM → deeplink `tg://...start=connect_cgm`. Garmin/Zepp/Netatmo → coming_soon.
