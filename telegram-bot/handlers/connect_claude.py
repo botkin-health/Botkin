@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Команды /connect_claude и /my_connections — self-service выпуск PAT для MCP-коннектора (#228).
+"""Команды /connect_mcp и /my_connections — self-service выпуск PAT для MCP-коннектора (#228).
 
 Сценарий:
-  • /connect_claude [имя] → выбор уровня доступа (полный rw / только чтение ro) кнопкой →
+  • /connect_mcp [имя] → выбор уровня доступа (полный rw / только чтение ro) кнопкой →
     бот создаёт Personal Access Token и показывает его (один раз). Пользователь вставляет
     токен в коннектор Botkin для Claude Desktop. ro-токеном можно поделиться с врачом.
   • /my_connections → список активных токенов с кнопкой «Отозвать» у каждого.
@@ -31,9 +31,9 @@ CONNECTOR_API_BASE = os.getenv("BOTKIN_API_BASE", "https://health.orangegate.cc"
 
 MAX_NAME_LEN = 100
 
-# Имя из /connect_claude хранится между командой и нажатием кнопки scope.
+# Имя из /connect_mcp хранится между командой и нажатием кнопки scope.
 # Бот однопроцессный (aiogram polling) — in-memory dict достаточно; запись эфемерная.
-# Ограничен _MAX_PENDING: заброшенные потоки (нажали /connect_claude, кнопку не нажали)
+# Ограничен _MAX_PENDING: заброшенные потоки (нажали /connect_mcp, кнопку не нажали)
 # не растут вечно. При переполнении выбрасываем половину самых старых записей.
 _MAX_PENDING = 500
 _pending_names: dict[int, Optional[str]] = {}
@@ -51,7 +51,7 @@ class PatRevokeCallback(CallbackData, prefix="patrev"):
 
 
 def parse_connect_name(text: Optional[str]) -> Optional[str]:
-    """Достать необязательное имя из текста команды «/connect_claude мой ноут».
+    """Достать необязательное имя из текста команды «/connect_mcp мой ноут».
 
     Схлопывает пробелы, режет до MAX_NAME_LEN. Пустой аргумент → None.
     """
@@ -74,7 +74,7 @@ def scope_label(scope: str) -> str:
 def format_connections(pats: list[dict]) -> str:
     """Текст списка активных подключений (plain-text, без Markdown — имена могут
     содержать спецсимволы, экранировать накладно)."""
-    lines = ["🔌 Твои подключения Claude:\n"]
+    lines = ["🔌 Твои MCP-подключения:\n"]
     for p in pats:
         name = p.get("name") or "(без имени)"
         kind = "чтение+запись" if p.get("scope") == "rw" else "только чтение"
@@ -150,16 +150,16 @@ def _scope_keyboard() -> InlineKeyboardMarkup:
 # ── Хендлеры ──────────────────────────────────────────────────────────────────
 
 
-@router.message(Command("connect_claude"))
-async def cmd_connect_claude(message: Message) -> None:
-    """`/connect_claude [имя]` — выпустить токен для Claude Desktop."""
+@router.message(Command("connect_mcp"))
+async def cmd_connect_mcp(message: Message) -> None:
+    """`/connect_mcp [имя]` — выпустить токен для MCP-коннектора."""
     if len(_pending_names) >= _MAX_PENDING:
         evict = list(_pending_names.keys())[: _MAX_PENDING // 2]
         for k in evict:
             del _pending_names[k]
     _pending_names[message.from_user.id] = parse_connect_name(message.text)
     await message.answer(
-        "🔌 *Подключение Claude Desktop*\n\n"
+        "🔌 *Подключение MCP-коннектора*\n\n"
         "Выбери уровень доступа для токена:\n"
         "• *Полный доступ* — твой личный Claude сможет читать и записывать данные.\n"
         "• *Только чтение* — этой строкой можно поделиться с врачом или близким: "
@@ -179,7 +179,7 @@ async def on_pat_scope_chosen(callback: CallbackQuery, callback_data: PatNewCall
     name = _pending_names.pop(callback.from_user.id, None)
     token = _create_pat(callback.from_user.id, name, scope)
     if token is None:
-        await callback.message.edit_text("⚠️ Не удалось создать токен. Попробуй ещё раз: /connect_claude")
+        await callback.message.edit_text("⚠️ Не удалось создать токен. Попробуй ещё раз: /connect_mcp")
         await callback.answer()
         return
 
@@ -200,7 +200,7 @@ async def cmd_my_connections(message: Message) -> None:
     """`/my_connections` — список активных токенов + кнопки отзыва."""
     pats = _list_pats(message.from_user.id)
     if not pats:
-        await message.answer("У тебя пока нет активных подключений Claude.\nСоздать — /connect_claude")
+        await message.answer("У тебя пока нет активных MCP-подключений.\nСоздать — /connect_mcp")
         return
 
     keyboard = InlineKeyboardMarkup(

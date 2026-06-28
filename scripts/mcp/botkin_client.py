@@ -58,7 +58,7 @@ class BotkinClient:
     def _fetch_jwt(self) -> str:
         resp = self._session.post(f"{self.base_url}{EXCHANGE_PATH}", json={"pat": self.pat}, timeout=EXCHANGE_TIMEOUT)
         if resp.status_code == 401:
-            raise BotkinAuthError("PAT недействителен или отозван — выпусти новый через /connect_claude")
+            raise BotkinAuthError("PAT недействителен или отозван — выпусти новый через /connect_mcp")
         resp.raise_for_status()
         data = resp.json()
         self._jwt = data["access_token"]
