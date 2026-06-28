@@ -25,6 +25,7 @@ from database.models import (
     BloodTest,
     BodyMeasurement,
     UserSettings,
+    PersonalAccessToken,
 )
 
 logger = logging.getLogger(__name__)
@@ -160,6 +161,97 @@ def reset_health_token(db: Session, telegram_id: int) -> str:
     user.health_token = f"hvt_{telegram_id}_{secrets.token_hex(16)}"
     db.commit()
     return user.health_token
+
+
+# ==================== PERSONAL ACCESS TOKEN (PAT) OPERATIONS ====================
+# Долгоживущие токены для MCP-коннектора Claude Desktop (#228). Пользователь сам
+# выпускает их в боте, коннектор меняет на короткоживущий JWT через /api/agent/exchange_pat_for_jwt.
+
+ALLOWED_PAT_SCOPES = ("ro", "rw")
+
+
+def create_pat(
+    db: Session,
+    telegram_id: int,
+    name: Optional[str] = None,
+    scope: str = "rw",
+    created_by: Optional[int] = None,
+) -> PersonalAccessToken:
+    """Выпустить новый PAT для пользователя.
+
+    Формат токена зеркалит Apple Health: ``pat_<telegram_id>_<hex32>``.
+    scope: 'rw' — личный токен (чтение+запись), 'ro' — для шаринга врачу (только чтение).
+    created_by — кто выпустил (telegram_id); по умолчанию сам владелец (self-service).
+    """
+    import secrets
+
+    if scope not in ALLOWED_PAT_SCOPES:
+        raise ValueError(f"Invalid PAT scope {scope!r}, expected one of {ALLOWED_PAT_SCOPES}")
+
+    user = get_user_by_telegram_id(db, telegram_id)
+    if not user:
+        raise ValueError(f"User {telegram_id} not found")
+
+    pat = PersonalAccessToken(
+        user_id=telegram_id,
+        token=f"pat_{telegram_id}_{secrets.token_hex(16)}",
+        name=name,
+        scope=scope,
+        created_by_user=created_by if created_by is not None else telegram_id,
+    )
+    db.add(pat)
+    db.commit()
+    db.refresh(pat)
+    return pat
+
+
+def get_active_pat_by_token(db: Session, token: str) -> Optional[PersonalAccessToken]:
+    """Найти активный (не отозванный) PAT по строке токена и отметить факт использования.
+
+    Используется публичным exchange-эндпоинтом ДО установки app.user_id — поэтому
+    таблица без RLS (см. миграцию pat0token01). Возвращает None для отозванных/несуществующих.
+    """
+    if not token:
+        return None
+    pat = (
+        db.query(PersonalAccessToken)
+        .filter(PersonalAccessToken.token == token, PersonalAccessToken.revoked_at.is_(None))
+        .first()
+    )
+    if pat:
+        pat.last_used_at = datetime.now(timezone.utc)
+        db.commit()
+        db.refresh(pat)
+    return pat
+
+
+def list_pats(db: Session, telegram_id: int, include_revoked: bool = False) -> List[PersonalAccessToken]:
+    """Список PAT пользователя (по умолчанию только активные), новые сверху."""
+    query = db.query(PersonalAccessToken).filter(PersonalAccessToken.user_id == telegram_id)
+    if not include_revoked:
+        query = query.filter(PersonalAccessToken.revoked_at.is_(None))
+    return query.order_by(desc(PersonalAccessToken.created_at)).all()
+
+
+def revoke_pat(db: Session, telegram_id: int, token_id: int) -> bool:
+    """Отозвать PAT (soft-delete через revoked_at). Скоупится по владельцу.
+
+    Возвращает True если токен найден и отозван, False если не найден/чужой/уже отозван.
+    """
+    pat = (
+        db.query(PersonalAccessToken)
+        .filter(
+            PersonalAccessToken.id == token_id,
+            PersonalAccessToken.user_id == telegram_id,
+            PersonalAccessToken.revoked_at.is_(None),
+        )
+        .first()
+    )
+    if not pat:
+        return False
+    pat.revoked_at = datetime.now(timezone.utc)
+    db.commit()
+    return True
 
 
 # ==================== NUTRITION LOG OPERATIONS ====================
