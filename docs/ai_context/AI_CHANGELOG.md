@@ -7,6 +7,13 @@
 
 ---
 
+## 2026-06-28 — Mini-app: кнопка «Подключить» для источников данных (PR #150)
+
+- **`telegram-bot/webhook/profile_api.py`** — `get_data_sources()` расширен полем `connect_info` для каждого источника: `flow` (coming_soon / inline_token / tg_deeplink) + `health_token` для inline_token-источников (apple_health, health_connect) когда не подключены. Токен достаётся через `get_or_create_health_token` в рамках того же DB-сеанса. CGM → deeplink `tg://...start=connect_cgm`. Garmin/Zepp/Netatmo → coming_soon.
+- **`tests/test_data_sources_api.py`** — +6 тестов: `connect_info` schema, flows по каждому типу, токен присутствует только для отключённых inline_token-источников. Итого 14 тестов.
+- **`telegram-bot/webapp/settings.css`** — новые классы: `.source-row-wrap`, `.connect-btn`, `.connect-panel`/`.open` (max-height accordion), `.connect-content`, `.method-btn`, `.connect-tg-btn`, `.coming-soon`, `.copy-btn`. Тёмная тема через prefers-color-scheme.
+- **`telegram-bot/webapp/settings.js`** — заменён `_renderSourceRow` (аккордеон); добавлены `_renderConnectPanel`, `_renderAppleHealthPanel`, `_renderHealthConnectPanel`, `selectAppleMethod`, `toggleConnect`, `copyToken`. Безопасный `JSON.stringify(token)` в onclick-атрибутах вместо `'${safeToken}'`. `apple-detail-<id>` вместо глобального singleton id.
+
 ## 2026-06-28 — Кросс-валидация вес↔калории в записях питания (#211, PR #220)
 
 - **`core/food/calorie_validator.py`** (новый модуль): `validate_weight_calorie_sync(data)` — при наличии `nutrition_per_100g` и `weight_grams > 0` **всегда** пересчитывает все макронутриенты от `nutrition_per_100g × weight_grams` (ранее — только при `calories == 0`). Иммутабельный, добавлен `round(..., 1)` для согласованности с `nutrition.py`.
