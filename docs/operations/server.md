@@ -36,6 +36,9 @@ ssh -i ~/.ssh/botkin/botkin_igorn igorn@116.203.213.137
 Целевая pull-only модель кладёт стек в `/opt/botkin` (см. `docker-compose.prod.yml`,
 `.github/workflows/deploy-prod.yml`).
 
+> **Переезд mini-app на бренд-домен** `botkin.health` (снятие времянки `BOTKIN_PUBLIC_URL=orangegate`)
+> — чеклист и целевой vhost: [migrate-webapp-to-botkin-health.md](migrate-webapp-to-botkin-health.md) (#212).
+
 ## ⚠️ Важно: хост общий (multi-tenant)
 
 На машине крутятся и **другие, не связанные с Botkin, стеки** (включая отдельный
