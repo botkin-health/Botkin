@@ -1,5 +1,6 @@
 # telegram-bot/handlers/doc_upload.py
 """Handler for /doc command — user uploads medical documents to their KB."""
+
 from __future__ import annotations
 
 import logging
@@ -138,8 +139,7 @@ async def cmd_doc(message: Message) -> None:
     user_id = str(message.from_user.id)
     state_manager.set_state(user_id, UserState(user_id=user_id, state="awaiting_doc", data={}))
     await message.answer(
-        "📄 Пришли PDF, фото или скан анализа / заключения врача.\n\n"
-        "Поддерживаются: PDF, JPG, PNG.",
+        "📄 Пришли PDF, фото или скан анализа / заключения врача.\n\nПоддерживаются: PDF, JPG, PNG.",
         parse_mode="HTML",
     )
 
@@ -206,9 +206,7 @@ async def handle_document_or_photo(message: Message) -> None:
     except Exception as e:
         logger.error("doc_upload: ошибка обработки файла от %s: %s", user_id, e)
         state_manager.clear_state(user_id)
-        await message.answer(
-            "❌ Не удалось прочитать файл. Попробуй ещё раз или пришли в другом формате."
-        )
+        await message.answer("❌ Не удалось прочитать файл. Попробуй ещё раз или пришли в другом формате.")
 
 
 @router.callback_query(F.data.startswith(_CB_SAVE))
@@ -242,8 +240,7 @@ async def callback_save(callback: CallbackQuery) -> None:
 
         state_manager.clear_state(user_id)
         await callback.message.edit_text(
-            "✅ Сохранено в твою базу здоровья.\n\n"
-            "Можешь прислать ещё документ или написать /doc в любой момент.",
+            "✅ Сохранено в твою базу здоровья.\n\nМожешь прислать ещё документ или написать /doc в любой момент.",
             parse_mode="HTML",
         )
         await callback.answer()

@@ -1,5 +1,6 @@
 # core/health/kb_writer.py
 """Атомарная запись документа в kb_<user_id>.json (секция documents[])."""
+
 from __future__ import annotations
 
 import json

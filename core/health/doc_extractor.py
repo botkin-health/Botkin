@@ -1,5 +1,6 @@
 # core/health/doc_extractor.py
 """Извлечение медицинских данных из документов через Anthropic Claude."""
+
 from __future__ import annotations
 
 import base64

@@ -68,6 +68,7 @@ async def test_cmd_doc_sets_state():
 
     with patch("handlers.doc_upload.state_manager", state_manager):
         from handlers.doc_upload import cmd_doc
+
         await cmd_doc(msg)
 
     state = state_manager.get_state("12345")
