@@ -95,7 +95,7 @@ def _create_pat(telegram_id: int, name: Optional[str], scope: str) -> Optional[s
         pat = create_pat(db, telegram_id, name=name, scope=scope)
         return pat.token
     except Exception as e:
-        logger.error(f"connect_claude: не смог создать PAT для {telegram_id}: {e}")
+        logger.error(f"connect_mcp: не смог создать PAT для {telegram_id}: {e}")
         return None
     finally:
         db.close()
@@ -124,7 +124,7 @@ def _revoke_pat(telegram_id: int, token_id: int) -> bool:
     try:
         return revoke_pat(db, telegram_id, token_id)
     except Exception as e:
-        logger.error(f"connect_claude: не смог отозвать PAT {token_id} у {telegram_id}: {e}")
+        logger.error(f"connect_mcp: не смог отозвать PAT {token_id} у {telegram_id}: {e}")
         return False
     finally:
         db.close()
