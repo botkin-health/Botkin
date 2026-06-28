@@ -33,6 +33,9 @@ MAX_NAME_LEN = 100
 
 # Имя из /connect_claude хранится между командой и нажатием кнопки scope.
 # Бот однопроцессный (aiogram polling) — in-memory dict достаточно; запись эфемерная.
+# Ограничен _MAX_PENDING: заброшенные потоки (нажали /connect_claude, кнопку не нажали)
+# не растут вечно. При переполнении выбрасываем половину самых старых записей.
+_MAX_PENDING = 500
 _pending_names: dict[int, Optional[str]] = {}
 
 
@@ -150,6 +153,10 @@ def _scope_keyboard() -> InlineKeyboardMarkup:
 @router.message(Command("connect_claude"))
 async def cmd_connect_claude(message: Message) -> None:
     """`/connect_claude [имя]` — выпустить токен для Claude Desktop."""
+    if len(_pending_names) >= _MAX_PENDING:
+        evict = list(_pending_names.keys())[: _MAX_PENDING // 2]
+        for k in evict:
+            del _pending_names[k]
     _pending_names[message.from_user.id] = parse_connect_name(message.text)
     await message.answer(
         "🔌 *Подключение Claude Desktop*\n\n"

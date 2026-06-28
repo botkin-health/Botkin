@@ -32,6 +32,11 @@ PAT = os.getenv("BOTKIN_PAT", "")
 
 mcp = FastMCP("Botkin")
 _client = BotkinClient(BASE_URL, PAT) if PAT else None
+if _client is None:
+    print(
+        "Botkin MCP: BOTKIN_PAT не задан. Выпусти токен в боте: /connect_claude",
+        file=sys.stderr,
+    )
 
 
 def _api() -> BotkinClient:

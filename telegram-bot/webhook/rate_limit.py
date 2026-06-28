@@ -38,7 +38,10 @@ class SlidingWindowRateLimiter:
             self._hits[key] = recent
             return False
         recent.append(current)
-        self._hits[key] = recent
+        if recent:
+            self._hits[key] = recent
+        else:
+            self._hits.pop(key, None)
         return True
 
     def reset(self, key: Optional[str] = None) -> None:

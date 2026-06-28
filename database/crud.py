@@ -10,6 +10,7 @@ This module provides database operations for all tables:
 - BloodTests: create, get latest, get all
 """
 
+import secrets
 from datetime import datetime, date, time, timedelta, timezone
 from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
@@ -183,8 +184,6 @@ def create_pat(
     scope: 'rw' — личный токен (чтение+запись), 'ro' — для шаринга врачу (только чтение).
     created_by — кто выпустил (telegram_id); по умолчанию сам владелец (self-service).
     """
-    import secrets
-
     if scope not in ALLOWED_PAT_SCOPES:
         raise ValueError(f"Invalid PAT scope {scope!r}, expected one of {ALLOWED_PAT_SCOPES}")
 
@@ -194,7 +193,7 @@ def create_pat(
 
     pat = PersonalAccessToken(
         user_id=telegram_id,
-        token=f"pat_{telegram_id}_{secrets.token_hex(16)}",
+        token=f"pat_{telegram_id}_{secrets.token_hex(32)}",
         name=name,
         scope=scope,
         created_by_user=created_by if created_by is not None else telegram_id,

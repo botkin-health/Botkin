@@ -72,7 +72,7 @@ async def exchange_pat_for_jwt(
     from core.agent_chat import agent_id_for
     from webhook.jwt_auth import generate_agent_jwt, JWT_TTL_HOURS
 
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = request.headers.get("x-real-ip") or (request.client.host if request.client else "unknown")
     if not _exchange_limiter.allow(client_ip):
         raise HTTPException(status_code=429, detail="Слишком много запросов. Попробуйте через минуту.")
 
@@ -1110,7 +1110,7 @@ def _enrich_chart_spec(chart: dict) -> dict:
 @router.post("/render_chart")
 async def render_chart(
     req: RenderChartRequest,
-    user=Depends(get_agent_user),
+    user=Depends(require_agent_scope("rw")),
 ):
     """Рендерит произвольный график через QuickChart.io и отправляет в Telegram.
 
