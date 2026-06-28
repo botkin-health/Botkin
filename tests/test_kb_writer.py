@@ -1,7 +1,5 @@
 # tests/test_kb_writer.py
 import json
-import pytest
-from pathlib import Path
 
 
 def test_append_document_creates_file_if_missing(tmp_path):
