@@ -133,11 +133,7 @@ def _revoke_pat(telegram_id: int, token_id: int) -> bool:
 def _scope_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="🖊 Полный доступ (мой Claude)", callback_data=PatNewCallback(scope="rw").pack()
-                )
-            ],
+            [InlineKeyboardButton(text="🖊 Полный доступ (для себя)", callback_data=PatNewCallback(scope="rw").pack())],
             [
                 InlineKeyboardButton(
                     text="👁 Только чтение (поделиться)", callback_data=PatNewCallback(scope="ro").pack()
@@ -159,12 +155,12 @@ async def cmd_connect_mcp(message: Message) -> None:
             del _pending_names[k]
     _pending_names[message.from_user.id] = parse_connect_name(message.text)
     await message.answer(
-        "🔌 *Подключение MCP-коннектора*\n\n"
+        "🔌 <b>Подключение MCP-коннектора</b>\n\n"
         "Выбери уровень доступа для токена:\n"
-        "• *Полный доступ* — твой личный Claude сможет читать и записывать данные.\n"
-        "• *Только чтение* — этой строкой можно поделиться с врачом или близким: "
+        "• <b>Полный доступ</b> — твой AI-ассистент сможет читать и записывать данные.\n"
+        "• <b>Только чтение</b> — этой строкой можно поделиться с врачом или близким: "
         "он увидит данные, но ничего не изменит.",
-        parse_mode="Markdown",
+        parse_mode="HTML",
         reply_markup=_scope_keyboard(),
     )
 
@@ -184,13 +180,13 @@ async def on_pat_scope_chosen(callback: CallbackQuery, callback_data: PatNewCall
         return
 
     await callback.message.edit_text(
-        f"✅ Токен создан — *{scope_label(scope)}*\n\n"
-        "Вставь его в коннектор Botkin для Claude Desktop:\n\n"
-        f"`{token}`\n\n"
-        f"Сервер API: `{CONNECTOR_API_BASE}`\n\n"
+        f"✅ Токен создан — <b>{scope_label(scope)}</b>\n\n"
+        "Вставь его в настройки MCP-коннектора Botkin:\n\n"
+        f"<code>{token}</code>\n\n"
+        f"Сервер API: <code>{CONNECTOR_API_BASE}</code>\n\n"
         "⚠️ Токен показан один раз и работает как пароль — храни его в надёжном месте.\n"
         "Список и отзыв подключений — /my_connections.",
-        parse_mode="Markdown",
+        parse_mode="HTML",
     )
     await callback.answer()
 
