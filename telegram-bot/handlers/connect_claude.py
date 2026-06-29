@@ -14,7 +14,17 @@
 import logging
 import os
 import re
+from datetime import datetime
 from typing import Optional
+
+_MONTHS = ["янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"]
+
+
+def _auto_name() -> str:
+    """Автоимя по текущей дате: «29 июн, 10:25»."""
+    now = datetime.now()
+    return f"{now.day} {_MONTHS[now.month - 1]}, {now.strftime('%H:%M')}"
+
 
 from aiogram import Router
 from aiogram.filters import Command
@@ -159,7 +169,8 @@ async def cmd_connect_mcp(message: Message) -> None:
         "Выбери уровень доступа для токена:\n"
         "• <b>Полный доступ</b> — твой AI-ассистент сможет читать и записывать данные.\n"
         "• <b>Только чтение</b> — этой строкой можно поделиться с врачом или близким: "
-        "он увидит данные, но ничего не изменит.",
+        "он увидит данные, но ничего не изменит.\n\n"
+        "💡 Хочешь дать имя — напиши <code>/connect_mcp мой ноут</code>",
         parse_mode="HTML",
         reply_markup=_scope_keyboard(),
     )
@@ -172,7 +183,7 @@ async def on_pat_scope_chosen(callback: CallbackQuery, callback_data: PatNewCall
         await callback.answer("Неизвестный режим", show_alert=True)
         return
 
-    name = _pending_names.pop(callback.from_user.id, None)
+    name = _pending_names.pop(callback.from_user.id, None) or _auto_name()
     token = _create_pat(callback.from_user.id, name, scope)
     if token is None:
         await callback.message.edit_text("⚠️ Не удалось создать токен. Попробуй ещё раз: /connect_mcp")
