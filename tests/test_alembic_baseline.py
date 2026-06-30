@@ -35,10 +35,11 @@ EXPECTED_TABLES = {
     "health_reports",
     "workouts",
     "food_interactions",
+    "personal_access_tokens",
 }
 
 # Актуальный head миграций. Обновляется при каждой новой ревизии.
-HEAD_REVISION = "food0inter01"
+HEAD_REVISION = "pat0token01"
 
 
 def _alembic_config() -> Config:
