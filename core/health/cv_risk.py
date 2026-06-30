@@ -266,13 +266,14 @@ def calc_ascvd_lifetime(
         else:
             risk_pct = 8.2
 
-    # Возрастная коррекция: lifetime от 50 — фиксирован; для 30-49 чуть выше, 60-69 чуть ниже
+    # Возрастная коррекция: lifetime от 50 — фиксирован; для 30-49 чуть выше, 60-69 ниже, 70+ ещё ниже.
+    # Порядок elif важен: 70+ проверяем ДО 60+, иначе ветка age>=60 поглощает весь диапазон 60-79.
     if age < 50:
         risk_pct *= 1.05
-    elif age >= 60:
-        risk_pct *= 0.92
     elif age >= 70:
         risk_pct *= 0.80
+    elif age >= 60:
+        risk_pct *= 0.92
     risk_pct = round(risk_pct, 1)
 
     if risk_pct < 20:
