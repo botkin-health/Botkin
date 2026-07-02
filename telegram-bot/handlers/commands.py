@@ -204,15 +204,19 @@ async def cmd_day(message: Message, user_id: int):
         target_cal = targets["calories"]
 
         deficit_pct = round((1 - 0.85) * 100)  # 15%
+        # Завершённый день: цель посчитана от факта дня (см. get_day_stats),
+        # подписываем это явно, чтобы цифра не расходилась с (BMR+ср.актив)×0.85.
+        is_past_day = today_date < real_today
+        goal_suffix = " от факта дня" if (is_past_day and not stats.get("data_incomplete")) else ""
         if avg_total > 1500:
             if garmin_error:
                 active_line = f"🏃 ⚠️ Garmin недоступен · {avg_active} в среднем"
             else:
-                active_line = f"🏃 {today_active_r} ккал сегодня · {avg_active} в среднем"
+                active_line = f"🏃 {today_active_r} ккал {activity_label} · {avg_active} в среднем"
             energy_line = (
                 f"💤 {avg_bmr} ккал — базовый расход\n"
                 f"{active_line}\n"
-                f"🎯 {target_cal} ккал — цель (дефицит −{deficit_pct}%)"
+                f"🎯 {target_cal} ккал — цель (дефицит −{deficit_pct}%{goal_suffix})"
             )
         else:
             energy_line = (
@@ -222,7 +226,11 @@ async def cmd_day(message: Message, user_id: int):
         # --- Calorie bar ---
         cal_bar, cal_pct = make_block_bar(totals.calories, target_cal)
         cal_remaining = target_cal - round(totals.calories)
-        if cal_remaining < 0:
+        data_incomplete = stats.get("data_incomplete", False)
+        if data_incomplete:
+            # Битый Garmin-день: цель оценочная, вердикт «перебор» не выносим.
+            cal_tail = "итог оценочный ⚠️"
+        elif cal_remaining < 0:
             cal_tail = f"перебор +{abs(cal_remaining)}"
         else:
             cal_tail = f"ост. {cal_remaining}"
@@ -274,6 +282,13 @@ async def cmd_day(message: Message, user_id: int):
         if weight_text:
             response_parts.append(weight_text)
         response_parts.append(supplements_text)
+
+        # Data quality warning — битый Garmin-день, вердикт не выносим
+        if data_incomplete:
+            response_parts.append(
+                "\n⚠️ <i>Garmin-данные за этот день неполные (частичный синк) — "
+                "расход неизвестен, итог по калориям оценочный.</i>"
+            )
 
         # Feasibility Warning
         feasibility_warning = check_feasibility(remaining["calories"], remaining["protein"])

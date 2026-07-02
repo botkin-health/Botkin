@@ -16,6 +16,15 @@ WARN_THRESHOLD = 0.80  # warn when consumed ≥ 80% of target
 DEFAULT_TOTAL = 2150  # fallback if no Garmin data (≈ avg from analysis)
 DEFAULT_GOAL_PCT = -15  # default calorie goal: 15% deficit
 
+# День считается «неполным» (частичный синк Garmin), если накопленный BMR дня
+# ниже этой доли от 14-дневного среднего BMR пользователя. BMR растёт линейно
+# в течение дня, поэтому низкий дневной BMR = часы не досинкали день. Порог
+# относительный, а не абсолютный — абсолютный (1500) ломается для пользователей
+# с низким BMR (~1400).
+INCOMPLETE_BMR_RATIO = 0.85
+# Абсолютный fallback, когда средний BMR пользователя неизвестен.
+MIN_PLAUSIBLE_TDEE = 1500
+
 
 def get_day_actual_tdee(user_id: int, for_date: date_type, db=None) -> Optional[float]:
     """Фактический расход энергии (BMR + активные) за конкретный день из activity_log.
@@ -46,6 +55,52 @@ def get_day_actual_tdee(user_id: int, for_date: date_type, db=None) -> Optional[
         if act.bmr_calories and act.active_calories:
             return float(act.bmr_calories) + float(act.active_calories)
         return None
+    finally:
+        if own:
+            db.close()
+
+
+def get_day_energy_fact(user_id: int, for_date: date_type, avg_bmr: Optional[float] = None, db=None) -> dict:
+    """Факт расхода за день + оценка полноты Garmin-данных.
+
+    Для завершённого дня фактический TDEE — истина (в отличие от прогноза по
+    среднему), но только если синк был полным. Полноту оцениваем по BMR дня
+    относительно среднего BMR пользователя (см. INCOMPLETE_BMR_RATIO).
+
+    Returns:
+        {'tdee': float|None, 'bmr': float|None, 'active': float|None, 'incomplete': bool}
+        incomplete=True — данные битые/частичные, tdee дня доверять нельзя.
+    """
+    own = db is None
+    if own:
+        from database import SessionLocal
+
+        db = SessionLocal()
+    try:
+        from database import get_activity_by_date
+
+        act = get_activity_by_date(db, user_id, for_date)
+        if not act:
+            return {"tdee": None, "bmr": None, "active": None, "incomplete": True}
+
+        bmr = float(act.bmr_calories) if act.bmr_calories else None
+        if act.total_calories and act.total_calories > 0:
+            tdee = float(act.total_calories)
+        elif act.bmr_calories and act.active_calories:
+            tdee = float(act.bmr_calories) + float(act.active_calories)
+        else:
+            tdee = None
+
+        active = max(0.0, tdee - bmr) if (tdee and bmr) else None
+
+        if tdee is None:
+            incomplete = True
+        elif bmr and avg_bmr and avg_bmr > 0:
+            incomplete = bmr < INCOMPLETE_BMR_RATIO * avg_bmr
+        else:
+            incomplete = tdee < MIN_PLAUSIBLE_TDEE
+
+        return {"tdee": tdee, "bmr": bmr, "active": active, "incomplete": incomplete}
     finally:
         if own:
             db.close()
@@ -130,15 +185,32 @@ def get_daily_budget(
             calorie_goal_pct = s.calorie_goal_pct if s and s.calorie_goal_pct is not None else DEFAULT_GOAL_PCT
         ratio = 1.0 + calorie_goal_pct / 100.0  # -15 → 0.85, 0 → 1.0, +10 → 1.10
 
-        # Today-boost: цель считается по max(среднее, фактический расход за день).
-        # В день тяжёлой тренировки фактический TDEE из Garmin выше среднего → цель
-        # растёт, юзер не «недоедает». В неполный/ленивый день factual < среднего →
-        # выигрывает среднее, цель не падает. Среднее (activity_avg/bmr_avg ниже)
-        # остаётся для отображения как было — поднимается только сама цель.
-        actual_tdee = get_day_actual_tdee(user_id, today, db=db)
-        if actual_tdee and actual_tdee > total_burned:
-            total_burned = actual_tdee
-            has_garmin = True
+        # Прошедший день vs сегодня — разная семантика цели (фикс 02.07.2026):
+        #
+        # • Сегодня — прогноз: max(среднее, фактический расход на текущий момент).
+        #   Today-boost поднимает цель в день тяжёлой тренировки, а в ленивый/
+        #   недосинканный день среднее не даёт цели упасть (день ещё не закончен).
+        #
+        # • Прошедший день — факт: день закончен, Garmin-данные финальны, поэтому
+        #   цель честно считается от фактического расхода дня (даже если он ниже
+        #   среднего — иначе в ленивые дни «остаток» разрешал переедать: июнь-2026
+        #   просел до ~4% дефицита при цели 15%). Если данные дня битые (частичный
+        #   синк, BMR дня « среднего) — оставляем оценку по среднему и ставим флаг
+        #   data_incomplete: UI не должен показывать «перебор» по мусорным данным.
+        data_incomplete = False
+        real_today = datetime.now(user_tz).date()
+        if today < real_today:
+            fact = get_day_energy_fact(user_id, today, avg_bmr=bmr_avg, db=db)
+            if fact["tdee"] and not fact["incomplete"]:
+                total_burned = fact["tdee"]
+                has_garmin = True
+            else:
+                data_incomplete = True
+        else:
+            actual_tdee = get_day_actual_tdee(user_id, today, db=db)
+            if actual_tdee and actual_tdee > total_burned:
+                total_burned = actual_tdee
+                has_garmin = True
         target = round(total_burned * ratio)
 
         # --- Consumed: today's nutrition_log ---
@@ -166,6 +238,9 @@ def get_daily_budget(
             "tdee_avg": total_avg,
             "bmr_source": source_label,  # 'garmin' | 'apple_health' | 'manual' | 'default'
             "calorie_goal_pct": calorie_goal_pct,
+            # True для прошедшего дня с битым/частичным синком Garmin: цель — оценка
+            # по среднему, вердикт «перебор» показывать нельзя.
+            "data_incomplete": data_incomplete,
         }
     except Exception as e:
         logger.warning(f"get_daily_budget failed: {e}")
@@ -217,7 +292,11 @@ def format_budget_line(user_id: int, for_date: Optional[date_type] = None, show_
 
     # Progress bar: 10 colored squares
     filled = min(10, round(pct / 10))
-    if remaining < 0:
+    if b.get("data_incomplete"):
+        icon = "⚠️"
+        sq_fill = "🟧"
+        tail = "Garmin-данные дня неполные — итог оценочный"
+    elif remaining < 0:
         icon = "🔴"
         sq_fill = "🟥"
         tail = f"перебор +{abs(remaining)} ккал"

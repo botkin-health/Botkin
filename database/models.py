@@ -668,7 +668,11 @@ class PersonalAccessToken(Base):
     user_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), nullable=False
     )
-    token: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
+    # Уникальность обеспечивает явный индекс ix_personal_access_tokens_token (см. __table_args__),
+    # который зеркалит миграцию pat0token01. Column-level unique=True здесь НЕ ставим — иначе
+    # SQLAlchemy добавит вдобавок безымянный UniqueConstraint, которого нет в миграции, и alembic
+    # check ловит расхождение ORM↔схема ("New upgrade operations detected: add UniqueConstraint(token)").
+    token: Mapped[str] = mapped_column(String(128), nullable=False)
     # Человекочитаемая метка («Мой ноут», «Психолог Ника») — задаёт пользователь.
     name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     scope: Mapped[str] = mapped_column(String(2), default="rw", server_default="rw", nullable=False)

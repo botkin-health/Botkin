@@ -42,6 +42,17 @@ def _kb_reverse_index():
     return reverse_index()
 
 
+# Ключи панелей — КАНОНИЧЕСКИЕ имена kb_schema.CANONICAL (единый source of truth),
+# не свой namespace (раньше тут жили локальные lowercase-ключи + параллельный мост
+# `_KB_CANON_TO_LOCAL`). Здесь — только presentation: label/unit/ref_low/ref_high
+# (которых в kb_schema нет). `unit` намеренно локальный — формат отображения может
+# чуть отличаться от kb_schema.unit (×10⁹/л vs 10⁹/л, нг/мл vs мкг/л).
+# `merge` — список доп. kb-канонов, чьи серии вливаются в эту панель (presentation-
+# решение отчёта: hs-CRP и CRP показываем одной панелью «СРБ»; в kb_schema они
+# намеренно РАЗНЫЕ маркеры — разные методики). Инвариант: каждый ключ панели и
+# каждый merge-источник обязаны существовать в kb_schema.CANONICAL (тест + guard).
+#
+# Reference ranges — взрослые мужчины, общая популяция.
 MARKER_CONFIG = {
     "glucose": {
         "label": "Глюкоза",
@@ -49,31 +60,31 @@ MARKER_CONFIG = {
         "ref_low": 3.9,
         "ref_high": 6.0,
     },
-    "hba1c": {
+    "HbA1c": {
         "label": "HbA1c",
         "unit": "%",
         "ref_low": 4.0,
         "ref_high": 5.7,
     },
-    "hemoglobin": {
+    "Hb": {
         "label": "Гемоглобин",
         "unit": "г/л",
         "ref_low": 130,
         "ref_high": 170,
     },
-    "rbc": {
+    "RBC": {
         "label": "Эритроциты",
         "unit": "×10¹²/л",
         "ref_low": 4.0,
         "ref_high": 5.5,
     },
-    "wbc": {
+    "WBC": {
         "label": "Лейкоциты",
         "unit": "×10⁹/л",
         "ref_low": 4.0,
         "ref_high": 9.0,
     },
-    "hematocrit": {
+    "HCT": {
         "label": "Гематокрит",
         "unit": "%",
         "ref_low": 39,
@@ -85,13 +96,13 @@ MARKER_CONFIG = {
         "ref_low": 3.0,
         "ref_high": 5.2,
     },
-    "ldl": {
+    "LDL": {
         "label": "ЛПНП",
         "unit": "ммоль/л",
         "ref_low": 0,
         "ref_high": 3.0,
     },
-    "hdl": {
+    "HDL": {
         "label": "ЛПВП",
         "unit": "ммоль/л",
         "ref_low": 1.0,
@@ -103,19 +114,19 @@ MARKER_CONFIG = {
         "ref_low": 0,
         "ref_high": 1.7,
     },
-    "apob": {
+    "ApoB": {
         "label": "ApoB",
         "unit": "г/л",
         "ref_low": 0,
         "ref_high": 0.9,
     },
-    "alt": {
+    "ALT": {
         "label": "АЛТ",
         "unit": "Ед/л",
         "ref_low": 0,
         "ref_high": 41,
     },
-    "ast": {
+    "AST": {
         "label": "АСТ",
         "unit": "Ед/л",
         "ref_low": 0,
@@ -133,11 +144,12 @@ MARKER_CONFIG = {
         "ref_low": 5,
         "ref_high": 21,
     },
-    "crp": {
+    "CRP": {
         "label": "СРБ",
         "unit": "мг/л",
         "ref_low": 0,
         "ref_high": 5,
+        "merge": ["hs_CRP"],
     },
     "ferritin": {
         "label": "Ферритин",
@@ -145,19 +157,19 @@ MARKER_CONFIG = {
         "ref_low": 30,
         "ref_high": 300,
     },
-    "psa": {
+    "PSA_total": {
         "label": "ПСА",
         "unit": "нг/мл",
         "ref_low": 0,
         "ref_high": 4,
     },
-    "tsh": {
+    "TSH": {
         "label": "ТТГ",
         "unit": "мМЕ/л",
         "ref_low": 0.4,
         "ref_high": 4.0,
     },
-    "vitamin_d": {
+    "vitamin_D": {
         "label": "Витамин D",
         "unit": "нг/мл",
         "ref_low": 30,
@@ -180,58 +192,57 @@ MARKER_CONFIG = {
 # Приоритет для отбора первых 6 панелей. Идея — то что чаще всего интересно
 # при «разборе для врача»: метаболика + липиды + печень + одна функциональная.
 PRIORITY_ORDER = [
-    "ldl",
+    "LDL",
     "glucose",
-    "hba1c",
+    "HbA1c",
     "cholesterol_total",
-    "alt",
+    "ALT",
     "creatinine",
     "triglycerides",
-    "hdl",
+    "HDL",
     "ferritin",
-    "apob",
-    "ast",
-    "vitamin_d",
-    "hemoglobin",
-    "tsh",
+    "ApoB",
+    "AST",
+    "vitamin_D",
+    "Hb",
+    "TSH",
     "testosterone",
-    "crp",
+    "CRP",
     "bilirubin_total",
-    "psa",
-    "hematocrit",
-    "rbc",
-    "wbc",
+    "PSA_total",
+    "HCT",
+    "RBC",
+    "WBC",
     "iron",
 ]
 
 
-# kb_schema-канон → ключ MARKER_CONFIG. Сами алиасы и конверсия единиц —
-# в kb_schema.to_canonical (раньше здесь жил 4-й параллельный реестр алиасов).
-_KB_CANON_TO_LOCAL: dict[str, str] = {
-    "glucose": "glucose",
-    "HbA1c": "hba1c",
-    "Hb": "hemoglobin",
-    "HCT": "hematocrit",
-    "RBC": "rbc",
-    "WBC": "wbc",
-    "cholesterol_total": "cholesterol_total",
-    "LDL": "ldl",
-    "HDL": "hdl",
-    "triglycerides": "triglycerides",
-    "ApoB": "apob",
-    "ALT": "alt",
-    "AST": "ast",
-    "creatinine": "creatinine",
-    "bilirubin_total": "bilirubin_total",
-    "CRP": "crp",
-    "hs_CRP": "crp",
-    "ferritin": "ferritin",
-    "PSA_total": "psa",
-    "TSH": "tsh",
-    "vitamin_D": "vitamin_d",
-    "testosterone": "testosterone",
-    "iron": "iron",
-}
+# kb-канон (из kb_schema.to_canonical) → ключ панели MARKER_CONFIG. ВЫВОДИТСЯ из
+# самого MARKER_CONFIG, не поддерживается руками: каждая панель отображается в себя,
+# плюс её merge-источники (напр. hs_CRP → CRP). Это заменило прежний параллельный
+# реестр `_KB_CANON_TO_LOCAL` — теперь маппинг нельзя рассинхронить с конфигом.
+_CANON_TO_PANEL: dict[str, str] = {}
+for _panel_key, _cfg in MARKER_CONFIG.items():
+    _CANON_TO_PANEL[_panel_key] = _panel_key
+    for _src in _cfg.get("merge", ()):
+        _CANON_TO_PANEL[_src] = _panel_key
+
+
+def _validate_against_kb_schema() -> None:
+    """Guard: все ключи панелей и merge-источники обязаны быть в kb_schema.CANONICAL.
+
+    Ловит дрейф на импорте — если кто-то добавит панель с именем, которого нет в
+    каноне (опечатка / свой namespace), модуль упадёт сразу, а не молча перестанет
+    собирать серию.
+    """
+    from core.health.kb_schema import CANONICAL
+
+    unknown = sorted(k for k in _CANON_TO_PANEL if k not in CANONICAL)
+    if unknown:
+        raise ValueError(f"MARKER_CONFIG ключи/merge вне kb_schema.CANONICAL: {unknown}")
+
+
+_validate_against_kb_schema()
 
 
 def _collect_series(kb: dict) -> dict[str, list[tuple[str, float]]]:
@@ -246,10 +257,10 @@ def _collect_series(kb: dict) -> dict[str, list[tuple[str, float]]]:
             # Канонизация ключей + конверсия единиц — единым реестром kb_schema
             canon_values, _warnings = to_canonical(values)
             for kb_key, val_float in canon_values.items():
-                canonical = _KB_CANON_TO_LOCAL.get(kb_key)
-                if canonical is None:
+                panel = _CANON_TO_PANEL.get(kb_key)
+                if panel is None:
                     continue
-                series.setdefault(canonical, []).append((date_str, val_float))
+                series.setdefault(panel, []).append((date_str, val_float))
     # Дедуп: один маркер может оказаться в blood_tests И в hormones за одну дату.
     # Берём среднее (или первое — на дисперсию между методиками сейчас не смотрим).
     deduped: dict[str, list[tuple[str, float]]] = {}
@@ -287,9 +298,9 @@ def resolve_marker_key(query: str) -> Optional[str]:
         return None
     q = query.strip().lower()
 
-    # 1) Прямое совпадение с canonical key или label
+    # 1) Прямое совпадение с canonical key (регистронезависимо) или label
     for canonical, cfg in MARKER_CONFIG.items():
-        if q == canonical:
+        if q == canonical.lower():
             return canonical
         if q == cfg["label"].lower():
             return canonical
@@ -297,43 +308,43 @@ def resolve_marker_key(query: str) -> Optional[str]:
     # 2) Совпадение с алиасом из единого реестра kb_schema (регистронезависимо)
     hit = _kb_reverse_index().get(q)
     if hit:
-        local = _KB_CANON_TO_LOCAL.get(hit[0])
-        if local:
-            return local
+        panel = _CANON_TO_PANEL.get(hit[0])
+        if panel:
+            return panel
 
-    # 3) Русские/народные синонимы
+    # 3) Русские/народные синонимы (значения — канон-ключи панелей)
     RU_SYNONYMS = {
-        "витамин д": "vitamin_d",
-        "витамин d": "vitamin_d",
-        "vit d": "vitamin_d",
+        "витамин д": "vitamin_D",
+        "витамин d": "vitamin_D",
+        "vit d": "vitamin_D",
         "сахар": "glucose",
         "сахар крови": "glucose",
         "холестерин": "cholesterol_total",
         "общий холестерин": "cholesterol_total",
         "холестерин общий": "cholesterol_total",
-        "лпнп": "ldl",
-        "плохой холестерин": "ldl",
-        "лпвп": "hdl",
-        "хороший холестерин": "hdl",
+        "лпнп": "LDL",
+        "плохой холестерин": "LDL",
+        "лпвп": "HDL",
+        "хороший холестерин": "HDL",
         "триглицериды": "triglycerides",
         "тг": "triglycerides",
-        "гемоглобин": "hemoglobin",
-        "гликированный": "hba1c",
-        "гликированный гемоглобин": "hba1c",
+        "гемоглобин": "Hb",
+        "гликированный": "HbA1c",
+        "гликированный гемоглобин": "HbA1c",
         "ферритин": "ferritin",
         "креатинин": "creatinine",
-        "алт": "alt",
-        "аст": "ast",
-        "ттг": "tsh",
+        "алт": "ALT",
+        "аст": "AST",
+        "ттг": "TSH",
         "тестостерон": "testosterone",
-        "псa": "psa",
-        "пса": "psa",
-        "срб": "crp",
+        "псa": "PSA_total",
+        "пса": "PSA_total",
+        "срб": "CRP",
         "билирубин": "bilirubin_total",
         "железо": "iron",
-        "лейкоциты": "wbc",
-        "эритроциты": "rbc",
-        "гематокрит": "hematocrit",
+        "лейкоциты": "WBC",
+        "эритроциты": "RBC",
+        "гематокрит": "HCT",
     }
     if q in RU_SYNONYMS:
         return RU_SYNONYMS[q]
