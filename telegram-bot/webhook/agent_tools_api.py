@@ -155,6 +155,7 @@ class LogSupplementRequest(BaseModel):
     dosage: Optional[str] = None
     date: Optional[str] = None  # YYYY-MM-DD; defaults to today
     time: Optional[str] = None  # HH:MM
+    force: bool = False  # True — записать даже если та же добавка уже логировалась в этот день
 
 
 class LogBPRequest(BaseModel):
@@ -405,10 +406,39 @@ async def log_supplement(
     db: Session = Depends(get_db),
 ):
     """Save a supplement entry to supplements_log."""
+    from sqlalchemy import text as _text
+
     from database.crud import create_supplement_log
 
     record_date = _parse_date(req.date, user)
     sup_time = _parse_time(req.time)
+
+    # Дедуп-guard (F-002, 02.07.2026): та же добавка уже логировалась в этот день →
+    # не пишем молча дубль, а возвращаем warning; агент уточнит у пользователя
+    # и при подтверждении повторит вызов с force=true.
+    if not req.force:
+        existing = db.execute(
+            _text(
+                "SELECT id, time FROM supplements_log "
+                "WHERE user_id = :uid AND date = :d "
+                "AND LOWER(REPLACE(supplement_name, '-', ' ')) = LOWER(REPLACE(:name, '-', ' ')) "
+                "LIMIT 1"
+            ),
+            {"uid": user.telegram_id, "d": record_date, "name": req.supplement_name},
+        ).first()
+        if existing:
+            return {
+                "status": "duplicate_warning",
+                "existing_id": existing.id,
+                "existing_time": str(existing.time) if existing.time else None,
+                "date": record_date.isoformat(),
+                "supplement_name": req.supplement_name,
+                "hint": (
+                    "Эта добавка уже залогирована в этот день. Запись НЕ создана. "
+                    "Спроси пользователя, действительно ли это повторный приём; "
+                    "если да — повтори вызов с force=true."
+                ),
+            }
 
     log = create_supplement_log(
         db=db,

@@ -442,6 +442,20 @@ def extract_date_from_text(text: str, user_tz=None) -> tuple[str, str]:
             except ValueError:
                 pass
 
+    # 4. Эвристика «вечером → вчера» (F-004, прецедент 20.06.2026: «Я вечером
+    # ещё 500 мл кефира выпила», отправлено в 07:43 утра — запись ушла на
+    # сегодня, юзер «потерял» её в дашборде). Если в тексте маркер вечернего
+    # приёма, СЕЙЧАС у юзера утро (до 12:00) и явного «сегодня» нет — человек
+    # описывает вчерашний вечер.
+    evening_markers = ("вечером", "на ночь", "перед сном", "за ужином")
+    if (
+        datetime.now(_tz).hour < 12
+        and any(re.search(rf"\b{m}\b", text_lower) for m in evening_markers)
+        and not re.search(r"\bсегодня\b", text_lower)
+    ):
+        date_str = (datetime.now(_tz) - timedelta(days=1)).strftime("%Y-%m-%d")
+        return date_str, text
+
     return None, text
 
 
