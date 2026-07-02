@@ -3,23 +3,26 @@
 
 from __future__ import annotations
 
+import asyncio
+import hashlib
+import io
+import json
 import logging
-import secrets
+import tempfile
 from datetime import date
 from pathlib import Path
 from typing import Any
 
-import httpx
 from aiogram import F, Router
 from aiogram.filters import Command
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import (
     CallbackQuery,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     Message,
 )
-
-from services.state import UserState, state_manager
 
 logger = logging.getLogger(__name__)
 
@@ -29,22 +32,30 @@ router = Router()
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _UPLOADS_DIR = _PROJECT_ROOT / "data" / "uploads"
 
-# Callback data префиксы
-_CB_SAVE = "doc_save:"
-_CB_SAVE_ARCHIVE = "doc_archive:"
-_CB_CANCEL = "doc_cancel:"
+_MAX_FILE_MB = 20
+_IMAGE_MIME = {"image/jpeg", "image/jpg", "image/png", "image/webp", "image/heic", "image/heif"}
 
 
-def _make_filename(ext: str) -> str:
-    """Генерирует имя файла: ГГГГ-ММ-ДД_<8hex>.<ext>."""
-    today = date.today().isoformat()
-    suffix = secrets.token_hex(4)
-    return f"{today}_{suffix}.{ext}"
+class DocUpload(StatesGroup):
+    waiting = State()
 
 
-def _format_preview(extracted: dict[str, Any]) -> str:
+def _uploads_dir(user_id: int) -> Path:
+    d = _UPLOADS_DIR / str(user_id)
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _stored_name(content: bytes, ext: str) -> str:
+    """Имя файла: ГГГГ-ММ-ДД_<8 hex от содержимого>.<ext>. Детерминировано, без PII."""
+    h = hashlib.sha256(content).hexdigest()[:8]
+    return f"{date.today().isoformat()}_{h}{ext}"
+
+
+def _preview_text(extracted: dict[str, Any]) -> str:
     """Форматирует превью найденных данных для показа пользователю."""
-    if not extracted or not extracted.get("values"):
+    values = extracted.get("values") if extracted else None
+    if not values:
         return (
             "⚠️ Не нашёл числовых значений в документе.\n\n"
             "Это всё равно можно сохранить как архив — "
@@ -61,7 +72,10 @@ def _format_preview(extracted: dict[str, Any]) -> str:
     if lab:
         lines.append(f"• <b>Лаборатория:</b> {lab}")
 
-    values = extracted.get("values", {})
+    doc_type = extracted.get("doc_type")
+    if doc_type:
+        lines.append(f"• <b>Тип:</b> {doc_type}")
+
     for key, val in list(values.items())[:15]:
         lines.append(f"• {key}: {str(val)[:50]}")
 
@@ -72,197 +86,203 @@ def _format_preview(extracted: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def _save_keyboard(has_values: bool, state_key: str) -> InlineKeyboardMarkup:
+def _preview_keyboard(has_values: bool) -> InlineKeyboardMarkup:
     """Inline-клавиатура подтверждения."""
     if has_values:
         buttons = [
             [
-                InlineKeyboardButton(text="Сохранить ✅", callback_data=f"{_CB_SAVE}{state_key}"),
-                InlineKeyboardButton(text="Отмена ❌", callback_data=f"{_CB_CANCEL}{state_key}"),
+                InlineKeyboardButton(text="Сохранить ✅", callback_data="docup_save"),
+                InlineKeyboardButton(text="Отмена ❌", callback_data="docup_cancel"),
             ]
         ]
     else:
         buttons = [
             [
-                InlineKeyboardButton(
-                    text="Сохранить как архив 📁",
-                    callback_data=f"{_CB_SAVE_ARCHIVE}{state_key}",
-                ),
-                InlineKeyboardButton(text="Отмена ❌", callback_data=f"{_CB_CANCEL}{state_key}"),
+                InlineKeyboardButton(text="Сохранить как архив 📁", callback_data="docup_save"),
+                InlineKeyboardButton(text="Отмена ❌", callback_data="docup_cancel"),
             ]
         ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-async def _download_file(bot_token: str, file_id: str) -> tuple[bytes, str]:
-    """Скачивает файл из Telegram. Возвращает (bytes, file_path)."""
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        r = await client.get(f"https://api.telegram.org/bot{bot_token}/getFile?file_id={file_id}")
-        r.raise_for_status()
-        file_path = r.json()["result"]["file_path"]
-
-        dl = await client.get(f"https://api.telegram.org/file/bot{bot_token}/{file_path}")
-        dl.raise_for_status()
-        return dl.content, file_path
-
-
-def _save_file(user_id: int, file_bytes: bytes, ext: str) -> str:
-    """Сохраняет файл в data/uploads/<user_id>/ как .pending. Возвращает имя файла (без .pending)."""
-    user_dir = _UPLOADS_DIR / str(user_id)
-    user_dir.mkdir(parents=True, exist_ok=True)
-    filename = _make_filename(ext)
-    # Сохраняем как .pending — переименуется в filename только при подтверждении
-    (user_dir / f"{filename}.pending").write_bytes(file_bytes)
-    return filename
-
-
-def _write_to_kb(user_id: int, filename: str, extracted: dict, user_confirmed: bool) -> None:
-    """Добавляет документ в kb_<user_id>.json."""
-    from core.health.kb_writer import append_document_to_kb
-
-    kb_dir = _PROJECT_ROOT / "data" / "kb"
-    kb_path = kb_dir / f"kb_{user_id}.json"
+def append_document_to_kb(user_id: int, entry: dict[str, Any]) -> None:
+    """Атомарная запись записи в documents[] в kb_<user_id>.json."""
+    kb_path = _PROJECT_ROOT / "data" / "kb" / f"kb_{user_id}.json"
     kb_path.parent.mkdir(parents=True, exist_ok=True)
 
-    entry = {
-        "added_at": date.today().isoformat(),
-        "file": filename,
-        "extracted": extracted,
-        "user_confirmed": user_confirmed,
-    }
-    append_document_to_kb(kb_path, entry)
+    if kb_path.exists():
+        try:
+            kb = json.loads(kb_path.read_text(encoding="utf-8"))
+        except Exception:
+            kb = {}
+    else:
+        kb = {}
+
+    if not isinstance(kb.get("documents"), list):
+        kb["documents"] = []
+    kb["documents"].append(entry)
+
+    tmp = tempfile.NamedTemporaryFile(
+        mode="w",
+        encoding="utf-8",
+        dir=kb_path.parent,
+        suffix=".tmp",
+        delete=False,
+    )
+    try:
+        json.dump(kb, tmp, ensure_ascii=False, indent=2)
+        tmp.flush()
+        tmp.close()
+        Path(tmp.name).replace(kb_path)
+    except Exception:
+        Path(tmp.name).unlink(missing_ok=True)
+        raise
 
 
 @router.message(Command("doc"))
-async def cmd_doc(message: Message) -> None:
+async def cmd_doc(message: Message, state: FSMContext) -> None:
     """/doc — начать загрузку медицинского документа."""
-    user_id = str(message.from_user.id)
-    state_manager.set_state(user_id, UserState(user_id=user_id, state="awaiting_doc", data={}))
+    await state.set_state(DocUpload.waiting)
     await message.answer(
-        "📄 Пришли PDF, фото или скан анализа / заключения врача.\n\nПоддерживаются: PDF, JPG, PNG.",
+        "📄 Пришли PDF, фото или скан анализа / заключения врача.\n\n"
+        "Поддерживаются: PDF, JPG, PNG, HEIC.\n"
+        "Выйти из режима загрузки — /cancel.",
         parse_mode="HTML",
     )
 
 
-@router.message(F.document | F.photo)
-async def handle_document_or_photo(message: Message) -> None:
-    """Обрабатывает входящий файл если пользователь в состоянии awaiting_doc."""
-    user_id = str(message.from_user.id)
-    state = state_manager.get_state(user_id)
+@router.message(Command("cancel"), DocUpload.waiting)
+async def cmd_cancel(message: Message, state: FSMContext) -> None:
+    """Выход из режима загрузки по /cancel."""
+    await state.clear()
+    await message.answer("Вышел из режима загрузки документов.")
 
-    if not state or state.state != "awaiting_doc":
-        # Если уже ожидаем подтверждения — напомнить пользователю
-        if state and state.state == "awaiting_doc_confirm":
-            await message.answer("⏳ Сначала подтверди или отмени предыдущий файл.")
-        return
 
-    await message.answer("⏳ Читаю документ...")
-
-    from bot_token import resolve_bot_token
+@router.message(DocUpload.waiting, F.document | F.photo)
+async def doc_received(message: Message, state: FSMContext) -> None:
+    """Обрабатывает входящий файл в режиме /doc."""
     from core.health.doc_extractor import extract_medical_data
+    from handlers.photo import _extract_pdf_text, _pdf_to_images
 
-    bot_token = resolve_bot_token()
+    user_id = message.from_user.id
+
+    # Определяем тип и скачиваем
+    if message.document:
+        doc = message.document
+        if (doc.file_size or 0) > _MAX_FILE_MB * 1024 * 1024:
+            await message.answer(
+                f"⚠️ Файл больше {_MAX_FILE_MB} МБ (лимит Telegram). Пришли PDF полегче или скриншоты страниц."
+            )
+            return
+        mime = (doc.mime_type or "").lower()
+        fname = (doc.file_name or "").lower()
+        is_pdf = mime == "application/pdf" or fname.endswith(".pdf")
+        is_image = mime in _IMAGE_MIME or fname.endswith((".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"))
+        if not is_pdf and not is_image:
+            await message.answer(
+                "📎 Такой формат пока не умею. Поддерживаю PDF, JPG/PNG/HEIC.\n"
+                "Если это .doc/.docx — сохрани как PDF или пришли фото страниц."
+            )
+            return
+        file_id = doc.file_id
+        ext = ".pdf" if is_pdf else (Path(fname).suffix or ".jpg")
+    else:
+        is_pdf = False
+        file_id = message.photo[-1].file_id
+        ext = ".jpg"
+
+    processing = await message.answer("⏳ Читаю…")
 
     try:
-        if message.document:
-            file_id = message.document.file_id
-            mime_type = message.document.mime_type or "application/pdf"
-            ext = mime_type.split("/")[-1] if "/" in mime_type else "pdf"
-            if ext == "jpeg":
-                ext = "jpg"
-            # Sanitize ext to prevent path traversal
-            ext = "".join(c for c in ext if c.isalnum())[:10] or "bin"
+        tg_file = await message.bot.get_file(file_id)
+        buf = io.BytesIO()
+        await message.bot.download_file(tg_file.file_path, buf)
+        content = buf.getvalue()
+    except Exception:
+        logger.exception("doc_upload: не удалось скачать файл от %s", user_id)
+        await processing.edit_text("⚠️ Не удалось скачать файл. Попробуй ещё раз.")
+        return
+
+    # Сохраняем как .pending до подтверждения
+    stored_name = _stored_name(content, ext)
+    tmp_path = _uploads_dir(user_id) / f".pending_{stored_name}"
+    tmp_path.write_bytes(content)
+
+    # Извлекаем показатели
+    loop = asyncio.get_event_loop()
+    try:
+        if is_pdf:
+            pdf_text = await loop.run_in_executor(None, lambda: _extract_pdf_text(tmp_path))
+            if pdf_text:
+                extracted = await extract_medical_data(pdf_text.encode(), "text/plain")
+            else:
+                # Сканированный PDF — берём первую страницу как изображение
+                pages = await loop.run_in_executor(None, lambda: _pdf_to_images(tmp_path, max_pages=1))
+                if pages:
+                    extracted = await extract_medical_data(pages[0].read_bytes(), "image/jpeg")
+                else:
+                    extracted = {}
         else:
-            file_id = message.photo[-1].file_id
-            mime_type = "image/jpeg"
-            ext = "jpg"
+            media_type = "image/png" if ext == ".png" else "image/jpeg"
+            extracted = await extract_medical_data(content, media_type)
+    except Exception:
+        logger.exception("doc_upload: экстракция не удалась (user %s)", user_id)
+        extracted = {}
 
-        file_bytes, _ = await _download_file(bot_token, file_id)
-        extracted = await extract_medical_data(file_bytes, mime_type)
-
-        # Сохраняем файл на диск сразу — не храним bytes в памяти
-        filename = _save_file(int(user_id), file_bytes, ext)
-
-        state_key = secrets.token_hex(4)
-        state_manager.set_state(
-            user_id,
-            UserState(
-                user_id=user_id,
-                state="awaiting_doc_confirm",
-                data={
-                    "filename": filename,  # только имя, не bytes
-                    "extracted": extracted,
-                    "state_key": state_key,
-                },
-            ),
-        )
-
-        has_values = bool(extracted.get("values"))
-        preview_text = _format_preview(extracted)
-        keyboard = _save_keyboard(has_values, state_key)
-
-        await message.answer(preview_text, parse_mode="HTML", reply_markup=keyboard)
-
-    except Exception as e:
-        logger.error("doc_upload: ошибка обработки файла от %s: %s", user_id, e)
-        state_manager.clear_state(user_id)
-        await message.answer("❌ Не удалось прочитать файл. Попробуй ещё раз или пришли в другом формате.")
+    await state.update_data(pending={"tmp_path": str(tmp_path), "stored_name": stored_name, "extracted": extracted})
+    await processing.edit_text(
+        _preview_text(extracted),
+        reply_markup=_preview_keyboard(bool(extracted.get("values"))),
+        parse_mode="HTML",
+    )
 
 
-@router.callback_query(F.data.startswith(_CB_SAVE))
-@router.callback_query(F.data.startswith(_CB_SAVE_ARCHIVE))
-async def callback_save(callback: CallbackQuery) -> None:
-    """Пользователь подтвердил сохранение."""
-    user_id = str(callback.from_user.id)
-    state = state_manager.get_state(user_id)
-
-    if not state or state.state != "awaiting_doc_confirm":
-        await callback.answer("Время вышло. Пришли файл заново через /doc.")
+@router.callback_query(DocUpload.waiting, F.data.in_({"docup_save", "docup_cancel"}))
+async def doc_confirm(callback: CallbackQuery, state: FSMContext) -> None:
+    """Пользователь подтвердил или отменил сохранение."""
+    data = await state.get_data()
+    pending = data.get("pending")
+    if not pending:
+        await callback.answer("Нет документа в обработке", show_alert=True)
         return
 
-    data = state.data
-    expected_key = data.get("state_key", "")
-    cb_data = callback.data or ""
-    actual_key = cb_data.split(":", 1)[1] if ":" in cb_data else ""
-    if actual_key != expected_key:
-        await callback.answer("Устаревшая кнопка.")
-        return
+    tmp_path = Path(pending["tmp_path"])
+    user_id = callback.from_user.id
 
-    try:
-        filename = data["filename"]
-        user_dir = _UPLOADS_DIR / user_id
-        pending_path = user_dir / f"{filename}.pending"
-        final_path = user_dir / filename
-        # Переименовываем из .pending в финальное имя
-        if pending_path.exists():
-            pending_path.rename(final_path)
-        _write_to_kb(int(user_id), filename, data["extracted"], user_confirmed=True)
-
-        state_manager.clear_state(user_id)
-        await callback.message.edit_text(
-            "✅ Сохранено в твою базу здоровья.\n\nМожешь прислать ещё документ или написать /doc в любой момент.",
-            parse_mode="HTML",
-        )
+    if callback.data == "docup_cancel":
+        tmp_path.unlink(missing_ok=True)
+        await state.update_data(pending=None)
+        await callback.message.edit_text("❌ Не сохранил. Пришли другой документ или /cancel.")
         await callback.answer()
-    except Exception as e:
-        logger.error("doc_upload: ошибка сохранения для %s: %s", user_id, e)
-        await callback.answer("Ошибка сохранения. Попробуй позже.")
+        return
+
+    # Сохранение
+    final_path = _uploads_dir(user_id) / pending["stored_name"]
+    try:
+        if tmp_path.exists():
+            tmp_path.replace(final_path)
+        entry = {
+            "added_at": date.today().isoformat(),
+            "file": pending["stored_name"],
+            "extracted": pending.get("extracted") or {},
+            "user_confirmed": True,
+        }
+        append_document_to_kb(user_id, entry)
+    except Exception:
+        logger.exception("doc_upload: сохранение не удалось (user %s)", user_id)
+        await callback.message.edit_text("⚠️ Не получилось сохранить, попробуй ещё раз.")
+        await callback.answer()
+        return
+
+    await state.update_data(pending=None)
+    await callback.message.edit_text(
+        "✅ Сохранено в твою базу здоровья.\n\nМожешь прислать ещё документ или /cancel.",
+        parse_mode="HTML",
+    )
+    await callback.answer("Сохранено")
 
 
-@router.callback_query(F.data.startswith(_CB_CANCEL))
-async def callback_cancel(callback: CallbackQuery) -> None:
-    """Пользователь отменил сохранение."""
-    user_id = str(callback.from_user.id)
-    state = state_manager.get_state(user_id)
-
-    # Удаляем сохранённый файл если есть
-    if state and state.data.get("filename"):
-        filename = state.data["filename"]
-        user_dir = _UPLOADS_DIR / user_id
-        # Удаляем .pending файл (финальный не должен существовать — пользователь не подтвердил)
-        (user_dir / f"{filename}.pending").unlink(missing_ok=True)
-        (user_dir / filename).unlink(missing_ok=True)  # на всякий случай
-
-    state_manager.clear_state(user_id)
-    await callback.message.edit_text("❌ Отменено. Ничего не сохранено.")
-    await callback.answer()
+@router.message(DocUpload.waiting)
+async def doc_wrong_content(message: Message) -> None:
+    """Напоминание если прислали не файл в режиме /doc."""
+    await message.answer("Жду PDF, фото или скан документа. Выйти — /cancel.")
