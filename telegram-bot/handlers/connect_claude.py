@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Команды /connect_claude и /my_connections — self-service выпуск PAT для MCP-коннектора (#228).
+"""Команды /connect_mcp и /my_connections — self-service выпуск PAT для MCP-коннектора (#228).
 
 Сценарий:
-  • /connect_claude [имя] → выбор уровня доступа (полный rw / только чтение ro) кнопкой →
+  • /connect_mcp [имя] → выбор уровня доступа (полный rw / только чтение ro) кнопкой →
     бот создаёт Personal Access Token и показывает его (один раз). Пользователь вставляет
     токен в коннектор Botkin для Claude Desktop. ro-токеном можно поделиться с врачом.
   • /my_connections → список активных токенов с кнопкой «Отозвать» у каждого.
@@ -14,7 +14,17 @@
 import logging
 import os
 import re
+from datetime import datetime
 from typing import Optional
+
+_MONTHS = ["янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"]
+
+
+def _auto_name() -> str:
+    """Автоимя по текущей дате: «29 июн, 10:25»."""
+    now = datetime.now()
+    return f"{now.day} {_MONTHS[now.month - 1]}, {now.strftime('%H:%M')}"
+
 
 from aiogram import Router
 from aiogram.filters import Command
@@ -31,9 +41,9 @@ CONNECTOR_API_BASE = os.getenv("BOTKIN_API_BASE", "https://health.orangegate.cc"
 
 MAX_NAME_LEN = 100
 
-# Имя из /connect_claude хранится между командой и нажатием кнопки scope.
+# Имя из /connect_mcp хранится между командой и нажатием кнопки scope.
 # Бот однопроцессный (aiogram polling) — in-memory dict достаточно; запись эфемерная.
-# Ограничен _MAX_PENDING: заброшенные потоки (нажали /connect_claude, кнопку не нажали)
+# Ограничен _MAX_PENDING: заброшенные потоки (нажали /connect_mcp, кнопку не нажали)
 # не растут вечно. При переполнении выбрасываем половину самых старых записей.
 _MAX_PENDING = 500
 _pending_names: dict[int, Optional[str]] = {}
@@ -51,7 +61,7 @@ class PatRevokeCallback(CallbackData, prefix="patrev"):
 
 
 def parse_connect_name(text: Optional[str]) -> Optional[str]:
-    """Достать необязательное имя из текста команды «/connect_claude мой ноут».
+    """Достать необязательное имя из текста команды «/connect_mcp мой ноут».
 
     Схлопывает пробелы, режет до MAX_NAME_LEN. Пустой аргумент → None.
     """
@@ -74,7 +84,7 @@ def scope_label(scope: str) -> str:
 def format_connections(pats: list[dict]) -> str:
     """Текст списка активных подключений (plain-text, без Markdown — имена могут
     содержать спецсимволы, экранировать накладно)."""
-    lines = ["🔌 Твои подключения Claude:\n"]
+    lines = ["🔌 Твои MCP-подключения:\n"]
     for p in pats:
         name = p.get("name") or "(без имени)"
         kind = "чтение+запись" if p.get("scope") == "rw" else "только чтение"
@@ -95,7 +105,7 @@ def _create_pat(telegram_id: int, name: Optional[str], scope: str) -> Optional[s
         pat = create_pat(db, telegram_id, name=name, scope=scope)
         return pat.token
     except Exception as e:
-        logger.error(f"connect_claude: не смог создать PAT для {telegram_id}: {e}")
+        logger.error(f"connect_mcp: не смог создать PAT для {telegram_id}: {e}")
         return None
     finally:
         db.close()
@@ -124,7 +134,7 @@ def _revoke_pat(telegram_id: int, token_id: int) -> bool:
     try:
         return revoke_pat(db, telegram_id, token_id)
     except Exception as e:
-        logger.error(f"connect_claude: не смог отозвать PAT {token_id} у {telegram_id}: {e}")
+        logger.error(f"connect_mcp: не смог отозвать PAT {token_id} у {telegram_id}: {e}")
         return False
     finally:
         db.close()
@@ -133,11 +143,7 @@ def _revoke_pat(telegram_id: int, token_id: int) -> bool:
 def _scope_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="🖊 Полный доступ (мой Claude)", callback_data=PatNewCallback(scope="rw").pack()
-                )
-            ],
+            [InlineKeyboardButton(text="🖊 Полный доступ (для себя)", callback_data=PatNewCallback(scope="rw").pack())],
             [
                 InlineKeyboardButton(
                     text="👁 Только чтение (поделиться)", callback_data=PatNewCallback(scope="ro").pack()
@@ -150,21 +156,22 @@ def _scope_keyboard() -> InlineKeyboardMarkup:
 # ── Хендлеры ──────────────────────────────────────────────────────────────────
 
 
-@router.message(Command("connect_claude"))
-async def cmd_connect_claude(message: Message) -> None:
-    """`/connect_claude [имя]` — выпустить токен для Claude Desktop."""
+@router.message(Command("connect_mcp"))
+async def cmd_connect_mcp(message: Message) -> None:
+    """`/connect_mcp [имя]` — выпустить токен для MCP-коннектора."""
     if len(_pending_names) >= _MAX_PENDING:
         evict = list(_pending_names.keys())[: _MAX_PENDING // 2]
         for k in evict:
             del _pending_names[k]
     _pending_names[message.from_user.id] = parse_connect_name(message.text)
     await message.answer(
-        "🔌 *Подключение Claude Desktop*\n\n"
+        "🔌 <b>Подключение MCP-коннектора</b>\n\n"
         "Выбери уровень доступа для токена:\n"
-        "• *Полный доступ* — твой личный Claude сможет читать и записывать данные.\n"
-        "• *Только чтение* — этой строкой можно поделиться с врачом или близким: "
-        "он увидит данные, но ничего не изменит.",
-        parse_mode="Markdown",
+        "• <b>Полный доступ</b> — твой AI-ассистент сможет читать и записывать данные.\n"
+        "• <b>Только чтение</b> — этой строкой можно поделиться с врачом или близким: "
+        "он увидит данные, но ничего не изменит.\n\n"
+        "💡 Хочешь дать имя — напиши <code>/connect_mcp мой ноут</code>",
+        parse_mode="HTML",
         reply_markup=_scope_keyboard(),
     )
 
@@ -176,21 +183,21 @@ async def on_pat_scope_chosen(callback: CallbackQuery, callback_data: PatNewCall
         await callback.answer("Неизвестный режим", show_alert=True)
         return
 
-    name = _pending_names.pop(callback.from_user.id, None)
+    name = _pending_names.pop(callback.from_user.id, None) or _auto_name()
     token = _create_pat(callback.from_user.id, name, scope)
     if token is None:
-        await callback.message.edit_text("⚠️ Не удалось создать токен. Попробуй ещё раз: /connect_claude")
+        await callback.message.edit_text("⚠️ Не удалось создать токен. Попробуй ещё раз: /connect_mcp")
         await callback.answer()
         return
 
     await callback.message.edit_text(
-        f"✅ Токен создан — *{scope_label(scope)}*\n\n"
-        "Вставь его в коннектор Botkin для Claude Desktop:\n\n"
-        f"`{token}`\n\n"
-        f"Сервер API: `{CONNECTOR_API_BASE}`\n\n"
+        f"✅ Токен создан — <b>{scope_label(scope)}</b>\n\n"
+        "Вставь его в настройки MCP-коннектора Botkin:\n\n"
+        f"<code>{token}</code>\n\n"
+        f"Сервер API: <code>{CONNECTOR_API_BASE}</code>\n\n"
         "⚠️ Токен показан один раз и работает как пароль — храни его в надёжном месте.\n"
         "Список и отзыв подключений — /my_connections.",
-        parse_mode="Markdown",
+        parse_mode="HTML",
     )
     await callback.answer()
 
@@ -200,7 +207,7 @@ async def cmd_my_connections(message: Message) -> None:
     """`/my_connections` — список активных токенов + кнопки отзыва."""
     pats = _list_pats(message.from_user.id)
     if not pats:
-        await message.answer("У тебя пока нет активных подключений Claude.\nСоздать — /connect_claude")
+        await message.answer("У тебя пока нет активных MCP-подключений.\nСоздать — /connect_mcp")
         return
 
     keyboard = InlineKeyboardMarkup(
