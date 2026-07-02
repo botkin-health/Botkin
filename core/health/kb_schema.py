@@ -4,7 +4,8 @@
 
 Заменяет разрозненные маппинги:
   - scripts/generate_biomarkers_json.py (add() lists)
-  - core/reports/biomarker_dynamics.py (MARKER_CONFIG) — TODO: мигрировать сюда
+  - core/reports/biomarker_dynamics.py — панели MARKER_CONFIG теперь ключуются
+    каноном отсюда (миграция выполнена; параллельный реестр алиасов убран)
 И избавляет от форматных расхождений между KB разных пользователей
 (CamelCase у Александра vs snake_case_with_units у Димы).
 

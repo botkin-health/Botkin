@@ -57,20 +57,33 @@ class NutritionService:
 
             # Get average activity stats for targets calculation
             user = get_user_by_telegram_id(db, self.user_id)
+            data_incomplete = False
             try:
                 avg_stats = get_average_activity_stats(db, self.user_id, days=14)
-                # Today-boost: цель = max(14-дн среднее, фактический расход за день).
-                # Закрывает занижение цели в день тяжёлой тренировки (см. calculate_targets).
-                from core.health.caloric_budget import get_day_actual_tdee
+                from core.health.caloric_budget import get_day_actual_tdee, get_day_energy_fact
+                from core.infra.tz import get_user_tz
+                from datetime import datetime
 
-                today_tdee = get_day_actual_tdee(self.user_id, day, db=db)
-                user_bmr = getattr(user, "bmr", None) if user else None
-                user_active = getattr(user, "avg_active_calories", None) if user else None
-                logger.info(
-                    f"[day_stats] user_id={self.user_id} user.bmr={user_bmr} user.avg_active={user_active} "
-                    f"avg_stats={avg_stats} today_tdee={today_tdee}"
-                )
-                targets_dict = calculate_targets(stats=avg_stats, user=user, today_tdee=today_tdee)
+                real_today = datetime.now(get_user_tz(self.user_id)).date()
+                if day < real_today:
+                    # Завершённый день: факт дня — истина (даже если ниже среднего),
+                    # но только при полном синке. Битый день → оценка по среднему + флаг,
+                    # UI не должен выносить вердикт «перебор» (фикс 02.07.2026).
+                    avg_bmr = avg_stats.get("bmr_calories") if avg_stats else None
+                    fact = get_day_energy_fact(self.user_id, day, avg_bmr=avg_bmr, db=db)
+                    if fact["tdee"] and not fact["incomplete"]:
+                        targets_dict = calculate_targets(
+                            stats=avg_stats, user=user, today_tdee=fact["tdee"], today_tdee_final=True
+                        )
+                    else:
+                        data_incomplete = True
+                        targets_dict = calculate_targets(stats=avg_stats, user=user)
+                else:
+                    # Сегодня: прогноз. Today-boost = max(14-дн среднее, факт на сейчас) —
+                    # день не закончен, честнее не посчитать (см. calculate_targets).
+                    today_tdee = get_day_actual_tdee(self.user_id, day, db=db)
+                    logger.info(f"[day_stats] user_id={self.user_id} avg_stats={avg_stats} today_tdee={today_tdee}")
+                    targets_dict = calculate_targets(stats=avg_stats, user=user, today_tdee=today_tdee)
             except Exception as e:
                 logger.error(f"Error calculating targets: {e}", exc_info=True)
                 targets_dict = calculate_targets(stats=None, user=user)
@@ -98,6 +111,9 @@ class NutritionService:
                 "targets": targets_dict,
                 "remaining": remaining,
                 "meals_count": meals_count,
+                # Прошедший день с частичным Garmin-синком: цель оценочная,
+                # вердикт «перебор» показывать нельзя.
+                "data_incomplete": data_incomplete,
             }
 
         finally:

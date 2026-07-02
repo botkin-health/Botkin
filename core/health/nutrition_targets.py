@@ -33,6 +33,7 @@ def calculate_targets(
     stats: Optional[Dict] = None,
     user: Any = None,
     today_tdee: Optional[float] = None,
+    today_tdee_final: bool = False,
 ) -> Dict:
     """
     Рассчитывает целевые калории и макросы.
@@ -44,6 +45,12 @@ def calculate_targets(
         день (today_tdee мал) max() сохраняет стабильную цель по среднему.
         Так одна формула закрывает обе стороны бага: и заниженную цель в день
         тренировки, и скачущую вниз цель из-за неполных Garmin-дней (фикс 04.04.2026).
+
+    today_tdee_final: True для завершённого дня с полным синком (фикс 02.07.2026):
+        факт дня — истина, берётся вместо среднего даже если он НИЖЕ (иначе в
+        ленивые дни цель по среднему разрешала переедать). Вызывающий обязан сам
+        проверить полноту данных дня (get_day_energy_fact) — сюда битый tdee
+        передавать нельзя.
     """
     settings = get_user_settings()
     weight = settings["weight_kg"]
@@ -86,7 +93,11 @@ def calculate_targets(
     # Today-boost: реальный сегодняшний расход важнее среднего, если выше.
     # Берём max — никогда не занижаем цель в день тренировки, но и не роняем её
     # в неполный/ленивый день (там today_tdee мал → выигрывает базовый TDEE).
-    if today_tdee and today_tdee > estimated_tdee:
+    # Для завершённого дня (today_tdee_final) факт — истина в обе стороны.
+    if today_tdee and today_tdee_final:
+        logger.info(f"[targets] день завершён: TDEE {estimated_tdee:.0f} → {today_tdee:.0f} (факт дня)")
+        estimated_tdee = float(today_tdee)
+    elif today_tdee and today_tdee > estimated_tdee:
         logger.info(f"[targets] today-boost: {estimated_tdee:.0f} → {today_tdee:.0f} (факт за день > среднего)")
         estimated_tdee = float(today_tdee)
 

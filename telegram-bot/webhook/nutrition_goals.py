@@ -27,6 +27,7 @@ def compute_goals(user_id: int, for_date: Optional[date_type] = None) -> dict:
             "carbs": None,
             "fiber": FIBER_GOAL_G,
             "calorie_goal_pct": goal_pct,
+            "data_incomplete": False,
         }
     bmr = budget.get("bmr_avg")
     activity_avg = budget.get("activity_avg")
@@ -46,4 +47,6 @@ def compute_goals(user_id: int, for_date: Optional[date_type] = None) -> dict:
         "tdee": tdee,
         "calorie_goal_pct": goal_pct,
         "deficit_pct": goal_pct,  # signed; mini-app formats sign itself
+        # Прошедший день с частичным Garmin-синком: цель оценочная, «перебор» не выносить.
+        "data_incomplete": budget.get("data_incomplete", False),
     }
