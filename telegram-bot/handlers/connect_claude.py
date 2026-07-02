@@ -14,7 +14,17 @@
 import logging
 import os
 import re
+from datetime import datetime
 from typing import Optional
+
+_MONTHS = ["янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"]
+
+
+def _auto_name() -> str:
+    """Автоимя по текущей дате: «29 июн, 10:25»."""
+    now = datetime.now()
+    return f"{now.day} {_MONTHS[now.month - 1]}, {now.strftime('%H:%M')}"
+
 
 from aiogram import Router
 from aiogram.filters import Command
@@ -133,11 +143,7 @@ def _revoke_pat(telegram_id: int, token_id: int) -> bool:
 def _scope_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="🖊 Полный доступ (мой Claude)", callback_data=PatNewCallback(scope="rw").pack()
-                )
-            ],
+            [InlineKeyboardButton(text="🖊 Полный доступ (для себя)", callback_data=PatNewCallback(scope="rw").pack())],
             [
                 InlineKeyboardButton(
                     text="👁 Только чтение (поделиться)", callback_data=PatNewCallback(scope="ro").pack()
@@ -159,12 +165,13 @@ async def cmd_connect_mcp(message: Message) -> None:
             del _pending_names[k]
     _pending_names[message.from_user.id] = parse_connect_name(message.text)
     await message.answer(
-        "🔌 *Подключение MCP-коннектора*\n\n"
+        "🔌 <b>Подключение MCP-коннектора</b>\n\n"
         "Выбери уровень доступа для токена:\n"
-        "• *Полный доступ* — твой личный Claude сможет читать и записывать данные.\n"
-        "• *Только чтение* — этой строкой можно поделиться с врачом или близким: "
-        "он увидит данные, но ничего не изменит.",
-        parse_mode="Markdown",
+        "• <b>Полный доступ</b> — твой AI-ассистент сможет читать и записывать данные.\n"
+        "• <b>Только чтение</b> — этой строкой можно поделиться с врачом или близким: "
+        "он увидит данные, но ничего не изменит.\n\n"
+        "💡 Хочешь дать имя — напиши <code>/connect_mcp мой ноут</code>",
+        parse_mode="HTML",
         reply_markup=_scope_keyboard(),
     )
 
@@ -176,7 +183,7 @@ async def on_pat_scope_chosen(callback: CallbackQuery, callback_data: PatNewCall
         await callback.answer("Неизвестный режим", show_alert=True)
         return
 
-    name = _pending_names.pop(callback.from_user.id, None)
+    name = _pending_names.pop(callback.from_user.id, None) or _auto_name()
     token = _create_pat(callback.from_user.id, name, scope)
     if token is None:
         await callback.message.edit_text("⚠️ Не удалось создать токен. Попробуй ещё раз: /connect_mcp")
@@ -184,13 +191,13 @@ async def on_pat_scope_chosen(callback: CallbackQuery, callback_data: PatNewCall
         return
 
     await callback.message.edit_text(
-        f"✅ Токен создан — *{scope_label(scope)}*\n\n"
-        "Вставь его в коннектор Botkin для Claude Desktop:\n\n"
-        f"`{token}`\n\n"
-        f"Сервер API: `{CONNECTOR_API_BASE}`\n\n"
+        f"✅ Токен создан — <b>{scope_label(scope)}</b>\n\n"
+        "Вставь его в настройки MCP-коннектора Botkin:\n\n"
+        f"<code>{token}</code>\n\n"
+        f"Сервер API: <code>{CONNECTOR_API_BASE}</code>\n\n"
         "⚠️ Токен показан один раз и работает как пароль — храни его в надёжном месте.\n"
         "Список и отзыв подключений — /my_connections.",
-        parse_mode="Markdown",
+        parse_mode="HTML",
     )
     await callback.answer()
 

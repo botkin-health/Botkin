@@ -7,6 +7,26 @@
 
 ---
 
+## 2026-07-02 — Night-shift + apply-findings: 5 фиксов агента (F-001…F-005)
+
+- Ночная смена ([отчёт](../night-shift/2026-07-02.md)) + gap-аудит 19–25.06 → 5 findings, все применены ([apply-лог](../night-shift/apply-2026-07-02-1027.md)):
+  - **`tests/test_alembic_baseline.py`** — baseline догнал миграцию `pat0token01` (+`personal_access_tokens`)
+  - **`telegram-bot/webhook/agent_tools_api.py`** — дедуп-guard в `log_supplement` (`duplicate_warning`/`force`); чистка 3 дублей в supplements_log за 27.06
+  - **`core/agent_chat.py`** — в промпт агента: время суток «⏰ Сейчас HH:MM» (некэшируемый блок), правила про фото добавок (сначала get_recent_supplements), актуальный список интеграций (Health Connect и др.), `force` в tool-схеме log_supplement
+  - **`telegram-bot/handlers/text.py`** — эвристика «вечером→вчера» в `extract_date_from_text` (+3 теста в `tests/test_extract_date.py`)
+  - Промпты в БД: Макс (140628254) — блоки «Добавки и фото упаковок», «Каналы подключения данных»; 2 сообщения-извинения отправлены и заинжектены
+- Скилл `/night-shift`: окно аудита теперь от даты последнего отчёта (`AUDIT_SINCE`), а не фикс. 7 дней
+- ⚠️ Прод обновлён hot-patch'ем — файлы закоммитить в dev и докатить до main до следующего деплоя
+- Сьют: 1007 passed. — Александр Лысковский (via Claude)
+
+## 2026-06-30 — CGM полный анализ 14 дней + KB обновление (Sensor 1)
+
+- **`FamilyHealth/Александр Лысковский/knowledge_base.json`** — обновлён `cgm_experiments.meta_findings`, `cgm_experiments.planned` (#8–#13), `cgm_experiments.population_benchmarks` (Shah 2019)
+- **bind-mount `healthvault_bot:/app/data/kb/kb_895655.json`** — синкован
+- **`docs/research/2026-06-30_cgm-comprehensive-analysis.md`** — research-документ: CV 12% vs 17% нормы, TIR 98.2%, суточный профиль, HRV/sleep таблица, TODO для Sensor 2
+
+---
+
 ## 2026-06-29 — Команда /connect_mcp вместо /connect_claude (#235)
 
 - **`telegram-bot/handlers/connect_claude.py`** — `Command("connect_mcp")`, `cmd_connect_mcp`, user-facing строки
