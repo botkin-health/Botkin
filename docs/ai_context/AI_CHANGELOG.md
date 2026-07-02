@@ -7,6 +7,17 @@
 
 ---
 
+## 2026-07-02 — /doc: самостоятельная загрузка медицинских документов (#227)
+
+- **`telegram-bot/handlers/doc_upload.py`** (новый) — FSM /doc: PDF/фото/скан → Claude-извлечение → превью с кнопками Сохранить/Отмена → файл в `data/uploads/<id>/<дата>_<hash8>.<ext>`, запись в `kb_<id>.json documents[]` (атомарно). Батч-режим, /cancel
+- **`core/health/doc_extractor.py`** (новый) — `extract_from_text`/`extract_from_image` → `{date, laboratory, doc_type, values{}}`
+- **`telegram-bot/bot.py`** — роутер ДО photo_router (FSM-перехват) + BotCommand /doc
+- **`telegram-bot/handlers/onboarding.py`** — упоминание /doc в финале онбординга
+- **`telegram-bot/handlers/photo.py`** — неподдерживаемые форматы (.docx) больше не игнорируются молча: подсказка «пересохрани в PDF» (прецедент Андрея 27.06)
+- **`docs/user_guide/ru/knowledge-base.md`** — раздел про /doc
+- **`tests/test_doc_upload.py`** — 9 тестов (KB append, именование без PII, превью, парсинг)
+- По спеке Игоря `docs/architecture/2026-06-28-user-kb-self-onboarding-design.md`; endpoint `/upload_doc` не понадобился — бот и API в одном контейнере, пишем напрямую (`./data:/app/data` уже примонтирован, compose не менялся). Сьют: 1016 passed — Александр Лысковский (via Claude)
+
 ## 2026-07-02 — Night-shift + apply-findings: 5 фиксов агента (F-001…F-005)
 
 - Ночная смена ([отчёт](../night-shift/2026-07-02.md)) + gap-аудит 19–25.06 → 5 findings, все применены ([apply-лог](../night-shift/apply-2026-07-02-1027.md)):

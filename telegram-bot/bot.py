@@ -138,6 +138,19 @@ def register_handlers(dp: Dispatcher):
         logger.error(f"❌ Ошибка регистрации обработчика apple-health-connect: {e}")
 
     try:
+        # ДО photo_router: в режиме /doc документы/фото перехватывает FSM
+        # загрузки (#227); вне режима его StateFilter-хендлеры не срабатывают.
+        from handlers.doc_upload import router as doc_upload_router
+
+        dp.include_router(doc_upload_router)
+        count = len(doc_upload_router.observers) if hasattr(doc_upload_router, "observers") else 0
+        handlers_count += count
+        registered_modules.append("doc-upload")
+    except Exception as e:
+        errors.append(f"Обработчик doc-upload: {e}")
+        logger.error(f"❌ Ошибка регистрации обработчика doc-upload: {e}")
+
+    try:
         from handlers.photo import router as photo_router
 
         dp.include_router(photo_router)
@@ -319,6 +332,7 @@ async def main():
         BotCommand(command="vitamins", description="Чек-лист витаминов"),
         BotCommand(command="share", description="Поделиться дашбордом здоровья"),
         BotCommand(command="profile", description="Настроить профиль (рост, возраст, цель)"),
+        BotCommand(command="doc", description="Загрузить анализ или заключение врача"),
         BotCommand(command="connect_mcp", description="Подключить AI-коннектор (MCP)"),
         BotCommand(command="agent_reset", description="Сбросить недавний контекст AI-ассистента"),
         BotCommand(command="help", description="Помощь"),

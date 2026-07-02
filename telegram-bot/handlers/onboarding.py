@@ -526,7 +526,9 @@ async def _finish_onboarding(user: User, db, chat_id: int) -> None:
         f"• /day — итоги дня · /week — анализ недели\n"
         f"• /help — все команды\n"
         f"• Мини-аппа (кнопка снизу) — дашборд и настройки\n\n"
-        f"<b>Устройства:</b> {wearables_str}\n"
+        f"<b>Устройства:</b> {wearables_str}\n\n"
+        f"📂 Есть анализы или заключения врачей? Пришли их мне командой /doc — "
+        f"буду помнить твою историю здоровья.\n"
     )
     if "Garmin" in wearables:
         msg += "Чтобы подключить Garmin — /garmin\n"
