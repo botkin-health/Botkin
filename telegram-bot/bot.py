@@ -328,6 +328,7 @@ async def main():
         BotCommand(command="day", description="Итоги дня"),
         BotCommand(command="week", description="Анализ недели"),
         BotCommand(command="vitamins", description="Чек-лист витаминов"),
+        BotCommand(command="doc", description="Загрузить анализ или заключение врача"),
         BotCommand(command="share", description="Поделиться дашбордом здоровья"),
         BotCommand(command="profile", description="Настроить профиль (рост, возраст, цель)"),
         BotCommand(command="connect_claude", description="Подключить Claude Desktop"),
