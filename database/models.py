@@ -668,7 +668,7 @@ class PersonalAccessToken(Base):
     user_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), nullable=False
     )
-    token: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
+    token: Mapped[str] = mapped_column(String(128), nullable=False)
     # Человекочитаемая метка («Мой ноут», «Психолог Ника») — задаёт пользователь.
     name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     scope: Mapped[str] = mapped_column(String(2), default="rw", server_default="rw", nullable=False)
