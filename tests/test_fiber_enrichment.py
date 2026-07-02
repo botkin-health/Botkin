@@ -10,6 +10,8 @@ Covers:
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from core.food.fiber_table import (
@@ -224,3 +226,33 @@ def test_sum_fiber_missing_field():
 def test_sum_fiber_null_values():
     items = [{"fiber": None}, {"fiber": "invalid"}, {"fiber": 1.5}]
     assert sum_fiber(items) == 1.5
+
+
+# --- Прецедент 02.07.2026: "Овсяная каша готовая" 187г возвращала 18.7г ---
+# клетчатки (сухая норма 10.0/100г) вместо варёной ~1.7/100г. Пользователь и
+# агент сами заметили аномалию в чате. Варёная каша должна перехватываться
+# ДО generic ингредиента "овсян" (10.0, для сырой крупы/хлопьев).
+
+
+@pytest.mark.parametrize(
+    "name,weight,expected",
+    [
+        ("Овсяная каша готовая", 187, 3.2),
+        ("Овсяная каша варёная", 250, 4.2),
+        ("Каша овсяная на молоке", 200, 3.4),
+        ("овсяная каша", 200, 3.4),
+        ("Овсяная каша с маслом", 150, 2.5),
+    ],
+)
+def test_cooked_oatmeal_porridge_uses_cooked_fiber_value(name, weight, expected):
+    assert estimate_fiber(name, weight) == expected
+
+
+def test_oat_cookie_still_uses_cookie_value_not_porridge():
+    """Овсяное печенье не должно перехватываться новым паттерном "овсяная каша"."""
+    assert estimate_fiber("Овсяное печенье", 40) == 1.6
+
+
+def test_raw_dry_oats_still_uses_dry_value():
+    """Явно сырая крупа (без слова "каша") — прежняя сухая норма 10.0/100г."""
+    assert estimate_fiber("овсянка", 40) == 4.0
