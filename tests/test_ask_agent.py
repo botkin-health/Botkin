@@ -320,6 +320,35 @@ def test_system_prompt_forces_fresh_meal_tool_call(agent_db, monkeypatch):
     assert "без НОВОГО вызова тулзы" in sys_text
 
 
+def test_system_prompt_gi_honesty(agent_db, monkeypatch):
+    """#232 изъян 1 (универсально): гард — не выдавать высокоГИ-продукты
+    (белый хлеб, сухофрукты, белый рис, сладкое) за «медленные углеводы»."""
+    fake = FakeRequests([_anthropic_text("Смотрю по составу.")])
+    monkeypatch.setattr(agent_chat, "requests", fake)
+
+    agent_chat.ask_agent(895655, "что бы съесть на завтрак?")
+
+    sys_text = fake.anthropic_calls[0]["payload"]["system"][0]["text"]
+    assert "НЕ называй высокогликемические продукты «медленными углеводами»" in sys_text
+    # перечислены конкретные высокоГИ-продукты, которые нельзя выдавать за «медленные»
+    assert "сухофрукты" in sys_text and "белый хлеб" in sys_text
+
+
+def test_system_prompt_gates_low_gi_by_diagnosis(agent_db, monkeypatch):
+    """#232 изъян 1 (адресно): при демпинге/реактивной гипо/постбариатрии —
+    активно предлагать низкоГИ-замены; гейт по constraints/KB, у остальных без изменений."""
+    fake = FakeRequests([_anthropic_text("Гляну ограничения.")])
+    monkeypatch.setattr(agent_chat, "requests", fake)
+
+    agent_chat.ask_agent(895655, "что съесть на перекус?")
+
+    sys_text = fake.anthropic_calls[0]["payload"]["system"][0]["text"]
+    assert "Демпинг / реактивная гипогликемия / постбариатрия — низкоГИ по умолчанию" in sys_text
+    # гейт: явно указано, что без диагноза в constraints/KB совет не меняется
+    assert "у кого таких ограничений в constraints/KB НЕТ" in sys_text
+    assert "цельное зерно вместо белого хлеба" in sys_text
+
+
 def _insert_router_row(TestSession, user_id, source, text_str):
     s = TestSession()
     s.execute(
