@@ -430,6 +430,71 @@ class FoodInteraction(Base):
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'saved'"))
 
 
+class VerifiedProduct(Base):
+    """Справочник проверенных продуктов (#255).
+
+    Точные КБЖУ с этикетки для упакованных продуктов — чтобы LLM-vision не
+    оценивал один и тот же батончик заново (и с ошибками) при каждом фото.
+    user_id NULL = общая запись, видимая всем пользователям; иначе — личная.
+
+    Наполняется автоматически (кнопка «Запомнить продукт» после исправления
+    КБЖУ или фото этикетки) и сид-скриптом. Ручного CRUD нет намеренно:
+    предыдущая инкарнация /my_products умерла с 0 строк за всё время жизни
+    (удалена 2026-04-21, см. AI_CHANGELOG).
+
+    name_norm — нормализованное имя (core.food.verified_products.
+    normalize_product_name), поддерживается приложением. Уникальность — два
+    частичных индекса: (user_id, name_norm) для личных записей и (name_norm)
+    для общих; обычный UNIQUE не работает из-за NULL в user_id.
+    """
+
+    __tablename__ = "verified_products"
+    __table_args__ = (
+        CheckConstraint(
+            "source IN ('user_correction','label_photo','manual','import')",
+            name="verified_products_source_check",
+        ),
+        Index(
+            "uq_verified_products_user_name",
+            "user_id",
+            "name_norm",
+            unique=True,
+            postgresql_where=text("user_id IS NOT NULL"),
+            sqlite_where=text("user_id IS NOT NULL"),
+        ),
+        Index(
+            "uq_verified_products_global_name",
+            "name_norm",
+            unique=True,
+            postgresql_where=text("user_id IS NULL"),
+            sqlite_where=text("user_id IS NULL"),
+        ),
+        Index("idx_verified_products_barcode", "barcode"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
+    user_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), nullable=True
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    name_norm: Mapped[str] = mapped_column(String(255), nullable=False)
+    brand: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    aliases: Mapped[Optional[list]] = mapped_column(JSONBCompat, nullable=True)
+    barcode: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    calories_per_100g: Mapped[float] = mapped_column(Float, nullable=False)
+    protein_per_100g: Mapped[float] = mapped_column(Float, nullable=False)
+    fats_per_100g: Mapped[float] = mapped_column(Float, nullable=False)
+    carbs_per_100g: Mapped[float] = mapped_column(Float, nullable=False)
+    fiber_per_100g: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    portion_g: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    source: Mapped[str] = mapped_column(Text, nullable=False)
+    times_used: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
 class AuditLog(Base):
     """Аудит доступа к данным (наполняется DB-триггером audit_admin_access). Зеркалит прод."""
 
