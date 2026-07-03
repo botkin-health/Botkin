@@ -7,6 +7,15 @@
 
 ---
 
+## 2026-07-02 — Честный итог дня + флаг битых Garmin-дней + справка мини-аппа (#247, #249)
+
+- **Причина:** анализ дефицита за 158 дней показал: асимметричный `max(среднее, факт)` в ленивые дни разрешал переедать (июнь: ~4% дефицита при цели 15%); битые дни частичного синка (25.06: BMR 1467/1855) давали ложный «перебор». У Андрея 33% дней битые.
+- **`core/health/caloric_budget.py`** — `get_day_energy_fact()` (полнота дня: BMR дня < 85% среднего BMR юзера → битый, per-user порог); в `get_daily_budget` прошедший день считается от факта, битый → `data_incomplete=True`; `format_budget_line` не выносит «перебор» по битым дням
+- **`core/health/nutrition_targets.py`** — `calculate_targets(today_tdee_final=True)`: факт завершённого дня — истина в обе стороны
+- **`services/nutrition_service.py` / `handlers/commands.py` (/day) / `webhook/nutrition_goals.py` / `webapp/day.js`** — флаг прокинут до бота и мини-аппа («итог оценочный ⚠️»)
+- **`webapp/index.html`** — справка: 8 разделов с оглавлением и якорями, простым языком про BMR/TDEE/дефицит −15%/прогноз-vs-факт/оценочные дни (#249)
+- Тесты: `tests/test_day_energy_fact.py` (новый), обновлены `test_today_tdee_boost`, `test_nutrition_goals`. Прод задеплоен. — Александр Лысковский (via Claude)
+
 ## 2026-07-02 — Night-shift + apply-findings: 5 фиксов агента (F-001…F-005)
 
 - Ночная смена ([отчёт](../night-shift/2026-07-02.md)) + gap-аудит 19–25.06 → 5 findings, все применены ([apply-лог](../night-shift/apply-2026-07-02-1027.md)):
