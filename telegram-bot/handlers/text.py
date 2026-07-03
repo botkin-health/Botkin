@@ -1158,6 +1158,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                 user_id=user_id,
                 state="waiting_confirmation",
                 data={
+                    "source": "text",
                     "description": text,
                     "meal_items": meal_items,
                     "meal_totals": meal_totals,
@@ -1369,6 +1370,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                 user_id=user_id,
                 state="waiting_confirmation",
                 data={
+                    "source": "text",
                     "description": text,
                     "meal_items": meal_items,
                     "meal_totals": meal_totals,
@@ -1469,6 +1471,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                 user_id=user_id,
                 state="waiting_confirmation",
                 data={
+                    "source": "text",
                     "description": text,
                     "multi_meals": multi_meals,
                     "date": custom_date,
