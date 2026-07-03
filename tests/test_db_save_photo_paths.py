@@ -36,9 +36,10 @@ def test_save_meal_to_db_persists_photo_paths(test_db):
         patch.object(db_save, "SessionLocal", return_value=test_db),
         patch.object(test_db, "close"),
     ):
-        assert db_save.save_meal_to_db(meal_data, "Обед", user_id=USER_ID) is True
+        log_id = db_save.save_meal_to_db(meal_data, "Обед", user_id=USER_ID)
+        assert log_id is not None
 
-    row = test_db.query(NutritionLog).filter(NutritionLog.user_id == USER_ID).first()
+    row = test_db.query(NutritionLog).filter(NutritionLog.id == log_id).first()
     assert row is not None
     assert row.photo_paths == ["/app/data/media/nutrition/2026-07-03/photo_123.jpg"]
 
@@ -57,7 +58,8 @@ def test_save_meal_to_db_missing_photo_paths_saves_empty_list(test_db):
         patch.object(db_save, "SessionLocal", return_value=test_db),
         patch.object(test_db, "close"),
     ):
-        assert db_save.save_meal_to_db(meal_data, "Завтрак", user_id=USER_ID) is True
+        log_id = db_save.save_meal_to_db(meal_data, "Завтрак", user_id=USER_ID)
+        assert log_id is not None
 
-    row = test_db.query(NutritionLog).filter(NutritionLog.user_id == USER_ID).first()
+    row = test_db.query(NutritionLog).filter(NutritionLog.id == log_id).first()
     assert row.photo_paths == []
