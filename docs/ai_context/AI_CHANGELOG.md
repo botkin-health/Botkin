@@ -7,6 +7,18 @@
 
 ---
 
+## 2026-07-03 — Справочник проверенных продуктов verified_products (#255)
+
+- **Причина:** LLM-vision без памяти — один и тот же упакованный продукт распознавался каждый раз заново и с ошибками (Solvie Protein Barre: бот записал Б12/У10/клетчатка 1.8 вместо этикеточных 16.7/4.5/11.4 на 50 г).
+- **БД:** Alembic-ревизия `verprod01` — таблица `verified_products` (этикеточные КБЖУ/100г + порция + barcode; `user_id NULL` = общая запись). Частичные unique-индексы, RLS с чтением общих записей. ORM `VerifiedProduct` + CRUD в `database/crud.py`.
+- **`core/food/verified_products.py`** — `normalize_product_name()` (единая точка нормализации), `match_and_apply_verified_products()` (детерминированный post-match в `save_meal_to_db` до `enrich_items_with_fiber`, пересчёт КБЖУ по весу/`portion_g`, totals пересчитываются), `build_known_products_block()` (топ-20 в промпт).
+- **`core/llm/router.py`** — промпт-блок вторым system-элементом во всех 3 путях (у Claude без `cache_control`); SYSTEM_PROMPT STEP 4 — извлечение `product_label` с этикетки.
+- **`core/llm/models.py`** — pydantic `ProductLabel`, `FoodData.product_label`.
+- **`telegram-bot/handlers/verified_products.py`** — кнопка «💾 Запомнить продукт» после сохранения приёма (source=label_photo); прокидка `product_label` через photo/text флоу. Ручного CRUD нет — урок `/my_products` (0 строк, удалена 21.04.2026).
+- **Сид:** `scripts/import/seed_verified_products.py` (Solvie, Bombbar, Fit Kit; `--products-json` для legacy). ⚠️ На проде прогнать после деплоя.
+- **Доки:** ADR-0007, `03_database_schema.md` (§9), `05_food_logging_context.md`.
+- Тесты: +45 (CRUD, матчер, промпт, автонаполнение). — Александр Лысковский (via Claude)
+
 ## 2026-07-02 — Честный итог дня + флаг битых Garmin-дней + справка мини-аппа (#247, #249)
 
 - **Причина:** анализ дефицита за 158 дней показал: асимметричный `max(среднее, факт)` в ленивые дни разрешал переедать (июнь: ~4% дефицита при цели 15%); битые дни частичного синка (25.06: BMR 1467/1855) давали ложный «перебор». У Андрея 33% дней битые.
