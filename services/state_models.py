@@ -4,7 +4,7 @@
 Используют Pydantic для типизации и валидации.
 """
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from typing import Optional, List, Dict, Any
 
 
@@ -76,16 +76,32 @@ class MealStateData(BaseModel):
     """
     Данные состояния meal-flow (приём пищи ожидает подтверждения).
 
-    Используется в состоянии 'waiting_confirmation' (одиночный приём пищи,
-    не multi_meals-ветка). extra="forbid" — ловит опечатку в имени ключа
-    (например "photo_path" вместо "photo_paths", #256) в момент создания
-    состояния, а не тихой потерей данных при чтении в save_meal_to_db() (#258).
+    Используется в состоянии 'waiting_confirmation' — как одиночный приём
+    пищи (meal_items/meal_totals на верхнем уровне), так и multi_meals-
+    контейнер (#53, несколько приёмов в одном сообщении: meal_items/
+    meal_totals вложены в каждый элемент multi_meals, а не на верхнем
+    уровне — отсюда model_validator ниже вместо req на уровне поля).
+
+    extra="forbid" — ловит опечатку в имени ключа (например "photo_path"
+    вместо "photo_paths", #256) в момент создания состояния, а не тихой
+    потерей данных при чтении в save_meal_to_db() (#258). Для элементов
+    внутри multi_meals та же защита достигается прогоном каждого элемента
+    через build_meal_state_data() отдельно (см. state_helpers.py).
+
+    NB: модель намеренно объединяет поля из разных флоу (фото-OCR, меню,
+    текст) в одну "плоскую" схему — не строгий per-flow контракт. Опечатка,
+    совпавшая по имени с полем другого флоу (например написать "date" там,
+    где этот флоу его не использует), пройдёт валидацию молча. Если это
+    станет проблемой — разделить на per-flow модели.
     """
 
     model_config = ConfigDict(extra="forbid")
 
-    meal_items: List[Dict[str, Any]] = Field(..., description="Позиции приёма пищи")
-    meal_totals: Dict[str, float] = Field(..., description="КБЖУ итого")
+    meal_items: Optional[List[Dict[str, Any]]] = Field(None, description="Позиции приёма пищи")
+    meal_totals: Optional[Dict[str, float]] = Field(None, description="КБЖУ итого")
+    multi_meals: Optional[List[Dict[str, Any]]] = Field(
+        None, description="Несколько приёмов пищи в одном сообщении (#53)"
+    )
     meal_name: Optional[str] = Field(None, description="Название приёма пищи")
     dish_name: Optional[str] = Field(None, description="Название блюда (menu-флоу)")
     meal_time: Optional[str] = Field(None, description="Время приёма пищи HH:MM")
@@ -95,6 +111,12 @@ class MealStateData(BaseModel):
     photo_paths: List[str] = Field(default_factory=list, description="Пути к фото на диске")
     portion_multiplier: Optional[float] = Field(None, description="Deprecated")
     menu_ocr: Optional[bool] = Field(None, description="Флаг что это меню, распознанное по фото")
+
+    @model_validator(mode="after")
+    def _require_meal_or_multi_meals(self) -> "MealStateData":
+        if self.multi_meals is None and (self.meal_items is None or self.meal_totals is None):
+            raise ValueError("meal_items and meal_totals are required when multi_meals is not set")
+        return self
 
 
 # Вспомогательные функции для конвертации

@@ -61,3 +61,40 @@ def test_build_meal_state_data_raises_on_typo():
             meal_totals={"calories": 100},
             photo_path=["/tmp/x.jpg"],  # опечатка
         )
+
+
+def test_multi_meals_alone_is_valid_without_meal_items():
+    """Контейнер multi_meals (несколько явных приёмов пищи, #53) не несёт
+
+    meal_items/meal_totals на верхнем уровне — они вложены в каждый элемент
+    списка. Модель должна принимать эту форму, не требуя top-level meal_items.
+    """
+    data = MealStateData(
+        source="text",
+        description="завтрак и обед",
+        multi_meals=[
+            {"meal_name": "Завтрак", "meal_items": [{"product": "Яйца"}], "meal_totals": {"calories": 200}},
+        ],
+    )
+    assert data.meal_items is None
+    assert data.meal_totals is None
+    assert len(data.multi_meals) == 1
+
+
+def test_neither_meal_items_nor_multi_meals_raises():
+    with pytest.raises(ValidationError):
+        MealStateData(description="пусто")
+
+
+def test_rejects_multi_meals_container_with_typo_in_sub_meal_via_helper():
+    """Опечатка внутри вложенного элемента multi_meals (тот же класс бага,
+
+    #256) должна ловиться build_meal_state_data() для каждого под-приёма.
+    """
+    with pytest.raises(ValidationError):
+        build_meal_state_data(
+            meal_name="Завтрак",
+            meal_items=[{"product": "Яйца"}],
+            meal_totals={"calories": 200},
+            photo_path=["/tmp/x.jpg"],  # опечатка, как и в основном флоу
+        )

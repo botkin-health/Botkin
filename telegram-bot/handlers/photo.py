@@ -1295,23 +1295,22 @@ async def handle_description(
 
     meal_name = apply_slot_prefix(full_description, meal_name)
 
-    # Обновляем состояние
-    user_state.data.update(
-        {
-            "description": full_description,
-            "meal_items": meal_items,
-            "meal_totals": meal_totals,
-            "portion_multiplier": 1.0,  # Deprecated
-            "meal_time": datetime.now(MSK).strftime("%H:%M"),
-            "meal_name": meal_name,
-        }
+    # Переходим в waiting_confirmation. Пересобираем data целиком (не мутируем
+    # in-place — coding-style.md) через build_meal_state_data(): предыдущее
+    # состояние ("waiting_description") несло PhotoStateData-поля (caption,
+    # photo_file_ids, menu_data), которые в meal-confirmation уже не читаются;
+    # сохраняем из него только photo_paths.
+    new_data = build_meal_state_data(
+        description=full_description,
+        meal_items=meal_items,
+        meal_totals=meal_totals,
+        portion_multiplier=1.0,  # Deprecated
+        meal_time=datetime.now(MSK).strftime("%H:%M"),
+        meal_name=meal_name,
+        photo_paths=user_state.data.get("photo_paths", []),
+        date=custom_date,
     )
-
-    # Если передана кастомная дата
-    if custom_date:
-        user_state.data["date"] = custom_date
-
-    user_state.state = "waiting_confirmation"
+    user_state = UserState(user_id=user_id, state="waiting_confirmation", data=new_data)
     state_manager.set_state(user_id, user_state)
 
     # Формируем ответ

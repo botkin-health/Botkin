@@ -107,11 +107,19 @@ def save_meal_to_db(meal_data: dict, meal_name: str = None, user_id: int = None)
     if user_id is None:
         raise ValueError("save_meal_to_db: user_id is required")
     try:
-        # Валидируем обязательные поля (meal_items, meal_totals) через
-        # MealStateData — опечатка/отсутствие ключа (#256-класс бага) падает
-        # здесь ValidationError, а не тихо сохраняет пустой приём пищи.
-        # Неизвестные ключи игнорируем: meal_data — это часто "сырой"
-        # UserState.data с полями, не относящимися к этой функции.
+        # Валидируем ТОЛЬКО присутствие обязательных полей (meal_items,
+        # meal_totals) через MealStateData: отсутствие ключа падает здесь
+        # ValidationError, а не тихо сохраняет пустой приём пищи. Неизвестные
+        # ключи ИГНОРИРУЕМ (meal_data — часто "сырой" UserState.data с полями,
+        # не относящимися к этой функции) — поэтому опечатку в имени ключа
+        # (#256-класс бага) эта проверка НЕ ловит, extra="forbid" здесь не
+        # срабатывает. Реальная защита от опечаток — на write-side, в
+        # build_meal_state_data() (services/state_helpers.py), которым должны
+        # быть построены все состояния до того, как они попадут сюда.
+        # Локальный импорт — по аналогии с остальными lazy-импортами в этой
+        # функции (core.food.fiber_table ниже); циклической зависимости нет,
+        # это просто стиль файла: тяжёлые/специфичные импорты не тянутся на
+        # модульный уровень ради функций, вызываемых не из каждого пути.
         from services.state_models import MealStateData
 
         known_fields = MealStateData.model_fields.keys()

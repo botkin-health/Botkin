@@ -1454,12 +1454,15 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                 if not sub_items:
                     skipped.append(meal_name)
                     continue
+                # build_meal_state_data() валидирует каждый под-приём отдельно
+                # (extra="forbid") — та же защита от опечаток, что и в
+                # одиночном meal-флоу (#256).
                 multi_meals.append(
-                    {
-                        "meal_name": meal_name,
-                        "meal_items": sub_items,
-                        "meal_totals": sub_totals,
-                    }
+                    build_meal_state_data(
+                        meal_name=meal_name,
+                        meal_items=sub_items,
+                        meal_totals=sub_totals,
+                    )
                 )
 
             if not multi_meals:
@@ -1471,12 +1474,12 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             new_state = UserState(
                 user_id=user_id,
                 state="waiting_confirmation",
-                data={
-                    "source": "text",
-                    "description": text,
-                    "multi_meals": multi_meals,
-                    "date": custom_date,
-                },
+                data=build_meal_state_data(
+                    source="text",
+                    description=text,
+                    multi_meals=multi_meals,
+                    date=custom_date,
+                ),
             )
             state_manager.set_state(user_id, new_state)
 
