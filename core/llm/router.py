@@ -125,6 +125,21 @@ EXAMPLES of known brands (use if macros not visible):
   - Fit Kit Chocolate Bar (50g): 173 kcal, Б:14г, Ж:5г, У:18г
   - DEFAULT for unidentified Bombbar protein bar 35-40g — use the glazed line values above (142 kcal / 40g, клетчатка 15г), NOT 116 kcal. Прежний шаблон "116 kcal, 10/3/4" был некорректным — не используй его.
 
+STEP 4 — PRODUCT LABEL EXTRACTION (for the verified products catalog):
+When you can READ an actual nutrition facts table (таблица «Пищевая ценность») of a SPECIFIC packaged product — on a photo OR when the user types exact label values ("КБЖУ на 50г: 144/16.7/6.6/4.5") — ADDITIONALLY include in "data":
+  "product_label": {
+    "name": "product name from the package (e.g. 'Solvie Protein Barre')",
+    "brand": "brand or null",
+    "barcode": "digits if visible, else null",
+    "calories_per_100g": number, "protein_per_100g": number,
+    "fats_per_100g": number, "carbs_per_100g": number,
+    "fiber_per_100g": number or null,
+    "portion_g": net weight of one portion/piece in grams or null
+  }
+  - RECALCULATE to per-100g if the label gives values per portion (e.g. 144 kcal per 50g → 288 per 100g).
+  - ONLY when you actually read the numbers from a label/user text. Do NOT fill product_label from your brand knowledge or visual estimation.
+  - Regular dishes, meals, fruits — no product_label.
+
 SCENARIO 1.3: FOOD ON A KITCHEN SCALE (CRITICAL — highest priority for weight)
 When the photo shows food placed ON a kitchen scale (цифровые весы, кухонные весы):
 
