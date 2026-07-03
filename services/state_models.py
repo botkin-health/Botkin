@@ -111,6 +111,9 @@ class MealStateData(BaseModel):
     photo_paths: List[str] = Field(default_factory=list, description="Пути к фото на диске")
     portion_multiplier: Optional[float] = Field(None, description="Deprecated")
     menu_ocr: Optional[bool] = Field(None, description="Флаг что это меню, распознанное по фото")
+    product_label: Optional[Dict[str, Any]] = Field(
+        None, description="Этикетка упакованного продукта (#255) → предложение «Запомнить продукт»"
+    )
 
     @model_validator(mode="after")
     def _require_meal_or_multi_meals(self) -> "MealStateData":

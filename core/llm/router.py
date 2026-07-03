@@ -125,6 +125,21 @@ EXAMPLES of known brands (use if macros not visible):
   - Fit Kit Chocolate Bar (50g): 173 kcal, Б:14г, Ж:5г, У:18г
   - DEFAULT for unidentified Bombbar protein bar 35-40g — use the glazed line values above (142 kcal / 40g, клетчатка 15г), NOT 116 kcal. Прежний шаблон "116 kcal, 10/3/4" был некорректным — не используй его.
 
+STEP 4 — PRODUCT LABEL EXTRACTION (for the verified products catalog):
+When you can READ an actual nutrition facts table (таблица «Пищевая ценность») of a SPECIFIC packaged product — on a photo OR when the user types exact label values ("КБЖУ на 50г: 144/16.7/6.6/4.5") — ADDITIONALLY include in "data":
+  "product_label": {
+    "name": "product name from the package (e.g. 'Solvie Protein Barre')",
+    "brand": "brand or null",
+    "barcode": "digits if visible, else null",
+    "calories_per_100g": number, "protein_per_100g": number,
+    "fats_per_100g": number, "carbs_per_100g": number,
+    "fiber_per_100g": number or null,
+    "portion_g": net weight of one portion/piece in grams or null
+  }
+  - RECALCULATE to per-100g if the label gives values per portion (e.g. 144 kcal per 50g → 288 per 100g).
+  - ONLY when you actually read the numbers from a label/user text. Do NOT fill product_label from your brand knowledge or visual estimation.
+  - Regular dishes, meals, fruits — no product_label.
+
 SCENARIO 1.3: FOOD ON A KITCHEN SCALE (CRITICAL — highest priority for weight)
 When the photo shows food placed ON a kitchen scale (цифровые весы, кухонные весы):
 
@@ -587,6 +602,23 @@ NOTE: "Бизнес-ланч" (multiple courses, one slot) → use regular "food
 """
 
 
+def _known_products_block(user_id: Optional[int]) -> str:
+    """Блок «проверенные продукты пользователя» (#255) для system-промпта.
+
+    Пусто (нет user_id / нет записей / ошибка БД) → "" — промпт остаётся
+    прежним, справочник не должен ломать распознавание.
+    """
+    if not user_id:
+        return ""
+    try:
+        from core.food.verified_products import build_known_products_block
+
+        return build_known_products_block(user_id)
+    except Exception as e:
+        logger.warning(f"verified products prompt block failed: {e}")
+        return ""
+
+
 def analyze_message_claude(
     text: str = None,
     image_paths: List[Union[str, Path]] = None,
@@ -644,6 +676,11 @@ def analyze_message_claude(
         ],
         "messages": [{"role": "user", "content": user_content}],
     }
+    # Проверенные продукты (#255) — отдельным system-блоком БЕЗ cache_control:
+    # per-user контент не должен ломать кеш базового SYSTEM_PROMPT.
+    products_block = _known_products_block(user_id)
+    if products_block:
+        payload["system"].append({"type": "text", "text": products_block})
 
     for attempt in range(3):
         try:
@@ -747,9 +784,13 @@ def analyze_message(
         return None
 
     # Construct payload
+    system_messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    products_block = _known_products_block(user_id)
+    if products_block:
+        system_messages.append({"role": "system", "content": products_block})
     payload = {
         "model": FOOD_TEXT_MODEL_OPENAI,
-        "messages": [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": content}],
+        "messages": system_messages + [{"role": "user", "content": content}],
         "max_tokens": 2000,
         "temperature": 0.1,
         "response_format": {"type": "json_object"},
@@ -781,12 +822,12 @@ def analyze_message(
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 403 or e.response.status_code == 401:
                 print(f"❌ OpenAI API {e.response.status_code} (Auth). Falling back to Gemini...")
-                return analyze_message_gemini(text, image_paths)
+                return analyze_message_gemini(text, image_paths, user_id=user_id)
             print(f"Error in LLM Router (Attempt {attempt + 1}): {e}")
             time.sleep(1)
         except requests.exceptions.ConnectionError:
             print("❌ OpenAI Connection Error. Falling back to Gemini...")
-            return analyze_message_gemini(text, image_paths)
+            return analyze_message_gemini(text, image_paths, user_id=user_id)
         except Exception as e:
             print(f"Error in LLM Router (Attempt {attempt + 1}): {e}")
             time.sleep(1)
@@ -798,7 +839,11 @@ def analyze_message(
     return None
 
 
-def analyze_message_gemini(text: str = None, image_paths: List[Union[str, Path]] = None) -> Optional[Dict]:
+def analyze_message_gemini(
+    text: str = None,
+    image_paths: List[Union[str, Path]] = None,
+    user_id: Optional[int] = None,
+) -> Optional[Dict]:
     """
     Analyzes message content using Google Gemini 1.5 Flash (Fallback for OpenAI).
     """
@@ -815,6 +860,9 @@ def analyze_message_gemini(text: str = None, image_paths: List[Union[str, Path]]
 
     # Build parts
     parts = [{"text": SYSTEM_PROMPT}]
+    products_block = _known_products_block(user_id)
+    if products_block:
+        parts.append({"text": products_block})
     if text:
         parts.append({"text": f"USER MESSAGE: {text}"})
 
