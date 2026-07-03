@@ -163,9 +163,10 @@ def test_save_meal_recomputes_totals_after_match(test_db):
         # save_meal_to_db/матчер закрыли бы сессию-фикстуру — глушим close
         patch.object(test_db, "close"),
     ):
-        assert db_save.save_meal_to_db(meal_data, "Перекус", user_id=USER_ID) is True
+        log_id = db_save.save_meal_to_db(meal_data, "Перекус", user_id=USER_ID)
+        assert log_id is not None
 
-    row = test_db.query(NutritionLog).filter(NutritionLog.user_id == USER_ID).first()
+    row = test_db.query(NutritionLog).filter(NutritionLog.id == log_id).first()
     assert row is not None
     assert row.totals["calories"] == 144
     assert row.totals["protein"] == 17  # int(round(16.7))
@@ -191,7 +192,8 @@ def test_save_meal_survives_matcher_failure(test_db):
         ),
         patch.object(test_db, "close"),
     ):
-        assert db_save.save_meal_to_db(meal_data, "Завтрак", user_id=USER_ID) is True
+        log_id = db_save.save_meal_to_db(meal_data, "Завтрак", user_id=USER_ID)
+        assert log_id is not None
 
-    row = test_db.query(NutritionLog).filter(NutritionLog.user_id == USER_ID).first()
+    row = test_db.query(NutritionLog).filter(NutritionLog.id == log_id).first()
     assert row.totals["calories"] == 150
