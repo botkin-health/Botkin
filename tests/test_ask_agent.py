@@ -349,6 +349,21 @@ def test_system_prompt_gates_low_gi_by_diagnosis(agent_db, monkeypatch):
     assert "цельное зерно вместо белого хлеба" in sys_text
 
 
+def test_system_prompt_doctor_prep_balanced_drugs(agent_db, monkeypatch):
+    """#232 изъян 2: doctor-prep не подаёт один препарат «ключевым»; при демпинге/
+    реактивной гипо (диагноз из KB) — акарбоза как вариант для обсуждения, без назначений."""
+    fake = FakeRequests([_anthropic_text("Готовлю вопросы врачу.")])
+    monkeypatch.setattr(agent_chat, "requests", fake)
+
+    agent_chat.ask_agent(895655, "какие вопросы задать эндокринологу?")
+
+    sys_text = fake.anthropic_calls[0]["payload"]["system"][0]["text"]
+    assert "не подавай один препарат" in sys_text.lower()
+    assert "АКАРБОЗУ" in sys_text
+    # гейт по диагнозу: у кого нет — поведение не меняется
+    assert "У кого такого диагноза в KB нет — поведение не меняется" in sys_text
+
+
 def _insert_router_row(TestSession, user_id, source, text_str):
     s = TestSession()
     s.execute(
