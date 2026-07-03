@@ -4,7 +4,7 @@
 Используют Pydantic для типизации и валидации.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List, Dict, Any
 
 
@@ -70,6 +70,31 @@ class PhotoStateData(BaseModel):
                 },
             }
         }
+
+
+class MealStateData(BaseModel):
+    """
+    Данные состояния meal-flow (приём пищи ожидает подтверждения).
+
+    Используется в состоянии 'waiting_confirmation' (одиночный приём пищи,
+    не multi_meals-ветка). extra="forbid" — ловит опечатку в имени ключа
+    (например "photo_path" вместо "photo_paths", #256) в момент создания
+    состояния, а не тихой потерей данных при чтении в save_meal_to_db() (#258).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    meal_items: List[Dict[str, Any]] = Field(..., description="Позиции приёма пищи")
+    meal_totals: Dict[str, float] = Field(..., description="КБЖУ итого")
+    meal_name: Optional[str] = Field(None, description="Название приёма пищи")
+    dish_name: Optional[str] = Field(None, description="Название блюда (menu-флоу)")
+    meal_time: Optional[str] = Field(None, description="Время приёма пищи HH:MM")
+    description: Optional[str] = Field(None, description="Исходное описание/подпись пользователя")
+    source: Optional[str] = Field(None, description="Источник: text, photo, ocr_db_lookup")
+    date: Optional[str] = Field(None, description="Дата приёма пищи YYYY-MM-DD")
+    photo_paths: List[str] = Field(default_factory=list, description="Пути к фото на диске")
+    portion_multiplier: Optional[float] = Field(None, description="Deprecated")
+    menu_ocr: Optional[bool] = Field(None, description="Флаг что это меню, распознанное по фото")
 
 
 # Вспомогательные функции для конвертации

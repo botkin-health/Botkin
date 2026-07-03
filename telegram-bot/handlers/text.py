@@ -15,6 +15,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.filters import StateFilter
 
 from services.state import state_manager
+from services.state_helpers import build_meal_state_data
 
 router = Router()
 
@@ -1157,15 +1158,15 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             new_state = UserState(
                 user_id=user_id,
                 state="waiting_confirmation",
-                data={
-                    "source": "text",
-                    "description": text,
-                    "meal_items": meal_items,
-                    "meal_totals": meal_totals,
-                    "meal_time": _temporal_phrase_to_time(text) or datetime.now(user_tz).strftime("%H:%M"),
-                    "meal_name": meal_name,
-                    "date": custom_date,
-                },
+                data=build_meal_state_data(
+                    source="text",
+                    description=text,
+                    meal_items=meal_items,
+                    meal_totals=meal_totals,
+                    meal_time=_temporal_phrase_to_time(text) or datetime.now(user_tz).strftime("%H:%M"),
+                    meal_name=meal_name,
+                    date=custom_date,
+                ),
             )
             state_manager.set_state(user_id, new_state)
 
@@ -1369,15 +1370,15 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             new_state = UserState(
                 user_id=user_id,
                 state="waiting_confirmation",
-                data={
-                    "source": "text",
-                    "description": text,
-                    "meal_items": meal_items,
-                    "meal_totals": meal_totals,
-                    "meal_time": _temporal_phrase_to_time(text) or datetime.now(user_tz).strftime("%H:%M"),
-                    "meal_name": meal_name,
-                    "date": custom_date,
-                },
+                data=build_meal_state_data(
+                    source="text",
+                    description=text,
+                    meal_items=meal_items,
+                    meal_totals=meal_totals,
+                    meal_time=_temporal_phrase_to_time(text) or datetime.now(user_tz).strftime("%H:%M"),
+                    meal_name=meal_name,
+                    date=custom_date,
+                ),
             )
             state_manager.set_state(user_id, new_state)
 

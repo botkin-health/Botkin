@@ -7,6 +7,16 @@
 
 ---
 
+## 2026-07-03 — Typed schema для meal-flow UserState.data (follow-up #256/#258)
+
+- **Причина:** dict-литералы с ключами `meal_items`/`meal_totals`/`photo_paths` собирались вручную в 4+ местах в `photo.py`/`text.py` без единой схемы — опечатка в имени ключа (`photo_path` вместо `photo_paths`, #256) молча теряла данные вместо ошибки. Follow-up, предложенный в ревью PR #262.
+- **`services/state_models.py`** — новый `MealStateData` (Pydantic, `extra="forbid"`): `meal_items`/`meal_totals` обязательны, остальные поля (`meal_name`, `dish_name`, `meal_time`, `photo_paths`, `date`, `source`, `description`, `menu_ocr`, `portion_multiplier`) опциональны
+- **`services/state_helpers.py`** — `build_meal_state_data(**kwargs)`: валидирует через `MealStateData` и возвращает `dict` для `UserState.data`; опечатка в имени kwarg падает `ValidationError` сразу в месте создания состояния
+- **`telegram-bot/handlers/photo.py` / `handlers/text.py`** — 4 места создания meal-confirmation состояния (`ocr_db_lookup`, `handle_menu_photo`, 2 текстовых ветки) переведены на `build_meal_state_data()` вместо dict-литералов
+- **`helpers/db_save.py::save_meal_to_db`** — валидирует `meal_data` через `MealStateData` на входе (неизвестные ключи игнорируются, обязательные — `meal_items`/`meal_totals` — падают `ValidationError` вместо тихого сохранения пустого приёма пищи)
+- Тесты (+7): `tests/test_meal_state_data.py` (новый, 6 тестов на модель/хелпер), `test_db_save_meal.py::test_returns_none_when_meal_items_key_missing`
+- Не в скоупе (сознательно): остальные 25+ ключей `UserState.data` (онбординг, weights, supplements) — полная типизация оценена в 3-5 дней, отложена до явного запроса — Александр Лысковский (via Claude)
+
 ## 2026-07-02 — Честный итог дня + флаг битых Garmin-дней + справка мини-аппа (#247, #249)
 
 - **Причина:** анализ дефицита за 158 дней показал: асимметричный `max(среднее, факт)` в ленивые дни разрешал переедать (июнь: ~4% дефицита при цели 15%); битые дни частичного синка (25.06: BMR 1467/1855) давали ложный «перебор». У Андрея 33% дней битые.

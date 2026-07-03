@@ -51,7 +51,7 @@ async def safe_edit_text(message: Message, text: str, **kwargs):
 
 
 from services.state import UserState, state_manager
-from services.state_helpers import create_photo_state
+from services.state_helpers import build_meal_state_data, create_photo_state
 from core.vision.menu_parser import parse_menu_photo
 
 router = Router()
@@ -532,14 +532,14 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
             new_state = UserState(
                 user_id=user_id,
                 state="waiting_confirmation",
-                data={
-                    "description": f"Фото: {p_name}",
-                    "meal_items": meal_items,
-                    "meal_totals": meal_totals,
-                    "meal_time": datetime.now(MSK).strftime("%H:%M"),
-                    "meal_name": p_name,
-                    "photo_paths": [str(p) for p in photo_paths],
-                },
+                data=build_meal_state_data(
+                    description=f"Фото: {p_name}",
+                    meal_items=meal_items,
+                    meal_totals=meal_totals,
+                    meal_time=datetime.now(MSK).strftime("%H:%M"),
+                    meal_name=p_name,
+                    photo_paths=[str(p) for p in photo_paths],
+                ),
             )
             state_manager.set_state(user_id, new_state)
 
@@ -1459,25 +1459,25 @@ async def handle_menu_photo(message: Message, menu_data: dict, photo_path: Path,
     keyboard = builder.as_markup()
 
     # Сохраняем данные в состояние для подтверждения
+    # #256: было "photo_path" (ед.ч.) — save_meal_to_db() читает "photo_paths"
+    # (мн.ч.), из-за чего фото терялось. build_meal_state_data() (typed schema,
+    # extra="forbid") ловит такую опечатку в момент создания состояния.
     user_state = UserState(
         user_id=user_id,
         state="waiting_confirmation",
-        data={
-            "dish_name": dish_name,
-            "meal_items": [build_menu_meal_item(menu_data)],
-            "meal_totals": {
+        data=build_meal_state_data(
+            dish_name=dish_name,
+            meal_items=[build_menu_meal_item(menu_data)],
+            meal_totals={
                 "calories": calories,
                 "protein": protein,
                 "fats": fats,
                 "carbs": carbs,
             },
-            # #256: было "photo_path" (ед.ч.) — save_meal_to_db() читает
-            # "photo_paths" (мн.ч.), из-за чего фото терялось для всех
-            # приёмов, распознанных как меню/еда без подписи.
-            "photo_paths": [str(photo_path)],
-            "meal_time": datetime.now(MSK).strftime("%H:%M"),
-            "menu_ocr": True,  # Флаг, что это меню
-        },
+            photo_paths=[str(photo_path)],
+            meal_time=datetime.now(MSK).strftime("%H:%M"),
+            menu_ocr=True,  # Флаг, что это меню
+        ),
     )
     state_manager.set_state(user_id, user_state)
 

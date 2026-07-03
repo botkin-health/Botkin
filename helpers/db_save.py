@@ -107,6 +107,16 @@ def save_meal_to_db(meal_data: dict, meal_name: str = None, user_id: int = None)
     if user_id is None:
         raise ValueError("save_meal_to_db: user_id is required")
     try:
+        # Валидируем обязательные поля (meal_items, meal_totals) через
+        # MealStateData — опечатка/отсутствие ключа (#256-класс бага) падает
+        # здесь ValidationError, а не тихо сохраняет пустой приём пищи.
+        # Неизвестные ключи игнорируем: meal_data — это часто "сырой"
+        # UserState.data с полями, не относящимися к этой функции.
+        from services.state_models import MealStateData
+
+        known_fields = MealStateData.model_fields.keys()
+        MealStateData(**{k: v for k, v in meal_data.items() if k in known_fields})
+
         # Определяем дату
         custom_date = meal_data.get("date")
         if custom_date:
