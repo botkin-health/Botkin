@@ -91,7 +91,7 @@ def normalize_item_to_canonical(item: Dict[str, Any]) -> Dict[str, Any]:
     return canonical
 
 
-def save_meal_to_db(meal_data: dict, meal_name: str = None, user_id: int = None) -> bool:
+def save_meal_to_db(meal_data: dict, meal_name: str = None, user_id: int = None) -> Optional[int]:
     """
     Сохраняет приём пищи в PostgreSQL
 
@@ -101,7 +101,8 @@ def save_meal_to_db(meal_data: dict, meal_name: str = None, user_id: int = None)
         user_id: Telegram ID пользователя
 
     Returns:
-        True if successful
+        id созданной записи в nutrition_log, либо None при ошибке
+        (нужен вызывающему коду для food_interactions.nutrition_log_id, #258)
     """
     if user_id is None:
         raise ValueError("save_meal_to_db: user_id is required")
@@ -182,7 +183,7 @@ def save_meal_to_db(meal_data: dict, meal_name: str = None, user_id: int = None)
         # Сохраняем в БД
         db = SessionLocal()
         try:
-            create_nutrition_log(
+            log = create_nutrition_log(
                 db,
                 user_id=user_id,
                 date=meal_date,
@@ -193,13 +194,13 @@ def save_meal_to_db(meal_data: dict, meal_name: str = None, user_id: int = None)
                 photo_paths=photo_paths,
             )
             logger.info(f"Meal saved to DB: {meal_name} on {meal_date} at {meal_time}")
-            return True
+            return log.id
         finally:
             db.close()
 
     except Exception as e:
         logger.error(f"Error saving meal to DB: {e}", exc_info=True)
-        return False
+        return None
 
 
 def save_weight_to_db(data: Dict[str, Any], user_id: int = None) -> str:

@@ -110,11 +110,10 @@ def test_score2_return_shape():
             dict(age=45, sex="female", smoking=True, sbp_mmhg=118, tchol_mmolL=4.5, hdl_mmolL=1.6),
             {"risk_pct": 41.1, "category": "high", "color": "o"},
         ),
-        # КВИРК age≥70: 1 major (курение)=50.0 × 0.92 (ветка age>=60) = 46.0.
-        # Задуманное ×0.80 недостижимо (мёртвая ветка) — пиннится отдельной задачей.
+        # age=72: 1 major (курение)=50.0 × 0.80 = 40.0. Фикс бага PR #242 (Igor-Lysk).
         (
             dict(age=72, sex="male", smoking=True, sbp_mmhg=118, tchol_mmolL=4.5, hdl_mmolL=1.4),
-            {"risk_pct": 46.0, "category": "high", "color": "o"},
+            {"risk_pct": 40.0, "category": "high", "color": "o"},
         ),
     ],
 )
