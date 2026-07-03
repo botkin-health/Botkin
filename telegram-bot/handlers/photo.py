@@ -1525,7 +1525,8 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
                     "meal_totals": m["meal_totals"],
                     "date": user_state.data.get("date"),
                 }
-                if save_meal_to_db(meal_data, m["meal_name"], user_id=telegram_user_id):
+                meal_nutrition_log_id = save_meal_to_db(meal_data, m["meal_name"], user_id=telegram_user_id)
+                if meal_nutrition_log_id is not None:
                     saved_count += 1
                     total_kcal += int(m["meal_totals"].get("calories", 0))
                 else:
@@ -1570,8 +1571,9 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
         logger.info(f"[BEFORE SAVE] meal_totals: {user_state.data.get('meal_totals')}")
         logger.info(f"[BEFORE SAVE] meal_items count: {len(user_state.data.get('meal_items', []))}")
 
-        if save_meal_to_db(user_state.data, meal_name, user_id=telegram_user_id):
-            logger.info("[AFTER SAVE] save_meal_to_db returned True")
+        nutrition_log_id = save_meal_to_db(user_state.data, meal_name, user_id=telegram_user_id)
+        if nutrition_log_id is not None:
+            logger.info("[AFTER SAVE] save_meal_to_db returned id=%s", nutrition_log_id)
             await callback.answer("✅ Сохранено!", show_alert=False)
 
             totals = user_state.data.get("meal_totals", {})
@@ -1602,7 +1604,7 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
                 parse_mode="HTML",
             )
         else:
-            logger.error("[AFTER SAVE] save_meal_to_db returned False!")
+            logger.error("[AFTER SAVE] save_meal_to_db returned None!")
             await callback.answer("❌ Ошибка при сохранении", show_alert=True)
             logger.error("Ошибка при сохранении в save_meal_to_db")
     else:
