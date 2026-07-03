@@ -1377,6 +1377,8 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                     "meal_time": _temporal_phrase_to_time(text) or datetime.now(user_tz).strftime("%H:%M"),
                     "meal_name": meal_name,
                     "date": custom_date,
+                    # #255: пользователь дал точные КБЖУ с этикетки текстом
+                    "product_label": data.get("product_label"),
                 },
             )
             state_manager.set_state(user_id, new_state)

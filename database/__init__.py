@@ -87,6 +87,11 @@ from database.crud import (
     get_blood_tests_by_period,
     get_all_blood_tests,
     create_body_measurement,
+    # Verified products (#255)
+    get_verified_products,
+    find_verified_product,
+    upsert_verified_product,
+    increment_verified_product_usage,
 )
 
 __all__ = [
@@ -125,4 +130,8 @@ __all__ = [
     "get_blood_tests_by_period",
     "get_all_blood_tests",
     "create_body_measurement",
+    "get_verified_products",
+    "find_verified_product",
+    "upsert_verified_product",
+    "increment_verified_product_usage",
 ]

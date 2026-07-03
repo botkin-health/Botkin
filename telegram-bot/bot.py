@@ -214,6 +214,17 @@ def register_handlers(dp: Dispatcher):
         errors.append(f"Обработчик /connect_mcp: {e}")
         logger.error(f"❌ Ошибка регистрации обработчика /connect_mcp: {e}")
 
+    try:
+        from handlers.verified_products import router as verified_products_router
+
+        dp.include_router(verified_products_router)
+        count = len(verified_products_router.observers) if hasattr(verified_products_router, "observers") else 0
+        handlers_count += count
+        registered_modules.append("verified-products")
+    except Exception as e:
+        errors.append(f"Обработчик verified-products: {e}")
+        logger.error(f"❌ Ошибка регистрации обработчика verified-products: {e}")
+
     # Apple Health handlers removed
     pass
 
