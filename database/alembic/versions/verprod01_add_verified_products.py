@@ -11,9 +11,12 @@ Create Date: 2026-07-03
 Уникальность — два частичных индекса (личные / общие), потому что обычный
 UNIQUE не дедуплицирует строки с NULL user_id.
 
-RLS: ОТКЛОНЕНИЕ от паттерна cgm0glucose01 — политика чтения
-`user_id IS NULL OR user_id = app.user_id`, иначе общие записи были бы
-невидимы агенту (hv_app). Запись (WITH CHECK) — только в свои строки.
+RLS: ОТКЛОНЕНИЕ от паттерна cgm0glucose01 — чтение разрешает общие записи
+(`user_id IS NULL OR user_id = app.user_id`), иначе они были бы невидимы
+агенту (hv_app). Запись/изменение/удаление — раздельными policy per-command,
+СТРОГО только в свои строки (без ветки `user_id IS NULL`): единая policy без
+FOR применялась бы к DELETE через USING, а WITH CHECK на DELETE в Postgres
+не действует — общая запись была бы удаляемой кем угодно.
 """
 
 from typing import Sequence, Union
@@ -87,13 +90,38 @@ def upgrade() -> None:
         -- Чтение: свои записи + общие (user_id IS NULL). Это сознательное
         -- отклонение от строгого user_isolation других таблиц — общий
         -- справочник продуктов по дизайну виден всем (#255).
-        -- Запись: только в свои строки (общие записи создаёт сид/оператор).
-        CREATE POLICY user_isolation ON verified_products TO hv_app
+        CREATE POLICY verified_products_select ON verified_products
+            FOR SELECT TO hv_app
             USING (
                 user_id IS NULL
                 OR user_id = (NULLIF(current_setting('app.user_id'::text, true), ''::text))::bigint
+            );
+
+        -- Запись/изменение/удаление — ТОЛЬКО свои строки, без ветки
+        -- user_id IS NULL. Общие записи создаёт/меняет только сид или
+        -- оператор напрямую (владелец схемы, вне RLS). Раздельные policy
+        -- per-command обязательны: единая policy без FOR применяла бы
+        -- USING (с "user_id IS NULL") и к DELETE, а WITH CHECK на DELETE
+        -- в Postgres не действует — общая запись стала бы удаляемой
+        -- любым пользователем hv_app.
+        CREATE POLICY verified_products_insert ON verified_products
+            FOR INSERT TO hv_app
+            WITH CHECK (
+                user_id = (NULLIF(current_setting('app.user_id'::text, true), ''::text))::bigint
+            );
+
+        CREATE POLICY verified_products_update ON verified_products
+            FOR UPDATE TO hv_app
+            USING (
+                user_id = (NULLIF(current_setting('app.user_id'::text, true), ''::text))::bigint
             )
             WITH CHECK (
+                user_id = (NULLIF(current_setting('app.user_id'::text, true), ''::text))::bigint
+            );
+
+        CREATE POLICY verified_products_delete ON verified_products
+            FOR DELETE TO hv_app
+            USING (
                 user_id = (NULLIF(current_setting('app.user_id'::text, true), ''::text))::bigint
             );
         """
@@ -101,7 +129,14 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.execute("DROP POLICY IF EXISTS user_isolation ON verified_products;")
+    op.execute(
+        """
+        DROP POLICY IF EXISTS verified_products_delete ON verified_products;
+        DROP POLICY IF EXISTS verified_products_update ON verified_products;
+        DROP POLICY IF EXISTS verified_products_insert ON verified_products;
+        DROP POLICY IF EXISTS verified_products_select ON verified_products;
+        """
+    )
     op.drop_index("idx_verified_products_barcode", table_name="verified_products")
     op.drop_index("uq_verified_products_global_name", table_name="verified_products")
     op.drop_index("uq_verified_products_user_name", table_name="verified_products")
