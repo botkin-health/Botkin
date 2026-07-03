@@ -134,6 +134,18 @@ def save_meal_to_db(meal_data: dict, meal_name: str = None, user_id: int = None)
         from core.food.fiber_table import enrich_items_with_fiber, sum_fiber
 
         meal_items = meal_data.get("meal_items", [])
+
+        # Verified products (#255): точные КБЖУ с этикетки поверх LLM-оценки.
+        # Строго ДО enrich_items_with_fiber — справочный fiber > 0 энричер не трогает.
+        # Ошибка справочника не должна ломать сохранение еды.
+        matched_verified = 0
+        try:
+            from core.food.verified_products import match_and_apply_verified_products
+
+            matched_verified = match_and_apply_verified_products(meal_items, user_id)
+        except Exception as e:
+            logger.warning(f"verified_products match failed, keeping LLM estimates: {e}")
+
         enrich_items_with_fiber(meal_items)
 
         # Single normalisation path — all writers of nutrition_log.items go through this
@@ -148,6 +160,17 @@ def save_meal_to_db(meal_data: dict, meal_name: str = None, user_id: int = None)
             "carbs": int(round(meal_totals.get("carbs", 0.0))),
             "fiber": sum_fiber(items),
         }
+        if matched_verified:
+            # КБЖУ items изменились относительно LLM-ответа — totals из
+            # meal_totals устарели, пересчитываем по items.
+            totals.update(
+                {
+                    "calories": int(round(sum(float(i.get("calories") or 0) for i in items))),
+                    "protein": int(round(sum(float(i.get("protein") or 0) for i in items))),
+                    "fats": int(round(sum(float(i.get("fats") or 0) for i in items))),
+                    "carbs": int(round(sum(float(i.get("carbs") or 0) for i in items))),
+                }
+            )
 
         # Фото
         photo_paths = meal_data.get("photo_paths", [])
