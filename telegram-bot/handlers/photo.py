@@ -209,6 +209,8 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
                     # Issue #115: сохраняем покомпонентную разбивку зрения, чтобы не
                     # схлопывать фото-блюдо в один item при наличии подписи.
                     "components": items,
+                    # #255: этикетка продукта → предложение «Запомнить продукт»
+                    "product_label": data.get("product_label"),
                 }
             elif items:
                 menu_data = {
@@ -219,6 +221,7 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
                     "carbs": sum(i.get("carbs", 0) for i in items),
                     "weight": items[0].get("weight") if items else None,
                     "components": items,
+                    "product_label": data.get("product_label"),
                 }
             if menu_data and (menu_data.get("calories") or menu_data.get("protein") is not None):
                 logger.info(f"Распознано через LLM: {menu_data.get('dish_name')}, {menu_data.get('calories')} ккал")
@@ -1304,6 +1307,11 @@ async def handle_description(
             "portion_multiplier": 1.0,  # Deprecated
             "meal_time": datetime.now(MSK).strftime("%H:%M"),
             "meal_name": meal_name,
+            # #255: этикетка из свежего LLM-ответа, иначе — из menu_data
+            # (первый проход зрения), иначе — что уже лежало в state.
+            "product_label": (router_result.get("data") or {}).get("product_label")
+            or (menu_data or {}).get("product_label")
+            or user_state.data.get("product_label"),
         }
     )
 
@@ -1471,9 +1479,13 @@ async def handle_menu_photo(message: Message, menu_data: dict, photo_path: Path,
                 "fats": fats,
                 "carbs": carbs,
             },
-            "photo_path": str(photo_path),
+            # #256: было "photo_path" (ед.ч.) — save_meal_to_db() читает
+            # "photo_paths" (мн.ч.), из-за чего фото терялось для всех
+            # приёмов, распознанных как меню/еда без подписи.
+            "photo_paths": [str(photo_path)],
             "meal_time": datetime.now(MSK).strftime("%H:%M"),
             "menu_ocr": True,  # Флаг, что это меню
+            "product_label": menu_data.get("product_label"),  # #255
         },
     )
     state_manager.set_state(user_id, user_state)
@@ -1626,6 +1638,16 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
                 nutrition_log_id=nutrition_log_id,
                 status="saved",
             )
+            # #255: LLM прочитал этикетку продукта — предлагаем запомнить
+            # в справочник verified_products (после успешного сохранения).
+            product_label = user_state.data.get("product_label")
+            if product_label:
+                try:
+                    from handlers.verified_products import offer_remember_product
+
+                    await offer_remember_product(callback.message, telegram_user_id, product_label)
+                except Exception as e:
+                    logger.warning(f"offer_remember_product failed: {e}")
         else:
             logger.error("[AFTER SAVE] save_meal_to_db returned None!")
             await callback.answer("❌ Ошибка при сохранении", show_alert=True)
