@@ -70,6 +70,52 @@ def apply_verified(item: dict, product) -> None:
         item["fiber"] = round(product.fiber_per_100g * factor, 1)
 
 
+#: Сколько продуктов подмешиваем в промпт распознавания (топ по times_used).
+PROMPT_BLOCK_LIMIT = 20
+#: Потолок длины блока — защита от разбухания промпта.
+PROMPT_BLOCK_MAX_CHARS = 2500
+
+
+def build_known_products_block(user_id: int, db=None, limit: int = PROMPT_BLOCK_LIMIT) -> str:
+    """Компактный блок «проверенные продукты пользователя» для system-промпта.
+
+    Пустой справочник → "" (вызывающий код НЕ добавляет блок — промпт для
+    пользователей без записей остаётся байт-в-байт прежним, и кеш базового
+    SYSTEM_PROMPT не ломается).
+    """
+    from database import SessionLocal, get_verified_products
+
+    own_session = db is None
+    if own_session:
+        db = SessionLocal()
+    try:
+        products = get_verified_products(db, user_id=user_id, limit=limit)
+    finally:
+        if own_session:
+            db.close()
+
+    if not products:
+        return ""
+
+    lines = [
+        "VERIFIED PRODUCTS CATALOG (exact label data for THIS user).",
+        "If a recognized item IS one of these products — USE THESE NUMBERS "
+        "(scaled to the actual weight), do NOT estimate visually:",
+    ]
+    for p in products:
+        brand = f" [{p.brand}]" if p.brand else ""
+        portion = f"; portion {p.portion_g:g} g" if p.portion_g else ""
+        fiber = f", fiber {p.fiber_per_100g:g}" if p.fiber_per_100g is not None else ""
+        line = (
+            f"- {p.name}{brand}: per 100g — {p.calories_per_100g:g} kcal, "
+            f"P {p.protein_per_100g:g}, F {p.fats_per_100g:g}, C {p.carbs_per_100g:g}{fiber}{portion}"
+        )
+        if sum(len(x) + 1 for x in lines) + len(line) > PROMPT_BLOCK_MAX_CHARS:
+            break
+        lines.append(line)
+    return "\n".join(lines)
+
+
 def match_and_apply_verified_products(items: list, user_id: int, db=None) -> int:
     """Post-match: заменяет LLM-оценку КБЖУ точными цифрами из справочника.
 
