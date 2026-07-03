@@ -51,7 +51,7 @@ async def safe_edit_text(message: Message, text: str, **kwargs):
 
 
 from services.state import UserState, state_manager
-from services.state_helpers import create_photo_state
+from services.state_helpers import build_meal_state_data, create_photo_state
 from core.vision.menu_parser import parse_menu_photo
 
 router = Router()
@@ -535,14 +535,14 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
             new_state = UserState(
                 user_id=user_id,
                 state="waiting_confirmation",
-                data={
-                    "description": f"Фото: {p_name}",
-                    "meal_items": meal_items,
-                    "meal_totals": meal_totals,
-                    "meal_time": datetime.now(MSK).strftime("%H:%M"),
-                    "meal_name": p_name,
-                    "photo_paths": [str(p) for p in photo_paths],
-                },
+                data=build_meal_state_data(
+                    description=f"Фото: {p_name}",
+                    meal_items=meal_items,
+                    meal_totals=meal_totals,
+                    meal_time=datetime.now(MSK).strftime("%H:%M"),
+                    meal_name=p_name,
+                    photo_paths=[str(p) for p in photo_paths],
+                ),
             )
             state_manager.set_state(user_id, new_state)
 
@@ -1298,28 +1298,27 @@ async def handle_description(
 
     meal_name = apply_slot_prefix(full_description, meal_name)
 
-    # Обновляем состояние
-    user_state.data.update(
-        {
-            "description": full_description,
-            "meal_items": meal_items,
-            "meal_totals": meal_totals,
-            "portion_multiplier": 1.0,  # Deprecated
-            "meal_time": datetime.now(MSK).strftime("%H:%M"),
-            "meal_name": meal_name,
-            # #255: этикетка из свежего LLM-ответа, иначе — из menu_data
-            # (первый проход зрения), иначе — что уже лежало в state.
-            "product_label": (router_result.get("data") or {}).get("product_label")
-            or (menu_data or {}).get("product_label")
-            or user_state.data.get("product_label"),
-        }
+    # Переходим в waiting_confirmation. Пересобираем data целиком (не мутируем
+    # in-place — coding-style.md) через build_meal_state_data(): предыдущее
+    # состояние ("waiting_description") несло PhotoStateData-поля (caption,
+    # photo_file_ids, menu_data), которые в meal-confirmation уже не читаются;
+    # сохраняем из него только photo_paths.
+    new_data = build_meal_state_data(
+        description=full_description,
+        meal_items=meal_items,
+        meal_totals=meal_totals,
+        portion_multiplier=1.0,  # Deprecated
+        meal_time=datetime.now(MSK).strftime("%H:%M"),
+        meal_name=meal_name,
+        photo_paths=user_state.data.get("photo_paths", []),
+        date=custom_date,
+        # #255: этикетка из свежего LLM-ответа, иначе — из menu_data
+        # (первый проход зрения), иначе — что уже лежало в state.
+        product_label=(router_result.get("data") or {}).get("product_label")
+        or (menu_data or {}).get("product_label")
+        or user_state.data.get("product_label"),
     )
-
-    # Если передана кастомная дата
-    if custom_date:
-        user_state.data["date"] = custom_date
-
-    user_state.state = "waiting_confirmation"
+    user_state = UserState(user_id=user_id, state="waiting_confirmation", data=new_data)
     state_manager.set_state(user_id, user_state)
 
     # Формируем ответ
@@ -1467,26 +1466,26 @@ async def handle_menu_photo(message: Message, menu_data: dict, photo_path: Path,
     keyboard = builder.as_markup()
 
     # Сохраняем данные в состояние для подтверждения
+    # #256: было "photo_path" (ед.ч.) — save_meal_to_db() читает "photo_paths"
+    # (мн.ч.), из-за чего фото терялось. build_meal_state_data() (typed schema,
+    # extra="forbid") ловит такую опечатку в момент создания состояния.
     user_state = UserState(
         user_id=user_id,
         state="waiting_confirmation",
-        data={
-            "dish_name": dish_name,
-            "meal_items": [build_menu_meal_item(menu_data)],
-            "meal_totals": {
+        data=build_meal_state_data(
+            dish_name=dish_name,
+            meal_items=[build_menu_meal_item(menu_data)],
+            meal_totals={
                 "calories": calories,
                 "protein": protein,
                 "fats": fats,
                 "carbs": carbs,
             },
-            # #256: было "photo_path" (ед.ч.) — save_meal_to_db() читает
-            # "photo_paths" (мн.ч.), из-за чего фото терялось для всех
-            # приёмов, распознанных как меню/еда без подписи.
-            "photo_paths": [str(photo_path)],
-            "meal_time": datetime.now(MSK).strftime("%H:%M"),
-            "menu_ocr": True,  # Флаг, что это меню
-            "product_label": menu_data.get("product_label"),  # #255
-        },
+            photo_paths=[str(photo_path)],
+            meal_time=datetime.now(MSK).strftime("%H:%M"),
+            menu_ocr=True,  # Флаг, что это меню
+            product_label=menu_data.get("product_label"),  # #255
+        ),
     )
     state_manager.set_state(user_id, user_state)
 
