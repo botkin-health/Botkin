@@ -30,3 +30,17 @@ def test_returns_none_on_db_error():
         result = save_meal_to_db({"meal_items": [], "meal_totals": {}}, "Обед", user_id=1)
 
     assert result is None
+
+
+def test_returns_none_when_meal_items_key_missing():
+    """Опечатка/отсутствие ключа meal_items (#256-класс бага) должна быть
+
+    видна в логах как ValidationError, а не тихо сохранять пустой приём пищи.
+    Проверяем что SessionLocal вообще не вызывается — валидация падает раньше,
+    чем открывается сессия БД.
+    """
+    with patch("helpers.db_save.SessionLocal") as mock_session:
+        result = save_meal_to_db({"meal_item": [], "meal_totals": {}}, "Обед", user_id=1)
+
+    assert result is None
+    mock_session.assert_not_called()
