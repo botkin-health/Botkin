@@ -27,6 +27,7 @@ from database.models import (
     BodyMeasurement,
     UserSettings,
     PersonalAccessToken,
+    VerifiedProduct,
 )
 
 logger = logging.getLogger(__name__)
@@ -1005,6 +1006,117 @@ def get_recent_product_names(db: Session, user_id: int, limit: int = 15, lookbac
         if len(by_name) >= limit:
             break
     return list(by_name.values())
+
+
+# ==================== VERIFIED PRODUCTS (#255) ====================
+
+
+def get_verified_products(db: Session, user_id: int, limit: Optional[int] = None) -> List[VerifiedProduct]:
+    """Записи справочника, видимые пользователю: личные + общие (user_id IS NULL).
+
+    Личные идут первыми (приоритет при матчинге), внутри группы — по times_used DESC.
+    """
+    q = (
+        db.query(VerifiedProduct)
+        .filter((VerifiedProduct.user_id == user_id) | (VerifiedProduct.user_id.is_(None)))
+        # nullslast нельзя: sqlite до 3.30 не умеет NULLS LAST — сортируем выражением
+        .order_by(VerifiedProduct.user_id.is_(None), desc(VerifiedProduct.times_used))
+    )
+    if limit:
+        q = q.limit(limit)
+    return q.all()
+
+
+def find_verified_product(db: Session, user_id: int, name_norm: str) -> Optional[VerifiedProduct]:
+    """Точный поиск по нормализованному имени. Личная запись приоритетнее общей."""
+    return (
+        db.query(VerifiedProduct)
+        .filter(
+            VerifiedProduct.name_norm == name_norm,
+            (VerifiedProduct.user_id == user_id) | (VerifiedProduct.user_id.is_(None)),
+        )
+        .order_by(VerifiedProduct.user_id.is_(None))
+        .first()
+    )
+
+
+def upsert_verified_product(
+    db: Session,
+    user_id: Optional[int],
+    name: str,
+    name_norm: str,
+    calories_per_100g: float,
+    protein_per_100g: float,
+    fats_per_100g: float,
+    carbs_per_100g: float,
+    source: str,
+    fiber_per_100g: Optional[float] = None,
+    portion_g: Optional[float] = None,
+    brand: Optional[str] = None,
+    aliases: Optional[list] = None,
+    barcode: Optional[str] = None,
+) -> VerifiedProduct:
+    """Создаёт или обновляет запись справочника в скоупе (user_id, name_norm).
+
+    user_id=None — общая запись (сид/оператор). Повторное «Запомнить продукт»
+    с новыми цифрами обновляет существующую запись, не плодя дубли.
+    """
+    existing = (
+        db.query(VerifiedProduct)
+        .filter(
+            VerifiedProduct.name_norm == name_norm,
+            VerifiedProduct.user_id == user_id if user_id is not None else VerifiedProduct.user_id.is_(None),
+        )
+        .first()
+    )
+    if existing:
+        existing.name = name
+        existing.calories_per_100g = calories_per_100g
+        existing.protein_per_100g = protein_per_100g
+        existing.fats_per_100g = fats_per_100g
+        existing.carbs_per_100g = carbs_per_100g
+        existing.source = source
+        if fiber_per_100g is not None:
+            existing.fiber_per_100g = fiber_per_100g
+        if portion_g is not None:
+            existing.portion_g = portion_g
+        if brand is not None:
+            existing.brand = brand
+        if aliases is not None:
+            existing.aliases = aliases
+        if barcode is not None:
+            existing.barcode = barcode
+        db.commit()
+        db.refresh(existing)
+        return existing
+
+    product = VerifiedProduct(
+        user_id=user_id,
+        name=name,
+        name_norm=name_norm,
+        brand=brand,
+        aliases=aliases,
+        barcode=barcode,
+        calories_per_100g=calories_per_100g,
+        protein_per_100g=protein_per_100g,
+        fats_per_100g=fats_per_100g,
+        carbs_per_100g=carbs_per_100g,
+        fiber_per_100g=fiber_per_100g,
+        portion_g=portion_g,
+        source=source,
+    )
+    db.add(product)
+    db.commit()
+    db.refresh(product)
+    return product
+
+
+def increment_verified_product_usage(db: Session, product_id: int) -> None:
+    """times_used += 1 — для ранжирования топ-N в промпт-блоке."""
+    db.query(VerifiedProduct).filter(VerifiedProduct.id == product_id).update(
+        {VerifiedProduct.times_used: VerifiedProduct.times_used + 1}
+    )
+    db.commit()
 
 
 # ==================== RLS HELPERS ====================

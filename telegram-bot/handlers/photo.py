@@ -51,7 +51,7 @@ async def safe_edit_text(message: Message, text: str, **kwargs):
 
 
 from services.state import UserState, state_manager
-from services.state_helpers import create_photo_state
+from services.state_helpers import build_meal_state_data, create_photo_state
 from core.vision.menu_parser import parse_menu_photo
 
 router = Router()
@@ -209,6 +209,8 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
                     # Issue #115: сохраняем покомпонентную разбивку зрения, чтобы не
                     # схлопывать фото-блюдо в один item при наличии подписи.
                     "components": items,
+                    # #255: этикетка продукта → предложение «Запомнить продукт»
+                    "product_label": data.get("product_label"),
                 }
             elif items:
                 menu_data = {
@@ -219,6 +221,7 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
                     "carbs": sum(i.get("carbs", 0) for i in items),
                     "weight": items[0].get("weight") if items else None,
                     "components": items,
+                    "product_label": data.get("product_label"),
                 }
             if menu_data and (menu_data.get("calories") or menu_data.get("protein") is not None):
                 logger.info(f"Распознано через LLM: {menu_data.get('dish_name')}, {menu_data.get('calories')} ккал")
@@ -532,14 +535,14 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
             new_state = UserState(
                 user_id=user_id,
                 state="waiting_confirmation",
-                data={
-                    "description": f"Фото: {p_name}",
-                    "meal_items": meal_items,
-                    "meal_totals": meal_totals,
-                    "meal_time": datetime.now(MSK).strftime("%H:%M"),
-                    "meal_name": p_name,
-                    "photo_paths": [str(p) for p in photo_paths],
-                },
+                data=build_meal_state_data(
+                    description=f"Фото: {p_name}",
+                    meal_items=meal_items,
+                    meal_totals=meal_totals,
+                    meal_time=datetime.now(MSK).strftime("%H:%M"),
+                    meal_name=p_name,
+                    photo_paths=[str(p) for p in photo_paths],
+                ),
             )
             state_manager.set_state(user_id, new_state)
 
@@ -1305,23 +1308,27 @@ async def handle_description(
 
     meal_name = apply_slot_prefix(full_description, meal_name)
 
-    # Обновляем состояние
-    user_state.data.update(
-        {
-            "description": full_description,
-            "meal_items": meal_items,
-            "meal_totals": meal_totals,
-            "portion_multiplier": 1.0,  # Deprecated
-            "meal_time": datetime.now(MSK).strftime("%H:%M"),
-            "meal_name": meal_name,
-        }
+    # Переходим в waiting_confirmation. Пересобираем data целиком (не мутируем
+    # in-place — coding-style.md) через build_meal_state_data(): предыдущее
+    # состояние ("waiting_description") несло PhotoStateData-поля (caption,
+    # photo_file_ids, menu_data), которые в meal-confirmation уже не читаются;
+    # сохраняем из него только photo_paths.
+    new_data = build_meal_state_data(
+        description=full_description,
+        meal_items=meal_items,
+        meal_totals=meal_totals,
+        portion_multiplier=1.0,  # Deprecated
+        meal_time=datetime.now(MSK).strftime("%H:%M"),
+        meal_name=meal_name,
+        photo_paths=user_state.data.get("photo_paths", []),
+        date=custom_date,
+        # #255: этикетка из свежего LLM-ответа, иначе — из menu_data
+        # (первый проход зрения), иначе — что уже лежало в state.
+        product_label=(router_result.get("data") or {}).get("product_label")
+        or (menu_data or {}).get("product_label")
+        or user_state.data.get("product_label"),
     )
-
-    # Если передана кастомная дата
-    if custom_date:
-        user_state.data["date"] = custom_date
-
-    user_state.state = "waiting_confirmation"
+    user_state = UserState(user_id=user_id, state="waiting_confirmation", data=new_data)
     state_manager.set_state(user_id, user_state)
 
     # Формируем ответ
@@ -1469,22 +1476,26 @@ async def handle_menu_photo(message: Message, menu_data: dict, photo_path: Path,
     keyboard = builder.as_markup()
 
     # Сохраняем данные в состояние для подтверждения
+    # #256: было "photo_path" (ед.ч.) — save_meal_to_db() читает "photo_paths"
+    # (мн.ч.), из-за чего фото терялось. build_meal_state_data() (typed schema,
+    # extra="forbid") ловит такую опечатку в момент создания состояния.
     user_state = UserState(
         user_id=user_id,
         state="waiting_confirmation",
-        data={
-            "dish_name": dish_name,
-            "meal_items": [build_menu_meal_item(menu_data)],
-            "meal_totals": {
+        data=build_meal_state_data(
+            dish_name=dish_name,
+            meal_items=[build_menu_meal_item(menu_data)],
+            meal_totals={
                 "calories": calories,
                 "protein": protein,
                 "fats": fats,
                 "carbs": carbs,
             },
-            "photo_path": str(photo_path),
-            "meal_time": datetime.now(MSK).strftime("%H:%M"),
-            "menu_ocr": True,  # Флаг, что это меню
-        },
+            photo_paths=[str(photo_path)],
+            meal_time=datetime.now(MSK).strftime("%H:%M"),
+            menu_ocr=True,  # Флаг, что это меню
+            product_label=menu_data.get("product_label"),  # #255
+        ),
     )
     state_manager.set_state(user_id, user_state)
 
@@ -1524,6 +1535,7 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
         # Multi-meal path (from multi_food router type — issue #53)
         if user_state.data.get("multi_meals"):
             from helpers.db_save import save_meal_to_db
+            from core.food.interaction_log import log_food_interaction
 
             multi_meals = user_state.data["multi_meals"]
             saved_count = 0
@@ -1535,9 +1547,19 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
                     "meal_totals": m["meal_totals"],
                     "date": user_state.data.get("date"),
                 }
-                if save_meal_to_db(meal_data, m["meal_name"], user_id=telegram_user_id):
+                meal_nutrition_log_id = save_meal_to_db(meal_data, m["meal_name"], user_id=telegram_user_id)
+                if meal_nutrition_log_id is not None:
                     saved_count += 1
                     total_kcal += int(m["meal_totals"].get("calories", 0))
+                    log_food_interaction(
+                        user_id=telegram_user_id,
+                        source=user_state.data.get("source", "text"),
+                        raw_text=user_state.data.get("description"),
+                        recognized={"items": m["meal_items"], "totals": m["meal_totals"]},
+                        bot_reply=f"✅ {m['meal_name']} · {int(m['meal_totals'].get('calories', 0))} ккал",
+                        nutrition_log_id=meal_nutrition_log_id,
+                        status="saved",
+                    )
                 else:
                     failed.append(m["meal_name"])
                     logger.error(
@@ -1580,8 +1602,9 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
         logger.info(f"[BEFORE SAVE] meal_totals: {user_state.data.get('meal_totals')}")
         logger.info(f"[BEFORE SAVE] meal_items count: {len(user_state.data.get('meal_items', []))}")
 
-        if save_meal_to_db(user_state.data, meal_name, user_id=telegram_user_id):
-            logger.info("[AFTER SAVE] save_meal_to_db returned True")
+        nutrition_log_id = save_meal_to_db(user_state.data, meal_name, user_id=telegram_user_id)
+        if nutrition_log_id is not None:
+            logger.info("[AFTER SAVE] save_meal_to_db returned id=%s", nutrition_log_id)
             await callback.answer("✅ Сохранено!", show_alert=False)
 
             totals = user_state.data.get("meal_totals", {})
@@ -1602,23 +1625,60 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
                 _db.close()
             budget = format_budget_line(telegram_user_id, for_date=meal_date, show_bar=_show_bar)
 
-            await safe_edit_text(
-                callback.message,
+            confirm_text = (
                 f"✅ <b>{meal_name}</b> · {meal_kcal:.0f} ккал\n"
                 f"Б {totals.get('protein', 0):.0f}г · "
                 f"Ж {totals.get('fats', 0):.0f}г · "
                 f"У {totals.get('carbs', 0):.0f}г"
-                f"{budget}",
-                parse_mode="HTML",
+                f"{budget}"
             )
+            await safe_edit_text(callback.message, confirm_text, parse_mode="HTML")
+
+            from core.food.interaction_log import log_food_interaction
+
+            log_food_interaction(
+                user_id=telegram_user_id,
+                source=user_state.data.get("source", "photo"),
+                raw_text=user_state.data.get("description"),
+                media_path=user_state.data.get("media_path")
+                or next(iter(user_state.data.get("photo_paths") or []), None),
+                recognized={"items": user_state.data.get("meal_items"), "totals": totals},
+                bot_reply=confirm_text,
+                nutrition_log_id=nutrition_log_id,
+                status="saved",
+            )
+            # #255: LLM прочитал этикетку продукта — предлагаем запомнить
+            # в справочник verified_products (после успешного сохранения).
+            product_label = user_state.data.get("product_label")
+            if product_label:
+                try:
+                    from handlers.verified_products import offer_remember_product
+
+                    await offer_remember_product(callback.message, telegram_user_id, product_label)
+                except Exception as e:
+                    logger.warning(f"offer_remember_product failed: {e}")
         else:
-            logger.error("[AFTER SAVE] save_meal_to_db returned False!")
+            logger.error("[AFTER SAVE] save_meal_to_db returned None!")
             await callback.answer("❌ Ошибка при сохранении", show_alert=True)
             logger.error("Ошибка при сохранении в save_meal_to_db")
     else:
         # Не сохраняем
+        cancel_text = callback.message.text + "\n\n❌ Не сохранено"
         await callback.answer("❌ Не сохранено", show_alert=False)
-        await safe_edit_text(callback.message, callback.message.text + "\n\n❌ Не сохранено", parse_mode="HTML")
+        await safe_edit_text(callback.message, cancel_text, parse_mode="HTML")
+
+        from core.food.interaction_log import log_food_interaction
+
+        log_food_interaction(
+            user_id=int(callback.from_user.id),
+            source=user_state.data.get("source", "photo"),
+            raw_text=user_state.data.get("description"),
+            media_path=user_state.data.get("media_path") or next(iter(user_state.data.get("photo_paths") or []), None),
+            recognized={"items": user_state.data.get("meal_items"), "totals": user_state.data.get("meal_totals")},
+            bot_reply=cancel_text,
+            nutrition_log_id=None,
+            status="cancelled",
+        )
 
     # Очищаем состояние
     state_manager.clear_state(user_id)

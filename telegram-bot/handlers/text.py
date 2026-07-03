@@ -15,6 +15,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.filters import StateFilter
 
 from services.state import state_manager
+from services.state_helpers import build_meal_state_data
 
 router = Router()
 
@@ -1157,14 +1158,15 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             new_state = UserState(
                 user_id=user_id,
                 state="waiting_confirmation",
-                data={
-                    "description": text,
-                    "meal_items": meal_items,
-                    "meal_totals": meal_totals,
-                    "meal_time": _temporal_phrase_to_time(text) or datetime.now(user_tz).strftime("%H:%M"),
-                    "meal_name": meal_name,
-                    "date": custom_date,
-                },
+                data=build_meal_state_data(
+                    source="text",
+                    description=text,
+                    meal_items=meal_items,
+                    meal_totals=meal_totals,
+                    meal_time=_temporal_phrase_to_time(text) or datetime.now(user_tz).strftime("%H:%M"),
+                    meal_name=meal_name,
+                    date=custom_date,
+                ),
             )
             state_manager.set_state(user_id, new_state)
 
@@ -1368,14 +1370,17 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             new_state = UserState(
                 user_id=user_id,
                 state="waiting_confirmation",
-                data={
-                    "description": text,
-                    "meal_items": meal_items,
-                    "meal_totals": meal_totals,
-                    "meal_time": _temporal_phrase_to_time(text) or datetime.now(user_tz).strftime("%H:%M"),
-                    "meal_name": meal_name,
-                    "date": custom_date,
-                },
+                data=build_meal_state_data(
+                    source="text",
+                    description=text,
+                    meal_items=meal_items,
+                    meal_totals=meal_totals,
+                    meal_time=_temporal_phrase_to_time(text) or datetime.now(user_tz).strftime("%H:%M"),
+                    meal_name=meal_name,
+                    date=custom_date,
+                    # #255: пользователь дал точные КБЖУ с этикетки текстом
+                    product_label=data.get("product_label"),
+                ),
             )
             state_manager.set_state(user_id, new_state)
 
@@ -1451,12 +1456,15 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                 if not sub_items:
                     skipped.append(meal_name)
                     continue
+                # build_meal_state_data() валидирует каждый под-приём отдельно
+                # (extra="forbid") — та же защита от опечаток, что и в
+                # одиночном meal-флоу (#256).
                 multi_meals.append(
-                    {
-                        "meal_name": meal_name,
-                        "meal_items": sub_items,
-                        "meal_totals": sub_totals,
-                    }
+                    build_meal_state_data(
+                        meal_name=meal_name,
+                        meal_items=sub_items,
+                        meal_totals=sub_totals,
+                    )
                 )
 
             if not multi_meals:
@@ -1468,11 +1476,12 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             new_state = UserState(
                 user_id=user_id,
                 state="waiting_confirmation",
-                data={
-                    "description": text,
-                    "multi_meals": multi_meals,
-                    "date": custom_date,
-                },
+                data=build_meal_state_data(
+                    source="text",
+                    description=text,
+                    multi_meals=multi_meals,
+                    date=custom_date,
+                ),
             )
             state_manager.set_state(user_id, new_state)
 

@@ -7,6 +7,37 @@
 
 ---
 
+## 2026-07-03 — Справочник проверенных продуктов verified_products (#255)
+
+- **Причина:** LLM-vision без памяти — один и тот же упакованный продукт распознавался каждый раз заново и с ошибками (Solvie Protein Barre: бот записал Б12/У10/клетчатка 1.8 вместо этикеточных 16.7/4.5/11.4 на 50 г).
+- **БД:** Alembic-ревизия `verprod01` — таблица `verified_products` (этикеточные КБЖУ/100г + порция + barcode; `user_id NULL` = общая запись). Частичные unique-индексы, RLS с чтением общих записей. ORM `VerifiedProduct` + CRUD в `database/crud.py`.
+- **`core/food/verified_products.py`** — `normalize_product_name()` (единая точка нормализации), `match_and_apply_verified_products()` (детерминированный post-match в `save_meal_to_db` до `enrich_items_with_fiber`, пересчёт КБЖУ по весу/`portion_g`, totals пересчитываются), `build_known_products_block()` (топ-20 в промпт).
+- **`core/llm/router.py`** — промпт-блок вторым system-элементом во всех 3 путях (у Claude без `cache_control`); SYSTEM_PROMPT STEP 4 — извлечение `product_label` с этикетки.
+- **`core/llm/models.py`** — pydantic `ProductLabel`, `FoodData.product_label`.
+- **`telegram-bot/handlers/verified_products.py`** — кнопка «💾 Запомнить продукт» после сохранения приёма (source=label_photo); прокидка `product_label` через photo/text флоу. Ручного CRUD нет — урок `/my_products` (0 строк, удалена 21.04.2026).
+- **Сид:** `scripts/import/seed_verified_products.py` (Solvie, Bombbar, Fit Kit; `--products-json` для legacy). ⚠️ На проде прогнать после деплоя.
+- **Доки:** ADR-0007, `03_database_schema.md` (§9), `05_food_logging_context.md`.
+- Тесты: +45 (CRUD, матчер, промпт, автонаполнение). — Александр Лысковский (via Claude)
+
+## 2026-07-03 — Typed schema для meal-flow UserState.data (follow-up #256/#258)
+
+- **Причина:** dict-литералы с ключами `meal_items`/`meal_totals`/`photo_paths` собирались вручную в 4+ местах в `photo.py`/`text.py` без единой схемы — опечатка в имени ключа (`photo_path` вместо `photo_paths`, #256) молча теряла данные вместо ошибки. Follow-up, предложенный в ревью PR #262.
+- **`services/state_models.py`** — новый `MealStateData` (Pydantic, `extra="forbid"`): `meal_items`/`meal_totals` обязательны (если не задан `multi_meals`), остальные поля (`meal_name`, `dish_name`, `meal_time`, `photo_paths`, `date`, `source`, `description`, `menu_ocr`, `portion_multiplier`, `multi_meals`) опциональны
+- **`services/state_helpers.py`** — `build_meal_state_data(**kwargs)`: валидирует через `MealStateData` и возвращает `dict` для `UserState.data`; опечатка в имени kwarg падает `ValidationError` сразу в месте создания состояния
+- **`telegram-bot/handlers/photo.py` / `handlers/text.py`** — все 6 мест создания/изменения meal-confirmation состояния (`ocr_db_lookup`, `handle_menu_photo`, 2 текстовых ветки, `multi_food`-контейнер + под-приёмы, `.data.update()`-мутация → неизменяемая пересборка) переведены на `build_meal_state_data()` вместо dict-литералов/мутации
+- **`helpers/db_save.py::save_meal_to_db`** — валидирует `meal_data` через `MealStateData` на входе (неизвестные ключи игнорируются, обязательные — `meal_items`/`meal_totals` — падают `ValidationError` вместо тихого сохранения пустого приёма пищи); комментарий уточнён — это read-side страховка от отсутствующих полей, а не от опечаток в имени ключа (та защита — на write-side)
+- Тесты (+10): `tests/test_meal_state_data.py` (9 тестов на модель/хелпер/multi_meals), `test_db_save_meal.py::test_returns_none_when_meal_items_key_missing`
+- Не в скоупе (сознательно): остальные 25+ ключей `UserState.data` (онбординг, weights, supplements) — полная типизация оценена в 3-5 дней, отложена до явного запроса — Александр Лысковский (via Claude)
+
+## 2026-07-02 — Честный итог дня + флаг битых Garmin-дней + справка мини-аппа (#247, #249)
+
+- **Причина:** анализ дефицита за 158 дней показал: асимметричный `max(среднее, факт)` в ленивые дни разрешал переедать (июнь: ~4% дефицита при цели 15%); битые дни частичного синка (25.06: BMR 1467/1855) давали ложный «перебор». У Андрея 33% дней битые.
+- **`core/health/caloric_budget.py`** — `get_day_energy_fact()` (полнота дня: BMR дня < 85% среднего BMR юзера → битый, per-user порог); в `get_daily_budget` прошедший день считается от факта, битый → `data_incomplete=True`; `format_budget_line` не выносит «перебор» по битым дням
+- **`core/health/nutrition_targets.py`** — `calculate_targets(today_tdee_final=True)`: факт завершённого дня — истина в обе стороны
+- **`services/nutrition_service.py` / `handlers/commands.py` (/day) / `webhook/nutrition_goals.py` / `webapp/day.js`** — флаг прокинут до бота и мини-аппа («итог оценочный ⚠️»)
+- **`webapp/index.html`** — справка: 8 разделов с оглавлением и якорями, простым языком про BMR/TDEE/дефицит −15%/прогноз-vs-факт/оценочные дни (#249)
+- Тесты: `tests/test_day_energy_fact.py` (новый), обновлены `test_today_tdee_boost`, `test_nutrition_goals`. Прод задеплоен. — Александр Лысковский (via Claude)
+
 ## 2026-07-02 — Night-shift + apply-findings: 5 фиксов агента (F-001…F-005)
 
 - Ночная смена ([отчёт](../night-shift/2026-07-02.md)) + gap-аудит 19–25.06 → 5 findings, все применены ([apply-лог](../night-shift/apply-2026-07-02-1027.md)):
