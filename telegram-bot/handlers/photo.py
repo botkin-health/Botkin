@@ -1517,6 +1517,7 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
         # Multi-meal path (from multi_food router type — issue #53)
         if user_state.data.get("multi_meals"):
             from helpers.db_save import save_meal_to_db
+            from core.food.interaction_log import log_food_interaction
 
             multi_meals = user_state.data["multi_meals"]
             saved_count = 0
@@ -1528,9 +1529,19 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
                     "meal_totals": m["meal_totals"],
                     "date": user_state.data.get("date"),
                 }
-                if save_meal_to_db(meal_data, m["meal_name"], user_id=telegram_user_id):
+                meal_nutrition_log_id = save_meal_to_db(meal_data, m["meal_name"], user_id=telegram_user_id)
+                if meal_nutrition_log_id is not None:
                     saved_count += 1
                     total_kcal += int(m["meal_totals"].get("calories", 0))
+                    log_food_interaction(
+                        user_id=telegram_user_id,
+                        source=user_state.data.get("source", "text"),
+                        raw_text=user_state.data.get("description"),
+                        recognized={"items": m["meal_items"], "totals": m["meal_totals"]},
+                        bot_reply=f"✅ {m['meal_name']} · {int(m['meal_totals'].get('calories', 0))} ккал",
+                        nutrition_log_id=meal_nutrition_log_id,
+                        status="saved",
+                    )
                 else:
                     failed.append(m["meal_name"])
                     logger.error(
@@ -1573,8 +1584,9 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
         logger.info(f"[BEFORE SAVE] meal_totals: {user_state.data.get('meal_totals')}")
         logger.info(f"[BEFORE SAVE] meal_items count: {len(user_state.data.get('meal_items', []))}")
 
-        if save_meal_to_db(user_state.data, meal_name, user_id=telegram_user_id):
-            logger.info("[AFTER SAVE] save_meal_to_db returned True")
+        nutrition_log_id = save_meal_to_db(user_state.data, meal_name, user_id=telegram_user_id)
+        if nutrition_log_id is not None:
+            logger.info("[AFTER SAVE] save_meal_to_db returned id=%s", nutrition_log_id)
             await callback.answer("✅ Сохранено!", show_alert=False)
 
             totals = user_state.data.get("meal_totals", {})
@@ -1595,23 +1607,50 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
                 _db.close()
             budget = format_budget_line(telegram_user_id, for_date=meal_date, show_bar=_show_bar)
 
-            await safe_edit_text(
-                callback.message,
+            confirm_text = (
                 f"✅ <b>{meal_name}</b> · {meal_kcal:.0f} ккал\n"
                 f"Б {totals.get('protein', 0):.0f}г · "
                 f"Ж {totals.get('fats', 0):.0f}г · "
                 f"У {totals.get('carbs', 0):.0f}г"
-                f"{budget}",
-                parse_mode="HTML",
+                f"{budget}"
+            )
+            await safe_edit_text(callback.message, confirm_text, parse_mode="HTML")
+
+            from core.food.interaction_log import log_food_interaction
+
+            log_food_interaction(
+                user_id=telegram_user_id,
+                source=user_state.data.get("source", "photo"),
+                raw_text=user_state.data.get("description"),
+                media_path=user_state.data.get("media_path")
+                or next(iter(user_state.data.get("photo_paths") or []), None),
+                recognized={"items": user_state.data.get("meal_items"), "totals": totals},
+                bot_reply=confirm_text,
+                nutrition_log_id=nutrition_log_id,
+                status="saved",
             )
         else:
-            logger.error("[AFTER SAVE] save_meal_to_db returned False!")
+            logger.error("[AFTER SAVE] save_meal_to_db returned None!")
             await callback.answer("❌ Ошибка при сохранении", show_alert=True)
             logger.error("Ошибка при сохранении в save_meal_to_db")
     else:
         # Не сохраняем
+        cancel_text = callback.message.text + "\n\n❌ Не сохранено"
         await callback.answer("❌ Не сохранено", show_alert=False)
-        await safe_edit_text(callback.message, callback.message.text + "\n\n❌ Не сохранено", parse_mode="HTML")
+        await safe_edit_text(callback.message, cancel_text, parse_mode="HTML")
+
+        from core.food.interaction_log import log_food_interaction
+
+        log_food_interaction(
+            user_id=int(callback.from_user.id),
+            source=user_state.data.get("source", "photo"),
+            raw_text=user_state.data.get("description"),
+            media_path=user_state.data.get("media_path") or next(iter(user_state.data.get("photo_paths") or []), None),
+            recognized={"items": user_state.data.get("meal_items"), "totals": user_state.data.get("meal_totals")},
+            bot_reply=cancel_text,
+            nutrition_log_id=None,
+            status="cancelled",
+        )
 
     # Очищаем состояние
     state_manager.clear_state(user_id)
