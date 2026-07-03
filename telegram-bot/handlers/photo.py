@@ -1471,7 +1471,10 @@ async def handle_menu_photo(message: Message, menu_data: dict, photo_path: Path,
                 "fats": fats,
                 "carbs": carbs,
             },
-            "photo_path": str(photo_path),
+            # #256: было "photo_path" (ед.ч.) — save_meal_to_db() читает
+            # "photo_paths" (мн.ч.), из-за чего фото терялось для всех
+            # приёмов, распознанных как меню/еда без подписи.
+            "photo_paths": [str(photo_path)],
             "meal_time": datetime.now(MSK).strftime("%H:%M"),
             "menu_ocr": True,  # Флаг, что это меню
         },
