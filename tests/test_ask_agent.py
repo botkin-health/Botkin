@@ -320,6 +320,18 @@ def test_system_prompt_forces_fresh_meal_tool_call(agent_db, monkeypatch):
     assert "без НОВОГО вызова тулзы" in sys_text
 
 
+def test_system_prompt_instructs_flag_for_devs(agent_db, monkeypatch):
+    """#188: в system-prompt есть директива флагать баги/пожелания через flag_for_devs."""
+    fake = FakeRequests([_anthropic_text("Передал разработчикам.")])
+    monkeypatch.setattr(agent_chat, "requests", fake)
+
+    agent_chat.ask_agent(895655, "почему ты не умеешь строить графики сна?")
+
+    sys_text = fake.anthropic_calls[0]["payload"]["system"][0]["text"]
+    assert "flag_for_devs" in sys_text
+    assert "не замалчивай" in sys_text
+
+
 def test_system_prompt_gi_honesty(agent_db, monkeypatch):
     """#232 изъян 1 (универсально): гард — не выдавать высокоГИ-продукты
     (белый хлеб, сухофрукты, белый рис, сладкое) за «медленные углеводы»."""

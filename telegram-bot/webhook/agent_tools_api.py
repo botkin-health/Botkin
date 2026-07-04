@@ -158,6 +158,12 @@ class LogSupplementRequest(BaseModel):
     force: bool = False  # True — записать даже если та же добавка уже логировалась в этот день
 
 
+class FlagForDevsRequest(BaseModel):
+    category: str  # bug | feature | question
+    user_msg: str
+    agent_note: Optional[str] = None
+
+
 class LogBPRequest(BaseModel):
     systolic: int = Field(..., ge=50, le=300, description="Systolic pressure mmHg")
     diastolic: int = Field(..., ge=30, le=200, description="Diastolic pressure mmHg")
@@ -456,6 +462,31 @@ async def log_supplement(
         "supplement_name": req.supplement_name,
         "dosage": req.dosage,
     }
+
+
+@router.post("/flag_for_devs")
+async def flag_for_devs(
+    req: FlagForDevsRequest,
+    user=Depends(require_agent_scope("rw")),
+    db: Session = Depends(get_db),
+):
+    """Агент флагает пожелание/багрепорт в инбокс user_feedback (#188)."""
+    from database.crud import create_feedback, is_feedback_opted_out
+
+    kind = req.category if req.category in ("bug", "feature", "question") else "unspecified"
+
+    if is_feedback_opted_out(db, user.telegram_id):
+        return {"status": "skipped_opt_out"}
+
+    row = create_feedback(
+        db,
+        user_id=user.telegram_id,
+        text=req.user_msg,
+        source="agent",
+        kind=kind,
+        agent_context={"agent_note": req.agent_note} if req.agent_note else None,
+    )
+    return {"status": "ok", "feedback_id": row.id, "kind": kind}
 
 
 @router.post("/log_bp")
