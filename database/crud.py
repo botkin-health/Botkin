@@ -28,6 +28,7 @@ from database.models import (
     UserSettings,
     PersonalAccessToken,
     VerifiedProduct,
+    UserFeedback,
 )
 
 logger = logging.getLogger(__name__)
@@ -1135,3 +1136,51 @@ def set_user_session_var(db: Session, user_id: int) -> None:
     """
     # SET LOCAL only accepts string literals, not parameterized values — str() cast required
     db.execute(text("SET LOCAL app.user_id = :uid"), {"uid": str(user_id)})
+
+
+# ==================== FEEDBACK INBOX (#188) ====================
+
+
+def create_feedback(
+    db: Session,
+    *,
+    user_id: int,
+    text: str,
+    source: str,
+    kind: str = "unspecified",
+    agent_context: Optional[dict] = None,
+) -> UserFeedback:
+    """Записать обратную связь в единый инбокс user_feedback (#188).
+
+    source: 'command' | 'agent' | 'webapp'. kind: 'bug'|'feature'|'question'|'unspecified'.
+    Вызывающий код ДОЛЖЕН предварительно проверить is_feedback_opted_out().
+    """
+    row = UserFeedback(
+        user_id=user_id,
+        text=text,
+        source=source,
+        kind=kind,
+        agent_context=agent_context,
+        status="new",
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+def list_recent_feedback(db: Session, *, status: str = "new", limit: int = 20) -> List[UserFeedback]:
+    """Последние записи фидбека по статусу (для /feedback_queue), новые сверху."""
+    return (
+        db.query(UserFeedback)
+        .filter(UserFeedback.status == status)
+        .order_by(UserFeedback.created_at.desc(), UserFeedback.id.desc())
+        .limit(limit)
+        .all()
+    )
+
+
+def is_feedback_opted_out(db: Session, user_id: int) -> bool:
+    """True, если пользователь отписался от захвата фидбека. Нет строки настроек → False."""
+    settings = db.query(UserSettings).filter(UserSettings.user_id == user_id).one_or_none()
+    return bool(settings and settings.feedback_opt_out)
