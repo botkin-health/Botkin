@@ -86,4 +86,7 @@ async def cmd_feedback_queue(message: Message) -> None:
         return
     finally:
         db.close()
-    await message.answer(format_feedback_queue(rows))
+    # parse_mode=None: очередь содержит пользовательский текст (r.text/agent_note), а бот
+    # работает с глобальным parse_mode=HTML — без этого символ '<' в фидбеке ломает разметку
+    # (400 → админ не видит очередь) или инъектит HTML. Форматирование очереди не нужно.
+    await message.answer(format_feedback_queue(rows), parse_mode=None)
