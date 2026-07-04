@@ -53,23 +53,32 @@ from webhook.tg_auth import get_tg_user, verify_telegram_init_data  # noqa: F401
 # ── Auth ──────────────────────────────────────────────────────────────────────
 
 
-def verify_token(authorization: str = Header(...)):
+def verify_token(authorization: Optional[str] = Header(None), token: Optional[str] = None):
     """Bearer token auth.
+
+    Принимает токен либо заголовком `Authorization: Bearer <token>`, либо
+    query-параметром `?token=<token>` — некоторые Android-приложения
+    (напр. health-connect-webhook APK) не дают настроить кастомные заголовки.
 
     Returns the raw token string so the endpoint can resolve which user sent the data.
     """
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Missing Bearer token")
-    token = authorization.removeprefix("Bearer ").strip()
-    if not token:
+    if authorization:
+        if not authorization.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="Missing Bearer token")
+        resolved = authorization.removeprefix("Bearer ").strip()
+    elif token:
+        resolved = token.strip()
+    else:
+        raise HTTPException(status_code=401, detail="Missing Bearer token or token query param")
+    if not resolved:
         raise HTTPException(status_code=403, detail="Invalid token")
     # Accept either the global APPLE_HEALTH_TOKEN (backward compat / single-user)
     # OR any per-user token stored in users.health_token (multi-user).
     # Actual user resolution happens in the endpoint after DB lookup.
-    if APPLE_HEALTH_TOKEN and token == APPLE_HEALTH_TOKEN:
-        return token  # global token — will resolve to _target_user_id
+    if APPLE_HEALTH_TOKEN and resolved == APPLE_HEALTH_TOKEN:
+        return resolved  # global token — will resolve to _target_user_id
     # Per-user tokens are validated inside the endpoint against the DB.
-    return token
+    return resolved
 
 
 # ── Request schema ────────────────────────────────────────────────────────────
