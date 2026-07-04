@@ -932,3 +932,49 @@ class TestLatestBiomarkers:
         assert data["stale_count"] >= 1
         stale = [e for e in data["biomarkers"].values() if e["is_stale"]]
         assert stale and all(e["stale_label"] for e in stale)
+
+
+# ── #188: agent-tool flag_for_devs — единый инбокс обратной связи ────────────
+
+
+def test_flag_for_devs_writes_feedback(client, db_session):
+    """POST /flag_for_devs пишет строку в user_feedback и возвращает её kind."""
+    from database.models import UserFeedback
+
+    r = client.post(
+        "/api/agent/flag_for_devs",
+        json={
+            "category": "feature",
+            "user_msg": "хочу графики сна",
+            "agent_note": "нет тула",
+        },
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["status"] == "ok"
+    assert body["kind"] == "feature"
+
+    rows = db_session.query(UserFeedback).filter_by(user_id=895655).all()
+    assert len(rows) == 1
+    assert rows[0].text == "хочу графики сна"
+    assert rows[0].source == "agent"
+    assert rows[0].kind == "feature"
+
+
+def test_flag_for_devs_respects_opt_out(client, db_session):
+    """POST /flag_for_devs для opted-out пользователя не пишет запись — status=skipped_opt_out."""
+    from database.models import UserSettings
+
+    db_session.add(UserSettings(user_id=895655, feedback_opt_out=True))
+    db_session.commit()
+
+    r = client.post(
+        "/api/agent/flag_for_devs",
+        json={
+            "category": "bug",
+            "user_msg": "не работает кнопка",
+        },
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["status"] == "skipped_opt_out"

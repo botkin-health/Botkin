@@ -358,6 +358,7 @@ class UserSettings(Base):
     # -15 = 15% deficit (lose weight), 0 = maintenance, +10 = 10% surplus (gain).
     calorie_goal_pct: Mapped[int] = mapped_column(Integer, default=-15, server_default="-15")
     supplement_reminders_enabled: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    feedback_opt_out: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     supplement_reminder_time: Mapped[time] = mapped_column(Time, server_default="08:00:00")
     supplements: Mapped[list] = mapped_column(JSONBCompat, default=list, server_default="[]")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -428,6 +429,47 @@ class FoodInteraction(Base):
     bot_reply: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     nutrition_log_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'saved'"))
+
+
+class UserFeedback(Base):
+    """Инбокс обратной связи (#188, Фаза 1 — захват).
+
+    Один инбокс для всех каналов: /feedback (command), агент (flag_for_devs),
+    и позже кнопка мини-аппа (webapp). Nullable-поля priority/github_issue/
+    dedup_of/resolved_at/notified_at заведены под Фазы 2-3, Фаза 1 их не пишет.
+    """
+
+    __tablename__ = "user_feedback"
+    __table_args__ = (
+        CheckConstraint(
+            "kind IN ('bug','feature','question','unspecified')",
+            name="user_feedback_kind_check",
+        ),
+        CheckConstraint(
+            "source IN ('command','agent','webapp')",
+            name="user_feedback_source_check",
+        ),
+        CheckConstraint(
+            "status IN ('new','triaged','in_progress','done','wontfix','duplicate')",
+            name="user_feedback_status_check",
+        ),
+        Index("idx_user_feedback_status_created", "status", text("created_at DESC")),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
+    # user_id — без hard-FK на users.telegram_id намеренно: аудит-след переживает удаление юзера.
+    user_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    kind: Mapped[str] = mapped_column(String(16), nullable=False, server_default="unspecified")
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    source: Mapped[str] = mapped_column(String(16), nullable=False)
+    agent_context: Mapped[Optional[dict]] = mapped_column(JSONBCompat, nullable=True)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, server_default="new")
+    priority: Mapped[Optional[str]] = mapped_column(String(4), nullable=True)
+    github_issue: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    dedup_of: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    resolved_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    notified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class VerifiedProduct(Base):

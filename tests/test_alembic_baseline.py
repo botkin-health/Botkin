@@ -37,10 +37,11 @@ EXPECTED_TABLES = {
     "food_interactions",
     "personal_access_tokens",
     "verified_products",
+    "user_feedback",
 }
 
 # Актуальный head миграций. Обновляется при каждой новой ревизии.
-HEAD_REVISION = "verprod01"
+HEAD_REVISION = "usrfb0back01"
 
 
 def _alembic_config() -> Config:
