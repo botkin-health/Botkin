@@ -740,6 +740,27 @@ TOOLS: list[dict[str, Any]] = [
             "required": ["key", "value"],
         },
     },
+    {
+        "name": "flag_for_devs",
+        "description": (
+            "Зафиксировать пожелание/багрепорт пользователя для разработчиков. "
+            "Вызывай, когда: не смог закрыть запрос (нет тула/данных), пользователь "
+            "недоволен/переспрашивает, или прямо указал на баг/пожелание."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string",
+                    "enum": ["bug", "feature", "question"],
+                    "description": "Тип: баг / пожелание фичи / вопрос.",
+                },
+                "user_msg": {"type": "string", "description": "Суть запроса словами пользователя."},
+                "agent_note": {"type": "string", "description": "Твоя короткая заметка для разработчиков."},
+            },
+            "required": ["category", "user_msg"],
+        },
+    },
 ]
 
 # ---------------------------------------------------------------------------
@@ -1000,6 +1021,17 @@ def _call_tool(name: str, args: dict, token: str) -> str:
                     "reason": args.get("reason", ""),
                 },
                 headers=headers,
+                timeout=10,
+            )
+        elif name == "flag_for_devs":
+            r = requests.post(
+                f"{TOOLS_API_BASE}/flag_for_devs",
+                headers=headers,
+                json={
+                    "category": args.get("category", "question"),
+                    "user_msg": args.get("user_msg", ""),
+                    "agent_note": args.get("agent_note"),
+                },
                 timeout=10,
             )
         else:
@@ -2240,6 +2272,17 @@ def ask_agent(
             "\n"
             "Прецедент 19–20.06.2026: пользователь 3 раза описал схему добавок — агент\n"
             "каждый раз просил написать её заново, не логировал и не давал рекомендаций.\n"
+            "\n"
+            "---\n"
+            "\n"
+            "# 🛠 ОБРАТНАЯ СВЯЗЬ РАЗРАБОТЧИКАМ — flag_for_devs (универсальный)\n"
+            "\n"
+            "Когда ты упёрся (нет инструмента/данных под запрос), пользователь\n"
+            "недоволен/переспрашивает, или прямо сообщил о баге/пожелании —\n"
+            "ВЫЗОВИ `flag_for_devs(category, user_msg, agent_note)`, не замалчивай.\n"
+            "Это не мешает твоему ответу: флагни И продолжи помогать тем, что можешь.\n"
+            "После флага можешь коротко сказать пользователю, что передал разработчикам.\n"
+            "НЕ обещай сроки и НЕ выдумывай, что фича «уже в работе».\n"
             "\n"
             "---\n"
             "\n"
