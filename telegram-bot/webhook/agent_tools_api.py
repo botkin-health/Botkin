@@ -2409,11 +2409,12 @@ async def body_measurements(
     user=Depends(get_agent_user),
     db: Session = Depends(get_db),
 ):
-    """Антропометрия: талия, шея, бёдра, грудь, бедро, бицепс (см).
+    """Антропометрия: талия, шея, бёдра, грудь, бедро, бицепс (см), сила хвата (кг).
 
     Источник: `body_measurements` table — ручной ввод пользователя через бот/админку.
     Талия — важная метрика метаболического здоровья (waist circumference > BMI
-    по предсказанию ССЗ-риска, особенно для visceral fat).
+    по предсказанию ССЗ-риска, особенно для visceral fat). Сила хвата (grip_right_kg/
+    grip_left_kg, ручной динамометр) — маркер саркопении/функциональной силы.
 
     Возвращает latest замер, all-time min/max каждой метрики с датами, и
     тренд waist (last 6 measurements) — самая клинически релевантная.
@@ -2423,7 +2424,8 @@ async def body_measurements(
     rows = db.execute(
         sql_text(
             """
-            SELECT date, waist_cm, neck_cm, hips_cm, chest_cm, thigh_cm, biceps_cm, notes
+            SELECT date, waist_cm, neck_cm, hips_cm, chest_cm, thigh_cm, biceps_cm,
+                   grip_right_kg, grip_left_kg, notes
             FROM body_measurements
             WHERE user_id = :uid
             ORDER BY date DESC
@@ -2436,7 +2438,7 @@ async def body_measurements(
         return {"status": "no_data", "count": 0, "reason": "no body_measurements entries"}
 
     latest = rows[0]
-    metrics = ["waist_cm", "neck_cm", "hips_cm", "chest_cm", "thigh_cm", "biceps_cm"]
+    metrics = ["waist_cm", "neck_cm", "hips_cm", "chest_cm", "thigh_cm", "biceps_cm", "grip_right_kg", "grip_left_kg"]
 
     def _extremes(metric: str) -> dict | None:
         vals = [(r.date, getattr(r, metric)) for r in rows if getattr(r, metric) is not None]
@@ -2445,9 +2447,9 @@ async def body_measurements(
         min_v = min(vals, key=lambda x: x[1])
         max_v = max(vals, key=lambda x: x[1])
         return {
-            "min": {"date": min_v[0].isoformat(), "value_cm": round(min_v[1], 1)},
-            "max": {"date": max_v[0].isoformat(), "value_cm": round(max_v[1], 1)},
-            "current_cm": round(getattr(latest, metric), 1) if getattr(latest, metric) is not None else None,
+            "min": {"date": min_v[0].isoformat(), "value": round(min_v[1], 1)},
+            "max": {"date": max_v[0].isoformat(), "value": round(max_v[1], 1)},
+            "current": round(getattr(latest, metric), 1) if getattr(latest, metric) is not None else None,
             "count": len(vals),
         }
 

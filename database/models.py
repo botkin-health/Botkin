@@ -328,6 +328,8 @@ class BodyMeasurement(Base):
     chest_cm: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     thigh_cm: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     biceps_cm: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    grip_right_kg: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    grip_left_kg: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=True
