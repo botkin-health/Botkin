@@ -13,7 +13,7 @@ from core.infra.tz import get_user_tz  # noqa: E402
 from core.health.garmin_data import get_garmin_data_for_date, sync_today_garmin
 from core.health.weekly_nutrition import analyze_weekly_nutrition
 from core.health.nutrition_targets import check_feasibility
-from config.users import ADMIN_USER_ID, is_admin
+from config.users import is_admin
 from config.settings import public_base_url
 # NOTE: SupplementService imported per-request to support multi-user
 
@@ -656,8 +656,8 @@ async def cmd_block(message: Message, user_id: int):
         await message.answer("Использование: /block <telegram_id>")
         return
     target_id = int(parts[1])
-    if target_id == ADMIN_USER_ID:
-        await message.answer("❌ Нельзя заблокировать себя.")
+    if is_admin(target_id):
+        await message.answer("❌ Нельзя заблокировать администратора.")
         return
 
     from database import SessionLocal
