@@ -225,6 +225,17 @@ def register_handlers(dp: Dispatcher):
         errors.append(f"Обработчик verified-products: {e}")
         logger.error(f"❌ Ошибка регистрации обработчика verified-products: {e}")
 
+    try:
+        from handlers.feedback import router as feedback_router
+
+        dp.include_router(feedback_router)
+        count = len(feedback_router.observers) if hasattr(feedback_router, "observers") else 0
+        handlers_count += count
+        registered_modules.append("/feedback")
+    except Exception as e:
+        errors.append(f"Обработчик /feedback: {e}")
+        logger.error(f"❌ Ошибка регистрации обработчика /feedback: {e}")
+
     # Apple Health handlers removed
     pass
 
@@ -332,6 +343,7 @@ async def main():
         BotCommand(command="profile", description="Настроить профиль (рост, возраст, цель)"),
         BotCommand(command="connect_mcp", description="Подключить AI-коннектор (MCP)"),
         BotCommand(command="agent_reset", description="Сбросить недавний контекст AI-ассистента"),
+        BotCommand(command="feedback", description="Сообщить об ошибке / предложить идею"),
         BotCommand(command="help", description="Помощь"),
     ]
 
