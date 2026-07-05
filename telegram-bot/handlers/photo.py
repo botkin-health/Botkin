@@ -770,6 +770,7 @@ async def handle_document_image(message: Message, album: list = None):
 
     photo_paths = []
     has_pdf = False
+    unsupported_names = []
 
     for msg in messages_to_process:
         # Проверяем, является ли документ изображением
@@ -806,6 +807,7 @@ async def handle_document_image(message: Message, album: list = None):
         is_pdf = mime_type.lower() == "application/pdf" or file_name.lower().endswith(".pdf")
 
         if not is_image and not is_pdf:
+            unsupported_names.append(file_name or mime_type or "файл")
             continue
 
         if is_pdf:
@@ -859,9 +861,17 @@ async def handle_document_image(message: Message, album: list = None):
             photo_paths.append(photo_path)
 
     if not photo_paths:
-        if not has_pdf:
-            # Не изображение и не PDF — молча игнорируем
-            pass
+        if unsupported_names and not has_pdf:
+            # Раньше неподдерживаемые типы игнорировались молча — пользователь не
+            # понимал, дошёл ли файл (прецедент 27.06.2026: .docx-обследования,
+            # бот не ответил). Теперь отвечаем с подсказкой.
+            names = ", ".join(unsupported_names[:3])
+            await message.answer(
+                f"📎 Получил файл ({names}), но такой формат пока не умею.\n"
+                "Поддерживаю: PDF, фото (JPG/PNG/HEIC) и CSV из LibreView.\n"
+                "Если это .doc/.docx — сохрани как PDF или пришли фото страниц. "
+                "Сохранить документ в историю здоровья — команда /doc."
+            )
         return
 
     # Ищем caption в сообщениях альбома
