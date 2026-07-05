@@ -105,6 +105,9 @@ class MealStateData(BaseModel):
     meal_name: Optional[str] = Field(None, description="Название приёма пищи")
     dish_name: Optional[str] = Field(None, description="Название блюда (menu-флоу)")
     meal_time: Optional[str] = Field(None, description="Время приёма пищи HH:MM")
+    slot: Optional[str] = Field(
+        None, description="Выбранный слот для фото без подписи (#181): breakfast/lunch/snack/dinner"
+    )
     description: Optional[str] = Field(None, description="Исходное описание/подпись пользователя")
     source: Optional[str] = Field(None, description="Источник: text, photo, ocr_db_lookup")
     date: Optional[str] = Field(None, description="Дата приёма пищи YYYY-MM-DD")

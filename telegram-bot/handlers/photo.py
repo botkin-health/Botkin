@@ -58,6 +58,7 @@ router = Router()
 
 
 from handlers.callbacks import MealConfirmationCallback, SupplementConfirmationCallback, WeightConfirmationCallback
+from webhook.nutrition_slots import SLOTS, slot_center_time, slot_from_time, slot_label_ru
 
 from typing import List
 
@@ -1427,6 +1428,33 @@ def build_menu_meal_item(menu_data: dict) -> dict:
     }
 
 
+def _meal_confirm_keyboard(meal_type: str, selected_slot: str = ""):
+    """Клавиатура подтверждения приёма пищи.
+
+    При заданном selected_slot добавляет ряд выбора слота (Завтрак/Обед/Ужин/
+    Перекус) с пометкой активного — для фото без подписи, где слот иначе
+    молча выводится по времени суток (#181, баг 4). Помимо слот-ряда — штатные
+    кнопки Сохранить / Отмена.
+    """
+    builder = InlineKeyboardBuilder()
+    if selected_slot:
+        for slot in SLOTS:
+            mark = "🔘 " if slot == selected_slot else ""
+            builder.button(
+                text=f"{mark}{slot_label_ru(slot)}",
+                callback_data=MealConfirmationCallback(action="set_slot", meal_type=meal_type, slot=slot).pack(),
+            )
+    builder.button(
+        text="✅ Сохранить", callback_data=MealConfirmationCallback(action="save", meal_type=meal_type).pack()
+    )
+    cancel_text = "❌ Не сохранять" if meal_type == "menu" else "❌ Отмена"
+    builder.button(
+        text=cancel_text, callback_data=MealConfirmationCallback(action="cancel", meal_type=meal_type).pack()
+    )
+    builder.adjust(4, 2) if selected_slot else builder.adjust(2)
+    return builder.as_markup()
+
+
 async def handle_menu_photo(message: Message, menu_data: dict, photo_path: Path, processing_message: Message = None):
     """Обработка распознанной по фото еды/продукта с КБЖУ"""
 
@@ -1456,14 +1484,12 @@ async def handle_menu_photo(message: Message, menu_data: dict, photo_path: Path,
         f"• Углеводы: {carbs:.0f} г"
     )
 
-    # Создаём inline keyboard с кнопками
-    builder = InlineKeyboardBuilder()
-    builder.button(text="✅ Сохранить", callback_data=MealConfirmationCallback(action="save", meal_type="menu").pack())
-    builder.button(
-        text="❌ Не сохранять", callback_data=MealConfirmationCallback(action="cancel", meal_type="menu").pack()
-    )
-    builder.adjust(2)  # Две кнопки в ряд
-    keyboard = builder.as_markup()
+    # Фото без подписи — слот иначе молча выводится по времени суток и часто
+    # промахивается (боул в 16:00 → «перекус» вместо обеда, #181 баг 4).
+    # Показываем ряд выбора слота с дефолтом по времени; юзер правит одним тапом.
+    now_msk = datetime.now(MSK)
+    default_slot = slot_from_time(now_msk.time())
+    keyboard = _meal_confirm_keyboard("menu", selected_slot=default_slot)
 
     # Сохраняем данные в состояние для подтверждения
     # #256: было "photo_path" (ед.ч.) — save_meal_to_db() читает "photo_paths"
@@ -1482,9 +1508,10 @@ async def handle_menu_photo(message: Message, menu_data: dict, photo_path: Path,
                 "carbs": carbs,
             },
             photo_paths=[str(photo_path)],
-            meal_time=datetime.now(MSK).strftime("%H:%M"),
+            meal_time=now_msk.strftime("%H:%M"),
             menu_ocr=True,  # Флаг, что это меню
             product_label=menu_data.get("product_label"),  # #255
+            slot=default_slot,  # #181: подсвеченный дефолт слот-пикера
         ),
     )
     state_manager.set_state(user_id, user_state)
@@ -1517,6 +1544,26 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
     if not user_state or user_state.state != "waiting_confirmation":
         await callback.answer("⚠️ Состояние истекло. Отправьте фото заново.", show_alert=True)
         await callback.message.delete()
+        return
+
+    # Выбор слота на карточке фото без подписи (#181, баг 4): фиксируем слот через
+    # meal_time = центр слота (слот в БД не хранится, выводится из meal_name+time —
+    # тот же приём, что edit_meal(new_slot=…)). Перерисовываем клавиатуру, не сохраняя.
+    if callback_data.action == "set_slot":
+        slot = callback_data.slot
+        if slot in SLOTS:
+            user_state.data["slot"] = slot
+            user_state.data["meal_time"] = slot_center_time(slot).strftime("%H:%M")
+            state_manager.set_state(user_id, user_state)
+            try:
+                await callback.message.edit_reply_markup(
+                    reply_markup=_meal_confirm_keyboard(callback_data.meal_type, selected_slot=slot)
+                )
+            except TelegramBadRequest:
+                pass  # клавиатура не изменилась — Telegram отклоняет no-op edit
+            await callback.answer(f"Слот: {slot_label_ru(slot)}")
+        else:
+            await callback.answer()
         return
 
     if callback_data.action == "save":
