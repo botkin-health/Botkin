@@ -84,7 +84,7 @@ def test_append_document_to_kb_creates_file(tmp_path, monkeypatch):
         "extracted": {"values": {"Hb": "165 г/л"}},
         "user_confirmed": True,
     }
-    mod.append_document_to_kb(12345, entry)
+    mod._append_document_to_kb(12345, entry)
 
     kb_path = tmp_path / "data" / "kb" / "kb_12345.json"
     data = json.loads(kb_path.read_text(encoding="utf-8"))
@@ -103,7 +103,7 @@ def test_append_document_to_kb_preserves_sections(tmp_path, monkeypatch):
         json.dumps({"blood_tests": [{"date": "2025-01-01"}], "documents": []}),
         encoding="utf-8",
     )
-    mod.append_document_to_kb(
+    mod._append_document_to_kb(
         999,
         {"file": "x.pdf", "extracted": {}, "user_confirmed": True, "added_at": "2026-06-28"},
     )

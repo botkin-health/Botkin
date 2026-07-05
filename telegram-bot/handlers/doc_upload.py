@@ -6,9 +6,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import io
-import json
 import logging
-import tempfile
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -105,38 +103,13 @@ def _preview_keyboard(has_values: bool) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-def append_document_to_kb(user_id: int, entry: dict[str, Any]) -> None:
-    """Атомарная запись записи в documents[] в kb_<user_id>.json."""
+def _append_document_to_kb(user_id: int, entry: dict[str, Any]) -> None:
+    """Делегирует запись в documents[] → core/health/kb_writer (DRY)."""
+    from core.health.kb_writer import append_document_to_kb
+
     kb_path = _PROJECT_ROOT / "data" / "kb" / f"kb_{user_id}.json"
     kb_path.parent.mkdir(parents=True, exist_ok=True)
-
-    if kb_path.exists():
-        try:
-            kb = json.loads(kb_path.read_text(encoding="utf-8"))
-        except Exception:
-            kb = {}
-    else:
-        kb = {}
-
-    if not isinstance(kb.get("documents"), list):
-        kb["documents"] = []
-    kb["documents"].append(entry)
-
-    tmp = tempfile.NamedTemporaryFile(
-        mode="w",
-        encoding="utf-8",
-        dir=kb_path.parent,
-        suffix=".tmp",
-        delete=False,
-    )
-    try:
-        json.dump(kb, tmp, ensure_ascii=False, indent=2)
-        tmp.flush()
-        tmp.close()
-        Path(tmp.name).replace(kb_path)
-    except Exception:
-        Path(tmp.name).unlink(missing_ok=True)
-        raise
+    append_document_to_kb(kb_path, entry)
 
 
 @router.message(Command("doc"))
@@ -165,6 +138,15 @@ async def doc_received(message: Message, state: FSMContext) -> None:
     from handlers.photo import _extract_pdf_text, _pdf_to_images
 
     user_id = message.from_user.id
+
+    # Защита от двойной отправки: если предыдущий документ ещё не подтверждён — напоминаем.
+    data = await state.get_data()
+    if data.get("pending"):
+        await message.answer(
+            "⏳ Сначала ответь на предыдущий документ — нажми «Сохранить» или «Отмена».\n"
+            "Или напиши /cancel чтобы отменить и начать заново."
+        )
+        return
 
     # Определяем тип и скачиваем
     if message.document:
@@ -267,7 +249,7 @@ async def doc_confirm(callback: CallbackQuery, state: FSMContext) -> None:
             "extracted": pending.get("extracted") or {},
             "user_confirmed": True,
         }
-        append_document_to_kb(user_id, entry)
+        _append_document_to_kb(user_id, entry)
     except Exception:
         logger.exception("doc_upload: сохранение не удалось (user %s)", user_id)
         await callback.message.edit_text("⚠️ Не получилось сохранить, попробуй ещё раз.")
