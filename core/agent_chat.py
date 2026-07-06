@@ -1320,7 +1320,12 @@ def agent_last_turn_was_question(user_id: int, within_minutes: int = 10) -> bool
             created_at = created_at.replace(tzinfo=timezone.utc)
         if datetime.now(timezone.utc) - created_at > timedelta(minutes=within_minutes):
             return False
-        return _text_of(content).rstrip().endswith("?")
+        # #198: вопрос агента часто кончается эмодзи/пунктуацией после «?»
+        # («Какой вес записать? 😊») — простой endswith("?") давал False, и
+        # короткий ответ юзера перехватывался парсером. Матчим «?», за которым до
+        # конца строки идут только не-словесные символы (эмодзи, пробелы, скобки),
+        # но НЕ буквы/цифры — так «? 😊» и «?» True, а «? Напиши число» False.
+        return bool(re.search(r"\?[\s\W]*$", _text_of(content)))
     except Exception:
         return False
     finally:
