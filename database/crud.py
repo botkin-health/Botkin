@@ -1169,18 +1169,72 @@ def create_feedback(
     return row
 
 
-def list_recent_feedback(db: Session, *, status: str = "new", limit: int = 20) -> List[UserFeedback]:
-    """Последние записи фидбека по статусу (для /feedback_queue), новые сверху."""
-    return (
-        db.query(UserFeedback)
-        .filter(UserFeedback.status == status)
-        .order_by(UserFeedback.created_at.desc(), UserFeedback.id.desc())
-        .limit(limit)
-        .all()
-    )
+def list_recent_feedback(db: Session, *, status: Optional[str] = "new", limit: int = 20) -> List[UserFeedback]:
+    """Последние записи фидбека, новые сверху. status=None → все статусы (#269 триаж)."""
+    q = db.query(UserFeedback)
+    if status is not None:
+        q = q.filter(UserFeedback.status == status)
+    return q.order_by(UserFeedback.created_at.desc(), UserFeedback.id.desc()).limit(limit).all()
 
 
 def is_feedback_opted_out(db: Session, user_id: int) -> bool:
     """True, если пользователь отписался от захвата фидбека. Нет строки настроек → False."""
     settings = db.query(UserSettings).filter(UserSettings.user_id == user_id).one_or_none()
     return bool(settings and settings.feedback_opt_out)
+
+
+# ── Триаж инбокса фидбека (#269) ────────────────────────────────────────────
+FEEDBACK_STATUSES = ("new", "triaged", "in_progress", "done", "wontfix", "duplicate")
+FEEDBACK_PRIORITIES = ("P0", "P1", "P2", "P3")
+_FEEDBACK_RESOLVED_STATUSES = ("done", "wontfix")
+
+
+def get_feedback(db: Session, feedback_id: int) -> Optional[UserFeedback]:
+    """Одна запись фидбека по id (или None)."""
+    return db.query(UserFeedback).filter(UserFeedback.id == feedback_id).one_or_none()
+
+
+def update_feedback_status(db: Session, feedback_id: int, status: str) -> Optional[UserFeedback]:
+    """Сменить статус записи (#269). `resolved_at` ставится при done/wontfix и
+    сбрасывается при возврате в открытый статус. Невалидный статус → ValueError;
+    записи нет → None."""
+    if status not in FEEDBACK_STATUSES:
+        raise ValueError(f"invalid status {status!r}; allowed: {', '.join(FEEDBACK_STATUSES)}")
+    row = get_feedback(db, feedback_id)
+    if row is None:
+        return None
+    row.status = status
+    if status in _FEEDBACK_RESOLVED_STATUSES:
+        row.resolved_at = row.resolved_at or datetime.now(timezone.utc)
+    else:
+        row.resolved_at = None
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+def set_feedback_priority(db: Session, feedback_id: int, priority: Optional[str]) -> Optional[UserFeedback]:
+    """Приоритет P0-P3 (или None — снять) (#269). Невалидный → ValueError; нет записи → None."""
+    if priority is not None and priority not in FEEDBACK_PRIORITIES:
+        raise ValueError(f"invalid priority {priority!r}; allowed: {', '.join(FEEDBACK_PRIORITIES)} or None")
+    row = get_feedback(db, feedback_id)
+    if row is None:
+        return None
+    row.priority = priority
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+def set_feedback_github(db: Session, feedback_id: int, github_issue: Optional[str]) -> Optional[UserFeedback]:
+    """Привязать GitHub-issue (#269). Нормализуем ведущий '#' ('#123'→'123');
+    пусто/None — снять привязку. Нет записи → None."""
+    normalized = github_issue.strip().lstrip("#") if github_issue else None
+    normalized = normalized or None
+    row = get_feedback(db, feedback_id)
+    if row is None:
+        return None
+    row.github_issue = normalized
+    db.commit()
+    db.refresh(row)
+    return row
