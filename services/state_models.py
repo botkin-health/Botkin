@@ -98,7 +98,9 @@ class MealStateData(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     meal_items: Optional[List[Dict[str, Any]]] = Field(None, description="Позиции приёма пищи")
-    meal_totals: Optional[Dict[str, float]] = Field(None, description="КБЖУ итого")
+    meal_totals: Optional[Dict[str, Any]] = Field(
+        None, description="КБЖУ итого (значения не только float — kcal_warnings это list[dict], #279)"
+    )
     multi_meals: Optional[List[Dict[str, Any]]] = Field(
         None, description="Несколько приёмов пищи в одном сообщении (#53)"
     )

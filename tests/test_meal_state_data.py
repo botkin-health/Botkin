@@ -39,6 +39,21 @@ def test_accepts_valid_minimal_data():
     assert data.meal_name is None
 
 
+def test_accepts_meal_totals_with_kcal_warnings_list():
+    """#279: kcal_warnings — list[dict] (не float) внутри meal_totals,
+    заполняется check_kcal_consistency()/check_density_sanity() в
+    core/food/nutrition.py. Раньше meal_totals был Dict[str, float] и
+    падал с ValidationError на слот-пикере фото без подписи (#181)."""
+    data = MealStateData(
+        meal_items=[{"product": "Банан"}],
+        meal_totals={
+            "calories": 100,
+            "kcal_warnings": [{"name": "Кофе", "stated": 45.0, "macro": 24.0, "diff": 21.0}],
+        },
+    )
+    assert data.meal_totals["kcal_warnings"][0]["diff"] == 21.0
+
+
 def test_build_meal_state_data_returns_plain_dict_for_user_state():
     result = build_meal_state_data(
         meal_items=[{"product": "Банан"}],

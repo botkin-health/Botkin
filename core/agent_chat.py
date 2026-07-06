@@ -761,6 +761,51 @@ TOOLS: list[dict[str, Any]] = [
             "required": ["category", "user_msg"],
         },
     },
+    {
+        "name": "list_feedback",
+        "description": (
+            "АДМИН-ТУЛ (#269): показать записи инбокса обратной связи для триажа. "
+            "Возвращает структурный список (id/kind/status/priority/text/agent_note/…). "
+            "По умолчанию status='new'; status='all' — все статусы."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "description": "Фильтр статуса: new/triaged/in_progress/done/wontfix/duplicate или 'all'.",
+                },
+                "limit": {"type": "integer", "description": "Сколько записей (макс 100, дефолт 20)."},
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "triage_feedback",
+        "description": (
+            "АДМИН-ТУЛ (#269): триаж записи инбокса — сменить статус/приоритет/привязать "
+            "GitHub-issue. Частичное обновление: передавай только меняемые поля. "
+            "Возвращает обновлённую запись."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "feedback_id": {"type": "integer", "description": "id записи из list_feedback."},
+                "status": {
+                    "type": "string",
+                    "enum": ["new", "triaged", "in_progress", "done", "wontfix", "duplicate"],
+                    "description": "Новый статус.",
+                },
+                "priority": {
+                    "type": "string",
+                    "enum": ["P0", "P1", "P2", "P3"],
+                    "description": "Приоритет.",
+                },
+                "github_issue": {"type": "string", "description": "Номер GitHub-issue (напр. '300')."},
+            },
+            "required": ["feedback_id"],
+        },
+    },
 ]
 
 # ---------------------------------------------------------------------------
@@ -1034,6 +1079,25 @@ def _call_tool(name: str, args: dict, token: str) -> str:
                 },
                 timeout=10,
             )
+        elif name == "list_feedback":
+            r = requests.post(
+                f"{TOOLS_API_BASE}/list_feedback",
+                headers=headers,
+                json={"status": args.get("status", "new"), "limit": args.get("limit", 20)},
+                timeout=10,
+            )
+        elif name == "triage_feedback":
+            r = requests.post(
+                f"{TOOLS_API_BASE}/triage_feedback",
+                headers=headers,
+                json={
+                    "feedback_id": args.get("feedback_id"),
+                    "status": args.get("status"),
+                    "priority": args.get("priority"),
+                    "github_issue": args.get("github_issue"),
+                },
+                timeout=10,
+            )
         else:
             return json.dumps({"error": f"unknown tool: {name}"})
 
@@ -1201,6 +1265,66 @@ def _recent_tracker_events(db, user_id: int, limit: int = 8) -> str:
         + "\nДля точных цифр всё равно вызывай соответствующий инструмент.\n"
         "\n---\n\n"
     )
+
+
+def agent_last_turn_was_question(user_id: int, within_minutes: int = 10) -> bool:
+    """#198: True если ПОСЛЕДНИЙ ход бота — вопрос агента (BotkinClaw), свежий и
+    заканчивается «?».
+
+    Нужно, чтобы короткий ответ пользователя («54», «120/80») после вопроса
+    агента («сколько весишь?») уходил в агента, а не перехватывался weight/BP-
+    парсером (диалог рвался). Берём АБСОЛЮТНО последний assistant-ход: если это
+    парсер-подтверждение (source bp_fast_handler/llm_text/…) или старый ход
+    (>within_minutes) — False, чтобы не спутать standalone-лог с ответом.
+    """
+    from sqlalchemy import text as sql_text
+    from datetime import datetime, timezone, timedelta
+
+    def _text_of(content) -> str:
+        data = content
+        if isinstance(data, str):
+            try:
+                data = json.loads(data)
+            except Exception:
+                return data
+        if isinstance(data, list):
+            return " ".join(b.get("text", "") for b in data if isinstance(b, dict) and b.get("type") == "text")
+        return ""
+
+    try:
+        db = SessionLocal()
+    except Exception:
+        return False
+    try:
+        row = db.execute(
+            sql_text(
+                """
+                SELECT content, source, created_at
+                FROM agent_conversations
+                WHERE user_id = :uid AND role = 'assistant'
+                ORDER BY id DESC
+                LIMIT 1
+                """
+            ),
+            {"uid": user_id},
+        ).fetchone()
+        if row is None:
+            return False
+        content, source, created_at = row
+        # Только реальный ход агента, не парсер-инъекция.
+        if source not in (None, "botkinclaw"):
+            return False
+        if created_at is None:
+            return False
+        if created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=timezone.utc)
+        if datetime.now(timezone.utc) - created_at > timedelta(minutes=within_minutes):
+            return False
+        return _text_of(content).rstrip().endswith("?")
+    except Exception:
+        return False
+    finally:
+        db.close()
 
 
 def _validate_history(messages: list[dict]) -> list[dict]:
@@ -2333,7 +2457,12 @@ def ask_agent(
         # `cache_control: ephemeral` on the LAST tool entry caches everything
         # before it (system + all tools). See:
         # https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching
-        cached_tools = [dict(t) for t in TOOLS]
+        # #269: триаж-тулы инбокса — только админам; остальные их не видят.
+        from config.users import is_admin as _is_admin
+
+        _admin_only = {"list_feedback", "triage_feedback"}
+        _tool_defs = TOOLS if _is_admin(user_id) else [t for t in TOOLS if t["name"] not in _admin_only]
+        cached_tools = [dict(t) for t in _tool_defs]
         cached_tools[-1]["cache_control"] = {"type": "ephemeral"}
         # Prompt caching давно GA — beta-хедер prompt-caching-2024-07-31 не нужен
         request_headers = dict(headers)
