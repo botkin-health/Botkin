@@ -164,6 +164,20 @@ class FlagForDevsRequest(BaseModel):
     agent_note: Optional[str] = None
 
 
+class ListFeedbackRequest(BaseModel):
+    # #269 триаж (admin-only): status=None/'all' → все статусы
+    status: Optional[str] = "new"
+    limit: int = 20
+
+
+class TriageFeedbackRequest(BaseModel):
+    # #269 триаж (admin-only): частичное обновление — передавай только меняемые поля
+    feedback_id: int
+    status: Optional[str] = None  # new/triaged/in_progress/done/wontfix/duplicate
+    priority: Optional[str] = None  # P0-P3
+    github_issue: Optional[str] = None
+
+
 class LogBPRequest(BaseModel):
     systolic: int = Field(..., ge=50, le=300, description="Systolic pressure mmHg")
     diastolic: int = Field(..., ge=30, le=200, description="Diastolic pressure mmHg")
@@ -487,6 +501,90 @@ async def flag_for_devs(
         agent_context={"agent_note": req.agent_note} if req.agent_note else None,
     )
     return {"status": "ok", "feedback_id": row.id, "kind": kind}
+
+
+def _feedback_to_dict(row) -> dict:
+    """Плоский структурный вид записи фидбека для агента (#269)."""
+    ctx = row.agent_context if isinstance(row.agent_context, dict) else {}
+    return {
+        "id": row.id,
+        "kind": row.kind,
+        "status": row.status,
+        "priority": row.priority,
+        "source": row.source,
+        "user_id": row.user_id,
+        "text": row.text,
+        "agent_note": ctx.get("agent_note"),
+        "github_issue": row.github_issue,
+        "dedup_of": row.dedup_of,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+        "resolved_at": row.resolved_at.isoformat() if row.resolved_at else None,
+    }
+
+
+@router.post("/list_feedback")
+async def list_feedback(
+    req: ListFeedbackRequest,
+    user=Depends(require_agent_scope("ro")),
+    db: Session = Depends(get_db),
+):
+    """Список записей инбокса фидбека для триажа (#269). Только для админов."""
+    from config.users import is_admin
+    from database.crud import list_recent_feedback
+
+    if not is_admin(user.telegram_id):
+        raise HTTPException(status_code=403, detail="триаж доступен только администраторам")
+    status = req.status if req.status not in (None, "", "all") else None
+    limit = max(1, min(req.limit, 100))
+    rows = list_recent_feedback(db, status=status, limit=limit)
+    return {"status": "ok", "count": len(rows), "feedback": [_feedback_to_dict(r) for r in rows]}
+
+
+@router.post("/triage_feedback")
+async def triage_feedback(
+    req: TriageFeedbackRequest,
+    user=Depends(require_agent_scope("rw")),
+    db: Session = Depends(get_db),
+):
+    """Триаж записи фидбека: статус/приоритет/GitHub-issue (#269). Только для админов.
+
+    Частичное обновление — применяются только переданные (не-None) поля.
+    Возвращает обновлённую запись, чтобы агент подтвердил результат.
+    """
+    from config.users import is_admin
+    from database.crud import (
+        FEEDBACK_PRIORITIES,
+        FEEDBACK_STATUSES,
+        get_feedback,
+        set_feedback_github,
+        set_feedback_priority,
+        update_feedback_status,
+    )
+
+    if not is_admin(user.telegram_id):
+        raise HTTPException(status_code=403, detail="триаж доступен только администраторам")
+    row = get_feedback(db, req.feedback_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"фидбек #{req.feedback_id} не найден")
+    # #269: провалидировать ВСЕ поля ДО первой мутации — каждый CRUD-хелпер
+    # коммитит отдельно, поэтому иначе невалидный priority после валидного status
+    # оставил бы частичное изменение при ответе 400 (неатомарность).
+    if req.status is not None and req.status not in FEEDBACK_STATUSES:
+        raise HTTPException(status_code=400, detail=f"невалидный статус {req.status!r}")
+    if req.priority is not None and req.priority not in FEEDBACK_PRIORITIES:
+        raise HTTPException(status_code=400, detail=f"невалидный приоритет {req.priority!r}")
+    if req.github_issue and len(req.github_issue) > 64:
+        raise HTTPException(status_code=400, detail="github_issue слишком длинный (макс 64; передавай номер)")
+    try:
+        if req.status is not None:
+            row = update_feedback_status(db, req.feedback_id, req.status)
+        if req.priority is not None:
+            row = set_feedback_priority(db, req.feedback_id, req.priority)
+        if req.github_issue is not None:
+            row = set_feedback_github(db, req.feedback_id, req.github_issue)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"status": "ok", "feedback": _feedback_to_dict(row)}
 
 
 @router.post("/log_bp")
