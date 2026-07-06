@@ -761,6 +761,51 @@ TOOLS: list[dict[str, Any]] = [
             "required": ["category", "user_msg"],
         },
     },
+    {
+        "name": "list_feedback",
+        "description": (
+            "АДМИН-ТУЛ (#269): показать записи инбокса обратной связи для триажа. "
+            "Возвращает структурный список (id/kind/status/priority/text/agent_note/…). "
+            "По умолчанию status='new'; status='all' — все статусы."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "description": "Фильтр статуса: new/triaged/in_progress/done/wontfix/duplicate или 'all'.",
+                },
+                "limit": {"type": "integer", "description": "Сколько записей (макс 100, дефолт 20)."},
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "triage_feedback",
+        "description": (
+            "АДМИН-ТУЛ (#269): триаж записи инбокса — сменить статус/приоритет/привязать "
+            "GitHub-issue. Частичное обновление: передавай только меняемые поля. "
+            "Возвращает обновлённую запись."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "feedback_id": {"type": "integer", "description": "id записи из list_feedback."},
+                "status": {
+                    "type": "string",
+                    "enum": ["new", "triaged", "in_progress", "done", "wontfix", "duplicate"],
+                    "description": "Новый статус.",
+                },
+                "priority": {
+                    "type": "string",
+                    "enum": ["P0", "P1", "P2", "P3"],
+                    "description": "Приоритет.",
+                },
+                "github_issue": {"type": "string", "description": "Номер GitHub-issue (напр. '300')."},
+            },
+            "required": ["feedback_id"],
+        },
+    },
 ]
 
 # ---------------------------------------------------------------------------
@@ -1031,6 +1076,25 @@ def _call_tool(name: str, args: dict, token: str) -> str:
                     "category": args.get("category", "question"),
                     "user_msg": args.get("user_msg", ""),
                     "agent_note": args.get("agent_note"),
+                },
+                timeout=10,
+            )
+        elif name == "list_feedback":
+            r = requests.post(
+                f"{TOOLS_API_BASE}/list_feedback",
+                headers=headers,
+                json={"status": args.get("status", "new"), "limit": args.get("limit", 20)},
+                timeout=10,
+            )
+        elif name == "triage_feedback":
+            r = requests.post(
+                f"{TOOLS_API_BASE}/triage_feedback",
+                headers=headers,
+                json={
+                    "feedback_id": args.get("feedback_id"),
+                    "status": args.get("status"),
+                    "priority": args.get("priority"),
+                    "github_issue": args.get("github_issue"),
                 },
                 timeout=10,
             )
@@ -2393,7 +2457,12 @@ def ask_agent(
         # `cache_control: ephemeral` on the LAST tool entry caches everything
         # before it (system + all tools). See:
         # https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching
-        cached_tools = [dict(t) for t in TOOLS]
+        # #269: триаж-тулы инбокса — только админам; остальные их не видят.
+        from config.users import is_admin as _is_admin
+
+        _admin_only = {"list_feedback", "triage_feedback"}
+        _tool_defs = TOOLS if _is_admin(user_id) else [t for t in TOOLS if t["name"] not in _admin_only]
+        cached_tools = [dict(t) for t in _tool_defs]
         cached_tools[-1]["cache_control"] = {"type": "ephemeral"}
         # Prompt caching давно GA — beta-хедер prompt-caching-2024-07-31 не нужен
         request_headers = dict(headers)
