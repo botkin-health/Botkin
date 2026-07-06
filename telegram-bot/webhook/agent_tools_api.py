@@ -552,13 +552,29 @@ async def triage_feedback(
     Возвращает обновлённую запись, чтобы агент подтвердил результат.
     """
     from config.users import is_admin
-    from database.crud import get_feedback, set_feedback_github, set_feedback_priority, update_feedback_status
+    from database.crud import (
+        FEEDBACK_PRIORITIES,
+        FEEDBACK_STATUSES,
+        get_feedback,
+        set_feedback_github,
+        set_feedback_priority,
+        update_feedback_status,
+    )
 
     if not is_admin(user.telegram_id):
         raise HTTPException(status_code=403, detail="триаж доступен только администраторам")
     row = get_feedback(db, req.feedback_id)
     if row is None:
         raise HTTPException(status_code=404, detail=f"фидбек #{req.feedback_id} не найден")
+    # #269: провалидировать ВСЕ поля ДО первой мутации — каждый CRUD-хелпер
+    # коммитит отдельно, поэтому иначе невалидный priority после валидного status
+    # оставил бы частичное изменение при ответе 400 (неатомарность).
+    if req.status is not None and req.status not in FEEDBACK_STATUSES:
+        raise HTTPException(status_code=400, detail=f"невалидный статус {req.status!r}")
+    if req.priority is not None and req.priority not in FEEDBACK_PRIORITIES:
+        raise HTTPException(status_code=400, detail=f"невалидный приоритет {req.priority!r}")
+    if req.github_issue and len(req.github_issue) > 64:
+        raise HTTPException(status_code=400, detail="github_issue слишком длинный (макс 64; передавай номер)")
     try:
         if req.status is not None:
             row = update_feedback_status(db, req.feedback_id, req.status)

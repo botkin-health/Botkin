@@ -157,3 +157,28 @@ def test_triage_feedback_bad_status_400(client, db_session, monkeypatch):
     _set_admin(monkeypatch, True)
     r = client.post("/api/agent/triage_feedback", json={"feedback_id": row.id, "status": "bogus"})
     assert r.status_code == 400
+
+
+def test_triage_invalid_priority_does_not_commit_status(client, db_session, monkeypatch):
+    # Атомарность: невалидный priority после валидного status не должен оставить
+    # частичное изменение (пре-валидация до мутаций).
+    row = _mk(db_session)
+    _set_admin(monkeypatch, True)
+    r = client.post(
+        "/api/agent/triage_feedback",
+        json={"feedback_id": row.id, "status": "done", "priority": "P9"},
+    )
+    assert r.status_code == 400
+    db_session.expire_all()
+    fresh = crud.get_feedback(db_session, row.id)
+    assert fresh.status == "new" and fresh.resolved_at is None
+
+
+def test_triage_github_too_long_400(client, db_session, monkeypatch):
+    row = _mk(db_session)
+    _set_admin(monkeypatch, True)
+    r = client.post(
+        "/api/agent/triage_feedback",
+        json={"feedback_id": row.id, "github_issue": "x" * 100},
+    )
+    assert r.status_code == 400

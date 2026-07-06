@@ -1231,6 +1231,8 @@ def set_feedback_github(db: Session, feedback_id: int, github_issue: Optional[st
     пусто/None — снять привязку. Нет записи → None."""
     normalized = github_issue.strip().lstrip("#") if github_issue else None
     normalized = normalized or None
+    if normalized is not None and len(normalized) > 64:
+        raise ValueError(f"github_issue too long ({len(normalized)} > 64); передавай номер, не URL")
     row = get_feedback(db, feedback_id)
     if row is None:
         return None
