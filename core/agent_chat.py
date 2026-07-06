@@ -1203,6 +1203,66 @@ def _recent_tracker_events(db, user_id: int, limit: int = 8) -> str:
     )
 
 
+def agent_last_turn_was_question(user_id: int, within_minutes: int = 10) -> bool:
+    """#198: True если ПОСЛЕДНИЙ ход бота — вопрос агента (BotkinClaw), свежий и
+    заканчивается «?».
+
+    Нужно, чтобы короткий ответ пользователя («54», «120/80») после вопроса
+    агента («сколько весишь?») уходил в агента, а не перехватывался weight/BP-
+    парсером (диалог рвался). Берём АБСОЛЮТНО последний assistant-ход: если это
+    парсер-подтверждение (source bp_fast_handler/llm_text/…) или старый ход
+    (>within_minutes) — False, чтобы не спутать standalone-лог с ответом.
+    """
+    from sqlalchemy import text as sql_text
+    from datetime import datetime, timezone, timedelta
+
+    def _text_of(content) -> str:
+        data = content
+        if isinstance(data, str):
+            try:
+                data = json.loads(data)
+            except Exception:
+                return data
+        if isinstance(data, list):
+            return " ".join(b.get("text", "") for b in data if isinstance(b, dict) and b.get("type") == "text")
+        return ""
+
+    try:
+        db = SessionLocal()
+    except Exception:
+        return False
+    try:
+        row = db.execute(
+            sql_text(
+                """
+                SELECT content, source, created_at
+                FROM agent_conversations
+                WHERE user_id = :uid AND role = 'assistant'
+                ORDER BY id DESC
+                LIMIT 1
+                """
+            ),
+            {"uid": user_id},
+        ).fetchone()
+        if row is None:
+            return False
+        content, source, created_at = row
+        # Только реальный ход агента, не парсер-инъекция.
+        if source not in (None, "botkinclaw"):
+            return False
+        if created_at is None:
+            return False
+        if created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=timezone.utc)
+        if datetime.now(timezone.utc) - created_at > timedelta(minutes=within_minutes):
+            return False
+        return _text_of(content).rstrip().endswith("?")
+    except Exception:
+        return False
+    finally:
+        db.close()
+
+
 def _validate_history(messages: list[dict]) -> list[dict]:
     """Strip orphan tool_use/tool_result blocks that violate Anthropic API.
 
