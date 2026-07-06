@@ -105,3 +105,26 @@ def test_custom_window_respected():
     with _patch_last_row(content, None, _now(20)):  # source NULL = легаси реальный ход
         assert agent_last_turn_was_question(895655, within_minutes=30) is True
         assert agent_last_turn_was_question(895655, within_minutes=10) is False
+
+
+def test_question_with_trailing_emoji_true():
+    """#198: бот кончает вопрос эмодзи после «?» («Какой вес записать? 😊») —
+    прежний endswith('?') давал False, короткий ответ уходил в парсер."""
+    from core.agent_chat import agent_last_turn_was_question
+
+    for txt in ["Какой вес записать? 😊", "Сколько весишь?😊", "Сколько? )", "Какой вес? "]:
+        content = [{"type": "text", "text": txt}]
+        with _patch_last_row(content, "botkinclaw", _now(1)):
+            assert agent_last_turn_was_question(895655) is True, txt
+
+
+def test_statement_after_question_false():
+    """Вопрос в середине, а хвост — утверждение (кейс расчёта калорий: агент
+    спросил про целевой вес, но закончил «…обновлю настройки в системе.») →
+    не считаем хвостовым вопросом."""
+    from core.agent_chat import agent_last_turn_was_question
+
+    for txt in ["Целевой вес 54.9? Обновлю настройки в системе.", "Готово? Напиши число"]:
+        content = [{"type": "text", "text": txt}]
+        with _patch_last_row(content, "botkinclaw", _now(1)):
+            assert agent_last_turn_was_question(895655) is False, txt
