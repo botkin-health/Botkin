@@ -789,6 +789,43 @@ function _fmtDate(iso) {
   return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
 }
 
+// ── Feedback (сообщить об ошибке / идею) — #271 ──────────────────────────────
+async function sendFeedback() {
+  const textEl = document.getElementById('fb-text');
+  const statusEl = document.getElementById('fb-status');
+  const btn = document.getElementById('fb-send-btn');
+  const text = (textEl.value || '').trim();
+  if (!text) {
+    statusEl.textContent = 'Напишите сообщение';
+    statusEl.className = 'fb-status error';
+    return;
+  }
+  const kind = document.querySelector('input[name="fb-kind"]:checked')?.value || 'unspecified';
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Отправка…';
+  statusEl.textContent = '';
+  statusEl.className = 'fb-status';
+  try {
+    const res = await window.API.sendFeedback({ text, kind });
+    if (res && res.status === 'opted_out') {
+      statusEl.textContent = 'Вы отключили отправку обратной связи в настройках.';
+      statusEl.className = 'fb-status error';
+    } else {
+      statusEl.textContent = '✓ Спасибо! Отправлено разработчикам.';
+      statusEl.className = 'fb-status ok';
+      textEl.value = '';
+    }
+  } catch (e) {
+    console.error('sendFeedback failed', e);
+    statusEl.textContent = '⚠ Не удалось отправить. Попробуйте позже.';
+    statusEl.className = 'fb-status error';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = orig;
+  }
+}
+
 // ── Init ─────────────────────────────────────────────────────────────────────
 load();
 loadLinks();

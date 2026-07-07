@@ -464,3 +464,8 @@ code { background: #f0f0f0; border-radius: 4px; padding: 1px 6px;
   -webkit-tap-highlight-color: transparent;
 }
 .copy-btn:active { opacity: 0.6; }
+
+/* Обратная связь (#271) */
+.fb-status { margin-top: 10px; font-size: 13px; min-height: 18px; }
+.fb-status.ok { color: #34c759; }
+.fb-status.error { color: #ff3b30; }
