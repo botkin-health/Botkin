@@ -83,6 +83,14 @@
       return request('/api/dashboard_url');
     },
 
+    // POST /api/feedback  {text, kind} → {status: "ok"|"opted_out", id?}  (#271)
+    sendFeedback({ text, kind = 'unspecified' }) {
+      return request('/api/feedback', {
+        method: 'POST',
+        body: JSON.stringify({ text, kind }),
+      });
+    },
+
     // Escape hatch for ad-hoc calls (e.g. /api/settings).
     request,
   };

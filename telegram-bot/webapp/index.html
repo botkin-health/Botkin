@@ -221,6 +221,10 @@
   <!-- ПРОЧЕЕ -->
   <div class="group-title">Прочее</div>
   <div class="settings-group">
+    <div class="settings-row clickable" onclick="go('feedback')">
+      <div class="row-label">Обратная связь<div class="row-sub">Сообщить об ошибке или идее</div></div>
+      <div class="row-chevron">›</div>
+    </div>
     <div class="settings-row clickable" onclick="go('help')">
       <div class="row-label">Справка</div>
       <div class="row-chevron">›</div>
@@ -251,6 +255,28 @@
 </div>
 
 <!-- NOTIFICATIONS moved inline into #home (Phase 2) -->
+
+<!-- FEEDBACK (сообщить об ошибке / идею — #271) -->
+<div id="feedback" class="section" style="padding:0">
+  <button class="back-btn-ios" onclick="go('home')">‹ Назад</button>
+  <div class="drill-header">💬 Обратная связь</div>
+  <div style="padding:0 16px 16px">
+    <p style="color:#8e8e93;font-size:13px;margin:0 0 12px">
+      Нашли ошибку или есть идея? Напишите — сообщение попадёт напрямую разработчикам.
+    </p>
+    <div class="field-label" style="margin-bottom:8px">Тип</div>
+    <div class="bmr-mode-pillbox" id="fb-kind-box">
+      <label class="bmr-mode-opt"><input type="radio" name="fb-kind" value="bug" checked><span>🐞 Ошибка</span></label>
+      <label class="bmr-mode-opt"><input type="radio" name="fb-kind" value="feature"><span>💡 Идея</span></label>
+      <label class="bmr-mode-opt"><input type="radio" name="fb-kind" value="question"><span>❓ Вопрос</span></label>
+    </div>
+    <textarea id="fb-text" rows="5" maxlength="4000" placeholder="Опишите проблему или идею…"
+      style="width:100%;box-sizing:border-box;margin-top:12px;border:1px solid #ddd;border-radius:10px;padding:10px 12px;font-size:14px;font-family:inherit;resize:vertical"></textarea>
+    <button class="calc-btn" id="fb-send-btn" onclick="sendFeedback()"
+      style="margin-top:12px;padding:10px 16px;background:#34c759;color:#fff;border:none;width:100%">Отправить</button>
+    <div id="fb-status" class="fb-status"></div>
+  </div>
+</div>
 
 <!-- HELP -->
 <div id="help" class="section" style="padding:0">
