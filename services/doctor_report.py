@@ -15,14 +15,18 @@ from __future__ import annotations
 
 import html
 import json
+import logging
 import sys
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
+import requests
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 # Presentation-слой биомаркеров (label/unit/референсы) — то, чего нет в kb_schema.
 # Переиспользуем, чтобы не дублировать RU-названия и границы норм.
@@ -307,3 +311,65 @@ def assemble_doctor_report(db: Session, user_id: int) -> DoctorReport:
 def build_doctor_report_html(db: Session, user_id: int) -> str:
     """БД → человекочитаемый HTML отчёта для врача (Проблемы→…→Образ жизни)."""
     return render_doctor_report_html(assemble_doctor_report(db, user_id))
+
+
+# ── PDF-рендер и доставка ─────────────────────────────────────────────────────
+
+_CAPTION = (
+    "📄 Отчёт о здоровье для врача. Сформирован автоматически из ваших данных в Botkin "
+    "(wellness-сервис, не диагноз). Можно переслать врачу."
+)
+
+
+def render_doctor_report_pdf(db: Session, user_id: int) -> bytes:
+    """HTML отчёта врачу → PDF.
+
+    weasyprint импортируется лениво: его рантайм требует системные GTK-libs
+    (см. Dockerfile/Dockerfile.bot), которых нет в тест-среде без них.
+    """
+    html_str = build_doctor_report_html(db, user_id)
+    from weasyprint import HTML  # noqa: PLC0415
+
+    return HTML(string=html_str).write_pdf()
+
+
+def doctor_report_filename(today: Optional[date] = None) -> str:
+    d = (today or datetime.now(timezone.utc).date()).isoformat()
+    return f"botkin_отчёт_врачу_{d}.pdf"
+
+
+def send_doctor_report_to_chat(db: Session, user_id: int, *, timeout: int = 30) -> dict:
+    """Сгенерировать PDF и отправить пользователю Telegram-документом.
+
+    Единый путь доставки для кнопки мини-аппа и (в follow-up) агент-тула.
+    Ошибки не пробрасываются — возвращаются в словаре {status, sent, error?}.
+    """
+    try:
+        pdf = render_doctor_report_pdf(db, user_id)
+    except Exception as e:
+        logger.error("doctor_report render failed for %s: %s", user_id, e, exc_info=True)
+        return {"status": "error", "error": f"render-failed: {e}", "sent": False}
+
+    _ensure_bot_path()
+    from bot_token import resolve_bot_token  # noqa: PLC0415
+
+    token = resolve_bot_token()
+    if not token:
+        return {"status": "error", "error": "bot-token-missing", "sent": False}
+
+    try:
+        resp = requests.post(
+            f"https://api.telegram.org/bot{token}/sendDocument",
+            data={"chat_id": user_id, "caption": _CAPTION},
+            files={"document": (doctor_report_filename(), pdf, "application/pdf")},
+            timeout=timeout,
+        )
+        result = resp.json()
+        if not result.get("ok"):
+            logger.warning("sendDocument failed for %s: %s", user_id, result)
+            return {"status": "error", "error": f"telegram: {result.get('description')}", "sent": False}
+    except Exception as e:
+        logger.error("sendDocument exception for %s: %s", user_id, e, exc_info=True)
+        return {"status": "error", "error": f"telegram-exception: {e}", "sent": False}
+
+    return {"status": "ok", "sent": True}

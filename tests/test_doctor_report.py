@@ -7,6 +7,9 @@
 
 from datetime import date, datetime
 
+import pytest
+
+import services.doctor_report as dr
 from database.models import SupplementLog, User
 from services.doctor_report import (
     DISCLAIMER,
@@ -14,8 +17,15 @@ from services.doctor_report import (
     DoctorReport,
     ReportSection,
     build_doctor_report_html,
+    doctor_report_filename,
     render_doctor_report_html,
+    send_doctor_report_to_chat,
 )
+
+
+def _add_user(db, tid: int) -> None:
+    db.add(User(telegram_id=tid, first_name="Тест", is_active=True, cohort="external", pack_name="generic"))
+    db.commit()
 
 
 def _sample_report() -> DoctorReport:
@@ -134,3 +144,81 @@ def test_assemble_generated_date_present(test_db):
     test_db.commit()
     out = build_doctor_report_html(test_db, 333)
     assert str(datetime.now().year) in out
+
+
+# ── PDF-рендер и доставка ─────────────────────────────────────────────────────
+
+
+def test_render_pdf_produces_pdf_bytes(test_db):
+    """weasyprint даёт валидный PDF (skip, если GTK-libs недоступны)."""
+    try:
+        import weasyprint  # noqa: F401
+    except Exception:
+        pytest.skip("weasyprint/GTK-libs недоступны в этой среде")
+    _add_user(test_db, 444)
+    pdf = dr.render_doctor_report_pdf(test_db, 444)
+    assert pdf[:5] == b"%PDF-"
+    assert len(pdf) > 500
+
+
+def test_filename_has_pdf_extension():
+    assert doctor_report_filename(date(2026, 7, 8)) == "botkin_отчёт_врачу_2026-07-08.pdf"
+
+
+def _stub_send(monkeypatch, *, ok: bool):
+    """Подменить PDF-рендер, токен и requests.post для теста доставки."""
+    dr._ensure_bot_path()
+    monkeypatch.setattr("services.doctor_report.render_doctor_report_pdf", lambda db, uid: b"%PDF-1.4 fake")
+    monkeypatch.setattr("bot_token.resolve_bot_token", lambda: "123:ABC")
+    captured: dict = {}
+
+    class _Resp:
+        def json(self):
+            return {"ok": ok, "description": None if ok else "bot was blocked", "result": {"message_id": 1}}
+
+    def _fake_post(url, data=None, files=None, timeout=None):
+        captured["url"] = url
+        captured["chat_id"] = data["chat_id"]
+        captured["fname"] = files["document"][0]
+        captured["mime"] = files["document"][2]
+        return _Resp()
+
+    monkeypatch.setattr("services.doctor_report.requests.post", _fake_post)
+    return captured
+
+
+def test_send_doctor_report_success(test_db, monkeypatch):
+    """Успех: PDF уходит sendDocument с верным chat_id/именем/типом."""
+    _add_user(test_db, 555)
+    captured = _stub_send(monkeypatch, ok=True)
+    out = send_doctor_report_to_chat(test_db, 555)
+    assert out == {"status": "ok", "sent": True}
+    assert "sendDocument" in captured["url"]
+    assert captured["chat_id"] == 555
+    assert captured["fname"].endswith(".pdf")
+    assert captured["mime"] == "application/pdf"
+
+
+def test_send_doctor_report_telegram_error(test_db, monkeypatch):
+    """Telegram вернул ok=false → status error, sent False."""
+    _add_user(test_db, 666)
+    _stub_send(monkeypatch, ok=False)
+    out = send_doctor_report_to_chat(test_db, 666)
+    assert out["sent"] is False
+    assert out["status"] == "error"
+
+
+def test_send_doctor_report_render_failure(test_db, monkeypatch):
+    """Сбой рендера PDF → error, requests не вызывается."""
+    _add_user(test_db, 777)
+
+    def _boom(db, uid):
+        raise RuntimeError("gtk missing")
+
+    monkeypatch.setattr("services.doctor_report.render_doctor_report_pdf", _boom)
+    called = {"post": False}
+    monkeypatch.setattr("services.doctor_report.requests.post", lambda *a, **k: called.__setitem__("post", True))
+    out = send_doctor_report_to_chat(test_db, 777)
+    assert out["sent"] is False
+    assert "render-failed" in out["error"]
+    assert called["post"] is False
