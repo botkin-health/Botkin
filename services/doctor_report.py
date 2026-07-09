@@ -334,8 +334,10 @@ def render_doctor_report_pdf(db: Session, user_id: int) -> bytes:
 
 
 def doctor_report_filename(today: Optional[date] = None) -> str:
+    # ASCII-имя намеренно: кириллица в Content-Disposition multipart зависит от
+    # RFC 2231-кодирования и часть Telegram-клиентов показывает её криво.
     d = (today or datetime.now(timezone.utc).date()).isoformat()
-    return f"botkin_отчёт_врачу_{d}.pdf"
+    return f"botkin_health_report_{d}.pdf"
 
 
 def send_doctor_report_to_chat(db: Session, user_id: int, *, timeout: int = 30) -> dict:

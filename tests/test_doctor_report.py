@@ -161,8 +161,11 @@ def test_render_pdf_produces_pdf_bytes(test_db):
     assert len(pdf) > 500
 
 
-def test_filename_has_pdf_extension():
-    assert doctor_report_filename(date(2026, 7, 8)) == "botkin_отчёт_врачу_2026-07-08.pdf"
+def test_filename_is_ascii_pdf():
+    """Имя файла — ASCII (кириллица в multipart Content-Disposition хрупка)."""
+    fname = doctor_report_filename(date(2026, 7, 8))
+    assert fname == "botkin_health_report_2026-07-08.pdf"
+    assert fname.isascii()
 
 
 def _stub_send(monkeypatch, *, ok: bool):
