@@ -1165,6 +1165,22 @@ async def render_report(
     }
 
 
+@router.post("/doctor_report")
+async def doctor_report(
+    user=Depends(require_agent_scope("rw")),
+    db=Depends(get_db),
+):
+    """Сгенерировать PDF-отчёт для врача (секции IPS) и отправить юзеру в чат.
+
+    Side-effect: шлёт PDF Telegram-документом на user.telegram_id через общий
+    helper send_doctor_report_to_chat (тот же путь, что у кнопки мини-аппа, #290/#291).
+    Агенту возвращаем короткий статус {status, sent} — дальше он отвечает текстом.
+    """
+    from services.doctor_report import send_doctor_report_to_chat
+
+    return send_doctor_report_to_chat(db, user.telegram_id)
+
+
 # ── Универсальный render через QuickChart.io ─────────────────────────────────
 
 

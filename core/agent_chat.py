@@ -722,6 +722,20 @@ TOOLS: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "generate_doctor_report",
+        "description": (
+            "Сгенерировать и ОТПРАВИТЬ пользователю PDF-отчёт о здоровье для врача. "
+            "Tool сам шлёт PDF Telegram-документом — тебе НЕ надо ничего прикладывать, "
+            "файл уже в чате к моменту результата. После вызова напиши КОРОТКОЕ "
+            "подтверждение (1-2 предложения): отчёт отправлен, его можно переслать врачу.\n\n"
+            "КОГДА ИСПОЛЬЗОВАТЬ: пользователь просит «отчёт для врача», «сводку для доктора», "
+            "«выгрузи мои данные для приёма», «PDF для врача». Отчёт — секции в клиническом "
+            "порядке (проблемы, аллергии, лекарства, результаты анализов, витальные, образ жизни). "
+            "Это НЕ график динамики — для инфографики используй render_report."
+        ),
+        "input_schema": {"type": "object", "properties": {}},
+    },
+    {
         "name": "add_agent_correction",
         "description": (
             "Сохранить поправку или новый факт в KB пользователя. "
@@ -1043,6 +1057,14 @@ def _call_tool(name: str, args: dict, token: str) -> str:
                 json=payload,
                 headers=headers,
                 timeout=30,
+            )
+        elif name == "generate_doctor_report":
+            # Side-effect tool — генерит PDF-отчёт для врача и шлёт sendDocument
+            # (общий helper с кнопкой мини-аппа, #290/#291). Возвращает статус.
+            r = requests.post(
+                f"{TOOLS_API_BASE}/doctor_report",
+                headers=headers,
+                timeout=60,
             )
         elif name == "render_chart":
             # Универсальный рендер через QuickChart.io. Side-effect — sendPhoto.
@@ -1811,6 +1833,7 @@ _TOOL_PROGRESS_LABEL = {
     # Render tools
     "render_report": "🎨 рисую график",
     "render_chart": "🎨 рисую график",
+    "generate_doctor_report": "📄 готовлю отчёт для врача",
 }
 
 
@@ -2576,7 +2599,9 @@ def ask_agent(
                 # это самая «зрелищная» операция.
                 if progress_cb:
                     tool_names = [b["name"] for b in blocks if b.get("type") == "tool_use"]
-                    render_tools = [n for n in tool_names if n in ("render_chart", "render_report")]
+                    render_tools = [
+                        n for n in tool_names if n in ("render_chart", "render_report", "generate_doctor_report")
+                    ]
                     pick = render_tools[0] if render_tools else (tool_names[0] if tool_names else None)
                     if pick:
                         label = _TOOL_PROGRESS_LABEL.get(pick, "📡 запрос данных")
