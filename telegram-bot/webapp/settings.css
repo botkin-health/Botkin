@@ -469,3 +469,9 @@ code { background: #f0f0f0; border-radius: 4px; padding: 1px 6px;
 .fb-status { margin-top: 10px; font-size: 13px; min-height: 18px; }
 .fb-status.ok { color: #34c759; }
 .fb-status.error { color: #ff3b30; }
+
+/* Экспорт для врача (#290) */
+.doctor-export-bar { padding: 12px 16px 4px; }
+.doctor-export-status { margin-top: 8px; font-size: 13px; min-height: 18px; text-align: center; }
+.doctor-export-status.ok { color: #34c759; }
+.doctor-export-status.error { color: #ff3b30; }
