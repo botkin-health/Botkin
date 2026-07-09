@@ -91,6 +91,11 @@
       });
     },
 
+    // POST /api/doctor_report → {status: "sent"} (#290). PDF-отчёт уходит в чат.
+    requestDoctorReport() {
+      return request('/api/doctor_report', { method: 'POST' });
+    },
+
     // Escape hatch for ad-hoc calls (e.g. /api/settings).
     request,
   };

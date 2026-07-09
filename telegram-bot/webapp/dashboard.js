@@ -62,3 +62,24 @@ function dashboardEmptyState(msg) {
     <div class="hint">${msg}</div>
   </div>`;
 }
+
+// ── «Экспорт для врача» — PDF-отчёт в чат (#290) ─────────────────────────────
+// Основной путь доставки: кнопка на вкладке «Здоровье» → POST /api/doctor_report
+// → бот присылает PDF Telegram-документом. Кнопка живёт в chrome мини-аппа
+// (не внутри iframe /mc/), поэтому на дашборде, расшаренном врачу, её нет.
+async function requestDoctorReport() {
+  const btn = document.getElementById('doctor-export-btn');
+  const statusEl = document.getElementById('doctor-export-status');
+  const orig = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Готовим PDF…'; }
+  if (statusEl) { statusEl.textContent = ''; statusEl.className = 'doctor-export-status'; }
+  try {
+    await window.API.requestDoctorReport();
+    if (statusEl) { statusEl.textContent = '✓ PDF отправлен в чат'; statusEl.className = 'doctor-export-status ok'; }
+  } catch (e) {
+    console.error('requestDoctorReport failed', e);
+    if (statusEl) { statusEl.textContent = '⚠ Не удалось сформировать. Попробуйте позже.'; statusEl.className = 'doctor-export-status error'; }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = orig; }
+  }
+}

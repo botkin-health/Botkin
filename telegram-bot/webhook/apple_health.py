@@ -1123,6 +1123,10 @@ from webhook.feedback_api import router as feedback_router
 
 app.include_router(feedback_router)
 
+from webhook.doctor_report_api import router as doctor_report_router
+
+app.include_router(doctor_report_router)
+
 from webhook.agent_tools_api import router as agent_tools_router
 
 app.include_router(agent_tools_router)
