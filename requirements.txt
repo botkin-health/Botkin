@@ -48,3 +48,9 @@ pymupdf>=1.24.0
 # Пин minor: unofficial API, между минорами менялись auth и URL — апгрейд только с ревью диффа
 # (клиент шлёт креды dr@botkin.health на эндпоинт Abbott; смена URL = утечка кредов).
 pylibrelinkup>=0.10.0,<0.11
+
+# HTML→PDF рендер отчёта врачу (#290). Server-side, без headless-браузера.
+# Рантайм требует системные libs (pango/cairo/gdk-pixbuf) — стоят в Dockerfile(.bot).
+# Импортируется лениво (внутри render_doctor_report_pdf), тесты PDF — skip-if-unavailable,
+# чтобы CI/локаль без GTK-libs не падали на import.
+weasyprint>=62

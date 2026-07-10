@@ -379,6 +379,10 @@
 </section>
 
 <section id="dashboard-tab-section" class="section tab-panel">
+  <div class="doctor-export-bar">
+    <button id="doctor-export-btn" class="primary-btn" onclick="requestDoctorReport()">📄 Экспорт для врача (PDF)</button>
+    <div id="doctor-export-status" class="doctor-export-status"></div>
+  </div>
   <div id="dashboard-container"><!-- iframe injected by loadDashboard() in dashboard.js --></div>
 </section>
 

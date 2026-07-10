@@ -78,6 +78,7 @@ async def cmd_start(message: Message, user_id: int, username: str, first_name: s
         "/vitamins — чек-лист добавок\n"
         "/share — личный дашборд здоровья\n"
         "/report — HTML-отчёт о здоровье (ссылка)\n"
+        "/doctor_report — PDF-отчёт для врача (файл)\n"
         "/profile — твои данные (вес, рост, возраст)\n"
         "/help — полная справка\n\n"
         "🌐 botkin.health",
@@ -811,6 +812,26 @@ async def cmd_report(message: Message, user_id: int):
         parse_mode="HTML",
         reply_markup=keyboard,
     )
+
+
+@router.message(Command("doctor_report"))
+async def cmd_doctor_report(message: Message, user_id: int):
+    """/doctor_report — PDF-отчёт для врача, приходит документом в чат."""
+    from database import SessionLocal
+    from services.doctor_report import send_doctor_report_to_chat
+
+    await message.answer("⏳ Готовлю PDF-отчёт для врача…")
+
+    db = SessionLocal()
+    try:
+        result = send_doctor_report_to_chat(db, user_id)
+    finally:
+        db.close()
+
+    if result.get("sent"):
+        await message.answer("✅ Готово — отчёт отправлен файлом выше, можно переслать врачу.")
+    else:
+        await message.answer("❌ Не удалось сформировать отчёт. Попробуй позже.")
 
 
 @router.message(Command("health_token"))

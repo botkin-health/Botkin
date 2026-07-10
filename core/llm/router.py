@@ -168,6 +168,22 @@ CRITICAL FOR FOOD:
 - If user lists dishes without weight (e.g. "lentil soup, salad, kebab"), use standard portion sizes from the database below.
 - NEVER return 0 calories for real food items EXCEPT zero-calorie drinks (Coca-Cola Zero, diet soda, sugar-free drinks, plain water, black coffee/tea). For those return calories: 0 and correct carbs.
 
+ZERO-CALORIE / SUGAR-FREE DRINKS — LANGUAGE-INDEPENDENT DETECTION (CRITICAL, common LLM mistake):
+This rule applies REGARDLESS of the language the drink name is written in. Do NOT confuse a "zero"/"light"/"sugar-free" variant with its regular sugared counterpart just because the name is in Russian or transliterated.
+TRIGGER WORDS (any of these next to a brand/drink name means the SUGAR-FREE variant, not the regular one):
+  - English: "zero", "light", "diet", "max" (when contrasted with regular, e.g. Pepsi Max), "sugar-free", "no sugar", "zero sugar"
+  - Russian / transliterated: "зеро", "лайт", "диет"/"диетическая", "макс" (в контексте Pepsi Max), "без сахара", "безсахарный", "0 калорий", "0 ккал"
+KNOWN BRAND EXAMPLES (non-exhaustive — apply the same logic to any brand/flavor not listed):
+  Coca-Cola Zero / Кока-кола Зеро, Coca-Cola Light/Diet Coke, Pepsi Max / Пепси Макс, Pepsi Light,
+  Sprite Zero / Спрайт Зеро, Fanta Zero / Фанта Зеро, Schweppes Zero / Швепс Зеро, 7Up Free,
+  Mirinda Zero, Dr Pepper Zero, Mountain Dew Zero, Tonic Zero/Sugar-free tonic.
+RULE: If the item name (in ANY language) contains one of the trigger words above next to a soft-drink brand:
+  - carbs and sugar per 100ml/100g MUST be ~0 (0-1г на 100мл maximum) — NEVER copy the regular/sugared version's carbs (e.g. do NOT give Coca-Cola Zero the ~10.6г/100мл carbs of regular Coca-Cola).
+  - calories per 100ml/100g MUST be close to 0 (0-4 ккал/100мл) — NEVER copy the regular version's ~40 ккал/100мл.
+  - protein and fats = 0.
+  - This overrides any brand-knowledge default for the "regular" version of that drink — the trigger word always wins.
+If the drink name has NO such trigger word (e.g. plain "Кока-кола", "Спрайт", "Фанта" with no "zero/зеро/лайт/без сахара" qualifier), treat it as the REGULAR sugared version with normal calories/carbs.
+
 STANDARD PORTIONS DATABASE (use when exact weight not provided):
 
 МАСЛА и ЖИРЫ:
