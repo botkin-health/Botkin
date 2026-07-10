@@ -199,6 +199,21 @@ US_TO_METRIC: dict[str, float] = {
     "HDL": 1 / 38.67,
     "LDL": 1 / 38.67,
     "triglycerides": 1 / 88.57,
+    "Hb": 10.0,  # гемоглобин g/dL → г/л
+    "MCHC": 10.0,  # g/dL → г/л
+}
+
+# Read-time защита от US-панелей, НЕ помеченных _unit_system="US" (напр. maccabi:
+# единицы заданы инлайновыми _ref-диапазонами вместо поля "units", поэтому импорт US
+# не задетектил). Для маркеров, чья g/dL-величина физиологически несовместима с
+# канонической единицей «г/л», значение ниже порога почти наверняка в g/dL → домножаем.
+# Порог с большим зазором от реального метрического диапазона (Hb ~130-170, MCHC ~320-360 г/л),
+# так что легитимную метрику не трогаем, а на уже сконвертированной US-величине (155) guard
+# не срабатывает повторно (идемпотентен относительно US_TO_METRIC).
+# {canon_key: (порог_ниже_которого_считаем_gdl, множитель)}
+_GDL_MAGNITUDE_GUARD: dict[str, tuple[float, float]] = {
+    "Hb": (30.0, 10.0),
+    "MCHC": (60.0, 10.0),
 }
 
 # Служебный ключ в values, несущий систему единиц записи (инжектится импортом
@@ -264,6 +279,10 @@ def to_canonical(
         new_val = raw_val * factor
         if is_us:
             new_val *= US_TO_METRIC.get(canon_key, 1.0)
+        guard = _GDL_MAGNITUDE_GUARD.get(canon_key)
+        if guard is not None and 0 < new_val < guard[0]:
+            new_val *= guard[1]
+            warnings.append(f"{canon_key}={raw_val} похоже на g/dL (< {guard[0]:g} г/л) → ×{guard[1]:g}")
         if canon_key in canon and exact_source.get(canon_key) != raw_key:
             prev = canon[canon_key]
             prior_alias = exact_source.get(canon_key, "?")
