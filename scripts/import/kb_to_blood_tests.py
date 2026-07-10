@@ -57,6 +57,20 @@ def _load_kb(folder_name: str) -> dict:
         return json.load(f)
 
 
+def _looks_like_us_units(values: dict) -> bool:
+    """US-панель без явного поля units: единицы заданы величиной маркера-индикатора.
+
+    Гемоглобин — надёжный признак: метрический Hb всегда 3-значный (г/л, ~120-180),
+    а в g/dL — 1-значный/2-значный (< 30). Покрывает maccabi-CBC с инлайновыми
+    _ref-диапазонами вместо поля units (issue #295).
+    """
+    for key in ("hemoglobin", "Hb", "HGB"):
+        hb = values.get(key)
+        if isinstance(hb, (int, float)) and not isinstance(hb, bool) and 0 < hb < 30:
+            return True
+    return False
+
+
 def _extract_rows(kb: dict, user_id: int) -> Iterable[dict]:
     """Pull rows from blood_tests / hormones / vitamins sections.
 
@@ -94,9 +108,12 @@ def _extract_rows(kb: dict, user_id: int) -> Iterable[dict]:
 
             # US-панели (g/dL·mg/dL, напр. Maccabi) несут признак единиц в JSONB,
             # чтобы to_canonical сконвертировал в метрику на чтении (issue #95).
-            # Метрические записи (без поля units) остаются как есть.
+            # Часть maccabi-панелей задаёт единицы инлайновыми _ref-диапазонами, а поля
+            # units не имеет — детектим их по величине маркера-индикатора (issue #295).
+            # Метрические записи остаются как есть.
             units = (entry.get("units") or "").lower()
-            if values_dict and ("mg/dl" in units or "g/dl" in units or "us" in units):
+            explicit_us = "mg/dl" in units or "g/dl" in units or "us" in units
+            if values_dict and (explicit_us or _looks_like_us_units(values_dict)):
                 values_dict = {**values_dict, "_unit_system": "US"}
 
             yield {
