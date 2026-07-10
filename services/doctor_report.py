@@ -112,7 +112,7 @@ def render_doctor_report_html(report: DoctorReport) -> str:
   section {{ margin: 12px 0; page-break-inside: avoid; }}
   h2 {{ font-size: 12pt; border-bottom: 1px solid #ccc; padding-bottom: 3px; margin: 0 0 6px; }}
   ul {{ list-style: none; margin: 4px 0 4px 18px; padding: 0; }}
-  li {{ margin: 2px 0; }}
+  li {{ margin: 2px 0; padding-left: 1em; text-indent: -1em; }}
   .self {{ font-size: 8.5pt; font-weight: normal; color: #888; }}
   .empty {{ color: #999; font-style: italic; margin: 4px 0; }}
   .disclaimer {{ margin-top: 18px; padding-top: 8px; border-top: 1px solid #ccc;
