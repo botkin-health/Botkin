@@ -5,6 +5,7 @@
 онбординга и деградацию при пустых данных.
 """
 
+import re
 from datetime import date, datetime
 
 import pytest
@@ -97,6 +98,44 @@ def test_render_escapes_user_text():
     out = render_doctor_report_html(report)
     assert "<script>alert(1)</script>" not in out
     assert "&lt;script&gt;" in out
+
+
+def test_render_bullets_are_inline_not_native_markers():
+    """#297: маркер списка — инлайн-текст внутри <li>, а не нативный ::marker.
+
+    Нативные list-style-маркеры WeasyPrint кладёт в текстовый слой PDF отдельными
+    фрагментами, оторванными от текста пункта; при извлечении текста (нейро-тест,
+    копипаст, мобильное превью) они собираются в кластер «•••…» в конце страницы —
+    репро прод-бага 10.07 (визуально PDF при этом чистый). Инлайн-буллет извлекается
+    вместе с текстом пункта.
+    """
+    report = DoctorReport(
+        patient_label="Пациент",
+        generated_at="2026-07-10",
+        period="",
+        sections=[ReportSection("results", "Результаты исследований", ["ESR: 2 (2023-06-29)"])],
+    )
+    out = render_doctor_report_html(report)
+    assert "list-style: none" in out  # нативные маркеры отключены
+    assert "<li>• ESR: 2 (2023-06-29)</li>" in out  # буллет — часть текста пункта
+
+
+def test_render_skips_blank_items():
+    """#297: пустые/пробельные элементы не рождают <li> без содержимого; секция,
+    где все элементы пустые, показывает empty_note, а не пустой <ul>."""
+    report = DoctorReport(
+        patient_label="Пациент",
+        generated_at="2026-07-10",
+        period="",
+        sections=[
+            ReportSection("medications", "Лекарства и добавки", ["", "  ", "Магний — 300 мг"]),
+            ReportSection("results", "Результаты исследований", ["", "   "], empty_note="Нет данных"),
+        ],
+    )
+    out = render_doctor_report_html(report)
+    assert re.search(r"<li>\s*</li>", out) is None  # нет буллетов без текста
+    assert "Магний — 300 мг" in out  # реальный элемент остался
+    assert "Нет данных" in out  # секция из одних пустых → empty_note
 
 
 # ── Assembler (DB) ───────────────────────────────────────────────────────────
