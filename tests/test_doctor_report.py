@@ -225,3 +225,21 @@ def test_send_doctor_report_render_failure(test_db, monkeypatch):
     assert out["sent"] is False
     assert "render-failed" in out["error"]
     assert called["post"] is False
+
+
+def test_maccabi_hemoglobin_no_false_low_flag_end_to_end():
+    """#295: maccabi-панель (g/dL без _unit_system) → to_canonical чинит Hb/MCHC →
+    в отчёте «155 г/л» без ложного ↓ (репро прод-бага 10.07)."""
+    from core.health.kb_schema import to_canonical
+    from services.doctor_report import _results
+
+    # values ровно как хранятся в прод blood_tests (снимок 830908046, 2026-06-09)
+    values = {"hemoglobin": 15.5, "hemoglobin_ref": "13.5-18", "MCHC": 35.1, "hematocrit": 44.1}
+    canon, _ = to_canonical(values)
+    assert canon["Hb"] == 155.0
+    assert canon["MCHC"] == 351.0
+
+    bio = {"Hb": {"value": canon["Hb"], "date": "2026-06-09"}}
+    lines = _results(bio)
+    hb_line = next(line for line in lines if "155" in line)
+    assert "↓" not in hb_line  # ложный флаг «низкий» ушёл
