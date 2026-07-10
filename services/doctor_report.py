@@ -84,8 +84,14 @@ def render_doctor_report_html(report: DoctorReport) -> str:
     blocks: list[str] = []
     for section in report.sections:
         note = ' <span class="self">(со слов пользователя)</span>' if section.self_reported else ""
-        if section.items:
-            lis = "\n".join(f"      <li>{_esc(it)}</li>" for it in section.items)
+        # Буллет — инлайн-текст внутри <li> (list-style:none), а не нативный ::marker:
+        # WeasyPrint кладёт нативные маркеры в текстовый слой отдельными фрагментами,
+        # оторванными от текста, и при извлечении они кластеризуются в «•••…» в конце
+        # страницы (#297). Пустые/пробельные элементы отфильтровываем, чтобы не рождать
+        # <li> без содержимого; секция из одних пустых → empty_note, а не пустой <ul>.
+        items = [it for it in section.items if str(it).strip()]
+        if items:
+            lis = "\n".join(f"      <li>• {_esc(it)}</li>" for it in items)
             body = f"    <ul>\n{lis}\n    </ul>"
         else:
             body = f'    <p class="empty">{_esc(section.empty_note)}</p>'
@@ -105,8 +111,8 @@ def render_doctor_report_html(report: DoctorReport) -> str:
   header .meta {{ font-size: 9.5pt; color: #555; }}
   section {{ margin: 12px 0; page-break-inside: avoid; }}
   h2 {{ font-size: 12pt; border-bottom: 1px solid #ccc; padding-bottom: 3px; margin: 0 0 6px; }}
-  ul {{ margin: 4px 0 4px 18px; padding: 0; }}
-  li {{ margin: 2px 0; }}
+  ul {{ list-style: none; margin: 4px 0 4px 18px; padding: 0; }}
+  li {{ margin: 2px 0; padding-left: 1em; text-indent: -1em; }}
   .self {{ font-size: 8.5pt; font-weight: normal; color: #888; }}
   .empty {{ color: #999; font-style: italic; margin: 4px 0; }}
   .disclaimer {{ margin-top: 18px; padding-top: 8px; border-top: 1px solid #ccc;

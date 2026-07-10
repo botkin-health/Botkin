@@ -271,3 +271,16 @@ def test_crouton_salad_not_misdetected_as_fish_soup():
 def test_real_fish_soup_still_matches():
     """Явное 'уха' (без 'сух-' коллизии) продолжает матчить суп."""
     assert estimate_fiber("Уха из окуня", 300) == 2.4
+
+
+# --- Прецедент 10.07.2026: "Exponenta High-Pro Малина-Банан (протеиновый кефир)"
+# 250г получил 16.2г клетчатки от ключа "малин" (6.5/100г, для настоящей малины),
+# хотя "Малина-Банан" здесь — вкус ароматизатора, а не ингредиент. У протеинового
+# кефира клетчатки нет. Специфичные ключи для протеиновых напитков должны стоять
+# ДО fruit-секции.
+
+
+def test_protein_drink_flavor_name_not_misdetected_as_fruit():
+    assert estimate_fiber("Exponenta High-Pro Малина-Банан (протеиновый кефир)", 250) == 0.0
+    assert fiber_per_100g("Протеиновый кефир вкус клубника-банан") == 0.0
+    assert fiber_per_100g("Exponenta High-Pro") == 0.0

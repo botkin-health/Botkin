@@ -5,6 +5,7 @@
 онбординга и деградацию при пустых данных.
 """
 
+import re
 from datetime import date, datetime
 
 import pytest
@@ -97,6 +98,44 @@ def test_render_escapes_user_text():
     out = render_doctor_report_html(report)
     assert "<script>alert(1)</script>" not in out
     assert "&lt;script&gt;" in out
+
+
+def test_render_bullets_are_inline_not_native_markers():
+    """#297: маркер списка — инлайн-текст внутри <li>, а не нативный ::marker.
+
+    Нативные list-style-маркеры WeasyPrint кладёт в текстовый слой PDF отдельными
+    фрагментами, оторванными от текста пункта; при извлечении текста (нейро-тест,
+    копипаст, мобильное превью) они собираются в кластер «•••…» в конце страницы —
+    репро прод-бага 10.07 (визуально PDF при этом чистый). Инлайн-буллет извлекается
+    вместе с текстом пункта.
+    """
+    report = DoctorReport(
+        patient_label="Пациент",
+        generated_at="2026-07-10",
+        period="",
+        sections=[ReportSection("results", "Результаты исследований", ["ESR: 2 (2023-06-29)"])],
+    )
+    out = render_doctor_report_html(report)
+    assert "list-style: none" in out  # нативные маркеры отключены
+    assert "<li>• ESR: 2 (2023-06-29)</li>" in out  # буллет — часть текста пункта
+
+
+def test_render_skips_blank_items():
+    """#297: пустые/пробельные элементы не рождают <li> без содержимого; секция,
+    где все элементы пустые, показывает empty_note, а не пустой <ul>."""
+    report = DoctorReport(
+        patient_label="Пациент",
+        generated_at="2026-07-10",
+        period="",
+        sections=[
+            ReportSection("medications", "Лекарства и добавки", ["", "  ", "Магний — 300 мг"]),
+            ReportSection("results", "Результаты исследований", ["", "   "], empty_note="Нет данных"),
+        ],
+    )
+    out = render_doctor_report_html(report)
+    assert re.search(r"<li>\s*</li>", out) is None  # нет буллетов без текста
+    assert "Магний — 300 мг" in out  # реальный элемент остался
+    assert "Нет данных" in out  # секция из одних пустых → empty_note
 
 
 # ── Assembler (DB) ───────────────────────────────────────────────────────────
@@ -225,3 +264,21 @@ def test_send_doctor_report_render_failure(test_db, monkeypatch):
     assert out["sent"] is False
     assert "render-failed" in out["error"]
     assert called["post"] is False
+
+
+def test_maccabi_hemoglobin_no_false_low_flag_end_to_end():
+    """#295: maccabi-панель (g/dL без _unit_system) → to_canonical чинит Hb/MCHC →
+    в отчёте «155 г/л» без ложного ↓ (репро прод-бага 10.07)."""
+    from core.health.kb_schema import to_canonical
+    from services.doctor_report import _results
+
+    # values ровно как хранятся в прод blood_tests (снимок 830908046, 2026-06-09)
+    values = {"hemoglobin": 15.5, "hemoglobin_ref": "13.5-18", "MCHC": 35.1, "hematocrit": 44.1}
+    canon, _ = to_canonical(values)
+    assert canon["Hb"] == 155.0
+    assert canon["MCHC"] == 351.0
+
+    bio = {"Hb": {"value": canon["Hb"], "date": "2026-06-09"}}
+    lines = _results(bio)
+    hb_line = next(line for line in lines if "155" in line)
+    assert "↓" not in hb_line  # ложный флаг «низкий» ушёл
