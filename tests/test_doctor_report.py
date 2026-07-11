@@ -17,6 +17,7 @@ from services.doctor_report import (
     SECTION_ORDER,
     DoctorReport,
     ReportSection,
+    assemble_doctor_report,
     build_doctor_report_html,
     doctor_report_filename,
     render_doctor_report_html,
@@ -183,6 +184,80 @@ def test_assemble_generated_date_present(test_db):
     test_db.commit()
     out = build_doctor_report_html(test_db, 333)
     assert str(datetime.now().year) in out
+
+
+# ── i18n: язык отчёта (#300) ─────────────────────────────────────────────────
+
+
+def test_assemble_en_translates_freetext(test_db, monkeypatch):
+    """lang=en: каркас EN + свободный текст прогоняется через translate_freetext."""
+    test_db.add(
+        User(
+            telegram_id=901,
+            first_name="Ivan",
+            is_active=True,
+            cohort="external",
+            pack_name="generic",
+            onboarding_data={"chronic_conditions": "Гипотиреоз"},
+        )
+    )
+    test_db.commit()
+    monkeypatch.setattr(dr, "translate_freetext", lambda items, lang: [f"EN::{s}" for s in items])
+
+    report = assemble_doctor_report(test_db, 901, lang="en")
+    problems = next(s for s in report.sections if s.key == "problems")
+    assert problems.title == "Problems and diagnoses"
+    assert problems.items == ["EN::Гипотиреоз"]
+
+
+def test_assemble_ru_does_not_translate(test_db, monkeypatch):
+    """lang=ru: translate_freetext НЕ вызывается, заголовки русские."""
+    test_db.add(
+        User(
+            telegram_id=902,
+            first_name="Пётр",
+            is_active=True,
+            cohort="external",
+            pack_name="generic",
+            onboarding_data={"chronic_conditions": "Гипотиреоз"},
+        )
+    )
+    test_db.commit()
+
+    def _boom(*a, **k):
+        raise AssertionError("translate_freetext не должен вызываться для ru")
+
+    monkeypatch.setattr(dr, "translate_freetext", _boom)
+    report = assemble_doctor_report(test_db, 902, lang="ru")
+    problems = next(s for s in report.sections if s.key == "problems")
+    assert problems.title == "Проблемы и диагнозы"
+    assert problems.items == ["Гипотиреоз"]
+
+
+def test_render_en_chrome_and_lang_attr(test_db, monkeypatch):
+    """lang=en: <html lang=en>, английские заголовки/дисклеймер (без 152-ФЗ)."""
+    test_db.add(User(telegram_id=903, first_name="Ann", is_active=True, cohort="external", pack_name="generic"))
+    test_db.commit()
+    monkeypatch.setattr(dr, "translate_freetext", lambda items, lang: items)
+
+    report = assemble_doctor_report(test_db, 903, lang="en")
+    out = render_doctor_report_html(report, lang="en")
+    assert '<html lang="en">' in out
+    assert "Health Report" in out
+    assert "Lab results" in out
+    assert "No data" in out
+    assert "152-ФЗ" not in out  # EN-дисклеймер нейтральный
+
+
+def test_results_en_uses_english_labels_and_units():
+    """lang=en: биомаркеры выводятся с label_en/unit_en, числа не меняются."""
+    from services.doctor_report import _results
+
+    bio = {"Hb": {"value": 155.0, "date": "2026-06-09"}}
+    line_ru = _results(bio, "ru")[0]
+    line_en = _results(bio, "en")[0]
+    assert line_ru == "Гемоглобин: 155.0 г/л (2026-06-09)"
+    assert line_en == "Hemoglobin: 155.0 g/L (2026-06-09)"
 
 
 # ── PDF-рендер и доставка ─────────────────────────────────────────────────────

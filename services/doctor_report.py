@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 # Presentation-слой биомаркеров (label/unit/референсы) — то, чего нет в kb_schema.
 # Переиспользуем, чтобы не дублировать RU-названия и границы норм.
 from core.reports.biomarker_dynamics import MARKER_CONFIG
+from services.report_i18n import CHROME, FREE_TEXT_SECTIONS, translate_freetext
 
 # Окно «недавних» добавок и активности.
 _SUPPLEMENTS_WINDOW_DAYS = 90
@@ -79,11 +80,12 @@ def _esc(value: object) -> str:
 # ── Рендер (чистый, без БД) ──────────────────────────────────────────────────
 
 
-def render_doctor_report_html(report: DoctorReport) -> str:
-    """DoctorReport → печатный A4 HTML в клиническом порядке секций."""
+def render_doctor_report_html(report: DoctorReport, lang: str = "ru") -> str:
+    """DoctorReport → печатный A4 HTML в клиническом порядке секций (каркас на lang)."""
+    chrome = CHROME.get(lang, CHROME["ru"])
     blocks: list[str] = []
     for section in report.sections:
-        note = ' <span class="self">(со слов пользователя)</span>' if section.self_reported else ""
+        note = f' <span class="self">{_esc(chrome["self_reported"])}</span>' if section.self_reported else ""
         # Буллет — инлайн-текст внутри <li> (list-style:none), а не нативный ::marker:
         # WeasyPrint кладёт нативные маркеры в текстовый слой отдельными фрагментами,
         # оторванными от текста, и при извлечении они кластеризуются в «•••…» в конце
@@ -99,10 +101,10 @@ def render_doctor_report_html(report: DoctorReport) -> str:
 
     sections_html = "\n".join(blocks)
     return f"""<!doctype html>
-<html lang="ru">
+<html lang="{chrome["html_lang"]}">
 <head>
 <meta charset="utf-8">
-<title>Отчёт для врача — {_esc(report.patient_label)}</title>
+<title>{_esc(chrome["report_title"])} — {_esc(report.patient_label)}</title>
 <style>
   @page {{ size: A4; margin: 18mm 16mm; }}
   body {{ font-family: "DejaVu Sans", sans-serif; font-size: 11pt; color: #1a1a1a; line-height: 1.4; }}
@@ -121,11 +123,11 @@ def render_doctor_report_html(report: DoctorReport) -> str:
 </head>
 <body>
   <header>
-    <h1>Отчёт о здоровье — {_esc(report.patient_label)}</h1>
-    <div class="meta">Сформирован: {_esc(report.generated_at)} · {_esc(report.period)}</div>
+    <h1>{_esc(chrome["report_title"])} — {_esc(report.patient_label)}</h1>
+    <div class="meta">{_esc(chrome["generated"])}: {_esc(report.generated_at)} · {_esc(report.period)}</div>
   </header>
 {sections_html}
-  <p class="disclaimer">{_esc(DISCLAIMER)}</p>
+  <p class="disclaimer">{_esc(chrome["disclaimer"])}</p>
 </body>
 </html>"""
 
@@ -199,7 +201,7 @@ def _medications(db: Session, user_id: int, onboarding: Optional[dict]) -> list[
     return items
 
 
-def _results(bio: dict) -> list[str]:
+def _results(bio: dict, lang: str = "ru") -> list[str]:
     """Биомаркеры (канон) → строки label: value unit (date) [↑/↓ вне нормы]."""
     lines: list[tuple[str, str]] = []
     for canon, rec in bio.items():
@@ -207,8 +209,8 @@ def _results(bio: dict) -> list[str]:
         if value is None:
             continue
         cfg = MARKER_CONFIG.get(canon, {})
-        label = cfg.get("label", canon)
-        unit = cfg.get("unit", "")
+        label = cfg.get("label_en", cfg.get("label", canon)) if lang == "en" else cfg.get("label", canon)
+        unit = cfg.get("unit_en", cfg.get("unit", "")) if lang == "en" else cfg.get("unit", "")
         flag = ""
         low, high = cfg.get("ref_low"), cfg.get("ref_high")
         try:
@@ -224,7 +226,7 @@ def _results(bio: dict) -> list[str]:
     return [line for _, line in sorted(lines, key=lambda x: x[0])]
 
 
-def _vitals(db: Session, user_id: int) -> list[str]:
+def _vitals(db: Session, user_id: int, chrome: dict) -> list[str]:
     """Последние АД и вес/жир (по одному замеру — реальные, не средние)."""
     items: list[str] = []
     bp = db.execute(
@@ -236,7 +238,7 @@ def _vitals(db: Session, user_id: int) -> list[str]:
         {"uid": user_id},
     ).fetchone()
     if bp and bp.systolic and bp.diastolic:
-        items.append(f"АД: {bp.systolic}/{bp.diastolic} мм рт.ст. ({bp.d})")
+        items.append(f"{chrome['bp_label']}: {bp.systolic}/{bp.diastolic} {chrome['bp_unit']} ({bp.d})")
     w = db.execute(
         text(
             "SELECT weight, body_fat, DATE(measured_at) AS d "
@@ -245,12 +247,12 @@ def _vitals(db: Session, user_id: int) -> list[str]:
         {"uid": user_id},
     ).fetchone()
     if w and w.weight is not None:
-        fat = f", жир {round(w.body_fat, 1)}%" if w.body_fat is not None else ""
-        items.append(f"Вес: {round(w.weight, 1)} кг{fat} ({w.d})")
+        fat = f", {chrome['fat_label']} {round(w.body_fat, 1)}%" if w.body_fat is not None else ""
+        items.append(f"{chrome['weight_label']}: {round(w.weight, 1)} {chrome['weight_unit']}{fat} ({w.d})")
     return items
 
 
-def _social(db: Session, user_id: int) -> list[str]:
+def _social(db: Session, user_id: int, chrome: dict) -> list[str]:
     """Лёгкая сводка образа жизни: тренировки за последний месяц."""
     since = date.today() - timedelta(days=_ACTIVITY_WINDOW_DAYS)
     n = db.execute(
@@ -259,7 +261,7 @@ def _social(db: Session, user_id: int) -> list[str]:
     ).scalar()
     items: list[str] = []
     if n:
-        items.append(f"Тренировок за {_ACTIVITY_WINDOW_DAYS} дней: {n}")
+        items.append(chrome["workouts_tpl"].format(days=_ACTIVITY_WINDOW_DAYS, n=n))
     return items
 
 
@@ -274,49 +276,71 @@ def _load_biomarkers(db: Session, user_id: int) -> dict:
         return {}
 
 
-def assemble_doctor_report(db: Session, user_id: int) -> DoctorReport:
-    """Собрать DoctorReport из БД в клиническом порядке секций IPS."""
+def _translate_free_text_sections(sections: list[ReportSection], lang: str) -> None:
+    """Один LLM-вызов на все free-text секции, затем разложить перевод обратно по индексам."""
+    targets = [s for s in sections if s.key in FREE_TEXT_SECTIONS and s.items]
+    flat: list[str] = []
+    for s in targets:
+        flat.extend(s.items)
+    if not flat:
+        return
+    translated = translate_freetext(flat, lang)
+    i = 0
+    for s in targets:
+        n = len(s.items)
+        s.items = translated[i : i + n]
+        i += n
+
+
+def assemble_doctor_report(db: Session, user_id: int, lang: str = "ru") -> DoctorReport:
+    """Собрать DoctorReport из БД в клиническом порядке секций IPS (каркас на lang)."""
+    chrome = CHROME.get(lang, CHROME["ru"])
     user = db.execute(
         text("SELECT first_name, last_name, onboarding_data FROM users WHERE telegram_id = :uid"),
         {"uid": user_id},
     ).fetchone()
     onboarding = _coerce_dict(user.onboarding_data) if user else {}
     name_parts = [user.first_name, getattr(user, "last_name", None)] if user else []
-    patient_label = " ".join(p for p in name_parts if p) or "Пациент"
+    patient_label = " ".join(p for p in name_parts if p) or chrome["patient_fallback"]
 
     bio = _load_biomarkers(db, user_id)
     builders = {
         "problems": lambda: _problems(onboarding),
         "allergies": lambda: _allergies(onboarding),
         "medications": lambda: _medications(db, user_id, onboarding),
-        "results": lambda: _results(bio),
-        "vitals": lambda: _vitals(db, user_id),
-        "social": lambda: _social(db, user_id),
+        "results": lambda: _results(bio, lang),
+        "vitals": lambda: _vitals(db, user_id, chrome),
+        "social": lambda: _social(db, user_id, chrome),
     }
     self_reported = {"problems", "allergies", "medications"}
 
     sections = [
         ReportSection(
             key=key,
-            title=title,
+            title=chrome["sections"][key],
             items=builders[key](),
             self_reported=key in self_reported,
+            empty_note=chrome["no_data"],
         )
-        for key, title in SECTION_ORDER
+        for key, _title in SECTION_ORDER
     ]
+
+    # Свободный текст (problems/allergies/medications) → один батч-LLM-перевод.
+    if lang != "ru":
+        _translate_free_text_sections(sections, lang)
 
     today = datetime.now(timezone.utc).date().isoformat()
     return DoctorReport(
         patient_label=patient_label,
         generated_at=today,
-        period=f"данные на {today}",
+        period=f"{chrome['period_prefix']} {today}",
         sections=sections,
     )
 
 
-def build_doctor_report_html(db: Session, user_id: int) -> str:
+def build_doctor_report_html(db: Session, user_id: int, lang: str = "ru") -> str:
     """БД → человекочитаемый HTML отчёта для врача (Проблемы→…→Образ жизни)."""
-    return render_doctor_report_html(assemble_doctor_report(db, user_id))
+    return render_doctor_report_html(assemble_doctor_report(db, user_id, lang), lang)
 
 
 # ── PDF-рендер и доставка ─────────────────────────────────────────────────────
