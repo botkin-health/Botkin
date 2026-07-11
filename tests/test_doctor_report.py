@@ -285,7 +285,7 @@ def test_filename_is_ascii_pdf():
 def _stub_send(monkeypatch, *, ok: bool):
     """Подменить PDF-рендер, токен и requests.post для теста доставки."""
     dr._ensure_bot_path()
-    monkeypatch.setattr("services.doctor_report.render_doctor_report_pdf", lambda db, uid: b"%PDF-1.4 fake")
+    monkeypatch.setattr("services.doctor_report.render_doctor_report_pdf", lambda db, uid, lang="ru": b"%PDF-1.4 fake")
     monkeypatch.setattr("bot_token.resolve_bot_token", lambda: "123:ABC")
     captured: dict = {}
 
@@ -296,6 +296,7 @@ def _stub_send(monkeypatch, *, ok: bool):
     def _fake_post(url, data=None, files=None, timeout=None):
         captured["url"] = url
         captured["chat_id"] = data["chat_id"]
+        captured["caption"] = data["caption"]
         captured["fname"] = files["document"][0]
         captured["mime"] = files["document"][2]
         return _Resp()
@@ -314,6 +315,16 @@ def test_send_doctor_report_success(test_db, monkeypatch):
     assert captured["chat_id"] == 555
     assert captured["fname"].endswith(".pdf")
     assert captured["mime"] == "application/pdf"
+    assert "не диагноз" in captured["caption"]  # ru caption по умолчанию
+
+
+def test_send_doctor_report_en_caption(test_db, monkeypatch):
+    """lang=en → английская подпись к документу."""
+    _add_user(test_db, 558)
+    captured = _stub_send(monkeypatch, ok=True)
+    send_doctor_report_to_chat(test_db, 558, lang="en")
+    assert "Health report" in captured["caption"]
+    assert "не диагноз" not in captured["caption"]
 
 
 def test_send_doctor_report_telegram_error(test_db, monkeypatch):
@@ -329,7 +340,7 @@ def test_send_doctor_report_render_failure(test_db, monkeypatch):
     """Сбой рендера PDF → error, requests не вызывается."""
     _add_user(test_db, 777)
 
-    def _boom(db, uid):
+    def _boom(db, uid, lang="ru"):
         raise RuntimeError("gtk missing")
 
     monkeypatch.setattr("services.doctor_report.render_doctor_report_pdf", _boom)

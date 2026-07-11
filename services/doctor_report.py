@@ -345,19 +345,14 @@ def build_doctor_report_html(db: Session, user_id: int, lang: str = "ru") -> str
 
 # ── PDF-рендер и доставка ─────────────────────────────────────────────────────
 
-_CAPTION = (
-    "📄 Отчёт о здоровье для врача. Сформирован автоматически из ваших данных в Botkin "
-    "(wellness-сервис, не диагноз). Можно переслать врачу."
-)
 
-
-def render_doctor_report_pdf(db: Session, user_id: int) -> bytes:
-    """HTML отчёта врачу → PDF.
+def render_doctor_report_pdf(db: Session, user_id: int, lang: str = "ru") -> bytes:
+    """HTML отчёта врачу → PDF (каркас на lang).
 
     weasyprint импортируется лениво: его рантайм требует системные GTK-libs
     (см. Dockerfile/Dockerfile.bot), которых нет в тест-среде без них.
     """
-    html_str = build_doctor_report_html(db, user_id)
+    html_str = build_doctor_report_html(db, user_id, lang)
     from weasyprint import HTML  # noqa: PLC0415
 
     return HTML(string=html_str).write_pdf()
@@ -370,14 +365,15 @@ def doctor_report_filename(today: Optional[date] = None) -> str:
     return f"botkin_health_report_{d}.pdf"
 
 
-def send_doctor_report_to_chat(db: Session, user_id: int, *, timeout: int = 30) -> dict:
-    """Сгенерировать PDF и отправить пользователю Telegram-документом.
+def send_doctor_report_to_chat(db: Session, user_id: int, *, lang: str = "ru", timeout: int = 30) -> dict:
+    """Сгенерировать PDF и отправить пользователю Telegram-документом (каркас на lang).
 
-    Единый путь доставки для кнопки мини-аппа и (в follow-up) агент-тула.
+    Единый путь доставки для кнопки мини-аппа и агент-тула.
     Ошибки не пробрасываются — возвращаются в словаре {status, sent, error?}.
     """
+    caption = CHROME.get(lang, CHROME["ru"])["caption"]
     try:
-        pdf = render_doctor_report_pdf(db, user_id)
+        pdf = render_doctor_report_pdf(db, user_id, lang)
     except Exception as e:
         logger.error("doctor_report render failed for %s: %s", user_id, e, exc_info=True)
         return {"status": "error", "error": f"render-failed: {e}", "sent": False}
@@ -392,7 +388,7 @@ def send_doctor_report_to_chat(db: Session, user_id: int, *, timeout: int = 30) 
     try:
         resp = requests.post(
             f"https://api.telegram.org/bot{token}/sendDocument",
-            data={"chat_id": user_id, "caption": _CAPTION},
+            data={"chat_id": user_id, "caption": caption},
             files={"document": (doctor_report_filename(), pdf, "application/pdf")},
             timeout=timeout,
         )
