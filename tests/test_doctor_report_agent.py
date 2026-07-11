@@ -71,6 +71,58 @@ def test_endpoint_calls_helper_with_user_id(client, monkeypatch):
     assert seen["user_id"] == 895655
 
 
+def test_endpoint_passes_language(client, monkeypatch):
+    """POST /doctor_report c language=en → send вызван с lang='en'."""
+    from services import doctor_report
+
+    seen = {}
+
+    def _fake(db, user_id, **kw):
+        seen["lang"] = kw.get("lang")
+        return {"status": "ok", "sent": True}
+
+    monkeypatch.setattr(doctor_report, "send_doctor_report_to_chat", _fake)
+
+    r = client.post("/api/agent/doctor_report", json={"language": "en"})
+    assert r.status_code == 200
+    assert seen["lang"] == "en"
+
+
+def test_endpoint_default_ru(client, monkeypatch):
+    """POST /doctor_report без тела → lang='ru'."""
+    from services import doctor_report
+
+    seen = {}
+    monkeypatch.setattr(
+        doctor_report,
+        "send_doctor_report_to_chat",
+        lambda db, user_id, **kw: seen.update(lang=kw.get("lang")) or {"status": "ok", "sent": True},
+    )
+
+    r = client.post("/api/agent/doctor_report")
+    assert r.status_code == 200
+    assert seen["lang"] == "ru"
+
+
+def test_call_tool_passes_language(monkeypatch):
+    """_call_tool прокидывает language в тело POST."""
+    import core.agent_chat as ac
+
+    captured = {}
+
+    class _Resp:
+        ok = True
+        text = '{"status":"ok","sent":true}'
+
+    def _fake_post(url, headers=None, timeout=None, **kw):
+        captured["json"] = kw.get("json")
+        return _Resp()
+
+    monkeypatch.setattr(ac.requests, "post", _fake_post)
+    ac._call_tool("generate_doctor_report", {"language": "en"}, "faketoken")
+    assert captured["json"] == {"language": "en"}
+
+
 def test_tool_declared_in_botkinclaw():
     """generate_doctor_report есть в TOOLS и в label-map прогресса."""
     from core.agent_chat import TOOLS, _TOOL_PROGRESS_LABEL

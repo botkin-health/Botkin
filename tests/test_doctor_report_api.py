@@ -102,3 +102,33 @@ def test_requires_auth(app_and_db):
     client = TestClient(app)
     r = client.post("/api/doctor_report")
     assert r.status_code != 200
+
+
+def test_api_passes_language_to_helper(client, monkeypatch):
+    """language из тела → проброшен в send как lang."""
+    from services import doctor_report
+
+    seen = {}
+    monkeypatch.setattr(
+        doctor_report,
+        "send_doctor_report_to_chat",
+        lambda db, user_id, **kw: seen.update(lang=kw.get("lang")) or {"status": "ok", "sent": True},
+    )
+    r = client.post("/api/doctor_report", json={"language": "en"})
+    assert r.status_code == 200
+    assert seen["lang"] == "en"
+
+
+def test_api_invalid_language_defaults_ru(client, monkeypatch):
+    """Невалидный language + нет language_code в initData → ru."""
+    from services import doctor_report
+
+    seen = {}
+    monkeypatch.setattr(
+        doctor_report,
+        "send_doctor_report_to_chat",
+        lambda db, user_id, **kw: seen.update(lang=kw.get("lang")) or {"status": "ok", "sent": True},
+    )
+    r = client.post("/api/doctor_report", json={"language": "fr"})
+    assert r.status_code == 200
+    assert seen["lang"] == "ru"

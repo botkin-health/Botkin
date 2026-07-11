@@ -67,14 +67,30 @@ function dashboardEmptyState(msg) {
 // Основной путь доставки: кнопка на вкладке «Здоровье» → POST /api/doctor_report
 // → бот присылает PDF Telegram-документом. Кнопка живёт в chrome мини-аппа
 // (не внутри iframe /mc/), поэтому на дашборде, расшаренном врачу, её нет.
+// Предвыбор языка отчёта по языку Telegram-клиента (#300); явный выбор в
+// селекте перебивает. Вызывается один раз при загрузке скрипта.
+function initReportLangDefault() {
+  const sel = document.getElementById('report-lang');
+  if (!sel) return;
+  const lc = (window.Telegram?.WebApp?.initDataUnsafe?.user?.language_code || '').toLowerCase();
+  if (lc.startsWith('en')) sel.value = 'en';
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initReportLangDefault);
+} else {
+  initReportLangDefault();
+}
+
 async function requestDoctorReport() {
   const btn = document.getElementById('doctor-export-btn');
   const statusEl = document.getElementById('doctor-export-status');
+  const sel = document.getElementById('report-lang');
+  const language = sel ? sel.value : 'ru';
   const orig = btn ? btn.textContent : '';
   if (btn) { btn.disabled = true; btn.textContent = 'Готовим PDF…'; }
   if (statusEl) { statusEl.textContent = ''; statusEl.className = 'doctor-export-status'; }
   try {
-    await window.API.requestDoctorReport();
+    await window.API.requestDoctorReport(language);
     if (statusEl) { statusEl.textContent = '✓ PDF отправлен в чат'; statusEl.className = 'doctor-export-status ok'; }
   } catch (e) {
     console.error('requestDoctorReport failed', e);

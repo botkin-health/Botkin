@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -1167,6 +1167,7 @@ async def render_report(
 
 @router.post("/doctor_report")
 async def doctor_report(
+    body: dict = Body(default={}),
     user=Depends(require_agent_scope("rw")),
     db=Depends(get_db),
 ):
@@ -1174,11 +1175,14 @@ async def doctor_report(
 
     Side-effect: шлёт PDF Telegram-документом на user.telegram_id через общий
     helper send_doctor_report_to_chat (тот же путь, что у кнопки мини-аппа, #290/#291).
+    body.language ('ru'|'en') задаёт язык отчёта (#300); иначе — ru.
     Агенту возвращаем короткий статус {status, sent} — дальше он отвечает текстом.
     """
     from services.doctor_report import send_doctor_report_to_chat
+    from services.report_i18n import resolve_report_language
 
-    return send_doctor_report_to_chat(db, user.telegram_id)
+    lang = resolve_report_language((body or {}).get("language"), None)
+    return send_doctor_report_to_chat(db, user.telegram_id, lang=lang)
 
 
 # ── Универсальный render через QuickChart.io ─────────────────────────────────

@@ -814,24 +814,56 @@ async def cmd_report(message: Message, user_id: int):
     )
 
 
+_DOCTOR_REPORT_LANG_ALIASES = {
+    "en": "en",
+    "eng": "en",
+    "english": "en",
+    "английский": "en",
+    "англ": "en",
+    "ru": "ru",
+    "rus": "ru",
+    "russian": "ru",
+    "русский": "ru",
+}
+
+
+def parse_doctor_report_lang(text: str | None, tg_language_code: str | None) -> str:
+    """Из текста '/doctor_report <lang>' + language_code → 'ru'|'en'.
+
+    Явный алиас перебивает; неизвестный/пустой аргумент → резолв по language_code.
+    """
+    from services.report_i18n import resolve_report_language
+
+    explicit = None
+    parts = (text or "").split()
+    if len(parts) >= 2:
+        explicit = _DOCTOR_REPORT_LANG_ALIASES.get(parts[1].strip().lower())
+    return resolve_report_language(explicit, tg_language_code)
+
+
 @router.message(Command("doctor_report"))
 async def cmd_doctor_report(message: Message, user_id: int):
-    """/doctor_report — PDF-отчёт для врача, приходит документом в чат."""
+    """/doctor_report [ru|en] — PDF-отчёт для врача, приходит документом в чат."""
     from database import SessionLocal
     from services.doctor_report import send_doctor_report_to_chat
+    from services.report_i18n import CHROME
 
-    await message.answer("⏳ Готовлю PDF-отчёт для врача…")
+    lang_code = message.from_user.language_code if message.from_user else None
+    lang = parse_doctor_report_lang(message.text, lang_code)
+    chrome = CHROME[lang]
+
+    await message.answer(chrome["status_preparing"])
 
     db = SessionLocal()
     try:
-        result = send_doctor_report_to_chat(db, user_id)
+        result = send_doctor_report_to_chat(db, user_id, lang=lang)
     finally:
         db.close()
 
     if result.get("sent"):
-        await message.answer("✅ Готово — отчёт отправлен файлом выше, можно переслать врачу.")
+        await message.answer(chrome["status_done"])
     else:
-        await message.answer("❌ Не удалось сформировать отчёт. Попробуй позже.")
+        await message.answer(chrome["status_failed"])
 
 
 @router.message(Command("health_token"))

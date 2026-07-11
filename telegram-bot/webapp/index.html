@@ -380,6 +380,10 @@
 
 <section id="dashboard-tab-section" class="section tab-panel">
   <div class="doctor-export-bar">
+    <select id="report-lang" class="report-lang-select" aria-label="Язык отчёта">
+      <option value="ru">Русский</option>
+      <option value="en">English</option>
+    </select>
     <button id="doctor-export-btn" class="primary-btn" onclick="requestDoctorReport()">📄 Экспорт для врача (PDF)</button>
     <div id="doctor-export-status" class="doctor-export-status"></div>
   </div>

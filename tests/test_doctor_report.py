@@ -13,15 +13,16 @@ import pytest
 import services.doctor_report as dr
 from database.models import SupplementLog, User
 from services.doctor_report import (
-    DISCLAIMER,
     SECTION_ORDER,
     DoctorReport,
     ReportSection,
+    assemble_doctor_report,
     build_doctor_report_html,
     doctor_report_filename,
     render_doctor_report_html,
     send_doctor_report_to_chat,
 )
+from services.report_i18n import CHROME
 
 
 def _add_user(db, tid: int) -> None:
@@ -56,10 +57,10 @@ def test_render_sections_in_ips_order():
 
 
 def test_render_includes_disclaimer():
-    """Дисклеймер «wellness, не диагноз» присутствует."""
+    """Дисклеймер «wellness, не диагноз» присутствует (единый источник — CHROME)."""
     out = render_doctor_report_html(_sample_report())
-    assert "не диагноз" in DISCLAIMER
-    assert "не диагноз" in out
+    assert "не диагноз" in CHROME["ru"]["disclaimer"]
+    assert CHROME["ru"]["disclaimer"] in out  # ровно строка из словаря, без дрейфа
 
 
 def test_render_includes_header():
@@ -185,6 +186,80 @@ def test_assemble_generated_date_present(test_db):
     assert str(datetime.now().year) in out
 
 
+# ── i18n: язык отчёта (#300) ─────────────────────────────────────────────────
+
+
+def test_assemble_en_translates_freetext(test_db, monkeypatch):
+    """lang=en: каркас EN + свободный текст прогоняется через translate_freetext."""
+    test_db.add(
+        User(
+            telegram_id=901,
+            first_name="Ivan",
+            is_active=True,
+            cohort="external",
+            pack_name="generic",
+            onboarding_data={"chronic_conditions": "Гипотиреоз"},
+        )
+    )
+    test_db.commit()
+    monkeypatch.setattr(dr, "translate_freetext", lambda items, lang: [f"EN::{s}" for s in items])
+
+    report = assemble_doctor_report(test_db, 901, lang="en")
+    problems = next(s for s in report.sections if s.key == "problems")
+    assert problems.title == "Problems and diagnoses"
+    assert problems.items == ["EN::Гипотиреоз"]
+
+
+def test_assemble_ru_does_not_translate(test_db, monkeypatch):
+    """lang=ru: translate_freetext НЕ вызывается, заголовки русские."""
+    test_db.add(
+        User(
+            telegram_id=902,
+            first_name="Пётр",
+            is_active=True,
+            cohort="external",
+            pack_name="generic",
+            onboarding_data={"chronic_conditions": "Гипотиреоз"},
+        )
+    )
+    test_db.commit()
+
+    def _boom(*a, **k):
+        raise AssertionError("translate_freetext не должен вызываться для ru")
+
+    monkeypatch.setattr(dr, "translate_freetext", _boom)
+    report = assemble_doctor_report(test_db, 902, lang="ru")
+    problems = next(s for s in report.sections if s.key == "problems")
+    assert problems.title == "Проблемы и диагнозы"
+    assert problems.items == ["Гипотиреоз"]
+
+
+def test_render_en_chrome_and_lang_attr(test_db, monkeypatch):
+    """lang=en: <html lang=en>, английские заголовки/дисклеймер (без 152-ФЗ)."""
+    test_db.add(User(telegram_id=903, first_name="Ann", is_active=True, cohort="external", pack_name="generic"))
+    test_db.commit()
+    monkeypatch.setattr(dr, "translate_freetext", lambda items, lang: items)
+
+    report = assemble_doctor_report(test_db, 903, lang="en")
+    out = render_doctor_report_html(report, lang="en")
+    assert '<html lang="en">' in out
+    assert "Health Report" in out
+    assert "Lab results" in out
+    assert "No data" in out
+    assert "152-ФЗ" not in out  # EN-дисклеймер нейтральный
+
+
+def test_results_en_uses_english_labels_and_units():
+    """lang=en: биомаркеры выводятся с label_en/unit_en, числа не меняются."""
+    from services.doctor_report import _results
+
+    bio = {"Hb": {"value": 155.0, "date": "2026-06-09"}}
+    line_ru = _results(bio, "ru")[0]
+    line_en = _results(bio, "en")[0]
+    assert line_ru == "Гемоглобин: 155.0 г/л (2026-06-09)"
+    assert line_en == "Hemoglobin: 155.0 g/L (2026-06-09)"
+
+
 # ── PDF-рендер и доставка ─────────────────────────────────────────────────────
 
 
@@ -210,7 +285,7 @@ def test_filename_is_ascii_pdf():
 def _stub_send(monkeypatch, *, ok: bool):
     """Подменить PDF-рендер, токен и requests.post для теста доставки."""
     dr._ensure_bot_path()
-    monkeypatch.setattr("services.doctor_report.render_doctor_report_pdf", lambda db, uid: b"%PDF-1.4 fake")
+    monkeypatch.setattr("services.doctor_report.render_doctor_report_pdf", lambda db, uid, lang="ru": b"%PDF-1.4 fake")
     monkeypatch.setattr("bot_token.resolve_bot_token", lambda: "123:ABC")
     captured: dict = {}
 
@@ -221,6 +296,7 @@ def _stub_send(monkeypatch, *, ok: bool):
     def _fake_post(url, data=None, files=None, timeout=None):
         captured["url"] = url
         captured["chat_id"] = data["chat_id"]
+        captured["caption"] = data["caption"]
         captured["fname"] = files["document"][0]
         captured["mime"] = files["document"][2]
         return _Resp()
@@ -239,6 +315,16 @@ def test_send_doctor_report_success(test_db, monkeypatch):
     assert captured["chat_id"] == 555
     assert captured["fname"].endswith(".pdf")
     assert captured["mime"] == "application/pdf"
+    assert "не диагноз" in captured["caption"]  # ru caption по умолчанию
+
+
+def test_send_doctor_report_en_caption(test_db, monkeypatch):
+    """lang=en → английская подпись к документу."""
+    _add_user(test_db, 558)
+    captured = _stub_send(monkeypatch, ok=True)
+    send_doctor_report_to_chat(test_db, 558, lang="en")
+    assert "Health report" in captured["caption"]
+    assert "не диагноз" not in captured["caption"]
 
 
 def test_send_doctor_report_telegram_error(test_db, monkeypatch):
@@ -254,7 +340,7 @@ def test_send_doctor_report_render_failure(test_db, monkeypatch):
     """Сбой рендера PDF → error, requests не вызывается."""
     _add_user(test_db, 777)
 
-    def _boom(db, uid):
+    def _boom(db, uid, lang="ru"):
         raise RuntimeError("gtk missing")
 
     monkeypatch.setattr("services.doctor_report.render_doctor_report_pdf", _boom)
