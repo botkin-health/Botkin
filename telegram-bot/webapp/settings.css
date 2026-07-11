@@ -471,7 +471,9 @@ code { background: #f0f0f0; border-radius: 4px; padding: 1px 6px;
 .fb-status.error { color: #ff3b30; }
 
 /* Экспорт для врача (#290) */
-.doctor-export-bar { padding: 12px 16px 4px; }
-.doctor-export-status { margin-top: 8px; font-size: 13px; min-height: 18px; text-align: center; }
+.doctor-export-bar { padding: 12px 16px 4px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.doctor-export-bar .primary-btn { flex: 1; }
+.report-lang-select { padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border, #d1d1d6); background: var(--card-bg, #fff); color: inherit; font-size: 14px; }
+.doctor-export-status { flex-basis: 100%; margin-top: 8px; font-size: 13px; min-height: 18px; text-align: center; }
 .doctor-export-status.ok { color: #34c759; }
 .doctor-export-status.error { color: #ff3b30; }
