@@ -1,6 +1,16 @@
 """Тесты i18n для doctor-report (#300): резолвинг языка, полнота словаря, LLM-перевод."""
 
+from core.reports.biomarker_dynamics import MARKER_CONFIG
 from services.report_i18n import CHROME, SUPPORTED_LANGS, resolve_report_language
+
+
+def test_every_marker_has_en_label_and_unit():
+    missing = [
+        canon
+        for canon, cfg in MARKER_CONFIG.items()
+        if not cfg.get("label_en") or "unit_en" not in cfg
+    ]
+    assert missing == [], f"markers без EN-подписи/единицы: {missing}"
 
 
 def test_explicit_wins_over_language_code():
