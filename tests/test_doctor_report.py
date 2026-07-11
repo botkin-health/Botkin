@@ -13,7 +13,6 @@ import pytest
 import services.doctor_report as dr
 from database.models import SupplementLog, User
 from services.doctor_report import (
-    DISCLAIMER,
     SECTION_ORDER,
     DoctorReport,
     ReportSection,
@@ -23,6 +22,7 @@ from services.doctor_report import (
     render_doctor_report_html,
     send_doctor_report_to_chat,
 )
+from services.report_i18n import CHROME
 
 
 def _add_user(db, tid: int) -> None:
@@ -57,10 +57,10 @@ def test_render_sections_in_ips_order():
 
 
 def test_render_includes_disclaimer():
-    """Дисклеймер «wellness, не диагноз» присутствует."""
+    """Дисклеймер «wellness, не диагноз» присутствует (единый источник — CHROME)."""
     out = render_doctor_report_html(_sample_report())
-    assert "не диагноз" in DISCLAIMER
-    assert "не диагноз" in out
+    assert "не диагноз" in CHROME["ru"]["disclaimer"]
+    assert CHROME["ru"]["disclaimer"] in out  # ровно строка из словаря, без дрейфа
 
 
 def test_render_includes_header():
