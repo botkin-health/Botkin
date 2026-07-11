@@ -8,9 +8,20 @@ LLM-перевод свободного текста.
 
 from __future__ import annotations
 
+import json
 import logging
 
+import requests
+
+from config import get_settings
+
 logger = logging.getLogger(__name__)
+
+_ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
+_ANTHROPIC_VERSION = "2023-06-01"
+# Дешёвая модель для механического перевода коротких строк.
+_TRANSLATE_MODEL = "claude-haiku-4-5-20251001"
+_LANG_NAMES = {"en": "English", "ru": "Russian"}
 
 SUPPORTED_LANGS = ("ru", "en")
 
@@ -103,3 +114,64 @@ def resolve_report_language(explicit: str | None, tg_language_code: str | None) 
     if tg_language_code and str(tg_language_code).lower().startswith("en"):
         return "en"
     return "ru"
+
+
+def translate_freetext(items: list[str], target_lang: str) -> list[str]:
+    """Перевести список пользовательских строк на target_lang одним LLM-вызовом.
+
+    Переводятся только НАЗВАНИЯ (диагнозы/аллергии/лекарства/добавки). Числа и
+    дозировки сохраняются. При любой ошибке (сеть, парсинг, рассинхрон длины) —
+    graceful fallback: возвращаем исходные строки (каркас всё равно на target_lang).
+    Для target_lang == "ru" LLM не вызывается.
+    """
+    if not items or target_lang == "ru":
+        return list(items)
+
+    lang_name = _LANG_NAMES.get(target_lang, "English")
+    settings = get_settings()
+    api_key = getattr(settings, "anthropic_api_key", None)
+    if not api_key:
+        logger.warning("translate_freetext: ANTHROPIC_API_KEY не задан — fallback на оригинал")
+        return list(items)
+
+    system = (
+        f"You translate short medical terms (diagnoses, allergies, medications, "
+        f"supplements) into {lang_name}. Preserve any numbers and dosages verbatim. "
+        f"Return ONLY a JSON array of strings, same length and order as the input. "
+        f"No prose, no markdown."
+    )
+    user = json.dumps(items, ensure_ascii=False)
+
+    try:
+        resp = requests.post(
+            _ANTHROPIC_API_URL,
+            headers={
+                "x-api-key": api_key,
+                "anthropic-version": _ANTHROPIC_VERSION,
+                "content-type": "application/json",
+            },
+            json={
+                "model": _TRANSLATE_MODEL,
+                "max_tokens": 1024,
+                "system": system,
+                "messages": [{"role": "user", "content": user}],
+            },
+            timeout=30,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        text_out = "".join(
+            block.get("text", "") for block in data.get("content", []) if block.get("type") == "text"
+        ).strip()
+        # Снять возможные ```json ... ``` обёртки.
+        if text_out.startswith("```"):
+            text_out = text_out.strip("`")
+            text_out = text_out[text_out.find("[") :]
+        parsed = json.loads(text_out)
+        if isinstance(parsed, list) and len(parsed) == len(items):
+            return [str(x) for x in parsed]
+        logger.warning("translate_freetext: длина ответа != входа — fallback")
+        return list(items)
+    except Exception as e:  # noqa: BLE001 — любой сбой = fallback на оригинал
+        logger.warning("translate_freetext failed (%s) — fallback на оригинал", e)
+        return list(items)
