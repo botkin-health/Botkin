@@ -731,9 +731,20 @@ TOOLS: list[dict[str, Any]] = [
             "КОГДА ИСПОЛЬЗОВАТЬ: пользователь просит «отчёт для врача», «сводку для доктора», "
             "«выгрузи мои данные для приёма», «PDF для врача». Отчёт — секции в клиническом "
             "порядке (проблемы, аллергии, лекарства, результаты анализов, витальные, образ жизни). "
-            "Это НЕ график динамики — для инфографики используй render_report."
+            "Это НЕ график динамики — для инфографики используй render_report.\n\n"
+            "ЯЗЫК: если пользователь просит отчёт на английском (или пишет по-английски) — "
+            "передай language='en'; для русского — 'ru'. Не указан — язык по умолчанию."
         ),
-        "input_schema": {"type": "object", "properties": {}},
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "language": {
+                    "type": "string",
+                    "enum": ["ru", "en"],
+                    "description": "Язык отчёта: 'en' если пользователь просит на английском, иначе 'ru'.",
+                },
+            },
+        },
     },
     {
         "name": "add_agent_correction",
@@ -1060,10 +1071,11 @@ def _call_tool(name: str, args: dict, token: str) -> str:
             )
         elif name == "generate_doctor_report":
             # Side-effect tool — генерит PDF-отчёт для врача и шлёт sendDocument
-            # (общий helper с кнопкой мини-аппа, #290/#291). Возвращает статус.
+            # (общий helper с кнопкой мини-аппа, #290/#291). language — #300.
             r = requests.post(
                 f"{TOOLS_API_BASE}/doctor_report",
                 headers=headers,
+                json={"language": args.get("language")},
                 timeout=60,
             )
         elif name == "render_chart":
