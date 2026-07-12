@@ -309,3 +309,46 @@ class TestBombbar:
         result = calculate_nutrition("батончик bombbar", 20.0)
 
         assert 67 <= result["calories"] <= 78, f"Ожидали ~72 ккал, получили: {result['calories']}"
+
+
+class TestGramsNotPieces:
+    """Регрессия 12.07.2026: '73 г перца' парсилось как 73 ШТУКИ перца × 150г = 10950г.
+
+    Необязательная группа '(?:[а-яё]+\\s+)?' в quantity_patterns съедала единицу
+    измерения 'г', превращая граммы в счётчик штук. Клетчатка считалась от
+    раздутого веса (229.9г при норме 30г/день).
+    """
+
+    def _weight_of(self, products, token):
+        for p in products:
+            if token in p["name"].lower():
+                return p["weight"], p.get("source")
+        return None, None
+
+    def test_grams_of_pepper_is_not_piece_count(self):
+        desc = "обед\n182 г томата\n73 г перца болгарского \nСтоловая ложка оливкового масла \n3 яйца"
+        products = extract_products_from_description(desc)
+        weights = [p["weight"] for p in products if p.get("weight")]
+        assert all(w <= 1000 for w in weights), f"Раздутый вес: {products}"
+        w, _ = self._weight_of(products, "перц")
+        assert w == 73, f"Ожидали 73г перца, получили {w}: {products}"
+
+    def test_pepper_pieces_still_work(self):
+        products = extract_products_from_description("съел 2 перца")
+        w, src = self._weight_of(products, "перец")
+        assert w == 300 and src == "quantity_estimate"
+
+    def test_grams_of_kotleta_is_not_piece_count(self):
+        products = extract_products_from_description("120 г котлеты куриной")
+        w, _ = self._weight_of(products, "котлет")
+        assert w == 120, f"Ожидали 120г котлеты: {products}"
+
+    def test_kotleta_pieces_still_work(self):
+        products = extract_products_from_description("2 котлеты и гарнир")
+        w, src = self._weight_of(products, "котлет")
+        assert w == 160 and src == "quantity_estimate"
+
+    def test_grams_of_syrniki_is_not_piece_count(self):
+        products = extract_products_from_description("100 г сырников со сметаной")
+        w, _ = self._weight_of(products, "сырник")
+        assert w == 100, f"Ожидали 100г сырников: {products}"
