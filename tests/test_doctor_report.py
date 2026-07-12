@@ -234,6 +234,43 @@ def test_assemble_ru_does_not_translate(test_db, monkeypatch):
     assert problems.items == ["Гипотиреоз"]
 
 
+def test_assemble_en_transliterates_patient_name(test_db, monkeypatch):
+    """lang=en: имя пациента транслитерируется в латиницу (не остаётся кириллицей)."""
+    test_db.add(
+        User(
+            telegram_id=904,
+            first_name="Иван",
+            last_name="Петров",
+            is_active=True,
+            cohort="external",
+            pack_name="generic",
+        )
+    )
+    test_db.commit()
+    monkeypatch.setattr(dr, "translate_freetext", lambda items, lang: items)
+
+    report = assemble_doctor_report(test_db, 904, lang="en")
+    assert report.patient_label == "Ivan Petrov"
+
+
+def test_assemble_ru_keeps_cyrillic_name(test_db):
+    """lang=ru: имя пациента остаётся кириллицей (регрессия — без транслита)."""
+    test_db.add(
+        User(
+            telegram_id=905,
+            first_name="Иван",
+            last_name="Петров",
+            is_active=True,
+            cohort="external",
+            pack_name="generic",
+        )
+    )
+    test_db.commit()
+
+    report = assemble_doctor_report(test_db, 905, lang="ru")
+    assert report.patient_label == "Иван Петров"
+
+
 def test_render_en_chrome_and_lang_attr(test_db, monkeypatch):
     """lang=en: <html lang=en>, английские заголовки/дисклеймер (без 152-ФЗ)."""
     test_db.add(User(telegram_id=903, first_name="Ann", is_active=True, cohort="external", pack_name="generic"))

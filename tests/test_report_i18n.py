@@ -2,7 +2,12 @@
 
 from core.reports.biomarker_dynamics import MARKER_CONFIG
 import services.report_i18n as i18n
-from services.report_i18n import CHROME, SUPPORTED_LANGS, resolve_report_language
+from services.report_i18n import (
+    CHROME,
+    SUPPORTED_LANGS,
+    resolve_report_language,
+    transliterate_ru_to_latin,
+)
 
 
 def test_every_marker_has_en_label_and_unit():
@@ -97,3 +102,39 @@ def test_translate_no_api_key_falls_back(monkeypatch):
     monkeypatch.setattr(i18n, "get_settings", lambda: type("S", (), {"anthropic_api_key": None})())
     items = ["Гипотиреоз"]
     assert i18n.translate_freetext(items, "en") == items
+
+
+# ── Транслитерация имён для EN-отчёта (#1: имя не должно оставаться кириллицей) ──
+
+
+def test_transliterate_soft_sign_omitted():
+    # ь опускается: О-л-ь-г-а → Olga.
+    assert transliterate_ru_to_latin("Ольга") == "Olga"
+
+
+def test_transliterate_i_kratkoye():
+    # й → i (ICAO Doc 9303): Д-м-и-т-р-и-й → Dmitrii.
+    assert transliterate_ru_to_latin("Дмитрий") == "Dmitrii"
+
+
+def test_transliterate_full_name():
+    # Схема ICAO Doc 9303 / загранпаспорт РФ: й→i, ц→ts.
+    assert transliterate_ru_to_latin("Сергей Кузнецов") == "Sergei Kuznetsov"
+
+
+def test_transliterate_special_letters():
+    # Многобуквенные соответствия с сохранением регистра первой буквы.
+    assert transliterate_ru_to_latin("Жанна Щукина") == "Zhanna Shchukina"
+
+
+def test_transliterate_latin_passthrough():
+    # Латиница/пробелы не трогаются (у пользователя может быть латинское имя).
+    assert transliterate_ru_to_latin("John Smith") == "John Smith"
+
+
+def test_transliterate_preserves_digits_and_punct():
+    assert transliterate_ru_to_latin("Омега 3") == "Omega 3"
+
+
+def test_transliterate_empty():
+    assert transliterate_ru_to_latin("") == ""
