@@ -207,6 +207,20 @@
       <button class="link-copy-btn" id="link-report-copy" onclick="copyReport()" title="Скопировать ссылку">⎘</button>
       <div class="row-chevron" onclick="openReport()" style="cursor:pointer">›</div>
     </div>
+    <div class="settings-row" id="doctor-export-row" onclick="toggleDoctorLang()" style="cursor:pointer">
+      <div class="row-label" style="flex:1">
+        Экспорт для врача (PDF)
+        <div class="row-sub">PDF-файл придёт в чат</div>
+      </div>
+      <div class="row-chevron">›</div>
+    </div>
+    <div id="doctor-lang-choice" class="doctor-lang-choice" hidden>
+      <span class="doctor-lang-prompt">Язык:</span>
+      <button type="button" class="lang-choice-btn" data-lang="ru" onclick="requestDoctorReport('ru')">Русский</button>
+      <button type="button" class="lang-choice-btn" data-lang="en" onclick="requestDoctorReport('en')">English</button>
+      <button type="button" class="lang-choice-cancel" onclick="toggleDoctorLang()" aria-label="Отмена">✕</button>
+    </div>
+    <div id="doctor-export-status" class="doctor-export-status"></div>
   </div>
   <div id="links-toast" class="links-toast hidden">Ссылка скопирована</div>
 
@@ -379,16 +393,6 @@
 </section>
 
 <section id="dashboard-tab-section" class="section tab-panel">
-  <div class="doctor-export-bar">
-    <button id="doctor-export-btn" class="primary-btn" onclick="toggleDoctorLang()">📄 Экспорт для врача (PDF)</button>
-    <div id="doctor-lang-choice" class="doctor-lang-choice" hidden>
-      <span class="doctor-lang-prompt">Язык:</span>
-      <button type="button" class="lang-choice-btn" data-lang="ru" onclick="requestDoctorReport('ru')">Русский</button>
-      <button type="button" class="lang-choice-btn" data-lang="en" onclick="requestDoctorReport('en')">English</button>
-      <button type="button" class="lang-choice-cancel" onclick="toggleDoctorLang()" aria-label="Отмена">✕</button>
-    </div>
-    <div id="doctor-export-status" class="doctor-export-status"></div>
-  </div>
   <div id="dashboard-container"><!-- iframe injected by loadDashboard() in dashboard.js --></div>
 </section>
 

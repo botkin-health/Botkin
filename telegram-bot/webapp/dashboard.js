@@ -64,10 +64,10 @@ function dashboardEmptyState(msg) {
 }
 
 // ── «Экспорт для врача» — PDF-отчёт в чат (#290) ─────────────────────────────
-// Основной путь доставки: компактная кнопка на вкладке «Дашборд» → тап
-// раскрывает выбор языка (RU/EN, #300) инлайн → POST /api/doctor_report →
-// бот присылает PDF Telegram-документом. Кнопка живёт в chrome мини-аппа
-// (не внутри iframe /mc/), поэтому на дашборде, расшаренном врачу, её нет.
+// Живёт во вкладке «Настройки» → группа «Ссылки», рядом с HTML-отчётом /report
+// (#4/#5: убрано из дашборда — вкладка «Дашборд» это iframe /mc/, тот же
+// шаренный врачу дашборд, туда кнопку класть нельзя). Тап по строке раскрывает
+// инлайн-выбор языка (RU/EN, #300) → POST /api/doctor_report → бот шлёт PDF.
 
 // Язык по умолчанию — по языку Telegram-клиента (#300); он подсвечивается
 // среди инлайн-кнопок выбора (пользователь всё равно жмёт явно).
@@ -76,16 +76,13 @@ function doctorReportDefaultLang() {
   return lc.startsWith('en') ? 'en' : 'ru';
 }
 
-// Тап по «Экспорт для врача» раскрывает/сворачивает инлайн-выбор языка
-// (#4/#5: выбор появляется по нажатию кнопки, а не отдельной выпадашкой).
+// Тап по строке «Экспорт для врача» раскрывает/сворачивает инлайн-выбор языка.
 function toggleDoctorLang() {
-  const btn = document.getElementById('doctor-export-btn');
   const choice = document.getElementById('doctor-lang-choice');
   const statusEl = document.getElementById('doctor-export-status');
-  if (!btn || !choice) return;
+  if (!choice) return;
   const opening = choice.hidden;
   choice.hidden = !opening;
-  btn.hidden = opening;
   if (opening) {
     const def = doctorReportDefaultLang();
     choice.querySelectorAll('.lang-choice-btn').forEach((b) => {
@@ -96,12 +93,10 @@ function toggleDoctorLang() {
 }
 
 async function requestDoctorReport(language) {
-  const btn = document.getElementById('doctor-export-btn');
   const choice = document.getElementById('doctor-lang-choice');
   const statusEl = document.getElementById('doctor-export-status');
-  // Свернуть инлайн-выбор обратно в одну кнопку.
+  // Свернуть инлайн-выбор.
   if (choice) choice.hidden = true;
-  if (btn) { btn.hidden = false; btn.disabled = true; }
   if (statusEl) { statusEl.textContent = 'Готовим PDF…'; statusEl.className = 'doctor-export-status'; }
   try {
     await window.API.requestDoctorReport(language);
@@ -109,7 +104,5 @@ async function requestDoctorReport(language) {
   } catch (e) {
     console.error('requestDoctorReport failed', e);
     if (statusEl) { statusEl.textContent = '⚠ Не удалось сформировать. Попробуйте позже.'; statusEl.className = 'doctor-export-status error'; }
-  } finally {
-    if (btn) btn.disabled = false;
   }
 }
