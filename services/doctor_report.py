@@ -31,7 +31,12 @@ logger = logging.getLogger(__name__)
 # Presentation-слой биомаркеров (label/unit/референсы) — то, чего нет в kb_schema.
 # Переиспользуем, чтобы не дублировать RU-названия и границы норм.
 from core.reports.biomarker_dynamics import MARKER_CONFIG
-from services.report_i18n import CHROME, FREE_TEXT_SECTIONS, translate_freetext
+from services.report_i18n import (
+    CHROME,
+    FREE_TEXT_SECTIONS,
+    translate_freetext,
+    transliterate_ru_to_latin,
+)
 
 # Окно «недавних» добавок и активности.
 _SUPPLEMENTS_WINDOW_DAYS = 90
@@ -296,6 +301,9 @@ def assemble_doctor_report(db: Session, user_id: int, lang: str = "ru") -> Docto
     onboarding = _coerce_dict(user.onboarding_data) if user else {}
     name_parts = [user.first_name, getattr(user, "last_name", None)] if user else []
     patient_label = " ".join(p for p in name_parts if p) or chrome["patient_fallback"]
+    # В НЕ-русском отчёте имя не должно оставаться кириллицей (#1) — транслит в латиницу.
+    if lang != "ru":
+        patient_label = transliterate_ru_to_latin(patient_label)
 
     bio = _load_biomarkers(db, user_id)
     builders = {
