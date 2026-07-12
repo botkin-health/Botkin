@@ -77,7 +77,7 @@ async def cmd_start(message: Message, user_id: int, username: str, first_name: s
         "/week — анализ недели\n"
         "/vitamins — чек-лист добавок\n"
         "/share — личный дашборд здоровья\n"
-        "/report — HTML-отчёт о здоровье (ссылка)\n"
+        "/report — снимок дашборда (постоянная ссылка)\n"
         "/doctor_report — PDF-отчёт для врача (файл)\n"
         "/profile — твои данные (вес, рост, возраст)\n"
         "/help — полная справка\n\n"
@@ -779,12 +779,12 @@ async def cmd_share(message: Message, user_id: int):
 
 @router.message(Command("report"))
 async def cmd_report(message: Message, user_id: int):
-    """/report — сгенерировать/обновить персональный HTML-отчёт о здоровье и получить ссылку."""
+    """/report — сгенерировать/обновить снимок дашборда (постоянная ссылка для шаринга)."""
     from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
     from database import SessionLocal
 
-    await message.answer("⏳ Генерирую отчёт…")
+    await message.answer("⏳ Готовлю снимок дашборда…")
 
     db = SessionLocal()
     try:
@@ -798,12 +798,12 @@ async def cmd_report(message: Message, user_id: int):
         db.close()
 
     url = f"{public_base_url()}/r/{token}"
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="📋 Открыть отчёт", url=url)]])
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="📋 Открыть снимок", url=url)]])
 
     if diff:
-        intro = f"✅ Отчёт обновлён ({diff})."
+        intro = f"✅ Снимок дашборда обновлён ({diff})."
     else:
-        intro = "✅ Отчёт готов."
+        intro = "✅ Снимок дашборда готов."
 
     await message.answer(
         f"{intro}\n\n"
