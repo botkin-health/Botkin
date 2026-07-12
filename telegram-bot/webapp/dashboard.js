@@ -69,26 +69,17 @@ function dashboardEmptyState(msg) {
 // шаренный врачу дашборд, туда кнопку класть нельзя). Тап по строке раскрывает
 // инлайн-выбор языка (RU/EN, #300) → POST /api/doctor_report → бот шлёт PDF.
 
-// Язык по умолчанию — по языку Telegram-клиента (#300); он подсвечивается
-// среди инлайн-кнопок выбора (пользователь всё равно жмёт явно).
-function doctorReportDefaultLang() {
-  const lc = (window.Telegram?.WebApp?.initDataUnsafe?.user?.language_code || '').toLowerCase();
-  return lc.startsWith('en') ? 'en' : 'ru';
-}
-
 // Тап по строке «Экспорт для врача» раскрывает/сворачивает инлайн-выбор языка.
+// Обе кнопки языка равнозначны (одинаковое оформление, без подсветки дефолта).
 function toggleDoctorLang() {
   const choice = document.getElementById('doctor-lang-choice');
   const statusEl = document.getElementById('doctor-export-status');
   if (!choice) return;
   const opening = choice.hidden;
   choice.hidden = !opening;
-  if (opening) {
-    const def = doctorReportDefaultLang();
-    choice.querySelectorAll('.lang-choice-btn').forEach((b) => {
-      b.classList.toggle('primary', b.dataset.lang === def);
-    });
-    if (statusEl) { statusEl.textContent = ''; statusEl.className = 'doctor-export-status'; }
+  if (opening && statusEl) {
+    statusEl.textContent = '';
+    statusEl.className = 'doctor-export-status';
   }
 }
 
