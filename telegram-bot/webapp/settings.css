@@ -470,8 +470,14 @@ code { background: #f0f0f0; border-radius: 4px; padding: 1px 6px;
 .fb-status.ok { color: #34c759; }
 .fb-status.error { color: #ff3b30; }
 
-/* Экспорт для врача (#290) */
-.doctor-export-bar { padding: 12px 16px 4px; }
-.doctor-export-status { margin-top: 8px; font-size: 13px; min-height: 18px; text-align: center; }
+/* Экспорт для врача (#290) — компактная кнопка + инлайн-выбор языка (#4/#5) */
+.doctor-export-bar { padding: 10px 16px 4px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.doctor-export-bar .primary-btn { flex: 1; }
+.doctor-lang-choice { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.doctor-lang-prompt { font-size: 13px; color: var(--muted, #8e8e93); }
+.lang-choice-btn { flex: 1; min-width: 96px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border, #d1d1d6); background: var(--card-bg, #fff); color: inherit; font-size: 14px; cursor: pointer; }
+.lang-choice-btn.primary { border-color: var(--accent, #007aff); color: var(--accent, #007aff); font-weight: 600; }
+.lang-choice-cancel { padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border, #d1d1d6); background: transparent; color: var(--muted, #8e8e93); font-size: 14px; cursor: pointer; }
+.doctor-export-status { flex-basis: 100%; margin-top: 8px; font-size: 13px; min-height: 18px; text-align: center; }
 .doctor-export-status.ok { color: #34c759; }
 .doctor-export-status.error { color: #ff3b30; }

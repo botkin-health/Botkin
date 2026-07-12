@@ -92,8 +92,12 @@
     },
 
     // POST /api/doctor_report → {status: "sent"} (#290). PDF-отчёт уходит в чат.
-    requestDoctorReport() {
-      return request('/api/doctor_report', { method: 'POST' });
+    // language — 'ru'|'en' (#300); бэкенд валидирует и резолвит по language_code при отсутствии.
+    requestDoctorReport(language) {
+      return request('/api/doctor_report', {
+        method: 'POST',
+        body: JSON.stringify({ language }),
+      });
     },
 
     // Escape hatch for ad-hoc calls (e.g. /api/settings).
