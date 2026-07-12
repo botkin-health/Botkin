@@ -16,6 +16,7 @@ from __future__ import annotations
 import html
 import json
 import logging
+import re
 import sys
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
@@ -154,10 +155,35 @@ def _coerce_dict(raw: object) -> dict:
     return {}
 
 
+# Разделитель пунктов: конец предложения (точка + пробел/конец строки), перенос, «;».
+# Точку внутри кода МКБ (J45.0 — цифра.цифра, без пробела) он НЕ матчит.
+_ITEM_SEP_RE = re.compile(r"[\n;]+|\.\s+|\.$")
+
+
+def _split_freetext(val: str) -> list[str]:
+    """Разбить свободный текст онбординга (диагнозы/аллергии/лекарства) на пункты.
+
+    Делит по СИЛЬНЫМ разделителям: конец предложения, перенос строки, «;». Запятую
+    разделителем НЕ считает — она часто часть описания одного пункта («астма, лёгкая
+    персистирующая»), а её слепой split рвал диагноз на два буллета (#7). Точка внутри
+    кода МКБ (J45.0) сохраняется. Если сильных разделителей нет, а запятые есть — это
+    список через запятую («Гипертония, Диабет»), тогда fallback на split по запятой.
+    """
+    s = str(val).strip()
+    if not s:
+        return []
+    parts = [p.strip(" .;") for p in _ITEM_SEP_RE.split(s)]
+    parts = [p for p in parts if p]
+    if len(parts) <= 1 and "," in s:
+        parts = [p.strip() for p in s.split(",") if p.strip()]
+    return parts
+
+
 def _onboarding_list(onboarding: Optional[dict], keys: tuple[str, ...]) -> list[str]:
     """Достать список значений из онбординга по первому подходящему ключу.
 
-    Значение может быть списком или строкой (тогда режем по запятой/переносу).
+    Значение может быть списком (берём как есть) или свободной строкой
+    (разбиваем через _split_freetext — по предложениям/переносам, не по запятой).
     """
     if not onboarding:
         return []
@@ -167,8 +193,7 @@ def _onboarding_list(onboarding: Optional[dict], keys: tuple[str, ...]) -> list[
             continue
         if isinstance(val, list):
             return [str(v).strip() for v in val if str(v).strip()]
-        parts = [p.strip() for p in str(val).replace("\n", ",").split(",")]
-        return [p for p in parts if p]
+        return _split_freetext(str(val))
     return []
 
 
