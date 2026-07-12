@@ -352,3 +352,36 @@ class TestGramsNotPieces:
         products = extract_products_from_description("100 г сырников со сметаной")
         w, _ = self._weight_of(products, "сырник")
         assert w == 100, f"Ожидали 100г сырников: {products}"
+
+
+class TestProductNameNotAcrossNewline:
+    """Регрессия 12.07.2026: группа названия в weight_patterns матчила через \\n.
+
+    '73 г перца болгарского \\nСтоловая ложка масла' давал имя
+    'перца болгарского \\nстоловая' — пробелы в группе названия должны быть
+    горизонтальными ([ \\t]), а не \\s.
+    """
+
+    def test_product_name_stops_at_newline(self):
+        desc = "73 г перца болгарского \nСтоловая ложка оливкового масла"
+        products = extract_products_from_description(desc)
+        pepper = [p for p in products if "перц" in p["name"].lower()]
+        assert pepper, f"Перец не найден: {products}"
+        assert "\n" not in pepper[0]["name"], f"Имя захватило перенос строки: {pepper[0]['name']!r}"
+        assert "столов" not in pepper[0]["name"].lower(), f"Имя захватило следующую строку: {pepper[0]['name']!r}"
+        assert pepper[0]["weight"] == 73
+
+    def test_product_before_weight_stops_at_newline(self):
+        desc = "томат\nперец болгарский 73 г"
+        products = extract_products_from_description(desc)
+        pepper = [p for p in products if "перец" in p["name"].lower()]
+        assert pepper, f"Перец не найден: {products}"
+        assert "\n" not in pepper[0]["name"], f"Имя захватило перенос строки: {pepper[0]['name']!r}"
+        assert "томат" not in pepper[0]["name"].lower(), f"Имя захватило предыдущую строку: {pepper[0]['name']!r}"
+        assert pepper[0]["weight"] == 73
+
+    def test_multiword_name_on_one_line_still_works(self):
+        products = extract_products_from_description("73 г перца болгарского красного")
+        pepper = [p for p in products if "перц" in p["name"].lower()]
+        assert pepper and pepper[0]["name"] == "перца болгарского красного"
+        assert pepper[0]["weight"] == 73
