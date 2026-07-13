@@ -182,3 +182,103 @@ def test_triage_github_too_long_400(client, db_session, monkeypatch):
         json={"feedback_id": row.id, "github_issue": "x" * 100},
     )
     assert r.status_code == 400
+
+
+# ── Фаза 3: уведомление автора при разборе (#188) ────────────────────────────
+
+
+@pytest.fixture
+def sent_messages(monkeypatch):
+    """Перехват отправки в Telegram — возвращает список (chat_id, text)."""
+    from webhook import agent_tools_api
+
+    box = []
+
+    async def fake_send(chat_id, text):
+        box.append((chat_id, text))
+        return True
+
+    monkeypatch.setattr(agent_tools_api, "_send_feedback_notification", fake_send)
+    return box
+
+
+def test_done_notifies_author(client, db_session, monkeypatch, sent_messages):
+    row = _mk(db_session, "вес на дашборде неверный")
+    _set_admin(monkeypatch, True)
+    r = client.post("/api/agent/triage_feedback", json={"feedback_id": row.id, "status": "done"})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["notified"] is True and body.get("notify_skipped") is None
+    assert len(sent_messages) == 1
+    chat_id, text = sent_messages[0]
+    assert chat_id == row.user_id
+    assert "разобрал" in text.lower()
+    db_session.expire_all()
+    assert crud.get_feedback(db_session, row.id).notified_at is not None
+
+
+def test_second_done_does_not_renotify(client, db_session, monkeypatch, sent_messages):
+    row = _mk(db_session)
+    _set_admin(monkeypatch, True)
+    client.post("/api/agent/triage_feedback", json={"feedback_id": row.id, "status": "done"})
+    r2 = client.post("/api/agent/triage_feedback", json={"feedback_id": row.id, "status": "done"})
+    assert r2.json()["notified"] is False
+    assert r2.json()["notify_skipped"] == "already_notified"
+    assert len(sent_messages) == 1  # второй done не шлёт заново
+
+
+def test_opt_out_user_not_notified(client, db_session, monkeypatch, sent_messages):
+    from database.models import UserSettings
+
+    row = _mk(db_session)
+    db_session.add(UserSettings(user_id=row.user_id, feedback_opt_out=True))
+    db_session.commit()
+    _set_admin(monkeypatch, True)
+    r = client.post("/api/agent/triage_feedback", json={"feedback_id": row.id, "status": "done"})
+    body = r.json()
+    assert body["notified"] is False and body["notify_skipped"] == "opt_out"
+    assert len(sent_messages) == 0
+    db_session.expire_all()
+    assert crud.get_feedback(db_session, row.id).notified_at is None  # не штампуем, opt-out
+
+
+def test_custom_notify_text_sent_and_stamps(client, db_session, monkeypatch, sent_messages):
+    # question можно закрыть человеческим ответом даже без смены статуса.
+    row = crud.create_feedback(
+        db_session, user_id=895655, text="как считается клетчатка?", source="command", kind="question"
+    )
+    _set_admin(monkeypatch, True)
+    r = client.post(
+        "/api/agent/triage_feedback",
+        json={"feedback_id": row.id, "notify_text": "Клетчатка — из таблицы USDA."},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["notified"] is True
+    assert sent_messages == [(row.user_id, "Клетчатка — из таблицы USDA.")]
+    db_session.expire_all()
+    assert crud.get_feedback(db_session, row.id).notified_at is not None
+
+
+def test_in_progress_does_not_notify(client, db_session, monkeypatch, sent_messages):
+    row = _mk(db_session)
+    _set_admin(monkeypatch, True)
+    r = client.post("/api/agent/triage_feedback", json={"feedback_id": row.id, "status": "in_progress"})
+    assert r.json()["notified"] is False and r.json().get("notify_skipped") is None
+    assert len(sent_messages) == 0
+
+
+def test_send_failure_leaves_unnotified(client, db_session, monkeypatch):
+    from webhook import agent_tools_api
+
+    async def failing_send(chat_id, text):
+        return False
+
+    monkeypatch.setattr(agent_tools_api, "_send_feedback_notification", failing_send)
+    row = _mk(db_session)
+    _set_admin(monkeypatch, True)
+    r = client.post("/api/agent/triage_feedback", json={"feedback_id": row.id, "status": "done"})
+    body = r.json()
+    assert body["notified"] is False and body["notify_skipped"] == "send_failed"
+    db_session.expire_all()
+    # не штампуем при неудаче отправки → следующий триаж повторит попытку
+    assert crud.get_feedback(db_session, row.id).notified_at is None
