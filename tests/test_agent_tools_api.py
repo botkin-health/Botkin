@@ -883,6 +883,68 @@ def test_recent_supplements_scoped_to_user(client, db_session, monkeypatch):
     assert captured.get("uid") == 895655
 
 
+class TestSupplementDailyLog:
+    """GET /supplement_daily_log — per-day taken-dates for correlation joins."""
+
+    def _add(self, db, name, d, dosage=None, t=time(9, 0), uid=895655):
+        db.add(SupplementLog(user_id=uid, date=d, time=t, supplement_name=name, dosage=dosage))
+
+    def test_taken_dates_and_adherence(self, client, db_session):
+        today = datetime.now(MSK).date()
+        # магний: 3 разных дня (сегодня два приёма — схлопываются в одну дату)
+        self._add(db_session, "магний", today, dosage="350мг", t=time(9, 0))
+        self._add(db_session, "магний", today, dosage="400мг", t=time(21, 0))  # позже → last_dosage
+        self._add(db_session, "магний", today - timedelta(days=2), dosage="300мг")
+        self._add(db_session, "магний", today - timedelta(days=5))
+        db_session.commit()
+
+        r = client.get("/api/agent/supplement_daily_log?days=30")
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["status"] == "ok"
+        assert body["period_days"] == 30
+        assert body["end_date"] == today.isoformat()
+        assert body["start_date"] == (today - timedelta(days=29)).isoformat()
+
+        mg = next(s for s in body["supplements"] if s["supplement"] == "магний")
+        assert mg["days_taken"] == 3  # два приёма сегодня = одна дата
+        assert mg["taken_dates"] == [
+            (today - timedelta(days=5)).isoformat(),
+            (today - timedelta(days=2)).isoformat(),
+            today.isoformat(),
+        ]
+        assert mg["adherence_pct"] == round(100 * 3 / 30, 1)
+        assert mg["last_dosage"] == "400мг"  # последний по (date, time)
+
+    def test_scoped_to_user(self, client, db_session):
+        today = datetime.now(MSK).date()
+        self._add(db_session, "магний", today, uid=895655)
+        self._add(db_session, "чужое", today, uid=999999)  # другой юзер — не должен просочиться
+        db_session.commit()
+        body = client.get("/api/agent/supplement_daily_log?days=30").json()
+        assert {s["supplement"] for s in body["supplements"]} == {"магний"}
+
+    def test_filter_by_name_case_insensitive(self, client, db_session):
+        today = datetime.now(MSK).date()
+        self._add(db_session, "Магний", today)
+        self._add(db_session, "Омега 3", today)
+        db_session.commit()
+        body = client.get("/api/agent/supplement_daily_log?days=30&supplement=магний").json()
+        assert {s["supplement"] for s in body["supplements"]} == {"Магний"}
+
+    def test_window_excludes_old(self, client, db_session):
+        today = datetime.now(MSK).date()
+        self._add(db_session, "магний", today - timedelta(days=40))  # вне окна 30д
+        db_session.commit()
+        body = client.get("/api/agent/supplement_daily_log?days=30").json()
+        assert body["supplements"] == []
+
+    def test_empty(self, client, db_session):
+        body = client.get("/api/agent/supplement_daily_log?days=30").json()
+        assert body["status"] == "ok"
+        assert body["supplements"] == []
+
+
 class TestLatestBiomarkers:
     """GET /latest_biomarkers — per-marker aggregated view with staleness."""
 
