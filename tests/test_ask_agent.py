@@ -196,6 +196,27 @@ def test_tool_loop_calls_tools_api_and_returns_final_answer(agent_db, monkeypatc
     assert roles == ["user", "assistant", "tool_result", "assistant"]
 
 
+def test_supplement_daily_log_tool_dispatch(agent_db, monkeypatch):
+    """get_supplement_daily_log → GET /supplement_daily_log с days + supplement."""
+    fake = FakeRequests(
+        [
+            _anthropic_tool_use("get_supplement_daily_log", {"days": 30, "supplement": "магний"}),
+            _anthropic_text("Магний принимался 12 из 30 дней."),
+        ],
+        tool_payload={"status": "ok", "supplements": [{"supplement": "магний", "days_taken": 12}]},
+    )
+    monkeypatch.setattr(agent_chat, "requests", fake)
+
+    reply = agent_chat.ask_agent(895655, "влияет ли магний на мой сон?")
+
+    assert "12" in reply
+    assert len(fake.tool_calls) == 1
+    call = fake.tool_calls[0]
+    assert call["url"].endswith("/supplement_daily_log")
+    assert call["params"]["days"] == 30
+    assert call["params"]["supplement"] == "магний"
+
+
 def test_api_error_raises_cleanly(agent_db, monkeypatch):
     """(3) 500 от Anthropic → чистый HTTPError наружу (хендлер его ловит),
     без полу-сохранённого ответа ассистента в истории."""

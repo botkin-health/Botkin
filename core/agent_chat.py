@@ -248,6 +248,26 @@ TOOLS: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "get_supplement_daily_log",
+        "description": (
+            "Для КОРРЕЛЯЦИОННОГО анализа приёма добавки с метриками по дням "
+            "(напр. «влияет ли магний на качество сна», «алкоголь и HRV»). "
+            "В отличие от get_recent_supplements (только агрегаты), возвращает "
+            "для каждой добавки список ДАТ приёма (taken_dates) за период + "
+            "границы окна [start_date, end_date]. День без даты в списке = "
+            "не принимал → можно сопоставлять с get_recent_sleep / get_recent_bp "
+            "и т.п. по дням. Опц. параметр supplement — фильтр по одному "
+            "препарату (подстрока имени). Период по умолчанию 30 дней."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "days": {"type": "integer", "minimum": 1, "maximum": 180, "default": 30},
+                "supplement": {"type": "string", "description": "опц. фильтр по имени добавки (подстрока)"},
+            },
+        },
+    },
+    {
         "name": "get_recent_biomarkers",
         "description": (
             "ЕДИНСТВЕННЫЙ источник для вопросов про анализы крови, гормоны, "
@@ -952,6 +972,16 @@ def _call_tool(name: str, args: dict, token: str) -> str:
             r = requests.get(
                 f"{TOOLS_API_BASE}/recent_supplements",
                 params={"days": int(args.get("days", 30))},
+                headers=headers,
+                timeout=15,
+            )
+        elif name == "get_supplement_daily_log":
+            params = {"days": int(args.get("days", 30))}
+            if args.get("supplement"):
+                params["supplement"] = str(args["supplement"])
+            r = requests.get(
+                f"{TOOLS_API_BASE}/supplement_daily_log",
+                params=params,
                 headers=headers,
                 timeout=15,
             )
@@ -1810,6 +1840,7 @@ _TOOL_PROGRESS_LABEL = {
     # Read tools
     "get_recent_meals": "🍽 собираю питание",
     "get_recent_supplements": "💊 смотрю добавки",
+    "get_supplement_daily_log": "💊 сверяю приём добавок по дням",
     "get_recent_bp": "🩸 поднимаю давление",
     "get_recent_glucose": "🩸 смотрю глюкозу",
     "get_glucose_stats": "🩸 считаю TIR",
