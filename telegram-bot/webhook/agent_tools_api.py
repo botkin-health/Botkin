@@ -630,7 +630,6 @@ async def triage_feedback(
         kind=row.kind,
         status=row.status,
         text=row.text,
-        github_issue=row.github_issue,
         custom=req.notify_text,
     )
     if msg:

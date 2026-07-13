@@ -32,25 +32,25 @@ def build_notification_text(
     kind: str,
     status: str,
     text: str,
-    github_issue: Optional[str] = None,
     custom: Optional[str] = None,
 ) -> Optional[str]:
     """Текст уведомления автору или None, если уведомлять не нужно.
 
     kind: 'bug'|'feature'|'question'|'unspecified' (сейчас на текст не влияет,
     но передаём для будущей тональности). status — новый статус записи.
-    github_issue — привязанный номер (без '#'); упоминается в done-тексте.
     custom — явный текст от админа, перекрывает всё.
+
+    Внутренний номер GitHub-issue в тексте намеренно НЕ упоминается: репозиторий
+    приватный, для пользователя это лишь непонятная метка.
     """
     if custom and custom.strip():
         return custom.strip()
 
     quote = _snippet(text)
     if status == "done":
-        issue_ref = f" (задача #{github_issue})" if github_issue else ""
         return (
             f"Ты писал(а): «{quote}»\n\n"
-            f"Мы разобрались 🙏{issue_ref} Спасибо, что помогаешь делать бота лучше! "
+            f"Мы разобрались 🙏 Спасибо, что помогаешь делать бота лучше! "
             f"Если что-то ещё — пиши /feedback."
         )
     if status == "wontfix":

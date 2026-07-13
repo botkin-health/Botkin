@@ -37,12 +37,8 @@ def test_done_mentions_resolution_and_quotes_original():
     assert "разобрал" in msg.lower()  # «разобрались»
 
 
-def test_done_includes_github_issue_when_linked():
-    msg = build_notification_text(kind="bug", status="done", text="баг", github_issue="300")
-    assert "300" in msg
-
-
-def test_done_without_issue_has_no_stray_hash():
+def test_done_does_not_leak_internal_issue_number():
+    # Внутренний номер GitHub-issue не показываем пользователю — репозиторий приватный.
     msg = build_notification_text(kind="bug", status="done", text="баг")
     assert "#" not in msg
 
