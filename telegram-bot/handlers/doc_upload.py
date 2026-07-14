@@ -11,7 +11,7 @@ import logging
 import tempfile
 from datetime import date
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from aiogram import F, Router
 from aiogram.filters import Command
@@ -23,6 +23,10 @@ from aiogram.types import (
     InlineKeyboardMarkup,
     Message,
 )
+
+from core.health.onboarding_lists import ALLERGY_KEYS, CONDITION_KEYS, onboarding_list
+from database import SessionLocal
+from database.crud import merge_onboarding_lists
 
 logger = logging.getLogger(__name__)
 
@@ -52,22 +56,48 @@ def _stored_name(content: bytes, ext: str) -> str:
     return f"{date.today().isoformat()}_{h}{ext}"
 
 
-def _preview_text(extracted: dict[str, Any]) -> str:
-    """Форматирует превью найденных данных для показа пользователю."""
-    values = extracted.get("values") if extracted else None
-    if not values:
+def _has_content(extracted: dict) -> bool:
+    """Есть ли что сохранять: числа ИЛИ аллергии ИЛИ диагнозы."""
+    if not extracted:
+        return False
+    return bool(extracted.get("values") or extracted.get("allergies") or extracted.get("conditions"))
+
+
+def _read_existing_profile(user_id: int) -> dict[str, list[str]]:
+    """Текущие аллергии/диагнозы юзера из onboarding_data (для превью-пометок)."""
+    from database.crud import get_user_by_telegram_id
+
+    db = SessionLocal()
+    try:
+        user = get_user_by_telegram_id(db, user_id)
+        onboarding = (user.onboarding_data or {}) if user else {}
+        return {
+            "allergies": onboarding_list(onboarding, ALLERGY_KEYS),
+            "chronic_conditions": onboarding_list(onboarding, CONDITION_KEYS),
+        }
+    finally:
+        db.close()
+
+
+def _preview_text(extracted: dict[str, Any], existing: Optional[dict] = None) -> str:
+    """Форматирует превью найденных данных. existing — текущий onboarding_data юзера
+    (для пометки «новое» vs «уже в профиле»)."""
+    existing = existing or {}
+    existing_allergies = {s.lower() for s in onboarding_list(existing, ALLERGY_KEYS)}
+    existing_conditions = {s.lower() for s in onboarding_list(existing, CONDITION_KEYS)}
+
+    if not _has_content(extracted):
         return (
-            "⚠️ Не нашёл числовых значений в документе.\n\n"
+            "⚠️ Не нашёл данных для сохранения в документе.\n\n"
             "Это всё равно можно сохранить как архив — "
             "запомню что такой документ есть, и смогу перечитать его при разговоре."
         )
 
-    lines = ["📋 <b>Нашёл в документе:</b>"]
+    lines: list[str] = ["📋 <b>Нашёл в документе:</b>"]
 
     doc_date = extracted.get("date")
     if doc_date:
         lines.append(f"• <b>Дата:</b> {doc_date}")
-
     lab = extracted.get("laboratory")
     if lab:
         lines.append(f"• <b>Лаборатория:</b> {lab}")
@@ -76,11 +106,24 @@ def _preview_text(extracted: dict[str, Any]) -> str:
     if doc_type:
         lines.append(f"• <b>Тип:</b> {doc_type}")
 
+    values = extracted.get("values") or {}
     for key, val in list(values.items())[:15]:
         lines.append(f"• {key}: {str(val)[:50]}")
-
     if len(values) > 15:
         lines.append(f"  <i>...и ещё {len(values) - 15} показателей</i>")
+
+    def _mark(item: str, existing_set: set) -> str:
+        return f"• {item} — ✓ уже в профиле" if item.lower() in existing_set else f"• {item} — 🆕"
+
+    allergies = extracted.get("allergies") or []
+    if allergies:
+        lines.append("\n🤧 <b>Аллергии:</b>")
+        lines.extend(_mark(a, existing_allergies) for a in allergies)
+
+    conditions = extracted.get("conditions") or []
+    if conditions:
+        lines.append("\n🩺 <b>Диагнозы:</b>")
+        lines.extend(_mark(c, existing_conditions) for c in conditions)
 
     lines.append("\nСохранить эти данные в твою базу здоровья?")
     return "\n".join(lines)
@@ -230,9 +273,10 @@ async def doc_received(message: Message, state: FSMContext) -> None:
         extracted = {}
 
     await state.update_data(pending={"tmp_path": str(tmp_path), "stored_name": stored_name, "extracted": extracted})
+    existing = _read_existing_profile(user_id)
     await processing.edit_text(
-        _preview_text(extracted),
-        reply_markup=_preview_keyboard(bool(extracted.get("values"))),
+        _preview_text(extracted, existing),
+        reply_markup=_preview_keyboard(_has_content(extracted)),
         parse_mode="HTML",
     )
 
@@ -274,9 +318,35 @@ async def doc_confirm(callback: CallbackQuery, state: FSMContext) -> None:
         await callback.answer()
         return
 
+    extracted = pending.get("extracted") or {}
+    profile_note = ""
+    if extracted.get("allergies") or extracted.get("conditions"):
+        db = SessionLocal()
+        try:
+            counts = merge_onboarding_lists(
+                db,
+                user_id,
+                {
+                    "allergies": extracted.get("allergies") or [],
+                    "chronic_conditions": extracted.get("conditions") or [],
+                },
+            )
+        except Exception:
+            logger.exception("doc_upload: merge onboarding не удался (user %s)", user_id)
+            profile_note = "\n⚠️ Документ сохранён, но профиль обновить не удалось — попробуй ещё раз."
+            counts = None
+        finally:
+            db.close()
+        if counts is not None:
+            n_a, n_c = counts.get("allergies", 0), counts.get("chronic_conditions", 0)
+            if n_a or n_c:
+                profile_note = f"\nВ профиль добавлено: аллергии +{n_a}, диагнозы +{n_c}."
+            else:
+                profile_note = "\nНового в профиль не добавил (всё уже было)."
+
     await state.update_data(pending=None)
     await callback.message.edit_text(
-        "✅ Сохранено в твою базу здоровья.\n\nМожешь прислать ещё документ или /cancel.",
+        "✅ Сохранено в твою базу здоровья." + profile_note + "\n\nМожешь прислать ещё документ или /cancel.",
         parse_mode="HTML",
     )
     await callback.answer("Сохранено")
