@@ -153,3 +153,76 @@ async def test_cmd_doc_sets_fsm_state():
 
     state.set_state.assert_called_once()
     msg.answer.assert_called_once()
+
+
+def test_read_existing_profile_reads_onboarding(test_db, monkeypatch):
+    import handlers.doc_upload as mod
+    from database.models import User
+
+    test_db.add(
+        User(
+            telegram_id=555,
+            first_name="Т",
+            is_active=True,
+            cohort="external",
+            pack_name="generic",
+            onboarding_data={"allergies": ["Пыльца"]},
+        )
+    )
+    test_db.commit()
+    monkeypatch.setattr(mod, "SessionLocal", lambda: test_db)
+
+    prof = mod._read_existing_profile(555)
+    assert prof["allergies"] == ["Пыльца"]
+    assert prof["chronic_conditions"] == []
+
+
+@pytest.mark.asyncio
+async def test_doc_confirm_save_merges_into_onboarding(test_db, tmp_path, monkeypatch):
+    import handlers.doc_upload as mod
+    from database.models import User
+
+    test_db.add(
+        User(
+            telegram_id=777,
+            first_name="Т",
+            is_active=True,
+            cohort="external",
+            pack_name="generic",
+            onboarding_data={},
+        )
+    )
+    test_db.commit()
+    monkeypatch.setattr(mod, "SessionLocal", lambda: test_db)
+    monkeypatch.setattr(mod, "_PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(mod, "_UPLOADS_DIR", tmp_path / "data" / "uploads")
+
+    uploads = tmp_path / "data" / "uploads" / "777"
+    uploads.mkdir(parents=True)
+    pending = uploads / ".pending_2026-07-14_abcd1234.pdf"
+    pending.write_bytes(b"x")
+
+    callback = MagicMock()
+    callback.data = "docup_save"
+    callback.from_user.id = 777
+    callback.message.edit_text = AsyncMock()
+    callback.answer = AsyncMock()
+    state = AsyncMock()
+    state.get_data = AsyncMock(
+        return_value={
+            "pending": {
+                "tmp_path": str(pending),
+                "stored_name": "2026-07-14_abcd1234.pdf",
+                "extracted": {"values": {}, "allergies": ["Пыльца"], "conditions": ["Астма"]},
+            }
+        }
+    )
+    state.update_data = AsyncMock()
+
+    await mod.doc_confirm(callback, state)
+
+    u = test_db.query(User).filter_by(telegram_id=777).one()
+    assert u.onboarding_data["allergies"] == ["Пыльца"]
+    assert u.onboarding_data["chronic_conditions"] == ["Астма"]
+    final_text = callback.message.edit_text.call_args[0][0]
+    assert "аллергии" in final_text.lower() and "1" in final_text

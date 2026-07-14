@@ -25,6 +25,8 @@ from aiogram.types import (
 )
 
 from core.health.onboarding_lists import ALLERGY_KEYS, CONDITION_KEYS, onboarding_list
+from database import SessionLocal
+from database.crud import merge_onboarding_lists
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +61,22 @@ def _has_content(extracted: dict) -> bool:
     if not extracted:
         return False
     return bool(extracted.get("values") or extracted.get("allergies") or extracted.get("conditions"))
+
+
+def _read_existing_profile(user_id: int) -> dict[str, list[str]]:
+    """Текущие аллергии/диагнозы юзера из onboarding_data (для превью-пометок)."""
+    from database.crud import get_user_by_telegram_id
+
+    db = SessionLocal()
+    try:
+        user = get_user_by_telegram_id(db, user_id)
+        onboarding = (user.onboarding_data or {}) if user else {}
+        return {
+            "allergies": onboarding_list(onboarding, ALLERGY_KEYS),
+            "chronic_conditions": onboarding_list(onboarding, CONDITION_KEYS),
+        }
+    finally:
+        db.close()
 
 
 def _preview_text(extracted: dict[str, Any], existing: Optional[dict] = None) -> str:
@@ -255,8 +273,9 @@ async def doc_received(message: Message, state: FSMContext) -> None:
         extracted = {}
 
     await state.update_data(pending={"tmp_path": str(tmp_path), "stored_name": stored_name, "extracted": extracted})
+    existing = _read_existing_profile(user_id)
     await processing.edit_text(
-        _preview_text(extracted),
+        _preview_text(extracted, existing),
         reply_markup=_preview_keyboard(_has_content(extracted)),
         parse_mode="HTML",
     )
@@ -299,9 +318,35 @@ async def doc_confirm(callback: CallbackQuery, state: FSMContext) -> None:
         await callback.answer()
         return
 
+    extracted = pending.get("extracted") or {}
+    profile_note = ""
+    if extracted.get("allergies") or extracted.get("conditions"):
+        db = SessionLocal()
+        try:
+            counts = merge_onboarding_lists(
+                db,
+                user_id,
+                {
+                    "allergies": extracted.get("allergies") or [],
+                    "chronic_conditions": extracted.get("conditions") or [],
+                },
+            )
+        except Exception:
+            logger.exception("doc_upload: merge onboarding не удался (user %s)", user_id)
+            profile_note = "\n⚠️ Документ сохранён, но профиль обновить не удалось — попробуй ещё раз."
+            counts = None
+        finally:
+            db.close()
+        if counts is not None:
+            n_a, n_c = counts.get("allergies", 0), counts.get("chronic_conditions", 0)
+            if n_a or n_c:
+                profile_note = f"\nВ профиль добавлено: аллергии +{n_a}, диагнозы +{n_c}."
+            else:
+                profile_note = "\nНового в профиль не добавил (всё уже было)."
+
     await state.update_data(pending=None)
     await callback.message.edit_text(
-        "✅ Сохранено в твою базу здоровья.\n\nМожешь прислать ещё документ или /cancel.",
+        "✅ Сохранено в твою базу здоровья." + profile_note + "\n\nМожешь прислать ещё документ или /cancel.",
         parse_mode="HTML",
     )
     await callback.answer("Сохранено")
