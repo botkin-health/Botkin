@@ -1903,6 +1903,29 @@ def build_default_agent_prompt(user) -> str:
     )
 
 
+def _health_profile_block(user) -> str:
+    """Живой блок медпрофиля (аллергии/диагнозы из onboarding_data) для промпта.
+
+    Пусто по обоим ключам → пустая строка (не шумим). Читает те же ключи,
+    куда пишет merge_onboarding_lists, поэтому агент видит свежие данные сразу
+    после /doc-сохранения (промпт пересобирается на каждый вызов ask_agent).
+    """
+    from core.health.onboarding_lists import ALLERGY_KEYS, CONDITION_KEYS, onboarding_list
+
+    data = getattr(user, "onboarding_data", None) or {}
+    allergies = onboarding_list(data, ALLERGY_KEYS)
+    conditions = onboarding_list(data, CONDITION_KEYS)
+    if not allergies and not conditions:
+        return ""
+    lines = ["\n\n## Медпрофиль (со слов пациента / из документов)"]
+    if allergies:
+        lines.append(f"Аллергии: {', '.join(allergies)}")
+    if conditions:
+        lines.append(f"Хронические диагнозы: {', '.join(conditions)}")
+    lines.append("Учитывай при советах (лекарства, продукты, триггеры).")
+    return "\n".join(lines)
+
+
 def ask_agent(
     user_id: int,
     user_text: str,
@@ -2477,7 +2500,7 @@ def ask_agent(
             "на любой вопрос о текущем времени/«сейчас» отвечай ТОЛЬКО по нему; "
             "упоминания времени в сообщениях пользователя из истории устарели.\n\n"
         )
-        merged_system_prompt = _date_line + UNIVERSAL_META_PROMPT + per_user_prompt
+        merged_system_prompt = _date_line + UNIVERSAL_META_PROMPT + per_user_prompt + _health_profile_block(user)
         # Tracker-события (вес/еда/АД из парсеров) меняются КАЖДОЕ сообщение —
         # держим их ОТДЕЛЬНЫМ system-блоком БЕЗ cache_control, чтобы не
         # инвалидировать кэш стабильного промпта на каждый ход (#169 ревью).
