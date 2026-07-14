@@ -113,6 +113,33 @@ def test_append_document_to_kb_preserves_sections(tmp_path, monkeypatch):
     assert len(data["documents"]) == 1
 
 
+def test_preview_shows_allergies_new_vs_existing():
+    from handlers.doc_upload import _preview_text
+
+    extracted = {"values": {}, "allergies": ["Пыльца", "Кошки"], "conditions": []}
+    existing = {"allergies": ["Пыльца"], "chronic_conditions": []}
+    text = _preview_text(extracted, existing)
+    assert "Кошки" in text
+    assert "Пыльца" in text
+    assert text.count("🆕") >= 1
+
+
+def test_preview_conditions_only_is_not_archive():
+    from handlers.doc_upload import _preview_text
+
+    extracted = {"values": {}, "allergies": [], "conditions": ["Астма (J45.0)"]}
+    text = _preview_text(extracted, {})
+    assert "Астма (J45.0)" in text
+    assert "не нашёл" not in text.lower()
+
+
+def test_preview_truly_empty_is_archive():
+    from handlers.doc_upload import _preview_text
+
+    text = _preview_text({"values": {}, "allergies": [], "conditions": []}, {})
+    assert "не нашёл" in text.lower() or "архив" in text.lower()
+
+
 @pytest.mark.asyncio
 async def test_cmd_doc_sets_fsm_state():
     """Команда /doc переводит в состояние DocUpload.waiting."""

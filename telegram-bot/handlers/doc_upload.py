@@ -11,7 +11,7 @@ import logging
 import tempfile
 from datetime import date
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from aiogram import F, Router
 from aiogram.filters import Command
@@ -23,6 +23,8 @@ from aiogram.types import (
     InlineKeyboardMarkup,
     Message,
 )
+
+from core.health.onboarding_lists import ALLERGY_KEYS, CONDITION_KEYS, onboarding_list
 
 logger = logging.getLogger(__name__)
 
@@ -52,22 +54,32 @@ def _stored_name(content: bytes, ext: str) -> str:
     return f"{date.today().isoformat()}_{h}{ext}"
 
 
-def _preview_text(extracted: dict[str, Any]) -> str:
-    """Форматирует превью найденных данных для показа пользователю."""
-    values = extracted.get("values") if extracted else None
-    if not values:
+def _has_content(extracted: dict) -> bool:
+    """Есть ли что сохранять: числа ИЛИ аллергии ИЛИ диагнозы."""
+    if not extracted:
+        return False
+    return bool(extracted.get("values") or extracted.get("allergies") or extracted.get("conditions"))
+
+
+def _preview_text(extracted: dict[str, Any], existing: Optional[dict] = None) -> str:
+    """Форматирует превью найденных данных. existing — текущий onboarding_data юзера
+    (для пометки «новое» vs «уже в профиле»)."""
+    existing = existing or {}
+    existing_allergies = {s.lower() for s in onboarding_list(existing, ALLERGY_KEYS)}
+    existing_conditions = {s.lower() for s in onboarding_list(existing, CONDITION_KEYS)}
+
+    if not _has_content(extracted):
         return (
-            "⚠️ Не нашёл числовых значений в документе.\n\n"
+            "⚠️ Не нашёл данных для сохранения в документе.\n\n"
             "Это всё равно можно сохранить как архив — "
             "запомню что такой документ есть, и смогу перечитать его при разговоре."
         )
 
-    lines = ["📋 <b>Нашёл в документе:</b>"]
+    lines: list[str] = ["📋 <b>Нашёл в документе:</b>"]
 
     doc_date = extracted.get("date")
     if doc_date:
         lines.append(f"• <b>Дата:</b> {doc_date}")
-
     lab = extracted.get("laboratory")
     if lab:
         lines.append(f"• <b>Лаборатория:</b> {lab}")
@@ -76,11 +88,24 @@ def _preview_text(extracted: dict[str, Any]) -> str:
     if doc_type:
         lines.append(f"• <b>Тип:</b> {doc_type}")
 
+    values = extracted.get("values") or {}
     for key, val in list(values.items())[:15]:
         lines.append(f"• {key}: {str(val)[:50]}")
-
     if len(values) > 15:
         lines.append(f"  <i>...и ещё {len(values) - 15} показателей</i>")
+
+    def _mark(item: str, existing_set: set) -> str:
+        return f"• {item} — ✓ уже в профиле" if item.lower() in existing_set else f"• {item} — 🆕"
+
+    allergies = extracted.get("allergies") or []
+    if allergies:
+        lines.append("\n🤧 <b>Аллергии:</b>")
+        lines.extend(_mark(a, existing_allergies) for a in allergies)
+
+    conditions = extracted.get("conditions") or []
+    if conditions:
+        lines.append("\n🩺 <b>Диагнозы:</b>")
+        lines.extend(_mark(c, existing_conditions) for c in conditions)
 
     lines.append("\nСохранить эти данные в твою базу здоровья?")
     return "\n".join(lines)
@@ -232,7 +257,7 @@ async def doc_received(message: Message, state: FSMContext) -> None:
     await state.update_data(pending={"tmp_path": str(tmp_path), "stored_name": stored_name, "extracted": extracted})
     await processing.edit_text(
         _preview_text(extracted),
-        reply_markup=_preview_keyboard(bool(extracted.get("values"))),
+        reply_markup=_preview_keyboard(_has_content(extracted)),
         parse_mode="HTML",
     )
 
