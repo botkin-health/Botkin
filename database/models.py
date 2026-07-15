@@ -795,3 +795,57 @@ class PersonalAccessToken(Base):
     def is_active(self) -> bool:
         """Токен действителен, пока не отозван."""
         return self.revoked_at is None
+
+
+class FunnelEvent(Base):
+    """Событие продуктовой воронки онбординга/активации.
+
+    Отдельно от audit_log (тот про админ-DML). user_id без FK намеренно
+    (событие может опережать полную запись юзера). RLS (агент не читает) —
+    в миграции, не в ORM.
+    """
+
+    __tablename__ = "funnel_events"
+
+    # BigInteger PK; на sqlite (тесты) рендерим как Integer, иначе нет автоинкремента
+    # (см. тот же приём у PersonalAccessToken.id выше).
+    id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer(), "sqlite"), primary_key=True, autoincrement=True
+    )
+    ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    user_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
+    event: Mapped[str] = mapped_column(String(40), nullable=False)
+    track: Mapped[Optional[str]] = mapped_column(String(8), nullable=True)
+    source: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    meta: Mapped[Optional[dict]] = mapped_column(JSONBCompat, default=dict)
+
+    __table_args__ = (
+        Index("idx_funnel_event_ts", "event", text("ts DESC")),
+        Index(
+            "idx_funnel_once",
+            "user_id",
+            "event",
+            unique=True,
+            sqlite_where=text("event IN ('first_food_logged','first_agent_question')"),
+            postgresql_where=text("event IN ('first_food_logged','first_agent_question')"),
+        ),
+    )
+
+
+_ONCE_EVENTS = {"first_food_logged", "first_agent_question"}
+
+
+def log_event(db, user_id, event, track=None, source=None, meta=None, once=False):
+    """Записать событие воронки. once=True (или «первое» событие) → идемпотентно
+    (полагается на partial-unique-индекс idx_funnel_once; дубликат гасится).
+    Коммит — на вызывающей стороне."""
+    from sqlalchemy.exc import IntegrityError
+
+    ev = FunnelEvent(user_id=user_id, event=event, track=track, source=source, meta=meta or {})
+    db.add(ev)
+    if once or event in _ONCE_EVENTS:
+        try:
+            db.flush()
+        except IntegrityError:
+            db.rollback()
+    return ev
