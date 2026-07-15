@@ -38,10 +38,11 @@ EXPECTED_TABLES = {
     "personal_access_tokens",
     "verified_products",
     "user_feedback",
+    "funnel_events",
 }
 
 # Актуальный head миграций. Обновляется при каждой новой ревизии.
-HEAD_REVISION = "grip0stren01"
+HEAD_REVISION = "funnel0evt01"
 
 
 def _alembic_config() -> Config:
