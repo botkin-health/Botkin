@@ -24,3 +24,28 @@ def test_get_persona_falls_back_to_default_on_unknown_or_none():
     assert get_persona(None).key == DEFAULT_PERSONA
     assert get_persona("bogus").key == DEFAULT_PERSONA
     assert get_persona("strict_coach").key == "strict_coach"
+
+
+from types import SimpleNamespace
+from core.agent_chat import build_default_agent_prompt
+
+
+def _user(persona=None, **data):
+    d = {"name": "Игорь", "age": 35, "sex": "male", "goal": "Похудеть"}
+    d.update(data)
+    if persona is not None:
+        d["persona"] = persona
+    return SimpleNamespace(onboarding_data=d, first_name="Игорь", agent_system_prompt=None)
+
+
+def test_prompt_includes_persona_tone_block_when_set():
+    prompt = build_default_agent_prompt(_user(persona="strict_coach"))
+    assert "Стиль общения" in prompt
+    assert "Строгий тренер" in prompt
+    assert "стиль, а не содержание" in prompt.lower()
+
+
+def test_prompt_uses_default_tone_when_persona_absent():
+    prompt = build_default_agent_prompt(_user())  # без persona
+    assert "Стиль общения" in prompt
+    assert "Заботливый врач" in prompt  # дефолт

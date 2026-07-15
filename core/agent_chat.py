@@ -1902,7 +1902,7 @@ def build_default_agent_prompt(user) -> str:
         bits.append(sex_ru)
     who = name + (f" ({', '.join(bits)})" if bits else "")
 
-    return (
+    base = (
         f"Ты — личный AI-агент по теме здоровья для пользователя {name}. "
         "Часть проекта Botkin (botkin.health), канал Telegram @Botkin_md_bot.\n\n"
         "## Пользователь\n\n"
@@ -1932,6 +1932,16 @@ def build_default_agent_prompt(user) -> str:
         "вес/тело, сон, давление). Не угадывай. Если данных ещё нет (новый пользователь) — "
         "так и скажи и предложи начать логировать.\n"
     )
+
+    from core.personas import get_persona
+
+    persona = get_persona(data.get("persona"))
+    tone_block = (
+        "\n\n## Стиль общения\n\n"
+        f"Общайся в манере «{persona.display}»: {persona.tone_prompt}.\n"
+        "Это стиль, а не содержание — факты и цифры всегда бери из tools."
+    )
+    return base + tone_block
 
 
 def _health_profile_block(user) -> str:
