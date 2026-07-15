@@ -21,7 +21,7 @@ import httpx
 
 from bot_token import resolve_bot_token
 from database import SessionLocal
-from database.models import User, UserSettings, Weight
+from database.models import User, UserSettings, Weight, log_event
 
 logger = logging.getLogger(__name__)
 
@@ -127,25 +127,36 @@ async def process_onboarding_message(payload: dict) -> None:
         user = db.query(User).filter_by(telegram_id=from_id).first()
 
         if not user:
+            # deep-link: "/start <payload>" → track (b2c|b2b) + source-атрибуция
+            payload_arg = ""
+            if text.startswith("/start"):
+                parts = text.split(maxsplit=1)
+                payload_arg = parts[1].strip() if len(parts) > 1 else ""
+            is_coach = payload_arg.startswith("coach")
+            track = "b2b" if is_coach else "b2c"
+            source = "" if is_coach else payload_arg
+
+            if track == "b2b":
+                from handlers.onboarding_coach import start_coach_onboarding
+
+                await start_coach_onboarding(payload)
+                return
+
             user = User(
                 telegram_id=from_id,
                 username=msg.get("from", {}).get("username"),
-                first_name="",
+                first_name=(msg.get("from", {}) or {}).get("first_name") or "",
                 cohort="external",
                 pack_name="generic",
-                onboarding_step="name",
-                onboarding_data={},
+                onboarding_step="goal",
+                onboarding_data={"track": track, "source": source},
                 is_active=True,
             )
             db.add(user)
             db.commit()
-            await send_message(
-                chat_id,
-                "👋 Привет! Я твой health-coach. Помогу с дневником питания, "
-                "приёмом лекарств и анализами здоровья.\n\n"
-                "Коротко познакомимся — 10 вопросов.\n\n"
-                "<b>1/10</b> Как тебя зовут? (одно слово)",
-            )
+            log_event(db, user_id=from_id, event="onboarding_started", track=track, source=source or None)
+            db.commit()
+            await _send_greeting_and_first_question(chat_id, user)
             return
 
         await _run_step(user, text, chat_id, db)
@@ -194,6 +205,18 @@ async def handle_setup_command(payload: dict) -> bool:
 
 
 # ─── State machine ────────────────────────────────────────────────────────
+
+
+async def _send_greeting_and_first_question(chat_id: int, user: "User") -> None:
+    name = user.first_name or "друг"
+    await send_message(
+        chat_id,
+        f"👋 Привет, {name}! Я Botkin — помощник по здоровью и питанию.\n"
+        "Со мной не надо учить команды — можно просто писать или говорить "
+        "словами (покажу в конце). Настроим твою цель за 6 вопросов.\n\n"
+        "<b>Цель · 1/6</b> Главная цель?",
+        reply_markup=KB_GOAL,
+    )
 
 
 async def _run_step(user: User, text: str, chat_id: int, db, prompt_only: bool = False) -> None:
