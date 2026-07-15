@@ -84,6 +84,22 @@ def _build_image_message(file_bytes: bytes, mime_type: str) -> dict:
     }
 
 
+def _build_text_message(file_bytes: bytes) -> dict:
+    """Собирает Anthropic-сообщение из уже извлечённого текста документа (text-блок).
+
+    Используется для PDF с текстовым слоем: текст извлекается в вызывающем коде и
+    приходит сюда байтами. Раньше такой вход ошибочно паковался в image-блок с
+    media_type=text/plain, который Anthropic отклоняет (см. #319)."""
+    doc_text = file_bytes.decode("utf-8", errors="replace")
+    return {
+        "role": "user",
+        "content": [
+            {"type": "text", "text": doc_text},
+            {"type": "text", "text": "Извлеки медицинские данные из этого документа."},
+        ],
+    }
+
+
 def _build_pdf_message(file_bytes: bytes) -> dict:
     """Собирает Anthropic-сообщение с base64 PDF (document source)."""
     b64 = base64.b64encode(file_bytes).decode("utf-8")
@@ -135,6 +151,8 @@ async def extract_medical_data(file_bytes: bytes, mime_type: str) -> dict[str, A
     try:
         if mime_type == "application/pdf":
             message = _build_pdf_message(file_bytes)
+        elif mime_type == "text/plain":
+            message = _build_text_message(file_bytes)
         else:
             message = _build_image_message(file_bytes, mime_type)
 
