@@ -101,6 +101,19 @@ LEGACY_STEP_MAP = {
     "wearables": "artifact",
 }
 
+# Human-readable (RU) labels for step keys shown to users in /setup messages —
+# raw keys like "goal, birth_date" must never leak into user-facing text.
+STEP_LABELS = {
+    "name": "имя",
+    "birth_date": "возраст",
+    "age": "возраст",
+    "sex": "пол",
+    "height": "рост",
+    "weight": "вес",
+    "goal": "цель",
+    "activity": "активность",
+}
+
 
 # ─── Public entry points ──────────────────────────────────────────────────
 
@@ -190,7 +203,7 @@ async def handle_setup_command(payload: dict) -> bool:
         db.commit()
         await send_message(
             chat_id,
-            f"Догоним пропущенные поля ({len(missing)} шт.): {', '.join(missing)}.",
+            f"Догоним пропущенные поля ({len(missing)} шт.): {', '.join(STEP_LABELS.get(m, m) for m in missing)}.",
         )
         # Trigger the question for the first missing step with empty input
         await _run_step(user, "", chat_id, db, prompt_only=True)
@@ -434,6 +447,11 @@ async def _run_step(user: User, text: str, chat_id: int, db, prompt_only: bool =
         await _show_artifact(user, data, chat_id, db)  # ставит step="persona", логирует E4
         return
 
+    # ── Артефакт (self-heal, если onboarding_step застрял на "artifact") ──
+    if step == "artifact":
+        await _show_artifact(user, data, chat_id, db)
+        return
+
     # ── Персона (тон агента) → финал ──────────────────────────────
     if step == "persona":
         from core.personas import PERSONAS, DEFAULT_PERSONA
@@ -460,7 +478,6 @@ async def _run_step(user: User, text: str, chat_id: int, db, prompt_only: bool =
             return
         data["persona"] = chosen
         user.onboarding_data = data
-        db.commit()
         log_event(
             db,
             user_id=user.telegram_id,
@@ -529,9 +546,6 @@ def _detect_missing_steps(user: User, db) -> list[str]:
     data = user.onboarding_data or {}
     missing = []
 
-    # name
-    if not user.first_name or user.first_name.strip().startswith("/"):
-        missing.append("name")
     # birth_date
     if not user.birth_date:
         missing.append("birth_date")

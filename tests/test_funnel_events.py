@@ -36,3 +36,15 @@ def test_log_event_meta_roundtrip(test_db):
     db.commit()
     row = db.query(FunnelEvent).filter_by(user_id=333).first()
     assert row.meta["goal_kcal"] == 1850
+
+
+def test_once_duplicate_preserves_sibling_pending_writes(test_db):
+    db = test_db
+    log_event(db, user_id=444, event="first_food_logged", once=True)
+    db.commit()
+    # new pending sibling + duplicate once-event in the same uncommitted unit
+    log_event(db, user_id=444, event="quiz_completed")  # sibling, pending
+    log_event(db, user_id=444, event="first_food_logged", once=True)  # duplicate → must NOT discard sibling
+    db.commit()
+    assert db.query(FunnelEvent).filter_by(user_id=444, event="quiz_completed").count() == 1
+    assert db.query(FunnelEvent).filter_by(user_id=444, event="first_food_logged").count() == 1

@@ -842,10 +842,18 @@ def log_event(db, user_id, event, track=None, source=None, meta=None, once=False
     from sqlalchemy.exc import IntegrityError
 
     ev = FunnelEvent(user_id=user_id, event=event, track=track, source=source, meta=meta or {})
-    db.add(ev)
     if once or event in _ONCE_EVENTS:
+        # db.add() must happen INSIDE the SAVEPOINT: adding beforehand and
+        # only wrapping flush() leaves the pending object attached to the
+        # outer transaction, so a failed flush marks the *whole* session
+        # transaction deactive (not just the savepoint) — verified empirically,
+        # matches the pattern in SQLAlchemy's own begin_nested() docs.
         try:
-            db.flush()
+            with db.begin_nested():
+                db.add(ev)
+                db.flush()
         except IntegrityError:
-            db.rollback()
+            pass
+    else:
+        db.add(ev)
     return ev
