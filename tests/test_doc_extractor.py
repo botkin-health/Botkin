@@ -86,3 +86,29 @@ async def test_extract_coerces_nonlist_qualitative_to_empty():
         out = await doc_extractor.extract_medical_data(b"x", "image/png")
     assert out["allergies"] == []
     assert out["conditions"] == []
+
+
+@pytest.mark.asyncio
+async def test_text_plain_builds_text_block_not_image():
+    """text/plain (текстовый слой PDF) уходит как text-блок, а не image с битым media_type."""
+    doc_text = "Заключение: аллергия на амоксициллин. Гастрит (K29.5)."
+    mock = AsyncMock(return_value=_fake_response({"values": {}}))
+    with patch.object(doc_extractor, "_call_anthropic", new=mock):
+        await doc_extractor.extract_medical_data(doc_text.encode(), "text/plain")
+
+    messages = mock.call_args.args[0]
+    content = messages[0]["content"]
+    # Есть text-блок с самим текстом документа
+    assert any(b.get("type") == "text" and doc_text in b.get("text", "") for b in content)
+    # И НЕТ image-блока с невалидным media_type text/plain
+    assert not any(b.get("type") == "image" for b in content)
+
+
+@pytest.mark.asyncio
+async def test_text_plain_extracts_values():
+    """Путь text/plain доходит до парсинга ответа и возвращает извлечённые данные."""
+    payload = {"date": "2026-07-10", "values": {"Hb": 155}, "allergies": ["амоксициллин"], "conditions": []}
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(b"any text bytes", "text/plain")
+    assert out["values"] == {"Hb": 155}
+    assert out["allergies"] == ["амоксициллин"]
