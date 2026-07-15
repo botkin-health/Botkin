@@ -1,7 +1,12 @@
-"""Onboarding wizard — 10-step health profile setup.
+"""Onboarding wizard — 6-question health profile setup.
 
 State machine stored in users.onboarding_step + users.onboarding_data (jsonb).
-Steps: name → birth_date → sex → height → weight → goal → activity → smoking → chronic → wearables → done.
+Steps: goal → sex → age → height → weight → activity → artifact → persona → done.
+("artifact" is a transient pseudo-step: it renders the BMR/TDEE summary and
+immediately advances to "persona", it is never persisted as onboarding_step.)
+
+LEGACY_STEP_MAP remaps users stuck on old steps (name/birth_date/smoking/
+chronic/wearables) from the previous 10-step wizard onto the new flow.
 
 On completion: computes BMR/TDEE/calorie goal, generates health_token, sends summary.
 
@@ -28,19 +33,6 @@ logger = logging.getLogger(__name__)
 
 # ─── Configuration ────────────────────────────────────────────────────────
 
-WEARABLE_OPTIONS = [
-    "Garmin",
-    "Apple Watch",
-    "Oura",
-    "Whoop",
-    "Withings",
-    "Omron АД",
-    "Mi-весы",
-    "Polar",
-    "CGM",
-    "Eight Sleep",
-]
-
 GOAL_MAP = {
     # label_match_substring: (display, calorie_goal_pct)
     "похудеть": ("Похудеть", -15),
@@ -56,12 +48,6 @@ ACTIVITY_MAP = {
     "легкий": ("light", 1.375),
     "умеренный": ("moderate", 1.55),
     "высокий": ("high", 1.725),
-}
-
-SMOKING_MAP = {
-    "никогда": "never",
-    "бросил": "former",
-    "курю": "current",
 }
 
 
@@ -95,16 +81,6 @@ def _kb(rows: list[list[str]], one_time: bool = True) -> dict:
 KB_SEX = _kb([["М", "Ж"]])
 KB_GOAL = _kb([["🔻 Похудеть", "⚖ Удержать форму"], ["💪 Набрать мышцы", "🛡 Долголетие/профилактика"]])
 KB_ACTIVITY = _kb([["🪑 Сидячий", "🚶 Лёгкий 1-3/нед"], ["🏃 Умеренный 4-5/нед", "🏋 Высокий 6+/нед"]])
-KB_SMOKING = _kb([["Никогда", "Бросил", "Курю"]])
-KB_WEARABLE = _kb(
-    [
-        ["Garmin", "Apple Watch", "Oura"],
-        ["Whoop", "Withings", "Omron АД"],
-        ["Mi-весы", "Polar", "CGM"],
-        ["Eight Sleep", "Нет", "Готово"],
-    ],
-    one_time=False,
-)
 KB_PERSONA = _kb(
     [
         ["🩺 Заботливый врач", "💪 Строгий тренер"],
@@ -114,6 +90,16 @@ KB_PERSONA = _kb(
 )
 
 PROGRESS = {"goal": "1/6", "sex": "2/6", "age": "3/6", "height": "4/6", "weight": "5/6", "activity": "6/6"}
+
+# Users who were mid-wizard on the old 10-step flow (name/birth_date/…/smoking/
+# chronic/wearables) get remapped onto the nearest equivalent new-flow step.
+LEGACY_STEP_MAP = {
+    "name": "goal",
+    "birth_date": "age",
+    "smoking": "artifact",
+    "chronic": "artifact",
+    "wearables": "artifact",
+}
 
 
 # ─── Public entry points ──────────────────────────────────────────────────
@@ -292,7 +278,14 @@ async def _send_greeting_and_first_question(chat_id: int, user: "User") -> None:
 
 async def _run_step(user: User, text: str, chat_id: int, db, prompt_only: bool = False) -> None:
     """Execute one step of the wizard. If prompt_only=True, only re-prompts the question."""
-    step = user.onboarding_step or "name"
+    step = user.onboarding_step or "goal"
+    if step in LEGACY_STEP_MAP:
+        step = LEGACY_STEP_MAP[step]
+        user.onboarding_step = step
+        db.commit()
+        if step == "artifact":
+            await _show_artifact(user, dict(user.onboarding_data or {}), chat_id, db)
+            return
     data = dict(user.onboarding_data or {})
 
     # ── Цель · 1/6 ───────────────────────────────────────────────
@@ -559,14 +552,5 @@ def _detect_missing_steps(user: User, db) -> list[str]:
     # activity
     if not (us and us.activity_level):
         missing.append("activity")
-    # smoking
-    if not user.smoking_status:
-        missing.append("smoking")
-    # chronic
-    if "chronic_conditions" not in data:
-        missing.append("chronic")
-    # wearables
-    if "wearables" not in data:
-        missing.append("wearables")
 
     return missing
