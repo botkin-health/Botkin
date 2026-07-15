@@ -14,7 +14,7 @@ Public API:
 import logging
 import secrets
 import uuid
-from datetime import date, datetime
+from datetime import datetime
 from typing import Optional
 
 import httpx
@@ -441,6 +441,45 @@ async def _run_step(user: User, text: str, chat_id: int, db, prompt_only: bool =
         await _show_artifact(user, data, chat_id, db)  # ставит step="persona", логирует E4
         return
 
+    # ── Персона (тон агента) → финал ──────────────────────────────
+    if step == "persona":
+        from core.personas import PERSONAS, DEFAULT_PERSONA
+
+        t = text.strip().lower()
+        if prompt_only:
+            await send_message(chat_id, "Каким тоном мне с тобой общаться?", reply_markup=KB_PERSONA)
+            return
+        skipped = t in ("пропустить", "skip", "-")
+        chosen = (
+            DEFAULT_PERSONA
+            if skipped
+            else next(
+                (
+                    p.key
+                    for p in PERSONAS.values()
+                    if p.display.lower() == t or p.display.split(maxsplit=1)[-1].lower() in t
+                ),
+                None,
+            )
+        )
+        if chosen is None:
+            await send_message(chat_id, "Выбери одну из кнопок или «Пропустить»", reply_markup=KB_PERSONA)
+            return
+        data["persona"] = chosen
+        user.onboarding_data = data
+        db.commit()
+        log_event(
+            db,
+            user_id=user.telegram_id,
+            event="persona_selected",
+            track=data.get("track"),
+            source=data.get("source") or None,
+            meta={"persona": chosen, "skipped": skipped},
+        )
+        db.commit()
+        await _finish_onboarding(user, db, chat_id)
+        return
+
     # already done
     if step == "done":
         logger.info(f"User {user.telegram_id} already done; router shouldn't route here")
@@ -450,95 +489,32 @@ async def _run_step(user: User, text: str, chat_id: int, db, prompt_only: bool =
 # ─── Finalisation ─────────────────────────────────────────────────────────
 
 
-async def _finish_onboarding(user: User, db, chat_id: int) -> None:
-    """Compute BMR/TDEE/goal kcal, generate health_token, send summary."""
+async def _finish_onboarding(user, db, chat_id: int) -> None:
+    """Финал онбординга: токены, step=done, first_food_pending, демо-приглашение.
+
+    Калории уже посчитаны и показаны в артефакте (_show_artifact) — тут только
+    выдаём токены и передаём эстафету в чат-first демо логирования еды.
+    """
+    from core.personas import get_persona
+
     data = dict(user.onboarding_data or {})
-
-    # Compute age
-    bd = user.birth_date
-    if bd:
-        today = date.today()
-        age = today.year - bd.year - ((today.month, today.day) < (bd.month, bd.day))
-    else:
-        age = data.get("age", 30)
-
-    h = user.height_cm or 170
-    w = data.get("weight_kg")
-    sex = (user.sex or "male").lower()
-    # Accept both legacy 'M'/'F' and canonical 'male'/'female'
-    is_male = sex in ("male", "m")
-    mult = data.get("activity_multiplier", 1.375)
-    goal_pct = data.get("goal_pct", 0)
-    goal_label = data.get("goal", "Удержать форму")
-
-    if w:
-        bmr = 10 * w + 6.25 * h - 5 * age + (5 if is_male else -161)
-        tdee = bmr * mult
-        goal_kcal = round(tdee * (1 + goal_pct / 100))
-        bmr = round(bmr)
-        tdee = round(tdee)
-        # Persist to users.bmr
-        try:
-            user.bmr = float(bmr)
-        except Exception:
-            pass
-        nutrition_block = (
-            f"<b>Базовая энергия (Mifflin-St Jeor):</b>\n"
-            f"• BMR — {bmr} ккал/день (минимум для жизни)\n"
-            f"• TDEE — {tdee} ккал/день (с активностью)\n"
-            f"• <b>Цель «{goal_label}» — {goal_kcal} ккал/день</b>\n\n"
-        )
-    else:
-        nutrition_block = (
-            "<i>Вес ты пока не указал.</i> Как взвесишься — напиши /weight 78 "
-            "или просто «вес 78», я посчитаю норму калорий.\n\n"
-        )
-
-    # Generate tokens
     if not user.health_token:
         user.health_token = f"hvt_{user.telegram_id}_{secrets.token_hex(16)}"
     if not user.share_token:
         user.share_token = str(uuid.uuid4()).replace("-", "")[:32]
-
+    data["first_food_pending"] = True
     user.onboarding_step = "done"
+    user.onboarding_data = data
     db.commit()
-
-    wearables = data.get("wearables") or []
-    wearables_str = ", ".join(wearables) if wearables else "не указаны"
-
-    msg = (
-        f"✅ Готово, {user.first_name}!\n\n"
-        f"{nutrition_block}"
-        f"<b>🍽 Как записать еду</b> (главное!):\n"
-        f"Просто напиши <b>сюда в чат</b> — тремя способами:\n"
-        f"• <b>Текстом:</b> <code>овсянка 100г, яйцо 2шт, кофе с молоком</code>\n"
-        f"• <b>Фото</b> тарелки или упаковки — бот распознает и посчитает КБЖУ\n"
-        f"• <b>Голосовое</b> — наговори «съела грудку с гречкой, граммов 200»\n"
-        f"Бот покажет, что распознал, и предложит кнопку «Сохранить».\n\n"
-        f"<b>Остальное:</b>\n"
-        f"• /sup — добавки и лекарства (или таб 💊 в мини-аппе)\n"
-        f"• /weight 78 — обновить вес\n"
-        f"• /day — итоги дня · /week — анализ недели\n"
-        f"• /help — все команды\n"
-        f"• Мини-аппа (кнопка снизу) — дашборд и настройки\n\n"
-        f"<b>Устройства:</b> {wearables_str}\n"
-        f"\n📂 Есть анализы или заключения врачей? Пришли их мне командой /doc — буду помнить твою историю здоровья."
+    persona = get_persona(data.get("persona"))
+    await send_message(
+        chat_id,
+        f"Принято — буду в манере «{persona.display}».\n\n"
+        "Теперь главное: просто напиши или сфоткай, что ел. "
+        "Например «овсянка на молоке и кофе». Попробуй прямо сейчас 👇\n\n"
+        "Чтобы советы были точнее (по желанию):\n"
+        "📂 анализы /doc · ⌚ устройства /devices · 💊 добавки",
     )
-    if "Garmin" in wearables:
-        msg += "Чтобы подключить Garmin — /garmin\n"
-
-    await send_message(chat_id, msg)
-
-    # Apple-устройства (Watch/Withings/Omron) пишут в Apple Health → предлагаем
-    # выбрать способ подключения: платный HAE или бесплатный iOS Shortcut.
-    if any(w in wearables for w in ("Apple Watch", "Withings", "Omron АД")):
-        from handlers.apple_health_connect import connect_intro_text, connect_keyboard_dict
-
-        await send_message(
-            chat_id,
-            connect_intro_text(user.health_token),
-            reply_markup=connect_keyboard_dict(),
-        )
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────

@@ -75,3 +75,45 @@ def test_weight_forecast_zero_deficit_is_flat():
 
     fc = _weight_forecast(goal_pct=0, tdee=2180)
     assert fc["kg_per_week"] == 0
+
+
+@pytest.mark.asyncio
+@patch("handlers.onboarding.log_event")
+@patch("handlers.onboarding.send_message", new_callable=AsyncMock)
+@patch("handlers.onboarding.SessionLocal")
+async def test_persona_choice_finishes_and_sets_demo_flag(MockSession, mock_send, mock_le):
+    db = MagicMock()
+    MockSession.return_value = db
+    user = _mk_user("persona", {"goal": "Похудеть", "name": "Игорь"}, first_name="Игорь")
+    db.query.return_value.filter_by.return_value.first.return_value = user
+    from handlers.onboarding import process_onboarding_message
+
+    await process_onboarding_message(
+        {"message": {"from": {"id": 999888}, "chat": {"id": 999888}, "text": "💪 Строгий тренер"}}
+    )
+    assert user.onboarding_step == "done"
+    assert user.onboarding_data["persona"] == "strict_coach"
+    assert user.onboarding_data["first_food_pending"] is True
+    assert user.health_token and user.health_token.startswith("hvt_999888_")
+    joined = " ".join(c.args[1] for c in mock_send.call_args_list).lower()
+    assert "напиши" in joined and "ел" in joined  # демо-приглашение
+    events = [str(c) for c in mock_le.call_args_list]
+    assert any("persona_selected" in e for e in events)
+
+
+@pytest.mark.asyncio
+@patch("handlers.onboarding.log_event")
+@patch("handlers.onboarding.send_message", new_callable=AsyncMock)
+@patch("handlers.onboarding.SessionLocal")
+async def test_persona_skip_uses_default(MockSession, mock_send, _le):
+    db = MagicMock()
+    MockSession.return_value = db
+    user = _mk_user("persona", {"goal": "Похудеть", "name": "Игорь"}, first_name="Игорь")
+    db.query.return_value.filter_by.return_value.first.return_value = user
+    from handlers.onboarding import process_onboarding_message
+
+    await process_onboarding_message(
+        {"message": {"from": {"id": 999888}, "chat": {"id": 999888}, "text": "Пропустить"}}
+    )
+    assert user.onboarding_data["persona"] == "caring_doctor"
+    assert user.onboarding_step == "done"
