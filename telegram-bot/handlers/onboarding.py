@@ -105,6 +105,15 @@ KB_WEARABLE = _kb(
     ],
     one_time=False,
 )
+KB_PERSONA = _kb(
+    [
+        ["🩺 Заботливый врач", "💪 Строгий тренер"],
+        ["🔬 Дотошный профессор", "🧘 Спокойный наставник"],
+        ["Пропустить"],
+    ]
+)
+
+PROGRESS = {"goal": "1/6", "sex": "2/6", "age": "3/6", "height": "4/6", "weight": "5/6", "activity": "6/6"}
 
 
 # ─── Public entry points ──────────────────────────────────────────────────
@@ -207,6 +216,68 @@ async def handle_setup_command(payload: dict) -> bool:
 # ─── State machine ────────────────────────────────────────────────────────
 
 
+def _compute_goal(data: dict, user) -> dict:
+    """BMR/TDEE/goal_kcal. Возвращает {} если веса нет."""
+    w = data.get("weight_kg")
+    if not w:
+        return {}
+    h = data.get("height_cm") or user.height_cm or 170
+    age = data.get("age") or 30
+    is_male = (data.get("sex") or user.sex or "male").lower() in ("male", "m")
+    mult = data.get("activity_multiplier", 1.375)
+    goal_pct = data.get("goal_pct", 0)
+    bmr = 10 * w + 6.25 * h - 5 * age + (5 if is_male else -161)
+    tdee = bmr * mult
+    goal_kcal = round(tdee * (1 + goal_pct / 100))
+    return {"bmr": round(bmr), "tdee": round(tdee), "goal_kcal": goal_kcal}
+
+
+def _weight_forecast(goal_pct: int, tdee: float) -> dict:
+    """Простая проекция: суточный дефицит ккал → кг/нед → дата −4 кг.
+    7700 ккал ≈ 1 кг жира. Нулевой/положительный дефицит для похудения → 0."""
+    daily_deficit = -tdee * (goal_pct / 100) if goal_pct < 0 else 0
+    kg_per_week = round(daily_deficit * 7 / 7700, 2) if daily_deficit > 0 else 0
+    target_date = None
+    if kg_per_week > 0:
+        from datetime import date as _date, timedelta
+
+        weeks = 4 / kg_per_week
+        target_date = (_date.today() + timedelta(weeks=weeks)).strftime("%d.%m")
+    return {"kg_per_week": kg_per_week, "target_date": target_date}
+
+
+async def _show_artifact(user, data: dict, chat_id: int, db) -> None:
+    goal = _compute_goal(data, user)
+    goal_label = data.get("goal", "Удержать форму")
+    if goal:
+        fc = _weight_forecast(data.get("goal_pct", 0), goal["tdee"])
+        line = (
+            f"Твоя цель: <b>{goal['goal_kcal']} ккал/день</b> ({goal_label}).\nBMR {goal['bmr']} · TDEE {goal['tdee']}."
+        )
+        if fc["kg_per_week"]:
+            line += f"\nПри таком темпе ≈ −{fc['kg_per_week']} кг/нед → −4 кг к {fc['target_date']}."
+        try:
+            user.bmr = float(goal["bmr"])
+        except Exception:
+            pass
+        data["weight_forecast"] = fc
+    else:
+        line = "Вес пока не указал — как взвесишься, напиши «вес 78», и я посчитаю норму калорий."
+    log_event(
+        db,
+        user_id=user.telegram_id,
+        event="goal_computed",
+        track=data.get("track"),
+        source=data.get("source") or None,
+        meta={"goal_kcal": goal.get("goal_kcal")},
+    )
+    user.onboarding_step = "persona"
+    user.onboarding_data = data
+    db.commit()
+    await send_message(chat_id, f"Готово, {user.first_name}! 🎯\n{line}")
+    await send_message(chat_id, "И последнее — каким тоном мне с тобой общаться?", reply_markup=KB_PERSONA)
+
+
 async def _send_greeting_and_first_question(chat_id: int, user: "User") -> None:
     name = user.first_name or "друг"
     await send_message(
@@ -224,54 +295,30 @@ async def _run_step(user: User, text: str, chat_id: int, db, prompt_only: bool =
     step = user.onboarding_step or "name"
     data = dict(user.onboarding_data or {})
 
-    # ── 1/10  NAME ────────────────────────────────────────────────
-    if step == "name":
-        if prompt_only or not text:
-            await send_message(chat_id, "<b>1/10</b> Как тебя зовут? (одно слово)")
+    # ── Цель · 1/6 ───────────────────────────────────────────────
+    if step == "goal":
+        if prompt_only:
+            await send_message(chat_id, "<b>Цель · 1/6</b> Главная цель?", reply_markup=KB_GOAL)
             return
-        if text.startswith("/"):
-            await send_message(chat_id, "Это похоже на команду. Напиши имя одним словом.")
+        t = text.lower()
+        match = next(((label, pct) for key, (label, pct) in GOAL_MAP.items() if key in t), None)
+        if not match:
+            await send_message(chat_id, "Выбери одну из 4 кнопок", reply_markup=KB_GOAL)
             return
-        name = text[:100]
-        data["name"] = name
-        user.first_name = name
-        user.onboarding_step = "birth_date"
-        user.onboarding_data = data
-        db.commit()
-        await send_message(
-            chat_id,
-            f"Приятно, {name}!\n\n<b>2/10</b> Дата рождения? (ДД.ММ.ГГГГ — например, 20.08.2001)",
-        )
-        return
-
-    # ── 2/10  BIRTH DATE ──────────────────────────────────────────
-    if step == "birth_date":
-        if prompt_only or not text:
-            await send_message(chat_id, "<b>2/10</b> Дата рождения? (ДД.ММ.ГГГГ)")
-            return
-        try:
-            bd = datetime.strptime(text.replace("/", ".").replace("-", "."), "%d.%m.%Y").date()
-        except ValueError:
-            await send_message(chat_id, "Формат ДД.ММ.ГГГГ. Например: 20.08.2001")
-            return
-        today = date.today()
-        age = today.year - bd.year - ((today.month, today.day) < (bd.month, bd.day))
-        if not (10 <= age <= 100):
-            await send_message(chat_id, "Возраст вне диапазона 10–100. Перепроверь дату.")
-            return
-        user.birth_date = bd
-        data["birth_date"] = bd.isoformat()
-        data["age"] = age
+        goal_label, goal_pct = match
+        data["goal"] = goal_label
+        data["goal_pct"] = goal_pct
+        _ensure_user_settings(db, user.telegram_id, calorie_goal_pct=goal_pct)
         user.onboarding_step = "sex"
         user.onboarding_data = data
         db.commit()
-        await send_message(chat_id, f"Тебе {age} лет — записал.\n\n<b>3/10</b> Пол?", reply_markup=KB_SEX)
+        await send_message(chat_id, "<b>Пол · 2/6</b> Пол?", reply_markup=KB_SEX)
         return
 
-    # ── 3/10  SEX ────────────────────────────────────────────────
+    # ── Пол · 2/6 ────────────────────────────────────────────────
     if step == "sex":
         if prompt_only:
-            await send_message(chat_id, "<b>3/10</b> Пол?", reply_markup=KB_SEX)
+            await send_message(chat_id, "<b>Пол · 2/6</b> Пол?", reply_markup=KB_SEX)
             return
         t = text.upper().strip()
         if t.startswith("М") or t.startswith("M"):
@@ -283,16 +330,38 @@ async def _run_step(user: User, text: str, chat_id: int, db, prompt_only: bool =
             return
         user.sex = sex
         data["sex"] = sex
+        user.onboarding_step = "age"
+        user.onboarding_data = data
+        db.commit()
+        await send_message(chat_id, "<b>Возраст · 3/6</b> Сколько тебе лет? (число)")
+        return
+
+    # ── Возраст · 3/6 ────────────────────────────────────────────
+    if step == "age":
+        if prompt_only or not text:
+            await send_message(chat_id, "<b>Возраст · 3/6</b> Сколько тебе лет? (число)")
+            return
+        try:
+            age = int(text)
+            if not (10 <= age <= 100):
+                raise ValueError
+        except ValueError:
+            await send_message(chat_id, "Введи число 10–100")
+            return
+        data["age"] = age
+        from datetime import date as _date
+
+        user.birth_date = _date(_date.today().year - age, 1, 1)  # приблизительно, ±1 год
         user.onboarding_step = "height"
         user.onboarding_data = data
         db.commit()
-        await send_message(chat_id, "<b>4/10</b> Рост в см? (например, 178)")
+        await send_message(chat_id, "<b>Рост · 4/6</b> Рост в см? (например, 178)")
         return
 
-    # ── 4/10  HEIGHT ─────────────────────────────────────────────
+    # ── Рост · 4/6 ───────────────────────────────────────────────
     if step == "height":
         if prompt_only or not text:
-            await send_message(chat_id, "<b>4/10</b> Рост в см?")
+            await send_message(chat_id, "<b>Рост · 4/6</b> Рост в см? (например, 178)")
             return
         try:
             h = int(text)
@@ -308,14 +377,14 @@ async def _run_step(user: User, text: str, chat_id: int, db, prompt_only: bool =
         db.commit()
         await send_message(
             chat_id,
-            "<b>5/10</b> Текущий вес в кг? (если не знаешь — напиши «позже»)",
+            "<b>Вес · 5/6</b> Текущий вес в кг? (если не знаешь — напиши «позже»)",
         )
         return
 
-    # ── 5/10  WEIGHT ─────────────────────────────────────────────
+    # ── Вес · 5/6 ────────────────────────────────────────────────
     if step == "weight":
         if prompt_only or not text:
-            await send_message(chat_id, "<b>5/10</b> Текущий вес в кг? (или «позже»)")
+            await send_message(chat_id, "<b>Вес · 5/6</b> Текущий вес в кг? (или «позже»)")
             return
         if text.lower() in ("позже", "не знаю", "later", "skip", "-", "пропустить"):
             w = None
@@ -342,36 +411,16 @@ async def _run_step(user: User, text: str, chat_id: int, db, prompt_only: bool =
                 db.add(weight_entry)
             except Exception as e:
                 logger.warning(f"Could not save Weight for {user.telegram_id}: {e}")
-        user.onboarding_step = "goal"
-        user.onboarding_data = data
-        db.commit()
-        await send_message(chat_id, "<b>6/10</b> Главная цель?", reply_markup=KB_GOAL)
-        return
-
-    # ── 6/10  GOAL ───────────────────────────────────────────────
-    if step == "goal":
-        if prompt_only:
-            await send_message(chat_id, "<b>6/10</b> Главная цель?", reply_markup=KB_GOAL)
-            return
-        t = text.lower()
-        match = next(((label, pct) for key, (label, pct) in GOAL_MAP.items() if key in t), None)
-        if not match:
-            await send_message(chat_id, "Выбери одну из 4 кнопок", reply_markup=KB_GOAL)
-            return
-        goal_label, goal_pct = match
-        data["goal"] = goal_label
-        data["goal_pct"] = goal_pct
-        _ensure_user_settings(db, user.telegram_id, calorie_goal_pct=goal_pct)
         user.onboarding_step = "activity"
         user.onboarding_data = data
         db.commit()
-        await send_message(chat_id, "<b>7/10</b> Уровень активности?", reply_markup=KB_ACTIVITY)
+        await send_message(chat_id, "<b>Активность · 6/6</b> Уровень активности?", reply_markup=KB_ACTIVITY)
         return
 
-    # ── 7/10  ACTIVITY ───────────────────────────────────────────
+    # ── Активность · 6/6 → артефакт → персона ─────────────────────
     if step == "activity":
         if prompt_only:
-            await send_message(chat_id, "<b>7/10</b> Уровень активности?", reply_markup=KB_ACTIVITY)
+            await send_message(chat_id, "<b>Активность · 6/6</b> Уровень активности?", reply_markup=KB_ACTIVITY)
             return
         t = text.lower()
         match = next(((lev, mult) for key, (lev, mult) in ACTIVITY_MAP.items() if key in t), None)
@@ -382,91 +431,14 @@ async def _run_step(user: User, text: str, chat_id: int, db, prompt_only: bool =
         data["activity_level"] = level
         data["activity_multiplier"] = mult
         _ensure_user_settings(db, user.telegram_id, activity_level=level)
-        user.onboarding_step = "smoking"
-        user.onboarding_data = data
-        db.commit()
-        await send_message(chat_id, "<b>8/10</b> Куришь?", reply_markup=KB_SMOKING)
-        return
-
-    # ── 8/10  SMOKING ────────────────────────────────────────────
-    if step == "smoking":
-        if prompt_only:
-            await send_message(chat_id, "<b>8/10</b> Куришь?", reply_markup=KB_SMOKING)
-            return
-        t = text.lower().strip()
-        sm = next((v for k, v in SMOKING_MAP.items() if k in t), None)
-        if not sm:
-            await send_message(chat_id, "Выбери одну кнопку", reply_markup=KB_SMOKING)
-            return
-        user.smoking_status = sm
-        data["smoking"] = sm
-        user.onboarding_step = "chronic"
-        user.onboarding_data = data
-        db.commit()
-        await send_message(
-            chat_id,
-            "<b>9/10</b> Хронические заболевания и/или постоянные лекарства? "
-            "Свободным текстом — или просто «нет», если ничего нет.",
+        log_event(
+            db,
+            user_id=user.telegram_id,
+            event="quiz_completed",
+            track=data.get("track"),
+            source=data.get("source") or None,
         )
-        return
-
-    # ── 9/10  CHRONIC ────────────────────────────────────────────
-    if step == "chronic":
-        if prompt_only or not text:
-            await send_message(chat_id, "<b>9/10</b> Хронические заболевания / лекарства? (текстом или «нет»)")
-            return
-        chronic = text[:2000].strip()
-        data["chronic_conditions"] = "" if chronic.lower() == "нет" else chronic
-        data["wearables_picked"] = []
-        user.onboarding_step = "wearables"
-        user.onboarding_data = data
-        db.commit()
-        await send_message(
-            chat_id,
-            "<b>10/10</b> Какими устройствами пользуешься? Тапай по очереди, потом «Готово». "
-            "Или сразу «Нет», если ничего.",
-            reply_markup=KB_WEARABLE,
-        )
-        return
-
-    # ── 10/10  WEARABLES ─────────────────────────────────────────
-    if step == "wearables":
-        if prompt_only:
-            await send_message(chat_id, "<b>10/10</b> Устройства/трекеры?", reply_markup=KB_WEARABLE)
-            return
-        picked: list = list(data.get("wearables_picked", []))
-        t = text.strip()
-        tl = t.lower()
-        if tl in ("нет", "ничего"):
-            data["wearables"] = []
-            data["wearables_picked"] = []
-            user.onboarding_data = data
-            db.commit()
-            await _finish_onboarding(user, db, chat_id)
-            return
-        if tl == "готово":
-            data["wearables"] = picked
-            user.onboarding_data = data
-            db.commit()
-            await _finish_onboarding(user, db, chat_id)
-            return
-        if t in WEARABLE_OPTIONS:
-            if t not in picked:
-                picked.append(t)
-            data["wearables_picked"] = picked
-            user.onboarding_data = data
-            db.commit()
-            await send_message(
-                chat_id,
-                f"✓ {', '.join(picked)}\nЕщё или нажми «Готово».",
-                reply_markup=KB_WEARABLE,
-            )
-            return
-        await send_message(
-            chat_id,
-            "Тапни кнопку устройства, или «Готово»/«Нет»",
-            reply_markup=KB_WEARABLE,
-        )
+        await _show_artifact(user, data, chat_id, db)  # ставит step="persona", логирует E4
         return
 
     # already done
