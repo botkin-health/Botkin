@@ -908,6 +908,77 @@ async def api_llm_usage(days: int = 7, _: str = Depends(admin_auth)) -> JSONResp
         db.close()
 
 
+_FUNNEL_STAGES = [
+    "onboarding_started",
+    "persona_selected",
+    "quiz_completed",
+    "goal_computed",
+    "first_food_logged",
+    "first_agent_question",
+]
+
+
+def _funnel_counts(db, days: int, track: Optional[str] = None) -> dict:
+    """Уникальные пользователи на каждой стадии воронки за последние `days` дней."""
+    where_track = "AND track = :track" if track else ""
+    params = {"since": datetime.now(timezone.utc) - timedelta(days=days)}
+    if track:
+        params["track"] = track
+    rows = db.execute(
+        text(
+            f"""
+            SELECT event, COUNT(DISTINCT user_id) AS n
+            FROM funnel_events
+            WHERE ts >= :since {where_track}
+            GROUP BY event
+            """
+        ),
+        params,
+    ).fetchall()
+    by_event = {r[0]: r[1] for r in rows}
+    return {stage: int(by_event.get(stage, 0)) for stage in _FUNNEL_STAGES}
+
+
+@router.get("/api/funnel")
+async def api_funnel(days: int = 30, track: Optional[str] = None, _: str = Depends(admin_auth)) -> JSONResponse:
+    """Воронка онбординга/активации: counts по стадиям + конверсии + активация.
+
+    Активация (MVP на событиях): пользователи, у кого есть И first_food_logged,
+    И first_agent_question. Порог «3 лога за 3 дня» — отдельный запрос команды
+    по nutrition_log (не здесь); тут — событийный прокси."""
+    db = SessionLocal()
+    try:
+        counts = _funnel_counts(db, days=days, track=track)
+        started = counts["onboarding_started"] or 1
+        conversions = {stage: round(100 * counts[stage] / started, 1) for stage in _FUNNEL_STAGES}
+        activated = db.execute(
+            text(
+                """
+                SELECT COUNT(*) FROM (
+                  SELECT user_id
+                  FROM funnel_events
+                  WHERE event IN ('first_food_logged','first_agent_question')
+                    AND ts >= :since
+                  GROUP BY user_id
+                  HAVING COUNT(DISTINCT event) = 2
+                ) t
+                """
+            ),
+            {"since": datetime.now(timezone.utc) - timedelta(days=days)},
+        ).scalar()
+        return JSONResponse(
+            {
+                "days": days,
+                "track": track,
+                "counts": counts,
+                "conversion_pct_from_start": conversions,
+                "activated_users": int(activated or 0),
+            }
+        )
+    finally:
+        db.close()
+
+
 @router.get("/api/bothealth")
 async def api_bothealth(_: str = Depends(admin_auth)) -> JSONResponse:
     """Минимальная телеметрия бота — не жжёт токены/ресурсы.

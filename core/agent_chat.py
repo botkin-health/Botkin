@@ -36,7 +36,7 @@ sys.path.insert(0, str(project_root))
 
 from config import get_settings
 from database import SessionLocal
-from database.models import User
+from database.models import User, log_event
 
 logger = logging.getLogger(__name__)
 
@@ -1967,6 +1967,16 @@ def _health_profile_block(user) -> str:
     return "\n".join(lines)
 
 
+def _log_first_question(db, user_id: int, is_e2e: bool) -> None:
+    """E6: первое свободное сообщение агенту (once). Пропускаем E2E-прогоны."""
+    if is_e2e:
+        return
+    try:
+        log_event(db, user_id=user_id, event="first_agent_question", once=True)
+    except Exception:
+        logger.exception("E6 first_agent_question log failed for %s", user_id)
+
+
 def ask_agent(
     user_id: int,
     user_text: str,
@@ -1993,6 +2003,8 @@ def ask_agent(
         user = db.query(User).filter_by(telegram_id=user_id).first()
         if not user or not user.is_active:
             raise RuntimeError(f"User {user_id} not found or inactive")
+
+        _log_first_question(db, user_id, is_e2e)
 
         token = _generate_jwt(user)
 
