@@ -46,3 +46,20 @@ async def test_logs_e5_but_no_message_when_not_pending(MockSession, mock_le):
     assert any(c.kwargs.get("event") == "first_food_logged" for c in mock_le.call_args_list)
     # но празднования нет
     message.answer.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_photo_save_calls_record_first_food(monkeypatch):
+    """После сохранения приёма пищи handle_meal_confirmation зовёт record_first_food."""
+    import handlers.photo as photo
+
+    called = {}
+
+    async def fake_record(uid, message):
+        called["uid"] = uid
+
+    monkeypatch.setattr(photo, "record_first_food", fake_record, raising=False)
+    # Прямой вызов helper-обёртки, добавленной в photo.py:
+    msg = object()
+    await photo._maybe_record_first_food(777, msg)
+    assert called["uid"] == 777

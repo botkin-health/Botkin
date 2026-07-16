@@ -13,10 +13,7 @@ from database.models import User, log_event
 
 logger = logging.getLogger(__name__)
 
-_CELEBRATION = (
-    "🎉 Видишь — я посчитал сам, безо всяких команд. Так можно всегда: "
-    "пиши текстом, шли фото или голосовое."
-)
+_CELEBRATION = "🎉 Видишь — я посчитал сам, безо всяких команд. Так можно всегда: пиши текстом, шли фото или голосовое."
 
 
 async def record_first_food(telegram_user_id: int, message) -> None:
