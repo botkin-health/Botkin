@@ -42,7 +42,8 @@ async def test_new_user_starts_at_goal_quiz(MockSession, mock_send, _le):
 @patch("handlers.onboarding.log_event")
 @patch("handlers.onboarding.send_message", new_callable=AsyncMock)
 @patch("handlers.onboarding.SessionLocal")
-async def test_activity_step_computes_artifact_and_advances_to_persona(MockSession, mock_send, mock_le):
+async def test_activity_advances_to_smoking(MockSession, mock_send, _le):
+    """Активность (6/7) → последний квиз-вопрос о курении (7/7), ещё не артефакт."""
     db = MagicMock()
     MockSession.return_value = db
     user = _mk_user(
@@ -55,10 +56,38 @@ async def test_activity_step_computes_artifact_and_advances_to_persona(MockSessi
     await process_onboarding_message(
         {"message": {"from": {"id": 999888}, "chat": {"id": 999888}, "text": "🏃 Умеренный 4-5/нед"}}
     )
+    assert user.onboarding_step == "smoking"
+    assert "куришь" in mock_send.call_args.args[1].lower()
+
+
+@pytest.mark.asyncio
+@patch("handlers.onboarding.log_event")
+@patch("handlers.onboarding.send_message", new_callable=AsyncMock)
+@patch("handlers.onboarding.SessionLocal")
+async def test_smoking_step_computes_artifact_and_advances_to_persona(MockSession, mock_send, mock_le):
+    db = MagicMock()
+    MockSession.return_value = db
+    user = _mk_user(
+        "smoking",
+        {
+            "goal": "Похудеть",
+            "goal_pct": -15,
+            "sex": "male",
+            "age": 35,
+            "height_cm": 178,
+            "weight_kg": 80,
+            "activity_multiplier": 1.55,
+        },
+    )
+    db.query.return_value.filter_by.return_value.first.return_value = user
+    from handlers.onboarding import process_onboarding_message
+
+    await process_onboarding_message({"message": {"from": {"id": 999888}, "chat": {"id": 999888}, "text": "Никогда"}})
     assert user.onboarding_step == "persona"
+    assert user.smoking_status == "never"  # захвачено для PhenoAge
     joined = " ".join(c.args[1] for c in mock_send.call_args_list)
     assert "ккал/день" in joined  # артефакт цели показан
-    # E3 quiz_completed и E4 goal_computed залогированы
+    # E3 quiz_completed и E4 goal_computed залогированы после курения
     events = [c.kwargs.get("event") or c.args[2] for c in mock_le.call_args_list]
     assert "quiz_completed" in str(events) and "goal_computed" in str(events)
 

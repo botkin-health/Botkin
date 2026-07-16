@@ -11,12 +11,15 @@ from unittest.mock import patch, AsyncMock, MagicMock
 @patch("handlers.onboarding.send_message", new_callable=AsyncMock)
 @patch("handlers.onboarding.SessionLocal")
 async def test_legacy_step_remapped(MockSession, mock_send, _le):
-    """Юзер застрял на старом шаге 'smoking' → маппится в новый флоу, не падает."""
+    """Юзер застрял на старом шаге 'wearables' → маппится на artifact→persona, не падает.
+
+    ('smoking' больше НЕ ремапится — это снова реальный шаг нового флоу.)
+    """
     db = MagicMock()
     MockSession.return_value = db
     user = MagicMock(
         telegram_id=999888,
-        onboarding_step="smoking",
+        onboarding_step="wearables",
         onboarding_data={"goal": "Похудеть", "name": "И"},
         first_name="И",
         health_token=None,
@@ -30,7 +33,7 @@ async def test_legacy_step_remapped(MockSession, mock_send, _le):
     mock_send.assert_awaited()
 
 
-def test_detect_missing_excludes_smoking_chronic_wearables():
+def test_detect_missing_smoking_included_chronic_wearables_excluded():
     from handlers.onboarding import _detect_missing_steps
 
     db = MagicMock()
@@ -46,4 +49,7 @@ def test_detect_missing_excludes_smoking_chronic_wearables():
         onboarding_data={"goal": "Похудеть"},
     )
     missing = _detect_missing_steps(user, db)
-    assert "smoking" not in missing and "chronic" not in missing and "wearables" not in missing
+    # курение вернулось в обязательный набор (нужно для PhenoAge)
+    assert "smoking" in missing
+    # chronic/wearables окончательно убраны из онбординга
+    assert "chronic" not in missing and "wearables" not in missing

@@ -1,12 +1,13 @@
-"""Onboarding wizard — 6-question health profile setup.
+"""Onboarding wizard — 7-question health profile setup.
 
 State machine stored in users.onboarding_step + users.onboarding_data (jsonb).
-Steps: goal → sex → age → height → weight → activity → artifact → persona → done.
+Steps: goal → sex → age → height → weight → activity → smoking → artifact → persona → done.
 ("artifact" is a transient pseudo-step: it renders the BMR/TDEE summary and
 immediately advances to "persona", it is never persisted as onboarding_step.)
+Курение спрашивается (влияет на PhenoAge/биовозраст) — последний квиз-вопрос.
 
-LEGACY_STEP_MAP remaps users stuck on old steps (name/birth_date/smoking/
-chronic/wearables) from the previous 10-step wizard onto the new flow.
+LEGACY_STEP_MAP remaps users stuck on old steps (name/birth_date/chronic/
+wearables) from the previous 10-step wizard onto the new flow.
 
 On completion: computes BMR/TDEE/calorie goal, generates health_token, sends summary.
 
@@ -50,6 +51,12 @@ ACTIVITY_MAP = {
     "высокий": ("high", 1.725),
 }
 
+SMOKING_MAP = {
+    "никогда": "never",
+    "бросил": "former",
+    "курю": "current",
+}
+
 
 # ─── Telegram helpers ─────────────────────────────────────────────────────
 
@@ -81,6 +88,7 @@ def _kb(rows: list[list[str]], one_time: bool = True) -> dict:
 KB_SEX = _kb([["М", "Ж"]])
 KB_GOAL = _kb([["🔻 Похудеть", "⚖ Удержать форму"], ["💪 Набрать мышцы", "🛡 Долголетие/профилактика"]])
 KB_ACTIVITY = _kb([["🪑 Сидячий", "🚶 Лёгкий 1-3/нед"], ["🏃 Умеренный 4-5/нед", "🏋 Высокий 6+/нед"]])
+KB_SMOKING = _kb([["Никогда", "Бросил", "Курю"]])
 KB_PERSONA = _kb(
     [
         ["🩺 Заботливый врач", "💪 Строгий тренер"],
@@ -89,14 +97,21 @@ KB_PERSONA = _kb(
     ]
 )
 
-PROGRESS = {"goal": "1/6", "sex": "2/6", "age": "3/6", "height": "4/6", "weight": "5/6", "activity": "6/6"}
+PROGRESS = {
+    "goal": "1/7",
+    "sex": "2/7",
+    "age": "3/7",
+    "height": "4/7",
+    "weight": "5/7",
+    "activity": "6/7",
+    "smoking": "7/7",
+}
 
 # Users who were mid-wizard on the old 10-step flow (name/birth_date/…/smoking/
 # chronic/wearables) get remapped onto the nearest equivalent new-flow step.
 LEGACY_STEP_MAP = {
     "name": "goal",
     "birth_date": "age",
-    "smoking": "artifact",
     "chronic": "artifact",
     "wearables": "artifact",
 }
@@ -112,6 +127,7 @@ STEP_LABELS = {
     "weight": "вес",
     "goal": "цель",
     "activity": "активность",
+    "smoking": "курение",
 }
 
 
@@ -283,8 +299,8 @@ async def _send_greeting_and_first_question(chat_id: int, user: "User") -> None:
         chat_id,
         f"👋 Привет, {name}! Я Botkin — помощник по здоровью и питанию.\n"
         "Со мной не надо учить команды — можно просто писать или говорить "
-        "словами (покажу в конце). Настроим твою цель за 6 вопросов.\n\n"
-        "<b>Цель · 1/6</b> Главная цель?",
+        "словами (покажу в конце). Настроим твою цель за 7 вопросов.\n\n"
+        "<b>Цель · 1/7</b> Главная цель?",
         reply_markup=KB_GOAL,
     )
 
@@ -301,10 +317,10 @@ async def _run_step(user: User, text: str, chat_id: int, db, prompt_only: bool =
             return
     data = dict(user.onboarding_data or {})
 
-    # ── Цель · 1/6 ───────────────────────────────────────────────
+    # ── Цель · 1/7 ───────────────────────────────────────────────
     if step == "goal":
         if prompt_only:
-            await send_message(chat_id, "<b>Цель · 1/6</b> Главная цель?", reply_markup=KB_GOAL)
+            await send_message(chat_id, "<b>Цель · 1/7</b> Главная цель?", reply_markup=KB_GOAL)
             return
         t = text.lower()
         match = next(((label, pct) for key, (label, pct) in GOAL_MAP.items() if key in t), None)
@@ -318,13 +334,13 @@ async def _run_step(user: User, text: str, chat_id: int, db, prompt_only: bool =
         user.onboarding_step = "sex"
         user.onboarding_data = data
         db.commit()
-        await send_message(chat_id, "<b>Пол · 2/6</b> Пол?", reply_markup=KB_SEX)
+        await send_message(chat_id, "<b>Пол · 2/7</b> Пол?", reply_markup=KB_SEX)
         return
 
-    # ── Пол · 2/6 ────────────────────────────────────────────────
+    # ── Пол · 2/7 ────────────────────────────────────────────────
     if step == "sex":
         if prompt_only:
-            await send_message(chat_id, "<b>Пол · 2/6</b> Пол?", reply_markup=KB_SEX)
+            await send_message(chat_id, "<b>Пол · 2/7</b> Пол?", reply_markup=KB_SEX)
             return
         t = text.upper().strip()
         if t.startswith("М") or t.startswith("M"):
@@ -339,13 +355,13 @@ async def _run_step(user: User, text: str, chat_id: int, db, prompt_only: bool =
         user.onboarding_step = "age"
         user.onboarding_data = data
         db.commit()
-        await send_message(chat_id, "<b>Возраст · 3/6</b> Сколько тебе лет? (число)")
+        await send_message(chat_id, "<b>Возраст · 3/7</b> Сколько тебе лет? (число)")
         return
 
-    # ── Возраст · 3/6 ────────────────────────────────────────────
+    # ── Возраст · 3/7 ────────────────────────────────────────────
     if step == "age":
         if prompt_only or not text:
-            await send_message(chat_id, "<b>Возраст · 3/6</b> Сколько тебе лет? (число)")
+            await send_message(chat_id, "<b>Возраст · 3/7</b> Сколько тебе лет? (число)")
             return
         try:
             age = int(text)
@@ -361,13 +377,13 @@ async def _run_step(user: User, text: str, chat_id: int, db, prompt_only: bool =
         user.onboarding_step = "height"
         user.onboarding_data = data
         db.commit()
-        await send_message(chat_id, "<b>Рост · 4/6</b> Рост в см? (например, 178)")
+        await send_message(chat_id, "<b>Рост · 4/7</b> Рост в см? (например, 178)")
         return
 
-    # ── Рост · 4/6 ───────────────────────────────────────────────
+    # ── Рост · 4/7 ───────────────────────────────────────────────
     if step == "height":
         if prompt_only or not text:
-            await send_message(chat_id, "<b>Рост · 4/6</b> Рост в см? (например, 178)")
+            await send_message(chat_id, "<b>Рост · 4/7</b> Рост в см? (например, 178)")
             return
         try:
             h = int(text)
@@ -383,14 +399,14 @@ async def _run_step(user: User, text: str, chat_id: int, db, prompt_only: bool =
         db.commit()
         await send_message(
             chat_id,
-            "<b>Вес · 5/6</b> Текущий вес в кг? (если не знаешь — напиши «позже»)",
+            "<b>Вес · 5/7</b> Текущий вес в кг? (если не знаешь — напиши «позже»)",
         )
         return
 
-    # ── Вес · 5/6 ────────────────────────────────────────────────
+    # ── Вес · 5/7 ────────────────────────────────────────────────
     if step == "weight":
         if prompt_only or not text:
-            await send_message(chat_id, "<b>Вес · 5/6</b> Текущий вес в кг? (или «позже»)")
+            await send_message(chat_id, "<b>Вес · 5/7</b> Текущий вес в кг? (или «позже»)")
             return
         if text.lower() in ("позже", "не знаю", "later", "skip", "-", "пропустить"):
             w = None
@@ -420,13 +436,13 @@ async def _run_step(user: User, text: str, chat_id: int, db, prompt_only: bool =
         user.onboarding_step = "activity"
         user.onboarding_data = data
         db.commit()
-        await send_message(chat_id, "<b>Активность · 6/6</b> Уровень активности?", reply_markup=KB_ACTIVITY)
+        await send_message(chat_id, "<b>Активность · 6/7</b> Уровень активности?", reply_markup=KB_ACTIVITY)
         return
 
-    # ── Активность · 6/6 → артефакт → персона ─────────────────────
+    # ── Активность · 6/7 → артефакт → персона ─────────────────────
     if step == "activity":
         if prompt_only:
-            await send_message(chat_id, "<b>Активность · 6/6</b> Уровень активности?", reply_markup=KB_ACTIVITY)
+            await send_message(chat_id, "<b>Активность · 6/7</b> Уровень активности?", reply_markup=KB_ACTIVITY)
             return
         t = text.lower()
         match = next(((lev, mult) for key, (lev, mult) in ACTIVITY_MAP.items() if key in t), None)
@@ -437,6 +453,24 @@ async def _run_step(user: User, text: str, chat_id: int, db, prompt_only: bool =
         data["activity_level"] = level
         data["activity_multiplier"] = mult
         _ensure_user_settings(db, user.telegram_id, activity_level=level)
+        user.onboarding_step = "smoking"
+        user.onboarding_data = data
+        db.commit()
+        await send_message(chat_id, "<b>Курение · 7/7</b> Куришь?", reply_markup=KB_SMOKING)
+        return
+
+    # ── Курение · 7/7 → артефакт → персона (влияет на PhenoAge) ────
+    if step == "smoking":
+        if prompt_only:
+            await send_message(chat_id, "<b>Курение · 7/7</b> Куришь?", reply_markup=KB_SMOKING)
+            return
+        t = text.lower().strip()
+        sm = next((v for k, v in SMOKING_MAP.items() if k in t), None)
+        if not sm:
+            await send_message(chat_id, "Выбери одну кнопку", reply_markup=KB_SMOKING)
+            return
+        user.smoking_status = sm
+        data["smoking"] = sm
         log_event(
             db,
             user_id=user.telegram_id,
@@ -566,5 +600,8 @@ def _detect_missing_steps(user: User, db) -> list[str]:
     # activity
     if not (us and us.activity_level):
         missing.append("activity")
+    # smoking (нужно для PhenoAge/биовозраста)
+    if not user.smoking_status:
+        missing.append("smoking")
 
     return missing
