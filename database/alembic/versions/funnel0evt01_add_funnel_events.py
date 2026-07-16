@@ -31,8 +31,10 @@ def upgrade() -> None:
         sa.Column("event", sa.String(40), nullable=False),
         sa.Column("track", sa.String(8), nullable=True),
         sa.Column("source", sa.String(64), nullable=True),
-        sa.Column("meta", json_type, nullable=True, server_default=sa.text("'{}'")),
+        sa.Column("meta", json_type, nullable=True),
     )
+    # ix_funnel_events_user_id — зеркалит index=True на FunnelEvent.user_id (модель).
+    op.create_index("ix_funnel_events_user_id", "funnel_events", ["user_id"])
     op.create_index("idx_funnel_event_ts", "funnel_events", ["event", sa.text("ts DESC")])
     op.create_index(
         "idx_funnel_once",
@@ -53,4 +55,5 @@ def downgrade() -> None:
         op.execute("DROP POLICY IF EXISTS funnel_admin_only ON funnel_events")
     op.drop_index("idx_funnel_once", table_name="funnel_events")
     op.drop_index("idx_funnel_event_ts", table_name="funnel_events")
+    op.drop_index("ix_funnel_events_user_id", table_name="funnel_events")
     op.drop_table("funnel_events")
