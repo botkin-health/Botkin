@@ -753,13 +753,14 @@ function selectAppleMethod(method, token, sourceId) {
     <p style="color:#8e8e93;font-size:12px">Данные начнут поступать ночью (или через ручной экспорт в HAE).</p>`;
   } else {
     detail.innerHTML = `<ol>
-      <li>Установи шаблон: <a href="https://www.icloud.com/shortcuts/61542a7b1edb42ad86b0b99137c00a94" target="_blank">Botkin Health Export (iCloud)</a></li>
+      <li>Выбери версию команды:<br>
+        📱 <a href="https://www.icloud.com/shortcuts/e3884d8261954664bde8bd78de0ccfdb" target="_blank">Только iPhone</a> — шаги, дистанция, калории, этажи<br>
+        ⌚️ <a href="https://www.icloud.com/shortcuts/890c9df1ae614a4eaf5e8cd49416154a" target="_blank">iPhone + Apple Watch</a> — + пульс, HRV, SpO₂, дыхание, походка</li>
       <li>В поле «Текст» вставь ключ целиком:<br>
         <code>Bearer ${safeToken}</code><button class="copy-btn" onclick="copyToken(${JSON.stringify('Bearer ' + token)}, this)">Скопировать</button></li>
-      <li>Настройки → Команды → Дополнения → включи «Разрешить публикацию большого количества данных»</li>
-      <li>Автоматизация → + → Приложение → Telegram → «Открывается» → запустить команду → «Выполнять немедленно»</li>
+      <li>Установка, разрешения и автоматизация — в <a href="https://github.com/botkin-health/Botkin/blob/main/docs/user_guide/ru/apple-health.md" target="_blank">гайде</a></li>
     </ol>
-    <p style="color:#8e8e93;font-size:12px">⚠️ Shortcut шлёт только метрики Apple Watch за сегодня. Вес, давление и сон — только через HAE.</p>`;
+    <p style="color:#8e8e93;font-size:12px">Вес, давление и сон — только через HAE.</p>`;
   }
 }
 
