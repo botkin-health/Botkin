@@ -758,7 +758,7 @@ function selectAppleMethod(method, token, sourceId) {
         ⌚️ <a href="https://www.icloud.com/shortcuts/890c9df1ae614a4eaf5e8cd49416154a" target="_blank">iPhone + Apple Watch</a> — + пульс, HRV, SpO₂, дыхание, походка</li>
       <li>В поле «Текст» вставь ключ целиком:<br>
         <code>Bearer ${safeToken}</code><button class="copy-btn" onclick="copyToken(${JSON.stringify('Bearer ' + token)}, this)">Скопировать</button></li>
-      <li>Установка, разрешения и автоматизация — в <a href="https://github.com/botkin-health/Botkin/blob/main/docs/user_guide/ru/apple-health.md" target="_blank">гайде</a></li>
+      <li>Установка, разрешения и автоматизация — в <a href="https://github.com/botkin-health/Botkin/blob/main/docs/user_guide/ru/apple-health.md#-%D0%B1%D0%B5%D1%81%D0%BF%D0%BB%D0%B0%D1%82%D0%BD%D1%8B%D0%B9-%D0%BF%D1%83%D1%82%D1%8C--ios-shortcuts-%D0%B1%D0%B5%D0%B7-hae" target="_blank">гайде</a></li>
     </ol>
     <p style="color:#8e8e93;font-size:12px">Вес, давление и сон — только через HAE.</p>`;
   }

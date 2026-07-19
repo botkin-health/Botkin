@@ -29,7 +29,13 @@ router = Router()
 # ── Константы ────────────────────────────────────────────────────────────────
 
 GUIDE_URL = "https://github.com/botkin-health/Botkin/blob/main/docs/user_guide/ru/apple-health.md"
-# Две версии бесплатной команды (выбор по набору устройств). Пошаговая установка — в GUIDE_URL.
+# Якорь на раздел бесплатного пути (для shortcut_setup_text; общий GUIDE_URL остаётся для HAE).
+SHORTCUT_GUIDE_URL = (
+    "https://github.com/botkin-health/Botkin/blob/main/docs/user_guide/ru/apple-health.md"
+    "#-%D0%B1%D0%B5%D1%81%D0%BF%D0%BB%D0%B0%D1%82%D0%BD%D1%8B%D0%B9-%D0%BF%D1%83%D1%82%D1%8C"
+    "--ios-shortcuts-%D0%B1%D0%B5%D0%B7-hae"
+)
+# Две версии бесплатной команды (выбор по набору устройств). Пошаговая установка — в SHORTCUT_GUIDE_URL.
 SHORTCUT_IPHONE_URL = "https://www.icloud.com/shortcuts/e3884d8261954664bde8bd78de0ccfdb"
 SHORTCUT_WATCH_URL = "https://www.icloud.com/shortcuts/890c9df1ae614a4eaf5e8cd49416154a"
 
@@ -110,7 +116,7 @@ def shortcut_setup_text(token: str) -> str:
         "📱 <b>Только iPhone</b> — шаги, дистанция, калории, этажи\n"
         "⌚️ <b>iPhone + Apple Watch</b> — то же + пульс (avg/min/max), пульс покоя, HRV, "
         "SpO₂, дыхание, походка\n\n"
-        f"📖 <b>Ссылки на команды и пошаговая установка — в гайде:</b>\n{GUIDE_URL}\n\n"
+        f"📖 <b>Ссылки на команды и пошаговая установка — в гайде:</b>\n{SHORTCUT_GUIDE_URL}\n\n"
         "💰 Полнее и надёжнее (вес, давление, сон, история): /health_token → «Health Auto Export»\n"
         "♻️ Перевыпустить ключ: /health_token rotate"
     )
