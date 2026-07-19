@@ -162,10 +162,10 @@ def _ensure_user_agent() -> None:
 def _resolve_api_url(region: str | None):
     """Регион ('EU'/'RU'/'US'/...) → api_url для PyLibreLinkUp.
 
-    pylibrelinkup покрывает основные регионы enum'ом APIUrl; для отсутствующих (напр. RU)
-    отдаём региональный host `api-<region>.libreview.io` (тот же URL-паттерн, что у APIUrl).
-    PyLibreLinkUp при логине не на своём регионе сам следует redirect'у из тела ответа
-    (`data.redirect`), поэтому EU как стартовый регион — тоже рабочий фолбэк.
+    pylibrelinkup покрывает основные регионы enum'ом APIUrl — в т.ч. RU (= https://api.libreview.ru,
+    подтверждено на живых кредах 19.07.2026). Для регионов ВНЕ enum — фолбэк на региональный host
+    `api-<region>.libreview.io` (тот же URL-паттерн, что у APIUrl). PyLibreLinkUp при логине не на
+    своём регионе сам следует redirect'у из тела ответа (`data.redirect`).
     """
     from pylibrelinkup import APIUrl
 
