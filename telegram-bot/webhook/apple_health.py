@@ -53,6 +53,31 @@ from webhook.tg_auth import get_tg_user, verify_telegram_init_data  # noqa: F401
 # ── Auth ──────────────────────────────────────────────────────────────────────
 
 
+def _resolve_apple_bmr(existing_row, basal_energy_kcal):
+    """Значение для записи в bmr_calories из Apple-источника (#329).
+
+    `basal_energy_kcal` (Apple RMR) — накопительный внутридневной счётчик:
+    free-путь (iOS Shortcuts) шлёт «сегодня на текущий момент» при каждом
+    открытии Telegram, поэтому утренний запуск несёт частичное значение.
+    `create_or_update_activity(monotonic=True)` держит per-day максимум, поэтому
+    достаточно отдавать basal на каждом вызове — CRUD сам дорастит его до полного
+    дневного значения (регрессию от частичного повторного синка гасит там же).
+
+    Исключение: если BMR уже проставлен Garmin-синком — не трогаем (Garmin > Apple),
+    возвращаем None, чтобы CRUD оставил bmr_calories как есть. Строка считается
+    Garmin-овой по `source` её создателя (update-путь CRUD не меняет source).
+    """
+    if basal_energy_kcal is None:
+        return None
+    if (
+        existing_row is not None
+        and existing_row.bmr_calories is not None
+        and (existing_row.source or "").startswith("garmin")
+    ):
+        return None
+    return basal_energy_kcal
+
+
 def verify_token(authorization: Optional[str] = Header(None), token: Optional[str] = None):
     """Bearer token auth.
 
@@ -310,6 +335,9 @@ async def receive_apple_health(
                 raw["respiratory_rate"] = payload.respiratory_rate
             if payload.wrist_temperature is not None:
                 raw["wrist_temperature"] = payload.wrist_temperature
+            # #328: spo2 хранится только в raw_data (как в v2) — раньше v1 терял его.
+            if payload.spo2_pct is not None:
+                raw["spo2_pct"] = payload.spo2_pct
 
             # NOTE: do NOT pass active_calories — Apple Health's "active energy" is
             # computed differently than Garmin's and breaks the (total = bmr + active)
@@ -321,17 +349,9 @@ async def receive_apple_health(
             if payload.basal_energy_kcal is not None:
                 raw = raw or {}
                 raw["apple_basal_energy_kcal"] = payload.basal_energy_kcal
-            # BMR (basal): write to bmr_calories ONLY if not yet set (Garmin > Apple priority).
-            # If Garmin already populated this row, do not overwrite.
+            # BMR (basal): max-за-день для Apple, но Garmin-BMR не трогаем (#329).
             existing_row = get_activity_by_date(db, target_user_id, record_date)
-            apple_bmr_for_db = (
-                payload.basal_energy_kcal
-                if (
-                    payload.basal_energy_kcal is not None
-                    and (existing_row is None or existing_row.bmr_calories is None)
-                )
-                else None
-            )
+            apple_bmr_for_db = _resolve_apple_bmr(existing_row, payload.basal_energy_kcal)
             activity = create_or_update_activity(
                 db=db,
                 user_id=target_user_id,
@@ -859,16 +879,9 @@ async def receive_apple_health_v2(
             if payload.basal_energy_kcal is not None:
                 raw_extra = raw_extra or {}
                 raw_extra["apple_basal_energy_kcal"] = payload.basal_energy_kcal
-            # Apple's basal → bmr_calories ONLY if Garmin hasn't populated it (Garmin > Apple).
+            # Apple's basal → bmr_calories: max-за-день, но Garmin приоритетнее (#329).
             existing_row_v2 = get_activity_by_date(db, target_user_id, record_date)
-            apple_bmr_v2 = (
-                payload.basal_energy_kcal
-                if (
-                    payload.basal_energy_kcal is not None
-                    and (existing_row_v2 is None or existing_row_v2.bmr_calories is None)
-                )
-                else None
-            )
+            apple_bmr_v2 = _resolve_apple_bmr(existing_row_v2, payload.basal_energy_kcal)
             create_or_update_activity(
                 db=db,
                 user_id=target_user_id,
