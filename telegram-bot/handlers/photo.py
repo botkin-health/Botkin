@@ -1539,15 +1539,18 @@ import logging
 # Импортируем функцию сохранения
 
 
-@router.callback_query(MealConfirmationCallback.filter())
 async def _maybe_record_first_food(telegram_user_id: int, message) -> None:
     """Тонкая обёртка над record_first_food (E5 + демо-празднование).
 
     Вынесена, чтобы (1) тесты могли замокать её точечно и (2) не дублировать
-    вызов в multi- и single-путях сохранения."""
+    вызов в multi- и single-путях сохранения. Это ВНУТРЕННИЙ хелпер, не хендлер —
+    вызывается из handle_meal_confirmation после сохранения (см. #322: декоратор
+    ниже должен оставаться на handle_meal_confirmation, иначе кнопка «Сохранить»
+    падает с TypeError и еда не сохраняется)."""
     await record_first_food(telegram_user_id, message)
 
 
+@router.callback_query(MealConfirmationCallback.filter())
 async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealConfirmationCallback):
     """Обработчик нажатия на кнопки подтверждения сохранения блюда"""
 
