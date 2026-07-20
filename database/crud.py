@@ -87,6 +87,57 @@ def update_user_calorie_settings(
     return user
 
 
+def merge_onboarding_lists(db: Session, telegram_id: int, additions: dict[str, list]) -> dict[str, int]:
+    """Дописать аллергии/диагнозы в users.onboarding_data с дедупом.
+
+    additions: {"allergies": [...], "chronic_conditions": [...]}.
+    Пишет в тот ключ-синоним, что уже читается отчётом (первый непустой),
+    иначе — в дефолтный ('allergies'/'chronic_conditions'). Дедуп case-insensitive.
+    Возвращает {"allergies": n_added, "chronic_conditions": m_added}.
+    """
+    from core.health.onboarding_lists import ALLERGY_KEYS, CONDITION_KEYS, split_freetext
+
+    user = get_user_by_telegram_id(db, telegram_id)
+    if not user:
+        return {}
+
+    data = dict(user.onboarding_data or {})
+    key_order = {"allergies": ALLERGY_KEYS, "chronic_conditions": CONDITION_KEYS}
+    added: dict[str, int] = {}
+
+    for kind, keys in key_order.items():
+        new_items = additions.get(kind) or []
+        target = kind
+        for k in keys:
+            if data.get(k):
+                target = k
+                break
+        existing = data.get(target)
+        if isinstance(existing, list):
+            merged = [str(v).strip() for v in existing if str(v).strip()]
+        elif isinstance(existing, str):
+            merged = split_freetext(existing)
+        else:
+            merged = []
+        seen = {s.strip().lower() for s in merged}
+        n_added = 0
+        for item in new_items:
+            s = str(item).strip()
+            if not s or s.lower() in seen:
+                continue
+            merged.append(s)
+            seen.add(s.lower())
+            n_added += 1
+        if n_added:
+            data[target] = merged
+        added[kind] = n_added
+
+    user.onboarding_data = data  # реассайн объекта → SQLAlchemy засекает JSONB-изменение
+    db.commit()
+    db.refresh(user)
+    return added
+
+
 def generate_health_token(db: Session, telegram_id: int) -> str:
     """Generate and save a unique Apple Health API token for user"""
     import secrets

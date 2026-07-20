@@ -36,7 +36,7 @@ sys.path.insert(0, str(project_root))
 
 from config import get_settings
 from database import SessionLocal
-from database.models import User
+from database.models import User, log_event
 
 logger = logging.getLogger(__name__)
 
@@ -245,6 +245,26 @@ TOOLS: list[dict[str, Any]] = [
         "input_schema": {
             "type": "object",
             "properties": {"days": {"type": "integer", "minimum": 1, "maximum": 180, "default": 30}},
+        },
+    },
+    {
+        "name": "get_supplement_daily_log",
+        "description": (
+            "Для КОРРЕЛЯЦИОННОГО анализа приёма добавки с метриками по дням "
+            "(напр. «влияет ли магний на качество сна», «алкоголь и HRV»). "
+            "В отличие от get_recent_supplements (только агрегаты), возвращает "
+            "для каждой добавки список ДАТ приёма (taken_dates) за период + "
+            "границы окна [start_date, end_date]. День без даты в списке = "
+            "не принимал → можно сопоставлять с get_recent_sleep / get_recent_bp "
+            "и т.п. по дням. Опц. параметр supplement — фильтр по одному "
+            "препарату (подстрока имени). Период по умолчанию 30 дней."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "days": {"type": "integer", "minimum": 1, "maximum": 180, "default": 30},
+                "supplement": {"type": "string", "description": "опц. фильтр по имени добавки (подстрока)"},
+            },
         },
     },
     {
@@ -952,6 +972,16 @@ def _call_tool(name: str, args: dict, token: str) -> str:
             r = requests.get(
                 f"{TOOLS_API_BASE}/recent_supplements",
                 params={"days": int(args.get("days", 30))},
+                headers=headers,
+                timeout=15,
+            )
+        elif name == "get_supplement_daily_log":
+            params = {"days": int(args.get("days", 30))}
+            if args.get("supplement"):
+                params["supplement"] = str(args["supplement"])
+            r = requests.get(
+                f"{TOOLS_API_BASE}/supplement_daily_log",
+                params=params,
                 headers=headers,
                 timeout=15,
             )
@@ -1810,6 +1840,7 @@ _TOOL_PROGRESS_LABEL = {
     # Read tools
     "get_recent_meals": "🍽 собираю питание",
     "get_recent_supplements": "💊 смотрю добавки",
+    "get_supplement_daily_log": "💊 сверяю приём добавок по дням",
     "get_recent_bp": "🩸 поднимаю давление",
     "get_recent_glucose": "🩸 смотрю глюкозу",
     "get_glucose_stats": "🩸 считаю TIR",
@@ -1871,7 +1902,7 @@ def build_default_agent_prompt(user) -> str:
         bits.append(sex_ru)
     who = name + (f" ({', '.join(bits)})" if bits else "")
 
-    return (
+    base = (
         f"Ты — личный AI-агент по теме здоровья для пользователя {name}. "
         "Часть проекта Botkin (botkin.health), канал Telegram @Botkin_md_bot.\n\n"
         "## Пользователь\n\n"
@@ -1902,6 +1933,49 @@ def build_default_agent_prompt(user) -> str:
         "так и скажи и предложи начать логировать.\n"
     )
 
+    from core.personas import get_persona
+
+    persona = get_persona(data.get("persona"))
+    tone_block = (
+        "\n\n## Стиль общения\n\n"
+        f"Общайся в манере «{persona.display}»: {persona.tone_prompt}.\n"
+        "Это стиль, а не содержание — факты и цифры всегда бери из tools."
+    )
+    return base + tone_block
+
+
+def _health_profile_block(user) -> str:
+    """Живой блок медпрофиля (аллергии/диагнозы из onboarding_data) для промпта.
+
+    Пусто по обоим ключам → пустая строка (не шумим). Читает те же ключи,
+    куда пишет merge_onboarding_lists, поэтому агент видит свежие данные сразу
+    после /doc-сохранения (промпт пересобирается на каждый вызов ask_agent).
+    """
+    from core.health.onboarding_lists import ALLERGY_KEYS, CONDITION_KEYS, onboarding_list
+
+    data = getattr(user, "onboarding_data", None) or {}
+    allergies = onboarding_list(data, ALLERGY_KEYS)
+    conditions = onboarding_list(data, CONDITION_KEYS)
+    if not allergies and not conditions:
+        return ""
+    lines = ["\n\n## Медпрофиль (со слов пациента / из документов)"]
+    if allergies:
+        lines.append(f"Аллергии: {', '.join(allergies)}")
+    if conditions:
+        lines.append(f"Хронические диагнозы: {', '.join(conditions)}")
+    lines.append("Учитывай при советах (лекарства, продукты, триггеры).")
+    return "\n".join(lines)
+
+
+def _log_first_question(db, user_id: int, is_e2e: bool) -> None:
+    """E6: первое свободное сообщение агенту (once). Пропускаем E2E-прогоны."""
+    if is_e2e:
+        return
+    try:
+        log_event(db, user_id=user_id, event="first_agent_question", once=True)
+    except Exception:
+        logger.exception("E6 first_agent_question log failed for %s", user_id)
+
 
 def ask_agent(
     user_id: int,
@@ -1929,6 +2003,8 @@ def ask_agent(
         user = db.query(User).filter_by(telegram_id=user_id).first()
         if not user or not user.is_active:
             raise RuntimeError(f"User {user_id} not found or inactive")
+
+        _log_first_question(db, user_id, is_e2e)
 
         token = _generate_jwt(user)
 
@@ -2477,7 +2553,7 @@ def ask_agent(
             "на любой вопрос о текущем времени/«сейчас» отвечай ТОЛЬКО по нему; "
             "упоминания времени в сообщениях пользователя из истории устарели.\n\n"
         )
-        merged_system_prompt = _date_line + UNIVERSAL_META_PROMPT + per_user_prompt
+        merged_system_prompt = _date_line + UNIVERSAL_META_PROMPT + per_user_prompt + _health_profile_block(user)
         # Tracker-события (вес/еда/АД из парсеров) меняются КАЖДОЕ сообщение —
         # держим их ОТДЕЛЬНЫМ system-блоком БЕЗ cache_control, чтобы не
         # инвалидировать кэш стабильного промпта на каждый ход (#169 ревью).

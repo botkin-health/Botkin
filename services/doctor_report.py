@@ -30,6 +30,12 @@ logger = logging.getLogger(__name__)
 
 # Presentation-слой биомаркеров (label/unit/референсы) — то, чего нет в kb_schema.
 # Переиспользуем, чтобы не дублировать RU-названия и границы норм.
+from core.health.onboarding_lists import (
+    ALLERGY_KEYS,
+    CONDITION_KEYS,
+    onboarding_list as _onboarding_list,
+    split_freetext as _split_freetext,  # noqa: F401 (re-export: tests import it from here)
+)
 from core.reports.biomarker_dynamics import MARKER_CONFIG
 from services.report_i18n import (
     CHROME,
@@ -154,30 +160,12 @@ def _coerce_dict(raw: object) -> dict:
     return {}
 
 
-def _onboarding_list(onboarding: Optional[dict], keys: tuple[str, ...]) -> list[str]:
-    """Достать список значений из онбординга по первому подходящему ключу.
-
-    Значение может быть списком или строкой (тогда режем по запятой/переносу).
-    """
-    if not onboarding:
-        return []
-    for key in keys:
-        val = onboarding.get(key)
-        if not val:
-            continue
-        if isinstance(val, list):
-            return [str(v).strip() for v in val if str(v).strip()]
-        parts = [p.strip() for p in str(val).replace("\n", ",").split(",")]
-        return [p for p in parts if p]
-    return []
-
-
 def _problems(onboarding: Optional[dict]) -> list[str]:
-    return _onboarding_list(onboarding, ("chronic_conditions", "chronic_diagnoses", "diagnoses", "conditions"))
+    return _onboarding_list(onboarding, CONDITION_KEYS)
 
 
 def _allergies(onboarding: Optional[dict]) -> list[str]:
-    return _onboarding_list(onboarding, ("allergies", "food_allergies", "allergy"))
+    return _onboarding_list(onboarding, ALLERGY_KEYS)
 
 
 def _medications(db: Session, user_id: int, onboarding: Optional[dict]) -> list[str]:

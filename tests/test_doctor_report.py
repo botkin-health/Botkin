@@ -186,6 +186,52 @@ def test_assemble_generated_date_present(test_db):
     assert str(datetime.now().year) in out
 
 
+# ── Разбиение free-text онбординга на пункты (#7: буллеты не рвутся по запятой) ──
+
+
+def test_split_freetext_sentence_boundaries_keep_icd():
+    """Диагнозы делятся по концу предложения, запятая-описание не рвёт, код МКБ цел."""
+    from services.doctor_report import _split_freetext
+
+    s = (
+        "Бронхиальная астма аллергическая (J45.0), лёгкая персистирующая. "
+        "Аллергический ринит/поллиноз (J30.1). Есть сезонные лекарства, постоянных нет"
+    )
+    assert _split_freetext(s) == [
+        "Бронхиальная астма аллергическая (J45.0), лёгкая персистирующая",
+        "Аллергический ринит/поллиноз (J30.1)",
+        "Есть сезонные лекарства, постоянных нет",
+    ]
+
+
+def test_split_freetext_comma_list_fallback():
+    """Без сильных разделителей список через запятую всё ещё дробится."""
+    from services.doctor_report import _split_freetext
+
+    assert _split_freetext("Гипертония, Диабет 2 типа") == ["Гипертония", "Диабет 2 типа"]
+
+
+def test_split_freetext_newline_and_semicolon():
+    from services.doctor_report import _split_freetext
+
+    assert _split_freetext("Астма\nРинит; Гастрит") == ["Астма", "Ринит", "Гастрит"]
+
+
+def test_split_freetext_preserves_icd_decimal():
+    """Точка внутри кода МКБ (J45.0) не разрывает пункт."""
+    from services.doctor_report import _split_freetext
+
+    assert _split_freetext("Астма (J45.0)") == ["Астма (J45.0)"]
+    assert _split_freetext("Астма (J45.0).") == ["Астма (J45.0)"]
+
+
+def test_split_freetext_single_and_empty():
+    from services.doctor_report import _split_freetext
+
+    assert _split_freetext("Гипертония") == ["Гипертония"]
+    assert _split_freetext("") == []
+
+
 # ── i18n: язык отчёта (#300) ─────────────────────────────────────────────────
 
 
