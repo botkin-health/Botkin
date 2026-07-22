@@ -1979,6 +1979,38 @@ def _health_profile_block(user) -> str:
     return "\n".join(lines)
 
 
+# Admin-контекст-блок системного промпта (#337). Admin-статус (BOTKIN_ADMIN_IDS) —
+# отдельная ось от когорты данных (owner/family/…): когорта ограничивает видимость
+# чужих данных, admin-статус даёт право на операционные действия. Без явного сигнала
+# LLM гадает по family-персоне и отказывает админу в триаже фидбека.
+ADMIN_CONTEXT_PROMPT = (
+    "# 🛡 ТЫ ОБЩАЕШЬСЯ С АДМИНИСТРАТОРОМ BOTKIN\n"
+    "\n"
+    "Текущий пользователь — администратор системы (входит в BOTKIN_ADMIN_IDS). Его\n"
+    "admin-статус НЕ зависит от когорты данных (owner/family/early_user/external):\n"
+    "когорта ограничивает видимость чужих данных, а admin-статус даёт право на\n"
+    "операционные действия с ботом.\n"
+    "\n"
+    "Поэтому: если админ просит показать очередь обратной связи или разобрать обращение\n"
+    "(сменить статус/приоритет, ответить автору) — ВЫЗОВИ `list_feedback` / `triage_feedback`\n"
+    "и выполни. НЕ отказывай со ссылкой на когорту («ты family-пользователь») — эти\n"
+    "инструменты доступны тебе именно потому, что пользователь администратор.\n"
+    "\n"
+    "---\n"
+    "\n"
+)
+
+
+def build_admin_context(is_admin: bool) -> str:
+    """Admin-контекст-блок для системного промпта агента (#337).
+
+    Пустая строка для обычных пользователей. Для админов — явный сигнал, что
+    admin-статус (BOTKIN_ADMIN_IDS) — отдельная ось от когорты данных, чтобы LLM
+    не отказывал в триаже фидбека, приняв себя за «family-only» ассистента.
+    """
+    return ADMIN_CONTEXT_PROMPT if is_admin else ""
+
+
 def _log_first_question(db, user_id: int, is_e2e: bool) -> None:
     """E6: первое свободное сообщение агенту (once). Пропускаем E2E-прогоны."""
     if is_e2e:
@@ -2565,7 +2597,18 @@ def ask_agent(
             "на любой вопрос о текущем времени/«сейчас» отвечай ТОЛЬКО по нему; "
             "упоминания времени в сообщениях пользователя из истории устарели.\n\n"
         )
-        merged_system_prompt = _date_line + UNIVERSAL_META_PROMPT + per_user_prompt + _health_profile_block(user)
+        from config.users import is_admin as _is_admin
+
+        # #337: сообщаем LLM об admin-статусе явно (иначе гадает по когорте и
+        # отказывает админу в триаже фидбека). Блок стабилен per-user → в
+        # кэшируемой части промпта, кэш не инвалидируется.
+        merged_system_prompt = (
+            _date_line
+            + UNIVERSAL_META_PROMPT
+            + per_user_prompt
+            + _health_profile_block(user)
+            + build_admin_context(_is_admin(user_id))
+        )
         # Tracker-события (вес/еда/АД из парсеров) меняются КАЖДОЕ сообщение —
         # держим их ОТДЕЛЬНЫМ system-блоком БЕЗ cache_control, чтобы не
         # инвалидировать кэш стабильного промпта на каждый ход (#169 ревью).
@@ -2586,8 +2629,6 @@ def ask_agent(
         # before it (system + all tools). See:
         # https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching
         # #269: триаж-тулы инбокса — только админам; остальные их не видят.
-        from config.users import is_admin as _is_admin
-
         _admin_only = {"list_feedback", "triage_feedback"}
         _tool_defs = TOOLS if _is_admin(user_id) else [t for t in TOOLS if t["name"] not in _admin_only]
         cached_tools = [dict(t) for t in _tool_defs]
