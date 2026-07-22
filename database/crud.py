@@ -1291,3 +1291,19 @@ def set_feedback_github(db: Session, feedback_id: int, github_issue: Optional[st
     db.commit()
     db.refresh(row)
     return row
+
+
+def mark_feedback_notified(db: Session, feedback_id: int) -> Optional[UserFeedback]:
+    """Штамп `notified_at=now()` — guard идемпотентности уведомления автора (Фаза 3, #188).
+
+    Ставит время только если оно ещё не выставлено: повторный вызов НЕ перезаписывает
+    исходный штамп (значит, второй `done` не «сдвинет» дату и не спровоцирует повторную
+    отправку). Нет записи → None."""
+    row = get_feedback(db, feedback_id)
+    if row is None:
+        return None
+    if row.notified_at is None:
+        row.notified_at = datetime.now(timezone.utc)
+        db.commit()
+        db.refresh(row)
+    return row
