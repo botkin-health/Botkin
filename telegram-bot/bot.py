@@ -258,6 +258,17 @@ def register_handlers(dp: Dispatcher):
         errors.append(f"Обработчик /food_audit: {e}")
         logger.error(f"❌ Ошибка регистрации обработчика /food_audit: {e}")
 
+    try:
+        from handlers.persona_cmd import router as persona_router
+
+        dp.include_router(persona_router)
+        count = len(persona_router.observers) if hasattr(persona_router, "observers") else 0
+        handlers_count += count
+        registered_modules.append("/persona")
+    except Exception as e:
+        errors.append(f"Обработчик /persona: {e}")
+        logger.error(f"❌ Ошибка регистрации обработчика /persona: {e}")
+
     # Apple Health handlers removed
     pass
 

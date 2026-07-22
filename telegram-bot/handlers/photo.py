@@ -58,6 +58,7 @@ router = Router()
 
 
 from handlers.callbacks import MealConfirmationCallback, SupplementConfirmationCallback, WeightConfirmationCallback
+from handlers.first_food import record_first_food
 from webhook.nutrition_slots import SLOTS, slot_center_time, slot_from_time, slot_label_ru
 
 from typing import List
@@ -1538,6 +1539,17 @@ import logging
 # Импортируем функцию сохранения
 
 
+async def _maybe_record_first_food(telegram_user_id: int, message) -> None:
+    """Тонкая обёртка над record_first_food (E5 + демо-празднование).
+
+    Вынесена, чтобы (1) тесты могли замокать её точечно и (2) не дублировать
+    вызов в multi- и single-путях сохранения. Это ВНУТРЕННИЙ хелпер, не хендлер —
+    вызывается из handle_meal_confirmation после сохранения (см. #322: декоратор
+    ниже должен оставаться на handle_meal_confirmation, иначе кнопка «Сохранить»
+    падает с TypeError и еда не сохраняется)."""
+    await record_first_food(telegram_user_id, message)
+
+
 @router.callback_query(MealConfirmationCallback.filter())
 async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealConfirmationCallback):
     """Обработчик нажатия на кнопки подтверждения сохранения блюда"""
@@ -1618,6 +1630,8 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
                 confirm += "\n⚠️ Не удалось сохранить: " + ", ".join(failed) + " — отправь их отдельно."
             await callback.answer("✅ Сохранено!", show_alert=False)
             await safe_edit_text(callback.message, confirm, parse_mode="HTML")
+            if saved_count:
+                await _maybe_record_first_food(telegram_user_id, callback.message)
             state_manager.clear_state(user_id)
             return
 
@@ -1680,6 +1694,8 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
                 f"{budget}"
             )
             await safe_edit_text(callback.message, confirm_text, parse_mode="HTML")
+
+            await _maybe_record_first_food(telegram_user_id, callback.message)
 
             from core.food.interaction_log import log_food_interaction
 

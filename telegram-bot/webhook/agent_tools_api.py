@@ -1841,6 +1841,97 @@ async def recent_supplements(
     }
 
 
+@router.get("/supplement_daily_log")
+async def supplement_daily_log(
+    days: int = 30,
+    supplement: Optional[str] = None,
+    user=Depends(get_agent_user),
+    db: Session = Depends(get_db),
+):
+    """Per-day supplement intake log for correlation analysis.
+
+    В отличие от /recent_supplements (только агрегаты), возвращает для каждой
+    добавки СПИСОК ДАТ приёма за окно + границы окна — чтобы сопоставлять факт
+    приёма по дням с данными сна/HRV/активности (напр. магний ↔ качество сна).
+
+    supplements_log хранит строку на каждый приём; «не принимал» = отсутствие
+    строки. Отдаём разреженно: taken_dates + [start_date, end_date] полностью
+    определяют taken/not-taken для любого дня без плотной сетки N×дни.
+
+    Параметры:
+      days: окно, 1..180 (дефолт 30).
+      supplement: опц. подстрока имени (регистронезависимо) — один препарат.
+    """
+    from datetime import time as _dtime
+
+    from database.models import SupplementLog
+
+    days = max(1, min(days, 180))
+    # «Сегодня» в tz пользователя — иначе поздние вечерние записи уедут за окно
+    # (та же логика, что в других эндпоинтах агента).
+    tz_name = getattr(user, "timezone", None) or "Europe/Moscow"
+    try:
+        user_tz = ZoneInfo(tz_name)
+    except (ZoneInfoNotFoundError, KeyError):
+        user_tz = ZoneInfo("Europe/Moscow")
+    today = datetime.now(user_tz).date()
+    start_date = today - timedelta(days=days - 1)
+
+    rows = (
+        db.query(
+            SupplementLog.supplement_name,
+            SupplementLog.date,
+            SupplementLog.time,
+            SupplementLog.dosage,
+        )
+        .filter(
+            SupplementLog.user_id == user.telegram_id,
+            SupplementLog.date >= start_date,
+        )
+        .order_by(SupplementLog.supplement_name, SupplementLog.date)
+        .all()
+    )
+
+    name_filter = supplement.strip().lower() if supplement else None
+
+    # Группируем по имени добавки, копим множество дат приёма + последнюю дозу.
+    groups: dict = {}
+    for r in rows:
+        name = r.supplement_name or ""
+        if name_filter and name_filter not in name.lower():
+            continue
+        g = groups.setdefault(name, {"dates": set(), "last_key": None, "last_dosage": None})
+        g["dates"].add(r.date)
+        key = (r.date, r.time or _dtime.min)
+        if g["last_key"] is None or key > g["last_key"]:
+            g["last_key"] = key
+            g["last_dosage"] = r.dosage
+
+    supplements = []
+    for name, g in groups.items():
+        dates_sorted = sorted(g["dates"])
+        supplements.append(
+            {
+                "supplement": name,
+                "days_taken": len(dates_sorted),
+                "adherence_pct": round(100 * len(dates_sorted) / days, 1),
+                "taken_dates": [d.isoformat() for d in dates_sorted],
+                "last_dosage": g["last_dosage"],
+            }
+        )
+    # По убыванию частоты, затем по имени — как в /recent_supplements.
+    supplements.sort(key=lambda s: (-s["days_taken"], s["supplement"]))
+
+    return {
+        "status": "ok",
+        "period_days": days,
+        "start_date": start_date.isoformat(),
+        "end_date": today.isoformat(),
+        "unique_supplements": len(supplements),
+        "supplements": supplements,
+    }
+
+
 @router.get("/recent_biomarkers")
 async def recent_biomarkers(
     limit: int = 20,
