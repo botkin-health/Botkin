@@ -830,7 +830,11 @@ TOOLS: list[dict[str, Any]] = [
         "description": (
             "АДМИН-ТУЛ (#269): триаж записи инбокса — сменить статус/приоритет/привязать "
             "GitHub-issue. Частичное обновление: передавай только меняемые поля. "
-            "Возвращает обновлённую запись."
+            "Возвращает обновлённую запись.\n"
+            "Фаза 3 (#188): при переводе в done/wontfix бот САМ шлёт автору уведомление о "
+            "разборе (один раз, guard по notified_at). Для вопроса (kind=question) передай "
+            "`notify_text` — твой человеческий ответ уйдёт автору напрямую и закроет обращение. "
+            "В ответе поля `notified` и `notify_skipped` (opt_out/already_notified/send_failed)."
         ),
         "input_schema": {
             "type": "object",
@@ -847,6 +851,13 @@ TOOLS: list[dict[str, Any]] = [
                     "description": "Приоритет.",
                 },
                 "github_issue": {"type": "string", "description": "Номер GitHub-issue (напр. '300')."},
+                "notify_text": {
+                    "type": "string",
+                    "description": (
+                        "Явный ответ автору (перекрывает авто-текст, уходит при любом статусе). "
+                        "Используй для kind=question, чтобы ответить человеку по существу."
+                    ),
+                },
             },
             "required": ["feedback_id"],
         },
@@ -1159,6 +1170,7 @@ def _call_tool(name: str, args: dict, token: str) -> str:
                     "status": args.get("status"),
                     "priority": args.get("priority"),
                     "github_issue": args.get("github_issue"),
+                    "notify_text": args.get("notify_text"),
                 },
                 timeout=10,
             )
