@@ -84,6 +84,59 @@ async def test_single_meal_save_logs_food_interaction():
 
 
 @pytest.mark.asyncio
+async def test_callback_answered_before_blocking_save():
+    """Регресс dev-hang 16.07.2026: спиннер коллбэка гасится ДО блокирующего
+    save_meal_to_db.
+
+    Иначе при медленной/залоченной записи в nutrition_log (напр. лок дев-БД от
+    ночного sync-prod-to-dev) кнопка «✅ Сохранить» висит дольше ~15с окна
+    Telegram, а синхронный save морозит весь event-loop бота для всех
+    пользователей. answer() должен идти первым, результат — через edit сообщения.
+    """
+    from handlers.photo import handle_meal_confirmation
+    from handlers.callbacks import MealConfirmationCallback
+    from services.state import UserState, state_manager
+
+    events: list[str] = []
+
+    user_id = "895659"
+    state_manager.set_state(
+        user_id,
+        UserState(
+            user_id=user_id,
+            state="waiting_confirmation",
+            data={
+                "source": "text",
+                "description": "банан",
+                "meal_items": [{"product": "Банан", "weight_g": 120, "calories": 100}],
+                "meal_totals": {"calories": 100},
+                "meal_name": "Перекус",
+            },
+        ),
+    )
+
+    callback = _make_callback(user_id=895659)
+    callback.answer = AsyncMock(side_effect=lambda *a, **k: events.append("answer"))
+    callback_data = MealConfirmationCallback(action="save", meal_type="regular")
+
+    def _save(*a, **k):
+        events.append("save")
+        return 777
+
+    with (
+        patch(SAVE_MEAL, side_effect=_save),
+        patch(LOG_INTERACTION),
+        patch(BUDGET_LINE, return_value=""),
+        patch(GET_USER_SETTINGS, return_value=None),
+        patch(SESSION_LOCAL, return_value=MagicMock()),
+    ):
+        await handle_meal_confirmation(callback, callback_data)
+
+    assert events and events[0] == "answer", f"answer() должен предшествовать save, порядок: {events}"
+    assert "save" in events
+
+
+@pytest.mark.asyncio
 async def test_single_meal_cancel_logs_food_interaction():
     from handlers.photo import handle_meal_confirmation
     from handlers.callbacks import MealConfirmationCallback
