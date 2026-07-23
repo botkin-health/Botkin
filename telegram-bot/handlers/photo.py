@@ -12,6 +12,7 @@ from datetime import datetime
 
 from core.infra.tz import MSK  # noqa: E402  (общая TZ проекта)
 from pathlib import Path
+import asyncio
 import html
 import math
 import os
@@ -1591,6 +1592,13 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
     if callback_data.action == "save":
         telegram_user_id = int(callback.from_user.id)
 
+        # Гасим спиннер кнопки СРАЗУ, до любой блокирующей записи в БД. Иначе при
+        # медленной/залоченной nutrition_log (прецедент 16.07.2026: лок дев-БД от
+        # ночного sync-prod-to-dev) кнопка висит дольше ~15с окна коллбэка
+        # Telegram, а синхронный save_meal_to_db морозит event-loop бота для всех
+        # пользователей. Итог сохранения показываем ниже через edit сообщения.
+        await callback.answer()
+
         # Multi-meal path (from multi_food router type — issue #53)
         if user_state.data.get("multi_meals"):
             from helpers.db_save import save_meal_to_db
@@ -1606,7 +1614,10 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
                     "meal_totals": m["meal_totals"],
                     "date": user_state.data.get("date"),
                 }
-                meal_nutrition_log_id = save_meal_to_db(meal_data, m["meal_name"], user_id=telegram_user_id)
+                # to_thread: блокирующий save не должен морозить event-loop
+                meal_nutrition_log_id = await asyncio.to_thread(
+                    save_meal_to_db, meal_data, m["meal_name"], user_id=telegram_user_id
+                )
                 if meal_nutrition_log_id is not None:
                     saved_count += 1
                     total_kcal += int(m["meal_totals"].get("calories", 0))
@@ -1628,7 +1639,6 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
             confirm = f"✅ <b>Сохранено приёмов: {saved_count}</b> · {total_kcal} ккал"
             if failed:
                 confirm += "\n⚠️ Не удалось сохранить: " + ", ".join(failed) + " — отправь их отдельно."
-            await callback.answer("✅ Сохранено!", show_alert=False)
             await safe_edit_text(callback.message, confirm, parse_mode="HTML")
             if saved_count:
                 await _maybe_record_first_food(telegram_user_id, callback.message)
@@ -1663,10 +1673,12 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
         logger.info(f"[BEFORE SAVE] meal_totals: {user_state.data.get('meal_totals')}")
         logger.info(f"[BEFORE SAVE] meal_items count: {len(user_state.data.get('meal_items', []))}")
 
-        nutrition_log_id = save_meal_to_db(user_state.data, meal_name, user_id=telegram_user_id)
+        # to_thread: блокирующий save не должен морозить event-loop (коллбэк уже отвечен)
+        nutrition_log_id = await asyncio.to_thread(
+            save_meal_to_db, user_state.data, meal_name, user_id=telegram_user_id
+        )
         if nutrition_log_id is not None:
             logger.info("[AFTER SAVE] save_meal_to_db returned id=%s", nutrition_log_id)
-            await callback.answer("✅ Сохранено!", show_alert=False)
 
             totals = user_state.data.get("meal_totals", {})
             meal_kcal = totals.get("calories", 0)
@@ -1722,7 +1734,12 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
                     logger.warning(f"offer_remember_product failed: {e}")
         else:
             logger.error("[AFTER SAVE] save_meal_to_db returned None!")
-            await callback.answer("❌ Ошибка при сохранении", show_alert=True)
+            # Коллбэк уже отвечен вверху — ошибку показываем через edit сообщения
+            await safe_edit_text(
+                callback.message,
+                "❌ Не удалось сохранить приём пищи. Попробуйте ещё раз.",
+                parse_mode="HTML",
+            )
             logger.error("Ошибка при сохранении в save_meal_to_db")
     else:
         # Не сохраняем
