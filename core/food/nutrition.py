@@ -657,6 +657,38 @@ def _unique_weight_match(weight: float, regex_weights) -> bool:
     return len(hits) == 1
 
 
+# Источники regex-веса, которые являются ОЦЕНКОЙ (штуки × дефолт, порции), а не явными граммами.
+_ESTIMATE_SOURCES = frozenset({"quantity_estimate", "portion_estimate"})
+# Оценка, расходящаяся с весом LLM сильнее чем в N раз, не перекрывает LLM:
+# LLM видит весь контекст, regex — одно слово. Инцидент 07.09.2026: «106 перца» →
+# оценка 15900 г перекрыла корректные 106 г от LLM.
+_ESTIMATE_VS_LLM_MAX_RATIO = 5.0
+_SCALED_MACROS = ("calories", "protein", "fats", "carbs")
+
+
+def _estimate_contradicts_llm(regex_weight: float, regex_source: str, llm_weight) -> bool:
+    if regex_source not in _ESTIMATE_SOURCES or not llm_weight or llm_weight <= 0:
+        return False
+    ratio = max(regex_weight, llm_weight) / min(regex_weight, llm_weight)
+    return ratio > _ESTIMATE_VS_LLM_MAX_RATIO
+
+
+def _scale_item_macros(item: Dict, old_weight, new_weight: float) -> Dict:
+    """Вес item заменён → масштабируем КБЖУ под новый вес, чтобы не получить 15900 г при 34 ккал.
+    Возвращает копию; исходный dict из llm_data не мутируется (issue #408)."""
+    if not old_weight or old_weight <= 0 or item.get("calories") is None:
+        return item
+    if abs(float(old_weight) - float(new_weight)) < _WEIGHT_EQ_TOLERANCE_G:
+        return item
+    scale = float(new_weight) / float(old_weight)
+    scaled = dict(item)
+    for macro in _SCALED_MACROS:
+        val = scaled.get(macro)
+        if val is not None:
+            scaled[macro] = round(float(val) * scale, 1)
+    return scaled
+
+
 def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List[Dict], Dict[str, float]]:
     """
     Converts LLM Router 'food' data into internal meal structure.
@@ -685,6 +717,7 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
 
     # Pre-calculate regex items if description is available
     regex_items_map = {}
+    regex_sources_map = {}  # тот же ключ → source ("description" = явные граммы, *_estimate = оценка)
     regex_weights_list: list = []  # веса по продуктам (не по ключам) — для проверки уникальности совпадения
     if description:
         try:
@@ -697,9 +730,11 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
                     # Use simple normalization
                     n_name = normalize_product_name(p["name"])
                     regex_items_map[n_name] = p["weight"]
+                    regex_sources_map[n_name] = p.get("source", "description")
                     regex_weights_list.append(float(p["weight"]))
                     # Also map raw name just in case
                     regex_items_map[p["name"].lower()] = p["weight"]
+                    regex_sources_map[p["name"].lower()] = p.get("source", "description")
         except Exception as e:
             print(f"Error in regex fallback: {e}")
 
@@ -715,21 +750,33 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
 
             n_name = normalize_product_name(name)
             regex_weight = None
+            regex_key = None
             if n_name in regex_items_map:
-                regex_weight = regex_items_map[n_name]
+                regex_key = n_name
             elif name.lower() in regex_items_map:
-                regex_weight = regex_items_map[name.lower()]
-            if not regex_weight:
-                for r_name, r_weight in regex_items_map.items():
+                regex_key = name.lower()
+            if regex_key is None:
+                for r_name in regex_items_map:
                     if len(r_name) > 3 and len(name) > 3 and _stems_overlap(name.lower(), r_name):
-                        regex_weight = r_weight
+                        regex_key = r_name
                         break
+            if regex_key is not None:
+                regex_weight = regex_items_map[regex_key]
+                regex_source = regex_sources_map.get(regex_key, "description")
+                if _estimate_contradicts_llm(float(regex_weight), regex_source, weight):
+                    logger.warning(
+                        f"⚠️ Regex-оценка веса '{name}' ({regex_weight}г, {regex_source}) расходится с LLM "
+                        f"({weight}г) более чем в {_ESTIMATE_VS_LLM_MAX_RATIO:g}× — оставляем вес LLM"
+                    )
+                    regex_weight = None
             if not regex_weight and weight:
                 # Имя не пересекается даже по стемам, но LLM-вес совпадает с явно
                 # указанным пользователем весом ровно одного продукта — доверяем.
                 if _unique_weight_match(float(weight), regex_weights_list):
                     regex_weight = weight
             if regex_weight is not None:
+                # Вес взят из описания → КБЖУ LLM пересчитываем под него (иначе 15900 г при 34 ккал)
+                item = _scale_item_macros(item, weight, regex_weight)
                 weight = regex_weight
                 regex_matched = True
 
@@ -743,13 +790,7 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
                 # Если LLM уже дал вес и калории — масштабируем макросы под новый
                 # (дефолтный) вес порции, чтобы не потерять КБЖУ-консистентность
                 # (issue #408: раньше вес менялся, а калории — нет).
-                if weight and weight > 0 and item.get("calories") is not None:
-                    scale = default_weight / weight
-                    item = dict(item)  # копия, не мутируем исходный dict из llm_data
-                    for macro in ("calories", "protein", "fats", "carbs"):
-                        val = item.get(macro)
-                        if val is not None:
-                            item[macro] = round(float(val) * scale, 1)
+                item = _scale_item_macros(item, weight, default_weight)
                 weight = default_weight
 
         # Fallback: если regex не сработал — default_weight уже применили выше

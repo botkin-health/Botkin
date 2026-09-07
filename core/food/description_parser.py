@@ -16,6 +16,11 @@ except ImportError:
         return []
 
 
+# Порог правдоподобия для «N штук продукта». Если N × вес штуки больше — N не
+# количество штук, а граммы без единицы («106 перца» = 106 г, не 106 × 150 г).
+# Инцидент 07.09.2026: 15900 г перца и 334 г клетчатки в дневнике.
+MAX_PLAUSIBLE_ITEM_WEIGHT_G = 2000
+
 # Вес одной штуки продукта (для оценки, если вес не указан)
 DEFAULT_UNIT_WEIGHTS = {
     # Фрукты
@@ -627,9 +632,14 @@ def extract_products_from_description(description: str) -> List[Dict[str, any]]:
                     count = float(count_match.group(1).replace(",", "."))
 
             total_weight = weight_per_unit * count
+            source = "quantity_estimate"
+            if total_weight > MAX_PLAUSIBLE_ITEM_WEIGHT_G:
+                # Никто не ест 106 перцев: число без единицы — это граммы.
+                total_weight = count
+                source = "description"
             normalized = normalize_product_name(product_name)
             if normalized and normalized not in added_products:
-                products.append({"name": normalized, "weight": total_weight, "source": "quantity_estimate"})
+                products.append({"name": normalized, "weight": total_weight, "source": source})
                 added_products.add(normalized)
 
     # Специальная обработка Bombbar без числа
