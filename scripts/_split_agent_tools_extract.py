@@ -20,6 +20,9 @@ def _names_of(node):
 
 
 def main():
+    if len(sys.argv) < 3:
+        sys.exit("usage: python3 scripts/_split_agent_tools_extract.py <source.py> name1 [name2 ...]")
+
     src_path = sys.argv[1]
     names = set(sys.argv[2:])
     text = open(src_path, encoding="utf-8").read()
@@ -30,6 +33,9 @@ def main():
     for node in tree.body:
         for node_name in _names_of(node):
             if node_name in names:
+                if node_name in found:
+                    print(f"DUPLICATE TOP-LEVEL NAME: {node_name}", file=sys.stderr)
+                    sys.exit(1)
                 deco_list = getattr(node, "decorator_list", [])
                 start = min([d.lineno for d in deco_list] + [node.lineno])
                 found[node_name] = (start, node.end_lineno)
