@@ -489,6 +489,11 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
             # Обрабатываем описание с учетом меню
             # Caption уже в state, передаем None чтобы функция взяла caption из состояния
             await handle_description(message, None, processing_message=processing_msg)
+            # Без return выполнение проваливалось в общий блок ниже: состояние
+            # пересоздавалось уже без menu_data и handle_description вызывался второй
+            # раз с новым LLM-разбором, перезаписывая правильный (якорный) итог.
+            # Прецеденты 08.09.2026: 564 → 744/787/886 (#427).
+            return
         else:
             # Нет caption - используем данные как есть
             logger.info(f"Используем данные без caption: {menu_data.get('dish_name')}")
