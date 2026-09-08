@@ -98,6 +98,16 @@ CASE B: Label or card shows TOTAL values for the whole product/portion (e.g. "И
   2. TRUST these totals 100%.
   3. List ingredients in `items` normally.
 
+CASE B + MODIFIER: the user's caption EXCLUDES or MODIFIES an ingredient of a card that states a per-portion total
+("без кускуса", "минус масло", "без соуса", "половину"):
+  1. KEEP the stated per-portion total as the ANCHOR. NEVER rebuild the dish from the ingredient list —
+     on meal-kit cards (Elementaree, Шефмаркет, HelloFresh…) the ingredient list is for the WHOLE KIT (often 2 portions), not one portion.
+  2. Still list ALL ingredients in `items` (including the excluded one) with your best PER-PORTION estimate —
+     the app subtracts the excluded item deterministically.
+  3. `total_nutrition` = the printed per-portion values, unchanged. Put the caption's modifier into `dish_name` in parentheses.
+  Example: card says "на порцию 564 ккал", caption "Без кускуса" → total_nutrition.calories = 564; items include "Кускус" ≈ 60 г;
+  do NOT return ~744 kcal by summing kit ingredient weights.
+
 KEY RULE: Always check if the label says "на 100г" / "per 100g" / "per serving" before deciding which case applies!
 
 SCENARIO 1.2: PACKAGED PRODUCT WRAPPER / LABEL PHOTO (CRITICAL)
