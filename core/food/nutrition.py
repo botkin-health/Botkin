@@ -650,6 +650,11 @@ def _stems_overlap(a: str, b: str) -> bool:
     return bool(sa & sb)
 
 
+# Публичный алиас для внешних потребителей (#427: core/food/modifiers.py) —
+# nutrition.py не импортирует modifiers.py, чтобы не создавать цикл.
+stems_overlap = _stems_overlap
+
+
 def _unique_weight_match(weight: float, regex_weights) -> bool:
     """LLM-вес совпал ровно с одним из явно указанных пользователем весов.
     Если одинаковый вес указан у нескольких продуктов — совпадение неоднозначно, не доверяем."""
