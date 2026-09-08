@@ -138,3 +138,21 @@ def test_build_meal_state_data_omits_is_plan_when_none():
     """
     result = build_meal_state_data(meal_items=[], meal_totals={}, is_plan=None)
     assert "is_plan" not in result
+
+
+def test_preview_message_id_validates():
+    """#427: id сообщения-превью, чтобы потом можно было отредактировать его
+
+    (правка позиции/веса) без пересоздания карточки."""
+    data = MealStateData(meal_items=[{"product": "Банан"}], meal_totals={"calories": 100}, preview_message_id=12345)
+    assert data.preview_message_id == 12345
+
+
+def test_card_totals_validates():
+    """#427: якорь «итого» с карточки (например этикетки/рецепта) —
+
+    используется core.food.nutrition для масштабирования items к заявленной сумме
+    вместо суммы по компонентам."""
+    card_totals = {"calories": 564, "protein": 30, "fats": 20, "carbs": 60}
+    data = MealStateData(meal_items=[{"product": "Боул"}], meal_totals={"calories": 744}, card_totals=card_totals)
+    assert data.card_totals == card_totals
