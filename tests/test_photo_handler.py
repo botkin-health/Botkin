@@ -562,3 +562,26 @@ async def test_caption_on_card_runs_single_pass_and_keeps_anchor(tmp_path):
     raw_sum = sum(c["calories"] for c in components)
     expected = 564 - 210 * 564 / raw_sum
     assert state.data["meal_totals"]["calories"] == pytest.approx(expected, abs=3)
+
+
+def test_build_router_result_does_not_duplicate_caption_already_in_dish_name():
+    """#427: LLM сама вписала модификатор в dish_name («…(без кускуса)») —
+    build_router_result_from_menu_data не должна приклеивать его второй раз."""
+    from handlers.photo import build_router_result_from_menu_data
+
+    menu_data = {
+        "dish_name": "Куриные стрипсы с кабачком и огурцом (без кускуса)",
+        "calories": 564,
+        "protein": 43,
+        "fats": 21,
+        "carbs": 50,
+        "components": [
+            {"name": "Куриные стрипсы", "weight": 300, "calories": 330, "protein": 36, "fats": 12, "carbs": 8},
+            {"name": "Кабачок", "weight": 100, "calories": 24, "protein": 1, "fats": 0, "carbs": 5},
+        ],
+    }
+
+    result = build_router_result_from_menu_data(menu_data, caption="без кускуса")
+
+    assert result["data"]["dish_name"] == "Куриные стрипсы с кабачком и огурцом (без кускуса)"
+    assert result["data"]["dish_name"].count("без кускуса") == 1
