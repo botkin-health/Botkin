@@ -43,7 +43,7 @@ def db_session():
 
 @pytest.fixture
 def client(db_session):
-    from webhook import agent_tools_api
+    from webhook import agent_tools as agent_tools_api
     from webhook.jwt_auth import get_agent_user, get_db
 
     app = FastAPI()

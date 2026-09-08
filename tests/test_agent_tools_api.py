@@ -96,12 +96,11 @@ def _make_mock_user(health_token="hvt_old_token"):
 @pytest.fixture
 def client(db_session, monkeypatch):
     """TestClient with mocked auth and DB session injection."""
-    from webhook import agent_tools_api
+    from webhook import agent_tools as agent_tools_api
     from webhook.jwt_auth import get_agent_user, get_db
 
     # Patch close() so production code's db.close() is a no-op on our session
     monkeypatch.setattr(db_session, "close", lambda: None)
-    monkeypatch.setattr(agent_tools_api, "get_db", lambda: iter([db_session]))
 
     app = FastAPI()
     app.include_router(agent_tools_api.router)
@@ -551,20 +550,29 @@ def test_kb_value_owner_returns_value(client, tmp_path, monkeypatch):
     """GET /kb_value for owner cohort reads knowledge_base.json."""
     import json
 
+    from webhook.agent_tools import common
+
     kb_data = {"blood_tests": [{"date": "2026-01-01", "values": {"cholesterol": 5.1}}], "name": "Alexander"}
     kb_file = tmp_path / "knowledge_base.json"
     kb_file.write_text(json.dumps(kb_data), encoding="utf-8")
 
-    import webhook.agent_tools_api as ata
-
-    monkeypatch.setattr(ata, "Path", lambda *args: kb_file if "knowledge_base" in str(args) else Path(*args))
+    monkeypatch.setattr(
+        common,
+        "Path",
+        lambda *args: kb_file if "knowledge_base" in str(args) else Path(*args),
+    )
 
     # Patch the path resolution directly
-    with patch("webhook.agent_tools_api.Path") as mock_path_cls:
+    with patch("webhook.agent_tools.common.Path") as mock_path_cls:
         mock_path_instance = MagicMock()
         mock_path_instance.__truediv__ = lambda self, other: kb_file
         mock_path_instance.resolve.return_value = mock_path_instance
-        mock_path_instance.parents = [mock_path_instance, mock_path_instance, tmp_path]
+        mock_path_instance.parents = [
+            mock_path_instance,
+            mock_path_instance,
+            mock_path_instance,
+            tmp_path,
+        ]  # 4 levels: common.py is one dir deeper
         mock_path_cls.return_value = mock_path_instance
 
         r = client.get("/api/agent/kb_value?key=name")
@@ -582,7 +590,7 @@ def test_kb_value_non_owner_returns_stub(db_session, monkeypatch):
     family/early_user/external endpoint возвращает заглушку, не падает.
     """
     from fastapi.testclient import TestClient
-    from webhook import agent_tools_api
+    from webhook import agent_tools as agent_tools_api
     from webhook.jwt_auth import get_agent_user, get_db
 
     app = FastAPI()
@@ -668,11 +676,10 @@ def test_dashboard_summary_no_share_token_returns_null_url(db_session, monkeypat
     """GET /dashboard_summary returns dashboard_url=None when share_token is absent."""
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
-    from webhook import agent_tools_api
+    from webhook import agent_tools as agent_tools_api
     from webhook.jwt_auth import get_agent_user, get_db
 
     monkeypatch.setattr(db_session, "close", lambda: None)
-    monkeypatch.setattr(agent_tools_api, "get_db", lambda: iter([db_session]))
 
     app = FastAPI()
     app.include_router(agent_tools_api.router)
@@ -1136,9 +1143,14 @@ def test_flag_for_devs_respects_opt_out(client, db_session):
 @pytest.fixture
 def no_kb(monkeypatch):
     """У пользователя нет KB-файла — как у самозарегистрированного юзера."""
-    from webhook import agent_tools_api
 
-    monkeypatch.setattr(agent_tools_api, "_resolve_user_kb_path", lambda user: (None, "none"))
+    from webhook.agent_tools import nutrition
+
+    monkeypatch.setattr(
+        nutrition,
+        "_resolve_user_kb_path",
+        lambda user: (None, "none"),
+    )
 
 
 def test_meal_context_falls_back_to_onboarding(client, no_kb):
@@ -1158,11 +1170,16 @@ def test_meal_context_falls_back_to_onboarding(client, no_kb):
 
 def test_meal_context_kb_wins_over_onboarding(client, monkeypatch, tmp_path):
     """KB — приоритетный источник: онбординг не перебивает файл."""
-    from webhook import agent_tools_api
+
+    from webhook.agent_tools import nutrition
 
     kb_file = tmp_path / "kb_895655.json"
     kb_file.write_text('{"chronic_diagnoses": ["Демпинг-синдром"]}', encoding="utf-8")
-    monkeypatch.setattr(agent_tools_api, "_resolve_user_kb_path", lambda user: (kb_file, "test"))
+    monkeypatch.setattr(
+        nutrition,
+        "_resolve_user_kb_path",
+        lambda user: (kb_file, "test"),
+    )
 
     mock_user = _current_mock_user(client)
     mock_user.onboarding_data = {"chronic_conditions": ["Гипотиреоз"]}
