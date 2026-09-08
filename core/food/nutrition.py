@@ -694,6 +694,22 @@ def _scale_item_macros(item: Dict, old_weight, new_weight: float) -> Dict:
     return scaled
 
 
+# КБЖУ + клетчатка, масштабируемые под якорный итог карточки (#427). Вес НЕ трогаем —
+# заявленный на карточке итог относится к порции, а items описывают состав всего набора.
+_CARD_ANCHOR_SCALED_KEYS = ("calories", "protein", "fats", "carbs", "fiber")
+
+
+def _scale_item_by_factor(item: Dict, factor: float) -> Dict:
+    """Возвращает новую копию item с КБЖУ+клетчаткой, умноженными на factor.
+    Вес (weight_g) не меняется — карточка задаёт якорь по калориям порции, а не по массе."""
+    scaled = dict(item)
+    for key in _CARD_ANCHOR_SCALED_KEYS:
+        val = item.get(key)
+        if val is not None:
+            scaled[key] = round(float(val) * factor, 1)
+    return scaled
+
+
 def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List[Dict], Dict[str, float]]:
     """
     Converts LLM Router 'food' data into internal meal structure.
@@ -1136,6 +1152,27 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
     dish_name = data.get("dish_name", "")
     first_product = meal_items[0].get("product", "") if meal_items else ""
     if total_nutrition and (total_nutrition.get("calories") or 0) > 0:
+        # #427: карточка рецепта явно указывает, что total_nutrition — это итог ПО ПОРЦИИ,
+        # а items — состав ВСЕГО набора (см. handlers/, которые проставляют этот флаг после
+        # разбора caption). Тогда масштабируем items под заявленный итог, а не игнорируем его.
+        stated_calories = float(total_nutrition.get("calories") or 0)
+        if data.get("totals_anchor") == "card" and len(meal_items) > 1 and stated_calories > 0:
+            computed_calories = float(computed_totals.get("calories") or 0)
+            factor = stated_calories / computed_calories if computed_calories > 0 else 1.0
+            anchored_items = [_scale_item_by_factor(it, factor) for it in meal_items]
+            anchored_fiber = round(sum(float(it.get("fiber") or 0) for it in anchored_items), 1)
+            logger.info(
+                f"✅ Card-anchored totals (#427): scaling {len(meal_items)} items by factor={factor:.3f} "
+                f"to match stated {stated_calories} kcal (computed was {computed_calories})"
+            )
+            return anchored_items, {
+                "calories": stated_calories,
+                "protein": float(total_nutrition.get("protein", 0)),
+                "fats": float(total_nutrition.get("fats", 0)),
+                "carbs": float(total_nutrition.get("carbs", 0)),
+                "fiber": anchored_fiber,
+                "has_alcohol": detect_alcohol(anchored_items),
+            }
         if len(meal_items) == 1 and is_zero_calorie_drink(dish_name or first_product):
             return meal_items, {
                 "calories": 0.0,
