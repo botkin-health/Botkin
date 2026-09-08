@@ -640,7 +640,8 @@ _WEIGHT_EQ_TOLERANCE_G = 0.01
 
 def _stem(token: str) -> str:
     """Грубый стем: первые 5 букв (4 для слов короче 6)."""
-    t = token.lower().strip("().,;:!?-")
+    # «кус-куса» → «кускуса»: дефис внутри слова не должен ломать сопоставление
+    t = token.lower().replace("-", "").strip("().,;:!?")
     return t[:_STEM_LONG_PREFIX] if len(t) >= _STEM_LONG_WORD_LEN else t[:_STEM_SHORT_PREFIX]
 
 
