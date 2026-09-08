@@ -518,3 +518,47 @@ async def test_photo_caption_modifier_removes_component(tmp_path):
     # Превью печатается через processing_message.edit_text (safe_edit_text)
     preview_calls = [c for c in processing_msg.edit_text.call_args_list if c.args and "− Кускус" in c.args[0]]
     assert preview_calls, "Превью не содержит «− Кускус»"
+
+
+@pytest.mark.asyncio
+async def test_caption_on_card_runs_single_pass_and_keeps_anchor(tmp_path):
+    """#427: фото карточки с итогом на порцию + подпись «без кускуса» → ОДИН LLM-вызов,
+    итог якорится к карточке (564), кускус вычтен; раньше второй проход перезаписывал 564 → 886."""
+    from handlers.photo import process_photos_list
+    from services.state import state_manager
+
+    state_manager.clear_state("895655")
+    msg, processing_msg = _make_message(caption="без кускуса")
+    msg.text = None
+    photo = _fake_photo(tmp_path)
+
+    components = [
+        {"name": "Куриные стрипсы", "weight": 300, "calories": 330, "protein": 36, "fats": 12, "carbs": 8},
+        {"name": "Кускус", "weight": 60, "calories": 210, "protein": 7, "fats": 1, "carbs": 43},
+        {"name": "Кабачок", "weight": 100, "calories": 24, "protein": 1, "fats": 0, "carbs": 5},
+        {"name": "Растительное масло", "weight": 15, "calories": 135, "protein": 0, "fats": 15, "carbs": 0},
+    ]
+    llm_result = {
+        "type": "food",
+        "data": {
+            "dish_name": "Куриные стрипсы с кабачком",
+            "items": components,
+            "total_nutrition": {"calories": 564, "protein": 43, "fats": 21, "carbs": 50},
+        },
+    }
+
+    with (
+        patch(OCR_WEIGHT, return_value=None),
+        patch(LLM_ANALYZE, return_value=llm_result) as mock_llm,
+        patch(MENU_PARSER, return_value=None),
+    ):
+        await process_photos_list(msg, [photo])
+
+    assert mock_llm.call_count == 1, "второй LLM-проход перезаписывает якорный итог"
+    state = state_manager.get_state("895655")
+    assert state is not None and state.state == "waiting_confirmation"
+    names = [it["product"] for it in state.data["meal_items"]]
+    assert "Кускус" not in names and len(names) == 3
+    raw_sum = sum(c["calories"] for c in components)
+    expected = 564 - 210 * 564 / raw_sum
+    assert state.data["meal_totals"]["calories"] == pytest.approx(expected, abs=3)
