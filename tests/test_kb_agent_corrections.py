@@ -53,11 +53,12 @@ def _make_client(tmp_path: Path, telegram_id: int, kb_data: dict | None = None):
 class TestAddAgentCorrectionEndpoint:
     def test_add_correction_ok(self, tmp_path):
         """POST valid key+value → KB file updated, updated_at present."""
+        from webhook.agent_tools import agent_meta
 
         client, kb_file, mock_user = _make_client(tmp_path, telegram_id=12345)
 
         with patch.object(
-            __import__("webhook.agent_tools.agent_meta", fromlist=["agent_meta"]),
+            agent_meta,
             "_resolve_user_kb_path",
             return_value=(kb_file, "kb_12345.json"),
         ):
@@ -80,12 +81,13 @@ class TestAddAgentCorrectionEndpoint:
 
     def test_add_correction_updates_existing_key(self, tmp_path):
         """Second POST with same key overwrites value."""
+        from webhook.agent_tools import agent_meta
 
         existing = {"agent_corrections": {"surgery_year": {"value": "2019", "reason": "old", "updated_at": "x"}}}
         client, kb_file, _ = _make_client(tmp_path, telegram_id=12345, kb_data=existing)
 
         with patch.object(
-            __import__("webhook.agent_tools.agent_meta", fromlist=["agent_meta"]),
+            agent_meta,
             "_resolve_user_kb_path",
             return_value=(kb_file, "kb_12345.json"),
         ):
@@ -100,11 +102,12 @@ class TestAddAgentCorrectionEndpoint:
 
     def test_add_correction_bad_key_spaces(self, tmp_path):
         """Key with spaces → 422."""
+        from webhook.agent_tools import agent_meta
 
         client, kb_file, _ = _make_client(tmp_path, telegram_id=12345)
 
         with patch.object(
-            __import__("webhook.agent_tools.agent_meta", fromlist=["agent_meta"]),
+            agent_meta,
             "_resolve_user_kb_path",
             return_value=(kb_file, "kb_12345.json"),
         ):
@@ -117,11 +120,12 @@ class TestAddAgentCorrectionEndpoint:
 
     def test_add_correction_bad_key_special_chars(self, tmp_path):
         """Key with special chars → 422."""
+        from webhook.agent_tools import agent_meta
 
         client, kb_file, _ = _make_client(tmp_path, telegram_id=12345)
 
         with patch.object(
-            __import__("webhook.agent_tools.agent_meta", fromlist=["agent_meta"]),
+            agent_meta,
             "_resolve_user_kb_path",
             return_value=(kb_file, "kb_12345.json"),
         ):
@@ -135,6 +139,7 @@ class TestAddAgentCorrectionEndpoint:
     def test_add_correction_no_kb(self, tmp_path):
         """User without KB file → 404."""
         from webhook import agent_tools as agent_tools_api
+        from webhook.agent_tools import agent_meta
         from webhook.jwt_auth import get_agent_user
 
         app = FastAPI()
@@ -146,7 +151,7 @@ class TestAddAgentCorrectionEndpoint:
         missing_path = tmp_path / "data" / "kb" / "kb_99999.json"  # does not exist
 
         with patch.object(
-            __import__("webhook.agent_tools.agent_meta", fromlist=["agent_meta"]),
+            agent_meta,
             "_resolve_user_kb_path",
             return_value=(missing_path, "kb_99999.json"),
         ):

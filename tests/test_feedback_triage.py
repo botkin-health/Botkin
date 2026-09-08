@@ -191,15 +191,15 @@ def test_triage_github_too_long_400(client, db_session, monkeypatch):
 def sent_messages(monkeypatch):
     """Перехват отправки в Telegram — возвращает список (chat_id, text)."""
 
+    from webhook.agent_tools import feedback
+
     box = []
 
     async def fake_send(chat_id, text):
         box.append((chat_id, text))
         return True
 
-    monkeypatch.setattr(
-        __import__("webhook.agent_tools.feedback", fromlist=["feedback"]), "_send_feedback_notification", fake_send
-    )
+    monkeypatch.setattr(feedback, "_send_feedback_notification", fake_send)
     return box
 
 
@@ -269,13 +269,12 @@ def test_in_progress_does_not_notify(client, db_session, monkeypatch, sent_messa
 
 
 def test_send_failure_leaves_unnotified(client, db_session, monkeypatch):
+    from webhook.agent_tools import feedback
 
     async def failing_send(chat_id, text):
         return False
 
-    monkeypatch.setattr(
-        __import__("webhook.agent_tools.feedback", fromlist=["feedback"]), "_send_feedback_notification", failing_send
-    )
+    monkeypatch.setattr(feedback, "_send_feedback_notification", failing_send)
     row = _mk(db_session)
     _set_admin(monkeypatch, True)
     r = client.post("/api/agent/triage_feedback", json={"feedback_id": row.id, "status": "done"})

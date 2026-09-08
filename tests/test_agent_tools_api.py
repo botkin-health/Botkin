@@ -550,12 +550,14 @@ def test_kb_value_owner_returns_value(client, tmp_path, monkeypatch):
     """GET /kb_value for owner cohort reads knowledge_base.json."""
     import json
 
+    from webhook.agent_tools import common
+
     kb_data = {"blood_tests": [{"date": "2026-01-01", "values": {"cholesterol": 5.1}}], "name": "Alexander"}
     kb_file = tmp_path / "knowledge_base.json"
     kb_file.write_text(json.dumps(kb_data), encoding="utf-8")
 
     monkeypatch.setattr(
-        __import__("webhook.agent_tools.common", fromlist=["common"]),
+        common,
         "Path",
         lambda *args: kb_file if "knowledge_base" in str(args) else Path(*args),
     )
@@ -1142,8 +1144,10 @@ def test_flag_for_devs_respects_opt_out(client, db_session):
 def no_kb(monkeypatch):
     """У пользователя нет KB-файла — как у самозарегистрированного юзера."""
 
+    from webhook.agent_tools import nutrition
+
     monkeypatch.setattr(
-        __import__("webhook.agent_tools.nutrition", fromlist=["nutrition"]),
+        nutrition,
         "_resolve_user_kb_path",
         lambda user: (None, "none"),
     )
@@ -1167,10 +1171,12 @@ def test_meal_context_falls_back_to_onboarding(client, no_kb):
 def test_meal_context_kb_wins_over_onboarding(client, monkeypatch, tmp_path):
     """KB — приоритетный источник: онбординг не перебивает файл."""
 
+    from webhook.agent_tools import nutrition
+
     kb_file = tmp_path / "kb_895655.json"
     kb_file.write_text('{"chronic_diagnoses": ["Демпинг-синдром"]}', encoding="utf-8")
     monkeypatch.setattr(
-        __import__("webhook.agent_tools.nutrition", fromlist=["nutrition"]),
+        nutrition,
         "_resolve_user_kb_path",
         lambda user: (kb_file, "test"),
     )
