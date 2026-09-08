@@ -32,6 +32,9 @@ def _make_message(user_id: int = 895655, caption: str | None = None):
     """Return (message_mock, processing_msg_mock)."""
     processing_msg = AsyncMock()
     processing_msg.edit_text = AsyncMock()
+    # #427: preview_message_id — MealStateData требует int; без явного значения
+    # AsyncMock().message_id вернул бы Mock-объект и упал бы на валидации.
+    processing_msg.message_id = 424242
 
     msg = AsyncMock()
     msg.from_user = MagicMock()
@@ -420,6 +423,10 @@ def test_build_router_result_keeps_multiple_components():
     assert names == {"зелень", "лосось", "заправка лимонная"}
     # Подпись используется как уточнение названия блюда, не как единственный item.
     assert "салат зелёный с лимонной заправкой" in result["data"]["dish_name"]
+    # #427: карточка несёт свой заявленный итог — иначе process_llm_food_data
+    # досчитает по ингредиентам и получит больше заявленного (764 вместо 564).
+    assert result["data"]["total_nutrition"]["calories"] == 400
+    assert result["data"]["totals_anchor"] == "card"
 
 
 def test_build_router_result_single_component_collapses():
@@ -433,6 +440,9 @@ def test_build_router_result_single_component_collapses():
     items = result["data"]["items"]
     assert len(items) == 1
     assert items[0]["calories"] == 300
+    # #427: якорь только для покомпонентной разбивки (≥2) — одиночный item
+    # уже несёт верный итог напрямую, масштабировать нечего.
+    assert "totals_anchor" not in result["data"]
 
 
 def test_build_router_result_single_component_collapses_boundary():

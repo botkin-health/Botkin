@@ -1277,46 +1277,39 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             )
             state_manager.set_state(user_id, new_state)
 
-            # Показываем добавки + еду с кнопками подтверждения
+            # Показываем добавки + еду с кнопками подтверждения через единый
+            # рендер карточки (#427). Раньше клавиатура тут была битая:
+            # MealConfirmationCallback(action="confirm", user_id=user_id) —
+            # поля user_id у колбэка нет (pydantic его тихо игнорировал), а
+            # action="confirm" handle_meal_confirmation вообще не обрабатывает
+            # (там только save/cancel/set_slot) — кнопка "✅ Записать" не работала.
             supp_list = "\n".join([f"• {html.escape(str(s))}" for s in normalized_supp])
             supp_status = "✅" if supp_saved else "⚠️"
-            response = f"💊 {supp_status} <b>Добавки:</b>\n{supp_list}\n\n"
-            if is_plan:
-                response += f"📋 <b>План: {html.escape(str(meal_name))}</b>\n"
-            else:
-                response += f"🍽️ <b>{html.escape(str(meal_name))}</b>\n"
-            if custom_date:
-                response += f"📅 на {custom_date}\n"
-            for item in meal_items:
-                w_str = f"{item['weight_g']}г" if item.get("weight_g") else "?"
-                cal = item.get("calories", 0)
-                p = int(item.get("protein", 0))
-                f_val = int(item.get("fats", 0))
-                c = int(item.get("carbs", 0))
-                response += (
-                    f"• {html.escape(str(item['product']))} ({w_str}) — {int(cal)} ккал (Б:{p} Ж:{f_val} У:{c})\n"
-                )
-            response += f"\n📊 <b>Итого: {int(meal_totals['calories'])} ккал</b>\n"
-            response += (
-                f"Б: {int(meal_totals['protein'])} | Ж: {int(meal_totals['fats'])} | У: {int(meal_totals['carbs'])}"
+            prefix_html = f"💊 {supp_status} <b>Добавки:</b>\n{supp_list}\n\n"
+
+            from handlers.meal_preview import meal_confirm_keyboard, render_meal_preview
+
+            response = render_meal_preview(
+                meal_name,
+                meal_items,
+                meal_totals,
+                is_plan=is_plan,
+                custom_date=custom_date,
+                date_style="line",
+                with_macros=True,
+                prefix_html=prefix_html,
             )
-            from core.food.nutrition import format_kcal_warning
+            keyboard = meal_confirm_keyboard(is_plan=is_plan)
 
-            response += format_kcal_warning(meal_totals)
-
-            from handlers.callbacks import MealConfirmationCallback
-            from aiogram.utils.keyboard import InlineKeyboardBuilder
-
-            builder = InlineKeyboardBuilder()
-            builder.button(
-                text="✅ Записать", callback_data=MealConfirmationCallback(action="confirm", user_id=user_id).pack()
-            )
-            builder.button(
-                text="❌ Отмена", callback_data=MealConfirmationCallback(action="cancel", user_id=user_id).pack()
-            )
-            builder.adjust(2)
-
-            await processing_msg.edit_text(response, parse_mode="HTML", reply_markup=builder.as_markup())
+            sent_msg = await processing_msg.edit_text(response, parse_mode="HTML", reply_markup=keyboard)
+            # #427: см. комментарий в ветке одиночной еды — processing_msg тут
+            # тоже typing-indicator shim, id превью узнаём после отправки.
+            preview_message_id = getattr(sent_msg, "message_id", None)
+            if preview_message_id is not None:
+                updated_data = dict(new_state.data)
+                updated_data["preview_message_id"] = preview_message_id
+                new_state.data = updated_data
+                state_manager.set_state(user_id, new_state)
             return
 
         elif msg_type == "weight":
@@ -1500,63 +1493,31 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             )
             state_manager.set_state(user_id, new_state)
 
-            # Формируем заголовок с датой, если это не сегодня
-            # Escape meal_name!
-            safe_meal_name = html.escape(str(meal_name))
+            # Формируем ответ через единый рендер карточки (#427)
+            from handlers.meal_preview import meal_confirm_keyboard, render_meal_preview
 
-            meal_emoji = "📋" if is_plan else "🍽️"
-            meal_label = "План: " if is_plan else ""
-            header = f"{meal_emoji} <b>{meal_label}{safe_meal_name}</b>"
-            if custom_date:
-                # Парсим дату и форматируем красиво
-                try:
-                    # datetime imported globally
-                    date_obj = datetime.strptime(custom_date, "%Y-%m-%d")
-                    # Названия дней недели на русском
-                    weekdays_ru = ["понедельник", "вторник", "среда", "четверг", "пятница", "суббота", "воскресенье"]
-                    weekday = weekdays_ru[date_obj.weekday()]
-                    formatted_date = date_obj.strftime("%d.%m.%Y")
-                    header = f"{meal_emoji} <b>{meal_label}{safe_meal_name} в {weekday} {formatted_date}</b>"
-                except:
-                    # Если не удалось распарсить, просто показываем дату
-                    header = f"{meal_emoji} <b>{meal_label}{safe_meal_name} ({custom_date})</b>"
-
-            # Формируем ответ
-            response = f"{header}\n\n"
-            for item in meal_items:
-                w_str = f"{item['weight_g']}г" if item.get("weight_g") else "?"
-                cal = item.get("calories", 0)
-                p = int(item.get("protein", 0))
-                f = int(item.get("fats", 0))
-                c = int(item.get("carbs", 0))
-
-                # Escape product name
-                safe_product = html.escape(str(item["product"]))
-
-                response += f"• {safe_product} ({w_str}) — {int(cal)} ккал (Б:{p} Ж:{f} У:{c})\n"
-
-            response += f"\n📊 <b>Итого: {int(meal_totals['calories'])} ккал</b>\n"
-            response += (
-                f"Б: {int(meal_totals['protein'])} | Ж: {int(meal_totals['fats'])} | У: {int(meal_totals['carbs'])}"
+            response = render_meal_preview(
+                meal_name,
+                meal_items,
+                meal_totals,
+                is_plan=is_plan,
+                custom_date=custom_date,
+                date_style="weekday",
+                with_macros=True,
             )
-            from core.food.nutrition import format_kcal_warning
+            keyboard = meal_confirm_keyboard(is_plan=is_plan)
 
-            response += format_kcal_warning(meal_totals)
-
-            # Buttons
-            from handlers.callbacks import MealConfirmationCallback
-            from aiogram.utils.keyboard import InlineKeyboardBuilder
-
-            builder = InlineKeyboardBuilder()
-            builder.button(
-                text="✅ Сохранить план" if is_plan else "✅ Сохранить",
-                callback_data=MealConfirmationCallback(action="save", meal_type="regular").pack(),
-            )
-            builder.button(
-                text="❌ Отмена", callback_data=MealConfirmationCallback(action="cancel", meal_type="regular").pack()
-            )
-
-            await processing_msg.edit_text(response, parse_mode="HTML", reply_markup=builder.as_markup())
+            sent_msg = await processing_msg.edit_text(response, parse_mode="HTML", reply_markup=keyboard)
+            # #427: processing_msg — это typing-indicator shim (_Replier), а не
+            # заранее отправленное "Анализирую..." сообщение (как в photo.py),
+            # поэтому id превью узнаём только ПОСЛЕ отправки и дописываем в
+            # уже созданное состояние (без пересоздания остальных полей).
+            preview_message_id = getattr(sent_msg, "message_id", None)
+            if preview_message_id is not None:
+                updated_data = dict(new_state.data)
+                updated_data["preview_message_id"] = preview_message_id
+                new_state.data = updated_data
+                state_manager.set_state(user_id, new_state)
             return
 
         elif msg_type == "multi_food":
