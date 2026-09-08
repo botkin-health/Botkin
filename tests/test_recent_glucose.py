@@ -71,12 +71,13 @@ def _make_mock_user():
 
 @pytest.fixture
 def client(db_session, monkeypatch):
-    from webhook import agent_tools_api
+    from webhook import agent_tools as agent_tools_api
+    from webhook.agent_tools import glucose
     from webhook.jwt_auth import get_agent_user, get_db
 
     monkeypatch.setattr(db_session, "close", lambda: None)
     # on-demand refresh не должен делать сетевой вызов в тестах
-    monkeypatch.setattr(agent_tools_api, "_refresh_glucose", lambda telegram_id: None)
+    monkeypatch.setattr(glucose, "_refresh_glucose", lambda telegram_id: None)
 
     app = FastAPI()
     app.include_router(agent_tools_api.router)

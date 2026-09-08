@@ -68,11 +68,10 @@ def _mock_user(telegram_id=OWNER):
 
 @pytest.fixture
 def client(db_session, monkeypatch):
-    from webhook import agent_tools_api
+    from webhook import agent_tools as agent_tools_api
     from webhook.jwt_auth import get_agent_user, get_db
 
     monkeypatch.setattr(db_session, "close", lambda: None)
-    monkeypatch.setattr(agent_tools_api, "get_db", lambda: iter([db_session]))
 
     app = FastAPI()
     app.include_router(agent_tools_api.router)
@@ -239,11 +238,10 @@ def test_writes_go_to_authenticated_user_only(client, db_session):
 
 def test_ro_token_forbidden(db_session, monkeypatch):
     """ro-токен (которым делятся с врачом) не должен уметь писать вес."""
-    from webhook import agent_tools_api
+    from webhook import agent_tools as agent_tools_api
     from webhook.jwt_auth import get_agent_user, get_db
 
     monkeypatch.setattr(db_session, "close", lambda: None)
-    monkeypatch.setattr(agent_tools_api, "get_db", lambda: iter([db_session]))
 
     app = FastAPI()
     app.include_router(agent_tools_api.router)
@@ -403,20 +401,20 @@ def test_implausible_date_rejected(client, db_session, measured_at):
 
 
 def test_bmi_from_height_typical():
-    from webhook.agent_tools_api import bmi_from_height
+    from webhook.agent_tools.vitals import bmi_from_height
 
     assert bmi_from_height(105.2, 178) == 33.2
 
 
 def test_bmi_from_height_none_without_height():
-    from webhook.agent_tools_api import bmi_from_height
+    from webhook.agent_tools.vitals import bmi_from_height
 
     assert bmi_from_height(105.2, None) is None
 
 
 def test_bmi_from_height_rejects_implausible_height():
     """Рост в метрах или опечатка не должны давать «ИМТ 33 000»."""
-    from webhook.agent_tools_api import bmi_from_height
+    from webhook.agent_tools.vitals import bmi_from_height
 
     assert bmi_from_height(105.2, 1.78) is None
     assert bmi_from_height(105.2, 17800) is None
@@ -424,7 +422,7 @@ def test_bmi_from_height_rejects_implausible_height():
 
 def test_bmi_from_height_ignores_non_numeric():
     """В профиле может лежать что угодно — сравнение с не-числом роняло запрос."""
-    from webhook.agent_tools_api import bmi_from_height
+    from webhook.agent_tools.vitals import bmi_from_height
 
     assert bmi_from_height(105.2, "178") is None
     assert bmi_from_height(105.2, object()) is None
