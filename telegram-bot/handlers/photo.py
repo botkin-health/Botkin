@@ -1466,7 +1466,11 @@ def build_router_result_from_menu_data(menu_data: dict, caption: str = "") -> di
     caption_hint = (caption or "").strip()[:MAX_CAPTION_HINT_LEN]
 
     if len(components) >= 2:
-        dish_name = f"{base_dish} ({caption_hint})" if caption_hint else base_dish
+        # #427: LLM уже могла вписать модификатор в dish_name сама (промпт CASE B +
+        # MODIFIER просит именно так) — не приклеивать его второй раз («… (без
+        # кускуса) (без кускуса)»). Сравниваем без регистра и без учёта пробелов.
+        already_in_name = bool(caption_hint) and caption_hint.strip().lower() in base_dish.lower()
+        dish_name = base_dish if already_in_name else (f"{base_dish} ({caption_hint})" if caption_hint else base_dish)
         items = [
             {
                 "name": str(c.get("name", "компонент"))[:MAX_COMPONENT_NAME_LEN],
