@@ -471,3 +471,50 @@ def test_safe_float_rejects_inf_nan_and_garbage():
     assert _safe_float(float("nan")) is None
     assert _safe_float("12.5") == 12.5
     assert _safe_float(0) == 0.0
+
+
+@pytest.mark.asyncio
+async def test_photo_caption_modifier_removes_component(tmp_path):
+    """#427: подпись «Без кускуса» к фото-карточке убирает компонент из состава.
+
+    Карточка на 400 ккал (3 компонента), подпись исключает «кускус» —
+    итог должен уменьшиться на его долю, а превью — содержать «− Кускус».
+    """
+    from handlers.photo import process_photos_list
+    from services.state import state_manager
+
+    state_manager.clear_state("895655")
+
+    msg, processing_msg = _make_message(caption="Без кускуса")
+    msg.text = None  # AsyncMock: без этого message.text.strip() возвращает coroutine
+    photo = _fake_photo(tmp_path)
+
+    llm_result = {
+        "type": "food",
+        "data": {
+            "dish_name": "Стрипсы с кускусом и кабачком",
+            "items": [
+                {"name": "Куриные стрипсы", "weight": 150, "calories": 250, "protein": 30, "fats": 12, "carbs": 5},
+                {"name": "Кускус", "weight": 60, "calories": 100, "protein": 3, "fats": 1, "carbs": 20},
+                {"name": "Кабачок", "weight": 100, "calories": 50, "protein": 1, "fats": 1, "carbs": 5},
+            ],
+            "total_nutrition": {"calories": 400, "protein": 34, "fats": 14, "carbs": 30},
+        },
+    }
+
+    with (
+        patch(OCR_WEIGHT, return_value=None),
+        patch(LLM_ANALYZE, return_value=llm_result),
+        patch(MENU_PARSER, return_value=None),
+    ):
+        await process_photos_list(msg, [photo])
+
+    st = state_manager.get_state("895655")
+    assert st is not None
+    assert st.state == "waiting_confirmation"
+    assert all(it["product"] != "Кускус" for it in st.data["meal_items"])
+    assert st.data["meal_totals"]["calories"] == pytest.approx(300, abs=1)
+
+    # Превью печатается через processing_message.edit_text (safe_edit_text)
+    preview_calls = [c for c in processing_msg.edit_text.call_args_list if c.args and "− Кускус" in c.args[0]]
+    assert preview_calls, "Превью не содержит «− Кускус»"

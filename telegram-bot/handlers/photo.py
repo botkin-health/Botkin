@@ -1356,6 +1356,18 @@ async def handle_description(
         await processing_message.edit_text("❌ Продукты не найдены в ответе нейросети.")
         return
 
+    # #427: модификаторы в подписи к фото-карточке («Без кускуса», «половину») —
+    # применяем к уже посчитанным items/totals этой карточки.
+    from core.food.modifiers import apply_modifiers, describe_applied, parse_modifiers
+
+    applied_note = None
+    mods = parse_modifiers(full_description)
+    if mods.is_modifier:
+        mod_res = apply_modifiers(meal_items, meal_totals, mods)
+        if mod_res.removed or mod_res.fraction is not None or mod_res.items != meal_items:
+            meal_items, meal_totals = mod_res.items, mod_res.totals
+        applied_note = describe_applied(mod_res)
+
     # Извлекаем метаданные из ответа LLM
     data = llm_data.get("data", {})
     meal_name = data.get("dish_name") or data.get("meal_type")
@@ -1427,6 +1439,7 @@ async def handle_description(
         date_style="none",
         with_macros=False,
         product_label=new_data.get("product_label"),
+        applied_note=applied_note,
     )
     keyboard = meal_confirm_keyboard(is_plan=is_plan)
 

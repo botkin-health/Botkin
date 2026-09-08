@@ -5,6 +5,7 @@
 
 import re
 import asyncio
+import html
 import logging
 from datetime import datetime, timedelta
 
@@ -524,6 +525,85 @@ def extract_date_from_text(text: str, user_tz=None) -> tuple[str, str]:
     return None, text
 
 
+async def _replace_preview(message: Message, user_id: str, new_data: dict, text_html: str, keyboard) -> None:
+    """Обновить карточку превью: правим уже отправленное сообщение, если можем.
+
+    #427: если правка сообщения не удалась (устарело/удалено/id ещё не было) —
+    шлём новое и запоминаем его message_id, чтобы следующая правка сработала.
+    """
+    preview_message_id = new_data.get("preview_message_id")
+    if preview_message_id:
+        try:
+            await message.bot.edit_message_text(
+                chat_id=message.chat.id,
+                message_id=preview_message_id,
+                text=text_html,
+                parse_mode="HTML",
+                reply_markup=keyboard,
+            )
+            return
+        except Exception as exc:  # noqa: BLE001 — Telegram может отдать любое исключение
+            logger.warning(f"#427: edit_message_text для превью {user_id} не удался ({exc}) — шлём новое сообщение")
+
+    sent = await message.answer(text_html, parse_mode="HTML", reply_markup=keyboard)
+    from services.state import UserState
+
+    refreshed_data = {**new_data, "preview_message_id": sent.message_id}
+    state_manager.set_state(user_id, UserState(user_id=user_id, state="waiting_confirmation", data=refreshed_data))
+
+
+async def _try_refine_pending_preview(message: Message, user_id: str, user_state) -> bool:
+    """Применить текстовую правку («без X», «половину», «N г») к висящему превью.
+
+    Возвращает True, если сообщение было распознано как правка и обработано
+    (в т.ч. случай «ничего не нашли» — состояние не трогаем, отвечаем и выходим).
+    False — сообщение не похоже на правку, обычный flow продолжается как раньше.
+    """
+    from core.food.modifiers import apply_modifiers, describe_applied, parse_modifiers
+    from handlers.meal_preview import meal_confirm_keyboard, render_meal_preview
+    from services.state import UserState
+
+    mods = parse_modifiers(message.text or "")
+    if not mods.is_modifier:
+        return False
+
+    items = user_state.data.get("meal_items") or []
+    totals = user_state.data.get("meal_totals") or {}
+    res = apply_modifiers(items, totals, mods)
+
+    if not res.removed and res.fraction is None and res.items == items:
+        names = ", ".join(html.escape(str(it.get("product", ""))) for it in items)
+        unmatched = ", ".join(res.unmatched)
+        logger.info(f"#427: правка превью {user_id} — «{unmatched}» не найдено в составе")
+        await message.answer(
+            f"Не нашёл «{unmatched}» в составе: {names}. Превью оставил как есть.",
+            parse_mode="HTML",
+        )
+        return True
+
+    logger.info(
+        f"#427: правка превью {user_id} — exclude={mods.exclude} fraction={mods.fraction} weight_g={mods.weight_g}"
+    )
+
+    new_data = {**user_state.data, "meal_items": res.items, "meal_totals": res.totals}
+    state_manager.set_state(user_id, UserState(user_id=user_id, state="waiting_confirmation", data=new_data))
+
+    text_html = render_meal_preview(
+        new_data.get("meal_name") or new_data.get("dish_name") or "Приём пищи",
+        res.items,
+        res.totals,
+        is_plan=bool(new_data.get("is_plan")),
+        custom_date=new_data.get("date"),
+        date_style="weekday",
+        with_macros=True,
+        product_label=new_data.get("product_label"),
+        applied_note=describe_applied(res),
+    )
+    keyboard = meal_confirm_keyboard(is_plan=bool(new_data.get("is_plan")))
+    await _replace_preview(message, user_id, new_data, text_html, keyboard)
+    return True
+
+
 # StateFilter(None): не перехватывать текст во время активного FSM-диалога
 # (мастер /profile в handlers/setup.py). Без этого catch-all съедал ввод шагов
 # мастера, и профиль нельзя было заполнить вводом — только «пропустить». См. #44.
@@ -580,6 +660,14 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             from handlers.photo import handle_description
 
             await handle_description(message, message.text)
+            return
+
+    # #427: текстовая правка уже показанного превью («без кускуса», «половину»,
+    # «180 г») ДО подтверждения. multi_meals исключён — там meal_items/meal_totals
+    # не на верхнем уровне state.data, эта ветка их не найдёт.
+    if user_state and user_state.state == "waiting_confirmation" and not user_state.data.get("multi_meals"):
+        handled = await _try_refine_pending_preview(message, user_id, user_state)
+        if handled:
             return
 
     # --- LLM Router Logic ---
