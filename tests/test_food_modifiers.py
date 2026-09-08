@@ -90,3 +90,22 @@ def test_describe():
     res = apply_modifiers(ITEMS, TOTALS, parse_modifiers("без кускуса и соуса"))
     s = describe_applied(res)
     assert "− Кускус ≈ 215 ккал" in s and "не нашёл в составе: соуса" in s
+
+
+@pytest.mark.parametrize(
+    "text", ["съела 300 г супа", "выпил 500 г воды", "200 г творога", "половину супа съела, остальное завтра"]
+)
+def test_food_sentences_with_numbers_are_not_modifiers(text):
+    assert not parse_modifiers(text).is_modifier
+
+
+@pytest.mark.parametrize(
+    "text,w", [("это было 200 г", 200), ("200 г", 200), ("вес 150 гр", 150), ("примерно 180г", 180)]
+)
+def test_bare_weight_phrases_are_weight_modifiers(text, w):
+    assert parse_modifiers(text).weight_g == w
+
+
+def test_repeated_verb_and_punctuation_in_exclusion_list():
+    assert parse_modifiers("без соли и без перца").exclude == ("соли", "перца")
+    assert parse_modifiers("минус масло.").exclude == ("масло",)

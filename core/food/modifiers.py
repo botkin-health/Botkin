@@ -67,7 +67,16 @@ class Applied:
 def _split_name_list(raw: str) -> List[str]:
     """«кускуса, соуса и хлеба» -> ["кускуса", "соуса", "хлеба"]."""
     parts = re.split(r"\s*,\s*|\s+и\s+", raw.strip())
-    return [p.strip() for p in parts if p.strip()]
+    cleaned = []
+    for part in parts:
+        words = [w.strip(".,!?;:") for w in part.split()]
+        # «без соли и без перца» — повторный глагол внутри списка не часть имени
+        if words and words[0].lower() in _EXCLUDE_VERBS:
+            words = words[1:]
+        name = " ".join(w for w in words if w)
+        if name:
+            cleaned.append(name)
+    return cleaned
 
 
 def _parse_exclusion(text: str) -> Tuple[str, ...]:
@@ -107,10 +116,23 @@ def _parse_fraction(text: str) -> Optional[float]:
     return None
 
 
+# Слова, допустимые рядом с весом в правке превью: «это было 200 г», «вес 200 г», «там 200 г».
+# Любое другое слово с буквами («съела 300 г супа») — это описание еды, не правка веса.
+_WEIGHT_FILLER_WORDS = frozenset(
+    {"это", "было", "была", "были", "там", "вес", "весило", "весит", "порция", "всего", "примерно", "около", "~"}
+)
+
+
 def _parse_weight(text: str) -> Optional[float]:
     words = [w.strip(".,!?") for w in text.strip().lower().split()]
     if not words or len(words) > _WEIGHT_MAX_WORDS:
         return None
+    for word in words:
+        if word in _WEIGHT_FILLER_WORDS or word in ("г", "гр") or re.fullmatch(r"грамм\w*", word):
+            continue
+        if _WEIGHT_NUMBER_RE.match(word) or _WEIGHT_JOINED_RE.match(word):
+            continue
+        return None  # постороннее слово — не правка веса
 
     for i, word in enumerate(words):
         # Слитно: "200г", "200гр", "200грамм".
