@@ -109,3 +109,10 @@ def test_bare_weight_phrases_are_weight_modifiers(text, w):
 def test_repeated_verb_and_punctuation_in_exclusion_list():
     assert parse_modifiers("без соли и без перца").exclude == ("соли", "перца")
     assert parse_modifiers("минус масло.").exclude == ("масло",)
+
+
+def test_hyphenated_name_matches_product():
+    """«без кус-куса» должно снимать item «Кускус» (прецедент 08.09.2026)."""
+    res = apply_modifiers(ITEMS, TOTALS, parse_modifiers("Без кус-куса"))
+    assert [it["product"] for it in res.items] == ["Куриные стрипсы", "Кабачок"]
+    assert not res.unmatched
