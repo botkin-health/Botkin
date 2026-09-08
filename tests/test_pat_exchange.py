@@ -50,15 +50,14 @@ def db_session():
 def _patch_rls_and_limiter(monkeypatch):
     """SET LOCAL app.user_id не работает на sqlite → no-op; счётчик лимита сбрасываем."""
     import database.crud as crud
-    from webhook import agent_tools_api
 
     monkeypatch.setattr(crud, "set_user_session_var", lambda db, uid: None)
-    agent_tools_api._exchange_limiter.reset()
+    __import__("webhook.agent_tools.auth", fromlist=["auth"])._exchange_limiter.reset()
 
 
 @pytest.fixture
 def client(db_session):
-    from webhook import agent_tools_api
+    from webhook import agent_tools as agent_tools_api
     from webhook.jwt_auth import get_db
 
     app = FastAPI()
