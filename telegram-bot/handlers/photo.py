@@ -1379,6 +1379,19 @@ async def handle_description(
     # состояние ("waiting_description") несло PhotoStateData-поля (caption,
     # photo_file_ids, menu_data), которые в meal-confirmation уже не читаются;
     # сохраняем из него только photo_paths.
+    # #427: карточка-якорь (этикетка/рецепт с явным total_nutrition на ≥2
+    # компонента) — сохраняем итог "на порцию" отдельно, чтобы
+    # core.food.nutrition мог отмасштабировать items вместо суммирования
+    # ингредиентов набора (иначе видим 744 ккал вместо заявленных на карточке 564).
+    card_totals = None
+    if use_menu_data and menu_data and menu_data.get("calories") is not None:
+        card_totals = {
+            "calories": menu_data.get("calories"),
+            "protein": menu_data.get("protein"),
+            "fats": menu_data.get("fats"),
+            "carbs": menu_data.get("carbs"),
+        }
+
     new_data = build_meal_state_data(
         description=full_description,
         meal_items=meal_items,
@@ -1394,43 +1407,30 @@ async def handle_description(
         or (menu_data or {}).get("product_label")
         or user_state.data.get("product_label"),
         is_plan=is_plan or None,
+        card_totals=card_totals,
+        # #427: id уже отправленного "Анализирую..." сообщения — правим его же
+        # текстом, когда пользователь потом уточняет вес/позицию до сохранения.
+        preview_message_id=processing_message.message_id if processing_message else None,
     )
     user_state = UserState(user_id=user_id, state="waiting_confirmation", data=new_data)
     state_manager.set_state(user_id, user_state)
 
-    # Формируем ответ
+    # Формируем ответ через единый рендер карточки (#427) — фото не показывает
+    # макросы по позициям и никогда не показывает дату в заголовке.
+    from handlers.meal_preview import meal_confirm_keyboard, render_meal_preview
 
-    # Экранируем названия из vision/LLM/подписи перед вставкой в HTML (issue #115, anti-XSS).
-    if is_plan:
-        response = f"📋 <b>План: {html.escape(str(meal_name))}</b>\n\n"
-    else:
-        response = f"🍽️ <b>{html.escape(str(meal_name))}</b>\n\n"
-    for item in meal_items:
-        w_str = f"{item['weight_g']}г" if item.get("weight_g") else "?"
-        cal = item.get("calories", 0)
-        response += f"• {html.escape(str(item['product']))} ({w_str}) — {int(cal)} ккал\n"
-
-    # #409: если пересчитали КБЖУ по этикетке «на 100 г» — показываем как это получилось
-    label = new_data.get("product_label") or {}
-    if label.get("calories_per_100g") and len(meal_items) == 1 and meal_items[0].get("weight_g"):
-        response += (
-            f"<i>этикетка: {int(label['calories_per_100g'])} ккал/100 г · "
-            f"за {int(meal_items[0]['weight_g'])} г = {int(meal_items[0].get('calories', 0))} ккал</i>\n"
-        )
-
-    response += f"\n📊 <b>Итого: {int(meal_totals['calories'])} ккал</b>\n"
-    response += f"Б: {int(meal_totals['protein'])} | Ж: {int(meal_totals['fats'])} | У: {int(meal_totals['carbs'])}"
-
-    # Keyboard
-    builder = InlineKeyboardBuilder()
-    builder.button(
-        text="✅ Сохранить", callback_data=MealConfirmationCallback(action="save", meal_type="regular").pack()
+    response = render_meal_preview(
+        meal_name,
+        meal_items,
+        meal_totals,
+        is_plan=is_plan,
+        date_style="none",
+        with_macros=False,
+        product_label=new_data.get("product_label"),
     )
-    builder.button(
-        text="❌ Отмена", callback_data=MealConfirmationCallback(action="cancel", meal_type="regular").pack()
-    )
+    keyboard = meal_confirm_keyboard(is_plan=is_plan)
 
-    await safe_edit_text(processing_message, response, parse_mode="HTML", reply_markup=builder.as_markup())
+    await safe_edit_text(processing_message, response, parse_mode="HTML", reply_markup=keyboard)
 
 
 def build_router_result_from_menu_data(menu_data: dict, caption: str = "") -> dict:
@@ -1475,14 +1475,31 @@ def build_router_result_from_menu_data(menu_data: dict, caption: str = "") -> di
             }
         ]
 
+    data = {
+        "dish_name": dish_name,
+        "meal_type": "meal",
+        "items": items,
+        "product_label": menu_data.get("product_label"),
+    }
+
+    # #427: карточка с покомпонентной разбивкой несёт СВОЙ заявленный итог
+    # (menu_data["calories"] и т.д.) — до этой правки он терялся здесь, и
+    # process_llm_food_data досчитывал items по ингредиентам набора, давая
+    # больше заявленной карточкой суммы (764 ккал вместо 564). Пробрасываем
+    # итог + флаг якоря, чтобы core.food.nutrition отмасштабировал items к
+    # заявленному итогу вместо суммирования ингредиентов.
+    if len(components) >= 2 and menu_data.get("calories") is not None:
+        data["total_nutrition"] = {
+            "calories": menu_data.get("calories"),
+            "protein": menu_data.get("protein"),
+            "fats": menu_data.get("fats"),
+            "carbs": menu_data.get("carbs"),
+        }
+        data["totals_anchor"] = "card"
+
     return {
         "type": "food",
-        "data": {
-            "dish_name": dish_name,
-            "meal_type": "meal",
-            "items": items,
-            "product_label": menu_data.get("product_label"),
-        },
+        "data": data,
     }
 
 
