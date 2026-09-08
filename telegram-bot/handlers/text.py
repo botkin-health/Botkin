@@ -573,7 +573,7 @@ async def _try_refine_pending_preview(message: Message, user_id: str, user_state
 
     if not res.removed and res.fraction is None and res.items == items:
         names = ", ".join(html.escape(str(it.get("product", ""))) for it in items)
-        unmatched = ", ".join(res.unmatched)
+        unmatched = ", ".join(html.escape(str(u)) for u in res.unmatched)  # текст пользователя → HTML-safe
         logger.info(f"#427: правка превью {user_id} — «{unmatched}» не найдено в составе")
         await message.answer(
             f"Не нашёл «{unmatched}» в составе: {names}. Превью оставил как есть.",

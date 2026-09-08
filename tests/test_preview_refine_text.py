@@ -239,3 +239,23 @@ async def test_multi_meals_pending_skips_refine_branch():
         await handle_text_message(msg, USER_ID, MagicMock())
 
     mock_analyze.assert_called()
+
+
+@pytest.mark.asyncio
+async def test_unmatched_exclusion_with_html_chars_is_escaped():
+    """Имя из текста пользователя в ответе «Не нашёл …» экранируется (иначе Telegram не распарсит HTML)."""
+    from handlers.text import handle_text_message
+
+    _seed_state()
+    msg = _make_text_message(USER_ID, "без <b>оливок")
+
+    with (
+        patch(LLM_ANALYZE) as mock_analyze,
+        patch(ASK_AGENT),
+        patch("logging.FileHandler", return_value=logging.NullHandler()),
+    ):
+        await handle_text_message(msg, USER_ID, MagicMock())
+
+    mock_analyze.assert_not_called()
+    sent = msg.answer.call_args.args[0]
+    assert "&lt;b&gt;оливок" in sent and "<b>оливок" not in sent
