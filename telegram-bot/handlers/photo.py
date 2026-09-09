@@ -60,6 +60,7 @@ router = Router()
 
 from handlers.callbacks import MealConfirmationCallback, SupplementConfirmationCallback, WeightConfirmationCallback
 from handlers.first_food import record_first_food
+from handlers.meal_preview import CONFIRM_HINT
 from webhook.nutrition_slots import SLOTS, slot_center_time, slot_from_time, slot_label_ru
 
 from typing import List
@@ -144,6 +145,7 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
         if len(recognized_weights) > 1:
             w_response_lines.append(f"\n📂 <i>Всего записей: {len(recognized_weights)}</i>")
         w_response_lines.append("\nСохранить запись в журнал?")
+        w_response_lines.append(f"\n{CONFIRM_HINT}")
 
         # Создаем кнопки подтверждения
         w_builder = InlineKeyboardBuilder()
@@ -269,7 +271,7 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
                 state_manager.set_state(user_id, user_state)
 
                 await processing_msg.edit_text(
-                    f"💊 <b>Распознал добавки:</b>\n{items_list}\n\nЗаписать как приём сейчас?",
+                    f"💊 <b>Распознал добавки:</b>\n{items_list}\n\nЗаписать как приём сейчас?\n\n{CONFIRM_HINT}",
                     parse_mode="HTML",
                     reply_markup=s_builder.as_markup(),
                 )
@@ -566,6 +568,7 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
             from core.food.nutrition import format_kcal_warning
 
             response += format_kcal_warning(meal_totals)
+            response += f"\n\n{CONFIRM_HINT}"
 
             # Buttons
             builder = InlineKeyboardBuilder()
@@ -1612,7 +1615,8 @@ async def handle_menu_photo(message: Message, menu_data: dict, photo_path: Path,
         f"• Калории: {calories:.0f} ккал\n"
         f"• Белки: {protein:.0f} г\n"
         f"• Жиры: {fats:.0f} г\n"
-        f"• Углеводы: {carbs:.0f} г"
+        f"• Углеводы: {carbs:.0f} г\n\n"
+        f"{CONFIRM_HINT}"
     )
 
     # Фото без подписи — слот иначе молча выводится по времени суток и часто

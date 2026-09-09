@@ -396,6 +396,96 @@ async def test_multiple_photos_with_one_weight(tmp_path):
     assert msg.answer.call_count >= 2
 
 
+# ── #436: подсказка «Нажми Сохранить» во всех превью с save/cancel ─────────
+
+
+@pytest.mark.asyncio
+async def test_weight_photo_confirmation_has_confirm_hint(tmp_path):
+    """Прецедент #436: пользователь не понимал, что превью нужно подтвердить.
+    Карточка веса с кнопками Сохранить/Отмена должна нести явную подсказку."""
+    from handlers.meal_preview import CONFIRM_HINT
+    from handlers.photo import process_photos_list
+    from services.state import state_manager
+
+    state_manager.clear_state("895655")
+
+    msg, processing_msg = _make_message()
+    photo = _fake_photo(tmp_path)
+
+    weight_data = {"weight": 82.5, "date": "2026-04-20", "body_fat": None}
+
+    with (
+        patch(OCR_WEIGHT, return_value=weight_data),
+        patch(LLM_ANALYZE, return_value=None),
+        patch(MENU_PARSER, return_value=None),
+    ):
+        await process_photos_list(msg, [photo])
+
+    sent_text = processing_msg.edit_text.call_args[0][0]
+    assert CONFIRM_HINT in sent_text
+
+
+@pytest.mark.asyncio
+async def test_vitamins_photo_confirmation_has_confirm_hint(tmp_path):
+    """Та же подсказка нужна для карточки добавок (SupplementConfirmationCallback)."""
+    from handlers.meal_preview import CONFIRM_HINT
+    from handlers.photo import process_photos_list
+    from services.state import state_manager
+
+    state_manager.clear_state("895655")
+
+    msg, processing_msg = _make_message()
+    photo = _fake_photo(tmp_path)
+
+    llm_result = {
+        "type": "vitamins",
+        "data": {"items": ["Vitamin D 5000 IU"]},
+    }
+
+    with (
+        patch(OCR_WEIGHT, return_value=None),
+        patch(LLM_ANALYZE, return_value=llm_result),
+        patch(MENU_PARSER, return_value=None),
+    ):
+        await process_photos_list(msg, [photo])
+
+    sent_text = processing_msg.edit_text.call_args[0][0]
+    assert CONFIRM_HINT in sent_text
+
+
+@pytest.mark.asyncio
+async def test_menu_photo_fallback_confirmation_has_confirm_hint(tmp_path):
+    """handle_menu_photo() (OCR fallback ветка) тоже строит текст вручную —
+    подсказка должна быть и здесь."""
+    from handlers.meal_preview import CONFIRM_HINT
+    from handlers.photo import process_photos_list
+    from services.state import state_manager
+
+    state_manager.clear_state("895655")
+
+    msg, processing_msg = _make_message()
+    photo = _fake_photo(tmp_path)
+
+    menu_result = {
+        "dish_name": "Борщ",
+        "calories": 250,
+        "protein": 8,
+        "fats": 10,
+        "carbs": 30,
+        "weight": 300,
+    }
+
+    with (
+        patch(OCR_WEIGHT, return_value=None),
+        patch(LLM_ANALYZE, return_value=None),
+        patch(MENU_PARSER, return_value=menu_result),
+    ):
+        await process_photos_list(msg, [photo])
+
+    sent_text = processing_msg.edit_text.call_args[0][0]
+    assert CONFIRM_HINT in sent_text
+
+
 # ── Issue #115: приоритет фото-декомпозиции над текстовой подписью ────────────
 def test_build_router_result_keeps_multiple_components():
     """При фото с ≥2 компонентами подпись НЕ схлопывает блюдо в один item."""
