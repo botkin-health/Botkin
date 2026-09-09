@@ -19,11 +19,13 @@ for p in [str(PROJECT_ROOT), str(BOT_ROOT)]:
 
 from handlers.callbacks import MealConfirmationCallback
 from handlers.meal_preview import (
+    CONFIRM_HINT,
     format_header,
     format_items,
     label_hint,
     meal_confirm_keyboard,
     render_meal_preview,
+    render_multi_meal_summary,
 )
 
 
@@ -182,6 +184,97 @@ def test_render_meal_preview_plan_header():
     items = [{"product": "Банан", "weight_g": 120, "calories": 108}]
     text = render_meal_preview("Ужин", items, {"calories": 108}, is_plan=True)
     assert text.startswith("📋 <b>План: Ужин</b>\n\n")
+
+
+# ── #436: подсказка про обязательное подтверждение ─────────────────────────
+
+
+def test_render_meal_preview_includes_confirm_hint():
+    """Прецедент #436: юзер прислал 30 фото еды за 3 недели, ни одного не
+    сохранил — не понял, что превью нужно подтвердить кнопкой. Подсказка
+    должна быть в каждой собранной карточке."""
+    items = [{"product": "Банан", "weight_g": 120, "calories": 108}]
+    text = render_meal_preview("Завтрак", items, {"calories": 108})
+    assert CONFIRM_HINT in text
+    assert "Сохранить" in CONFIRM_HINT
+
+
+def test_render_meal_preview_confirm_hint_after_totals():
+    items = [{"product": "Банан", "weight_g": 120, "calories": 108}]
+    text = render_meal_preview("Завтрак", items, {"calories": 108})
+    itogo_pos = text.index("📊 <b>Итого")
+    hint_pos = text.index(CONFIRM_HINT)
+    assert itogo_pos < hint_pos
+
+
+def test_render_meal_preview_confirm_hint_present_for_plan_too():
+    items = [{"product": "Банан", "weight_g": 120, "calories": 108}]
+    text = render_meal_preview("Ужин", items, {"calories": 108}, is_plan=True)
+    assert CONFIRM_HINT in text
+
+
+# ── render_multi_meal_summary (text.py: несколько приёмов в одном сообщении) ─
+
+
+def test_multi_meal_summary_basic():
+    multi_meals = [
+        {
+            "meal_name": "Завтрак",
+            "meal_totals": {"calories": 300},
+            "meal_items": [{"product": "Овсянка", "weight_g": 200, "calories": 300}],
+        },
+        {
+            "meal_name": "Обед",
+            "meal_totals": {"calories": 500},
+            "meal_items": [{"product": "Суп", "weight_g": 300, "calories": 500}],
+        },
+    ]
+    text = render_multi_meal_summary(multi_meals)
+    assert "Завтрак" in text
+    assert "Обед" in text
+    assert "📊 <b>Итого: 800 ккал</b>" in text
+
+
+def test_multi_meal_summary_includes_confirm_hint():
+    """#436: сводная карточка нескольких приёмов тоже висит за кнопкой
+    «Сохранить всё» — подсказка обязана быть."""
+    multi_meals = [
+        {
+            "meal_name": "Завтрак",
+            "meal_totals": {"calories": 300},
+            "meal_items": [{"product": "Овсянка", "weight_g": 200, "calories": 300}],
+        }
+    ]
+    text = render_multi_meal_summary(multi_meals)
+    assert CONFIRM_HINT in text
+    # подсказка должна идти после «Итого», а не потеряться где-то в середине
+    assert text.index("📊 <b>Итого") < text.index(CONFIRM_HINT)
+
+
+def test_multi_meal_summary_skipped_and_date():
+    multi_meals = [
+        {
+            "meal_name": "Завтрак",
+            "meal_totals": {"calories": 300},
+            "meal_items": [{"product": "Овсянка", "weight_g": 200, "calories": 300}],
+        }
+    ]
+    text = render_multi_meal_summary(multi_meals, skipped=["непонятная еда"], custom_date="2026-09-10")
+    assert "непонятная еда" in text
+    assert "10.09.2026" in text
+    assert CONFIRM_HINT in text
+
+
+def test_multi_meal_summary_bad_date_falls_back_to_raw_string():
+    multi_meals = [
+        {
+            "meal_name": "Завтрак",
+            "meal_totals": {"calories": 300},
+            "meal_items": [{"product": "Овсянка", "weight_g": 200, "calories": 300}],
+        }
+    ]
+    text = render_multi_meal_summary(multi_meals, custom_date="не-дата")
+    assert "не-дата" in text
 
 
 # ── meal_confirm_keyboard ─────────────────────────────────────────────────

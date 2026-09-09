@@ -21,6 +21,11 @@ from handlers.callbacks import MealConfirmationCallback
 
 WEEKDAYS_RU = ["понедельник", "вторник", "среда", "четверг", "пятница", "суббота", "воскресенье"]
 
+# #436: превью — ещё черновик, а не запись. Пользователи путали «отправил
+# фото» с «записал» и молча теряли данные (30 фото еды — 0 сохранений).
+# Эту строку показываем во всех местах, где есть кнопка «✅ Сохранить».
+CONFIRM_HINT = "👉 Нажми «Сохранить» — иначе запись не попадёт в журнал."
+
 
 def format_header(
     meal_name: str,
@@ -132,8 +137,49 @@ def render_meal_preview(
     text += f"\n📊 <b>Итого: {calories} ккал</b>\n"
     text += f"Б: {protein} | Ж: {fats} | У: {carbs}"
     text += format_kcal_warning(totals)
+    text += f"\n\n{CONFIRM_HINT}"
 
     return text
+
+
+def render_multi_meal_summary(
+    multi_meals: List[Dict[str, Any]],
+    *,
+    skipped: Optional[List[str]] = None,
+    custom_date: Optional[str] = None,
+) -> str:
+    """Сводная карточка «несколько приёмов пищи в одном сообщении» (text.py, #53).
+
+    Отдельная от render_meal_preview функция — тут своя структура (список
+    приёмов, у каждого свои позиции), но тот же контракт: заканчивается
+    CONFIRM_HINT, так как карточка тоже висит за кнопкой «Сохранить всё».
+    """
+    response = "🍽️ <b>Несколько приёмов пищи:</b>\n\n"
+    total_kcal = 0
+    for m in multi_meals:
+        safe_name = html.escape(str(m["meal_name"]))
+        m_kcal = int(m["meal_totals"].get("calories", 0))
+        total_kcal += m_kcal
+        response += f"<b>{safe_name}</b> — {m_kcal} ккал\n"
+        for item in m["meal_items"]:
+            w_str = f"{item['weight_g']}г" if item.get("weight_g") else "?"
+            safe_product = html.escape(str(item["product"]))
+            response += f"  • {safe_product} ({w_str}) — {int(item.get('calories', 0))} ккал\n"
+        response += "\n"
+
+    response += f"📊 <b>Итого: {total_kcal} ккал</b>"
+    if skipped:
+        response += "\n⚠️ Не разобрал: " + ", ".join(html.escape(str(s)) for s in skipped)
+    if custom_date:
+        try:
+            date_obj = datetime.strptime(custom_date, "%Y-%m-%d")
+            formatted_date = date_obj.strftime("%d.%m.%Y")
+            response += f"\n📅 {formatted_date} ({WEEKDAYS_RU[date_obj.weekday()]})"
+        except ValueError:
+            response += f"\n📅 {custom_date}"
+
+    response += f"\n\n{CONFIRM_HINT}"
+    return response
 
 
 def meal_confirm_keyboard(*, is_plan: bool = False) -> InlineKeyboardMarkup:

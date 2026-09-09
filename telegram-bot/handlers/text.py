@@ -1653,30 +1653,10 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             )
             state_manager.set_state(user_id, new_state)
 
-            # Формируем сводное подтверждение
-            response = "🍽️ <b>Несколько приёмов пищи:</b>\n\n"
-            total_kcal = 0
-            for m in multi_meals:
-                safe_name = html.escape(str(m["meal_name"]))
-                m_kcal = int(m["meal_totals"].get("calories", 0))
-                total_kcal += m_kcal
-                response += f"<b>{safe_name}</b> — {m_kcal} ккал\n"
-                for item in m["meal_items"]:
-                    w_str = f"{item['weight_g']}г" if item.get("weight_g") else "?"
-                    safe_product = html.escape(str(item["product"]))
-                    response += f"  • {safe_product} ({w_str}) — {int(item.get('calories', 0))} ккал\n"
-                response += "\n"
+            # Формируем сводное подтверждение (#436: включает CONFIRM_HINT)
+            from handlers.meal_preview import render_multi_meal_summary
 
-            response += f"📊 <b>Итого: {total_kcal} ккал</b>"
-            if skipped:
-                response += "\n⚠️ Не разобрал: " + ", ".join(html.escape(str(s)) for s in skipped)
-            if custom_date:
-                try:
-                    date_obj = datetime.strptime(custom_date, "%Y-%m-%d")
-                    weekdays_ru = ["понедельник", "вторник", "среда", "четверг", "пятница", "суббота", "воскресенье"]
-                    response += f"\n📅 {date_obj.strftime('%d.%m.%Y')} ({weekdays_ru[date_obj.weekday()]})"
-                except Exception:
-                    response += f"\n📅 {custom_date}"
+            response = render_multi_meal_summary(multi_meals, skipped=skipped, custom_date=custom_date)
 
             from handlers.callbacks import MealConfirmationCallback
             from aiogram.utils.keyboard import InlineKeyboardBuilder
