@@ -93,6 +93,26 @@ def test_multi_item_weights_assigned_to_right_products():
     assert by_name["Творог 5%"]["weight_g"] == 200
 
 
+def test_rice_and_salmon_weights_not_swapped_by_regex_safety_net():
+    # Регрессия #449: до фикса regex-«страховка» пересекала границу продуктов на
+    # "рис 180 г и лосось 90 г" (weight_patterns[0] матчил "180 г и лосось" целиком),
+    # из-за чего лосось получал 180г вместо своих корректных 90г от LLM.
+    items, _ = process_llm_food_data(
+        _llm(
+            [
+                {"name": "Рис", "weight": 180, "calories": 200, "protein": 4, "fats": 0.5, "carbs": 44},
+                {"name": "Лосось", "weight": 90, "calories": 180, "protein": 18, "fats": 12, "carbs": 0},
+            ]
+        ),
+        description="рис 180 г и лосось 90 г",
+    )
+    by_name = {it["product"]: it for it in items}
+    assert by_name["Рис"]["weight_g"] == 180
+    assert by_name["Лосось"]["weight_g"] == 90, (
+        f"Вес лосося перезаписан regex-страховкой: {by_name['Лосось']['weight_g']} (ожидали 90)"
+    )
+
+
 def test_ambiguous_equal_weights_do_not_bypass_default_override():
     # Два продукта по 50 г в тексте; LLM-имя третьего не совпадает ни с одним, но вес 50 совпадает
     # с обоими — совпадение неоднозначно, дефолтная порция для «каши» применяется (и макросы масштабируются)
