@@ -551,6 +551,60 @@ async def test_pdf_without_lab_markers_uses_agent_as_before(tmp_path):
     processing_msg.edit_text.assert_any_call("Это договор аренды офиса.", parse_mode="HTML")
 
 
+@pytest.mark.asyncio
+async def test_album_of_two_medical_pdfs_asks_to_send_one_by_one(tmp_path):
+    """Issue #441 п.3: альбом из ДВУХ PDF, оба похожи на анализ — раньше цикл
+    обрабатывал их независимо, заводя run_doc_pipeline на каждый и затирая
+    pending одного pending'ом другого в общем FSM-state юзера. Теперь — как в
+    process_photos_list/doc_received: просим прислать по одному, НЕ запуская
+    run_doc_pipeline ни для одного из файлов."""
+    from handlers.photo import handle_document_image
+
+    lab_text = (
+        "Общий анализ крови. Гемоглобин 140 г/л. Лейкоциты 6.1 10^9/л. "
+        "Референсные значения указаны в графе норма. Заключение: без отклонений."
+    )
+
+    def _make_pdf_msg(name: str):
+        doc = MagicMock()
+        doc.mime_type = "application/pdf"
+        doc.file_name = name
+        m = AsyncMock()
+        m.from_user = MagicMock()
+        m.from_user.id = 895810
+        m.document = doc
+        m.caption = None
+        m.media_group_id = "album1"
+        return m
+
+    msg1 = _make_pdf_msg("analysis1.pdf")
+    msg2 = _make_pdf_msg("analysis2.pdf")
+    msg1.answer = AsyncMock()
+
+    pdf_path1 = tmp_path / "analysis1.pdf"
+    pdf_path1.write_bytes(b"%PDF-1")
+    pdf_path2 = tmp_path / "analysis2.pdf"
+    pdf_path2.write_bytes(b"%PDF-2")
+
+    async def fake_download(msg):
+        return pdf_path1 if msg is msg1 else pdf_path2
+
+    mock_run_pipeline = AsyncMock()
+    fsm_state = AsyncMock()
+
+    with (
+        patch("handlers.photo._download_pdf", side_effect=fake_download),
+        patch("handlers.photo._extract_pdf_text", return_value=lab_text),
+        patch("handlers.doc_upload.run_doc_pipeline", mock_run_pipeline),
+    ):
+        await handle_document_image(msg1, album=[msg1, msg2], state=fsm_state)
+
+    assert not mock_run_pipeline.called, "run_doc_pipeline не должен запускаться по файлам альбома"
+    msg1.answer.assert_called_once()
+    reply_text = msg1.answer.call_args[0][0]
+    assert "по одному" in reply_text.lower()
+
+
 # ── issue #439 (gap fix): фото анализа БЕЗ подписи и БЕЗ /doc ───────────────
 # Главный пропущенный случай: process_photos_list() показывала stock-текст
 # «не распознал еду» и на этом всё заканчивалось — фото лабораторного анализа
