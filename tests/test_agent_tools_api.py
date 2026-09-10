@@ -389,7 +389,7 @@ def _seed_meal(db_session, **kw):
     defaults = dict(
         db=db_session,
         user_id=895655,
-        date=date.today(),
+        date=datetime.now(MSK).date(),
         meal_time=time(13, 0),
         meal_name="Обед",
         items=[{"product": "Курица", "weight_g": 150, "calories": 250}],
