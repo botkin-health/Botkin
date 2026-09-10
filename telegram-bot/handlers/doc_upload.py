@@ -262,7 +262,9 @@ _NO_ROW_NOTES = {
 
 # Ключ из "unknown key 'BandCells': not in canonical registry, skipped"
 # (см. core.health.kb_schema.to_canonical) — вытаскиваем имя для пользователя.
-_UNKNOWN_KEY_RE = re.compile(r"unknown key '(?P<key>[^']+)'")
+# Кавычки из repr() — обычно одинарные, но python переключается на двойные,
+# если сама строка содержит апостроф (repr("it's") == '"it\'s"') — матчим оба варианта.
+_UNKNOWN_KEY_RE = re.compile(r"unknown key [\"'](?P<key>.+?)[\"']:")
 
 
 def _unmapped_keys_note(warnings: tuple[str, ...]) -> str:
@@ -296,7 +298,15 @@ def _save_to_blood_tests(user_id: int, extracted: dict[str, Any], stored_name: s
     unmapped_note = _unmapped_keys_note(result.warnings)
 
     if result.row is None:
-        return _NO_ROW_NOTES.get(result.reason, "") + unmapped_note
+        note = _NO_ROW_NOTES.get(result.reason, "")
+        # reason="not_lab": НИ ОДИН сырой ключ не распознан как лабораторный маркер
+        # (типичный случай — УЗИ с размерами органов, это не наш стол вообще).
+        # Приписывать «не распознал: liver_size, spleen_size» здесь означало бы
+        # выдавать ожидаемое поведение за сбой — тот же список ключей, что и
+        # «не нашёл лабораторных показателей» выше, только звучит как ошибка.
+        if result.reason != "not_lab":
+            note += unmapped_note
+        return note
 
     db = SessionLocal()
     try:
