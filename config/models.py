@@ -29,10 +29,13 @@ FOOD_TEXT_MODEL_OPENAI = os.getenv("BOTKIN_FOOD_TEXT_MODEL_OPENAI", "gpt-4o")
 
 # ── Vision: фото еды и меню ─────────────────────────────────────────────────
 VISION_MODEL_OPENAI = os.getenv("BOTKIN_VISION_MODEL_OPENAI", "gpt-4o")
-VISION_MODEL_GEMINI = os.getenv("BOTKIN_VISION_MODEL_GEMINI", "gemini-2.0-flash")
+# gemini-2.0-flash снят Google (404 на dev-стенде 2026-09-10: «no longer available,
+# use models/gemini-3.6-flash»). Новый id сверен со списком /v1beta/models с
+# prod-сервера 2026-09-10 и проверен живым vision-запросом (#440).
+VISION_MODEL_GEMINI = os.getenv("BOTKIN_VISION_MODEL_GEMINI", "gemini-3.6-flash")
 
 # ── OCR веса с фото весов (core/vision/ocr_weight.py) ───────────────────────
-WEIGHT_OCR_MODEL_GEMINI = os.getenv("BOTKIN_WEIGHT_OCR_MODEL_GEMINI", "gemini-2.0-flash")
+WEIGHT_OCR_MODEL_GEMINI = os.getenv("BOTKIN_WEIGHT_OCR_MODEL_GEMINI", "gemini-3.6-flash")
 WEIGHT_OCR_MODEL_OPENAI = os.getenv("BOTKIN_WEIGHT_OCR_MODEL_OPENAI", "gpt-4o")
 
 # ── Поиск продуктов в базе КБЖУ (core/food/product_search.py) ────────────────
