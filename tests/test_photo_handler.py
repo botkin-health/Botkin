@@ -549,3 +549,174 @@ async def test_pdf_without_lab_markers_uses_agent_as_before(tmp_path):
     assert not mock_run_pipeline.called
     assert mock_ask_agent.called
     processing_msg.edit_text.assert_any_call("Это договор аренды офиса.", parse_mode="HTML")
+
+
+# ── issue #439 (gap fix): фото анализа БЕЗ подписи и БЕЗ /doc ───────────────
+# Главный пропущенный случай: process_photos_list() показывала stock-текст
+# «не распознал еду» и на этом всё заканчивалось — фото лабораторного анализа
+# без подписи никогда не доходило ни до /doc, ни до handle_description
+# (который заводит doc-пайплайн, но требует caption).
+
+
+@pytest.mark.asyncio
+async def test_photo_without_caption_medical_no_reply_routes_to_doc_pipeline(tmp_path):
+    """type='medical' с пустым data.reply (это документ, не упаковка лекарства,
+    SCENARIO 5.1) и без caption — раньше уходило в stock-текст «не распознал
+    еду». Теперь должно вести в run_doc_pipeline, как /doc."""
+    from handlers.photo import process_photos_list
+    from services.state import state_manager
+
+    state_manager.clear_state("895900")
+
+    msg, processing_msg = _make_message(user_id=895900, caption=None)
+    photo = _fake_photo(tmp_path)
+    fsm_state = AsyncMock()
+
+    medical_result = {"type": "medical", "data": {"reply": ""}}
+    mock_run_pipeline = AsyncMock()
+
+    with (
+        patch(OCR_WEIGHT, return_value=None),
+        patch(LLM_ANALYZE, return_value=medical_result),
+        patch(MENU_PARSER, return_value=None),
+        patch("handlers.doc_upload.run_doc_pipeline", mock_run_pipeline),
+    ):
+        await process_photos_list(msg, [photo], state=fsm_state)
+
+    assert mock_run_pipeline.called, "run_doc_pipeline должен был быть вызван для фото-анализа без подписи"
+    call_kwargs = mock_run_pipeline.call_args.kwargs
+    assert call_kwargs["is_pdf"] is False
+    assert call_kwargs["content"] == photo.read_bytes()
+
+    # Старый stock-текст «не распознал еду» НЕ должен был уйти
+    for call in processing_msg.edit_text.call_args_list:
+        args = call.args or ()
+        assert not (args and "не распознал еду" in args[0])
+    for call in msg.answer.call_args_list:
+        args = call.args or ()
+        assert not (args and "не распознал еду" in args[0])
+
+
+@pytest.mark.asyncio
+async def test_photo_without_caption_medication_package_keeps_old_behavior(tmp_path):
+    """type='medical' с НЕпустым data.reply — это упаковка лекарства (SCENARIO
+    5.1), не документ. Старое поведение (stock-текст «не распознал еду») должно
+    сохраниться, run_doc_pipeline НЕ должен вызываться."""
+    from handlers.photo import process_photos_list
+    from services.state import state_manager
+
+    state_manager.clear_state("895901")
+
+    msg, processing_msg = _make_message(user_id=895901, caption=None)
+    photo = _fake_photo(tmp_path)
+    fsm_state = AsyncMock()
+
+    medical_result = {
+        "type": "medical",
+        "data": {"reply": "На фото упаковка «Омник», тамсулозин 0.4 мг."},
+    }
+    mock_run_pipeline = AsyncMock()
+
+    with (
+        patch(OCR_WEIGHT, return_value=None),
+        patch(LLM_ANALYZE, return_value=medical_result),
+        patch(MENU_PARSER, return_value=None),
+        patch("handlers.doc_upload.run_doc_pipeline", mock_run_pipeline),
+    ):
+        await process_photos_list(msg, [photo], state=fsm_state)
+
+    assert not mock_run_pipeline.called
+    processing_msg.edit_text.assert_any_call(
+        "📎 Фото получил, но не распознал еду.\n\n"
+        "Если это <b>анализы, документ или медданные</b> — "
+        "напиши текстом что хочешь узнать, и я разберу результаты.\n\n"
+        "Если это <b>еда</b> — пришли фото ещё раз с подписью "
+        "(название блюда, компоненты, вес).",
+        parse_mode="HTML",
+    )
+
+
+@pytest.mark.asyncio
+async def test_photo_without_caption_food_unchanged(tmp_path):
+    """Регресс-guard: фото еды без подписи по-прежнему идёт в обычный food-flow,
+    run_doc_pipeline не вызывается."""
+    from handlers.photo import process_photos_list
+    from services.state import state_manager
+
+    state_manager.clear_state("895902")
+
+    msg, processing_msg = _make_message(user_id=895902, caption=None)
+    photo = _fake_photo(tmp_path)
+    fsm_state = AsyncMock()
+
+    llm_result = {
+        "type": "food",
+        "data": {
+            "dish_name": "Омлет",
+            "items": [{"name": "Омлет", "weight": 200, "calories": 250, "protein": 18, "fats": 15, "carbs": 4}],
+            "total_nutrition": {"calories": 250, "protein": 18, "fats": 15, "carbs": 4},
+        },
+    }
+    mock_run_pipeline = AsyncMock()
+
+    with (
+        patch(OCR_WEIGHT, return_value=None),
+        patch(LLM_ANALYZE, return_value=llm_result),
+        patch(MENU_PARSER, return_value=None),
+        patch("handlers.doc_upload.run_doc_pipeline", mock_run_pipeline),
+    ):
+        await process_photos_list(msg, [photo], state=fsm_state)
+
+    assert not mock_run_pipeline.called
+    msg.answer.assert_called()
+
+
+@pytest.mark.asyncio
+async def test_scanned_pdf_without_caption_routes_to_doc_pipeline(tmp_path):
+    """Сканированный PDF (без извлекаемого текста), присланный без /doc и без
+    caption: handle_document_image конвертирует страницы в изображения и
+    передаёт в process_photos_list — тот должен довести их до run_doc_pipeline,
+    как обычное фото-документ."""
+    from handlers.photo import handle_document_image
+
+    doc = MagicMock()
+    doc.mime_type = "application/pdf"
+    doc.file_name = "scan.pdf"
+
+    processing_msg = AsyncMock()
+    processing_msg.edit_text = AsyncMock()
+    processing_msg.delete = AsyncMock()
+
+    msg = AsyncMock()
+    msg.from_user = MagicMock()
+    msg.from_user.id = 895903
+    msg.document = doc
+    msg.caption = None
+    msg.media_group_id = None
+    msg.answer = AsyncMock(return_value=processing_msg)
+
+    fake_pdf_path = tmp_path / "scan.pdf"
+    fake_pdf_path.write_bytes(b"%PDF-fake-content")
+
+    page_path = tmp_path / "scan_p1.png"
+    page_path.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 20)
+
+    fsm_state = AsyncMock()
+    other_result = {"type": "other", "data": {}}
+    mock_run_pipeline = AsyncMock()
+
+    with (
+        patch("handlers.photo._download_pdf", AsyncMock(return_value=fake_pdf_path)),
+        patch("handlers.photo._extract_pdf_text", return_value=""),  # сканированный — текста нет
+        patch("handlers.photo._pdf_to_images", return_value=[page_path]),
+        patch(OCR_WEIGHT, return_value=None),
+        patch(LLM_ANALYZE, return_value=other_result),
+        patch(MENU_PARSER, return_value=None),
+        patch("handlers.doc_upload.run_doc_pipeline", mock_run_pipeline),
+    ):
+        await handle_document_image(msg, album=None, state=fsm_state)
+
+    assert mock_run_pipeline.called, "Сканированный PDF без подписи должен был дойти до run_doc_pipeline"
+    call_kwargs = mock_run_pipeline.call_args.kwargs
+    assert call_kwargs["is_pdf"] is False
+    assert call_kwargs["content"] == page_path.read_bytes()

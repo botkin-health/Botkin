@@ -262,6 +262,7 @@ async def run_doc_pipeline(
     ext: str,
     is_pdf: bool,
     intro: Optional[str] = None,
+    processing_msg: Optional[Message] = None,
 ) -> None:
     """Общее ядро doc-пайплайна: pending-файл → экстракция → превью с клавиатурой.
 
@@ -275,6 +276,11 @@ async def run_doc_pipeline(
     стороне, у разных источников — Telegram document/photo — разная механика).
     `intro` — текст сообщения «читаю…», можно кастомизировать для авто-детекта,
     чтобы пользователь понимал, почему бот вдруг завёл /doc-подобный диалог.
+    `processing_msg` — уже показанное пользователю сообщение («Идёт ИИ-анализ…» и
+    т.п.), которое нужно переиспользовать (edit) вместо отправки второго сообщения
+    (issue #439: авто-детект без подписи из `process_photos_list` уже показал
+    «📸 Получено...» — без этого пользователь видел бы два сообщения подряд).
+    Если не передан — ведёт себя как раньше, отправляет новое сообщение.
     Если у `message` есть caption (вопрос к документу) — он сохраняется в pending
     и после сохранения (`doc_confirm`) уходит агенту.
     """
@@ -282,7 +288,16 @@ async def run_doc_pipeline(
     from handlers.photo import _extract_pdf_text, _pdf_to_images
 
     user_id = message.from_user.id
-    processing = await message.answer(intro or "⏳ Читаю…")
+    if processing_msg is not None:
+        try:
+            await processing_msg.edit_text(intro or "⏳ Читаю…")
+        except Exception:
+            logger.debug("run_doc_pipeline: не удалось отредактировать processing_msg, отправляю новое")
+            processing_msg = None
+    if processing_msg is not None:
+        processing = processing_msg
+    else:
+        processing = await message.answer(intro or "⏳ Читаю…")
 
     # Сохраняем как .pending до подтверждения
     stored_name = _stored_name(content, ext)

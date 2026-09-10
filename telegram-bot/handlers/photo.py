@@ -611,25 +611,75 @@ async def process_photos_list(
         # Caption уже в state, передаем None чтобы функция взяла caption из состояния
         await handle_description(message, None, processing_message=processing_msg, state=state)
     else:
-        # 🐛 FIX 26.05.2026: фото которое LLM-роутер НЕ распознал как еду
-        # (тонометр, скриншот, добавки, документ, etc) — НЕ ставим waiting_description
-        # state. Иначе юзер залипает в food-handler на каждое следующее сообщение.
-        # Прецедент: Александр прислал 2 скрина Garmin → попали сюда → state=
-        # waiting_description → вопрос «Ты видишь сон?» уходит в food-flow → «не еда» 3 раза.
-        # Решение: явное сообщение что фото не еда + предложение задать вопрос текстом.
-        # Не ставим state вообще — следующее сообщение пойдёт через нормальный
-        # routing (BP regex / vitamins regex / BotkinClaw).
-        prompt_text = (
-            "📎 Фото получил, но не распознал еду.\n\n"
-            "Если это <b>анализы, документ или медданные</b> — "
-            "напиши текстом что хочешь узнать, и я разберу результаты.\n\n"
-            "Если это <b>еда</b> — пришли фото ещё раз с подписью "
-            "(название блюда, компоненты, вес)."
-        )
-        if processing_msg:
-            await processing_msg.edit_text(prompt_text, parse_mode="HTML")
-        else:
-            await message.answer(prompt_text, parse_mode="HTML")
+        # Issue #439: главный пропущенный случай — фото анализа/заключения БЕЗ
+        # подписи. Раньше сюда попадали все нераспознанные фото и молча получали
+        # stock-текст «не распознал еду», а сам doc-пайплайн (run_doc_pipeline)
+        # был доступен только через /doc или через handle_description (который
+        # требует caption). Фото лабораторного анализа без подписи никогда не
+        # доходило ни до того, ни до другого.
+        #
+        # router_result тут — результат уже сделанного выше вызова analyze_message.
+        # Тот же признак «похоже на документ», что и в handle_description:
+        # type="medical" без reply (это не упаковка лекарства, SCENARIO 5.1) или
+        # type="other" (без caption — обсуждать явно нечего, кроме «это документ»).
+        router_type = router_result.get("type") if isinstance(router_result, dict) else None
+        recognized_reply = ""
+        if isinstance(router_result, dict) and isinstance(router_result.get("data"), dict):
+            recognized_reply = (router_result["data"].get("reply") or "").strip()
+        is_medical_no_reply = router_type == "medical" and not recognized_reply
+        is_other_type = router_type == "other"
+
+        routed_to_doc_pipeline = False
+        if photo_paths and state is not None and (is_medical_no_reply or is_other_type):
+            if len(photo_paths) > 1:
+                multi_text = (
+                    "📎 Пришли, пожалуйста, документы по одному — так надёжнее, я смогу их правильно распознать."
+                )
+                if processing_msg:
+                    await processing_msg.edit_text(multi_text)
+                else:
+                    await message.answer(multi_text)
+                return
+            first_photo = Path(photo_paths[0])
+            try:
+                doc_content = first_photo.read_bytes()
+            except Exception:
+                logger.exception("Не удалось прочитать фото для doc-пайплайна (user %s)", user_id)
+                doc_content = b""
+            if doc_content:
+                from handlers.doc_upload import run_doc_pipeline
+
+                await run_doc_pipeline(
+                    message,
+                    state,
+                    content=doc_content,
+                    ext=first_photo.suffix or ".jpg",
+                    is_pdf=False,
+                    intro="📎 Похоже на медицинский документ — читаю как /doc.",
+                    processing_msg=processing_msg,
+                )
+                routed_to_doc_pipeline = True
+
+        if not routed_to_doc_pipeline:
+            # 🐛 FIX 26.05.2026: фото которое LLM-роутер НЕ распознал как еду
+            # (тонометр, скриншот, добавки, документ, etc) — НЕ ставим waiting_description
+            # state. Иначе юзер залипает в food-handler на каждое следующее сообщение.
+            # Прецедент: Александр прислал 2 скрина Garmin → попали сюда → state=
+            # waiting_description → вопрос «Ты видишь сон?» уходит в food-flow → «не еда» 3 раза.
+            # Решение: явное сообщение что фото не еда + предложение задать вопрос текстом.
+            # Не ставим state вообще — следующее сообщение пойдёт через нормальный
+            # routing (BP regex / vitamins regex / BotkinClaw).
+            prompt_text = (
+                "📎 Фото получил, но не распознал еду.\n\n"
+                "Если это <b>анализы, документ или медданные</b> — "
+                "напиши текстом что хочешь узнать, и я разберу результаты.\n\n"
+                "Если это <b>еда</b> — пришли фото ещё раз с подписью "
+                "(название блюда, компоненты, вес)."
+            )
+            if processing_msg:
+                await processing_msg.edit_text(prompt_text, parse_mode="HTML")
+            else:
+                await message.answer(prompt_text, parse_mode="HTML")
 
 
 @router.message(F.photo)
