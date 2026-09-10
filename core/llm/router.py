@@ -19,7 +19,7 @@ sys.path.insert(0, str(project_root))
 from config import get_settings
 from .models import parse_llm_response
 import logging
-from config.models import FOOD_TEXT_MODEL_ANTHROPIC, FOOD_TEXT_MODEL_OPENAI
+from config.models import FOOD_TEXT_MODEL_ANTHROPIC, FOOD_TEXT_MODEL_OPENAI, VISION_MODEL_GEMINI
 
 logger = logging.getLogger(__name__)
 
@@ -336,6 +336,7 @@ CRITICAL RULES FOR ACCURACY:
 9. MULTIPLE PHOTOS / DISHES (CRITICAL!): If receiving multiple photos or seeing multiple distinct dishes (e.g. salad + fish steak), you MUST list them as SEPARATE items in the array. Estimate the correct weight for EACH dish independently. Do NOT merge them into one item or under-estimate the total weight.
 10. FRACTIONAL PORTIONS: "половина X" → 0.5× standard weight, "четверть X" → 0.25×, "треть X" → 0.33×. Calculate weight in grams and return the HALVED/QUARTERED value.
 11. CALORIC DENSITY CHECK: After calculating, verify: calories / weight should be between 0.1 and 9 ккал/г for any single ingredient. If outside this range, you made an error — recalculate.
+12. MULTIPLE ITEMS WITH DIFFERENT EXPLICIT WEIGHTS IN ONE MESSAGE: each item's weight is INDEPENDENT — do not reuse one item's weight for another item. Example: "гречка 150 г и куриная грудка 120 г" → items: [{"name":"Гречка","weight":150,...}, {"name":"Куриная грудка","weight":120,...}] — NOT both 150.
 
 SCENARIO 2: WEIGHT
 Extract weight and body composition.
@@ -926,7 +927,7 @@ def analyze_message_gemini(
     user_id: Optional[int] = None,
 ) -> Optional[Dict]:
     """
-    Analyzes message content using Google Gemini 1.5 Flash (Fallback for OpenAI).
+    Analyzes message content using Google Gemini (model from config/models.py; fallback for OpenAI).
     """
     settings = get_settings()
     api_key = settings.gemini_api_key or settings.google_api_key
@@ -935,7 +936,7 @@ def analyze_message_gemini(
         print("    ⚠️  Gemini API Key missing")
         return None
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{VISION_MODEL_GEMINI}:generateContent?key={api_key}"
 
     headers = {"Content-Type": "application/json"}
 
@@ -960,7 +961,7 @@ def analyze_message_gemini(
         "generationConfig": {"temperature": 0.1, "response_mime_type": "application/json"},
     }
 
-    print("    ✨ Attempting recognition through Gemini 1.5 Flash...")
+    print(f"    ✨ Attempting recognition through Gemini ({VISION_MODEL_GEMINI})...")
 
     for attempt in range(3):
         try:

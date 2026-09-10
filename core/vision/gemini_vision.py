@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Модуль для распознавания изображений через Google Gemini Vision API
-Использует Gemini 2.0 Flash для быстрого и точного анализа еды.
+Модель — VISION_MODEL_GEMINI из config/models.py, для быстрого и точного анализа еды.
 """
 
 import base64
@@ -31,7 +31,7 @@ def get_gemini_api_key() -> Optional[str]:
 
 def parse_menu_with_gemini(photo_paths: List[Path] | Path, api_key: Optional[str] = None) -> Optional[Dict]:
     """
-    Распознает меню или еду через Gemini 1.5 Flash API.
+    Распознает меню или еду через Gemini API (модель из config/models.py).
 
     Args:
         photo_paths: Путь к фото или список путей
@@ -119,7 +119,7 @@ Reply ONLY with JSON."""
         "generationConfig": {"temperature": 0.1, "response_mime_type": "application/json"},
     }
 
-    print("    ✨ Распознавание через Gemini 1.5 Flash...")
+    print(f"    ✨ Распознавание через Gemini ({VISION_MODEL_GEMINI})...")
 
     try:
         response = requests.post(url, headers=headers, json=payload, timeout=20)
