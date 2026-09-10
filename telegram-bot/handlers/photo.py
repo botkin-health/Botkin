@@ -6,6 +6,7 @@
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram import Bot
+from aiogram.fsm.context import FSMContext
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.exceptions import TelegramBadRequest
 from datetime import datetime
@@ -63,10 +64,12 @@ from handlers.first_food import record_first_food
 from handlers.meal_preview import CONFIRM_HINT
 from webhook.nutrition_slots import SLOTS, slot_center_time, slot_from_time, slot_label_ru
 
-from typing import List
+from typing import List, Optional
 
 
-async def process_photos_list(message: Message, photo_paths: List[Path], media_group_id: str = None):
+async def process_photos_list(
+    message: Message, photo_paths: List[Path], media_group_id: str = None, state: FSMContext = None
+):
     """Обрабатывает список фото (одиночное или группа)"""
     import logging
 
@@ -490,7 +493,7 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
 
             # Обрабатываем описание с учетом меню
             # Caption уже в state, передаем None чтобы функция взяла caption из состояния
-            await handle_description(message, None, processing_message=processing_msg)
+            await handle_description(message, None, processing_message=processing_msg, state=state)
             # Без return выполнение проваливалось в общий блок ниже: состояние
             # пересоздавалось уже без menu_data и handle_description вызывался второй
             # раз с новым LLM-разбором, перезаписывая правильный (якорный) итог.
@@ -614,31 +617,72 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
             state_manager.set_state(user_id, user_state)
 
         # Caption уже в state, передаем None чтобы функция взяла caption из состояния
-        await handle_description(message, None, processing_message=processing_msg)
+        await handle_description(message, None, processing_message=processing_msg, state=state)
     else:
-        # 🐛 FIX 26.05.2026: фото которое LLM-роутер НЕ распознал как еду
-        # (тонометр, скриншот, добавки, документ, etc) — НЕ ставим waiting_description
-        # state. Иначе юзер залипает в food-handler на каждое следующее сообщение.
-        # Прецедент: Александр прислал 2 скрина Garmin → попали сюда → state=
-        # waiting_description → вопрос «Ты видишь сон?» уходит в food-flow → «не еда» 3 раза.
-        # Решение: явное сообщение что фото не еда + предложение задать вопрос текстом.
-        # Не ставим state вообще — следующее сообщение пойдёт через нормальный
-        # routing (BP regex / vitamins regex / BotkinClaw).
-        prompt_text = (
-            "📎 Фото получил, но не распознал еду.\n\n"
-            "Если это <b>анализы, документ или медданные</b> — "
-            "напиши текстом что хочешь узнать, и я разберу результаты.\n\n"
-            "Если это <b>еда</b> — пришли фото ещё раз с подписью "
-            "(название блюда, компоненты, вес)."
-        )
-        if processing_msg:
-            await processing_msg.edit_text(prompt_text, parse_mode="HTML")
-        else:
-            await message.answer(prompt_text, parse_mode="HTML")
+        # Issue #439/#441: фото анализа/заключения БЕЗ подписи — маршрутизация
+        # в doc-пайплайн через единую `is_medical_document` (полное правило и
+        # история бага — в её docstring, handlers/doc_upload.py).
+        from handlers.doc_upload import is_medical_document, log_doc_routing_decision
+
+        route_to_doc_pipeline = is_medical_document(router_result)
+        log_doc_routing_decision(router_result, route_to_doc_pipeline)
+
+        routed_to_doc_pipeline = False
+        if photo_paths and state is not None and route_to_doc_pipeline:
+            if len(photo_paths) > 1:
+                multi_text = (
+                    "📎 Пришли, пожалуйста, документы по одному — так надёжнее, я смогу их правильно распознать."
+                )
+                if processing_msg:
+                    await processing_msg.edit_text(multi_text)
+                else:
+                    await message.answer(multi_text)
+                return
+            first_photo = Path(photo_paths[0])
+            try:
+                doc_content = first_photo.read_bytes()
+            except Exception:
+                logger.exception("Не удалось прочитать фото для doc-пайплайна (user %s)", user_id)
+                doc_content = b""
+            if doc_content:
+                from handlers.doc_upload import run_doc_pipeline
+
+                await run_doc_pipeline(
+                    message,
+                    state,
+                    content=doc_content,
+                    ext=first_photo.suffix or ".jpg",
+                    is_pdf=False,
+                    intro="📎 Похоже на медицинский документ — читаю как /doc.",
+                    processing_msg=processing_msg,
+                    auto=True,
+                )
+                routed_to_doc_pipeline = True
+
+        if not routed_to_doc_pipeline:
+            # 🐛 FIX 26.05.2026: фото которое LLM-роутер НЕ распознал как еду
+            # (тонометр, скриншот, добавки, документ, etc) — НЕ ставим waiting_description
+            # state. Иначе юзер залипает в food-handler на каждое следующее сообщение.
+            # Прецедент: Александр прислал 2 скрина Garmin → попали сюда → state=
+            # waiting_description → вопрос «Ты видишь сон?» уходит в food-flow → «не еда» 3 раза.
+            # Решение: явное сообщение что фото не еда + предложение задать вопрос текстом.
+            # Не ставим state вообще — следующее сообщение пойдёт через нормальный
+            # routing (BP regex / vitamins regex / BotkinClaw).
+            prompt_text = (
+                "📎 Фото получил, но не распознал еду.\n\n"
+                "Если это <b>анализы, документ или медданные</b> — "
+                "напиши текстом что хочешь узнать, и я разберу результаты.\n\n"
+                "Если это <b>еда</b> — пришли фото ещё раз с подписью "
+                "(название блюда, компоненты, вес)."
+            )
+            if processing_msg:
+                await processing_msg.edit_text(prompt_text, parse_mode="HTML")
+            else:
+                await message.answer(prompt_text, parse_mode="HTML")
 
 
 @router.message(F.photo)
-async def handle_photo_message(message: Message, bot: Bot, user_id: int, album: list = None):
+async def handle_photo_message(message: Message, bot: Bot, user_id: int, album: list = None, state: FSMContext = None):
     """Обработка фото с описанием блюда"""
 
     import logging
@@ -673,7 +717,7 @@ async def handle_photo_message(message: Message, bot: Bot, user_id: int, album: 
         # Берем сообщение в котором был настоящий caption
         message_with_caption = next((msg for msg in messages_to_process if msg.caption), message)
 
-    await process_photos_list(message_with_caption, photo_paths, message.media_group_id)
+    await process_photos_list(message_with_caption, photo_paths, message.media_group_id, state=state)
 
 
 async def _handle_libreview_csv(message: Message, msg: Message) -> bool:
@@ -768,7 +812,7 @@ async def _handle_libreview_csv(message: Message, msg: Message) -> bool:
 
 
 @router.message(F.document)
-async def handle_document_image(message: Message, album: list = None):
+async def handle_document_image(message: Message, album: list = None, state: FSMContext = None):
     """Обработка документов с изображениями (например, при перетаскивании из приложения 'Фото' macOS)"""
 
     import logging
@@ -782,7 +826,41 @@ async def handle_document_image(message: Message, album: list = None):
     has_pdf = False
     unsupported_names = []
 
-    for msg in messages_to_process:
+    # Issue #441 п.3: если в альбоме больше одного PDF, каждый из которых похож
+    # на медицинский документ, раньше цикл ниже обрабатывал их НЕЗАВИСИМО —
+    # каждый PDF заводил свой run_doc_pipeline/DocUpload.waiting, и pending
+    # одного тут же затирался pending следующего (общий FSM-state на юзера).
+    # "Похоже на анализ" нельзя определить без скачивания и извлечения текста,
+    # поэтому скачиваем и проверяем ВСЕ PDF альбома заранее; если кандидатов
+    # на doc-пайплайн больше одного — просим прислать по одному, зеркаля guard
+    # уже применяемый в process_photos_list/doc_received для этого же случая.
+    # `pdf_cache` переиспользуется ниже в основном цикле, чтобы не скачивать
+    # и не парсить те же PDF повторно.
+    pdf_cache: dict[int, tuple[Optional[Path], str]] = {}
+    if state is not None and len(messages_to_process) > 1:
+        from core.health.doc_detect import looks_like_medical_document as _looks_like_medical
+
+        medical_candidates = 0
+        for idx, msg in enumerate(messages_to_process):
+            if not msg.document:
+                continue
+            mime_type = (msg.document.mime_type or "").lower()
+            file_name = (msg.document.file_name or "").lower()
+            if mime_type != "application/pdf" and not file_name.endswith(".pdf"):
+                continue
+            pdf_path = await _download_pdf(msg)
+            pdf_text = _extract_pdf_text(pdf_path) if pdf_path else ""
+            pdf_cache[idx] = (pdf_path, pdf_text)
+            if pdf_path and pdf_text and _looks_like_medical(pdf_text):
+                medical_candidates += 1
+
+        if medical_candidates > 1:
+            await message.answer(
+                "📎 Пришли, пожалуйста, документы по одному — так надёжнее, я смогу их правильно распознать."
+            )
+            return
+
+    for idx, msg in enumerate(messages_to_process):
         # Проверяем, является ли документ изображением
         if not msg.document:
             continue
@@ -823,7 +901,16 @@ async def handle_document_image(message: Message, album: list = None):
         if is_pdf:
             has_pdf = True
             processing_msg = await message.answer("📄 Получил PDF, читаю…")
-            pdf_path = await _download_pdf(msg)
+
+            cached = pdf_cache.get(idx)
+            if cached is not None:
+                # Уже скачан и распарсен в пред-проверке альбома на несколько
+                # PDF-кандидатов (issue #441 п.3) — не делаем это дважды.
+                pdf_path, pdf_text = cached
+            else:
+                pdf_path = await _download_pdf(msg)
+                pdf_text = _extract_pdf_text(pdf_path) if pdf_path else ""
+
             if not pdf_path:
                 await processing_msg.edit_text(
                     "⚠️ Не удалось скачать PDF. Возможно, файл слишком большой (лимит Telegram — 20 МБ). "
@@ -831,8 +918,32 @@ async def handle_document_image(message: Message, album: list = None):
                 )
                 continue
 
-            # Извлекаем текст напрямую (для текстовых PDF — анализы, бланки)
-            pdf_text = _extract_pdf_text(pdf_path)
+            # Issue #439: PDF с лабораторными маркерами, присланный БЕЗ /doc, раньше
+            # уходил в ask_agent как «вот содержимое документа» — бот комментировал,
+            # но ничего не сохранял (ни blood_tests, ни аллергии/диагнозы в профиль).
+            # Дешёвая regex-эвристика перед дорогим ask_agent: похоже на анализ —
+            # ведём тем же пайплайном, что /doc (превью + подтверждение сохранения).
+            if pdf_text and state is not None:
+                from core.health.doc_detect import looks_like_medical_document
+
+                if looks_like_medical_document(pdf_text):
+                    from handlers.doc_upload import run_doc_pipeline
+
+                    try:
+                        await processing_msg.delete()
+                    except Exception:
+                        pass
+                    await run_doc_pipeline(
+                        msg,
+                        state,
+                        content=pdf_path.read_bytes(),
+                        ext=".pdf",
+                        is_pdf=True,
+                        intro="📄 Похоже на анализ или заключение — читаю как /doc.",
+                        auto=True,
+                    )
+                    continue
+
             if pdf_text:
                 import asyncio
                 from core.agent_chat import ask_agent
@@ -890,7 +1001,7 @@ async def handle_document_image(message: Message, album: list = None):
     if caption and not message.caption:
         message_with_caption = next((msg for msg in messages_to_process if msg.caption), message)
 
-    await process_photos_list(message_with_caption, photo_paths, message.media_group_id)
+    await process_photos_list(message_with_caption, photo_paths, message.media_group_id, state=state)
 
 
 async def save_photo(message: Message, file_id: str) -> Path:
@@ -1020,7 +1131,11 @@ def merge_caption_and_description(caption: str, description: str) -> str:
 
 
 async def handle_description(
-    message: Message, description: str = None, processing_message: Message = None, custom_date: str = None
+    message: Message,
+    description: str = None,
+    processing_message: Message = None,
+    custom_date: str = None,
+    state: FSMContext = None,
 ):
     """
     Обработка описания блюда после получения фото.
@@ -1030,6 +1145,9 @@ async def handle_description(
         description: Текст описания
         processing_message: Сообщение "Анализирую...", которое нужно отредактировать (опционально)
         custom_date: Кастомная дата в формате YYYY-MM-DD (опционально)
+        state: FSMContext вызывающего хендлера (issue #439) — нужен, чтобы завести
+            doc-пайплайн (DocUpload.waiting) для нераспознанных медицинских фото.
+            Опционален: без него (старые вызовы) поведение как раньше — архив.
     """
 
     import logging
@@ -1250,9 +1368,58 @@ async def handle_description(
             # BotkinClaw через tools сам решит что нужно.
             state_manager.clear_state(user_id)
 
-            # Не распознали как еду/вес/добавки/АД/замеры — прежде фото просто
-            # терялось (issue #370: папа Александра прислал фото страховки,
-            # BotkinClaw мог только посоветовать /doc). Архивируем сразу.
+            actual_caption = (caption or "").strip()
+            # 🐛 FIX (#медфото): раньше здесь БЕЗУСЛОВНО подставлялась фраза
+            # «LLM-vision не распознал…», даже если vision реально прочитала
+            # текст с фото (например, упаковку лекарства — SCENARIO 5.1 в
+            # core/llm/router.py) и положила распознанное в data.reply.
+            # Прецедент: фото упаковки «Омник» с вопросом «есть данные по
+            # препарату?» — router вернул reply с названием/дозировкой, но код
+            # это выбрасывал и говорил агенту, что вообще ничего не увидел.
+            recognized_reply = ""
+            if isinstance(router_result, dict) and isinstance(router_result.get("data"), dict):
+                recognized_reply = (router_result["data"].get("reply") or "").strip()
+
+            # Issue #439/#441: та же маршрутизация, что и в process_photos_list —
+            # через единую `is_medical_document` (правило и история бага — в
+            # её docstring, handlers/doc_upload.py). `recognized_reply` выше
+            # используется отдельно, для vision_note ниже, если в doc-пайплайн
+            # НЕ пошли (например subtype=="medication_package").
+            from handlers.doc_upload import is_medical_document, log_doc_routing_decision
+
+            route_to_doc_pipeline = is_medical_document(router_result)
+            log_doc_routing_decision(router_result, route_to_doc_pipeline)
+            if photo_paths and state is not None and route_to_doc_pipeline:
+                first_photo = Path(photo_paths[0])
+                try:
+                    doc_content = first_photo.read_bytes()
+                except Exception:
+                    logger.exception("Не удалось прочитать фото для doc-пайплайна (user %s)", user_id)
+                    doc_content = b""
+                if doc_content:
+                    from handlers.doc_upload import run_doc_pipeline
+
+                    # Issue #441 п.4/п.6: переиспользуем уже показанное
+                    # processing_message («🤔 думаю...») вместо второго
+                    # сообщения, и передаём вопрос пользователя (из текста/
+                    # голоса, а не только caption с фото) в doc-пайплайн, чтобы
+                    # BotkinClaw ответил на него после сохранения.
+                    await run_doc_pipeline(
+                        message,
+                        state,
+                        content=doc_content,
+                        ext=first_photo.suffix or ".jpg",
+                        is_pdf=False,
+                        intro="📎 Похоже на медицинский документ — читаю как /doc.",
+                        processing_msg=processing_message,
+                        auto=True,
+                        question=full_description,
+                    )
+                    return
+
+            # Не распознали как еду/вес/добавки/АД/замеры и не похоже на документ —
+            # прежде фото просто терялось (issue #370: папа Александра прислал фото
+            # страховки, BotkinClaw мог только посоветовать /doc). Архивируем сразу.
             archived_names: list[str] = []
             try:
                 from handlers.doc_upload import archive_photo_as_document
@@ -1265,18 +1432,6 @@ async def handle_description(
                     )
             except Exception:
                 logger.exception("Не удалось авто-архивировать нераспознанное фото (user %s)", user_id)
-
-            actual_caption = (caption or "").strip()
-            # 🐛 FIX (#медфото): раньше здесь БЕЗУСЛОВНО подставлялась фраза
-            # «LLM-vision не распознал…», даже если vision реально прочитала
-            # текст с фото (например, упаковку лекарства — SCENARIO 5.1 в
-            # core/llm/router.py) и положила распознанное в data.reply.
-            # Прецедент: фото упаковки «Омник» с вопросом «есть данные по
-            # препарату?» — router вернул reply с названием/дозировкой, но код
-            # это выбрасывал и говорил агенту, что вообще ничего не увидел.
-            recognized_reply = ""
-            if isinstance(router_result, dict) and isinstance(router_result.get("data"), dict):
-                recognized_reply = (router_result["data"].get("reply") or "").strip()
 
             if actual_caption or recognized_reply:
                 # Передаём агенту — он умнее stock-message
