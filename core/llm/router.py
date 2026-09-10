@@ -19,7 +19,7 @@ sys.path.insert(0, str(project_root))
 from config import get_settings
 from .models import parse_llm_response
 import logging
-from config.models import FOOD_TEXT_MODEL_ANTHROPIC, FOOD_TEXT_MODEL_OPENAI
+from config.models import FOOD_TEXT_MODEL_ANTHROPIC, FOOD_TEXT_MODEL_OPENAI, VISION_MODEL_GEMINI
 
 logger = logging.getLogger(__name__)
 
@@ -926,7 +926,7 @@ def analyze_message_gemini(
     user_id: Optional[int] = None,
 ) -> Optional[Dict]:
     """
-    Analyzes message content using Google Gemini 1.5 Flash (Fallback for OpenAI).
+    Analyzes message content using Google Gemini (model from config/models.py; fallback for OpenAI).
     """
     settings = get_settings()
     api_key = settings.gemini_api_key or settings.google_api_key
@@ -935,7 +935,7 @@ def analyze_message_gemini(
         print("    ⚠️  Gemini API Key missing")
         return None
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{VISION_MODEL_GEMINI}:generateContent?key={api_key}"
 
     headers = {"Content-Type": "application/json"}
 
@@ -960,7 +960,7 @@ def analyze_message_gemini(
         "generationConfig": {"temperature": 0.1, "response_mime_type": "application/json"},
     }
 
-    print("    ✨ Attempting recognition through Gemini 1.5 Flash...")
+    print(f"    ✨ Attempting recognition through Gemini ({VISION_MODEL_GEMINI})...")
 
     for attempt in range(3):
         try:

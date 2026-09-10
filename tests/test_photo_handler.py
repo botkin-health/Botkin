@@ -1091,3 +1091,107 @@ def test_build_router_result_does_not_duplicate_caption_already_in_dish_name():
 
     assert result["data"]["dish_name"] == "Куриные стрипсы с кабачком и огурцом (без кускуса)"
     assert result["data"]["dish_name"].count("без кускуса") == 1
+
+
+# ── #440: не гонять legacy-цепочку ChatGPT→Gemini→OCR после определённого не-food ответа роутера ──
+
+# Типы, которые роутер возвращает как ОПРЕДЕЛЁННО не еда. Для weight/vitamins/bp
+# отдаём пустой data, чтобы не сработали ранние return-ветки — так проверяем
+# именно «провалились до fallback, но legacy-цепочка не запустилась».
+_NON_FOOD_ROUTER_RESULTS = [
+    pytest.param({"type": "medical", "data": {"subtype": "lab_report", "reply": "Это бланк анализа"}}, id="medical"),
+    pytest.param({"type": "other", "data": {"reply": "Скриншот Garmin"}}, id="other"),
+    pytest.param({"type": "body_measurements", "data": {}}, id="body_measurements"),
+    pytest.param({"type": "weight", "data": {}}, id="weight-empty"),
+    pytest.param({"type": "vitamins", "data": {"items": []}}, id="vitamins-empty"),
+    pytest.param({"type": "bp", "data": {}}, id="bp-empty"),
+]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("router_result", _NON_FOOD_ROUTER_RESULTS)
+async def test_definite_non_food_type_skips_legacy_menu_parser(tmp_path, router_result):
+    """#440: роутер вернул определённый не-food тип → parse_menu_photo (ChatGPT/Gemini/OCR)
+    не вызывается вовсе, бот всё равно отвечает пользователю."""
+    from handlers.photo import process_photos_list
+    from services.state import state_manager
+
+    state_manager.clear_state("895655")
+
+    msg, processing_msg = _make_message(caption=None)
+    photo = _fake_photo(tmp_path)
+
+    with (
+        patch(OCR_WEIGHT, return_value=None),
+        patch(LLM_ANALYZE, return_value=router_result),
+        patch(MENU_PARSER, return_value=None) as menu_parser,
+    ):
+        await process_photos_list(msg, [photo])
+
+    menu_parser.assert_not_called()
+    assert processing_msg.edit_text.called
+
+
+@pytest.mark.asyncio
+async def test_definite_non_food_type_skips_legacy_menu_parser_for_multiple_photos(tmp_path):
+    """#440: то же для альбома из нескольких фото — per-photo цикл legacy-цепочки не запускается."""
+    from handlers.photo import process_photos_list
+    from services.state import state_manager
+
+    state_manager.clear_state("895655")
+
+    msg, processing_msg = _make_message(caption=None)
+    photos = [_fake_photo(tmp_path, "a.jpg"), _fake_photo(tmp_path, "b.jpg")]
+    router_result = {"type": "medical", "data": {"subtype": "doctor_note", "reply": "Заключение врача"}}
+
+    with (
+        patch(OCR_WEIGHT, return_value=None),
+        patch(LLM_ANALYZE, return_value=router_result),
+        patch(MENU_PARSER, return_value=None) as menu_parser,
+    ):
+        await process_photos_list(msg, photos)
+
+    menu_parser.assert_not_called()
+    assert processing_msg.edit_text.called
+
+
+@pytest.mark.asyncio
+async def test_router_none_still_runs_legacy_menu_parser(tmp_path):
+    """#440: роутер вернул None (сеть/лимит) → legacy-цепочка остаётся как страховка."""
+    from handlers.photo import process_photos_list
+    from services.state import state_manager
+
+    state_manager.clear_state("895655")
+
+    msg, _ = _make_message(caption=None)
+    photo = _fake_photo(tmp_path)
+
+    with (
+        patch(OCR_WEIGHT, return_value=None),
+        patch(LLM_ANALYZE, return_value=None),
+        patch(MENU_PARSER, return_value=None) as menu_parser,
+    ):
+        await process_photos_list(msg, [photo])
+
+    menu_parser.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_food_type_without_items_still_runs_legacy_menu_parser(tmp_path):
+    """#440: type=food, но LLM не извлёк ни items, ни КБЖУ → legacy-цепочка остаётся."""
+    from handlers.photo import process_photos_list
+    from services.state import state_manager
+
+    state_manager.clear_state("895655")
+
+    msg, _ = _make_message(caption=None)
+    photo = _fake_photo(tmp_path)
+
+    with (
+        patch(OCR_WEIGHT, return_value=None),
+        patch(LLM_ANALYZE, return_value={"type": "food", "data": {"items": []}}),
+        patch(MENU_PARSER, return_value=None) as menu_parser,
+    ):
+        await process_photos_list(msg, [photo])
+
+    menu_parser.assert_called_once()
