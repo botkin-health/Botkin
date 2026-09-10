@@ -91,6 +91,26 @@ def test_ultrasound_is_not_written(test_db):
     assert "Лабораторных показателей не нашёл" in note
 
 
+def test_unmapped_key_warning_surfaces_in_confirmation_text(test_db):
+    """Ключ вне CANONICAL (issue #445) не должен тихо теряться — пользователь
+
+    должен увидеть, что показатель сохранён в документе, но не попал в
+    динамику (blood_tests хранит только канонические ключи)."""
+    note = _save(test_db, {**LAB_DOC, "values": {**LAB_DOC["values"], "BandCells": 3}})
+
+    assert "Не распознал" in note
+    assert "BandCells" in note
+    # Распознанные показатели всё равно должны были записаться.
+    rows = get_all_blood_tests(test_db, USER_ID)
+    assert len(rows) == 1
+
+
+def test_no_unmapped_key_note_when_all_keys_known(test_db):
+    note = _save(test_db, LAB_DOC)
+
+    assert "Не распознал" not in note
+
+
 def test_db_failure_is_reported_not_raised(test_db):
     """Документ уже в KB — упасть здесь нельзя, можно только честно сказать."""
     from handlers.doc_upload import _save_to_blood_tests
