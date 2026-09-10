@@ -466,3 +466,83 @@ class TestWeightCrossoverAcrossProductBoundary:
             assert must_contain in names, f"{must_contain!r} обрезано или потеряно: {products} (из {desc!r})"
             weights = [p.get("weight", 0) for p in products]
             assert any(w in (180.0, 60.0, 40.0) for w in weights), f"Вес не распознан: {products} (из {desc!r})"
+
+
+class TestWeightCrossoverConjunctionInMiddleOfNameSpan:
+    """Регрессия #449 follow-up: review нашёл, что фикс из TestWeightCrossoverAcrossProductBoundary
+    закрывал границу продукта только для weight_patterns[0], но не для weight_patterns[1] —
+    оба паттерна независимо проходят один и тот же текст, и {0,2}-словное расширение
+    захвата имени у ОБОИХ паттернов могло проглотить союз «и»/«или» СЕРЕДИНОЙ 3-словного
+    span (а не только первым словом), пересекая границу продукта.
+
+    Подтверждённые до фикса регрессии:
+    - "180 г отварного риса и лосось 90 г" → имя лосося портилось до "риса и лосось"
+      (вес 90 формально приклеивался, но имя было мусорным).
+    - "200 г риса или лосось 90 г" → лосось (90г) вообще пропадал: паттерн 1 матчил
+      "200"/"риса", паттерн 2 матчил тот же 3-словный span "риса или лосось"/"200"
+      (или похожий), нормализованные имена совпадали и dedup-логика в вызывающем цикле
+      тихо отбрасывала второй продукт как «дубликат», хотя веса были разные (200 vs 90).
+
+    Фикс: per-word негативный lookahead (?!(?:и|или)\\b) перед каждым словом
+    расширения в ОБОИХ weight_patterns — не даёт расширению взять "и"/"или" вторым
+    или третьим словом захвата ни в паттерне 1 (число-первым), ни в паттерне 2
+    (название-первым).
+    """
+
+    def test_number_first_conjunction_in_middle_of_name_span_and(self):
+        """«180 г отварного риса и лосось 90 г» — имя лосося не должно содержать
+        хвост первого продукта и союз."""
+        products = extract_products_from_description("180 г отварного риса и лосось 90 г")
+
+        names = [p["name"].lower() for p in products]
+        assert not any("и лосось" in n or n.startswith("и ") for n in names), (
+            f"Имя лосося испорчено союзом/хвостом первого продукта: {products}"
+        )
+
+        rice = [p for p in products if "рис" in p["name"].lower()]
+        salmon = [p for p in products if p["name"].lower() == "лосось"]
+        assert rice, f"Рис не найден: {products}"
+        assert salmon, f"Лосось не найден с чистым именем 'лосось': {products}"
+        assert rice[0]["weight"] == 180, f"Ожидали 180г риса: {products}"
+        assert salmon[0]["weight"] == 90, f"Ожидали 90г лосося: {products}"
+
+    def test_number_first_conjunction_in_middle_of_name_span_or_no_data_loss(self):
+        """«200 г риса или лосось 90 г» — лосось не должен пропадать целиком
+        (это была потеря данных из-за ложного dedup)."""
+        products = extract_products_from_description("200 г риса или лосось 90 г")
+
+        assert len(products) >= 2, f"Ожидали минимум 2 продукта (рис и лосось), получили: {products}"
+
+        rice = [p for p in products if "рис" in p["name"].lower()]
+        salmon = [p for p in products if "лосос" in p["name"].lower()]
+        assert rice, f"Рис не найден: {products}"
+        assert salmon, f"Лосось пропал (регрессия data loss): {products}"
+        assert rice[0]["weight"] == 200, f"Ожидали 200г риса: {products}"
+        assert salmon[0]["weight"] == 90, f"Ожидали 90г лосося (не 200!): {products}"
+
+    def test_name_first_or_two_correct_products(self):
+        """«рис 180 г или лосось 90 г» — регрессионная защита для ветки «или»
+        (ранее не была покрыта тестом)."""
+        products = extract_products_from_description("рис 180 г или лосось 90 г")
+
+        rice = [p for p in products if "рис" in p["name"].lower()]
+        salmon = [p for p in products if "лосос" in p["name"].lower()]
+        assert rice, f"Рис не найден: {products}"
+        assert salmon, f"Лосось не найден: {products}"
+        assert rice[0]["weight"] == 180, f"Ожидали 180г риса: {products}"
+        assert salmon[0]["weight"] == 90, f"Ожидали 90г лосося: {products}"
+
+    def test_three_items_with_comma_and_conjunction(self):
+        """«рис 100 г, лосось 90 г и брокколи 50 г» — три продукта, регрессионная
+        защита для случая 3+ элементов через запятую и союз."""
+        products = extract_products_from_description("рис 100 г, лосось 90 г и брокколи 50 г")
+
+        rice = [p for p in products if "рис" in p["name"].lower()]
+        salmon = [p for p in products if "лосос" in p["name"].lower()]
+        broccoli = [p for p in products if "брокколи" in p["name"].lower()]
+        assert rice, f"Рис не найден: {products}"
+        assert salmon, f"Лосось не найден: {products}"
+        assert broccoli, f"Брокколи не найдено: {products}"
+        assert rice[0]["weight"] == 100, f"Ожидали 100г риса: {products}"
+        assert salmon[0]["weight"] == 90, f"Ожидали 90г лосося: {products}"
+        assert broccoli[0]["weight"] == 50, f"Ожидали 50г брокколи: {products}"
