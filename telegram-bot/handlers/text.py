@@ -579,7 +579,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             # Это похоже на описание еды — обрабатываем как раньше
             from handlers.photo import handle_description
 
-            await handle_description(message, message.text)
+            await handle_description(message, message.text, state=state)
             return
 
     # --- LLM Router Logic ---

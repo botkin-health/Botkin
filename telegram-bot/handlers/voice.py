@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 
 from aiogram import Router, F, Bot
+from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
 from core.infra.voice_service import voice_service
@@ -15,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 @router.message(F.voice)
-async def handle_voice_message(message: Message, bot: Bot, user_id: int):
+async def handle_voice_message(message: Message, bot: Bot, user_id: int, state: FSMContext = None):
     """
     Обработчик голосовых сообщений.
     Скачивает файл, транскрибирует, затем маршрутизирует:
@@ -72,7 +73,7 @@ async def handle_voice_message(message: Message, bot: Bot, user_id: int):
         state_manager.set_state(uid_str, new_user_state)
 
         processing_msg = await message.answer("🤖 Анализирую через ИИ: еда, время, вес, КБЖУ... ⏳")
-        await handle_description(message, text_stripped, processing_message=processing_msg)
+        await handle_description(message, text_stripped, processing_message=processing_msg, state=state)
 
     except Exception as e:
         logger.exception(f"Error handling voice message: {e}")

@@ -6,6 +6,7 @@
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram import Bot
+from aiogram.fsm.context import FSMContext
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.exceptions import TelegramBadRequest
 from datetime import datetime
@@ -65,7 +66,9 @@ from webhook.nutrition_slots import SLOTS, slot_center_time, slot_from_time, slo
 from typing import List
 
 
-async def process_photos_list(message: Message, photo_paths: List[Path], media_group_id: str = None):
+async def process_photos_list(
+    message: Message, photo_paths: List[Path], media_group_id: str = None, state: FSMContext = None
+):
     """Обрабатывает список фото (одиночное или группа)"""
     import logging
 
@@ -488,7 +491,7 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
 
             # Обрабатываем описание с учетом меню
             # Caption уже в state, передаем None чтобы функция взяла caption из состояния
-            await handle_description(message, None, processing_message=processing_msg)
+            await handle_description(message, None, processing_message=processing_msg, state=state)
         else:
             # Нет caption - используем данные как есть
             logger.info(f"Используем данные без caption: {menu_data.get('dish_name')}")
@@ -606,7 +609,7 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
             state_manager.set_state(user_id, user_state)
 
         # Caption уже в state, передаем None чтобы функция взяла caption из состояния
-        await handle_description(message, None, processing_message=processing_msg)
+        await handle_description(message, None, processing_message=processing_msg, state=state)
     else:
         # 🐛 FIX 26.05.2026: фото которое LLM-роутер НЕ распознал как еду
         # (тонометр, скриншот, добавки, документ, etc) — НЕ ставим waiting_description
@@ -630,7 +633,7 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
 
 
 @router.message(F.photo)
-async def handle_photo_message(message: Message, bot: Bot, user_id: int, album: list = None):
+async def handle_photo_message(message: Message, bot: Bot, user_id: int, album: list = None, state: FSMContext = None):
     """Обработка фото с описанием блюда"""
 
     import logging
@@ -665,7 +668,7 @@ async def handle_photo_message(message: Message, bot: Bot, user_id: int, album: 
         # Берем сообщение в котором был настоящий caption
         message_with_caption = next((msg for msg in messages_to_process if msg.caption), message)
 
-    await process_photos_list(message_with_caption, photo_paths, message.media_group_id)
+    await process_photos_list(message_with_caption, photo_paths, message.media_group_id, state=state)
 
 
 async def _handle_libreview_csv(message: Message, msg: Message) -> bool:
@@ -760,7 +763,7 @@ async def _handle_libreview_csv(message: Message, msg: Message) -> bool:
 
 
 @router.message(F.document)
-async def handle_document_image(message: Message, album: list = None):
+async def handle_document_image(message: Message, album: list = None, state: FSMContext = None):
     """Обработка документов с изображениями (например, при перетаскивании из приложения 'Фото' macOS)"""
 
     import logging
@@ -825,6 +828,32 @@ async def handle_document_image(message: Message, album: list = None):
 
             # Извлекаем текст напрямую (для текстовых PDF — анализы, бланки)
             pdf_text = _extract_pdf_text(pdf_path)
+
+            # Issue #439: PDF с лабораторными маркерами, присланный БЕЗ /doc, раньше
+            # уходил в ask_agent как «вот содержимое документа» — бот комментировал,
+            # но ничего не сохранял (ни blood_tests, ни аллергии/диагнозы в профиль).
+            # Дешёвая regex-эвристика перед дорогим ask_agent: похоже на анализ —
+            # ведём тем же пайплайном, что /doc (превью + подтверждение сохранения).
+            if pdf_text and state is not None:
+                from core.health.doc_detect import looks_like_medical_document
+
+                if looks_like_medical_document(pdf_text):
+                    from handlers.doc_upload import run_doc_pipeline
+
+                    try:
+                        await processing_msg.delete()
+                    except Exception:
+                        pass
+                    await run_doc_pipeline(
+                        msg,
+                        state,
+                        content=pdf_path.read_bytes(),
+                        ext=".pdf",
+                        is_pdf=True,
+                        intro="📄 Похоже на анализ или заключение — читаю как /doc.",
+                    )
+                    continue
+
             if pdf_text:
                 import asyncio
                 from core.agent_chat import ask_agent
@@ -882,7 +911,7 @@ async def handle_document_image(message: Message, album: list = None):
     if caption and not message.caption:
         message_with_caption = next((msg for msg in messages_to_process if msg.caption), message)
 
-    await process_photos_list(message_with_caption, photo_paths, message.media_group_id)
+    await process_photos_list(message_with_caption, photo_paths, message.media_group_id, state=state)
 
 
 async def save_photo(message: Message, file_id: str) -> Path:
@@ -1012,7 +1041,11 @@ def merge_caption_and_description(caption: str, description: str) -> str:
 
 
 async def handle_description(
-    message: Message, description: str = None, processing_message: Message = None, custom_date: str = None
+    message: Message,
+    description: str = None,
+    processing_message: Message = None,
+    custom_date: str = None,
+    state: FSMContext = None,
 ):
     """
     Обработка описания блюда после получения фото.
@@ -1022,6 +1055,9 @@ async def handle_description(
         description: Текст описания
         processing_message: Сообщение "Анализирую...", которое нужно отредактировать (опционально)
         custom_date: Кастомная дата в формате YYYY-MM-DD (опционально)
+        state: FSMContext вызывающего хендлера (issue #439) — нужен, чтобы завести
+            doc-пайплайн (DocUpload.waiting) для нераспознанных медицинских фото.
+            Опционален: без него (старые вызовы) поведение как раньше — архив.
     """
 
     import logging
@@ -1242,9 +1278,54 @@ async def handle_description(
             # BotkinClaw через tools сам решит что нужно.
             state_manager.clear_state(user_id)
 
-            # Не распознали как еду/вес/добавки/АД/замеры — прежде фото просто
-            # терялось (issue #370: папа Александра прислал фото страховки,
-            # BotkinClaw мог только посоветовать /doc). Архивируем сразу.
+            actual_caption = (caption or "").strip()
+            # 🐛 FIX (#медфото): раньше здесь БЕЗУСЛОВНО подставлялась фраза
+            # «LLM-vision не распознал…», даже если vision реально прочитала
+            # текст с фото (например, упаковку лекарства — SCENARIO 5.1 в
+            # core/llm/router.py) и положила распознанное в data.reply.
+            # Прецедент: фото упаковки «Омник» с вопросом «есть данные по
+            # препарату?» — router вернул reply с названием/дозировкой, но код
+            # это выбрасывал и говорил агенту, что вообще ничего не увидел.
+            recognized_reply = ""
+            router_type = None
+            if isinstance(router_result, dict):
+                router_type = router_result.get("type")
+                if isinstance(router_result.get("data"), dict):
+                    recognized_reply = (router_result["data"].get("reply") or "").strip()
+
+            # Issue #439: фото похоже на медицинский документ (анализ/заключение),
+            # а не на упаковку лекарства (type="medical" c непустым reply — это
+            # SCENARIO 5.1, туда не лезем) и не на вопрос про фото без подписи
+            # (type="other" без caption — то же самое: без caption распознавать
+            # особо нечего, кроме как «это документ»). Раньше такое фото просто
+            # архивировалось без разбора (`archive_photo_as_document`, extracted={}),
+            # пользователь не знал что ничего не сохранилось в динамику показателей.
+            # Ведём тем же doc-пайплайном, что и /doc — превью + кнопка подтверждения.
+            is_medical_no_reply = router_type == "medical" and not recognized_reply
+            is_other_no_caption = router_type == "other" and not actual_caption
+            if photo_paths and state is not None and (is_medical_no_reply or is_other_no_caption):
+                first_photo = Path(photo_paths[0])
+                try:
+                    doc_content = first_photo.read_bytes()
+                except Exception:
+                    logger.exception("Не удалось прочитать фото для doc-пайплайна (user %s)", user_id)
+                    doc_content = b""
+                if doc_content:
+                    from handlers.doc_upload import run_doc_pipeline
+
+                    await run_doc_pipeline(
+                        message,
+                        state,
+                        content=doc_content,
+                        ext=first_photo.suffix or ".jpg",
+                        is_pdf=False,
+                        intro="📎 Похоже на медицинский документ — читаю как /doc.",
+                    )
+                    return
+
+            # Не распознали как еду/вес/добавки/АД/замеры и не похоже на документ —
+            # прежде фото просто терялось (issue #370: папа Александра прислал фото
+            # страховки, BotkinClaw мог только посоветовать /doc). Архивируем сразу.
             archived_names: list[str] = []
             try:
                 from handlers.doc_upload import archive_photo_as_document
@@ -1257,18 +1338,6 @@ async def handle_description(
                     )
             except Exception:
                 logger.exception("Не удалось авто-архивировать нераспознанное фото (user %s)", user_id)
-
-            actual_caption = (caption or "").strip()
-            # 🐛 FIX (#медфото): раньше здесь БЕЗУСЛОВНО подставлялась фраза
-            # «LLM-vision не распознал…», даже если vision реально прочитала
-            # текст с фото (например, упаковку лекарства — SCENARIO 5.1 в
-            # core/llm/router.py) и положила распознанное в data.reply.
-            # Прецедент: фото упаковки «Омник» с вопросом «есть данные по
-            # препарату?» — router вернул reply с названием/дозировкой, но код
-            # это выбрасывал и говорил агенту, что вообще ничего не увидел.
-            recognized_reply = ""
-            if isinstance(router_result, dict) and isinstance(router_result.get("data"), dict):
-                recognized_reply = (router_result["data"].get("reply") or "").strip()
 
             if actual_caption or recognized_reply:
                 # Передаём агенту — он умнее stock-message

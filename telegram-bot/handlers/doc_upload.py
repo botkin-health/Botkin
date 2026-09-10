@@ -254,6 +254,81 @@ def archive_photo_as_document(user_id: int, photo_path: Path, reason: str = "") 
     return stored_name
 
 
+async def run_doc_pipeline(
+    message: Message,
+    state: FSMContext,
+    *,
+    content: bytes,
+    ext: str,
+    is_pdf: bool,
+    intro: Optional[str] = None,
+) -> None:
+    """Общее ядро doc-пайплайна: pending-файл → экстракция → превью с клавиатурой.
+
+    Вынесено из `doc_received` (issue #439), чтобы им мог пользоваться не только
+    /doc, но и авто-детект медицинских документов без команды в `handlers/photo.py`
+    (фото анализа без /doc, текстовый PDF с лабораторными маркерами). Существующие
+    callbacks `docup_save`/`docup_cancel` работают с результатом без изменений —
+    они читают `pending` из FSM-данных, а не знают, кто их туда положил.
+
+    `content`/`ext`/`is_pdf` — уже скачанный файл (скачивание остаётся на вызывающей
+    стороне, у разных источников — Telegram document/photo — разная механика).
+    `intro` — текст сообщения «читаю…», можно кастомизировать для авто-детекта,
+    чтобы пользователь понимал, почему бот вдруг завёл /doc-подобный диалог.
+    Если у `message` есть caption (вопрос к документу) — он сохраняется в pending
+    и после сохранения (`doc_confirm`) уходит агенту.
+    """
+    from core.health.doc_extractor import extract_medical_data
+    from handlers.photo import _extract_pdf_text, _pdf_to_images
+
+    user_id = message.from_user.id
+    processing = await message.answer(intro or "⏳ Читаю…")
+
+    # Сохраняем как .pending до подтверждения
+    stored_name = _stored_name(content, ext)
+    tmp_path = _uploads_dir(user_id) / f".pending_{stored_name}"
+    tmp_path.write_bytes(content)
+
+    # Извлекаем показатели
+    loop = asyncio.get_event_loop()
+    try:
+        if is_pdf:
+            pdf_text = await loop.run_in_executor(None, lambda: _extract_pdf_text(tmp_path))
+            if pdf_text:
+                extracted = await extract_medical_data(pdf_text.encode(), "text/plain")
+            else:
+                # Сканированный PDF — берём первую страницу как изображение
+                pages = await loop.run_in_executor(None, lambda: _pdf_to_images(tmp_path, max_pages=1))
+                if pages:
+                    extracted = await extract_medical_data(pages[0].read_bytes(), "image/jpeg")
+                else:
+                    extracted = {}
+        else:
+            media_type = "image/png" if ext == ".png" else "image/jpeg"
+            extracted = await extract_medical_data(content, media_type)
+    except Exception:
+        logger.exception("doc_upload: экстракция не удалась (user %s)", user_id)
+        extracted = {}
+
+    caption = (getattr(message, "caption", None) or "").strip()
+    pending: dict[str, Any] = {"tmp_path": str(tmp_path), "stored_name": stored_name, "extracted": extracted}
+    if caption:
+        pending["caption"] = caption
+
+    await state.set_state(DocUpload.waiting)
+    await state.update_data(pending=pending)
+
+    existing = _read_existing_profile(user_id)
+    preview = _preview_text(extracted, existing)
+    if caption:
+        preview += "\n\n❓ Отвечу на твой вопрос после сохранения."
+    await processing.edit_text(
+        preview,
+        reply_markup=_preview_keyboard(_has_content(extracted)),
+        parse_mode="HTML",
+    )
+
+
 @router.message(Command("doc"))
 async def cmd_doc(message: Message, state: FSMContext) -> None:
     """/doc — начать загрузку медицинского документа."""
@@ -275,9 +350,8 @@ async def cmd_cancel(message: Message, state: FSMContext) -> None:
 
 @router.message(DocUpload.waiting, F.document | F.photo)
 async def doc_received(message: Message, state: FSMContext, album: list = None) -> None:
-    """Обрабатывает входящий файл в режиме /doc."""
-    from core.health.doc_extractor import extract_medical_data
-    from handlers.photo import _extract_pdf_text, _pdf_to_images
+    """Обрабатывает входящий файл в режиме /doc. Тонкая обёртка над
+    `run_doc_pipeline` — тут только определение типа файла и скачивание."""
 
     # Альбом (несколько файлов одним сообщением) — пока не поддерживаем батч-обработку
     # в /doc (FSM-state pending хранит один файл). Просим прислать по одному, вместо
@@ -315,8 +389,6 @@ async def doc_received(message: Message, state: FSMContext, album: list = None) 
         file_id = message.photo[-1].file_id
         ext = ".jpg"
 
-    processing = await message.answer("⏳ Читаю…")
-
     try:
         tg_file = await message.bot.get_file(file_id)
         buf = io.BytesIO()
@@ -324,42 +396,10 @@ async def doc_received(message: Message, state: FSMContext, album: list = None) 
         content = buf.getvalue()
     except Exception:
         logger.exception("doc_upload: не удалось скачать файл от %s", user_id)
-        await processing.edit_text("⚠️ Не удалось скачать файл. Попробуй ещё раз.")
+        await message.answer("⚠️ Не удалось скачать файл. Попробуй ещё раз.")
         return
 
-    # Сохраняем как .pending до подтверждения
-    stored_name = _stored_name(content, ext)
-    tmp_path = _uploads_dir(user_id) / f".pending_{stored_name}"
-    tmp_path.write_bytes(content)
-
-    # Извлекаем показатели
-    loop = asyncio.get_event_loop()
-    try:
-        if is_pdf:
-            pdf_text = await loop.run_in_executor(None, lambda: _extract_pdf_text(tmp_path))
-            if pdf_text:
-                extracted = await extract_medical_data(pdf_text.encode(), "text/plain")
-            else:
-                # Сканированный PDF — берём первую страницу как изображение
-                pages = await loop.run_in_executor(None, lambda: _pdf_to_images(tmp_path, max_pages=1))
-                if pages:
-                    extracted = await extract_medical_data(pages[0].read_bytes(), "image/jpeg")
-                else:
-                    extracted = {}
-        else:
-            media_type = "image/png" if ext == ".png" else "image/jpeg"
-            extracted = await extract_medical_data(content, media_type)
-    except Exception:
-        logger.exception("doc_upload: экстракция не удалась (user %s)", user_id)
-        extracted = {}
-
-    await state.update_data(pending={"tmp_path": str(tmp_path), "stored_name": stored_name, "extracted": extracted})
-    existing = _read_existing_profile(user_id)
-    await processing.edit_text(
-        _preview_text(extracted, existing),
-        reply_markup=_preview_keyboard(_has_content(extracted)),
-        parse_mode="HTML",
-    )
+    await run_doc_pipeline(message, state, content=content, ext=ext, is_pdf=is_pdf)
 
 
 @router.callback_query(DocUpload.waiting, F.data.in_({"docup_save", "docup_cancel"}))
@@ -426,6 +466,8 @@ async def doc_confirm(callback: CallbackQuery, state: FSMContext) -> None:
             else:
                 profile_note = "\nНового в профиль не добавил (всё уже было)."
 
+    caption_question = (pending.get("caption") or "").strip()
+
     await state.update_data(pending=None)
     await callback.message.edit_text(
         "✅ Сохранено в твою базу здоровья."
@@ -435,6 +477,25 @@ async def doc_confirm(callback: CallbackQuery, state: FSMContext) -> None:
         parse_mode="HTML",
     )
     await callback.answer("Сохранено")
+
+    # Issue #439 п.4: если к документу была подпись-вопрос — отвечаем на неё
+    # ПОСЛЕ сохранения (см. пометку в превью из run_doc_pipeline), чтобы не
+    # терять диалог, ради которого пользователь и прислал документ.
+    if caption_question:
+        from core.agent_chat import ask_agent
+        from core.tg_markdown import md_to_html
+
+        loop = asyncio.get_event_loop()
+        try:
+            reply = await loop.run_in_executor(None, lambda: ask_agent(int(user_id), caption_question))
+        except Exception:
+            logger.exception("doc_upload: не удалось ответить на вопрос из подписи (user %s)", user_id)
+            reply = None
+        if reply:
+            try:
+                await callback.message.answer(md_to_html(reply), parse_mode="HTML")
+            except Exception:
+                await callback.message.answer(reply)
 
 
 @router.message(DocUpload.waiting)
