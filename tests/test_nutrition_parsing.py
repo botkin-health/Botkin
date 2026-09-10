@@ -404,3 +404,65 @@ class TestProductNameNotAcrossNewline:
 
         cheese_weights = [p["weight"] for p in products if "сыр" in p["name"].lower()]
         assert any(w == 10.0 for w in cheese_weights), f"Сыр должен остаться 10г: {products}"
+
+
+class TestWeightCrossoverAcrossProductBoundary:
+    """Регрессия #449 (два связанных бага):
+
+    Баг A: weight_patterns[0] («число+единица+название») пересекал границу продуктов —
+    на «рис 180 г и лосось 90 г» матчил «180 г и лосось» целиком, вес риса
+    приписывался фантомной записи «и лосось». Фикс: негативный lookahead
+    (?!\\s*(?:и|или)\\s) сразу после единицы измерения запрещает захватывать
+    название, начинающееся с союза-разделителя продуктов.
+
+    Баг B: чистка висячего предлога `re.sub(r"\\s*(и|или|с|из|для|на|в|:)\\s*$", ...)`
+    не имела границы слова — альтернатива «с» матчила последнюю букву слова «рис»,
+    обрезая его до «ри» (двухбуквенный результат потом отбрасывался фильтром
+    len(normalized) > 2, и корректная запись «рис»:180 из weight_patterns[1] вообще
+    пропадала из списка кандидатов). Фикс требует словной границы \\b перед
+    буквенными предлогами; двоеточие по-прежнему чистится через \\s*.
+    """
+
+    def test_rice_and_salmon_two_correct_products(self):
+        """«рис 180 г и лосось 90 г» → ровно два продукта, без фантомной «и лосось»."""
+        products = extract_products_from_description("рис 180 г и лосось 90 г")
+
+        names = [p["name"].lower() for p in products]
+        assert not any(n.startswith("и ") for n in names), f"Фантомная запись с союзом: {products}"
+
+        rice = [p for p in products if "рис" in p["name"].lower()]
+        salmon = [p for p in products if "лосос" in p["name"].lower()]
+        assert rice, f"Рис не найден: {products}"
+        assert salmon, f"Лосось не найден: {products}"
+        assert rice[0]["weight"] == 180, f"Ожидали 180г риса: {products}"
+        assert salmon[0]["weight"] == 90, f"Ожидали 90г лосося: {products}"
+        assert rice[0]["name"] == "рис", f"Имя риса обрезано или испорчено: {rice[0]['name']!r}"
+
+    def test_buckwheat_and_chicken_breast_two_correct_products(self):
+        """«гречка 150 г и куриная грудка 120 г» → два продукта, без фантомной «и куриная грудка»."""
+        products = extract_products_from_description("гречка 150 г и куриная грудка 120 г")
+
+        names = [p["name"].lower() for p in products]
+        assert not any(n.startswith("и ") for n in names), f"Фантомная запись с союзом: {products}"
+
+        buckwheat = [p for p in products if "гречк" in p["name"].lower()]
+        chicken = [p for p in products if "курин" in p["name"].lower()]
+        assert buckwheat, f"Гречка не найдена: {products}"
+        assert chicken, f"Куриная грудка не найдена: {products}"
+        assert buckwheat[0]["weight"] == 150, f"Ожидали 150г гречки: {products}"
+        assert chicken[0]["weight"] == 120, f"Ожидали 120г куриной грудки (не 150!): {products}"
+
+    def test_words_ending_in_preposition_letters_survive(self):
+        """Слова, оканчивающиеся на буквы, совпадающие с однобуквенными предлогами
+        (рис→«с», кускус→«с», соус→«с»), не должны обрезаться при чистке."""
+        for desc, must_contain in [
+            ("рис 180 г", "рис"),
+            ("кускус 60 г", "кускус"),
+            ("соус 40 г", "соус"),
+        ]:
+            products = extract_products_from_description(desc)
+            assert products, f"Ничего не распарсилось из {desc!r}"
+            names = " ".join(p["name"].lower() for p in products)
+            assert must_contain in names, f"{must_contain!r} обрезано или потеряно: {products} (из {desc!r})"
+            weights = [p.get("weight", 0) for p in products]
+            assert any(w in (180.0, 60.0, 40.0) for w in weights), f"Вес не распознан: {products} (из {desc!r})"
