@@ -120,6 +120,12 @@ class MealStateData(BaseModel):
         None, description="Этикетка упакованного продукта (#255) → предложение «Запомнить продукт»"
     )
     is_plan: Optional[bool] = Field(None, description="#407: запись-план, сохраняется со status='plan'")
+    preview_message_id: Optional[int] = Field(
+        None, description="#427: id сообщения-превью, чтобы править его текстом до сохранения"
+    )
+    card_totals: Optional[Dict[str, Any]] = Field(
+        None, description="#427: итог карточки на порцию (якорь) — calories/protein/fats/carbs"
+    )
 
     @model_validator(mode="after")
     def _require_meal_or_multi_meals(self) -> "MealStateData":

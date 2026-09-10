@@ -124,25 +124,13 @@ async def telegram_webhook(
     if not from_id:
         return {"status": "ok", "action": "ignored_no_from_id"}
 
-    db = SessionLocal()
+    # Сессия БД живёт только на время чтения профиля и закрывается ДО передачи
+    # обновления в обработчики: они делают долгие сетевые вызовы (LLM, фото),
+    # а idle_in_transaction_session_timeout=15с рвёт соединение → 500 → Telegram
+    # повторяет доставку → дубль разбора (прецедент 08.09.2026, класс #347).
+    user_exists, onboarding_done = _load_user_flags(from_id, msg.get("from", {}) or {})
+
     try:
-        user = db.query(User).filter_by(telegram_id=from_id).first()
-
-        # Auto-sync identity from Telegram payload (Telegram is source of truth
-        # for username / first_name / last_name; users can change these any time).
-        if user:
-            tg_from = msg.get("from", {}) or {}
-            tg_username = tg_from.get("username")
-            changed = False
-            if tg_username and tg_username != user.username:
-                logger.info(f"User {from_id} username updated: {user.username!r} -> {tg_username!r}")
-                user.username = tg_username
-                changed = True
-            # first_name/last_name sync intentionally skipped — onboarding answers
-            # take precedence over Telegram display name.
-            if changed:
-                db.commit()
-
         # Photo or voice — forward to legacy aiogram dispatcher
         if "photo" in msg or "voice" in msg:
             logger.info("Media message received — forwarding to legacy bot")
@@ -150,12 +138,12 @@ async def telegram_webhook(
             return {"status": "ok", "action": "legacy_media"}
 
         # New user — start onboarding wizard
-        if not user:
+        if not user_exists:
             await handle_onboarding(payload)
             return {"status": "ok", "action": "onboarding"}
 
         # User exists but onboarding not complete — continue wizard
-        if user.onboarding_step != "done":
+        if not onboarding_done:
             await handle_onboarding(payload)
             return {"status": "ok", "action": "onboarding_continue"}
 
@@ -170,5 +158,26 @@ async def telegram_webhook(
         # All other text — legacy aiogram dispatcher (BotkinClaw lives there)
         await _feed_legacy_bot(payload)
         return {"status": "ok", "action": "legacy_text"}
+    except Exception:
+        # 5xx заставит Telegram повторить update и обработать его дважды.
+        # Ошибку логируем, Telegram отвечаем 200.
+        logger.exception("telegram_webhook: обработчик упал, update не будет повторён (from_id=%s)", from_id)
+        return {"status": "error_logged"}
+
+
+def _load_user_flags(from_id: int, tg_from: dict) -> tuple[bool, bool]:
+    """(user_exists, onboarding_done) + синхронизация username из Telegram.
+    Сессия закрывается до возврата — транзакция не переживает вызов обработчиков."""
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter_by(telegram_id=from_id).first()
+        if user is None:
+            return False, False
+        tg_username = tg_from.get("username")
+        if tg_username and tg_username != user.username:
+            logger.info(f"User {from_id} username updated: {user.username!r} -> {tg_username!r}")
+            user.username = tg_username
+            db.commit()
+        return True, user.onboarding_step == "done"
     finally:
         db.close()

@@ -61,6 +61,7 @@ router = Router()
 
 from handlers.callbacks import MealConfirmationCallback, SupplementConfirmationCallback, WeightConfirmationCallback
 from handlers.first_food import record_first_food
+from handlers.meal_preview import CONFIRM_HINT
 from webhook.nutrition_slots import SLOTS, slot_center_time, slot_from_time, slot_label_ru
 
 from typing import List, Optional
@@ -147,6 +148,7 @@ async def process_photos_list(
         if len(recognized_weights) > 1:
             w_response_lines.append(f"\n📂 <i>Всего записей: {len(recognized_weights)}</i>")
         w_response_lines.append("\nСохранить запись в журнал?")
+        w_response_lines.append(f"\n{CONFIRM_HINT}")
 
         # Создаем кнопки подтверждения
         w_builder = InlineKeyboardBuilder()
@@ -272,7 +274,7 @@ async def process_photos_list(
                 state_manager.set_state(user_id, user_state)
 
                 await processing_msg.edit_text(
-                    f"💊 <b>Распознал добавки:</b>\n{items_list}\n\nЗаписать как приём сейчас?",
+                    f"💊 <b>Распознал добавки:</b>\n{items_list}\n\nЗаписать как приём сейчас?\n\n{CONFIRM_HINT}",
                     parse_mode="HTML",
                     reply_markup=s_builder.as_markup(),
                 )
@@ -492,6 +494,11 @@ async def process_photos_list(
             # Обрабатываем описание с учетом меню
             # Caption уже в state, передаем None чтобы функция взяла caption из состояния
             await handle_description(message, None, processing_message=processing_msg, state=state)
+            # Без return выполнение проваливалось в общий блок ниже: состояние
+            # пересоздавалось уже без menu_data и handle_description вызывался второй
+            # раз с новым LLM-разбором, перезаписывая правильный (якорный) итог.
+            # Прецеденты 08.09.2026: 564 → 744/787/886 (#427).
+            return
         else:
             # Нет caption - используем данные как есть
             logger.info(f"Используем данные без caption: {menu_data.get('dish_name')}")
@@ -564,6 +571,7 @@ async def process_photos_list(
             from core.food.nutrition import format_kcal_warning
 
             response += format_kcal_warning(meal_totals)
+            response += f"\n\n{CONFIRM_HINT}"
 
             # Buttons
             builder = InlineKeyboardBuilder()
@@ -1511,6 +1519,18 @@ async def handle_description(
         await processing_message.edit_text("❌ Продукты не найдены в ответе нейросети.")
         return
 
+    # #427: модификаторы в подписи к фото-карточке («Без кускуса», «половину») —
+    # применяем к уже посчитанным items/totals этой карточки.
+    from core.food.modifiers import apply_modifiers, describe_applied, parse_modifiers
+
+    applied_note = None
+    mods = parse_modifiers(full_description)
+    if mods.is_modifier:
+        mod_res = apply_modifiers(meal_items, meal_totals, mods)
+        if mod_res.removed or mod_res.fraction is not None or mod_res.items != meal_items:
+            meal_items, meal_totals = mod_res.items, mod_res.totals
+        applied_note = describe_applied(mod_res)
+
     # Извлекаем метаданные из ответа LLM
     data = llm_data.get("data", {})
     meal_name = data.get("dish_name") or data.get("meal_type")
@@ -1534,6 +1554,19 @@ async def handle_description(
     # состояние ("waiting_description") несло PhotoStateData-поля (caption,
     # photo_file_ids, menu_data), которые в meal-confirmation уже не читаются;
     # сохраняем из него только photo_paths.
+    # #427: карточка-якорь (этикетка/рецепт с явным total_nutrition на ≥2
+    # компонента) — сохраняем итог "на порцию" отдельно, чтобы
+    # core.food.nutrition мог отмасштабировать items вместо суммирования
+    # ингредиентов набора (иначе видим 744 ккал вместо заявленных на карточке 564).
+    card_totals = None
+    if use_menu_data and menu_data and menu_data.get("calories") is not None:
+        card_totals = {
+            "calories": menu_data.get("calories"),
+            "protein": menu_data.get("protein"),
+            "fats": menu_data.get("fats"),
+            "carbs": menu_data.get("carbs"),
+        }
+
     new_data = build_meal_state_data(
         description=full_description,
         meal_items=meal_items,
@@ -1549,43 +1582,31 @@ async def handle_description(
         or (menu_data or {}).get("product_label")
         or user_state.data.get("product_label"),
         is_plan=is_plan or None,
+        card_totals=card_totals,
+        # #427: id уже отправленного "Анализирую..." сообщения — правим его же
+        # текстом, когда пользователь потом уточняет вес/позицию до сохранения.
+        preview_message_id=processing_message.message_id if processing_message else None,
     )
     user_state = UserState(user_id=user_id, state="waiting_confirmation", data=new_data)
     state_manager.set_state(user_id, user_state)
 
-    # Формируем ответ
+    # Формируем ответ через единый рендер карточки (#427) — фото не показывает
+    # макросы по позициям и никогда не показывает дату в заголовке.
+    from handlers.meal_preview import meal_confirm_keyboard, render_meal_preview
 
-    # Экранируем названия из vision/LLM/подписи перед вставкой в HTML (issue #115, anti-XSS).
-    if is_plan:
-        response = f"📋 <b>План: {html.escape(str(meal_name))}</b>\n\n"
-    else:
-        response = f"🍽️ <b>{html.escape(str(meal_name))}</b>\n\n"
-    for item in meal_items:
-        w_str = f"{item['weight_g']}г" if item.get("weight_g") else "?"
-        cal = item.get("calories", 0)
-        response += f"• {html.escape(str(item['product']))} ({w_str}) — {int(cal)} ккал\n"
-
-    # #409: если пересчитали КБЖУ по этикетке «на 100 г» — показываем как это получилось
-    label = new_data.get("product_label") or {}
-    if label.get("calories_per_100g") and len(meal_items) == 1 and meal_items[0].get("weight_g"):
-        response += (
-            f"<i>этикетка: {int(label['calories_per_100g'])} ккал/100 г · "
-            f"за {int(meal_items[0]['weight_g'])} г = {int(meal_items[0].get('calories', 0))} ккал</i>\n"
-        )
-
-    response += f"\n📊 <b>Итого: {int(meal_totals['calories'])} ккал</b>\n"
-    response += f"Б: {int(meal_totals['protein'])} | Ж: {int(meal_totals['fats'])} | У: {int(meal_totals['carbs'])}"
-
-    # Keyboard
-    builder = InlineKeyboardBuilder()
-    builder.button(
-        text="✅ Сохранить", callback_data=MealConfirmationCallback(action="save", meal_type="regular").pack()
+    response = render_meal_preview(
+        meal_name,
+        meal_items,
+        meal_totals,
+        is_plan=is_plan,
+        date_style="none",
+        with_macros=False,
+        product_label=new_data.get("product_label"),
+        applied_note=applied_note,
     )
-    builder.button(
-        text="❌ Отмена", callback_data=MealConfirmationCallback(action="cancel", meal_type="regular").pack()
-    )
+    keyboard = meal_confirm_keyboard(is_plan=is_plan)
 
-    await safe_edit_text(processing_message, response, parse_mode="HTML", reply_markup=builder.as_markup())
+    await safe_edit_text(processing_message, response, parse_mode="HTML", reply_markup=keyboard)
 
 
 def build_router_result_from_menu_data(menu_data: dict, caption: str = "") -> dict:
@@ -1603,7 +1624,11 @@ def build_router_result_from_menu_data(menu_data: dict, caption: str = "") -> di
     caption_hint = (caption or "").strip()[:MAX_CAPTION_HINT_LEN]
 
     if len(components) >= 2:
-        dish_name = f"{base_dish} ({caption_hint})" if caption_hint else base_dish
+        # #427: LLM уже могла вписать модификатор в dish_name сама (промпт CASE B +
+        # MODIFIER просит именно так) — не приклеивать его второй раз («… (без
+        # кускуса) (без кускуса)»). Сравниваем без регистра и без учёта пробелов.
+        already_in_name = bool(caption_hint) and caption_hint.strip().lower() in base_dish.lower()
+        dish_name = base_dish if already_in_name else (f"{base_dish} ({caption_hint})" if caption_hint else base_dish)
         items = [
             {
                 "name": str(c.get("name", "компонент"))[:MAX_COMPONENT_NAME_LEN],
@@ -1630,14 +1655,31 @@ def build_router_result_from_menu_data(menu_data: dict, caption: str = "") -> di
             }
         ]
 
+    data = {
+        "dish_name": dish_name,
+        "meal_type": "meal",
+        "items": items,
+        "product_label": menu_data.get("product_label"),
+    }
+
+    # #427: карточка с покомпонентной разбивкой несёт СВОЙ заявленный итог
+    # (menu_data["calories"] и т.д.) — до этой правки он терялся здесь, и
+    # process_llm_food_data досчитывал items по ингредиентам набора, давая
+    # больше заявленной карточкой суммы (764 ккал вместо 564). Пробрасываем
+    # итог + флаг якоря, чтобы core.food.nutrition отмасштабировал items к
+    # заявленному итогу вместо суммирования ингредиентов.
+    if len(components) >= 2 and menu_data.get("calories") is not None:
+        data["total_nutrition"] = {
+            "calories": menu_data.get("calories"),
+            "protein": menu_data.get("protein"),
+            "fats": menu_data.get("fats"),
+            "carbs": menu_data.get("carbs"),
+        }
+        data["totals_anchor"] = "card"
+
     return {
         "type": "food",
-        "data": {
-            "dish_name": dish_name,
-            "meal_type": "meal",
-            "items": items,
-            "product_label": menu_data.get("product_label"),
-        },
+        "data": data,
     }
 
 
@@ -1728,7 +1770,8 @@ async def handle_menu_photo(message: Message, menu_data: dict, photo_path: Path,
         f"• Калории: {calories:.0f} ккал\n"
         f"• Белки: {protein:.0f} г\n"
         f"• Жиры: {fats:.0f} г\n"
-        f"• Углеводы: {carbs:.0f} г"
+        f"• Углеводы: {carbs:.0f} г\n\n"
+        f"{CONFIRM_HINT}"
     )
 
     # Фото без подписи — слот иначе молча выводится по времени суток и часто

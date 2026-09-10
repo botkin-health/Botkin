@@ -114,7 +114,8 @@ def dispatch_plan_close(db, token: str, dry: bool = False, now_fn=None) -> int:
     sent = 0
     changed_any = False
 
-    today_utc = datetime.now(timezone.utc).date()
+    # Дата тоже из now_fn — иначе тесты с фиксированной датой ломаются на следующий день.
+    today_utc = now_fn(timezone.utc).date()
     date_window = [today_utc - timedelta(days=1), today_utc, today_utc + timedelta(days=1)]
     candidate_uids = [
         row[0]

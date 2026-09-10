@@ -32,6 +32,9 @@ def _make_message(user_id: int = 895655, caption: str | None = None):
     """Return (message_mock, processing_msg_mock)."""
     processing_msg = AsyncMock()
     processing_msg.edit_text = AsyncMock()
+    # #427: preview_message_id — MealStateData требует int; без явного значения
+    # AsyncMock().message_id вернул бы Mock-объект и упал бы на валидации.
+    processing_msg.message_id = 424242
 
     msg = AsyncMock()
     msg.from_user = MagicMock()
@@ -393,6 +396,96 @@ async def test_multiple_photos_with_one_weight(tmp_path):
     assert msg.answer.call_count >= 2
 
 
+# ── #436: подсказка «Нажми Сохранить» во всех превью с save/cancel ─────────
+
+
+@pytest.mark.asyncio
+async def test_weight_photo_confirmation_has_confirm_hint(tmp_path):
+    """Прецедент #436: пользователь не понимал, что превью нужно подтвердить.
+    Карточка веса с кнопками Сохранить/Отмена должна нести явную подсказку."""
+    from handlers.meal_preview import CONFIRM_HINT
+    from handlers.photo import process_photos_list
+    from services.state import state_manager
+
+    state_manager.clear_state("895655")
+
+    msg, processing_msg = _make_message()
+    photo = _fake_photo(tmp_path)
+
+    weight_data = {"weight": 82.5, "date": "2026-04-20", "body_fat": None}
+
+    with (
+        patch(OCR_WEIGHT, return_value=weight_data),
+        patch(LLM_ANALYZE, return_value=None),
+        patch(MENU_PARSER, return_value=None),
+    ):
+        await process_photos_list(msg, [photo])
+
+    sent_text = processing_msg.edit_text.call_args[0][0]
+    assert CONFIRM_HINT in sent_text
+
+
+@pytest.mark.asyncio
+async def test_vitamins_photo_confirmation_has_confirm_hint(tmp_path):
+    """Та же подсказка нужна для карточки добавок (SupplementConfirmationCallback)."""
+    from handlers.meal_preview import CONFIRM_HINT
+    from handlers.photo import process_photos_list
+    from services.state import state_manager
+
+    state_manager.clear_state("895655")
+
+    msg, processing_msg = _make_message()
+    photo = _fake_photo(tmp_path)
+
+    llm_result = {
+        "type": "vitamins",
+        "data": {"items": ["Vitamin D 5000 IU"]},
+    }
+
+    with (
+        patch(OCR_WEIGHT, return_value=None),
+        patch(LLM_ANALYZE, return_value=llm_result),
+        patch(MENU_PARSER, return_value=None),
+    ):
+        await process_photos_list(msg, [photo])
+
+    sent_text = processing_msg.edit_text.call_args[0][0]
+    assert CONFIRM_HINT in sent_text
+
+
+@pytest.mark.asyncio
+async def test_menu_photo_fallback_confirmation_has_confirm_hint(tmp_path):
+    """handle_menu_photo() (OCR fallback ветка) тоже строит текст вручную —
+    подсказка должна быть и здесь."""
+    from handlers.meal_preview import CONFIRM_HINT
+    from handlers.photo import process_photos_list
+    from services.state import state_manager
+
+    state_manager.clear_state("895655")
+
+    msg, processing_msg = _make_message()
+    photo = _fake_photo(tmp_path)
+
+    menu_result = {
+        "dish_name": "Борщ",
+        "calories": 250,
+        "protein": 8,
+        "fats": 10,
+        "carbs": 30,
+        "weight": 300,
+    }
+
+    with (
+        patch(OCR_WEIGHT, return_value=None),
+        patch(LLM_ANALYZE, return_value=None),
+        patch(MENU_PARSER, return_value=menu_result),
+    ):
+        await process_photos_list(msg, [photo])
+
+    sent_text = processing_msg.edit_text.call_args[0][0]
+    assert CONFIRM_HINT in sent_text
+
+
 # ── Issue #115: приоритет фото-декомпозиции над текстовой подписью ────────────
 def test_build_router_result_keeps_multiple_components():
     """При фото с ≥2 компонентами подпись НЕ схлопывает блюдо в один item."""
@@ -420,6 +513,10 @@ def test_build_router_result_keeps_multiple_components():
     assert names == {"зелень", "лосось", "заправка лимонная"}
     # Подпись используется как уточнение названия блюда, не как единственный item.
     assert "салат зелёный с лимонной заправкой" in result["data"]["dish_name"]
+    # #427: карточка несёт свой заявленный итог — иначе process_llm_food_data
+    # досчитает по ингредиентам и получит больше заявленного (764 вместо 564).
+    assert result["data"]["total_nutrition"]["calories"] == 400
+    assert result["data"]["totals_anchor"] == "card"
 
 
 def test_build_router_result_single_component_collapses():
@@ -433,6 +530,9 @@ def test_build_router_result_single_component_collapses():
     items = result["data"]["items"]
     assert len(items) == 1
     assert items[0]["calories"] == 300
+    # #427: якорь только для покомпонентной разбивки (≥2) — одиночный item
+    # уже несёт верный итог напрямую, масштабировать нечего.
+    assert "totals_anchor" not in result["data"]
 
 
 def test_build_router_result_single_component_collapses_boundary():
@@ -874,3 +974,120 @@ async def test_scanned_pdf_without_caption_routes_to_doc_pipeline(tmp_path):
     call_kwargs = mock_run_pipeline.call_args.kwargs
     assert call_kwargs["is_pdf"] is False
     assert call_kwargs["content"] == page_path.read_bytes()
+
+
+# ── #427: текстовая правка (модификаторы) фото-карточки до подтверждения ────
+
+
+@pytest.mark.asyncio
+async def test_photo_caption_modifier_removes_component(tmp_path):
+    """#427: подпись «Без кускуса» к фото-карточке убирает компонент из состава.
+
+    Карточка на 400 ккал (3 компонента), подпись исключает «кускус» —
+    итог должен уменьшиться на его долю, а превью — содержать «− Кускус».
+    """
+    from handlers.photo import process_photos_list
+    from services.state import state_manager
+
+    state_manager.clear_state("895655")
+
+    msg, processing_msg = _make_message(caption="Без кускуса")
+    msg.text = None  # AsyncMock: без этого message.text.strip() возвращает coroutine
+    photo = _fake_photo(tmp_path)
+
+    llm_result = {
+        "type": "food",
+        "data": {
+            "dish_name": "Стрипсы с кускусом и кабачком",
+            "items": [
+                {"name": "Куриные стрипсы", "weight": 150, "calories": 250, "protein": 30, "fats": 12, "carbs": 5},
+                {"name": "Кускус", "weight": 60, "calories": 100, "protein": 3, "fats": 1, "carbs": 20},
+                {"name": "Кабачок", "weight": 100, "calories": 50, "protein": 1, "fats": 1, "carbs": 5},
+            ],
+            "total_nutrition": {"calories": 400, "protein": 34, "fats": 14, "carbs": 30},
+        },
+    }
+
+    with (
+        patch(OCR_WEIGHT, return_value=None),
+        patch(LLM_ANALYZE, return_value=llm_result),
+        patch(MENU_PARSER, return_value=None),
+    ):
+        await process_photos_list(msg, [photo])
+
+    st = state_manager.get_state("895655")
+    assert st is not None
+    assert st.state == "waiting_confirmation"
+    assert all(it["product"] != "Кускус" for it in st.data["meal_items"])
+    assert st.data["meal_totals"]["calories"] == pytest.approx(300, abs=1)
+
+    # Превью печатается через processing_message.edit_text (safe_edit_text)
+    preview_calls = [c for c in processing_msg.edit_text.call_args_list if c.args and "− Кускус" in c.args[0]]
+    assert preview_calls, "Превью не содержит «− Кускус»"
+
+
+@pytest.mark.asyncio
+async def test_caption_on_card_runs_single_pass_and_keeps_anchor(tmp_path):
+    """#427: фото карточки с итогом на порцию + подпись «без кускуса» → ОДИН LLM-вызов,
+    итог якорится к карточке (564), кускус вычтен; раньше второй проход перезаписывал 564 → 886."""
+    from handlers.photo import process_photos_list
+    from services.state import state_manager
+
+    state_manager.clear_state("895655")
+    msg, processing_msg = _make_message(caption="без кускуса")
+    msg.text = None
+    photo = _fake_photo(tmp_path)
+
+    components = [
+        {"name": "Куриные стрипсы", "weight": 300, "calories": 330, "protein": 36, "fats": 12, "carbs": 8},
+        {"name": "Кускус", "weight": 60, "calories": 210, "protein": 7, "fats": 1, "carbs": 43},
+        {"name": "Кабачок", "weight": 100, "calories": 24, "protein": 1, "fats": 0, "carbs": 5},
+        {"name": "Растительное масло", "weight": 15, "calories": 135, "protein": 0, "fats": 15, "carbs": 0},
+    ]
+    llm_result = {
+        "type": "food",
+        "data": {
+            "dish_name": "Куриные стрипсы с кабачком",
+            "items": components,
+            "total_nutrition": {"calories": 564, "protein": 43, "fats": 21, "carbs": 50},
+        },
+    }
+
+    with (
+        patch(OCR_WEIGHT, return_value=None),
+        patch(LLM_ANALYZE, return_value=llm_result) as mock_llm,
+        patch(MENU_PARSER, return_value=None),
+    ):
+        await process_photos_list(msg, [photo])
+
+    assert mock_llm.call_count == 1, "второй LLM-проход перезаписывает якорный итог"
+    state = state_manager.get_state("895655")
+    assert state is not None and state.state == "waiting_confirmation"
+    names = [it["product"] for it in state.data["meal_items"]]
+    assert "Кускус" not in names and len(names) == 3
+    raw_sum = sum(c["calories"] for c in components)
+    expected = 564 - 210 * 564 / raw_sum
+    assert state.data["meal_totals"]["calories"] == pytest.approx(expected, abs=3)
+
+
+def test_build_router_result_does_not_duplicate_caption_already_in_dish_name():
+    """#427: LLM сама вписала модификатор в dish_name («…(без кускуса)») —
+    build_router_result_from_menu_data не должна приклеивать его второй раз."""
+    from handlers.photo import build_router_result_from_menu_data
+
+    menu_data = {
+        "dish_name": "Куриные стрипсы с кабачком и огурцом (без кускуса)",
+        "calories": 564,
+        "protein": 43,
+        "fats": 21,
+        "carbs": 50,
+        "components": [
+            {"name": "Куриные стрипсы", "weight": 300, "calories": 330, "protein": 36, "fats": 12, "carbs": 8},
+            {"name": "Кабачок", "weight": 100, "calories": 24, "protein": 1, "fats": 0, "carbs": 5},
+        ],
+    }
+
+    result = build_router_result_from_menu_data(menu_data, caption="без кускуса")
+
+    assert result["data"]["dish_name"] == "Куриные стрипсы с кабачком и огурцом (без кускуса)"
+    assert result["data"]["dish_name"].count("без кускуса") == 1
