@@ -20,6 +20,10 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# #440: типы ответа LLM-роутера, при которых фото ТОЧНО не еда — legacy-цепочку
+# распознавания меню (ChatGPT Vision → Gemini → OCR) для них не запускаем.
+NON_FOOD_ROUTER_TYPES = frozenset({"medical", "other", "weight", "vitamins", "bp", "body_measurements"})
+
 # Issue #115: лимиты на пользовательский ввод/вывод vision при сборке items.
 MAX_CAPTION_HINT_LEN = 200  # подпись юзера → dish_name (Telegram caption ≤ 1024)
 MAX_COMPONENT_NAME_LEN = 100
@@ -232,7 +236,7 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
                 logger.info(f"Распознано через LLM: {menu_data.get('dish_name')}, {menu_data.get('calories')} ккал")
         else:
             if router_result is not None:
-                logger.info(f"LLM по фото вернул type={router_result.get('type')}, не еда — идём в fallback")
+                logger.info(f"LLM по фото вернул type={router_result.get('type')}, не еда")
             else:
                 logger.warning("LLM по фото вернул None (сеть/лимит/ошибка)")
         # Витамины и весы — не считать едой, обработать сразу
@@ -342,8 +346,22 @@ async def process_photos_list(message: Message, photo_paths: List[Path], media_g
     except Exception as e:
         logger.warning(f"LLM по фото не сработал, fallback на parse_menu_photo: {e}")
 
+    # #440: роутер уверенно сказал «не еда» (medical/other/weight/vitamins/bp/
+    # body_measurements) — legacy-цепочку ChatGPT Vision → Gemini → OCR не гоняем:
+    # она умеет только меню/еду и на медицинском документе или скриншоте лишь
+    # сжигает 3 платных вызова и секунды ожидания (dev-стенд 2026-09-10: ChatGPT
+    # «это медицинский документ», Gemini 404, OCR недоступен). Оставляем её как
+    # страховку только когда роутер не ответил вовсе (None: сеть/лимит/исключение)
+    # или ответил food без извлечённых данных.
+    router_type = router_result.get("type") if isinstance(router_result, dict) else None
+    router_definite_non_food = router_type in NON_FOOD_ROUTER_TYPES
+    if router_definite_non_food:
+        logger.info(f"#440: type={router_type} — legacy-цепочку распознавания меню пропускаем")
+
     # Fallback: старое распознавание меню (не удаляем)
-    if not menu_data or not (menu_data.get("calories") or menu_data.get("protein") is not None):
+    if not router_definite_non_food and (
+        not menu_data or not (menu_data.get("calories") or menu_data.get("protein") is not None)
+    ):
         all_menu_data = []
         if photo_count > 1:
             logger.info(f"📸 Обрабатываю {photo_count} фото еды по отдельности...")
