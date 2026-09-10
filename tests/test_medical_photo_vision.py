@@ -360,3 +360,54 @@ async def test_medical_lab_report_falls_back_to_archive_when_no_state(tmp_path):
 
     assert not mock_run_pipeline.called
     assert mock_archive.called
+
+
+@pytest.mark.asyncio
+async def test_medical_photo_routes_with_processing_msg_and_question(tmp_path):
+    """Issue #441 п.4/п.6: run_doc_pipeline из handle_description должен получить
+    processing_msg=processing_message (переиспользовать уже показанное «🤔 думаю...»
+    вместо второго сообщения) и question=<то, что пользователь реально написал/
+    сказал>, а не только message.caption с фото (которого тут вообще нет)."""
+    from handlers.photo import handle_description
+    from services.state import state_manager
+    from services.state_helpers import create_photo_state
+
+    user_id = "895705"
+    state_manager.clear_state(user_id)
+
+    fake_photo_path = tmp_path / "doc6.jpg"
+    fake_photo_path.write_bytes(b"\xff\xd8\xff\xe0" + b"\x00" * 20)
+
+    state = create_photo_state(
+        user_id=user_id,
+        photo_paths=[fake_photo_path],
+        photo_file_ids=["fake_file_id"],
+        caption="",
+    )
+    state_manager.set_state(user_id, state)
+
+    msg, processing_msg = _make_photo_message(int(user_id), None)
+    fsm_state = AsyncMock()
+
+    medical_lab_report = {
+        "type": "medical",
+        "data": {"subtype": "lab_report", "reply": "На фото бланк анализа крови."},
+    }
+    mock_run_pipeline = AsyncMock()
+    mock_archive = MagicMock(return_value="archived.jpg")
+    user_typed_question = "это нормально?"
+
+    with (
+        patch(LLM_ANALYZE, return_value=medical_lab_report),
+        patch(ARCHIVE_PHOTO, mock_archive),
+        patch(RUN_DOC_PIPELINE, mock_run_pipeline),
+    ):
+        await handle_description(
+            msg, description=user_typed_question, processing_message=processing_msg, state=fsm_state
+        )
+
+    assert mock_run_pipeline.called
+    call_kwargs = mock_run_pipeline.call_args.kwargs
+    assert call_kwargs["processing_msg"] is processing_msg
+    assert call_kwargs["auto"] is True
+    assert user_typed_question in (call_kwargs.get("question") or "")
