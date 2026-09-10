@@ -70,7 +70,7 @@ async def test_medical_photo_reply_forwarded_to_agent(tmp_path):
     msg, processing_msg = _make_photo_message(int(user_id), caption)
 
     recognized_text = "На фото упаковка «Омник», действующее вещество тамсулозин, дозировка 0.4 мг."
-    medical_result = {"type": "medical", "data": {"reply": recognized_text}}
+    medical_result = {"type": "medical", "data": {"subtype": "medication_package", "reply": recognized_text}}
 
     mock_ask_agent = MagicMock(return_value="Да, есть данные — Омник (тамсулозин) применяется при аденоме простаты.")
 
@@ -138,10 +138,12 @@ RUN_DOC_PIPELINE = "handlers.doc_upload.run_doc_pipeline"
 
 
 @pytest.mark.asyncio
-async def test_medical_type_without_reply_routes_to_doc_pipeline(tmp_path):
-    """type='medical' БЕЗ reply (не упаковка лекарства, а нераспознанный
-    документ) + FSMContext доступен → вместо тихого архива запускаем
-    run_doc_pipeline (issue #439), как если бы юзер прислал /doc."""
+async def test_medical_lab_report_with_reply_routes_to_doc_pipeline(tmp_path):
+    """type='medical', subtype='lab_report', reply НЕПУСТОЙ (это контрактное
+    поведение router.py — reply у medical всегда есть) + FSMContext доступен →
+    вместо тихого архива запускаем run_doc_pipeline (issue #439), как если бы
+    юзер прислал /doc. Раньше код ошибочно ждал ПУСТОЙ reply для этого случая,
+    который на практике не бывает — фото анализа уходило в stock fallback."""
     from handlers.photo import handle_description
     from services.state import state_manager
     from services.state_helpers import create_photo_state
@@ -163,12 +165,15 @@ async def test_medical_type_without_reply_routes_to_doc_pipeline(tmp_path):
     msg, processing_msg = _make_photo_message(int(user_id), None)
     fsm_state = AsyncMock()
 
-    medical_no_reply = {"type": "medical", "data": {"reply": ""}}
+    medical_lab_report = {
+        "type": "medical",
+        "data": {"subtype": "lab_report", "reply": "На фото бланк анализа крови с показателями."},
+    }
     mock_run_pipeline = AsyncMock()
     mock_archive = MagicMock(return_value="archived.jpg")
 
     with (
-        patch(LLM_ANALYZE, return_value=medical_no_reply),
+        patch(LLM_ANALYZE, return_value=medical_lab_report),
         patch(ARCHIVE_PHOTO, mock_archive),
         patch(RUN_DOC_PIPELINE, mock_run_pipeline),
     ):
@@ -184,9 +189,96 @@ async def test_medical_type_without_reply_routes_to_doc_pipeline(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_other_type_without_caption_routes_to_doc_pipeline(tmp_path):
-    """type='other' без caption (нечего распознавать кроме факта «документ») +
-    FSMContext доступен → тоже doc-пайплайн вместо архива."""
+async def test_medical_doctor_note_routes_to_doc_pipeline(tmp_path):
+    """type='medical', subtype='doctor_note' → тоже doc-пайплайн."""
+    from handlers.photo import handle_description
+    from services.state import state_manager
+    from services.state_helpers import create_photo_state
+
+    user_id = "895703"
+    state_manager.clear_state(user_id)
+
+    fake_photo_path = tmp_path / "doc4.jpg"
+    fake_photo_path.write_bytes(b"\xff\xd8\xff\xe0" + b"\x00" * 20)
+
+    state = create_photo_state(
+        user_id=user_id,
+        photo_paths=[fake_photo_path],
+        photo_file_ids=["fake_file_id"],
+        caption="",
+    )
+    state_manager.set_state(user_id, state)
+
+    msg, processing_msg = _make_photo_message(int(user_id), None)
+    fsm_state = AsyncMock()
+
+    medical_doctor_note = {
+        "type": "medical",
+        "data": {"subtype": "doctor_note", "reply": "На фото заключение врача."},
+    }
+    mock_run_pipeline = AsyncMock()
+    mock_archive = MagicMock(return_value="archived.jpg")
+
+    with (
+        patch(LLM_ANALYZE, return_value=medical_doctor_note),
+        patch(ARCHIVE_PHOTO, mock_archive),
+        patch(RUN_DOC_PIPELINE, mock_run_pipeline),
+    ):
+        await handle_description(
+            msg, description="что скажешь по заключению?", processing_message=processing_msg, state=fsm_state
+        )
+
+    assert mock_run_pipeline.called
+    assert not mock_archive.called
+
+
+@pytest.mark.asyncio
+async def test_medical_without_subtype_routes_to_doc_pipeline(tmp_path):
+    """type='medical' без subtype (LLM забыл его выставить) — тоже считаем
+    документом и ведём в doc-пайплайн (безопасный дефолт: пайплайн сам покажет
+    «ничего не нашёл» с опцией архивации)."""
+    from handlers.photo import handle_description
+    from services.state import state_manager
+    from services.state_helpers import create_photo_state
+
+    user_id = "895704"
+    state_manager.clear_state(user_id)
+
+    fake_photo_path = tmp_path / "doc5.jpg"
+    fake_photo_path.write_bytes(b"\xff\xd8\xff\xe0" + b"\x00" * 20)
+
+    state = create_photo_state(
+        user_id=user_id,
+        photo_paths=[fake_photo_path],
+        photo_file_ids=["fake_file_id"],
+        caption="",
+    )
+    state_manager.set_state(user_id, state)
+
+    msg, processing_msg = _make_photo_message(int(user_id), None)
+    fsm_state = AsyncMock()
+
+    medical_no_subtype = {"type": "medical", "data": {"reply": "На фото похоже на медицинский документ."}}
+    mock_run_pipeline = AsyncMock()
+    mock_archive = MagicMock(return_value="archived.jpg")
+
+    with (
+        patch(LLM_ANALYZE, return_value=medical_no_subtype),
+        patch(ARCHIVE_PHOTO, mock_archive),
+        patch(RUN_DOC_PIPELINE, mock_run_pipeline),
+    ):
+        await handle_description(msg, description="что это?", processing_message=processing_msg, state=fsm_state)
+
+    assert mock_run_pipeline.called
+    assert not mock_archive.called
+
+
+@pytest.mark.asyncio
+async def test_other_type_keeps_old_archive_behavior(tmp_path):
+    """type='other' без caption — issue #439 намеренно НЕ трогает этот случай
+    (иначе скриншоты Garmin и случайные фото получают document-превью вместо
+    диалога с агентом). Старое поведение сохраняется: run_doc_pipeline НЕ
+    вызывается, фото архивируется, без caption/reply — stock-сообщение."""
     from handlers.photo import handle_description
     from services.state import state_manager
     from services.state_helpers import create_photo_state
@@ -219,12 +311,12 @@ async def test_other_type_without_caption_routes_to_doc_pipeline(tmp_path):
     ):
         await handle_description(msg, description="глянь что там", processing_message=processing_msg, state=fsm_state)
 
-    assert mock_run_pipeline.called
-    assert not mock_archive.called
+    assert not mock_run_pipeline.called, "type='other' НЕ должен вести в doc-пайплайн"
+    assert mock_archive.called, "type='other' должен по-прежнему архивироваться как раньше"
 
 
 @pytest.mark.asyncio
-async def test_medical_without_reply_falls_back_to_archive_when_no_state(tmp_path):
+async def test_medical_lab_report_falls_back_to_archive_when_no_state(tmp_path):
     """Регресс-guard: старые вызовы handle_description без FSMContext (state=None)
     ведут себя как раньше — архивируют фото, doc-пайплайн не заводят (у него
     просто нет FSMContext, чтобы поставить DocUpload.waiting)."""
@@ -248,13 +340,16 @@ async def test_medical_without_reply_falls_back_to_archive_when_no_state(tmp_pat
 
     msg, processing_msg = _make_photo_message(int(user_id), None)
 
-    medical_no_reply = {"type": "medical", "data": {"reply": ""}}
+    medical_lab_report = {
+        "type": "medical",
+        "data": {"subtype": "lab_report", "reply": "На фото бланк анализа крови."},
+    }
     mock_run_pipeline = AsyncMock()
     mock_archive = MagicMock(return_value="archived.jpg")
     mock_ask_agent = MagicMock(return_value="ответ агента")
 
     with (
-        patch(LLM_ANALYZE, return_value=medical_no_reply),
+        patch(LLM_ANALYZE, return_value=medical_lab_report),
         patch(ARCHIVE_PHOTO, mock_archive),
         patch(RUN_DOC_PIPELINE, mock_run_pipeline),
         patch(ASK_AGENT, mock_ask_agent),

@@ -44,7 +44,7 @@ CLASSIFICATION CATEGORIES:
 2. "weight": Photos of weight scales, text like "80.5 kg", body composition screens.
 3. "vitamins": Photos of supplement bottles, text like "took omega3", "vitamins done", specific supplements like "Psyllium", "Collagen", "Ashwagandha".
 4. "body_measurements": Records of body size in cm like "waist 101, neck 42.5", "талия 101 см", "рост 171" (height → height_cm).
-5. "medical": Lab results, doctor notes, photos of MEDICATION packaging/blister/ampoule/box (if clearly medical, NOT food/supplement packaging — those stay "food"/"vitamins" per SCENARIO 1.2/3).
+5. "medical": Lab results, doctor notes, photos of MEDICATION packaging/blister/ampoule/box (if clearly medical, NOT food/supplement packaging — those stay "food"/"vitamins" per SCENARIO 1.2/3). ALWAYS set "data.subtype" to one of: "lab_report" (lab results, test forms, tables of markers with reference ranges), "doctor_note" (doctor's conclusion, discharge summary, medical certificate, exam protocol, ECG/ultrasound report), "medication_package" (medication package/blister/ampoule/box — SCENARIO 5.1), "other_medical" (anything else medical that doesn't fit the above). "data.reply" is still required in every case (see SCENARIO 5 and 5.1 below).
 6. "other": General chat, questions not related to logging, or unclear inputs.
 
 OUTPUT FORMAT:
@@ -409,11 +409,22 @@ this lets downstream code treat it as a proper vision-read rather than a discard
 {
   "type": "medical",
   "data": {
+    "subtype": "medication_package",
     "reply": "Russian-language summary of what was read from the package: trade name, active substance, dosage, manufacturer, form — whatever is visible. If truly nothing is readable (blurry/cut off), say so explicitly here instead of a generic refusal."
   }
 }
 Example: photo of a box reading "ОМНИК ОКАС 0,4 мг таблетки пролонгированного действия, №30, Astellas"
-→ {"type": "medical", "data": {"reply": "На фото упаковка «Омник Окас», действующее вещество тамсулозин, дозировка 0.4 мг, таблетки пролонгированного действия №30, производитель Astellas."}}
+→ {"type": "medical", "data": {"subtype": "medication_package", "reply": "На фото упаковка «Омник Окас», действующее вещество тамсулозин, дозировка 0.4 мг, таблетки пролонгированного действия №30, производитель Astellas."}}
+
+This same "medical" type also covers photos of LAB RESULTS, DOCTOR NOTES, and other medical documents
+(NOT medication packaging — those use "medication_package" above). For these, set "subtype" to
+"lab_report" (анализы, бланки лабораторий, таблицы показателей с референсными значениями),
+"doctor_note" (заключение врача, выписка, справка, протокол исследования, ЭКГ/УЗИ), or
+"other_medical" (anything medical that doesn't fit the above). "reply" is still required — briefly
+describe in Russian what the document appears to be (downstream code runs the actual document
+pipeline separately; this reply is just a short acknowledgement).
+Example: photo of a lab printout with a table of blood markers and reference ranges
+→ {"type": "medical", "data": {"subtype": "lab_report", "reply": "На фото бланк анализа крови с показателями и референсными значениями."}}
 
 SCENARIO 7: BP (blood pressure measurement)
 Use when user sends a blood pressure reading — text like "120/80 пульс 70", "АД 130/85", or a photo of a tonometer (Omron, Microlife, etc) showing SYS/DIA/PULSE values on the display.

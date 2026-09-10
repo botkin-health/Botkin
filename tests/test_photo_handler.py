@@ -559,9 +559,10 @@ async def test_pdf_without_lab_markers_uses_agent_as_before(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_photo_without_caption_medical_no_reply_routes_to_doc_pipeline(tmp_path):
-    """type='medical' с пустым data.reply (это документ, не упаковка лекарства,
-    SCENARIO 5.1) и без caption — раньше уходило в stock-текст «не распознал
+async def test_photo_without_caption_medical_lab_report_routes_to_doc_pipeline(tmp_path):
+    """type='medical', subtype='lab_report', reply НЕПУСТОЙ (контрактное
+    поведение router.py — reply у medical всегда непустой) и без caption —
+    раньше (ошибочно ожидая пустой reply) уходило в stock-текст «не распознал
     еду». Теперь должно вести в run_doc_pipeline, как /doc."""
     from handlers.photo import process_photos_list
     from services.state import state_manager
@@ -572,7 +573,10 @@ async def test_photo_without_caption_medical_no_reply_routes_to_doc_pipeline(tmp
     photo = _fake_photo(tmp_path)
     fsm_state = AsyncMock()
 
-    medical_result = {"type": "medical", "data": {"reply": ""}}
+    medical_result = {
+        "type": "medical",
+        "data": {"subtype": "lab_report", "reply": "На фото бланк анализа крови с показателями."},
+    }
     mock_run_pipeline = AsyncMock()
 
     with (
@@ -598,10 +602,67 @@ async def test_photo_without_caption_medical_no_reply_routes_to_doc_pipeline(tmp
 
 
 @pytest.mark.asyncio
+async def test_photo_without_caption_medical_doctor_note_routes_to_doc_pipeline(tmp_path):
+    """type='medical', subtype='doctor_note' и без caption — тоже doc-пайплайн."""
+    from handlers.photo import process_photos_list
+    from services.state import state_manager
+
+    state_manager.clear_state("895905")
+
+    msg, processing_msg = _make_message(user_id=895905, caption=None)
+    photo = _fake_photo(tmp_path)
+    fsm_state = AsyncMock()
+
+    medical_result = {
+        "type": "medical",
+        "data": {"subtype": "doctor_note", "reply": "На фото заключение врача."},
+    }
+    mock_run_pipeline = AsyncMock()
+
+    with (
+        patch(OCR_WEIGHT, return_value=None),
+        patch(LLM_ANALYZE, return_value=medical_result),
+        patch(MENU_PARSER, return_value=None),
+        patch("handlers.doc_upload.run_doc_pipeline", mock_run_pipeline),
+    ):
+        await process_photos_list(msg, [photo], state=fsm_state)
+
+    assert mock_run_pipeline.called
+
+
+@pytest.mark.asyncio
+async def test_photo_without_caption_medical_no_subtype_routes_to_doc_pipeline(tmp_path):
+    """type='medical' без subtype (LLM забыл выставить) — безопасный дефолт:
+    тоже считаем документом и ведём в doc-пайплайн."""
+    from handlers.photo import process_photos_list
+    from services.state import state_manager
+
+    state_manager.clear_state("895906")
+
+    msg, processing_msg = _make_message(user_id=895906, caption=None)
+    photo = _fake_photo(tmp_path)
+    fsm_state = AsyncMock()
+
+    medical_result = {"type": "medical", "data": {"reply": "Похоже на медицинский документ."}}
+    mock_run_pipeline = AsyncMock()
+
+    with (
+        patch(OCR_WEIGHT, return_value=None),
+        patch(LLM_ANALYZE, return_value=medical_result),
+        patch(MENU_PARSER, return_value=None),
+        patch("handlers.doc_upload.run_doc_pipeline", mock_run_pipeline),
+    ):
+        await process_photos_list(msg, [photo], state=fsm_state)
+
+    assert mock_run_pipeline.called
+
+
+@pytest.mark.asyncio
 async def test_photo_without_caption_medication_package_keeps_old_behavior(tmp_path):
-    """type='medical' с НЕпустым data.reply — это упаковка лекарства (SCENARIO
-    5.1), не документ. Старое поведение (stock-текст «не распознал еду») должно
-    сохраниться, run_doc_pipeline НЕ должен вызываться."""
+    """type='medical', subtype='medication_package' — это упаковка лекарства
+    (SCENARIO 5.1), не документ. Старое поведение (stock-текст «не распознал
+    еду», агентский путь со snapshot vision-текста) должно сохраниться,
+    run_doc_pipeline НЕ должен вызываться."""
     from handlers.photo import process_photos_list
     from services.state import state_manager
 
@@ -613,7 +674,7 @@ async def test_photo_without_caption_medication_package_keeps_old_behavior(tmp_p
 
     medical_result = {
         "type": "medical",
-        "data": {"reply": "На фото упаковка «Омник», тамсулозин 0.4 мг."},
+        "data": {"subtype": "medication_package", "reply": "На фото упаковка «Омник», тамсулозин 0.4 мг."},
     }
     mock_run_pipeline = AsyncMock()
 
@@ -672,11 +733,50 @@ async def test_photo_without_caption_food_unchanged(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_photo_without_caption_other_type_keeps_old_stock_behavior(tmp_path):
+    """type='other' (скриншот Гармин, случайное фото) — намеренно НЕ трогаем
+    (issue #439 план явно исключает 'other', иначе каждый скриншот получал бы
+    document-превью). run_doc_pipeline не вызывается, показывается старый
+    stock-текст «не распознал еду»."""
+    from handlers.photo import process_photos_list
+    from services.state import state_manager
+
+    state_manager.clear_state("895907")
+
+    msg, processing_msg = _make_message(user_id=895907, caption=None)
+    photo = _fake_photo(tmp_path)
+    fsm_state = AsyncMock()
+
+    other_result = {"type": "other", "data": {"reply": ""}}
+    mock_run_pipeline = AsyncMock()
+
+    with (
+        patch(OCR_WEIGHT, return_value=None),
+        patch(LLM_ANALYZE, return_value=other_result),
+        patch(MENU_PARSER, return_value=None),
+        patch("handlers.doc_upload.run_doc_pipeline", mock_run_pipeline),
+    ):
+        await process_photos_list(msg, [photo], state=fsm_state)
+
+    assert not mock_run_pipeline.called
+    processing_msg.edit_text.assert_any_call(
+        "📎 Фото получил, но не распознал еду.\n\n"
+        "Если это <b>анализы, документ или медданные</b> — "
+        "напиши текстом что хочешь узнать, и я разберу результаты.\n\n"
+        "Если это <b>еда</b> — пришли фото ещё раз с подписью "
+        "(название блюда, компоненты, вес).",
+        parse_mode="HTML",
+    )
+
+
+@pytest.mark.asyncio
 async def test_scanned_pdf_without_caption_routes_to_doc_pipeline(tmp_path):
     """Сканированный PDF (без извлекаемого текста), присланный без /doc и без
     caption: handle_document_image конвертирует страницы в изображения и
     передаёт в process_photos_list — тот должен довести их до run_doc_pipeline,
-    как обычное фото-документ."""
+    как обычное фото-документ. Vision распознала это как медицинский документ
+    (type='medical'), но не выставила subtype — безопасный дефолт всё равно
+    ведёт в doc-пайплайн (в отличие от type='other', который туда не ведём)."""
     from handlers.photo import handle_document_image
 
     doc = MagicMock()
@@ -702,7 +802,7 @@ async def test_scanned_pdf_without_caption_routes_to_doc_pipeline(tmp_path):
     page_path.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 20)
 
     fsm_state = AsyncMock()
-    other_result = {"type": "other", "data": {}}
+    medical_no_subtype_result = {"type": "medical", "data": {"reply": "Похоже на медицинский документ."}}
     mock_run_pipeline = AsyncMock()
 
     with (
@@ -710,7 +810,7 @@ async def test_scanned_pdf_without_caption_routes_to_doc_pipeline(tmp_path):
         patch("handlers.photo._extract_pdf_text", return_value=""),  # сканированный — текста нет
         patch("handlers.photo._pdf_to_images", return_value=[page_path]),
         patch(OCR_WEIGHT, return_value=None),
-        patch(LLM_ANALYZE, return_value=other_result),
+        patch(LLM_ANALYZE, return_value=medical_no_subtype_result),
         patch(MENU_PARSER, return_value=None),
         patch("handlers.doc_upload.run_doc_pipeline", mock_run_pipeline),
     ):

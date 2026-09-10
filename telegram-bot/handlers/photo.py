@@ -618,19 +618,33 @@ async def process_photos_list(
         # требует caption). Фото лабораторного анализа без подписи никогда не
         # доходило ни до того, ни до другого.
         #
-        # router_result тут — результат уже сделанного выше вызова analyze_message.
-        # Тот же признак «похоже на документ», что и в handle_description:
-        # type="medical" без reply (это не упаковка лекарства, SCENARIO 5.1) или
-        # type="other" (без caption — обсуждать явно нечего, кроме «это документ»).
+        # 🐛 FIX #439 (round 2): исходное условие (`type=="medical" и data.reply
+        # пуст`) на практике НИКОГДА не срабатывало — router.py (SCENARIO 5/5.1)
+        # для "medical" всегда отдаёт непустой reply, даже для анализов и
+        # заключений врача (не только для упаковок лекарств). Логи с прод-стенда:
+        # "LLM по фото вернул type=medical, не еда — идём в fallback", хотя это
+        # было фото бланка анализа. Router теперь всегда кладёт `data.subtype`
+        # для "medical" (lab_report/doctor_note/medication_package/other_medical).
+        # Правило: в doc-пайплайн — всё "medical", КРОМЕ упаковки лекарства
+        # (там нужен агентский путь с vision-ответом, а не разбор в blood_tests).
+        # Если subtype не пришёл (LLM забыл его выставить) — тоже считаем
+        # документом: doc-пайплайн сам покажет «ничего не нашёл» с архивом,
+        # так что дефолт безопасен. "other" в doc-пайплайн НЕ ведём — иначе
+        # скриншоты Garmin и случайные фото получают document-превью.
         router_type = router_result.get("type") if isinstance(router_result, dict) else None
-        recognized_reply = ""
+        router_subtype = None
         if isinstance(router_result, dict) and isinstance(router_result.get("data"), dict):
-            recognized_reply = (router_result["data"].get("reply") or "").strip()
-        is_medical_no_reply = router_type == "medical" and not recognized_reply
-        is_other_type = router_type == "other"
+            router_subtype = router_result["data"].get("subtype")
+        route_to_doc_pipeline = router_type == "medical" and router_subtype != "medication_package"
+        logger.info(
+            "#439: type=%s subtype=%s → %s",
+            router_type,
+            router_subtype,
+            "doc_pipeline" if route_to_doc_pipeline else "stock fallback",
+        )
 
         routed_to_doc_pipeline = False
-        if photo_paths and state is not None and (is_medical_no_reply or is_other_type):
+        if photo_paths and state is not None and route_to_doc_pipeline:
             if len(photo_paths) > 1:
                 multi_text = (
                     "📎 Пришли, пожалуйста, документы по одному — так надёжнее, я смогу их правильно распознать."
@@ -1338,22 +1352,30 @@ async def handle_description(
             # это выбрасывал и говорил агенту, что вообще ничего не увидел.
             recognized_reply = ""
             router_type = None
+            router_subtype = None
             if isinstance(router_result, dict):
                 router_type = router_result.get("type")
                 if isinstance(router_result.get("data"), dict):
                     recognized_reply = (router_result["data"].get("reply") or "").strip()
+                    router_subtype = router_result["data"].get("subtype")
 
-            # Issue #439: фото похоже на медицинский документ (анализ/заключение),
-            # а не на упаковку лекарства (type="medical" c непустым reply — это
-            # SCENARIO 5.1, туда не лезем) и не на вопрос про фото без подписи
-            # (type="other" без caption — то же самое: без caption распознавать
-            # особо нечего, кроме как «это документ»). Раньше такое фото просто
-            # архивировалось без разбора (`archive_photo_as_document`, extracted={}),
-            # пользователь не знал что ничего не сохранилось в динамику показателей.
-            # Ведём тем же doc-пайплайном, что и /doc — превью + кнопка подтверждения.
-            is_medical_no_reply = router_type == "medical" and not recognized_reply
-            is_other_no_caption = router_type == "other" and not actual_caption
-            if photo_paths and state is not None and (is_medical_no_reply or is_other_no_caption):
+            # 🐛 FIX #439 (round 2): та же ошибка, что и в process_photos_list выше —
+            # "medical без reply" в проде не бывает, router.py всегда отдаёт reply.
+            # Теперь ориентируемся на data.subtype: в doc-пайплайн — всё "medical",
+            # КРОМЕ упаковки лекарства ("medication_package" — там нужен агентский
+            # путь с уже прочитанным vision-текстом, см. ниже recognized_reply).
+            # Отсутствие subtype (LLM забыл выставить) тоже считаем документом —
+            # doc-пайплайн сам покажет «ничего не нашёл» с опцией архивации.
+            # "other" сюда не ведём — иначе скриншоты Garmin и случайные фото
+            # получают document-превью вместо диалога с агентом.
+            route_to_doc_pipeline = router_type == "medical" and router_subtype != "medication_package"
+            logger.info(
+                "#439: type=%s subtype=%s → %s",
+                router_type,
+                router_subtype,
+                "doc_pipeline" if route_to_doc_pipeline else "stock fallback",
+            )
+            if photo_paths and state is not None and route_to_doc_pipeline:
                 first_photo = Path(photo_paths[0])
                 try:
                     doc_content = first_photo.read_bytes()
