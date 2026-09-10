@@ -89,6 +89,42 @@ def test_ultrasound_is_not_written(test_db):
 
     assert get_all_blood_tests(test_db, USER_ID) == []
     assert "Лабораторных показателей не нашёл" in note
+    # #445 doc-review: «не распознал: liver_right_lobe_mm» здесь звучало бы как
+    # сбой, хотя УЗИ и не должно матчиться на лабораторный реестр — не наш стол.
+    assert "Не распознал" not in note
+
+
+def test_unmapped_key_warning_surfaces_in_confirmation_text(test_db):
+    """Ключ вне CANONICAL (issue #445) не должен тихо теряться — пользователь
+
+    должен увидеть, что показатель сохранён в документе, но не попал в
+    динамику (blood_tests хранит только канонические ключи)."""
+    note = _save(test_db, {**LAB_DOC, "values": {**LAB_DOC["values"], "BandCells": 3}})
+
+    assert "Не распознал" in note
+    assert "BandCells" in note
+    # Распознанные показатели всё равно должны были записаться.
+    rows = get_all_blood_tests(test_db, USER_ID)
+    assert len(rows) == 1
+
+
+def test_no_unmapped_key_note_when_all_keys_known(test_db):
+    note = _save(test_db, LAB_DOC)
+
+    assert "Не распознал" not in note
+
+
+def test_unmapped_keys_note_handles_apostrophe_in_key_name():
+    """repr() переключается на двойные кавычки, если строка содержит апостроф
+    (repr("it's") == '"it\\'s"') — #445 доревью: _UNKNOWN_KEY_RE должен матчить
+    обе формы, иначе такой ключ тихо теряется даже из предупреждающего текста."""
+    from handlers.doc_upload import _unmapped_keys_note
+
+    warning_single = "unknown key 'BandCells': not in canonical registry, skipped"
+    warning_double = 'unknown key "don\'t_know": not in canonical registry, skipped'
+
+    assert "BandCells" in _unmapped_keys_note((warning_single,))
+    assert "don't_know" in _unmapped_keys_note((warning_double,))
 
 
 def test_db_failure_is_reported_not_raised(test_db):

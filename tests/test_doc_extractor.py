@@ -4,6 +4,26 @@ import pytest
 from unittest.mock import AsyncMock, patch
 
 from core.health import doc_extractor
+from core.health.kb_schema import CANONICAL
+
+
+# ── system prompt содержит канонические ключи (issue #445) ──────────────────
+
+
+def test_system_prompt_contains_all_canonical_keys():
+    """Промпт экстрактора должен перечислять все ключи CANONICAL — иначе модель
+
+    придумывает свои варианты (neutrophils_band vs band_neutrophils) и они тихо
+    теряются в to_canonical. Guard от рассинхрона при добавлении новых маркеров
+    в реестр без обновления промпта.
+    """
+    missing = [key for key in CANONICAL if key not in doc_extractor._SYSTEM_PROMPT]
+    assert missing == [], f"ключи не попали в системный промпт: {missing}"
+
+
+def test_build_system_prompt_matches_module_constant():
+    """`_build_system_prompt()` — источник `_SYSTEM_PROMPT`, оба должны совпадать."""
+    assert doc_extractor._build_system_prompt() == doc_extractor._SYSTEM_PROMPT
 
 
 @pytest.mark.asyncio

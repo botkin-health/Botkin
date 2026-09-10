@@ -9,6 +9,7 @@ import html
 import io
 import json
 import logging
+import re
 import tempfile
 import time
 from datetime import date
@@ -259,6 +260,24 @@ _NO_ROW_NOTES = {
     "no_date": "\n📊 Дату в документе не распознал — показатели не попали в динамику.",
 }
 
+# Ключ из "unknown key 'BandCells': not in canonical registry, skipped"
+# (см. core.health.kb_schema.to_canonical) — вытаскиваем имя для пользователя.
+# Кавычки из repr() — обычно одинарные, но python переключается на двойные,
+# если сама строка содержит апостроф (repr("it's") == '"it\'s"') — матчим оба варианта.
+_UNKNOWN_KEY_RE = re.compile(r"unknown key [\"'](?P<key>.+?)[\"']:")
+
+
+def _unmapped_keys_note(warnings: tuple[str, ...]) -> str:
+    """Строка-приписка со списком нераспознанных показателей (issue #445).
+
+    Не блокирует сохранение — показатели всё равно лежат в документе, просто не
+    попали в динамику (blood_tests хранит только канонические ключи).
+    """
+    keys = [m.group("key") for w in warnings if (m := _UNKNOWN_KEY_RE.search(w))]
+    if not keys:
+        return ""
+    return f"\n⚠️ Не распознал: {', '.join(keys)} (сохранены в документе, но не попали в динамику)."
+
 
 def _save_to_blood_tests(user_id: int, extracted: dict[str, Any], stored_name: str) -> str:
     """Пишет лабораторные показатели документа в Postgres blood_tests.
@@ -276,9 +295,18 @@ def _save_to_blood_tests(user_id: int, extracted: dict[str, Any], stored_name: s
     result = build_blood_test_row(extracted, stored_name=stored_name, user_id=user_id)
     for warning in result.warnings:
         logger.info("doc_upload: user %s — %s", user_id, warning)
+    unmapped_note = _unmapped_keys_note(result.warnings)
 
     if result.row is None:
-        return _NO_ROW_NOTES.get(result.reason, "")
+        note = _NO_ROW_NOTES.get(result.reason, "")
+        # reason="not_lab": НИ ОДИН сырой ключ не распознан как лабораторный маркер
+        # (типичный случай — УЗИ с размерами органов, это не наш стол вообще).
+        # Приписывать «не распознал: liver_size, spleen_size» здесь означало бы
+        # выдавать ожидаемое поведение за сбой — тот же список ключей, что и
+        # «не нашёл лабораторных показателей» выше, только звучит как ошибка.
+        if result.reason != "not_lab":
+            note += unmapped_note
+        return note
 
     db = SessionLocal()
     try:
@@ -290,7 +318,8 @@ def _save_to_blood_tests(user_id: int, extracted: dict[str, Any], stored_name: s
         db.close()
 
     verb = "Добавил" if created else "Обновил"
-    return f"\n📊 {verb} в динамику показателей: {result.marker_count} (дата анализа: {result.row['test_date']})."
+    note = f"\n📊 {verb} в динамику показателей: {result.marker_count} (дата анализа: {result.row['test_date']})."
+    return note + unmapped_note
 
 
 def archive_photo_as_document(user_id: int, photo_path: Path, reason: str = "") -> str:
