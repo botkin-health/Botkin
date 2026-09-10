@@ -63,7 +63,7 @@ from handlers.callbacks import MealConfirmationCallback, SupplementConfirmationC
 from handlers.first_food import record_first_food
 from webhook.nutrition_slots import SLOTS, slot_center_time, slot_from_time, slot_label_ru
 
-from typing import List
+from typing import List, Optional
 
 
 async def process_photos_list(
@@ -611,37 +611,13 @@ async def process_photos_list(
         # Caption уже в state, передаем None чтобы функция взяла caption из состояния
         await handle_description(message, None, processing_message=processing_msg, state=state)
     else:
-        # Issue #439: главный пропущенный случай — фото анализа/заключения БЕЗ
-        # подписи. Раньше сюда попадали все нераспознанные фото и молча получали
-        # stock-текст «не распознал еду», а сам doc-пайплайн (run_doc_pipeline)
-        # был доступен только через /doc или через handle_description (который
-        # требует caption). Фото лабораторного анализа без подписи никогда не
-        # доходило ни до того, ни до другого.
-        #
-        # 🐛 FIX #439 (round 2): исходное условие (`type=="medical" и data.reply
-        # пуст`) на практике НИКОГДА не срабатывало — router.py (SCENARIO 5/5.1)
-        # для "medical" всегда отдаёт непустой reply, даже для анализов и
-        # заключений врача (не только для упаковок лекарств). Логи с прод-стенда:
-        # "LLM по фото вернул type=medical, не еда — идём в fallback", хотя это
-        # было фото бланка анализа. Router теперь всегда кладёт `data.subtype`
-        # для "medical" (lab_report/doctor_note/medication_package/other_medical).
-        # Правило: в doc-пайплайн — всё "medical", КРОМЕ упаковки лекарства
-        # (там нужен агентский путь с vision-ответом, а не разбор в blood_tests).
-        # Если subtype не пришёл (LLM забыл его выставить) — тоже считаем
-        # документом: doc-пайплайн сам покажет «ничего не нашёл» с архивом,
-        # так что дефолт безопасен. "other" в doc-пайплайн НЕ ведём — иначе
-        # скриншоты Garmin и случайные фото получают document-превью.
-        router_type = router_result.get("type") if isinstance(router_result, dict) else None
-        router_subtype = None
-        if isinstance(router_result, dict) and isinstance(router_result.get("data"), dict):
-            router_subtype = router_result["data"].get("subtype")
-        route_to_doc_pipeline = router_type == "medical" and router_subtype != "medication_package"
-        logger.info(
-            "#439: type=%s subtype=%s → %s",
-            router_type,
-            router_subtype,
-            "doc_pipeline" if route_to_doc_pipeline else "stock fallback",
-        )
+        # Issue #439/#441: фото анализа/заключения БЕЗ подписи — маршрутизация
+        # в doc-пайплайн через единую `is_medical_document` (полное правило и
+        # история бага — в её docstring, handlers/doc_upload.py).
+        from handlers.doc_upload import is_medical_document, log_doc_routing_decision
+
+        route_to_doc_pipeline = is_medical_document(router_result)
+        log_doc_routing_decision(router_result, route_to_doc_pipeline)
 
         routed_to_doc_pipeline = False
         if photo_paths and state is not None and route_to_doc_pipeline:
@@ -671,6 +647,7 @@ async def process_photos_list(
                     is_pdf=False,
                     intro="📎 Похоже на медицинский документ — читаю как /doc.",
                     processing_msg=processing_msg,
+                    auto=True,
                 )
                 routed_to_doc_pipeline = True
 
@@ -841,7 +818,41 @@ async def handle_document_image(message: Message, album: list = None, state: FSM
     has_pdf = False
     unsupported_names = []
 
-    for msg in messages_to_process:
+    # Issue #441 п.3: если в альбоме больше одного PDF, каждый из которых похож
+    # на медицинский документ, раньше цикл ниже обрабатывал их НЕЗАВИСИМО —
+    # каждый PDF заводил свой run_doc_pipeline/DocUpload.waiting, и pending
+    # одного тут же затирался pending следующего (общий FSM-state на юзера).
+    # "Похоже на анализ" нельзя определить без скачивания и извлечения текста,
+    # поэтому скачиваем и проверяем ВСЕ PDF альбома заранее; если кандидатов
+    # на doc-пайплайн больше одного — просим прислать по одному, зеркаля guard
+    # уже применяемый в process_photos_list/doc_received для этого же случая.
+    # `pdf_cache` переиспользуется ниже в основном цикле, чтобы не скачивать
+    # и не парсить те же PDF повторно.
+    pdf_cache: dict[int, tuple[Optional[Path], str]] = {}
+    if state is not None and len(messages_to_process) > 1:
+        from core.health.doc_detect import looks_like_medical_document as _looks_like_medical
+
+        medical_candidates = 0
+        for idx, msg in enumerate(messages_to_process):
+            if not msg.document:
+                continue
+            mime_type = (msg.document.mime_type or "").lower()
+            file_name = (msg.document.file_name or "").lower()
+            if mime_type != "application/pdf" and not file_name.endswith(".pdf"):
+                continue
+            pdf_path = await _download_pdf(msg)
+            pdf_text = _extract_pdf_text(pdf_path) if pdf_path else ""
+            pdf_cache[idx] = (pdf_path, pdf_text)
+            if pdf_path and pdf_text and _looks_like_medical(pdf_text):
+                medical_candidates += 1
+
+        if medical_candidates > 1:
+            await message.answer(
+                "📎 Пришли, пожалуйста, документы по одному — так надёжнее, я смогу их правильно распознать."
+            )
+            return
+
+    for idx, msg in enumerate(messages_to_process):
         # Проверяем, является ли документ изображением
         if not msg.document:
             continue
@@ -882,16 +893,22 @@ async def handle_document_image(message: Message, album: list = None, state: FSM
         if is_pdf:
             has_pdf = True
             processing_msg = await message.answer("📄 Получил PDF, читаю…")
-            pdf_path = await _download_pdf(msg)
+
+            cached = pdf_cache.get(idx)
+            if cached is not None:
+                # Уже скачан и распарсен в пред-проверке альбома на несколько
+                # PDF-кандидатов (issue #441 п.3) — не делаем это дважды.
+                pdf_path, pdf_text = cached
+            else:
+                pdf_path = await _download_pdf(msg)
+                pdf_text = _extract_pdf_text(pdf_path) if pdf_path else ""
+
             if not pdf_path:
                 await processing_msg.edit_text(
                     "⚠️ Не удалось скачать PDF. Возможно, файл слишком большой (лимит Telegram — 20 МБ). "
                     "Попробуй отправить скриншот страницы."
                 )
                 continue
-
-            # Извлекаем текст напрямую (для текстовых PDF — анализы, бланки)
-            pdf_text = _extract_pdf_text(pdf_path)
 
             # Issue #439: PDF с лабораторными маркерами, присланный БЕЗ /doc, раньше
             # уходил в ask_agent как «вот содержимое документа» — бот комментировал,
@@ -915,6 +932,7 @@ async def handle_document_image(message: Message, album: list = None, state: FSM
                         ext=".pdf",
                         is_pdf=True,
                         intro="📄 Похоже на анализ или заключение — читаю как /doc.",
+                        auto=True,
                     )
                     continue
 
@@ -1351,30 +1369,18 @@ async def handle_description(
             # препарату?» — router вернул reply с названием/дозировкой, но код
             # это выбрасывал и говорил агенту, что вообще ничего не увидел.
             recognized_reply = ""
-            router_type = None
-            router_subtype = None
-            if isinstance(router_result, dict):
-                router_type = router_result.get("type")
-                if isinstance(router_result.get("data"), dict):
-                    recognized_reply = (router_result["data"].get("reply") or "").strip()
-                    router_subtype = router_result["data"].get("subtype")
+            if isinstance(router_result, dict) and isinstance(router_result.get("data"), dict):
+                recognized_reply = (router_result["data"].get("reply") or "").strip()
 
-            # 🐛 FIX #439 (round 2): та же ошибка, что и в process_photos_list выше —
-            # "medical без reply" в проде не бывает, router.py всегда отдаёт reply.
-            # Теперь ориентируемся на data.subtype: в doc-пайплайн — всё "medical",
-            # КРОМЕ упаковки лекарства ("medication_package" — там нужен агентский
-            # путь с уже прочитанным vision-текстом, см. ниже recognized_reply).
-            # Отсутствие subtype (LLM забыл выставить) тоже считаем документом —
-            # doc-пайплайн сам покажет «ничего не нашёл» с опцией архивации.
-            # "other" сюда не ведём — иначе скриншоты Garmin и случайные фото
-            # получают document-превью вместо диалога с агентом.
-            route_to_doc_pipeline = router_type == "medical" and router_subtype != "medication_package"
-            logger.info(
-                "#439: type=%s subtype=%s → %s",
-                router_type,
-                router_subtype,
-                "doc_pipeline" if route_to_doc_pipeline else "stock fallback",
-            )
+            # Issue #439/#441: та же маршрутизация, что и в process_photos_list —
+            # через единую `is_medical_document` (правило и история бага — в
+            # её docstring, handlers/doc_upload.py). `recognized_reply` выше
+            # используется отдельно, для vision_note ниже, если в doc-пайплайн
+            # НЕ пошли (например subtype=="medication_package").
+            from handlers.doc_upload import is_medical_document, log_doc_routing_decision
+
+            route_to_doc_pipeline = is_medical_document(router_result)
+            log_doc_routing_decision(router_result, route_to_doc_pipeline)
             if photo_paths and state is not None and route_to_doc_pipeline:
                 first_photo = Path(photo_paths[0])
                 try:
@@ -1385,6 +1391,11 @@ async def handle_description(
                 if doc_content:
                     from handlers.doc_upload import run_doc_pipeline
 
+                    # Issue #441 п.4/п.6: переиспользуем уже показанное
+                    # processing_message («🤔 думаю...») вместо второго
+                    # сообщения, и передаём вопрос пользователя (из текста/
+                    # голоса, а не только caption с фото) в doc-пайплайн, чтобы
+                    # BotkinClaw ответил на него после сохранения.
                     await run_doc_pipeline(
                         message,
                         state,
@@ -1392,6 +1403,9 @@ async def handle_description(
                         ext=first_photo.suffix or ".jpg",
                         is_pdf=False,
                         intro="📎 Похоже на медицинский документ — читаю как /doc.",
+                        processing_msg=processing_message,
+                        auto=True,
+                        question=full_description,
                     )
                     return
 

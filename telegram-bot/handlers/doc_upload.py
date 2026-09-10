@@ -5,15 +5,18 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import html
 import io
 import json
 import logging
 import tempfile
+import time
 from datetime import date
 from pathlib import Path
 from typing import Any, Optional
 
 from aiogram import F, Router
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -63,6 +66,62 @@ def _has_content(extracted: dict) -> bool:
     return bool(extracted.get("values") or extracted.get("allergies") or extracted.get("conditions"))
 
 
+_STALE_PENDING_SECONDS = 24 * 3600
+
+
+def _cleanup_stale_pending(user_id: int) -> None:
+    """Удаляет зависшие `.pending_*` файлы старше 24ч (issue #441 п.7б).
+
+    Если пайплайн упал где-то между записью `.pending_*` и подтверждением
+    (docup_save/docup_cancel) — например, edit превью не удался и оба ретрая
+    из `run_doc_pipeline` тоже упали — файл остаётся в uploads/ навсегда,
+    ничем не отличаясь от настоящих сохранённых документов на диске. Чистим
+    такие огрызки при каждом новом запуске пайплайна для этого юзера.
+    """
+    try:
+        uploads = _uploads_dir(user_id)
+        cutoff = time.time() - _STALE_PENDING_SECONDS
+        for f in uploads.glob(".pending_*"):
+            try:
+                if f.stat().st_mtime < cutoff:
+                    f.unlink(missing_ok=True)
+            except OSError:
+                continue
+    except OSError:
+        logger.debug("doc_upload: не удалось прибрать зависшие .pending_* для user %s", user_id)
+
+
+def is_medical_document(router_result: Optional[dict]) -> bool:
+    """LLM-роутер (core/llm/router.py) распознал фото/PDF как медицинский документ,
+    достойный doc-пайплайна — issue #439/#441 (KapWelding-стиль: единая точка
+    правды вместо трёх скопированных копий этой проверки в handlers/photo.py).
+
+    Правило: в doc-пайплайн — всё `type == "medical"`, КРОМЕ упаковки лекарства
+    (`subtype == "medication_package"` — там нужен агентский путь с уже
+    прочитанным vision-текстом, а не разбор в blood_tests). Отсутствие subtype
+    (LLM забыл его выставить) тоже считаем документом — doc-пайплайн сам
+    покажет «ничего не нашёл» с опцией архивации, так что дефолт безопасен.
+    """
+    if not isinstance(router_result, dict) or router_result.get("type") != "medical":
+        return False
+    data = router_result.get("data")
+    subtype = data.get("subtype") if isinstance(data, dict) else None
+    return subtype != "medication_package"
+
+
+def log_doc_routing_decision(router_result: Optional[dict], routed: bool) -> None:
+    """Единая точка для лога `#439: type=... subtype=... → ...` (issue #441 п.8)."""
+    router_type = router_result.get("type") if isinstance(router_result, dict) else None
+    data = router_result.get("data") if isinstance(router_result, dict) else None
+    router_subtype = data.get("subtype") if isinstance(data, dict) else None
+    logger.info(
+        "#439: type=%s subtype=%s → %s",
+        router_type,
+        router_subtype,
+        "doc_pipeline" if routed else "stock fallback",
+    )
+
+
 def _read_existing_profile(user_id: int) -> dict[str, list[str]]:
     """Текущие аллергии/диагнозы юзера из onboarding_data (для превью-пометок)."""
     from database.crud import get_user_by_telegram_id
@@ -95,25 +154,34 @@ def _preview_text(extracted: dict[str, Any], existing: Optional[dict] = None) ->
 
     lines: list[str] = ["📋 <b>Нашёл в документе:</b>"]
 
+    # Issue #441 п.2: значения из extracted приходят из LLM-экстрактора и могут
+    # содержать «<», «>», «&» (например «< 0.5» — часто встречается в лабораторных
+    # бланках у показателей ниже порога чувствительности метода). Без экранирования
+    # это ломает Telegram HTML-парсинг (TelegramBadRequest) и превью не показывается
+    # вообще — экранируем каждую подставляемую динамическую строку.
+    def _esc(value: Any) -> str:
+        return html.escape(str(value), quote=False)
+
     doc_date = extracted.get("date")
     if doc_date:
-        lines.append(f"• <b>Дата:</b> {doc_date}")
+        lines.append(f"• <b>Дата:</b> {_esc(doc_date)}")
     lab = extracted.get("laboratory")
     if lab:
-        lines.append(f"• <b>Лаборатория:</b> {lab}")
+        lines.append(f"• <b>Лаборатория:</b> {_esc(lab)}")
 
     doc_type = extracted.get("doc_type")
     if doc_type:
-        lines.append(f"• <b>Тип:</b> {doc_type}")
+        lines.append(f"• <b>Тип:</b> {_esc(doc_type)}")
 
     values = extracted.get("values") or {}
     for key, val in list(values.items())[:15]:
-        lines.append(f"• {key}: {str(val)[:50]}")
+        lines.append(f"• {_esc(key)}: {_esc(str(val)[:50])}")
     if len(values) > 15:
         lines.append(f"  <i>...и ещё {len(values) - 15} показателей</i>")
 
     def _mark(item: str, existing_set: set) -> str:
-        return f"• {item} — ✓ уже в профиле" if item.lower() in existing_set else f"• {item} — 🆕"
+        marker = "✓ уже в профиле" if item.lower() in existing_set else "🆕"
+        return f"• {_esc(item)} — {marker}"
 
     allergies = extracted.get("allergies") or []
     if allergies:
@@ -263,6 +331,8 @@ async def run_doc_pipeline(
     is_pdf: bool,
     intro: Optional[str] = None,
     processing_msg: Optional[Message] = None,
+    auto: bool = False,
+    question: Optional[str] = None,
 ) -> None:
     """Общее ядро doc-пайплайна: pending-файл → экстракция → превью с клавиатурой.
 
@@ -281,13 +351,21 @@ async def run_doc_pipeline(
     (issue #439: авто-детект без подписи из `process_photos_list` уже показал
     «📸 Получено...» — без этого пользователь видел бы два сообщения подряд).
     Если не передан — ведёт себя как раньше, отправляет новое сообщение.
-    Если у `message` есть caption (вопрос к документу) — он сохраняется в pending
-    и после сохранения (`doc_confirm`) уходит агенту.
+    `auto` — документ пришёл не через /doc, а через авто-детект (issue #441 п.1):
+    пользователь никогда явно не соглашался на doc-режим, поэтому после
+    save/cancel состояние ЗАКРЫВАЕТСЯ (`state.clear()`), а не остаётся в
+    `DocUpload.waiting` — иначе следующее фото еды или текстовое сообщение
+    попадало бы в doc-обработчики (`doc_received`/`doc_wrong_content`) вместо
+    своего обычного маршрута, и пользователь застревал молча.
+    `question` — вопрос к документу, переданный явным текстом/голосом
+    (issue #441 п.6, напр. из `handle_description`), а не через caption
+    сообщения с файлом. Если не передан — берём `message.caption`, как раньше.
     """
     from core.health.doc_extractor import extract_medical_data
     from handlers.photo import _extract_pdf_text, _pdf_to_images
 
     user_id = message.from_user.id
+    _cleanup_stale_pending(user_id)
     if processing_msg is not None:
         try:
             await processing_msg.edit_text(intro or "⏳ Читаю…")
@@ -326,22 +404,50 @@ async def run_doc_pipeline(
         extracted = {}
 
     caption = (getattr(message, "caption", None) or "").strip()
-    pending: dict[str, Any] = {"tmp_path": str(tmp_path), "stored_name": stored_name, "extracted": extracted}
-    if caption:
-        pending["caption"] = caption
+    effective_question = (question or caption or "").strip()
+    pending: dict[str, Any] = {
+        "tmp_path": str(tmp_path),
+        "stored_name": stored_name,
+        "extracted": extracted,
+        "auto": auto,
+    }
+    if effective_question:
+        pending["caption"] = effective_question
 
     await state.set_state(DocUpload.waiting)
     await state.update_data(pending=pending)
 
     existing = _read_existing_profile(user_id)
     preview = _preview_text(extracted, existing)
-    if caption:
+    if effective_question:
         preview += "\n\n❓ Отвечу на твой вопрос после сохранения."
-    await processing.edit_text(
-        preview,
-        reply_markup=_preview_keyboard(_has_content(extracted)),
-        parse_mode="HTML",
-    )
+    keyboard = _preview_keyboard(_has_content(extracted))
+
+    # Issue #441 п.2: extracted-значения экранированы в _preview_text, но
+    # Telegram HTML-парсер капризный (например к незакрытым тегам от «<» в
+    # значениях, которые не удалось экранировать полностью) — ретраим один
+    # раз без parse_mode вместо падения с TelegramBadRequest. Если и это не
+    # получилось — пользователь не должен зависнуть в DocUpload.waiting без
+    # клавиатуры (issue #441 п.1): чистим state и .pending-файл и пробрасываем
+    # исключение выше (вызывающий код это залогирует).
+    try:
+        await processing.edit_text(preview, reply_markup=keyboard, parse_mode="HTML")
+    except TelegramBadRequest:
+        logger.warning(
+            "run_doc_pipeline: HTML-превью не прошло парсинг Telegram, ретраю без parse_mode (user %s)", user_id
+        )
+        try:
+            await processing.edit_text(preview, reply_markup=keyboard, parse_mode=None)
+        except Exception:
+            logger.exception("run_doc_pipeline: не удалось показать превью документа даже без HTML (user %s)", user_id)
+            await state.clear()
+            tmp_path.unlink(missing_ok=True)
+            raise
+    except Exception:
+        logger.exception("run_doc_pipeline: не удалось показать превью документа (user %s)", user_id)
+        await state.clear()
+        tmp_path.unlink(missing_ok=True)
+        raise
 
 
 @router.message(Command("doc"))
@@ -428,11 +534,45 @@ async def doc_confirm(callback: CallbackQuery, state: FSMContext) -> None:
 
     tmp_path = Path(pending["tmp_path"])
     user_id = callback.from_user.id
+    # Issue #441 п.1: документ, попавший в пайплайн через авто-детект (не /doc),
+    # никогда явно не запрашивался пользователем — после save/cancel закрываем
+    # FSM полностью, иначе следующее фото еды или текст попадают в doc-обработчики
+    # (doc_received/doc_wrong_content) и пользователь молча застревает.
+    is_auto = bool(pending.get("auto"))
 
     if callback.data == "docup_cancel":
-        tmp_path.unlink(missing_ok=True)
-        await state.update_data(pending=None)
-        await callback.message.edit_text("❌ Не сохранил. Пришли другой документ или /cancel.")
+        if is_auto:
+            # Issue #441 п.7а: авто-детект отменили — файл НЕ удаляем молча.
+            # Гарантия issue #370 («фото/документ никогда просто не исчезает»)
+            # распространяется и на отмену: архивируем как auto_archived,
+            # user_confirmed=False, с явной причиной отмены.
+            final_path = _uploads_dir(user_id) / pending["stored_name"]
+            try:
+                if tmp_path.exists():
+                    tmp_path.replace(final_path)
+                entry = {
+                    "added_at": date.today().isoformat(),
+                    "file": pending["stored_name"],
+                    "extracted": pending.get("extracted") or {},
+                    "user_confirmed": False,
+                    "auto_archived": True,
+                    "reason": "пользователь отменил разбор",
+                }
+                append_document_to_kb(user_id, entry)
+            except Exception:
+                logger.exception("doc_upload: архивация отменённого авто-документа не удалась (user %s)", user_id)
+            close_text = "❌ Показатели не сохранил, сам файл оставил в архиве документов."
+        else:
+            # /doc — пользователь сам явно вошёл в режим загрузки, тут отмена
+            # действительно значит «выбросить», как и раньше.
+            tmp_path.unlink(missing_ok=True)
+            close_text = "❌ Не сохранил. Пришли другой документ или /cancel."
+
+        if is_auto:
+            await state.clear()
+        else:
+            await state.update_data(pending=None)
+        await callback.message.edit_text(close_text)
         await callback.answer()
         return
 
@@ -483,14 +623,15 @@ async def doc_confirm(callback: CallbackQuery, state: FSMContext) -> None:
 
     caption_question = (pending.get("caption") or "").strip()
 
-    await state.update_data(pending=None)
-    await callback.message.edit_text(
-        "✅ Сохранено в твою базу здоровья."
-        + biomarkers_note
-        + profile_note
-        + "\n\nМожешь прислать ещё документ или /cancel.",
-        parse_mode="HTML",
-    )
+    close_text = "✅ Сохранено в твою базу здоровья." + biomarkers_note + profile_note
+    if is_auto:
+        # Issue #441 п.1: авто-документ — закрываем FSM, «Пришли другой документ
+        # или /cancel» тут вводило бы в заблуждение (мы не в /doc-режиме).
+        await state.clear()
+    else:
+        await state.update_data(pending=None)
+        close_text += "\n\nМожешь прислать ещё документ или /cancel."
+    await callback.message.edit_text(close_text, parse_mode="HTML")
     await callback.answer("Сохранено")
 
     # Issue #439 п.4: если к документу была подпись-вопрос — отвечаем на неё

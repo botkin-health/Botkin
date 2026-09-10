@@ -6,6 +6,14 @@
 только для похожих на лабораторные анализы/заключения. False negative тут не
 катастрофа (пользователь всегда может прислать документ через /doc вручную),
 false positive — просто лишний вызов LLM-экстрактора на документ без данных.
+
+Считаем количество РАЗЛИЧНЫХ сработавших паттернов (не суммарное число
+совпадений одного и того же паттерна) — иначе троекратное упоминание одного
+слова («заключение... заключение... заключение») в договоре набирало бы
+_MIN_MATCHES и ложно считалось анализом. Дополнительно требуем, чтобы среди
+сработавших паттернов был хотя бы один из группы единиц измерения или
+референсных диапазонов — одни только словесные термины (диагноз/МКБ/
+заключение, как в шаблонной страховой памятке) не защитаны от совпадений.
 """
 
 from __future__ import annotations
@@ -33,10 +41,16 @@ _UNIT_PATTERNS = [
     r"мед/л",
 ]
 
-# Ключевые слова/фразы бланков анализов и врачебных заключений.
-_KEYWORD_PATTERNS = [
+# Признаки референсного диапазона рядом с показателем — тоже сильный сигнал
+# анализа, отдельно от голых ключевых слов.
+_REFERENCE_RANGE_PATTERNS = [
     r"референсн\w*",
     r"норм\w*\s+значени\w*",
+    r"\d+[.,]?\d*\s*[-–—]\s*\d+[.,]?\d*",  # числовой диапазон, напр. «130-160»
+]
+
+# Ключевые слова/фразы бланков анализов и врачебных заключений.
+_KEYWORD_PATTERNS = [
     r"результат\w*\s+исследовани\w*",
     r"заключени[ея]",
     r"диагноз",
@@ -64,9 +78,14 @@ _KEYWORD_PATTERNS = [
     r"\bcmd\b",
 ]
 
-_COMBINED = re.compile("|".join(_UNIT_PATTERNS + _KEYWORD_PATTERNS), re.IGNORECASE)
+_UNIT_COMPILED = [re.compile(p, re.IGNORECASE) for p in _UNIT_PATTERNS]
+_REFERENCE_RANGE_COMPILED = [re.compile(p, re.IGNORECASE) for p in _REFERENCE_RANGE_PATTERNS]
+_KEYWORD_COMPILED = [re.compile(p, re.IGNORECASE) for p in _KEYWORD_PATTERNS]
 
-# Сколько РАЗНЫХ совпадений нужно набрать, чтобы посчитать текст медицинским
+_UNIT_OR_RANGE_COMPILED = _UNIT_COMPILED + _REFERENCE_RANGE_COMPILED
+_ALL_COMPILED = _UNIT_OR_RANGE_COMPILED + _KEYWORD_COMPILED
+
+# Сколько РАЗНЫХ паттернов нужно набрать, чтобы посчитать текст медицинским
 # документом. Одно случайное слово («заключение» в договоре) — не повод, а
 # бланк анализа обычно усеян единицами и терминами.
 _MIN_MATCHES = 3
@@ -75,10 +94,16 @@ _MIN_MATCHES = 3
 def looks_like_medical_document(text: str) -> bool:
     """True, если текст похож на лабораторный анализ или врачебное заключение.
 
-    Считает совпадения с единицами измерения и медицинскими терминами;
-    срабатывает при >= `_MIN_MATCHES` совпадений.
+    Считает, сколько РАЗЛИЧНЫХ паттернов (единицы измерения, референсные
+    диапазоны, медицинские термины) хотя бы раз встретились в тексте —
+    срабатывает при >= `_MIN_MATCHES` различных паттернов, и только если
+    среди них есть хотя бы одна единица измерения или референсный диапазон
+    (одних словесных терминов недостаточно — см. модульный docstring).
     """
     if not text or len(text) < 20:
         return False
-    matches = _COMBINED.findall(text)
-    return len(matches) >= _MIN_MATCHES
+
+    distinct_matches = sum(1 for pattern in _ALL_COMPILED if pattern.search(text))
+    has_unit_or_range = any(pattern.search(text) for pattern in _UNIT_OR_RANGE_COMPILED)
+
+    return distinct_matches >= _MIN_MATCHES and has_unit_or_range
