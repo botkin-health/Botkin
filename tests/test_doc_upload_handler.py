@@ -3,7 +3,7 @@ import json
 import re
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 
 def _make_message(text=None, document=None, photo=None, from_id=12345, chat_id=12345):
@@ -16,6 +16,19 @@ def _make_message(text=None, document=None, photo=None, from_id=12345, chat_id=1
     msg.answer = AsyncMock()
     msg.reply = AsyncMock()
     return msg
+
+
+def _make_message_with_processing(caption=None, from_id=12345):
+    """Сообщение чей .answer(...) возвращает mock с awaitable .edit_text — как
+    доступно в run_doc_pipeline (processing = await message.answer(...))."""
+    processing = AsyncMock()
+    processing.edit_text = AsyncMock()
+
+    msg = MagicMock()
+    msg.from_user.id = from_id
+    msg.caption = caption
+    msg.answer = AsyncMock(return_value=processing)
+    return msg, processing
 
 
 def test_preview_text_with_values():
@@ -276,3 +289,128 @@ async def test_doc_confirm_save_merges_into_onboarding(test_db, tmp_path, monkey
     assert u.onboarding_data["chronic_conditions"] == ["Астма"]
     final_text = callback.message.edit_text.call_args[0][0]
     assert "аллергии" in final_text.lower() and "1" in final_text
+
+
+# ── run_doc_pipeline (issue #439) ────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_run_doc_pipeline_sets_fsm_and_shows_preview(tmp_path, test_db, monkeypatch):
+    """Ядро doc-пайплайна: ставит DocUpload.waiting, кладёт pending в state,
+    показывает превью найденных значений с клавиатурой подтверждения."""
+    import handlers.doc_upload as mod
+
+    monkeypatch.setattr(mod, "_PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(mod, "_UPLOADS_DIR", tmp_path / "data" / "uploads")
+    monkeypatch.setattr(mod, "SessionLocal", lambda: test_db)
+
+    message, processing = _make_message_with_processing(from_id=555)
+    state = AsyncMock()
+    state.set_state = AsyncMock()
+    state.update_data = AsyncMock()
+
+    extracted = {"date": "2026-08-01", "laboratory": "KDL", "values": {"Hb": 150}}
+    with patch("core.health.doc_extractor.extract_medical_data", AsyncMock(return_value=extracted)):
+        await mod.run_doc_pipeline(message, state, content=b"fake-jpeg", ext=".jpg", is_pdf=False)
+
+    state.set_state.assert_called_once_with(mod.DocUpload.waiting)
+    state.update_data.assert_called_once()
+    pending = state.update_data.call_args.kwargs["pending"]
+    assert pending["extracted"] == extracted
+    assert "caption" not in pending
+
+    processing.edit_text.assert_called_once()
+    preview_text = processing.edit_text.call_args[0][0]
+    assert "Hb" in preview_text
+    keyboard = processing.edit_text.call_args.kwargs["reply_markup"]
+    callback_data = {btn.callback_data for row in keyboard.inline_keyboard for btn in row}
+    assert callback_data == {"docup_save", "docup_cancel"}
+
+
+@pytest.mark.asyncio
+async def test_run_doc_pipeline_stores_caption_and_notes_it_in_preview(tmp_path, test_db, monkeypatch):
+    """Caption с вопросом — сохраняется в pending и упоминается в превью
+    (issue #439 п.4: ответ на вопрос приходит после сохранения)."""
+    import handlers.doc_upload as mod
+
+    monkeypatch.setattr(mod, "_PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(mod, "_UPLOADS_DIR", tmp_path / "data" / "uploads")
+    monkeypatch.setattr(mod, "SessionLocal", lambda: test_db)
+
+    message, processing = _make_message_with_processing(caption="это нормально?", from_id=556)
+    state = AsyncMock()
+
+    extracted = {"values": {"ALT": 24}}
+    with patch("core.health.doc_extractor.extract_medical_data", AsyncMock(return_value=extracted)):
+        await mod.run_doc_pipeline(message, state, content=b"fake-jpeg", ext=".jpg", is_pdf=False)
+
+    pending = state.update_data.call_args.kwargs["pending"]
+    assert pending["caption"] == "это нормально?"
+
+    preview_text = processing.edit_text.call_args[0][0]
+    assert "Отвечу" in preview_text
+
+
+@pytest.mark.asyncio
+async def test_run_doc_pipeline_pdf_extracts_from_text(tmp_path, test_db, monkeypatch):
+    """PDF-ветка: если удалось вытащить текст — extract_medical_data вызывается
+    на тексте, а не картинкой (без рендера страниц в PNG)."""
+    import handlers.doc_upload as mod
+
+    monkeypatch.setattr(mod, "_PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(mod, "_UPLOADS_DIR", tmp_path / "data" / "uploads")
+    monkeypatch.setattr(mod, "SessionLocal", lambda: test_db)
+
+    message, processing = _make_message_with_processing(from_id=557)
+    state = AsyncMock()
+
+    extract_mock = AsyncMock(return_value={"values": {"Hb": 140}})
+    with (
+        patch("handlers.photo._extract_pdf_text", return_value="Общий анализ крови\nHb 140 г/л"),
+        patch("core.health.doc_extractor.extract_medical_data", extract_mock),
+    ):
+        await mod.run_doc_pipeline(message, state, content=b"%PDF-fake", ext=".pdf", is_pdf=True)
+
+    extract_mock.assert_called_once()
+    call_args = extract_mock.call_args.args
+    assert call_args[1] == "text/plain"
+
+
+@pytest.mark.asyncio
+async def test_doc_received_still_shows_preview_after_refactor(tmp_path, test_db, monkeypatch):
+    """/doc через doc_received (тонкая обёртка над run_doc_pipeline) ведёт себя
+    как раньше: скачивает файл, показывает превью с клавиатурой."""
+    import handlers.doc_upload as mod
+
+    monkeypatch.setattr(mod, "_PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(mod, "_UPLOADS_DIR", tmp_path / "data" / "uploads")
+    monkeypatch.setattr(mod, "SessionLocal", lambda: test_db)
+
+    doc = MagicMock()
+    doc.file_size = 1000
+    doc.mime_type = "image/jpeg"
+    doc.file_name = "scan.jpg"
+    doc.file_id = "file123"
+
+    msg = _make_message(document=doc, from_id=558)
+    processing = AsyncMock()
+    processing.edit_text = AsyncMock()
+    msg.answer = AsyncMock(return_value=processing)
+    msg.bot = AsyncMock()
+    msg.bot.get_file = AsyncMock(return_value=MagicMock(file_path="path/to/file"))
+
+    async def fake_download(file_path, buf):
+        buf.write(b"fake-jpeg-bytes")
+
+    msg.bot.download_file = AsyncMock(side_effect=fake_download)
+
+    state = AsyncMock()
+    extracted = {"values": {"Hb": 130}}
+    with patch("core.health.doc_extractor.extract_medical_data", AsyncMock(return_value=extracted)):
+        await mod.doc_received(msg, state, album=None)
+
+    state.set_state.assert_called_once_with(mod.DocUpload.waiting)
+    pending = state.update_data.call_args.kwargs["pending"]
+    assert pending["extracted"] == extracted
+    processing.edit_text.assert_called_once()
+    assert "Hb" in processing.edit_text.call_args[0][0]

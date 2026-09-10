@@ -461,3 +461,91 @@ def test_safe_float_rejects_inf_nan_and_garbage():
     assert _safe_float(float("nan")) is None
     assert _safe_float("12.5") == 12.5
     assert _safe_float(0) == 0.0
+
+
+# ── issue #439: PDF с текстом без /doc — эвристика → doc-пайплайн ───────────
+
+
+def _make_pdf_document_message(user_id: int = 895800, file_name: str = "analysis.pdf"):
+    """Сообщение с document=PDF (без caption). Возвращает (message_mock, processing_msg_mock)."""
+    doc = MagicMock()
+    doc.mime_type = "application/pdf"
+    doc.file_name = file_name
+
+    processing_msg = AsyncMock()
+    processing_msg.edit_text = AsyncMock()
+    processing_msg.delete = AsyncMock()
+
+    msg = AsyncMock()
+    msg.from_user = MagicMock()
+    msg.from_user.id = user_id
+    msg.document = doc
+    msg.caption = None
+    msg.media_group_id = None
+    msg.answer = AsyncMock(return_value=processing_msg)
+    return msg, processing_msg
+
+
+@pytest.mark.asyncio
+async def test_pdf_with_lab_markers_routes_to_doc_pipeline(tmp_path):
+    """PDF с текстом, похожим на анализ (единицы, «референсные», «заключение») —
+    вместо ask_agent запускаем run_doc_pipeline (issue #439), чтобы показатели
+    попали в blood_tests/профиль, а не потерялись в пересказе агента."""
+    from handlers.photo import handle_document_image
+
+    msg, processing_msg = _make_pdf_document_message()
+    fake_pdf_path = tmp_path / "analysis.pdf"
+    fake_pdf_path.write_bytes(b"%PDF-fake-content")
+
+    lab_text = (
+        "Общий анализ крови. Гемоглобин 140 г/л. Лейкоциты 6.1 10^9/л. "
+        "Референсные значения указаны в графе норма. Заключение: без отклонений."
+    )
+    mock_run_pipeline = AsyncMock()
+    mock_ask_agent = MagicMock(return_value="не должно вызываться")
+    fsm_state = AsyncMock()
+
+    with (
+        patch("handlers.photo._download_pdf", AsyncMock(return_value=fake_pdf_path)),
+        patch("handlers.photo._extract_pdf_text", return_value=lab_text),
+        patch("handlers.doc_upload.run_doc_pipeline", mock_run_pipeline),
+        patch("core.agent_chat.ask_agent", mock_ask_agent),
+    ):
+        await handle_document_image(msg, album=None, state=fsm_state)
+
+    assert mock_run_pipeline.called, "run_doc_pipeline должен был быть вызван для PDF-анализа"
+    assert not mock_ask_agent.called, "ask_agent НЕ должен вызываться, если пошли doc-пайплайном"
+    call_kwargs = mock_run_pipeline.call_args.kwargs
+    assert call_kwargs["is_pdf"] is True
+    assert call_kwargs["ext"] == ".pdf"
+    assert call_kwargs["content"] == fake_pdf_path.read_bytes()
+
+
+@pytest.mark.asyncio
+async def test_pdf_without_lab_markers_uses_agent_as_before(tmp_path):
+    """Регресс-guard: обычный текстовый PDF (не анализ) по-прежнему идёт в
+    ask_agent, как до issue #439 — эвристика не должна ловить всё подряд."""
+    from handlers.photo import handle_document_image
+
+    msg, processing_msg = _make_pdf_document_message(user_id=895801, file_name="contract.pdf")
+    fake_pdf_path = tmp_path / "contract.pdf"
+    fake_pdf_path.write_bytes(b"%PDF-fake-content")
+
+    plain_text = (
+        "Договор аренды офисного помещения. Стороны согласовали срок действия "
+        "договора, порядок оплаты и условия расторжения."
+    )
+    mock_run_pipeline = AsyncMock()
+    mock_ask_agent = MagicMock(return_value="Это договор аренды офиса.")
+
+    with (
+        patch("handlers.photo._download_pdf", AsyncMock(return_value=fake_pdf_path)),
+        patch("handlers.photo._extract_pdf_text", return_value=plain_text),
+        patch("handlers.doc_upload.run_doc_pipeline", mock_run_pipeline),
+        patch("core.agent_chat.ask_agent", mock_ask_agent),
+    ):
+        await handle_document_image(msg, album=None, state=AsyncMock())
+
+    assert not mock_run_pipeline.called
+    assert mock_ask_agent.called
+    processing_msg.edit_text.assert_any_call("Это договор аренды офиса.", parse_mode="HTML")
