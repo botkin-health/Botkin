@@ -336,6 +336,7 @@ CRITICAL RULES FOR ACCURACY:
 9. MULTIPLE PHOTOS / DISHES (CRITICAL!): If receiving multiple photos or seeing multiple distinct dishes (e.g. salad + fish steak), you MUST list them as SEPARATE items in the array. Estimate the correct weight for EACH dish independently. Do NOT merge them into one item or under-estimate the total weight.
 10. FRACTIONAL PORTIONS: "половина X" → 0.5× standard weight, "четверть X" → 0.25×, "треть X" → 0.33×. Calculate weight in grams and return the HALVED/QUARTERED value.
 11. CALORIC DENSITY CHECK: After calculating, verify: calories / weight should be between 0.1 and 9 ккал/г for any single ingredient. If outside this range, you made an error — recalculate.
+12. MULTIPLE ITEMS WITH DIFFERENT EXPLICIT WEIGHTS IN ONE MESSAGE: each item's weight is INDEPENDENT — do not reuse one item's weight for another item. Example: "гречка 150 г и куриная грудка 120 г" → items: [{"name":"Гречка","weight":150,...}, {"name":"Куриная грудка","weight":120,...}] — NOT both 150.
 
 SCENARIO 2: WEIGHT
 Extract weight and body composition.
