@@ -165,3 +165,7 @@ archive/
 
 # Бэкапы БД (PII — не коммитить)
 /backups/
+
+# Системный промпт роутера еды — часть кода, не данные (ADR-0009)
+!core/llm/prompts/
+!core/llm/prompts/*.txt
