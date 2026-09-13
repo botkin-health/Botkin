@@ -23,8 +23,12 @@ AGENT_MODEL = os.getenv("BOTKIN_AGENT_MODEL", "claude-sonnet-5")
 # ⚠️ Sonnet 4.5 НЕ поддерживает output_config.effort (см. agent_chat).
 AGENT_FALLBACK_MODEL = os.getenv("BOTKIN_AGENT_FALLBACK_MODEL", "claude-sonnet-4-6")
 
-# ── Парсинг еды из текста (core/llm/router.py) ──────────────────────────────
-FOOD_TEXT_MODEL_ANTHROPIC = os.getenv("BOTKIN_FOOD_TEXT_MODEL", "claude-sonnet-4-6")
+# ── Парсинг еды из текста и фото (core/llm/router.py) ───────────────────────
+# Sonnet 5 с 13.09.2026: на eval из 111 реальных кейсов (scripts/eval/) качество
+# равно Sonnet 4.6 (ккал в интервале 84% vs 86%, белок 92% vs 89%), латентность
+# p50 4.0 с vs 6.3 с, цена −23%. Haiku 4.5 отвергнут: 48% по ккал, карточки
+# Elementaree 27%. ⚠️ Sonnet 5 не принимает `temperature` — роутер гейтит параметр.
+FOOD_TEXT_MODEL_ANTHROPIC = os.getenv("BOTKIN_FOOD_TEXT_MODEL", "claude-sonnet-5")
 FOOD_TEXT_MODEL_OPENAI = os.getenv("BOTKIN_FOOD_TEXT_MODEL_OPENAI", "gpt-4o")
 
 # ── Vision: фото еды и меню ─────────────────────────────────────────────────
