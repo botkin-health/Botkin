@@ -876,6 +876,27 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
 
         llm_has_calories = item.get("calories") is not None and item.get("calories") > 0
 
+        # Явный 0 ккал при нулевых БЖУ — осознанный ответ модели (вода, чай, американо,
+        # zero-напитки), а не «данных нет». Без этой ветки 0 уходил в поиск по БД и
+        # дефолтную оценку: «Стакан воды» → 200 ккал (e2e на дев-стенде 13.09.2026).
+        llm_explicit_zero = item.get("calories") == 0 and all(
+            (item.get(k) or 0) == 0 for k in ("protein", "fats", "carbs")
+        )
+        if llm_explicit_zero:
+            meal_items.append(
+                {
+                    "product": name,
+                    "weight_g": weight or 0.0,
+                    "weight_source": "llm",
+                    "calories": 0.0,
+                    "protein": 0.0,
+                    "fats": 0.0,
+                    "carbs": 0.0,
+                    "source": "llm_router_zero",
+                }
+            )
+            continue
+
         if not llm_has_calories:
             # LLM не дал калорий → ищем в БД (случай "Bombbar" или "батончик протеиновый")
             db_product = find_product(norm_name)
