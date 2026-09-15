@@ -276,9 +276,7 @@ def test_daily_metrics_exposes_raw_data_fields(client, db_session):
             },
         )
     )
-    db_session.add(
-        ActivityLog(user_id=UID, date=today - timedelta(days=2), steps=2642, raw_data={"spo2_pct": 95.0})
-    )
+    db_session.add(ActivityLog(user_id=UID, date=today - timedelta(days=2), steps=2642, raw_data={"spo2_pct": 95.0}))
     db_session.commit()
 
     body = client.get("/api/agent/daily_metrics", params={"days": 7}).json()

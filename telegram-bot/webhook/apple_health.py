@@ -1212,8 +1212,7 @@ def _insert_medications(db, user_id: int, rows: list[dict]) -> int:
         (r[0], r[1], r[2])
         for r in db.execute(
             _text(
-                "SELECT date, time, supplement_name FROM supplements_log "
-                "WHERE user_id = :uid AND date = ANY(:dates)"
+                "SELECT date, time, supplement_name FROM supplements_log WHERE user_id = :uid AND date = ANY(:dates)"
             ),
             {"uid": user_id, "dates": dates},
         ).fetchall()
