@@ -473,9 +473,8 @@ def main(argv=None):
                 f"вес {r.get('weight')} кг · жир {r.get('body_fat')}% · "
                 f"мышцы {r.get('muscle_mass')} кг · вода {r.get('water')} кг · "
                 f"кости {r.get('bone_mass')} кг · висц. {r.get('visceral_fat')} · "
-                f"BMR {r.get('bmr')} ккал"
+                f"пульс {r.get('heart_rate')} · BMR {r.get('bmr_kcal')} ккал"
             )
-        print("   (BMR не пишется — колонки в weights нет)")
         return 0
 
     if args.push_api:
