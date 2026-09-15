@@ -26,7 +26,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from database.models import Base, User, GlucoseReading, EcgRecord, HeartRateEvent
+from database.models import Base, User, GlucoseReading, EcgRecord, HeartRateEvent, Weight
 
 UID = 895655
 MSK = ZoneInfo("Europe/Moscow")
@@ -198,3 +198,48 @@ def test_empty_window_without_any_data(client):
     assert body["all_time_count"] == 0
     assert "last_point_ever_local" not in body
     assert "days_since_last_point" not in body
+
+
+# ── Состав тела не теряется за строкой Apple Health ───────────────────────────
+
+
+def test_body_composition_survives_later_apple_row(client, db_session):
+    """Весы пишут состав утром, HAE — свою строку позже в тот же день.
+
+    `latest` берёт одну самую свежую строку, и величины Withings читаются как
+    пустые. Отдельный блок body_composition обязан достать их из строки весов.
+    """
+    day = datetime.now(timezone.utc) - timedelta(days=1)
+    db_session.add(
+        Weight(
+            user_id=UID,
+            measured_at=day.replace(hour=5, minute=13),
+            weight=107.65,
+            body_fat=32.1,
+            heart_rate=90,
+            fat_mass_kg=34.6,
+            lean_mass_kg=73.0,
+            visceral_fat=6,
+            source="withings",
+        )
+    )
+    db_session.add(
+        Weight(
+            user_id=UID,
+            measured_at=day.replace(hour=12, minute=0),
+            weight=107.7,
+            body_fat=32.1,
+            source="apple_health_v2",
+        )
+    )
+    db_session.commit()
+
+    body = client.get("/api/agent/weight_history").json()
+    assert body["latest"]["source"] == "apple_health_v2"
+    assert body["latest"]["heart_rate"] is None  # в этой строке его и нет
+    comp = body["body_composition"]
+    assert comp["heart_rate"] == 90
+    assert comp["fat_mass_kg"] == 34.6
+    assert comp["lean_mass_kg"] == 73.0
+    assert comp["source"] == "withings"
+    assert comp["date"] == day.astimezone(MSK).date().isoformat()
