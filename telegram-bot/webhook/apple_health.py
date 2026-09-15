@@ -10,7 +10,7 @@ Auth: Bearer token (APPLE_HEALTH_TOKEN из .env)
 import hmac
 import os
 import logging
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional, List
 
 from fastapi import FastAPI, HTTPException, Depends, Header, Request
@@ -1120,6 +1120,116 @@ def _hae_hr_events_to_rows(events: list[dict], user_id: int) -> list[dict]:
     return rows
 
 
+# ── Давление с реальным временем замера ───────────────────────────────────────
+# Автоматизация «Показатели здоровья» идёт с группировкой «День» — это нужно для
+# суточных сумм энергии, но давление она схлопывает в одно значение с полуночной
+# меткой, и v2 писал его условным временем 08:00. В итоге все записи в базе имели
+# одинаковую метку, и сопоставить эпизод тахикардии с давлением было нечем.
+#
+# Лечение — ОТДЕЛЬНАЯ автоматизация только под давление, без суточной группировки:
+# тогда HAE присылает каждый замер со своим временем. Этот разбор берёт такие точки
+# в обход посуточной корзины.
+
+_BP_METRIC_NAMES = ("blood_pressure_systolic", "blood_pressure_diastolic", "blood_pressure")
+
+
+def _hae_ts(value) -> datetime | None:
+    """Метка времени HAE ('2026-09-14 11:23:00 +0300') → datetime, иначе None."""
+    try:
+        return datetime.strptime(str(value), _WORKOUT_DATE_FMT)
+    except (TypeError, ValueError):
+        return None
+
+
+def _hae_bp_measurements(metrics: list[dict]) -> list[dict]:
+    """Отдельные замеры давления со своим временем из `data.metrics[]`.
+
+    HAE шлёт систолическое и диастолическое РАЗНЫМИ метриками, поэтому пара
+    собирается по точному совпадению метки времени. Запись только с одним из
+    двух значений пропускаем — половина замера бессмысленна.
+
+    Точки ровно в 00:00:00 игнорируем: это суточный агрегат при группировке
+    «День», у него нет реального времени (настоящий замер ровно в полночь тоже
+    потеряется — цена принимается, иначе агрегат не отличить от замера).
+    """
+    sys_by_ts: dict[datetime, int] = {}
+    dia_by_ts: dict[datetime, int] = {}
+
+    def _put(store: dict, ts: datetime, value) -> None:
+        try:
+            store[ts] = int(round(float(value)))
+        except (TypeError, ValueError):
+            pass
+
+    for m in metrics or []:
+        name = (m.get("name") or "").strip().lower()
+        if name not in _BP_METRIC_NAMES:
+            continue
+        for rec in m.get("data") or []:
+            if not isinstance(rec, dict):
+                continue
+            ts = _hae_ts(rec.get("date"))
+            if ts is None or (ts.hour == 0 and ts.minute == 0 and ts.second == 0):
+                continue
+            if name == "blood_pressure":
+                if rec.get("systolic") is not None:
+                    _put(sys_by_ts, ts, rec["systolic"])
+                if rec.get("diastolic") is not None:
+                    _put(dia_by_ts, ts, rec["diastolic"])
+                continue
+            qty = _hae_pick(rec, "qty", "Avg")
+            if qty is None:
+                continue
+            _put(sys_by_ts if name == "blood_pressure_systolic" else dia_by_ts, ts, qty)
+
+    rows = []
+    for ts in sorted(set(sys_by_ts) & set(dia_by_ts)):
+        rows.append({"measured_at": ts, "systolic": sys_by_ts[ts], "diastolic": dia_by_ts[ts]})
+    return rows
+
+
+def _insert_bp_measurements(db, user_id: int, rows: list[dict]) -> int:
+    """Пишет замеры давления с их временем. Повтор выгрузки обновляет, не двоит."""
+    if not rows:
+        return 0
+
+    from sqlalchemy import text as _text
+
+    for row in rows:
+        db.execute(
+            _text(
+                """INSERT INTO blood_pressure_logs
+                   (user_id, measured_at, systolic, diastolic, source)
+                   VALUES (:uid, :ts, :sys, :dia, 'apple_health_v2')
+                   ON CONFLICT (user_id, measured_at) DO UPDATE
+                     SET systolic = EXCLUDED.systolic,
+                         diastolic = EXCLUDED.diastolic"""
+            ),
+            {"uid": user_id, "ts": row["measured_at"], "sys": row["systolic"], "dia": row["diastolic"]},
+        )
+    return len(rows)
+
+
+def _has_timed_bp(db, user_id: int, day: date, synthetic_ts: datetime) -> bool:
+    """Есть ли за этот день замер с настоящим временем (не условной меткой)."""
+    from sqlalchemy import text as _text
+
+    found = db.execute(
+        _text(
+            "SELECT 1 FROM blood_pressure_logs "
+            "WHERE user_id = :uid AND measured_at >= :day_start AND measured_at < :day_end "
+            "AND measured_at <> :synthetic LIMIT 1"
+        ),
+        {
+            "uid": user_id,
+            "day_start": datetime.combine(day, datetime.min.time()),
+            "day_end": datetime.combine(day, datetime.min.time()) + timedelta(days=1),
+            "synthetic": synthetic_ts,
+        },
+    ).fetchone()
+    return found is not None
+
+
 # ── Лекарства (HAE «Лекарства») ───────────────────────────────────────────────
 # Приём препаратов — единственный канал, который до 15.09.2026 существовал только
 # в ручных отметках: последняя была 06.09, и на вопрос «принимаешь ли Кораксан»
@@ -1373,6 +1483,14 @@ async def receive_apple_health_v2(
     workouts_inserted = 0
     db = SessionLocal()
     try:
+        # Давление с реальным временем замера (отдельная автоматизация без суточной
+        # группировки). Пишем ДО посуточного прохода: тот увидит их через _has_timed_bp
+        # и не добавит условную метку 08:00 поверх настоящих замеров.
+        bp_rows = _hae_bp_measurements(metrics)
+        bp_inserted = _insert_bp_measurements(db, target_user_id, bp_rows)
+        if bp_inserted:
+            logger.info("HAE_v2 blood pressure with real time: %s", bp_inserted)
+
         for d_str, payload in sorted(daily.items()):
             record_date = date.fromisoformat(d_str)
             saved = []
@@ -1431,24 +1549,30 @@ async def receive_apple_health_v2(
 
             if payload.blood_pressure_systolic and payload.blood_pressure_diastolic:
                 measured_at = datetime.combine(record_date, datetime.min.time().replace(hour=8))
-                db.execute(
-                    _text(
-                        """INSERT INTO blood_pressure_logs
-                           (user_id, measured_at, systolic, diastolic, heart_rate, source)
-                           VALUES (:uid, :ts, :sys, :dia, :hr, 'apple_health_v2')
-                           ON CONFLICT (user_id, measured_at) DO UPDATE
-                             SET systolic = EXCLUDED.systolic,
-                                 diastolic = EXCLUDED.diastolic"""
-                    ),
-                    {
-                        "uid": target_user_id,
-                        "ts": measured_at,
-                        "sys": payload.blood_pressure_systolic,
-                        "dia": payload.blood_pressure_diastolic,
-                        "hr": heart_rate,
-                    },
-                )
-                saved.append(f"BP {payload.blood_pressure_systolic}/{payload.blood_pressure_diastolic}")
+                # Условная метка 08:00 — только если настоящих замеров за этот день
+                # нет. Иначе суточный агрегат встанет ещё одной строкой рядом с
+                # реальными и завысит число измерений в статистике.
+                if _has_timed_bp(db, target_user_id, record_date, measured_at):
+                    saved.append("BP: суточный агрегат пропущен, есть замеры со временем")
+                else:
+                    db.execute(
+                        _text(
+                            """INSERT INTO blood_pressure_logs
+                               (user_id, measured_at, systolic, diastolic, heart_rate, source)
+                               VALUES (:uid, :ts, :sys, :dia, :hr, 'apple_health_v2')
+                               ON CONFLICT (user_id, measured_at) DO UPDATE
+                                 SET systolic = EXCLUDED.systolic,
+                                     diastolic = EXCLUDED.diastolic"""
+                        ),
+                        {
+                            "uid": target_user_id,
+                            "ts": measured_at,
+                            "sys": payload.blood_pressure_systolic,
+                            "dia": payload.blood_pressure_diastolic,
+                            "hr": heart_rate,
+                        },
+                    )
+                    saved.append(f"BP {payload.blood_pressure_systolic}/{payload.blood_pressure_diastolic}")
 
             if payload.weight_kg and payload.weight_kg > 30:
                 weight_ts = datetime.combine(record_date, datetime.min.time().replace(hour=8))
@@ -1522,6 +1646,7 @@ async def receive_apple_health_v2(
         "ecg_inserted": ecg_inserted,
         "hr_events_inserted": hr_events_inserted,
         "medications_inserted": medications_inserted,
+        "bp_measurements_inserted": bp_inserted,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
