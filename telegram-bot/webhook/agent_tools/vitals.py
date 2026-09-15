@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from database.models import EcgRecord, HeartRateEvent
 from webhook.jwt_auth import get_agent_user, get_db, require_agent_scope
 from .common import _dt_isoformat_local
 
@@ -281,6 +282,116 @@ async def recent_bp(
     }
 
 
+@router.get("/recent_ecg")
+async def recent_ecg(
+    days: int = 90,
+    user=Depends(get_agent_user),
+    db: Session = Depends(get_db),
+):
+    """Записи ЭКГ Apple Watch за последние `days` дней (таблица ecg_records).
+
+    Канал наполняется с 31.08.2026 (Health Auto Export → /apple_health_v2), но
+    инструмента у агента не было. Прецедент 15.09.2026: на вопрос «покажи мои ЭКГ»
+    бот ответил «поэлементных записей у меня нет» и выдал вместо них KB-агрегат
+    годичной давности — данные лежали в базе, дотянуться было нечем.
+    """
+    days = max(1, min(days, 365))
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    rows = (
+        db.query(EcgRecord)
+        .filter(EcgRecord.user_id == user.telegram_id, EcgRecord.recorded_at >= since)
+        .order_by(EcgRecord.recorded_at.desc())
+        .limit(100)
+        .all()
+    )
+
+    items = [
+        {
+            "recorded_at": _dt_isoformat_local(r.recorded_at, user),
+            "classification": r.classification,
+            "avg_hr": r.average_heart_rate,
+            "duration_sec": r.duration_sec,
+            "symptoms": r.symptoms,
+            "device": r.device,
+        }
+        for r in rows
+    ]
+    if not items:
+        return {"status": "ok", "period_days": days, "count": 0, "items": []}
+
+    by_class: dict[str, int] = {}
+    for i in items:
+        key = i["classification"] or "unknown"
+        by_class[key] = by_class.get(key, 0) + 1
+    hrs = [i["avg_hr"] for i in items if i["avg_hr"]]
+
+    return {
+        "status": "ok",
+        "period_days": days,
+        "count": len(items),
+        "by_classification": by_class,
+        "avg_hr": round(sum(hrs) / len(hrs), 1) if hrs else None,
+        "hr_range": {"min": min(hrs), "max": max(hrs)} if hrs else None,
+        "items": items[:30],  # cap for token budget
+    }
+
+
+@router.get("/heart_rate_events")
+async def heart_rate_events(
+    days: int = 90,
+    user=Depends(get_agent_user),
+    db: Session = Depends(get_db),
+):
+    """Уведомления Apple Watch о пульсе вне нормы в покое (heart_rate_events).
+
+    Часы шлют событие, если пульс покоя держится выше (или ниже) порога дольше
+    10 минут. Ровно эти события связывают тахикардию с гипогликемией — 20.08.2026
+    такое уведомление совпало со снижением глюкозы до 3,10. Инструмента не было:
+    15.09.2026 бот на вопрос про них ответил «посмотри сам в приложении Health».
+    """
+    days = max(1, min(days, 365))
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    rows = (
+        db.query(HeartRateEvent)
+        .filter(HeartRateEvent.user_id == user.telegram_id, HeartRateEvent.started_at >= since)
+        .order_by(HeartRateEvent.started_at.desc())
+        .limit(200)
+        .all()
+    )
+
+    items = [
+        {
+            "started_at": _dt_isoformat_local(r.started_at, user),
+            "ended_at": _dt_isoformat_local(r.ended_at, user) if r.ended_at else None,
+            "event_type": r.event_type,
+            "threshold_bpm": r.threshold_bpm,
+            "min_bpm": r.min_bpm,
+            "max_bpm": r.max_bpm,
+            "avg_bpm": r.avg_bpm,
+            "duration_min": r.duration_min,
+            "device": r.device,
+        }
+        for r in rows
+    ]
+    if not items:
+        return {"status": "ok", "period_days": days, "count": 0, "items": []}
+
+    by_type: dict[str, int] = {}
+    for i in items:
+        key = i["event_type"] or "unknown"
+        by_type[key] = by_type.get(key, 0) + 1
+    peaks = [i["max_bpm"] for i in items if i["max_bpm"]]
+
+    return {
+        "status": "ok",
+        "period_days": days,
+        "count": len(items),
+        "by_type": by_type,
+        "max_bpm_overall": max(peaks) if peaks else None,
+        "items": items[:40],  # cap for token budget
+    }
+
+
 @router.get("/weight_history")
 async def weight_history(
     days: Optional[int] = None,
@@ -325,7 +436,8 @@ async def weight_history(
         sql_text(
             """
             SELECT measured_at, weight, body_fat, muscle_mass,
-                   visceral_fat, bmi, source
+                   visceral_fat, bmi, source,
+                   heart_rate, bmr_kcal, fat_mass_kg, lean_mass_kg
             FROM weights
             WHERE user_id = :uid
             ORDER BY measured_at DESC
@@ -345,6 +457,15 @@ async def weight_history(
         "muscle_mass_kg": round(latest_row.muscle_mass, 1) if latest_row.muscle_mass else None,
         "visceral_fat": latest_row.visceral_fat,
         "bmi": round(latest_row.bmi, 1) if latest_row.bmi else None,
+        # Четыре величины, которые отдают весы Withings. heart_rate меряется стоя
+        # натощак — фактически пульс покоя, и именно он вскрыл фоновую тахикардию.
+        # До 15.09.2026 SELECT их не забирал, и агент считал BMR по формуле
+        # Миффлина, а жировую массу — умножением процента на вес, хотя обе
+        # величины уже лежали в базе измеренными.
+        "heart_rate": latest_row.heart_rate,
+        "bmr_kcal": latest_row.bmr_kcal,
+        "fat_mass_kg": round(latest_row.fat_mass_kg, 1) if latest_row.fat_mass_kg else None,
+        "lean_mass_kg": round(latest_row.lean_mass_kg, 1) if latest_row.lean_mass_kg else None,
         "source": latest_row.source,
     }
 
@@ -441,7 +562,7 @@ async def weight_history(
             rows = db.execute(
                 sql_text(
                     """
-                    SELECT measured_at, weight, body_fat
+                    SELECT measured_at, weight, body_fat, heart_rate
                     FROM weights
                     WHERE user_id = :uid AND measured_at >= :cutoff
                     ORDER BY measured_at ASC
@@ -453,7 +574,7 @@ async def weight_history(
             rows = db.execute(
                 sql_text(
                     """
-                    SELECT measured_at, weight, body_fat
+                    SELECT measured_at, weight, body_fat, heart_rate
                     FROM weights
                     WHERE user_id = :uid
                     ORDER BY measured_at ASC
@@ -465,22 +586,28 @@ async def weight_history(
         # Группируем по дате, усредняем (несколько источников → одна точка)
         from collections import defaultdict
 
-        per_day: dict[str, dict] = defaultdict(lambda: {"weights": [], "body_fats": []})
+        per_day: dict[str, dict] = defaultdict(lambda: {"weights": [], "body_fats": [], "pulses": []})
         for r in rows:
             day = _to_date_str(r.measured_at)
             per_day[day]["weights"].append(r.weight)
             if r.body_fat and r.body_fat > 5:  # см. фильтр для extremes
                 per_day[day]["body_fats"].append(r.body_fat)
+            # Пульс по весам — измеряется стоя натощак, поэтому сравним между днями
+            # и годится как тренд покоя (см. комментарий к latest).
+            if r.heart_rate:
+                per_day[day]["pulses"].append(r.heart_rate)
 
         points = []
         for day in sorted(per_day.keys()):
             ws = per_day[day]["weights"]
             bfs = per_day[day]["body_fats"]
+            hrs = per_day[day]["pulses"]
             points.append(
                 {
                     "date": day,
                     "weight_kg": round(sum(ws) / len(ws), 2),
                     "body_fat_pct": round(sum(bfs) / len(bfs), 1) if bfs else None,
+                    "pulse": round(sum(hrs) / len(hrs)) if hrs else None,
                 }
             )
         result["points"] = points
