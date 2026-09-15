@@ -469,6 +469,42 @@ async def weight_history(
         "source": latest_row.source,
     }
 
+    # Состав тела приходит ТОЛЬКО с весов Withings, а в тот же день HAE пишет свою
+    # строку с более поздним timestamp. `latest` берёт одну самую свежую строку —
+    # и все величины Withings читаются как пустые, хотя лежат в соседней строке за
+    # то же утро. Поэтому отдельным блоком берём последнюю строку, где состав тела
+    # реально есть, со своей датой — молча смешивать замеры разных дней нельзя.
+    comp_row = db.execute(
+        sql_text(
+            """
+            SELECT measured_at, heart_rate, bmr_kcal, fat_mass_kg, lean_mass_kg,
+                   visceral_fat, bmi, muscle_mass, source
+            FROM weights
+            WHERE user_id = :uid
+              AND (heart_rate IS NOT NULL OR bmr_kcal IS NOT NULL
+                   OR fat_mass_kg IS NOT NULL OR lean_mass_kg IS NOT NULL
+                   OR visceral_fat IS NOT NULL)
+            ORDER BY measured_at DESC
+            LIMIT 1
+            """
+        ),
+        {"uid": user.telegram_id},
+    ).fetchone()
+
+    body_composition = None
+    if comp_row is not None:
+        body_composition = {
+            "date": _to_date_str(comp_row.measured_at),
+            "heart_rate": comp_row.heart_rate,
+            "bmr_kcal": comp_row.bmr_kcal,
+            "fat_mass_kg": round(comp_row.fat_mass_kg, 1) if comp_row.fat_mass_kg else None,
+            "lean_mass_kg": round(comp_row.lean_mass_kg, 1) if comp_row.lean_mass_kg else None,
+            "muscle_mass_kg": round(comp_row.muscle_mass, 1) if comp_row.muscle_mass else None,
+            "visceral_fat": comp_row.visceral_fat,
+            "bmi": round(comp_row.bmi, 1) if comp_row.bmi else None,
+            "source": comp_row.source,
+        }
+
     def _extremes(where_clause: str, params: dict) -> dict:
         # Min/max weight (ignores body_fat NULL)
         w_min = db.execute(
@@ -543,6 +579,8 @@ async def weight_history(
         "latest": latest,
         "all_time": _extremes("", {"uid": user.telegram_id}),
     }
+    if body_composition is not None:
+        result["body_composition"] = body_composition
 
     if in_window:
         # Python-computed cutoff — works одинаково на Postgres и SQLite (тесты)

@@ -40,6 +40,19 @@
     <key>RunAtLoad</key>
     <false/>
 
+
+    <!-- Системный прокси на Маке (127.0.0.1:1082) отдаёт 503 на wbsapi.withings.net:
+         launchd наследует его из настроек сети, и синхронизация молча падала с
+         ProxyError — 52 раза подряд, из-за чего с 29.08.2026 в Botkin перестали
+         доезжать пульс, жировая и тощая масса. Withings ходим напрямую. -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>NO_PROXY</key>
+        <string>localhost,127.0.0.1,::1,.local,wbsapi.withings.net,account.withings.com</string>
+        <key>no_proxy</key>
+        <string>localhost,127.0.0.1,::1,.local,wbsapi.withings.net,account.withings.com</string>
+    </dict>
+
     <key>StandardOutPath</key>
     <string>/Users/<you>/Library/Logs/botkin-withings-sync.log</string>
     <key>StandardErrorPath</key>
