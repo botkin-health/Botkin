@@ -3,9 +3,10 @@
 import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from database.models import GlucoseReading
@@ -80,7 +81,19 @@ async def recent_glucose(
     rows = q.order_by(GlucoseReading.ts.asc()).all()
 
     if not rows:
-        return {
+        # Пустое окно НЕ значит «CGM никогда не было» — а по прежнему ответу этого
+        # было не отличить: `hours` упирается в 168 (неделя), поэтому разрыв длиннее
+        # недели делал всю историю невидимой, и агент достраивал её из контекста.
+        # Прецедент 14.09.2026: бот заявил «мониторинг шёл 12.12.2025–13.01.2026,
+        # потом датчик сняли», хотя в базе лежало 2603 точки за лето. Кладём в пустой
+        # ответ последнюю точку ЗА ВСЮ историю — тогда сочинять нечего.
+        now_utc = datetime.now(timezone.utc)
+        ever_ts, ever_count = (
+            db.query(func.max(GlucoseReading.ts), func.count(GlucoseReading.ts))
+            .filter(GlucoseReading.user_id == user.telegram_id)
+            .one()
+        )
+        empty: dict[str, Any] = {
             "status": "ok",
             **window_desc,
             "total_count": 0,
@@ -88,8 +101,16 @@ async def recent_glucose(
             "downsampled": False,
             "points": [],
             "refresh_skipped": refresh_skipped,
-            **glucose_staleness(None, datetime.now(timezone.utc), refresh_skipped),
+            "all_time_count": int(ever_count or 0),
+            **glucose_staleness(None, now_utc, refresh_skipped),
         }
+        if ever_ts is not None:
+            # SQLite (тесты) теряет tzinfo — нормализуем, иначе вычитание упадёт.
+            if ever_ts.tzinfo is None:
+                ever_ts = ever_ts.replace(tzinfo=timezone.utc)
+            empty["last_point_ever_local"] = _dt_isoformat_local(ever_ts, user)
+            empty["days_since_last_point"] = max(0, (now_utc - ever_ts).days)
+        return empty
 
     values = [float(val) for _, val, _ in rows]
 
