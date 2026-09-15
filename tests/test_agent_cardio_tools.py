@@ -243,3 +243,58 @@ def test_body_composition_survives_later_apple_row(client, db_session):
     assert comp["lean_mass_kg"] == 73.0
     assert comp["source"] == "withings"
     assert comp["date"] == day.astimezone(MSK).date().isoformat()
+
+
+# ── Метрики из raw_data доступны агенту ───────────────────────────────────────
+
+
+def test_daily_metrics_exposes_raw_data_fields(client, db_session):
+    """Сатурация, VO2max, фазы сна и прочее лежат в raw_data без колонок.
+
+    До 15.09.2026 агент их не видел вовсе и отвечал «таких данных не собирается».
+    """
+    from database.models import ActivityLog
+
+    today = datetime.now(MSK).date()
+    db_session.add(
+        ActivityLog(
+            user_id=UID,
+            date=today - timedelta(days=1),
+            steps=8543,
+            heart_rate_avg=59,
+            hrv=36,
+            sleep_hours=5.15,
+            raw_data={
+                "spo2_pct": 96.0,
+                "vo2_max": 31.4,
+                "respiratory_rate": 14.2,
+                "wrist_temperature": 35.1,
+                "heart_rate_max": 131,
+                "sleep_deep_h": 0.9,
+                "sleep_rem_h": 1.2,
+                "flights_climbed": 7,
+            },
+        )
+    )
+    db_session.add(
+        ActivityLog(user_id=UID, date=today - timedelta(days=2), steps=2642, raw_data={"spo2_pct": 95.0})
+    )
+    db_session.commit()
+
+    body = client.get("/api/agent/daily_metrics", params={"days": 7}).json()
+    assert body["count"] == 2
+    # available говорит, по скольким дням метрика реально есть
+    assert body["available"]["spo2_pct"] == 2
+    assert body["available"]["vo2_max"] == 1
+    assert "stress_level" not in body["available"]  # Apple такого не шлёт
+
+    latest = body["items"][0]
+    assert latest["hrv"] == 36
+    assert latest["sleep_deep_h"] == 0.9
+    assert latest["heart_rate_max"] == 131
+    assert latest["flights_climbed"] == 7
+
+
+def test_daily_metrics_empty(client):
+    body = client.get("/api/agent/daily_metrics").json()
+    assert body["count"] == 0 and body["available"] == {}

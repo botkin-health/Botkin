@@ -2,6 +2,7 @@
 
 import logging
 from datetime import timedelta
+from typing import Any
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import func
@@ -177,6 +178,85 @@ async def day_summary(
         "sleep_hours": sleep_hours,
         "weight_kg": float(w.weight) if w else None,
         "blood_pressure": blood_pressure,
+    }
+
+
+# Метрики, которые Apple Health присылает, а колонок под них в activity_log нет:
+# парсер кладёт их в raw_data (см. apple_health.py, список raw_extra). Данные есть
+# с первого дня канала, но инструментами не читались — 15.09.2026 выяснилось, что
+# агент про сатурацию, VO2max, фазы сна и температуру запястья не знает вовсе.
+# Заводить 18 колонок ради этого не нужно, достаточно отдать raw_data как есть.
+_APPLE_RAW_FIELDS = (
+    "vo2_max",
+    "spo2_pct",
+    "respiratory_rate",
+    "wrist_temperature",
+    "heart_rate_min",
+    "heart_rate_max",
+    "sleep_deep_h",
+    "sleep_rem_h",
+    "sleep_core_h",
+    "sleep_awake_h",
+    "walking_speed_km_h",
+    "walking_step_length_cm",
+    "walking_double_support_pct",
+    "walking_asymmetry_pct",
+    "flights_climbed",
+    "apple_active_energy_kcal",
+    "apple_basal_energy_kcal",
+)
+
+
+@router.get("/daily_metrics")
+async def daily_metrics(
+    days: int = 14,
+    user=Depends(get_agent_user),
+    db: Session = Depends(get_db),
+):
+    """Посуточные метрики Apple Health, которых нет отдельными колонками.
+
+    Сатурация, VO2max, частота дыхания, температура запястья, min/max пульса,
+    фазы сна (глубокий/REM/базовый/пробуждения), метрики походки, этажи и
+    active energy Apple. Всё это приезжает с первого дня канала и лежит в
+    `activity_log.raw_data` — до 15.09.2026 прочитать было нечем.
+
+    `available` перечисляет, по скольким дням окна метрика реально есть: если
+    поля там нет, значит телефон его не присылает, а не «данных нет вообще».
+    """
+    days = max(1, min(days, 180))
+    since = _today_in_user_tz(user) - timedelta(days=days)
+    rows = (
+        db.query(ActivityLog)
+        .filter(ActivityLog.user_id == user.telegram_id, ActivityLog.date >= since)
+        .order_by(ActivityLog.date.desc())
+        .limit(180)
+        .all()
+    )
+
+    items: list[dict[str, Any]] = []
+    available: dict[str, int] = {}
+    for r in rows:
+        raw = r.raw_data if isinstance(r.raw_data, dict) else {}
+        item: dict[str, Any] = {
+            "date": r.date.isoformat(),
+            "steps": r.steps,
+            "rhr": r.heart_rate_avg,
+            "hrv": r.hrv,
+            "sleep_hours": r.sleep_hours,
+        }
+        for key in _APPLE_RAW_FIELDS:
+            val = raw.get(key)
+            if val is not None:
+                item[key] = val
+                available[key] = available.get(key, 0) + 1
+        items.append(item)
+
+    return {
+        "status": "ok",
+        "period_days": days,
+        "count": len(items),
+        "available": available,
+        "items": items[:30],  # cap for token budget
     }
 
 

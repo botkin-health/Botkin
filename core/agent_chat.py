@@ -170,6 +170,22 @@ TOOLS: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "get_daily_metrics",
+        "description": (
+            "Посуточные метрики Apple Health, которых нет отдельными колонками: сатурация "
+            "(spo2_pct), VO2max, частота дыхания, температура запястья, min/max пульса, "
+            "фазы сна (sleep_deep_h/rem/core/awake), метрики походки, этажи, active energy Apple. "
+            "days=1..180, по умолчанию 14. Для вопросов «какая у меня сатурация», «сколько "
+            "глубокого сна», «какой VO2max», «температура во сне», «максимальный пульс за день». "
+            "Поле `available` говорит, по скольким дням окна метрика реально есть: если её там "
+            "нет — телефон её не присылает; НЕ говори «таких данных не собирается», не заглянув сюда."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {"days": {"type": "integer", "minimum": 1, "maximum": 180, "default": 14}},
+        },
+    },
+    {
         "name": "get_recent_ecg",
         "description": (
             "Записи ЭКГ с Apple Watch: дата/время, заключение (sinusRhythm, atrialFibrillation, "
@@ -1105,6 +1121,13 @@ def _call_tool(name: str, args: dict, token: str) -> str:
             r = requests.get(
                 f"{TOOLS_API_BASE}/glucose_stats",
                 params={"days": int(args.get("days", 7))},
+                headers=headers,
+                timeout=15,
+            )
+        elif name == "get_daily_metrics":
+            r = requests.get(
+                f"{TOOLS_API_BASE}/daily_metrics",
+                params={"days": int(args.get("days", 14))},
                 headers=headers,
                 timeout=15,
             )
@@ -2067,6 +2090,7 @@ _TOOL_PROGRESS_LABEL = {
     "get_recent_bp": "🩸 поднимаю давление",
     "get_recent_glucose": "🩸 смотрю глюкозу",
     "get_glucose_stats": "🩸 считаю TIR",
+    "get_daily_metrics": "📈 смотрю метрики по дням",
     "get_recent_ecg": "🫀 смотрю ЭКГ",
     "get_heart_rate_events": "🫀 смотрю события пульса",
     "get_recent_sleep": "😴 проверяю сон",
