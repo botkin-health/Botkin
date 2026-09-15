@@ -1120,6 +1120,121 @@ def _hae_hr_events_to_rows(events: list[dict], user_id: int) -> list[dict]:
     return rows
 
 
+# ── Лекарства (HAE «Лекарства») ───────────────────────────────────────────────
+# Приём препаратов — единственный канал, который до 15.09.2026 существовал только
+# в ручных отметках: последняя была 06.09, и на вопрос «принимаешь ли Кораксан»
+# бот ответить не мог. Apple Health ведёт журнал приёма («Медикаменты»), HAE умеет
+# его выгружать. Пишем в supplements_log — туда же, куда идут ручные отметки, так
+# что существующие инструменты (recent_supplements, supplement_daily_log) начинают
+# показывать реальную приверженность без единой правки.
+#
+# Имя блока в HAE документировано плохо — как с ЭКГ и уведомлениями о пульсе,
+# принимаем все известные варианты, а payload_shape() в логе покажет фактическое.
+
+_MEDICATION_KEYS = (
+    "medications",
+    "medicationRecords",
+    "medication_records",
+    "medicationDoseEvents",
+    "medicationDoses",
+)
+
+# Apple различает «принято» и «пропущено». Пропуск — тоже факт, но в
+# supplements_log нет колонки статуса, а строка там означает «принято».
+# Записывать пропуски как приём нельзя: это исказит приверженность.
+_MED_SKIPPED = {"skipped", "nottaken", "not_taken", "unspecified", "unknown"}
+
+
+def _hae_medication_dosage(rec: dict) -> str | None:
+    """Доза строкой: «1 таблетка», «5 мг». Число и единицы HAE шлёт порознь."""
+    raw = _hae_pick(rec, "dose", "dosage", "amount", "quantity")
+    qty = _hae_quantity(raw)
+    units = raw.get("units") if isinstance(raw, dict) else None
+    units = units or _hae_pick(rec, "unit", "units", "doseUnit", "doseUnits")
+    if qty is None:
+        return str(units)[:100] if units else None
+    qty_text = f"{qty:g}"
+    return f"{qty_text} {units}"[:100] if units else qty_text
+
+
+def _hae_medications_to_rows(meds: list[dict], user_id: int) -> list[dict]:
+    """HAE-блок лекарств → строки для `supplements_log`.
+
+    Запись без названия или без разбираемого времени пропускаем: без названия
+    строка бессмысленна, без времени нечем дедуплицировать повторные выгрузки.
+    """
+    rows: list[dict] = []
+    for rec in meds:
+        if not isinstance(rec, dict):
+            continue
+
+        name = _hae_pick(rec, "name", "medicationName", "medication", "title")
+        if not name:
+            continue
+
+        status = _hae_pick(rec, "status", "logStatus", "doseStatus", "state")
+        if status is not None and str(status).strip().lower().replace(" ", "") in _MED_SKIPPED:
+            continue
+
+        taken_raw = _hae_pick(rec, "date", "startDate", "start", "loggedAt", "timestamp", "scheduledDate")
+        try:
+            taken_at = datetime.strptime(str(taken_raw), _WORKOUT_DATE_FMT)
+        except (TypeError, ValueError):
+            continue
+
+        rows.append(
+            {
+                "user_id": user_id,
+                "date": taken_at.date(),
+                "time": taken_at.time().replace(microsecond=0),
+                "supplement_name": str(name).strip()[:255],
+                "dosage": _hae_medication_dosage(rec),
+            }
+        )
+    return rows
+
+
+def _insert_medications(db, user_id: int, rows: list[dict]) -> int:
+    """Вставляет приёмы в `supplements_log`, пропуская уже известные.
+
+    В таблице нет уникального ключа (только индекс), а HAE при каждой выгрузке
+    присылает последние дни заново — поэтому дедуплицируем сами по тройке
+    (дата, время, название). Ручные отметки не трогаем: совпадение по тройке
+    означает тот же приём, а не другой.
+    """
+    if not rows:
+        return 0
+
+    from sqlalchemy import text as _text
+
+    dates = sorted({r["date"] for r in rows})
+    existing = {
+        (r[0], r[1], r[2])
+        for r in db.execute(
+            _text(
+                "SELECT date, time, supplement_name FROM supplements_log WHERE user_id = :uid AND date = ANY(:dates)"
+            ),
+            {"uid": user_id, "dates": dates},
+        ).fetchall()
+    }
+
+    inserted = 0
+    for row in rows:
+        key = (row["date"], row["time"], row["supplement_name"])
+        if key in existing:
+            continue
+        db.execute(
+            _text(
+                "INSERT INTO supplements_log (user_id, date, time, supplement_name, dosage) "
+                "VALUES (:user_id, :date, :time, :supplement_name, :dosage)"
+            ),
+            row,
+        )
+        existing.add(key)
+        inserted += 1
+    return inserted
+
+
 def _insert_hr_events(db, user_id: int, rows: list[dict]) -> int:
     """UPSERT событий пульса по (user_id, source) — как для ЭКГ."""
     if not rows:
@@ -1202,6 +1317,15 @@ async def receive_apple_health_v2(
         if candidate is not None and not isinstance(candidate, list):
             raise HTTPException(status_code=400, detail=f"'data.{hr_key}' must be a list")
 
+    meds_raw = []
+    for med_key in _MEDICATION_KEYS:
+        candidate = data_block.get(med_key)
+        if isinstance(candidate, list) and candidate:
+            meds_raw = candidate
+            break
+        if candidate is not None and not isinstance(candidate, list):
+            raise HTTPException(status_code=400, detail=f"'data.{med_key}' must be a list")
+
     ecg_raw = []
     for ecg_key in ("ecg", "ecgs", "electrocardiograms", "electrocardiogram"):
         candidate = data_block.get(ecg_key)
@@ -1212,7 +1336,7 @@ async def receive_apple_health_v2(
             raise HTTPException(status_code=400, detail=f"'data.{ecg_key}' must be a list")
 
     daily = _hae_to_daily_payloads(metrics)
-    if not daily and not workouts_raw and not ecg_raw and not hr_events_raw:
+    if not daily and not workouts_raw and not ecg_raw and not hr_events_raw and not meds_raw:
         return {
             "status": "ok",
             "days": 0,
@@ -1220,6 +1344,7 @@ async def receive_apple_health_v2(
             "workouts_inserted": 0,
             "ecg_inserted": 0,
             "hr_events_inserted": 0,
+            "medications_inserted": 0,
         }
 
     # Resolve target user (та же логика, что в v1)
@@ -1373,6 +1498,13 @@ async def receive_apple_health_v2(
         if hr_events_inserted:
             logger.info("HAE_v2 heart rate events: %s", hr_events_inserted)
 
+        # Приём препаратов из журнала «Медикаменты» — в ту же таблицу, куда идут
+        # ручные отметки, поэтому приверженность считается прежними инструментами.
+        med_rows = _hae_medications_to_rows(meds_raw, target_user_id)
+        medications_inserted = _insert_medications(db, target_user_id, med_rows)
+        if medications_inserted:
+            logger.info("HAE_v2 medications inserted: %s", medications_inserted)
+
         db.commit()
     except Exception as e:
         db.rollback()
@@ -1389,6 +1521,7 @@ async def receive_apple_health_v2(
         "workouts_inserted": workouts_inserted,
         "ecg_inserted": ecg_inserted,
         "hr_events_inserted": hr_events_inserted,
+        "medications_inserted": medications_inserted,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
