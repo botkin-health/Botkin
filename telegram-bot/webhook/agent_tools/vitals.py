@@ -282,6 +282,65 @@ async def recent_bp(
     }
 
 
+@router.post("/cleanup_bp_placeholders")
+async def cleanup_bp_placeholders(
+    dry_run: bool = True,
+    user=Depends(require_agent_scope("rw")),
+    db: Session = Depends(get_db),
+):
+    """Убрать суточные заглушки давления там, где появились настоящие замеры.
+
+    До 15.09.2026 давление приходило одной точкой в сутки (группировка «День»)
+    и писалось условным временем 08:00 UTC. После отдельной автоматизации те же
+    замеры приезжают со своим временем, и заглушка становится лишней строкой:
+    она задваивает день и портит статистику.
+
+    🔒 Удаляем строку ТОЛЬКО если за тот же день есть хотя бы один замер с другим
+    временем. Это делает операцию безопасной по построению: там, где настоящих
+    замеров ещё нет, заглушка — единственная копия данных и остаётся на месте.
+
+    По умолчанию `dry_run=true` — возвращает, что было бы удалено, ничего не трогая.
+    """
+    from sqlalchemy import text as sql_text
+
+    select_sql = sql_text(
+        """
+        SELECT id, measured_at, systolic, diastolic
+        FROM blood_pressure_logs p
+        WHERE p.user_id = :uid
+          AND p.source = 'apple_health_v2'
+          AND (p.measured_at AT TIME ZONE 'UTC')::time = TIME '08:00:00'
+          AND EXISTS (
+              SELECT 1 FROM blood_pressure_logs q
+              WHERE q.user_id = p.user_id
+                AND (q.measured_at AT TIME ZONE 'UTC')::date
+                    = (p.measured_at AT TIME ZONE 'UTC')::date
+                AND (q.measured_at AT TIME ZONE 'UTC')::time <> TIME '08:00:00'
+          )
+        ORDER BY p.measured_at
+        """
+    )
+    rows = db.execute(select_sql, {"uid": user.telegram_id}).fetchall()
+    items = [
+        {
+            "measured_at": _dt_isoformat_local(r.measured_at, user),
+            "systolic": r.systolic,
+            "diastolic": r.diastolic,
+        }
+        for r in rows
+    ]
+
+    if dry_run or not rows:
+        return {"status": "ok", "dry_run": True, "would_delete": len(items), "items": items}
+
+    db.execute(
+        sql_text("DELETE FROM blood_pressure_logs WHERE id = ANY(:ids)"),
+        {"ids": [r.id for r in rows]},
+    )
+    db.commit()
+    return {"status": "ok", "dry_run": False, "deleted": len(items), "items": items}
+
+
 @router.get("/recent_ecg")
 async def recent_ecg(
     days: int = 90,
