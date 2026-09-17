@@ -148,7 +148,17 @@ def analyze_message_claude(
             response.raise_for_status()
             result = response.json()
 
-            content_str = result["content"][0]["text"]
+            # Sonnet 5 на неоднозначных блюдах (бренды, несколько позиций,
+            # «половина») сам включает extended thinking — тогда content[0]
+            # это блок thinking, а JSON — в следующем text-блоке. Раньше код
+            # брал content[0] безусловно и падал с KeyError('text'), уходя
+            # в 3 бесполезных ретрая + fallback на GPT-4o (медленно).
+            text_blocks = [
+                block["text"] for block in result["content"] if isinstance(block, dict) and block.get("type") == "text"
+            ]
+            if not text_blocks:
+                raise KeyError("no text block in Claude response content")
+            content_str = text_blocks[0]
             # Извлечь JSON если обёрнут в markdown
             content_str = content_str.strip()
             if content_str.startswith("```"):
