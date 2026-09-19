@@ -682,3 +682,177 @@ def test_tool_pair_saved_atomically_and_next_turn_survives(agent_db, monkeypatch
         blocks = msg["content"]
         if isinstance(blocks, list):
             assert not any(b.get("type") == "tool_use" for b in blocks), "осиротевший tool_use ушёл в Anthropic"
+
+
+# ── #477: «данных нет» без единого вызова инструмента ────────────────────────
+
+
+def test_claims_data_unavailable_detects_markers():
+    from core.agent_chat import claims_data_unavailable
+
+    # Отказы — должны ловиться
+    for text_str in (
+        "источник тренировок сейчас в DB-fallback режиме, зоны не скажу",
+        "К сожалению, данных по пульсу у меня нет",
+        "Этих данных я не вижу — посмотри в Garmin Connect",
+        "Нет данных по тренировкам за этот период",
+        "Источник данных сейчас недоступен",
+        "У меня нет доступа к этому источнику",
+        "Не удалось получить показатели с сервера",
+        "Информация по замерам отсутствует",
+        "Гармин не синхронизировался, поэтому цифр нет",
+        "Ничего не нашёл по этой дате",
+        "Данные не подтянулись",
+    ):
+        assert claims_data_unavailable(text_str), f"не поймали отказ: {text_str}"
+
+    # Нормальные ответы — ложное срабатывание ВЫБРАСЫВАЕТ готовый ответ,
+    # поэтому цена ошибки тут выше, чем лишний вызов LLM.
+    for text_str in (
+        "Не вижу поводов для беспокойства — показатели ровные",
+        "В анализах не вижу ничего тревожного",
+        "Эта функция пока недоступна, передал разработчикам",
+        "Тебе не пришлось бы менять схему, если добавишь магний",
+        "По этим данным отклонений нет, продолжай в том же духе",
+        "Нет, данных про кофеин достаточно",
+        "Твой вес 82.0 кг, тренд стабильный",
+        "Средний пульс 132, в аэробной базе 32.5 минуты",
+        "",
+    ):
+        assert not claims_data_unavailable(text_str), f"ложное срабатывание: {text_str}"
+
+
+def test_unavailability_without_tool_call_triggers_one_retry(agent_db, monkeypatch):
+    """Ответ «данных нет» без вызова инструмента не отдаётся: агента толкают в тул."""
+    fake = FakeRequests(
+        [
+            _anthropic_text("С пульсом и зонами не так — источник тренировок сейчас в DB-fallback режиме."),
+            _anthropic_tool_use("get_recent_workouts", {"days": 3}),
+            _anthropic_text("Средний пульс 132, в аэробной базе 32.5 мин из 67."),
+        ],
+        tool_payload={"status": "ok", "source": "file", "items": [{"avg_hr": 132}]},
+    )
+    monkeypatch.setattr(agent_chat, "requests", fake)
+
+    reply = agent_chat.ask_agent(895655, "дай данные по сегодняшней тренировке — пульс и зоны")
+
+    assert "132" in reply
+    assert "fallback" not in reply.lower()
+    assert len(fake.anthropic_calls) == 3, "ожидали нудж и повторный заход"
+
+    # Форма диалога после нуджа: отбракованный assistant, следом служебная
+    # user-реплика (payload держит ссылку на тот же список history, поэтому
+    # смотрим итоговое состояние, а не снимок конкретного вызова).
+    msgs = fake.anthropic_calls[-1]["payload"]["messages"]
+    nudge_idx = next(i for i, m in enumerate(msgs) if m.get("content") == agent_chat.NO_TOOL_NUDGE)
+    assert msgs[nudge_idx]["role"] == "user"
+    assert msgs[nudge_idx - 1]["role"] == "assistant"
+
+    # В истории модели (source='botkinclaw') отбракованного ответа быть не должно,
+    # иначе он поедет дальше как факт — ровно так «DB-fallback» пережил фикс #474.
+    rows = _history_rows(agent_db)
+    live = [r for r in rows if r.source == "botkinclaw"]
+    assert "fallback" not in " ".join(str(r.content) for r in live).lower()
+    assert [r.role for r in live] == ["user", "assistant", "tool_result", "assistant"]
+    # …но для аналитики он сохранён под отдельным source
+    nudged_rows = [r for r in rows if r.source == "botkinclaw_nudged"]
+    assert len(nudged_rows) == 1
+    assert "fallback" in str(nudged_rows[0].content).lower()
+
+
+def test_rejected_answer_not_visible_to_next_ask_agent(agent_db, monkeypatch):
+    """Главный регресс #477: следующий ход не должен видеть отбракованный текст."""
+    fake = FakeRequests(
+        [
+            _anthropic_text("Данных по пульсу нет — источник в DB-fallback режиме."),
+            _anthropic_tool_use("get_recent_workouts", {"days": 3}),
+            _anthropic_text("Пульс 132, база 32.5 мин."),
+            _anthropic_text("Как и говорил — 132."),
+        ],
+        tool_payload={"status": "ok", "source": "file"},
+    )
+    monkeypatch.setattr(agent_chat, "requests", fake)
+
+    agent_chat.ask_agent(895655, "пульс за сегодня?")
+    agent_chat.ask_agent(895655, "а ещё раз?")
+
+    sent = json.dumps(fake.anthropic_calls[-1]["payload"]["messages"], ensure_ascii=False)
+    assert "fallback" not in sent.lower()
+    assert agent_chat.NO_TOOL_NUDGE not in sent
+
+
+def test_unavailability_after_tool_call_is_returned_as_is(agent_db, monkeypatch):
+    """Если инструмент вызван и честно вернул пусто — ответ отдаём без ретрая."""
+    fake = FakeRequests(
+        [
+            _anthropic_tool_use("get_recent_workouts", {"days": 3}),
+            _anthropic_text("Данных по тренировкам за этот период нет."),
+        ],
+        tool_payload={"status": "no_data", "available": False},
+    )
+    monkeypatch.setattr(agent_chat, "requests", fake)
+
+    reply = agent_chat.ask_agent(895655, "что по тренировкам?")
+
+    assert "нет" in reply
+    assert len(fake.anthropic_calls) == 2, "лишний заход после честного tool-результата"
+
+
+def test_nudge_then_tool_then_honest_empty_is_returned(agent_db, monkeypatch):
+    """Самый частый прод-сценарий: толкнули в тул, тул честно пуст — отдаём отказ."""
+    fake = FakeRequests(
+        [
+            _anthropic_text("Данных нет, источник недоступен."),
+            _anthropic_tool_use("get_recent_workouts", {"days": 3}),
+            _anthropic_text("Проверил: записей о тренировках за этот период нет."),
+        ],
+        tool_payload={"status": "no_data", "available": False},
+    )
+    monkeypatch.setattr(agent_chat, "requests", fake)
+
+    reply = agent_chat.ask_agent(895655, "тренировки за неделю?")
+
+    assert "нет" in reply
+    assert len(fake.anthropic_calls) == 3
+
+
+def test_retry_happens_once_even_if_model_repeats_itself(agent_db, monkeypatch):
+    """Нудж одноразовый: второй отказ отдаём пользователю, а не зацикливаемся."""
+    fake = FakeRequests(
+        [
+            _anthropic_text("Данных нет — источник недоступен."),
+            _anthropic_text("Всё равно данных нет."),
+        ]
+    )
+    monkeypatch.setattr(agent_chat, "requests", fake)
+
+    reply = agent_chat.ask_agent(895655, "пульс за сегодня?")
+
+    assert reply == "Всё равно данных нет."
+    assert len(fake.anthropic_calls) == 2
+
+
+def test_nudge_does_not_eat_tool_iterations(agent_db, monkeypatch):
+    """Нудж не съедает лимит MAX_TOOL_ITERATIONS: после него доступны все раунды."""
+    script = [_anthropic_text("Данных нет.")]
+    script += [
+        _anthropic_tool_use("get_recent_workouts", {"days": 3}, tu_id=f"tu_{i}")
+        for i in range(agent_chat.MAX_TOOL_ITERATIONS - 2)
+    ]
+    script.append(_anthropic_text("Готово: пульс 132."))
+    fake = FakeRequests(script, tool_payload={"status": "ok"})
+    monkeypatch.setattr(agent_chat, "requests", fake)
+
+    reply = agent_chat.ask_agent(895655, "пульс?")
+
+    assert reply == "Готово: пульс 132."
+
+
+def test_normal_answer_without_tools_is_not_retried(agent_db, monkeypatch):
+    fake = FakeRequests([_anthropic_text("Привет! Чем помочь?")])
+    monkeypatch.setattr(agent_chat, "requests", fake)
+
+    reply = agent_chat.ask_agent(895655, "привет")
+
+    assert reply == "Привет! Чем помочь?"
+    assert len(fake.anthropic_calls) == 1
