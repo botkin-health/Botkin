@@ -312,3 +312,16 @@ def test_vegetable_salad_keeps_strict_threshold():
     warnings = check_density_sanity(items)
 
     assert len(warnings) == 1
+
+
+def test_dish_without_salad_word_is_not_density_checked():
+    """«Селёдка под шубой» без слова «салат» вообще не проходит проверку плотности.
+
+    Фиксируем текущее поведение: фильтр _SALAD_LIKE_KEYWORDS отсекает такие
+    имена раньше порогов, поэтому ложной тревоги нет (но и настоящей тоже).
+    """
+    from core.food.nutrition import check_density_sanity
+
+    items = [{"product": "Селёдка под шубой", "weight_g": 200.0, "calories": 900.0}]
+
+    assert check_density_sanity(items) == []
