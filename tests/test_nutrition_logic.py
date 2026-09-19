@@ -214,7 +214,7 @@ def test_format_kcal_warning_includes_density_line():
 
     text = format_kcal_warning(totals)
 
-    assert "калорийнее обычного салата" in text
+    assert "выше ожидаемого" in text
     assert "260" in text
 
 
@@ -269,3 +269,46 @@ def test_check_density_sanity_ignores_negative_calories():
     items = [{"product": "салат", "weight_g": 100.0, "calories": -50.0}]
 
     assert check_density_sanity(items) == []
+
+
+# ── Issue #473: майонезные салаты плотнее овощных, порог у них свой ──────────
+def test_dressed_salad_at_normal_density_is_not_flagged():
+    """Оливье 190 ккал/100г — обычная калорийность, а не аномалия.
+
+    Инцидент 19.09.2026: корректная запись «ложка оливье, 40 г / 76 ккал»
+    получала варнинг «проверь вес/заправку». Регулярные ложные тревоги
+    обесценивают механизм — настоящую ошибку веса перестанут замечать.
+    """
+    from core.food.nutrition import check_density_sanity
+
+    items = [
+        {"product": "Салат оливье", "weight_g": 40.0, "calories": 76.0},
+        {"product": "Салат сельдь под шубой", "weight_g": 200.0, "calories": 380.0},
+        {"product": "Салат Цезарь с курицей", "weight_g": 200.0, "calories": 420.0},
+        {"product": "Салат мимоза", "weight_g": 150.0, "calories": 340.0},
+    ]
+
+    assert check_density_sanity(items) == []
+
+
+def test_dressed_salad_still_flagged_when_truly_implausible():
+    """400 ккал/100г — уже не заправка, а ошибка веса даже для оливье."""
+    from core.food.nutrition import check_density_sanity
+
+    items = [{"product": "Салат оливье", "weight_g": 100.0, "calories": 400.0}]
+
+    warnings = check_density_sanity(items)
+
+    assert len(warnings) == 1
+    assert round(warnings[0]["density"]) == 400
+
+
+def test_vegetable_salad_keeps_strict_threshold():
+    """Для овощного салата 190 ккал/100г по-прежнему подозрительно."""
+    from core.food.nutrition import check_density_sanity
+
+    items = [{"product": "Салат греческий", "weight_g": 200.0, "calories": 380.0}]
+
+    warnings = check_density_sanity(items)
+
+    assert len(warnings) == 1
