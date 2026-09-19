@@ -122,3 +122,179 @@ def test_ambiguous_equal_weights_do_not_bypass_default_override():
     )
     assert items[0]["weight_g"] == 250
     assert items[0]["calories"] == 275
+
+
+# --- #470: суб-порция («ложка салата») не должна затираться дефолтной порцией ---
+
+
+def test_spoon_of_salad_keeps_llm_weight():
+    # Инцидент 19.09.2026: «ложка салата оливье» → дефолт по ключу «салат» (200 г)
+    # перетирал корректные 40 г от LLM и масштабировал КБЖУ ×5 (815 ккал вместо ~270).
+    items, totals = process_llm_food_data(
+        _llm(
+            [
+                {"name": "Сосиска", "weight": 50, "calories": 135, "protein": 5, "fats": 12, "carbs": 1, "fiber": 0},
+                {
+                    "name": "Салат сельдь под шубой",
+                    "weight": 40,
+                    "calories": 80,
+                    "protein": 1.2,
+                    "fats": 6,
+                    "carbs": 3.2,
+                    "fiber": 0.6,
+                },
+                {
+                    "name": "Салат оливье",
+                    "weight": 40,
+                    "calories": 56,
+                    "protein": 2,
+                    "fats": 3.6,
+                    "carbs": 3.6,
+                    "fiber": 0.4,
+                },
+            ]
+        ),
+        description="1 сосиска, ложка салата сельд под шубой, ложка салата оливье",
+    )
+    by_name = {it["product"]: it for it in items}
+    assert by_name["Салат сельдь под шубой"]["weight_g"] == 40
+    assert by_name["Салат сельдь под шубой"]["calories"] == 80
+    assert by_name["Салат оливье"]["weight_g"] == 40
+    assert by_name["Салат оливье"]["calories"] == 56
+    assert totals["calories"] < 300, f"итог {totals['calories']} ккал — ложки снова посчитаны как порции"
+
+
+def test_piece_marker_keeps_llm_weight():
+    # «кусочек пиццы»: дефолт «пицца» = 100 г, LLM дал 40 г — доверяем LLM
+    items, _ = process_llm_food_data(
+        _llm([{"name": "Пицца", "weight": 40, "calories": 100, "protein": 4, "fats": 4, "carbs": 12}]),
+        description="кусочек пиццы",
+    )
+    assert items[0]["weight_g"] == 40
+    assert items[0]["calories"] == 100
+
+
+def test_subportion_in_other_segment_does_not_block_default():
+    # Маркер «ложка» относится к маслу, а не к каше — для каши дефолт 250 г работает как раньше
+    items, _ = process_llm_food_data(
+        _llm(
+            [
+                {"name": "Оливковое масло", "weight": 15, "calories": 133, "protein": 0, "fats": 15, "carbs": 0},
+                {
+                    "name": "Гречневая каша варёная",
+                    "weight": 50,
+                    "calories": 55,
+                    "protein": 2,
+                    "fats": 0.5,
+                    "carbs": 10.5,
+                },
+            ]
+        ),
+        description="ложка оливкового масла, гречневая каша",
+    )
+    by_name = {it["product"]: it for it in items}
+    assert by_name["Оливковое масло"]["weight_g"] == 15
+    assert by_name["Гречневая каша варёная"]["weight_g"] == 250
+    assert by_name["Гречневая каша варёная"]["calories"] == 275
+
+
+def test_default_override_scales_fiber_too():
+    # Вес ×5 → клетчатка тоже ×5 (раньше оставалась от исходной порции)
+    items, _ = process_llm_food_data(
+        _llm(
+            [
+                {
+                    "name": "Гречневая каша варёная",
+                    "weight": 50,
+                    "calories": 55,
+                    "protein": 2,
+                    "fats": 0.5,
+                    "carbs": 10.5,
+                    "fiber": 1.0,
+                }
+            ]
+        ),
+        description="гречневая каша",
+    )
+    assert items[0]["weight_g"] == 250
+    assert items[0]["fiber"] == 5.0
+
+
+def test_default_override_marks_weight_source():
+    items, _ = process_llm_food_data(
+        _llm(
+            [
+                {
+                    "name": "Гречневая каша варёная",
+                    "weight": 50,
+                    "calories": 55,
+                    "protein": 2,
+                    "fats": 0.5,
+                    "carbs": 10.5,
+                }
+            ]
+        ),
+        description="гречневая каша",
+    )
+    assert items[0]["weight_source"] == "default_portion"
+
+
+def test_mentions_subportion_matches_declensions_and_scopes_segments():
+    from core.food.nutrition import mentions_subportion
+
+    assert mentions_subportion("ложка салата оливье", "Салат оливье")
+    assert mentions_subportion("пара ложек оливье", "Оливье")
+    assert mentions_subportion("чуть-чуть каши", "Каша гречневая")
+    assert mentions_subportion("кусочек пиццы", "Пицца")
+    # Без маркера — дефолтная порция работает как раньше
+    assert not mentions_subportion("салат оливье", "Салат оливье")
+    assert not mentions_subportion("гречневая каша", "Гречневая каша варёная")
+    # Маркер в чужом сегменте не распространяется на другой продукт
+    assert not mentions_subportion("2 столовые ложки варенья, творог 150 г", "Творог 5%")
+
+
+def test_spoons_of_porridge_keep_llm_weight():
+    items, _ = process_llm_food_data(
+        _llm([{"name": "Каша гречневая", "weight": 60, "calories": 66, "protein": 2.4, "fats": 0.6, "carbs": 12.6}]),
+        description="пара ложек каши",
+    )
+    assert items[0]["weight_g"] == 60
+    assert items[0]["calories"] == 66
+
+
+def test_mentions_subportion_matches_bare_stem_and_short_names():
+    # HIGH-1 из ревью #471: «ложка салата» / «Салат оливье» — совпадение только по слову «салат»
+    from core.food.nutrition import mentions_subportion
+
+    assert mentions_subportion("ложка салата", "Салат оливье")
+    assert mentions_subportion("два куска пиццы", "Пицца")
+    assert mentions_subportion("ложка супа", "Суп")  # короткие имена тоже проходят гейт
+    assert mentions_subportion("кусок хлеба", "Хлеб белый")
+    # Разные продукты не должны схлопываться по первым буквам
+    assert not mentions_subportion("ложка варенья", "Ватрушка")
+
+
+def test_subportion_keeps_weight_source_llm():
+    items, _ = process_llm_food_data(
+        _llm([{"name": "Салат оливье", "weight": 40, "calories": 56, "protein": 2, "fats": 3.6, "carbs": 3.6}]),
+        description="ложка салата",
+    )
+    assert items[0]["weight_g"] == 40
+    assert items[0]["weight_source"] == "llm"
+
+
+def test_implausibly_small_llm_weight_still_falls_back_to_default():
+    # MEDIUM-2 из ревью: «кусок торта» с весом 3 г — галлюцинация, дефолт должен сработать
+    items, _ = process_llm_food_data(
+        _llm([{"name": "Пицца", "weight": 3, "calories": 8, "protein": 0.3, "fats": 0.3, "carbs": 1}]),
+        description="кусок пиццы",
+    )
+    assert items[0]["weight_g"] == 100
+
+
+def test_fiber_scaled_when_llm_gave_no_calories():
+    # MEDIUM-3: _scale_item_macros раньше выходил при calories=None и оставлял клетчатку исходной порции
+    from core.food.nutrition import _scale_item_macros
+
+    scaled = _scale_item_macros({"name": "Каша", "calories": None, "fiber": 1.0}, 50, 250)
+    assert scaled["fiber"] == 5.0

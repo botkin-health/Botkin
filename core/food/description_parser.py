@@ -142,6 +142,58 @@ PORTION_WEIGHTS = {
     "банка": 330,
 }
 
+# Маркеры суб-порции: пользователь назвал не порцию блюда, а её часть
+# («ложка салата», «кусочек пиццы»). Для таких слов дефолтная порция из
+# DEFAULT_UNIT_WEIGHTS неприменима — см. issue #470 и mentions_subportion().
+SUBPORTION_RE = re.compile(
+    r"(ложк|ложек|ложечк|\bст\.?\s?л\.?|\bч\.?\s?л\.?|кусоч|\bкус(ок|ка|ки|ков|ком|ками)\b|ломтик|"
+    r"горст|щепот|половин|четверт|\bтрет[ьи]\b|глоток|глотк|"
+    r"чуть|немног|капел|\bкапля\b|на пробу|\bпопробовал\b)",
+    re.IGNORECASE,
+)
+
+# Сегменты описания: «1 сосиска, ложка салата оливье» → маркер «ложка» относится
+# только к своему сегменту, а не ко всему сообщению.
+_SEGMENT_SPLIT_RE = re.compile(r"[,;\n]|\sи\s|\+")
+
+# Сопоставление названия продукта с сегментом описания идёт по первым трём буквам:
+# склонения («салат» / «салата») и короткие имена («суп», «рис») должны совпадать.
+_GATE_PREFIX_LEN = 3
+
+
+def _gate_prefixes(phrase: str) -> set:
+    out = set()
+    for token in phrase.lower().split():
+        t = token.replace("-", "").strip('().,;:!?«»"')
+        if len(t) >= _GATE_PREFIX_LEN:
+            out.add(t[:_GATE_PREFIX_LEN])
+    return out
+
+
+def mentions_subportion(description: str, product_name: str) -> bool:
+    """Пользователь назвал для этого продукта суб-порцию («ложка салата», «кусочек пиццы»).
+
+    В таком случае вес от LLM — осознанная оценка доли порции, и дефолт из
+    DEFAULT_UNIT_WEIGHTS (частичное совпадение «салат» → 200 г) её перекрывать
+    не должен: инцидент #470, «ложка салата оливье» превращалась в 200 г / 280 ккал.
+
+    Сопоставление намеренно грубое (три буквы): ложное срабатывание означает лишь
+    «доверяем весу от LLM вместо справочника», а вес от LLM дополнительно
+    проверяется на правдоподобность в process_llm_food_data.
+    """
+    if not description or not product_name:
+        return False
+    name_prefixes = _gate_prefixes(product_name)
+    if not name_prefixes:
+        return False
+    for segment in _SEGMENT_SPLIT_RE.split(description.lower()):
+        if not SUBPORTION_RE.search(segment):
+            continue
+        if name_prefixes & _gate_prefixes(segment):
+            return True
+    return False
+
+
 # Нормализация названий продуктов
 PRODUCT_ALIASES = {
     "куриное филе": ["куриная грудка", "курица", "филе куриное"],
