@@ -656,6 +656,47 @@ def _stems_overlap(a: str, b: str) -> bool:
 stems_overlap = _stems_overlap
 
 
+# Сегменты описания: «1 сосиска, ложка салата оливье» → маркер «ложка» относится
+# только к своему сегменту, а не ко всему сообщению.
+_SEGMENT_SPLIT_RE = re.compile(r"[,;\n]|\sи\s|\+")
+
+
+def _loose_stem(token: str) -> str:
+    """Стем помягче, чем _stem: 3 буквы для коротких слов, чтобы «каша»/«каши» совпали.
+
+    Используется только гейтом суб-порций: ложное совпадение здесь означает лишь
+    «доверяем весу LLM вместо справочника», что безопаснее обратной ошибки.
+    """
+    t = token.lower().replace("-", "").strip('().,;:!?«»"')
+    return t[:_STEM_LONG_PREFIX] if len(t) >= _STEM_LONG_WORD_LEN else t[:3]
+
+
+def _loose_stems(phrase: str) -> set:
+    return {_loose_stem(t) for t in phrase.lower().split() if len(t) > _STEM_MIN_TOKEN_LEN}
+
+
+def mentions_subportion(description: str, product_name: str) -> bool:
+    """Пользователь назвал для этого продукта суб-порцию («ложка салата», «кусочек пиццы»).
+
+    В таком случае вес от LLM — осознанная оценка доли порции, и дефолт из
+    DEFAULT_UNIT_WEIGHTS (частичное совпадение «салат» → 200 г) её перекрывать
+    не должен: инцидент #470, «ложка салата оливье» превращалась в 200 г / 280 ккал.
+    """
+    if not description or not product_name:
+        return False
+    from .description_parser import SUBPORTION_RE
+
+    name_stems = _loose_stems(product_name)
+    if not name_stems:
+        return False
+    for segment in _SEGMENT_SPLIT_RE.split(description.lower()):
+        if not SUBPORTION_RE.search(segment):
+            continue
+        if name_stems & _loose_stems(segment):
+            return True
+    return False
+
+
 def _unique_weight_match(weight: float, regex_weights) -> bool:
     """LLM-вес совпал ровно с одним из явно указанных пользователем весов.
     Если одинаковый вес указан у нескольких продуктов — совпадение неоднозначно, не доверяем."""
@@ -669,7 +710,9 @@ _ESTIMATE_SOURCES = frozenset({"quantity_estimate", "portion_estimate"})
 # LLM видит весь контекст, regex — одно слово. Инцидент 07.09.2026: «106 перца» →
 # оценка 15900 г перекрыла корректные 106 г от LLM.
 _ESTIMATE_VS_LLM_MAX_RATIO = 5.0
-_SCALED_MACROS = ("calories", "protein", "fats", "carbs")
+# Вес подменён → клетчатку масштабируем вместе с КБЖУ: иначе при вес ×5 в тарелке
+# оставалась клетчатка исходной порции (#470).
+_SCALED_MACROS = ("calories", "protein", "fats", "carbs", "fiber")
 
 
 def _estimate_contradicts_llm(regex_weight: float, regex_source: str, llm_weight) -> bool:
@@ -760,7 +803,11 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
         except Exception as e:
             print(f"Error in regex fallback: {e}")
 
-    for item in items:
+    # Копия items с уже применённым масштабированием веса — из неё берётся клетчатка
+    # при backfill ниже (иначе fiber остаётся от исходной, немасштабированной порции, #470).
+    effective_items = list(items)
+
+    for idx, item in enumerate(items):
         logger.info(f"🔍 Processing LLM item: {item}")
         name = item.get("name", "Unknown")
         weight = item.get("weight")
@@ -799,12 +846,14 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
             if regex_weight is not None:
                 # Вес взят из описания → КБЖУ LLM пересчитываем под него (иначе 15900 г при 34 ккал)
                 item = _scale_item_macros(item, weight, regex_weight)
+                effective_items[idx] = item
                 weight = regex_weight
                 regex_matched = True
 
         # Только если пользователь НЕ указал вес явно — используем default для бутылок/порций
         # Иначе "100г пельменей" перезаписывалось бы на 250г стандартной порции
-        if not regex_matched:
+        default_portion_applied = False
+        if not regex_matched and not (weight and mentions_subportion(description, name)):
             from .description_parser import get_default_unit_weight
 
             default_weight = get_default_unit_weight(name)
@@ -813,7 +862,9 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
                 # (дефолтный) вес порции, чтобы не потерять КБЖУ-консистентность
                 # (issue #408: раньше вес менялся, а калории — нет).
                 item = _scale_item_macros(item, weight, default_weight)
+                effective_items[idx] = item
                 weight = default_weight
+                default_portion_applied = True
 
         # Fallback: если regex не сработал — default_weight уже применили выше
 
@@ -969,7 +1020,7 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
         if has_macros:
             # Если вес не указан, но есть калории - пробуем оценить вес по названию (для отображения)
             final_weight = weight
-            weight_src = "llm"
+            weight_src = "default_portion" if default_portion_applied else "llm"
 
             if not final_weight:
                 from .description_parser import get_default_unit_weight
@@ -1014,12 +1065,13 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
             )
         elif weight and weight > 0:
             # Calculate using local DB (или 0 для напитков без калорий)
+            weight_src = "default_portion" if default_portion_applied else "llm"
             if is_zero_calorie_drink(name):
                 meal_items.append(
                     {
                         "product": name,
                         "weight_g": weight,
-                        "weight_source": "llm",
+                        "weight_source": weight_src,
                         "calories": 0.0,
                         "protein": 0.0,
                         "fats": 0.0,
@@ -1044,7 +1096,7 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
                     {
                         "product": name,
                         "weight_g": weight,
-                        "weight_source": "llm",
+                        "weight_source": weight_src,
                         "calories": nutrition["calories"],
                         "protein": nutrition["protein"],
                         "fats": nutrition["fats"],
@@ -1151,7 +1203,7 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
     # meal_items were built in the same order as input items — safe to zip.
     from .fiber_table import estimate_fiber
 
-    for mi, llm_it in zip(meal_items, items):
+    for mi, llm_it in zip(meal_items, effective_items):
         if mi.get("fiber") is not None:
             continue
         llm_fiber = llm_it.get("fiber")
