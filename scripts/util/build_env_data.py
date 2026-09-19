@@ -7,7 +7,7 @@ build_env_data.py — серверный derived-builder для блока «В�
      cron sync_all.sh шагом netatmo).
   2. Извлекает CO₂, температуру и влажность по дням за последние 30 дней.
   3. Пишет в финальное место, которое читает dashboard_generator.py:
-         /app/telegram-bot/env_data_{user_id}.json
+         /app/data/derived/{user_id}/env_data.json  (bind-mount, переживает деплой — #480)
      Формат:
          {"co2": {"2026-05-22": 615, ...}, "temp_home": {...}, "humidity": {...}}
 
@@ -48,12 +48,15 @@ DEFAULT_USER_ID = 895655
 KEEP_DAYS = 30  # дашборду больше не нужно
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(BASE_DIR))
 SOURCE = BASE_DIR / "data" / "environment" / "netatmo_history.json"
 
 
 def out_path_for(user_id: int) -> Path:
     """Финальное место, откуда читает dashboard_generator.py."""
-    return BASE_DIR / "telegram-bot" / f"env_data_{user_id}.json"
+    from core.infra.derived_paths import derived_write_path
+
+    return derived_write_path("env_data", user_id)
 
 
 def build_env_data(raw: dict) -> dict:

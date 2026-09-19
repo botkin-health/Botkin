@@ -45,5 +45,9 @@ def test_real_user_id_passes(build_workouts_log):
     assert build_workouts_log.validate_user_id(123456789) is None
 
 
-def test_out_path_carries_user_id(build_workouts_log):
-    assert build_workouts_log.out_path_for(123456789).name == "workouts_log_123456789.json"
+def test_out_path_is_on_bind_mount_per_user(build_workouts_log, tmp_path, monkeypatch):
+    """#480: пишем в data/derived/<id>/, а не внутрь образа в telegram-bot/."""
+    monkeypatch.setenv("BOTKIN_DERIVED_DIR", str(tmp_path / "derived"))
+    p = build_workouts_log.out_path_for(123456789)
+    assert p.name == "workouts_log.json"
+    assert p.parent.name == "123456789"

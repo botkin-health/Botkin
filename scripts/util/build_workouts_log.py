@@ -7,7 +7,7 @@ build_workouts_log.py — серверный derived-builder для дашбор
      из сырых Garmin activity-файлов (data/garmin/activities/*.json).
   2. Обрезает до последних 180 дней и пишет в финальное место,
      которое читает dashboard_generator.py:
-         /app/telegram-bot/workouts_log_{user_id}.json
+         /app/data/derived/{user_id}/workouts_log.json  (bind-mount, переживает деплой — #480)
      (180 дней — максимум, на который опирается /recent_workouts API; больше
      дашборду не нужно, экономим память контейнера.)
 
@@ -64,14 +64,17 @@ NO_USER_ID_HINT = (
 KEEP_DAYS = 180
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(BASE_DIR))
 PARSE_SCRIPT = BASE_DIR / "scripts" / "util" / "parse_workouts.py"
 AEROBIC_SCRIPT = BASE_DIR / "scripts" / "util" / "compute_aerobic_base.py"
 SOURCE_LOG = BASE_DIR / "data" / "garmin" / "workouts_log.json"
 
 
 def out_path_for(user_id: int) -> Path:
-    """Финальное место, откуда читает dashboard_generator.py."""
-    return BASE_DIR / "telegram-bot" / f"workouts_log_{user_id}.json"
+    """Финальное место, откуда читают дашборд и агент (bind-mount, #480)."""
+    from core.infra.derived_paths import derived_write_path
+
+    return derived_write_path("workouts_log", user_id)
 
 
 def validate_user_id(user_id: int) -> None:

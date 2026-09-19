@@ -59,7 +59,9 @@ def has_blood_test_data(db: Session, user: User) -> bool:
     import json
 
     # Per-user biomarkers file — works for any cohort
-    bio_path = Path(__file__).resolve().parent / f"biomarkers_{user.telegram_id}.json"
+    from core.infra.derived_paths import derived_read_path
+
+    bio_path = derived_read_path("biomarkers", user.telegram_id)
     if bio_path.exists():
         try:
             bio = json.loads(bio_path.read_text())

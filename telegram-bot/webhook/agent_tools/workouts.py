@@ -32,14 +32,15 @@ async def recent_workouts(
        но достаточно для базовых вопросов «сколько раз бегал», «когда тренировался».
     """
     import json as _json
-    from pathlib import Path as _Path
     from sqlalchemy import text as sql_text
 
     days = max(1, min(days, 180))
     today_date = _today_in_user_tz(user)
     cutoff = today_date - timedelta(days=days)
 
-    wk_path = _Path(f"/app/telegram-bot/workouts_log_{user.telegram_id}.json")
+    from core.infra.derived_paths import derived_read_path
+
+    wk_path = derived_read_path("workouts_log", user.telegram_id)
 
     # ── Fallback: DB-based мульти-юзер (когда file отсутствует) ──────────────
     if not wk_path.exists():
