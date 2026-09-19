@@ -20,26 +20,27 @@ async def recent_workouts(
 ):
     """Workout summary by training-load canons (Seiler/Attia/Maffetone).
 
-    Reads workouts_log_<user_id>.json from /app/telegram-bot/ (Garmin activity
-    parser writes there). Returns Z2 min/week, HIIT min/week, A:C load ratio,
+    Reads data/derived/<user_id>/workouts_log.json (bind-mount, #480; Garmin
+    activity parser writes there). Returns Z2 min/week, HIIT min/week, A:C load ratio,
     polarized distribution, mistagged HIIT flag.
 
     Источник данных (приоритет):
-    1. File `workouts_log_<user_id>.json` — rich data (Z2 zones, training load, MAF).
+    1. File `data/derived/<user_id>/workouts_log.json` — rich data (Z2 zones, load, MAF).
        Сейчас есть только у owner (Alex, push_workouts_to_container.py).
     2. Fallback: таблица `workouts` в БД — для остальных пользователей.
        Меньше полей (только type, duration, distance, calories), без zones/load,
        но достаточно для базовых вопросов «сколько раз бегал», «когда тренировался».
     """
     import json as _json
-    from pathlib import Path as _Path
     from sqlalchemy import text as sql_text
 
     days = max(1, min(days, 180))
     today_date = _today_in_user_tz(user)
     cutoff = today_date - timedelta(days=days)
 
-    wk_path = _Path(f"/app/telegram-bot/workouts_log_{user.telegram_id}.json")
+    from core.infra.derived_paths import derived_read_path
+
+    wk_path = derived_read_path("workouts_log", user.telegram_id)
 
     # ── Fallback: DB-based мульти-юзер (когда file отсутствует) ──────────────
     if not wk_path.exists():

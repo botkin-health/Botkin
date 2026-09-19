@@ -51,12 +51,12 @@ run() {
 
 run weather  /app/scripts/import/weather.py
 run netatmo  /app/scripts/import/netatmo.py
-# Derived: пересобирает /app/telegram-bot/env_data_{user_id}.json из
+# Derived: пересобирает /app/data/derived/{user_id}/env_data.json из
 # netatmo_history.json для блока «Воздух дома» на дашборде. ОБЯЗАТЕЛЬНО после
 # netatmo. Раньше этот шаг делался только в мак-pipeline (push_netatmo_to_container.py).
 run env      /app/scripts/util/build_env_data.py
 run garmin   /app/scripts/garmin/download_garmin_data.py
-# Derived: пересобирает /app/telegram-bot/workouts_log_{user_id}.json из
+# Derived: пересобирает /app/data/derived/{user_id}/workouts_log.json из
 # сырых Garmin-активностей, чтобы дашборд видел свежие тренировки. ОБЯЗАТЕЛЬНО
 # после garmin. Раньше этот шаг делался только в мак-pipeline → дашборд отставал.
 run workouts /app/scripts/util/build_workouts_log.py

@@ -71,7 +71,7 @@ def _load_biomarkers_from_db(db, user_id: int) -> dict:
 def _build_sport_block(user_id: int, user_age: int | None = None) -> dict:
     """Анализ тренировок по канонам Seiler/Attia/Whoop.
 
-    Источник: workouts_log_{user_id}.json (Garmin activities → parse_workouts.py).
+    Источник: data/derived/{user_id}/workouts_log.json (Garmin activities → parse_workouts.py).
     Считает:
       - 4 KPI: тренировок/нед, Z2 мин/нед, HIIT мин/нед, A:C load ratio
       - распределение по зонам за последние 4 недели (для polarized pyramid)
@@ -86,7 +86,9 @@ def _build_sport_block(user_id: int, user_age: int | None = None) -> dict:
     """
     from datetime import date, timedelta
 
-    wk_path = Path(__file__).parent / f"workouts_log_{user_id}.json"
+    from core.infra.derived_paths import derived_read_path
+
+    wk_path = derived_read_path("workouts_log", user_id)
     if not wk_path.exists():
         return {"available": False}
 
@@ -969,7 +971,9 @@ def _build_payload(db: Session, user_id: int) -> dict:
     # ── environmental (optional, empty if no file) ────────────────────────────
     co2: dict[str, int] = {}
     temp_home: dict[str, float] = {}
-    env_path = Path(__file__).parent / f"env_data_{user_id}.json"
+    from core.infra.derived_paths import derived_read_path
+
+    env_path = derived_read_path("env_data", user_id)
     if env_path.exists():
         try:
             env = json.loads(env_path.read_text())

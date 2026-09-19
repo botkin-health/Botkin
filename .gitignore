@@ -112,6 +112,7 @@ biomarkers_*.json
 # через scripts/util/build_workouts_log.py и build_env_data.py.
 # Не должны быть в git (иначе моя локальная копия с мака перетирает
 # серверные свежие данные при каждом docker build).
+# legacy-раскладка до #480 (файлы переехали в data/derived/<id>/)
 telegram-bot/workouts_log_*.json
 telegram-bot/env_data_*.json
 config/scout/profile.yaml

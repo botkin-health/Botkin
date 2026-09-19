@@ -53,13 +53,15 @@ def has_apple_health_data(db: Session, user: User) -> bool:
 def has_blood_test_data(db: Session, user: User) -> bool:
     """True if user has any blood test data.
 
-    Checks for per-user biomarkers_{telegram_id}.json first (all cohorts),
+    Checks for per-user data/derived/{telegram_id}/biomarkers.json first (all cohorts),
     then falls back to owner's knowledge_base.json for backward compatibility.
     """
     import json
 
     # Per-user biomarkers file — works for any cohort
-    bio_path = Path(__file__).resolve().parent / f"biomarkers_{user.telegram_id}.json"
+    from core.infra.derived_paths import derived_read_path
+
+    bio_path = derived_read_path("biomarkers", user.telegram_id)
     if bio_path.exists():
         try:
             bio = json.loads(bio_path.read_text())

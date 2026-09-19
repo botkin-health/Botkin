@@ -7,7 +7,7 @@ build_env_data.py — серверный derived-builder для блока «В�
      cron sync_all.sh шагом netatmo).
   2. Извлекает CO₂, температуру и влажность по дням за последние 30 дней.
   3. Пишет в финальное место, которое читает dashboard_generator.py:
-         /app/telegram-bot/env_data_{user_id}.json
+         /app/data/derived/{user_id}/env_data.json  (bind-mount, переживает деплой — #480)
      Формат:
          {"co2": {"2026-05-22": 615, ...}, "temp_home": {...}, "humidity": {...}}
 
@@ -48,12 +48,15 @@ DEFAULT_USER_ID = 895655
 KEEP_DAYS = 30  # дашборду больше не нужно
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(BASE_DIR))
 SOURCE = BASE_DIR / "data" / "environment" / "netatmo_history.json"
 
 
 def out_path_for(user_id: int) -> Path:
     """Финальное место, откуда читает dashboard_generator.py."""
-    return BASE_DIR / "telegram-bot" / f"env_data_{user_id}.json"
+    from core.infra.derived_paths import derived_path
+
+    return derived_path("env_data", user_id)
 
 
 def build_env_data(raw: dict) -> dict:
@@ -123,8 +126,9 @@ def main() -> int:
     n_hum = len(env_data.get("humidity", {}))
 
     out = out_path_for(args.user_id)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(env_data, ensure_ascii=False), encoding="utf-8")
+    from core.infra.derived_paths import write_derived_atomically
+
+    out = write_derived_atomically("env_data", args.user_id, json.dumps(env_data, ensure_ascii=False))
 
     all_dates = set(env_data.get("co2", {}).keys()) | set(env_data.get("temp_home", {}).keys())
     latest = max(all_dates, default="—")
