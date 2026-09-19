@@ -69,6 +69,12 @@ gh workflow run deploy-prod.yml -f image_tag=<sha-готового-образа>
 > `TELEGRAM_WEBHOOK_SECRET` и `WHOOP_STATE_SECRET` — без них webhook останется
 > без аутентификации, а WHOOP-привязка упадёт.
 
+> ⚠️ `BOTKIN_USER_ID` — telegram_id владельца данных Garmin. Его читают derived-шаги
+> ночного синка: имя файла `workouts_log_<id>.json` содержит id, а агент и дашборд
+> ищут строго по нему. Без переменной сборка тренировок падает с явной ошибкой
+> (issue #474; до фикса она молча писала `workouts_log_0.json`, и месяц агент отвечал
+> из обеднённого DB-фолбэка без пульса и зон).
+
 ## Права на bind-mount данных и ночной sync
 
 Контейнер `healthvault_bot` работает под непривилегированным пользователем
