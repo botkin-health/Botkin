@@ -49,6 +49,18 @@ from pathlib import Path
 # Дефолт — владелец (единственный сейчас активный Garmin-пользователь), из env (#303).
 # Когда подключатся другие — sync_all.sh будет вызывать скрипт по разу на каждого.
 DEFAULT_USER_ID = int(os.getenv("BOTKIN_USER_ID") or os.getenv("HEALTHVAULT_USER_ID") or 0)
+
+# Имя выходного файла содержит telegram_id, и читатели (агент, дашборд) ищут строго
+# по нему. Без переменной окружения id вырождался в 0, скрипт писал
+# workouts_log_0.json и завершался успешно — месяц (16.08–19.09.2026) агент и дашборд
+# сидели на обеднённом DB-фолбэке без пульса и зон, а сводка синка показывала ✅.
+# Теперь такой прогон падает громко. См. issue #474.
+NO_USER_ID_HINT = (
+    "❌ Не задан telegram_id владельца данных.\n"
+    "   Передай --user-id <id> или выставь BOTKIN_USER_ID в окружении.\n"
+    "   На проде переменная живёт в /opt/botkin/.env (её читает контейнер бота).\n"
+    "   Без неё файл ушёл бы в workouts_log_0.json, где его никто не ищет."
+)
 KEEP_DAYS = 180
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -60,6 +72,12 @@ SOURCE_LOG = BASE_DIR / "data" / "garmin" / "workouts_log.json"
 def out_path_for(user_id: int) -> Path:
     """Финальное место, откуда читает dashboard_generator.py."""
     return BASE_DIR / "telegram-bot" / f"workouts_log_{user_id}.json"
+
+
+def validate_user_id(user_id: int) -> None:
+    """Прерывает сборку, если telegram_id не задан (см. NO_USER_ID_HINT, #474)."""
+    if not user_id or user_id <= 0:
+        raise SystemExit(NO_USER_ID_HINT)
 
 
 def main() -> int:
@@ -78,6 +96,7 @@ def main() -> int:
         help="Не запускать compute_aerobic_base.py (без Garmin Connect / для скорости)",
     )
     args = parser.parse_args()
+    validate_user_id(args.user_id)
 
     # Шаг 1: пересобираем data/garmin/workouts_log.json из сырых activity-файлов
     if not args.skip_parse:
