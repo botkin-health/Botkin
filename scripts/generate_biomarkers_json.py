@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Генерирует telegram-bot/biomarkers_<telegram_id>.json из knowledge_base.json владельца.
+Генерирует data/derived/<telegram_id>/biomarkers.json из knowledge_base.json владельца.
 
 Debug-инструмент: дашборд читает биомаркеры из Postgres, файл нужен только для
 локальной отладки. Канонический синк KB → сервер:
@@ -28,7 +28,9 @@ FAMILY_ROOT = Path(
 )
 
 KB_PATH = FAMILY_ROOT / KB_FOLDER / "knowledge_base.json"
-OUT_PATH = Path(__file__).resolve().parent.parent / "telegram-bot" / f"biomarkers_{USER_ID}.json"
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_REPO_ROOT))
+from core.infra.derived_paths import write_derived_atomically  # noqa: E402
 
 SERVER = "root@116.203.213.137"
 SSH_OPTS = ["-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=10"]
@@ -88,8 +90,10 @@ def main() -> None:
     print(f"✅ Built {len(bio)} biomarkers")
 
     # Локальный JSON — отладочный артефакт; дашборд читает биомаркеры из Postgres.
-    OUT_PATH.write_text(json.dumps(bio, indent=2, ensure_ascii=False) + "\n")
-    print(f"💾 Saved to {OUT_PATH} (debug-артефакт; дашборд читает Postgres)")
+    out_path = write_derived_atomically(
+        "biomarkers", int(USER_ID), json.dumps(bio, indent=2, ensure_ascii=False) + "\n"
+    )
+    print(f"💾 Saved to {out_path} (debug-артефакт; дашборд читает Postgres)")
 
     if args.deploy:
         # Legacy-деплой файла в контейнер удалён 11.06.2026 (аудит): дашборд

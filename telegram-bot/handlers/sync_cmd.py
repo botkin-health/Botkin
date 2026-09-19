@@ -38,6 +38,7 @@ from aiogram.types import Message
 from aiogram.filters import Command, CommandObject
 
 from config.users import is_admin
+from core.infra.derived_paths import derived_glob as _derived_glob
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -103,6 +104,10 @@ _TEMPORARY_HTTP_RE = re.compile(r"\b(408|425|429|476|500|502|503|504)\b")
 #                       glob-pattern для freshness — mtime самого свежего матча).
 # Берём mtime data-файлов (а не log-файлов на хосте — бот их не видит изнутри
 # контейнера), это семантически эквивалентно «когда данные обновлялись».
+# Для derived-источников свежесть меряется по САМОМУ СВЕЖЕМУ файлу среди всех
+# юзеров (glob + max mtime). Пока билдеры гоняются только для владельца, это то
+# же самое; когда появится мультиюзерная сборка — статус станет оптимистичным,
+# и метрику надо будет считать по отстающему.
 SOURCES = {
     "weather": (
         "/app/scripts/import/weather.py",
@@ -120,7 +125,7 @@ SOURCES = {
     "env": (
         "/app/scripts/util/build_env_data.py",
         "Воздух дома (дашборд)",
-        "/app/telegram-bot/env_data_895655.json",
+        _derived_glob("env_data"),
     ),
     "garmin": (
         "/app/scripts/garmin/download_garmin_data.py",
@@ -135,7 +140,7 @@ SOURCES = {
     "workouts": (
         "/app/scripts/util/build_workouts_log.py",
         "Workouts (дашборд)",
-        "/app/telegram-bot/workouts_log_895655.json",
+        _derived_glob("workouts_log"),
     ),
     # Postgres backfill: workouts + sleep + hrv → таблицы для агента
     # (/recent_workouts, /recent_activity). Должен идти ПОСЛЕ garmin

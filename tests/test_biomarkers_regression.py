@@ -8,7 +8,9 @@ import pytest
 from core.health.biomarkers import aggregate_biomarkers
 
 FAMILY = Path(os.path.expanduser("~/Library/CloudStorage/GoogleDrive-lyskovsky@gmail.com/Мой диск/FamilyHealth"))
-BIO_DIR = Path(__file__).resolve().parent.parent / "telegram-bot"
+# Снимок биомаркеров переехал на bind-mount (#480); читаем через резолвер,
+# иначе golden-тест начнёт вечно скипаться и молча потеряет покрытие.
+from core.infra.derived_paths import derived_read_path  # noqa: E402
 
 # Оба тест-юзера: реальные id/папка берутся из env, чтобы не светить PII
 # в публичном репо (#303). Без env тесты ниже скипаются (папка не найдётся).
@@ -31,7 +33,7 @@ def test_owner_golden_nothing_lost():
     """Владелец — единственный golden: зрелый корректный pipeline.
     Новый агрегат обязан содержать каждый старый канонический ключ с тем же value+date."""
     tid, folder = OWNER
-    old_file = BIO_DIR / f"biomarkers_{tid}.json"
+    old_file = derived_read_path("biomarkers", tid)
     kb_path = FAMILY / folder / "knowledge_base.json"
     if not old_file.exists() or not kb_path.exists():
         pytest.skip(f"no local biomarkers_{tid}.json or KB")
