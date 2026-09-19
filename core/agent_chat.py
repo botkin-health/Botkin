@@ -1945,6 +1945,61 @@ def _fmt_num(n: float) -> str:
     return str(int(n)) if float(n).is_integer() else str(n)
 
 
+# ── #477: «данных нет» без единого вызова инструмента ────────────────────────
+#
+# Прецедент 19.09.2026: источник тренировок починили (#474), но на вопрос про
+# пульс агент снова ответил «источник в DB-fallback режиме» — не вызвав ни
+# одного инструмента: пересказал собственную реплику из истории, написанную до
+# фикса. В промпте это прямо запрещено (UNIVERSAL_META_PROMPT), но текстовая
+# директива не гарантия — проверяем факт: был ли вызов тула в этом ходе.
+#
+# Цена ошибки выше обычной галлюцинации: пользователь верит «данных нет» и
+# перестаёт спрашивать, а баг живёт месяцами (#474 так и прожил месяц).
+# Детектор намеренно узкий: ложное срабатывание не просто стоит лишнего вызова
+# LLM — оно ВЫБРАСЫВАЕТ уже готовый ответ пользователя. «Не вижу поводов для
+# беспокойства» или «эта функция пока недоступна» — нормальные ответы, они не
+# должны попадать под гейт. Поэтому слова про отсутствие привязаны к словам про
+# данные, а не ловятся сами по себе.
+_UNAVAILABLE_MARKERS = re.compile(
+    r"("
+    # «нет данных» (без запятой между — иначе ловится «Нет, данных достаточно»)
+    r"\bнет\s+(?:никаких\s+|таких\s+|полных\s+|свежих\s+)?(?:данн\w+|записей|цифр|информаци\w+)"
+    # «данных (по пульсу)(у меня) нет» — только предложные вставки, иначе
+    # сюда попадает «по этим данным отклонений нет» (там нет — про находку)
+    r"|(?:данн\w+|записей|цифр)\s+(?:(?:по|про|за|у|в|на|от)\s+\S+\s+){0,3}"
+    r"(?:пока\s+|ещё\s+|еще\s+|сейчас\s+)?нет\b"
+    r"|не\s+вижу[^.!?\n]{0,20}(?:данн|записей|цифр|показател|замеров|тренировок|результат)"
+    r"|(?:данн\w+|записей|цифр|тренировк\w+)[^.!?\n]{0,20}не\s+вижу"
+    r"|(?:источник\w*|данн\w+|интеграци\w+|синхронизаци\w+|метрик\w+|показател\w+)"
+    r"[^.!?\n]{0,20}недоступ"
+    r"|недоступ\w*[^.!?\n]{0,20}(?:данн|источник|метрик|показател)"
+    r"|fallback|фолбэк"
+    r"|не\s+(?:могу|удалось|удаётся|удается)\s+(?:получить|посмотреть|достать|показать|найти|загрузить)"
+    r"|нет\s+доступа|не\s+располагаю"
+    r"|(?:данн\w+|записи\w*|информаци\w+)[^.!?\n]{0,20}отсутств"
+    r"|отсутств\w+[^.!?\n]{0,20}(?:данн|записи|информаци)"
+    r"|не\s+синхронизир|ничего\s+не\s+(?:нашёл|нашел|нашла|нашли)"
+    r"|не\s+подтянул\w*|не\s+пришл[иа]\b"
+    r")",
+    re.IGNORECASE,
+)
+
+NO_TOOL_NUDGE = (
+    "[Система] Ты только что сказал, что данных нет или источник недоступен, "
+    "но в этом ходе не вызвал ни одного инструмента — значит, утверждение ничем "
+    "не подтверждено. Вызови подходящий инструмент ПРЯМО СЕЙЧАС и ответь по его "
+    "результату. Если инструмент действительно вернёт пусто — так и скажи, "
+    "сославшись на него. Пользователю про эту служебную реплику не упоминай."
+)
+
+
+def claims_data_unavailable(text: str) -> bool:
+    """Ответ заявляет, что данных нет / источник недоступен (#477)."""
+    if not text:
+        return False
+    return bool(_UNAVAILABLE_MARKERS.search(text))
+
+
 def _save_message(
     db,
     user_id: int,
@@ -3021,6 +3076,14 @@ def ask_agent(
         # Prompt caching давно GA — beta-хедер prompt-caching-2024-07-31 не нужен
         request_headers = dict(headers)
 
+        # #477: факт вызова инструмента в этом ходе и одноразовость нуджа.
+        # Инвариант: в гейт ниже можно попасть только на iteration 0 — любой
+        # `continue` выставляет либо tool_called_this_turn, либо nudged. Поэтому
+        # нудж не съедает последнюю итерацию MAX_TOOL_ITERATIONS. Если когда-то
+        # решишь сбрасывать nudged на каждом тул-раунде — сначала перечитай это.
+        tool_called_this_turn = False
+        nudged = False
+
         for iteration in range(MAX_TOOL_ITERATIONS):
             payload = {
                 "model": MODEL,
@@ -3107,7 +3170,11 @@ def ask_agent(
                 from core.llm_usage import log_anthropic_response
 
                 log_anthropic_response(
-                    purpose="agent_chat_tool" if iteration > 0 else "agent_chat",
+                    purpose=(
+                        "agent_chat_nudge"
+                        if (nudged and not tool_called_this_turn)
+                        else ("agent_chat_tool" if iteration > 0 else "agent_chat")
+                    ),
                     model=MODEL,
                     response_json=response,
                     user_id=user_id,
@@ -3119,6 +3186,7 @@ def ask_agent(
             blocks = response.get("content", [])
 
             if stop_reason == "tool_use":
+                tool_called_this_turn = True
                 # Record assistant turn (text + tool_use blocks) в память сразу,
                 # в БД — ниже, одной транзакцией вместе с tool_result (#347):
                 # осиротевший tool_use в истории ломает следующий ход.
@@ -3179,13 +3247,39 @@ def ask_agent(
                 continue  # next iteration — model will incorporate tool results
 
             # stop_reason in ("end_turn", "max_tokens", "stop_sequence") — final.
+            text_parts = [b["text"] for b in blocks if b.get("type") == "text"]
+            reply_text = "\n".join(text_parts).strip()
+
+            # 🚦 #477: «данных нет», а инструмент ни разу не вызван — утверждение
+            # ничем не подтверждено. Толкаем модель в тул ОДИН раз и НЕ сохраняем
+            # отбракованный ответ: попав в историю, он поедет дальше как факт
+            # (ровно так «DB-fallback» пережил фикс источника #474).
+            if not tool_called_this_turn and not nudged and claims_data_unavailable(reply_text):
+                nudged = True
+                logger.warning(
+                    "agent_chat: «данных нет» без вызова инструмента — нудж (user=%s): %.120s",
+                    user_id,
+                    reply_text.replace("\n", " "),
+                )
+                # Пишем отбракованный ответ под отдельным source: `_load_history`
+                # берёт только `botkinclaw`, поэтому в контекст модели он не
+                # вернётся, но останется видимым для ночного review-conversations
+                # и для настройки детектора по реальным срабатываниям.
+                _persist_turns(db, user_id, [("assistant", blocks)], f"{src}_nudged")
+                if progress_cb:
+                    try:
+                        progress_cb("🔄 перепроверяю данные")
+                    except Exception:
+                        logger.exception("progress_cb nudge failed")
+                history.append({"role": "assistant", "content": blocks})
+                history.append({"role": "user", "content": NO_TOOL_NUDGE})
+                continue
+
             # #347: ответ уже сгенерирован и оплачен — сбой записи в историю
             # его не отменяет, отдаём пользователю в любом случае.
             _persist_turns(db, user_id, [("assistant", blocks)], src)
 
-            # Extract text
-            text_parts = [b["text"] for b in blocks if b.get("type") == "text"]
-            return "\n".join(text_parts).strip()
+            return reply_text
 
         # Exhausted iterations
         logger.warning("agent_chat: max iterations (%s) hit", MAX_TOOL_ITERATIONS)
