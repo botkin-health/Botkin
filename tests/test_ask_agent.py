@@ -856,3 +856,39 @@ def test_normal_answer_without_tools_is_not_retried(agent_db, monkeypatch):
 
     assert reply == "Привет! Чем помочь?"
     assert len(fake.anthropic_calls) == 1
+
+
+def test_emptiness_markers_recognised():
+    from core.agent_chat import tool_results_report_emptiness
+
+    assert tool_results_report_emptiness(['{"status":"no_data","available":false}'])
+    assert tool_results_report_emptiness(['{"status": "ok", "count": 0}'])
+    assert tool_results_report_emptiness(['{"error": "unknown tool"}'])
+    assert tool_results_report_emptiness(['{"status":"ok","source":"db","items":[1]}'])
+    # Полный ответ инструмента пустотой не является
+    assert not tool_results_report_emptiness(['{"status":"ok","count":2,"items":[{"steps":14111}]}'])
+    assert not tool_results_report_emptiness([])
+
+
+def test_unavailability_after_unrelated_full_tool_result_triggers_retry(agent_db, monkeypatch):
+    """Прод-кейс 19.09.2026: агент дёрнул суточные метрики (полные), про зоны
+    ничего не спросил — и всё равно заявил «источник тренировок в DB-fallback».
+    Тул вызывался, но пустоту никто не подтвердил → заявление не подкреплено."""
+    fake = FakeRequests(
+        [
+            _anthropic_tool_use("get_daily_metrics", {"days": 1}, tu_id="tu_act"),
+            _anthropic_text("Зон и пульса по пробежке нет — источник тренировок в DB-fallback режиме."),
+            _anthropic_tool_use("get_recent_workouts", {"days": 3}, tu_id="tu_wk"),
+            _anthropic_text("Средний пульс 132, в аэробной базе 32.5 мин."),
+        ],
+        tool_payload={"status": "ok", "count": 2, "items": [{"steps": 14111, "rhr": 52}]},
+    )
+    monkeypatch.setattr(agent_chat, "requests", fake)
+
+    reply = agent_chat.ask_agent(895655, "какой был пульс сегодня во время пробежки и какие зоны?")
+
+    assert "132" in reply
+    assert len(fake.anthropic_calls) == 4, "ожидали нудж после полного tool-результата"
+    rows = _history_rows(agent_db)
+    live = " ".join(str(r.content) for r in rows if r.source == "botkinclaw")
+    assert "fallback" not in live.lower()

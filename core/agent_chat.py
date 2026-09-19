@@ -1993,6 +1993,41 @@ NO_TOOL_NUDGE = (
 )
 
 
+# Признаки того, что инструмент САМ сообщил об отсутствии данных. Если агент
+# заявляет «данных нет», а ни один tool_result этого хода пустоты не показал —
+# заявление ничем не подкреплено, даже когда какой-то другой инструмент вызывался.
+# Прецедент 19.09.2026 (#480/#477): на вопрос про пульс и зоны пробежки агент
+# дёрнул суточные метрики (они вернулись полными), про тренировки не спросил
+# вовсе — и всё равно ответил «источник тренировок в DB-fallback», пересказав
+# устаревший tool_result из истории.
+_EMPTY_RESULT_MARKERS = (
+    '"status":"no_data"',
+    '"status": "no_data"',
+    '"available":false',
+    '"available": false',
+    '"count":0',
+    '"count": 0',
+    '"total_count":0',
+    '"total_count": 0',
+    '"items":[]',
+    '"items": []',
+    '"error"',
+    '"source":"db"',
+    '"source": "db"',
+)
+
+
+def tool_results_report_emptiness(results: list[str]) -> bool:
+    """Хоть один инструмент этого хода вернул «пусто»/ошибку/обеднённый источник."""
+    for raw in results:
+        if not isinstance(raw, str):
+            continue
+        compact = raw.replace(" ", "")
+        if any(m.replace(" ", "") in compact for m in _EMPTY_RESULT_MARKERS):
+            return True
+    return False
+
+
 def claims_data_unavailable(text: str) -> bool:
     """Ответ заявляет, что данных нет / источник недоступен (#477)."""
     if not text:
@@ -3077,12 +3112,13 @@ def ask_agent(
         request_headers = dict(headers)
 
         # #477: факт вызова инструмента в этом ходе и одноразовость нуджа.
-        # Инвариант: в гейт ниже можно попасть только на iteration 0 — любой
-        # `continue` выставляет либо tool_called_this_turn, либо nudged. Поэтому
-        # нудж не съедает последнюю итерацию MAX_TOOL_ITERATIONS. Если когда-то
-        # решишь сбрасывать nudged на каждом тул-раунде — сначала перечитай это.
+        # Нудж одноразовый (nudged не сбрасывается), поэтому лишний раунд к
+        # лимиту MAX_TOOL_ITERATIONS добавляется максимум один.
         tool_called_this_turn = False
         nudged = False
+        # Тексты всех tool_result этого хода — по ним проверяем, подкреплено ли
+        # заявление «данных нет» (см. tool_results_report_emptiness).
+        turn_tool_result_texts: list[str] = []
 
         for iteration in range(MAX_TOOL_ITERATIONS):
             payload = {
@@ -3170,11 +3206,7 @@ def ask_agent(
                 from core.llm_usage import log_anthropic_response
 
                 log_anthropic_response(
-                    purpose=(
-                        "agent_chat_nudge"
-                        if (nudged and not tool_called_this_turn)
-                        else ("agent_chat_tool" if iteration > 0 else "agent_chat")
-                    ),
+                    purpose=("agent_chat_nudge" if nudged else ("agent_chat_tool" if iteration > 0 else "agent_chat")),
                     model=MODEL,
                     response_json=response,
                     user_id=user_id,
@@ -3242,6 +3274,9 @@ def ask_agent(
                     logger.exception("P-003 stale-history invalidation failed (non-fatal)")
 
                 # tool_use + tool_result — одной транзакцией (см. _persist_turns).
+                turn_tool_result_texts.extend(
+                    tr["content"] for tr in tool_results if isinstance(tr.get("content"), str)
+                )
                 _persist_turns(db, user_id, [("assistant", blocks), ("tool_result", tool_results)], src)
                 history.append({"role": "user", "content": tool_results})
                 continue  # next iteration — model will incorporate tool results
@@ -3254,7 +3289,8 @@ def ask_agent(
             # ничем не подтверждено. Толкаем модель в тул ОДИН раз и НЕ сохраняем
             # отбракованный ответ: попав в историю, он поедет дальше как факт
             # (ровно так «DB-fallback» пережил фикс источника #474).
-            if not tool_called_this_turn and not nudged and claims_data_unavailable(reply_text):
+            claim_unsupported = not tool_results_report_emptiness(turn_tool_result_texts)
+            if not nudged and claim_unsupported and claims_data_unavailable(reply_text):
                 nudged = True
                 logger.warning(
                     "agent_chat: «данных нет» без вызова инструмента — нудж (user=%s): %.120s",
