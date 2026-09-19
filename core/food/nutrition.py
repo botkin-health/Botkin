@@ -326,6 +326,38 @@ def check_kcal_consistency(items: List[Dict], threshold: float = 0.25) -> List[D
 SALAD_DENSITY_THRESHOLD = 180.0
 _SALAD_LIKE_KEYWORDS = ("салат", "овощи", "овощн", "боул", "bowl", "зелен", "poke", "поке")
 
+# Issue #473: у майонезных салатов 180–280 ккал/100г — норма, а не аномалия
+# (оливье 190–250, шуба 150–200, мимоза 200–250, цезарь с курицей 170–220).
+# Общий порог давал варнинг на корректных записях, а регулярные ложные тревоги
+# обесценивают механизм: настоящую ошибку веса перестанут замечать.
+DRESSED_SALAD_DENSITY_THRESHOLD = 300.0
+_DRESSED_SALAD_KEYWORDS = (
+    "оливье",
+    "шуб",  # «сельдь под шубой», «шуба»
+    "мимоза",
+    "крабов",
+    "цезар",
+    "caesar",
+    "столичн",
+    "майонез",
+)
+# «ташкентский салат» намеренно НЕ в списке: под этим именем встречается и
+# мясной с майонезом, и овощной на уксусной заправке — второму порог 300 скрыл
+# бы настоящую ошибку веса.
+#
+# Список работает только внутри check_density_sanity, то есть после фильтра
+# _SALAD_LIKE_KEYWORDS: блюдо, названное без слова «салат» («Селёдка под
+# шубой», «Мимоза»), в проверку плотности не попадает вовсе — и варнинга не
+# получает. Это безопасная сторона: ложной тревоги нет.
+
+
+def _density_threshold_for(name: str, base: float) -> float:
+    """Порог плотности с поправкой на заправку (#473)."""
+    lower = name.lower()
+    if any(kw in lower for kw in _DRESSED_SALAD_KEYWORDS):
+        return max(base, DRESSED_SALAD_DENSITY_THRESHOLD)
+    return base
+
 
 def check_density_sanity(items: List[Dict], threshold: float = SALAD_DENSITY_THRESHOLD) -> List[Dict]:
     """Flag salad/veggie/bowl items whose calorie density is implausibly high.
@@ -347,7 +379,7 @@ def check_density_sanity(items: List[Dict], threshold: float = SALAD_DENSITY_THR
         if weight <= 0 or calories < 0:
             continue
         density = calories / weight * 100
-        if density > threshold:
+        if density > _density_threshold_for(name, threshold):
             warnings.append({"name": name, "density": round(density, 1), "weight": round(weight, 1)})
     return warnings
 
@@ -360,7 +392,7 @@ def _format_kcal_mismatch_line(w: Dict) -> str:
 
 def _format_density_line(w: Dict) -> str:
     name = html.escape(str(w["name"]))  # имя из vision/LLM → HTML-сообщение
-    return f"❓ {name}: калорийнее обычного салата ({w['density']:.0f} ккал/100г) — проверь вес/заправку"
+    return f"❓ {name}: {w['density']:.0f} ккал/100г — выше ожидаемого для такого блюда, проверь вес/заправку"
 
 
 def format_kcal_warning(meal_totals: Dict) -> str:
