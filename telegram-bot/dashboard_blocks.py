@@ -53,7 +53,7 @@ def has_apple_health_data(db: Session, user: User) -> bool:
 def has_blood_test_data(db: Session, user: User) -> bool:
     """True if user has any blood test data.
 
-    Checks for per-user biomarkers_{telegram_id}.json first (all cohorts),
+    Checks for per-user data/derived/{telegram_id}/biomarkers.json first (all cohorts),
     then falls back to owner's knowledge_base.json for backward compatibility.
     """
     import json

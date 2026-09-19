@@ -60,11 +60,38 @@ def derived_read_path(kind: str, user_id: int) -> Path:
     return legacy if legacy.exists() else canonical
 
 
-def derived_write_path(kind: str, user_id: int) -> Path:
-    """Куда писать: канон, с созданной директорией."""
+def ensure_derived_dir(kind: str, user_id: int) -> Path:
+    """Куда писать: канон, с созданной директорией. Побочный эффект — в имени.
+
+    Каталог создаётся под uid 10001 внутри bind-mount; если права не дали,
+    падаем с подсказкой, а не голым трейсбеком — см. docs/DEPLOYMENT.md,
+    раздел про права на bind-mount.
+    """
     p = derived_path(kind, user_id)
-    p.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        p.parent.mkdir(parents=True, exist_ok=True)
+    except PermissionError as e:
+        raise SystemExit(
+            f"❌ Нет прав создать {p.parent}: {e}\n"
+            "   Каталог на bind-mount должен принадлежать uid 10001 (botkin). Разово:\n"
+            "   docker exec -u 0 healthvault_bot mkdir -p /app/data/derived "
+            "&& docker exec -u 0 healthvault_bot chown 10001:10001 /app/data/derived"
+        ) from e
     return p
+
+
+def write_derived_atomically(kind: str, user_id: int, text: str) -> Path:
+    """Запись через временный файл в той же директории + os.replace.
+
+    Файл теперь durable: битый результат прерванной записи не «переживается»
+    деплоем, как раньше, и вдобавок затеняет фолбэк на старое место
+    (derived_read_path выбирает канон по факту существования).
+    """
+    target = ensure_derived_dir(kind, user_id)
+    tmp = target.with_suffix(".json.tmp")
+    tmp.write_text(text, encoding="utf-8")
+    os.replace(tmp, target)
+    return target
 
 
 def derived_glob(kind: str) -> str:

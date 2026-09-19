@@ -30,10 +30,7 @@ FAMILY_ROOT = Path(
 KB_PATH = FAMILY_ROOT / KB_FOLDER / "knowledge_base.json"
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_REPO_ROOT))
-from core.infra.derived_paths import derived_path  # noqa: E402
-
-# Путь считаем без побочных эффектов; директорию создаём перед записью.
-OUT_PATH = derived_path("biomarkers", USER_ID) if USER_ID else None
+from core.infra.derived_paths import write_derived_atomically  # noqa: E402
 
 SERVER = "root@116.203.213.137"
 SSH_OPTS = ["-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=10"]
@@ -93,9 +90,10 @@ def main() -> None:
     print(f"✅ Built {len(bio)} biomarkers")
 
     # Локальный JSON — отладочный артефакт; дашборд читает биомаркеры из Postgres.
-    OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    OUT_PATH.write_text(json.dumps(bio, indent=2, ensure_ascii=False) + "\n")
-    print(f"💾 Saved to {OUT_PATH} (debug-артефакт; дашборд читает Postgres)")
+    out_path = write_derived_atomically(
+        "biomarkers", int(USER_ID), json.dumps(bio, indent=2, ensure_ascii=False) + "\n"
+    )
+    print(f"💾 Saved to {out_path} (debug-артефакт; дашборд читает Postgres)")
 
     if args.deploy:
         # Legacy-деплой файла в контейнер удалён 11.06.2026 (аудит): дашборд

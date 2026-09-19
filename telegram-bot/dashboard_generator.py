@@ -71,7 +71,7 @@ def _load_biomarkers_from_db(db, user_id: int) -> dict:
 def _build_sport_block(user_id: int, user_age: int | None = None) -> dict:
     """Анализ тренировок по канонам Seiler/Attia/Whoop.
 
-    Источник: workouts_log_{user_id}.json (Garmin activities → parse_workouts.py).
+    Источник: data/derived/{user_id}/workouts_log.json (Garmin activities → parse_workouts.py).
     Считает:
       - 4 KPI: тренировок/нед, Z2 мин/нед, HIIT мин/нед, A:C load ratio
       - распределение по зонам за последние 4 недели (для polarized pyramid)

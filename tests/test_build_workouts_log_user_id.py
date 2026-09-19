@@ -45,6 +45,23 @@ def test_real_user_id_passes(build_workouts_log):
     assert build_workouts_log.validate_user_id(123456789) is None
 
 
+def test_previous_file_is_read_with_legacy_fallback(build_workouts_log, tmp_path, monkeypatch):
+    """#480: merge-guard HR-полей должен видеть старое место при первом прогоне.
+
+    aerobic_base_min / maf_zones считаются только на маке; не перелей их из
+    legacy — «Z2 база» обнулится до следующего мак-пайплайна.
+    """
+    from core.infra import derived_paths
+
+    monkeypatch.setenv("BOTKIN_DERIVED_DIR", str(tmp_path / "derived"))
+    monkeypatch.setattr(derived_paths, "_REPO_ROOT", tmp_path)
+    legacy = derived_paths.legacy_derived_path("workouts_log", 42)
+    legacy.parent.mkdir(parents=True, exist_ok=True)
+    legacy.write_text("{}")
+
+    assert derived_paths.derived_read_path("workouts_log", 42) == legacy
+
+
 def test_out_path_is_on_bind_mount_per_user(build_workouts_log, tmp_path, monkeypatch):
     """#480: пишем в data/derived/<id>/, а не внутрь образа в telegram-bot/."""
     monkeypatch.setenv("BOTKIN_DERIVED_DIR", str(tmp_path / "derived"))

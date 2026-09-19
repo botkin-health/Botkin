@@ -54,9 +54,9 @@ SOURCE = BASE_DIR / "data" / "environment" / "netatmo_history.json"
 
 def out_path_for(user_id: int) -> Path:
     """Финальное место, откуда читает dashboard_generator.py."""
-    from core.infra.derived_paths import derived_write_path
+    from core.infra.derived_paths import derived_path
 
-    return derived_write_path("env_data", user_id)
+    return derived_path("env_data", user_id)
 
 
 def build_env_data(raw: dict) -> dict:
@@ -126,8 +126,9 @@ def main() -> int:
     n_hum = len(env_data.get("humidity", {}))
 
     out = out_path_for(args.user_id)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(env_data, ensure_ascii=False), encoding="utf-8")
+    from core.infra.derived_paths import write_derived_atomically
+
+    out = write_derived_atomically("env_data", args.user_id, json.dumps(env_data, ensure_ascii=False))
 
     all_dates = set(env_data.get("co2", {}).keys()) | set(env_data.get("temp_home", {}).keys())
     latest = max(all_dates, default="—")

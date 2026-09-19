@@ -13,7 +13,7 @@ build_workouts_log.py — серверный derived-builder для дашбор
 
 Зачем существует отдельным скриптом:
   parse_workouts.py пишет в data/garmin/workouts_log.json (исторический формат
-  без user_id). Дашборд же читает per-user файл в telegram-bot/. До этого
+  без user_id). Дашборд же читает per-user файл в data/derived/<id>/. До этого
   скрипта связка делалась только локально на маке через
   scripts/import/push_workouts_to_container.py. Теперь то же самое делается
   прямо на сервере, без зависимости от мак-pipeline.
@@ -72,9 +72,9 @@ SOURCE_LOG = BASE_DIR / "data" / "garmin" / "workouts_log.json"
 
 def out_path_for(user_id: int) -> Path:
     """Финальное место, откуда читают дашборд и агент (bind-mount, #480)."""
-    from core.infra.derived_paths import derived_write_path
+    from core.infra.derived_paths import derived_path
 
-    return derived_write_path("workouts_log", user_id)
+    return derived_path("workouts_log", user_id)
 
 
 def validate_user_id(user_id: int) -> None:
@@ -167,9 +167,15 @@ def main() -> int:
     # серверная пересборка (/sync, cron) затирала их в None и «Z2 база» обнулялась.
     # Переносим по activity_id (fallback date) из старого файла. См. F-001 (08.06.2026).
     _CARRY = ("aerobic_base_min", "maf_zones", "hr_sample_minutes")
-    if out.exists():
+    # Предыдущий файл ищем с фолбэком на старое место: первый прогон после
+    # переезда (#480) обязан перелить HR-поля из telegram-bot/<kind>_<id>.json,
+    # иначе aerobic_base_min/maf_zones обнулятся до следующего мак-пайплайна.
+    from core.infra.derived_paths import derived_read_path
+
+    prev_path = derived_read_path("workouts_log", args.user_id)
+    if prev_path.exists():
         try:
-            prev = json.loads(out.read_text())
+            prev = json.loads(prev_path.read_text())
             prev_map = {}
             for w in prev.get("workouts", []):
                 k = w.get("activity_id") or w.get("garmin_activity_id") or w.get("date")
@@ -197,8 +203,9 @@ def main() -> int:
         "kept_days": KEEP_DAYS,
     }
 
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    from core.infra.derived_paths import write_derived_atomically
+
+    out = write_derived_atomically("workouts_log", args.user_id, json.dumps(payload, ensure_ascii=False))
 
     latest = max((w["date"] for w in workouts), default="—")
     print(f"✅ {out.name}: {len(workouts)} тренировок за {KEEP_DAYS} дней (latest: {latest})")
