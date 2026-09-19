@@ -656,45 +656,21 @@ def _stems_overlap(a: str, b: str) -> bool:
 stems_overlap = _stems_overlap
 
 
-# Сегменты описания: «1 сосиска, ложка салата оливье» → маркер «ложка» относится
-# только к своему сегменту, а не ко всему сообщению.
-_SEGMENT_SPLIT_RE = re.compile(r"[,;\n]|\sи\s|\+")
+# Гейт суб-порций живёт рядом со справочником порций (#470).
+from .description_parser import mentions_subportion  # noqa: E402
+
+# Вес от LLM ниже этого порога (и ниже 5% дефолтной порции) считаем галлюцинацией,
+# а не осознанной долей: «кусок торта 3 г» должен получить дефолтную порцию.
+_SUBPORTION_MIN_G = 5.0
+_SUBPORTION_MIN_RATIO = 0.05
 
 
-def _loose_stem(token: str) -> str:
-    """Стем помягче, чем _stem: 3 буквы для коротких слов, чтобы «каша»/«каши» совпали.
-
-    Используется только гейтом суб-порций: ложное совпадение здесь означает лишь
-    «доверяем весу LLM вместо справочника», что безопаснее обратной ошибки.
-    """
-    t = token.lower().replace("-", "").strip('().,;:!?«»"')
-    return t[:_STEM_LONG_PREFIX] if len(t) >= _STEM_LONG_WORD_LEN else t[:3]
-
-
-def _loose_stems(phrase: str) -> set:
-    return {_loose_stem(t) for t in phrase.lower().split() if len(t) > _STEM_MIN_TOKEN_LEN}
-
-
-def mentions_subportion(description: str, product_name: str) -> bool:
-    """Пользователь назвал для этого продукта суб-порцию («ложка салата», «кусочек пиццы»).
-
-    В таком случае вес от LLM — осознанная оценка доли порции, и дефолт из
-    DEFAULT_UNIT_WEIGHTS (частичное совпадение «салат» → 200 г) её перекрывать
-    не должен: инцидент #470, «ложка салата оливье» превращалась в 200 г / 280 ккал.
-    """
-    if not description or not product_name:
+def _subportion_weight_plausible(weight, default_weight: float) -> bool:
+    try:
+        w = float(weight)
+    except (TypeError, ValueError):
         return False
-    from .description_parser import SUBPORTION_RE
-
-    name_stems = _loose_stems(product_name)
-    if not name_stems:
-        return False
-    for segment in _SEGMENT_SPLIT_RE.split(description.lower()):
-        if not SUBPORTION_RE.search(segment):
-            continue
-        if name_stems & _loose_stems(segment):
-            return True
-    return False
+    return w >= _SUBPORTION_MIN_G and w >= default_weight * _SUBPORTION_MIN_RATIO
 
 
 def _unique_weight_match(weight: float, regex_weights) -> bool:
@@ -725,7 +701,7 @@ def _estimate_contradicts_llm(regex_weight: float, regex_source: str, llm_weight
 def _scale_item_macros(item: Dict, old_weight, new_weight: float) -> Dict:
     """Вес item заменён → масштабируем КБЖУ под новый вес, чтобы не получить 15900 г при 34 ккал.
     Возвращает копию; исходный dict из llm_data не мутируется (issue #408)."""
-    if not old_weight or old_weight <= 0 or item.get("calories") is None:
+    if not old_weight or old_weight <= 0 or all(item.get(m) is None for m in _SCALED_MACROS):
         return item
     if abs(float(old_weight) - float(new_weight)) < _WEIGHT_EQ_TOLERANCE_G:
         return item
@@ -846,27 +822,37 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
             if regex_weight is not None:
                 # Вес взят из описания → КБЖУ LLM пересчитываем под него (иначе 15900 г при 34 ккал)
                 item = _scale_item_macros(item, weight, regex_weight)
-                effective_items[idx] = item
                 weight = regex_weight
                 regex_matched = True
 
         # Только если пользователь НЕ указал вес явно — используем default для бутылок/порций
         # Иначе "100г пельменей" перезаписывалось бы на 250г стандартной порции
         default_portion_applied = False
-        if not regex_matched and not (weight and mentions_subportion(description, name)):
+        if not regex_matched:
             from .description_parser import get_default_unit_weight
 
             default_weight = get_default_unit_weight(name)
+            # Пользователь назвал суб-порцию («ложка салата») и LLM дал правдоподобный
+            # вес — справочник порций его не перекрывает (#470).
+            if (
+                weight
+                and mentions_subportion(description, name)
+                and _subportion_weight_plausible(weight, default_weight)
+            ):
+                default_weight = 0
             if default_weight > 0 and (not weight or weight < default_weight * 0.5):
                 # Если LLM уже дал вес и калории — масштабируем макросы под новый
                 # (дефолтный) вес порции, чтобы не потерять КБЖУ-консистентность
                 # (issue #408: раньше вес менялся, а калории — нет).
                 item = _scale_item_macros(item, weight, default_weight)
-                effective_items[idx] = item
                 weight = default_weight
                 default_portion_applied = True
 
-        # Fallback: если regex не сработал — default_weight уже применили выше
+        # Вес мог быть заменён (regex или дефолтная порция) — кладём отмасштабированную
+        # копию item, из неё ниже берётся клетчатка при backfill (#470).
+        effective_items[idx] = item
+        # Источник веса считаем один раз — им помечаются все ветки ниже.
+        weight_src = "default_portion" if default_portion_applied else "llm"
 
         # Custom Logic: Prioritize Database Lookup over LLM macros
         # Даже если LLM вернул макросы, проверяем базу данных, так как там могут быть
@@ -938,7 +924,7 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
                 {
                     "product": name,
                     "weight_g": weight or 0.0,
-                    "weight_source": "llm",
+                    "weight_source": weight_src,
                     "calories": 0.0,
                     "protein": 0.0,
                     "fats": 0.0,
@@ -958,7 +944,6 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
                 logger.info(f"✅ Product found in DB (LLM had no calories): {name}")
 
                 final_weight = weight
-                weight_src = "llm"
 
                 if not final_weight:
                     final_weight = db_product.get("weight_g")
@@ -1020,7 +1005,6 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
         if has_macros:
             # Если вес не указан, но есть калории - пробуем оценить вес по названию (для отображения)
             final_weight = weight
-            weight_src = "default_portion" if default_portion_applied else "llm"
 
             if not final_weight:
                 from .description_parser import get_default_unit_weight
@@ -1065,7 +1049,6 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
             )
         elif weight and weight > 0:
             # Calculate using local DB (или 0 для напитков без калорий)
-            weight_src = "default_portion" if default_portion_applied else "llm"
             if is_zero_calorie_drink(name):
                 meal_items.append(
                     {

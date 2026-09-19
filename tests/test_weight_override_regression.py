@@ -260,3 +260,41 @@ def test_spoons_of_porridge_keep_llm_weight():
     )
     assert items[0]["weight_g"] == 60
     assert items[0]["calories"] == 66
+
+
+def test_mentions_subportion_matches_bare_stem_and_short_names():
+    # HIGH-1 из ревью #471: «ложка салата» / «Салат оливье» — совпадение только по слову «салат»
+    from core.food.nutrition import mentions_subportion
+
+    assert mentions_subportion("ложка салата", "Салат оливье")
+    assert mentions_subportion("два куска пиццы", "Пицца")
+    assert mentions_subportion("ложка супа", "Суп")  # короткие имена тоже проходят гейт
+    assert mentions_subportion("кусок хлеба", "Хлеб белый")
+    # Разные продукты не должны схлопываться по первым буквам
+    assert not mentions_subportion("ложка варенья", "Ватрушка")
+
+
+def test_subportion_keeps_weight_source_llm():
+    items, _ = process_llm_food_data(
+        _llm([{"name": "Салат оливье", "weight": 40, "calories": 56, "protein": 2, "fats": 3.6, "carbs": 3.6}]),
+        description="ложка салата",
+    )
+    assert items[0]["weight_g"] == 40
+    assert items[0]["weight_source"] == "llm"
+
+
+def test_implausibly_small_llm_weight_still_falls_back_to_default():
+    # MEDIUM-2 из ревью: «кусок торта» с весом 3 г — галлюцинация, дефолт должен сработать
+    items, _ = process_llm_food_data(
+        _llm([{"name": "Пицца", "weight": 3, "calories": 8, "protein": 0.3, "fats": 0.3, "carbs": 1}]),
+        description="кусок пиццы",
+    )
+    assert items[0]["weight_g"] == 100
+
+
+def test_fiber_scaled_when_llm_gave_no_calories():
+    # MEDIUM-3: _scale_item_macros раньше выходил при calories=None и оставлял клетчатку исходной порции
+    from core.food.nutrition import _scale_item_macros
+
+    scaled = _scale_item_macros({"name": "Каша", "calories": None, "fiber": 1.0}, 50, 250)
+    assert scaled["fiber"] == 5.0
