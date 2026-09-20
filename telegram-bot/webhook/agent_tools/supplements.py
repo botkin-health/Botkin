@@ -1,5 +1,6 @@
 """Agent tools: supplement logging and history."""
 
+import logging
 from datetime import datetime, timedelta
 from typing import Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -11,6 +12,7 @@ from sqlalchemy.orm import Session
 from webhook.jwt_auth import get_agent_user, get_db, require_agent_scope
 from .common import _parse_date
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/agent", tags=["agent-tools-supplements"])
 
 
@@ -85,13 +87,34 @@ async def log_supplement(
         dosage=req.dosage,
     )
 
-    return {
+    result = {
         "status": "ok",
         "supplement_id": log.id,
         "date": record_date.isoformat(),
         "supplement_name": req.supplement_name,
         "dosage": req.dosage,
     }
+
+    # Отметка приёма — это событие, а не вопрос: пользователь ничего не
+    # спрашивает, поэтому сам агент про фармакогенетику не вспомнит. Если по
+    # препарату есть находка ДНК-теста, отдаём её вместе с подтверждением
+    # записи, чтобы предупреждение прозвучало В МОМЕНТ приёма, а не когда-нибудь
+    # потом. Сбой чтения генетики не должен ломать логирование.
+    try:
+        from core.health.genetics import check_drug
+
+        finding = check_drug(user, req.supplement_name)
+        if finding:
+            result["pharmacogenetics"] = finding
+            result["hint"] = (
+                "По этому препарату есть находка ДНК-теста (см. pharmacogenetics). "
+                "Обязательно скажи о ней пользователю прямо сейчас, вместе с "
+                "подтверждением записи, и назови ген-основание."
+            )
+    except Exception:
+        logger.exception("log_supplement: проверка фармакогенетики не удалась для %s", req.supplement_name)
+
+    return result
 
 
 @router.get("/recent_supplements")

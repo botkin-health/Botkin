@@ -2350,6 +2350,23 @@ def _health_profile_block(user) -> str:
     return "\n".join(lines)
 
 
+def _genetics_prompt_block(user) -> str:
+    """Блок ДНК-теста для промпта. Пусто, если теста у пользователя нет.
+
+    Вынесено в core.health.genetics: генетика касается почти любой темы, и
+    перечислять их правилами оказалось тупиком (см. историю в модуле). Блок
+    стабилен per-user, поэтому идёт в кэшируемую часть промпта рядом с
+    медпрофилем и кэш на каждом сообщении не инвалидирует.
+    """
+    try:
+        from core.health.genetics import genetics_prompt_block
+
+        return genetics_prompt_block(user)
+    except Exception:
+        logger.exception("agent_chat: не удалось собрать блок генетики — отвечаем без него")
+        return ""
+
+
 def _health_profile_ask_block(user) -> str:
     """Мягкий сбор медпрофиля: инструкция спросить ОДИН раз (#340).
 
@@ -3137,6 +3154,7 @@ def ask_agent(
             + UNIVERSAL_META_PROMPT
             + per_user_prompt
             + _health_profile_block(user)
+            + _genetics_prompt_block(user)
             + _health_profile_ask_block(user)
             + build_admin_context(_is_admin(user_id))
         )
