@@ -892,3 +892,81 @@ def test_unavailability_after_unrelated_full_tool_result_triggers_retry(agent_db
     rows = _history_rows(agent_db)
     live = " ".join(str(r.content) for r in rows if r.source == "botkinclaw")
     assert "fallback" not in live.lower()
+
+
+# ── Несостоявшийся ход остаётся в данных (фикс 22.09.2026) ───────────────────
+
+
+def test_failed_turn_is_recorded_as_error_row(agent_db, monkeypatch):
+    """Сбой хода обязан оставить след role='error', а не просто исчезнуть.
+
+    Прецедент 24-25.08.2026: семь сообщений подряд без ответа, ~27 часов
+    тишины. В данных это выглядело как отсутствие сбоя: реплики пользователя
+    есть, ответов нет, и «не смог ответить» неотличимо от «никто не спрашивал».
+    """
+    import requests as real_requests
+
+    fake = FakeRequests([FakeResp({"error": "boom"}, status_code=500)])
+    monkeypatch.setattr(agent_chat, "requests", fake)
+
+    with pytest.raises(real_requests.HTTPError):
+        agent_chat.ask_agent(895655, "что с моим весом?")
+
+    rows = _history_rows(agent_db)
+    errors = [r for r in rows if r.role == "error"]
+    assert len(errors) == 1, "ожидали ровно одну строку role='error'"
+    assert errors[0].source == "botkinclaw_error"
+    assert "HTTPError" in errors[0].content
+
+
+def test_failed_turn_recorded_on_cancellation(agent_db, monkeypatch):
+    """Отмена задачи — тот самый случай, когда хендлер до `except` не доберётся.
+
+    Поэтому ловим BaseException, а не Exception: иначе именно самый тихий
+    вид сбоя и остался бы невидимым.
+    """
+
+    class _Boom(BaseException):
+        pass
+
+    def _explode(*a, **kw):
+        raise _Boom("cancelled")
+
+    monkeypatch.setattr(agent_chat, "_load_history", _explode)
+
+    with pytest.raises(_Boom):
+        agent_chat.ask_agent(895655, "привет")
+
+    errors = [r for r in _history_rows(agent_db) if r.role == "error"]
+    assert len(errors) == 1
+    assert "_Boom" in errors[0].content
+
+
+def test_error_rows_are_not_fed_back_into_history(agent_db, monkeypatch):
+    """role='error' — диагностика, а не реплика диалога.
+
+    Если такие строки попадут в _load_history, агент начнёт «отвечать» на
+    собственные трейсбеки, а Anthropic получит неизвестную ему роль.
+    """
+    session = agent_db()
+    try:
+        agent_chat._save_message(
+            session, 895655, "error", [{"type": "text", "text": "HTTPError: boom"}], source="botkinclaw_error"
+        )
+        session.commit()
+        history = agent_chat._load_history(session, 895655)
+    finally:
+        session.close()
+
+    assert all(m["role"] != "error" for m in history)
+    assert not any("HTTPError" in json.dumps(m, ensure_ascii=False) for m in history)
+
+
+def test_record_failed_turn_never_raises(monkeypatch):
+    """Диагностика не вправе подменить собой исходную ошибку."""
+
+    def _no_db():
+        raise RuntimeError("db down")
+
+    monkeypatch.setattr(agent_chat, "SessionLocal", _no_db)
+    agent_chat.record_failed_turn(895655, ValueError("original"))  # не должно бросить
