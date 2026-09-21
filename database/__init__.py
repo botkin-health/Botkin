@@ -97,6 +97,7 @@ from database.crud import (
     reset_share_token,
     # Nutrition operations
     create_nutrition_log,
+    get_nutrition_log_by_key,
     get_nutrition_logs_by_date,
     get_nutrition_logs_by_period,
     get_activity_logs_by_period,
@@ -144,6 +145,7 @@ __all__ = [
     "generate_share_token",
     "reset_share_token",
     "create_nutrition_log",
+    "get_nutrition_log_by_key",
     "get_nutrition_logs_by_date",
     "get_nutrition_logs_by_period",
     "get_activity_logs_by_period",

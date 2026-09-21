@@ -37,7 +37,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 1. **Multi-user из коробки** — cohort-роли (owner / family / early_user / external), RLS-изоляция, JWT для агентов. Сделано в Sprint 1a (04.05.2026).
 2. **Гибридная приватность** — пользователь сам решает: что лежит на семейном сервере (доступно через AI), что только локально на его компе.
 3. **MCP — основной канал** между личным Claude пользователя и сервером Botkin. Server отдаёт tools, Claude (на компе пользователя) использует.
-4. **AI-врач = BotkinClaw** — in-process handler в основном aiogram-боте (решение от 21.05.2026 после спайка NanoClaw). Прямой вызов Anthropic Messages API из `@Botkin_md_bot`, история диалога в Postgres, tools через переиспользуемый `webhook/agent_tools_api.py` (JWT+RLS, 30+ endpoints). Один бот для всех пользователей, без отдельной контейнерной инфры. История: [ADR-0001](docs/architecture/decisions/0001-nanoclaw-ephemeral-not-persistent.md) (ephemeral vs persistent — остаётся валидным архитектурным принципом *если* когда-нибудь вернёмся к контейнеризации) + [ADR-0002](docs/architecture/decisions/0002-rejecting-nanoclaw-for-simpler-agent.md) (почему отказались от NanoClaw, и почему «BotkinClaw» — игра слов NanoClaw → BotkinClaw, бот сам играет роль контейнера).
+4. **AI-врач = BotkinClaw** — in-process handler в основном aiogram-боте (решение от 21.05.2026 после спайка NanoClaw). Прямой вызов Anthropic Messages API из `@Botkin_md_bot`, история диалога в Postgres, tools через переиспользуемый пакет `webhook/agent_tools/` (JWT+RLS, 40+ endpoints). Один бот для всех пользователей, без отдельной контейнерной инфры. История: [ADR-0001](docs/architecture/decisions/0001-nanoclaw-ephemeral-not-persistent.md) (ephemeral vs persistent — остаётся валидным архитектурным принципом *если* когда-нибудь вернёмся к контейнеризации) + [ADR-0002](docs/architecture/decisions/0002-rejecting-nanoclaw-for-simpler-agent.md) (почему отказались от NanoClaw, и почему «BotkinClaw» — игра слов NanoClaw → BotkinClaw, бот сам играет роль контейнера).
 5. **Open source** — код публичный. Все приватные данные (имена, диагнозы, биомаркеры, личные планы) — только в `~/FamilyHealth/<user>/`. Правила: `docs/operations/personal-data.md`.
 
 **Что НЕ есть Botkin:**
@@ -340,7 +340,7 @@ python3 scripts/sync_user_health.py --all --apply
 - ❌ FK на `users.id` — PK таблицы users это `telegram_id` (BigInt), не синтетический `id`
 - ❌ Читать items только по одному ключу (`it["food"]`) — есть 3 схемы одновременно; использовать `_item_name()` из `core/food/fiber_table.py`
 - ❌ Писать items без поля `fiber` — прогонять через `enrich_items_with_fiber()` перед INSERT
-- ❌ Писать в orphan-таблицы `daily_summaries / sleep_records` — они не управляются ORM и пусты на проде. В `blood_pressure_logs / workouts` пишут только штатные raw-SQL пути (`webhook/apple_health.py`, `webhook/agent_tools_api.py`) — новые записи добавлять через них, не через ORM
+- ❌ Писать в orphan-таблицы `daily_summaries / sleep_records` — они не управляются ORM и пусты на проде. В `blood_pressure_logs / workouts` пишут только штатные raw-SQL пути (`webhook/apple_health.py`, `webhook/agent_tools/`) — новые записи добавлять через них, не через ORM
 - ❌ **Держать открытую транзакцию Postgres поперёк долгого сетевого вызова** (LLM, внешний API). Сессии живут с `idle_in_transaction_session_timeout` (15с, `database/__init__.py`) — Postgres обрывает такое соединение, следующий запрос падает с `OperationalError`. Перед сетью закрывать транзакцию (`_end_open_tx` в `core/agent_chat.py`). Транзакцию открывают не только записи: после `commit()` ORM-объект истекает (`expire_on_commit=True`), и **чтение его атрибута** тянет refresh-SELECT. Прецедент #347 (26.07.2026): агент терял ответы, и чем содержательнее ответ — тем вероятнее терялся
 - ❌ Ронять уже полученный от LLM ответ из-за сбоя записи в БД — генерация оплачена. Логировать сбой персистентности, но ответ пользователю отдавать (`_persist_turn`)
 
@@ -456,7 +456,10 @@ AI-врач живёт **внутри** основного aiogram-бота (`@B
 
 - **Точка входа:** `core/agent_chat.py:ask_agent()` — прямой вызов Anthropic Messages API (Claude)
 - **История диалога:** таблица `agent_conversations` в Postgres (DDL: `database/migrations/add_agent_chat.sql`)
-- **Tools:** 30+ endpoints в `telegram-bot/webhook/agent_tools_api.py` (JWT+RLS изоляция по cohort; актуальный список — `grep '@router\.'`)
+- **Tools:** 40+ endpoints в пакете `telegram-bot/webhook/agent_tools/` (19 модулей; монолит `agent_tools_api.py` разрезан 08.09.2026, коммит `5d93ece`). JWT+RLS изоляция по cohort; актуальный список:
+  ```bash
+  grep -rhoE '@router\.(get|post)\("/[a-z_]+"' telegram-bot/webhook/agent_tools/*.py | sort -u
+  ```
 - **JWT-контракт:** каждый запрос агента несёт `user_id` + `cohort` — RLS автоматически ограничивает видимость данных
 - **Доступ — у всех (#165, 18.06.2026):** разговорный агент работает для **любого** зарегистрированного пользователя. `users.agent_system_prompt` — **опциональный override** (богатая семейная персона из `onboard_family_user.py`), а НЕ гейт. Если он пуст — `ask_agent` использует `build_default_agent_prompt(user)` (лёгкий промпт из `onboarding_data`). Никакого деления на «семью» для доступа к агенту.
 
@@ -476,7 +479,7 @@ AI-врач живёт **внутри** основного aiogram-бота (`@B
 | | агент, тул `save_health_profile` | со слов пациента в диалоге; ставит флаг `health_profile_asked` |
 | **Читают** | `core/agent_chat.py::_health_profile_block` | блок «Медпрофиль» в системном промпте (+ курение из `users.smoking_status`) |
 | | `core/agent_chat.py::_health_profile_ask_block` | инструкция спросить один раз, если профиль пуст и флага нет |
-| | `/meal_context` (`webhook/agent_tools_api.py`) | `constraints` — KB-файл приоритетнее, затем `onboarding_data`; источник в `constraints_source` |
+| | `/meal_context` (`webhook/agent_tools/nutrition.py`) | `constraints` — KB-файл приоритетнее, затем `onboarding_data`; источник в `constraints_source` |
 | | `services/doctor_report.py` | «проблемы»/аллергии/лекарства в отчёте для врача |
 
 Курение — отдельная колонка `users.smoking_status` (`never`/`former`/`current`/`occasional`), не в `onboarding_data`. Её читают промпт-блок, дашборд и `/user_profile`.

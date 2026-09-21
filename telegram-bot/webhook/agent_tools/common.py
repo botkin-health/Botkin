@@ -100,6 +100,7 @@ def _resolve_user_kb_path(user) -> tuple[Optional[Path], str]:
 
     Returns ``(path, source_label)``. Path is None when no KB available;
     caller should return ``"kb-not-available"`` sentinel to the agent.
+    Пишущим вызовам вместо этого нужен :func:`_ensure_user_kb_path`.
     """
     project_root = Path(__file__).resolve().parents[3]  # one level deeper than the old agent_tools_api.py
     new_path = project_root / "data" / "kb" / f"kb_{user.telegram_id}.json"
@@ -114,3 +115,37 @@ def _resolve_user_kb_path(user) -> tuple[Optional[Path], str]:
         if owner_kb.exists():
             return owner_kb, "knowledge_base.json"
     return None, "kb-not-available"
+
+
+def _ensure_user_kb_path(user, project_root: Optional[Path] = None) -> tuple[Path, str]:
+    """То же, что :func:`_resolve_user_kb_path`, но для ПИШУЩИХ вызовов.
+
+    Если KB-файла ещё нет — создаёт пустой по текущему layout'у
+    (``data/kb/kb_<telegram_id>.json``) и возвращает его.
+
+    Зачем (фикс 22.09.2026): KB-файлы заводит только
+    ``scripts/sync_family_kb.py`` для family-юзеров. У early_user/external его
+    нет никогда, поэтому ``add_agent_correction`` падал с 404 «KB не найден» —
+    то есть агент физически не мог запомнить ничего о таком пациенте. Одному из
+    early-юзеров агент так и написал: «техническая заметка не сохранилась в
+    базу», потеряв его наблюдение о связи веса и алкоголя с хронической тазовой
+    болью; у второго ошибка повторилась. Разбор — в отчёте ночной смены
+    22.09.2026, F-001.
+
+    Каталог ``data/`` уже примонтирован в контейнер (``./data:/app/data``),
+    поэтому созданный файл переживает рестарт, но НЕ переживает потерю тома —
+    долгосрочно корректировки стоит перенести в Postgres (см. P-003 в отчёте
+    ночной смены 22.09.2026).
+
+    ``project_root`` переопределяется только в тестах.
+    """
+    path, source = _resolve_user_kb_path(user)
+    if path is not None:
+        return path, source
+
+    root = project_root or Path(__file__).resolve().parents[3]
+    new_path = root / "data" / "kb" / f"kb_{user.telegram_id}.json"
+    new_path.parent.mkdir(parents=True, exist_ok=True)
+    new_path.write_text("{}", encoding="utf-8")
+    logger.info("Created empty KB for user %s at %s", user.telegram_id, new_path)
+    return new_path, f"data/kb/kb_{user.telegram_id}.json"

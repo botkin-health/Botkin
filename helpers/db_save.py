@@ -12,9 +12,12 @@ from typing import Dict, Any, Optional
 
 MSK = timezone(timedelta(hours=3))
 
+from sqlalchemy.exc import IntegrityError
+
 from database import (
     SessionLocal,
     create_nutrition_log,
+    get_nutrition_log_by_key,
     upsert_manual_weight,
     create_supplement_log,
     create_body_measurement,
@@ -201,17 +204,38 @@ def save_meal_to_db(meal_data: dict, meal_name: str = None, user_id: int = None)
         # Сохраняем в БД
         db = SessionLocal()
         try:
-            log = create_nutrition_log(
-                db,
-                user_id=user_id,
-                date=meal_date,
-                meal_time=meal_time,
-                meal_name=meal_name,
-                items=items,
-                totals=totals,
-                photo_paths=photo_paths,
-                status="plan" if meal_data.get("is_plan") else "eaten",
-            )
+            try:
+                log = create_nutrition_log(
+                    db,
+                    user_id=user_id,
+                    date=meal_date,
+                    meal_time=meal_time,
+                    meal_name=meal_name,
+                    items=items,
+                    totals=totals,
+                    photo_paths=photo_paths,
+                    status="plan" if meal_data.get("is_plan") else "eaten",
+                )
+            except IntegrityError:
+                # Повторная отправка того же блюда (двойной тап «Сохранить» или
+                # ретрай вебхука Telegram) упирается в уникальный ключ
+                # (user_id, date, meal_time, meal_name). Раньше это было
+                # необработанным исключением: транзакция оставалась битой, а
+                # пользователь получал ветку ошибки, хотя еда уже записана.
+                # Прецедент 20.09.2026 (Alex, «Обед: Панини…» дважды за 15 сек) —
+                # единственные две ошибки бота за ту неделю.
+                db.rollback()
+                existing = get_nutrition_log_by_key(db, user_id, meal_date, meal_time, meal_name)
+                if existing is None:
+                    raise
+                logger.info(
+                    "Meal already logged, reusing row id=%s: %s on %s at %s",
+                    existing.id,
+                    meal_name,
+                    meal_date,
+                    meal_time,
+                )
+                return existing.id
             logger.info(f"Meal saved to DB: {meal_name} on {meal_date} at {meal_time}")
             return log.id
         finally:

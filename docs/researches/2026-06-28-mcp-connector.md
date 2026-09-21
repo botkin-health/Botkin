@@ -1,5 +1,9 @@
 # Ресёрч: MCP-коннектор Botkin для Claude Desktop (спайк Фазы 0)
 
+> ℹ️ Исторический документ: упомянутый здесь `webhook/agent_tools_api.py` разрезан на пакет
+> `webhook/agent_tools/` 08.09.2026 (коммит `5d93ece`). Решение документа это не меняет.
+
+
 **Дата:** 2026-06-28
 **Задача:** [#228](https://github.com/botkin-health/Botkin/issues/228)
 **Автор:** Александр Лысковский (+ Claude)
