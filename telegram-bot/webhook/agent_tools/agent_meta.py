@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from webhook.jwt_auth import get_agent_user, require_agent_scope
-from .common import _resolve_user_kb_path
+from .common import _ensure_user_kb_path, _resolve_user_kb_path
 
 router = APIRouter(prefix="/api/agent", tags=["agent-tools-meta"])
 
@@ -53,9 +53,9 @@ async def add_agent_correction(
             detail=f"Значение слишком длинное: {len(req.value)} > {_CORRECTION_MAX_VALUE_LEN}",
         )
 
-    kb_path, source = _resolve_user_kb_path(user)
-    if kb_path is None or not kb_path.exists():
-        raise HTTPException(status_code=404, detail=f"KB не найден для пользователя {user.telegram_id}")
+    # Пишущий вызов: если KB ещё нет — заводим пустой, а не падаем с 404.
+    # Иначе агент не может запомнить ничего о пациенте без family-KB (фикс 22.09.2026).
+    kb_path, source = _ensure_user_kb_path(user)
 
     try:
         kb = json.loads(kb_path.read_text(encoding="utf-8"))

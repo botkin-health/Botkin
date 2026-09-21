@@ -59,7 +59,7 @@ class TestAddAgentCorrectionEndpoint:
 
         with patch.object(
             agent_meta,
-            "_resolve_user_kb_path",
+            "_ensure_user_kb_path",
             return_value=(kb_file, "kb_12345.json"),
         ):
             resp = client.post(
@@ -88,7 +88,7 @@ class TestAddAgentCorrectionEndpoint:
 
         with patch.object(
             agent_meta,
-            "_resolve_user_kb_path",
+            "_ensure_user_kb_path",
             return_value=(kb_file, "kb_12345.json"),
         ):
             resp = client.post(
@@ -108,7 +108,7 @@ class TestAddAgentCorrectionEndpoint:
 
         with patch.object(
             agent_meta,
-            "_resolve_user_kb_path",
+            "_ensure_user_kb_path",
             return_value=(kb_file, "kb_12345.json"),
         ):
             resp = client.post(
@@ -126,7 +126,7 @@ class TestAddAgentCorrectionEndpoint:
 
         with patch.object(
             agent_meta,
-            "_resolve_user_kb_path",
+            "_ensure_user_kb_path",
             return_value=(kb_file, "kb_12345.json"),
         ):
             resp = client.post(
@@ -136,31 +136,54 @@ class TestAddAgentCorrectionEndpoint:
 
         assert resp.status_code == 422
 
-    def test_add_correction_no_kb(self, tmp_path):
-        """User without KB file → 404."""
+    def test_add_correction_creates_kb_when_missing(self, tmp_path):
+        """Нет KB-файла → заводим пустой и пишем, а не падаем с 404.
+
+        Фикс 22.09.2026. KB-файлы заводит только sync_family_kb.py для
+        family-юзеров, поэтому у early_user/external их нет никогда — и агент
+        физически не мог запомнить ничего о таком пациенте: он так и писал
+        пользователю «техническая заметка не сохранилась в базу».
+        """
         from webhook import agent_tools as agent_tools_api
-        from webhook.agent_tools import agent_meta
+        from webhook.agent_tools import agent_meta, common
         from webhook.jwt_auth import get_agent_user
 
         app = FastAPI()
         app.include_router(agent_tools_api.router)
-        mock_user = _make_mock_user(99999)
+        mock_user = _make_mock_user(99999, cohort="external")
         app.dependency_overrides[get_agent_user] = lambda: mock_user
         client = TestClient(app)
 
-        missing_path = tmp_path / "data" / "kb" / "kb_99999.json"  # does not exist
+        expected = tmp_path / "data" / "kb" / "kb_99999.json"
+        assert not expected.exists()
 
+        # Настоящий _ensure_user_kb_path, только корень проекта — tmp_path
         with patch.object(
             agent_meta,
-            "_resolve_user_kb_path",
-            return_value=(missing_path, "kb_99999.json"),
+            "_ensure_user_kb_path",
+            lambda user: common._ensure_user_kb_path(user, project_root=tmp_path),
         ):
             resp = client.post(
                 "/api/agent/add_agent_correction",
-                json={"key": "some_fact", "value": "val"},
+                json={"key": "no_alcohol_since", "value": "14 сентября"},
             )
 
-        assert resp.status_code == 404
+        assert resp.status_code == 200, resp.text
+        assert expected.exists(), "KB-файл должен был появиться"
+        kb = json.loads(expected.read_text(encoding="utf-8"))
+        assert kb["agent_corrections"]["no_alcohol_since"]["value"] == "14 сентября"
+
+    def test_ensure_kb_path_reuses_existing_file(self, tmp_path):
+        """Если KB уже есть — ничего не создаём и не перетираем."""
+        from webhook.agent_tools import common
+
+        client, kb_file, mock_user = _make_client(tmp_path, telegram_id=555, kb_data={"patient_info": {"a": 1}})
+
+        with patch.object(common, "_resolve_user_kb_path", return_value=(kb_file, "kb_555.json")):
+            path, source = common._ensure_user_kb_path(mock_user, project_root=tmp_path)
+
+        assert path == kb_file and source == "kb_555.json"
+        assert json.loads(kb_file.read_text(encoding="utf-8"))["patient_info"] == {"a": 1}
 
 
 # ---------------------------------------------------------------------------

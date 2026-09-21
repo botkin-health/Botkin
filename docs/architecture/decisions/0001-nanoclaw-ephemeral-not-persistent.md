@@ -1,5 +1,9 @@
 # 0001. NanoClaw: ephemeral spawn-containers per session, не persistent per user
 
+> ℹ️ Исторический документ: упомянутый здесь `webhook/agent_tools_api.py` разрезан на пакет
+> `webhook/agent_tools/` 08.09.2026 (коммит `5d93ece`). Решение документа это не меняет.
+
+
 **Status:** Accepted (11.05.2026, повторно подтверждено 19.05.2026 после повторной ошибки)
 **Date:** 2026-05-11 → 2026-05-19
 **Deciders:** Александр + Claude

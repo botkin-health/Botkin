@@ -23,6 +23,16 @@ async def recent_sleep(
     `scripts/util/server_backfill_postgres.py::sync_sleep` из файлов Garmin sleep/.
     sleep_score/deep_h/rem_h остаются в raw_data (пишет тот же sync_sleep).
 
+    ВАЖНО (фикс 22.09.2026): фазы сна пишут ДВА канала под разными именами —
+    Garmin-синк кладёт `deep_h`/`rem_h`, а HAE-адаптер (`webhook/apple_health.py`)
+    — `sleep_deep_h`/`sleep_rem_h`/`sleep_core_h`/`sleep_awake_h`. Reader знал
+    только про Garmin, поэтому у всех Apple Health-пользователей фазы приходили
+    пустыми, хотя в БД они есть (у HAE-юзера 0 из 15 ночей за две недели). Тот же
+    класс бага, что с `sleepingSeconds` выше: фикс тогда довели до длительности
+    сна, но не до фаз. Читаем оба имени через COALESCE.
+    `sleep_score` и стресс/Body Battery остаются Garmin-only — в Apple Health
+    таких метрик нет, и это не баг.
+
     Date semantics: `date` — календарный день; сон относится к ночи, ЗАКАНЧИВАЮЩЕЙСЯ
     в этот день (конвенция Garmin).
     """
@@ -34,8 +44,12 @@ async def recent_sleep(
         SELECT date,
                sleep_hours                          AS duration_hours,
                (raw_data->>'sleep_score')::int      AS quality_score,
-               (raw_data->>'deep_h')::numeric * 60  AS deep_min,
-               (raw_data->>'rem_h')::numeric * 60   AS rem_min,
+               COALESCE((raw_data->>'deep_h')::numeric,
+                        (raw_data->>'sleep_deep_h')::numeric) * 60   AS deep_min,
+               COALESCE((raw_data->>'rem_h')::numeric,
+                        (raw_data->>'sleep_rem_h')::numeric)  * 60   AS rem_min,
+               (raw_data->>'sleep_core_h')::numeric * 60             AS core_min,
+               (raw_data->>'sleep_awake_h')::numeric * 60            AS awake_min,
                source
         FROM activity_log
         WHERE user_id = :uid
@@ -53,6 +67,8 @@ async def recent_sleep(
             "quality_score": r.quality_score,
             "deep_min": int(r.deep_min) if r.deep_min is not None else None,
             "rem_min": int(r.rem_min) if r.rem_min is not None else None,
+            "core_min": int(r.core_min) if r.core_min is not None else None,
+            "awake_min": int(r.awake_min) if r.awake_min is not None else None,
             "source": r.source,
         }
         for r in rows

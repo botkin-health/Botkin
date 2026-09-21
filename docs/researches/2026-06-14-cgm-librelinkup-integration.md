@@ -1,5 +1,9 @@
 # CGM (глюкоза) через LibreLinkUp — интеграция и troubleshooting
 
+> ℹ️ Исторический документ: упомянутый здесь `webhook/agent_tools_api.py` разрезан на пакет
+> `webhook/agent_tools/` 08.09.2026 (коммит `5d93ece`). Решение документа это не меняет.
+
+
 **Дата:** 2026-06-14 (интеграция), дополнено 2026-06-17 (Cloudflare/476 deep-dive)
 **Статус:** в проде (Alex, Nika); архитектурное решение — [ADR-0005](../architecture/decisions/0005-cgm-librelinkup-integration.md)
 

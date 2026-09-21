@@ -75,3 +75,32 @@ def test_returns_none_when_meal_items_key_missing():
 
     assert result is None
     mock_session.assert_not_called()
+
+
+def test_duplicate_meal_returns_existing_id_instead_of_crashing(test_db):
+    """Повторная отправка того же блюда не должна ронять сохранение.
+
+    Прецедент 20.09.2026: пользователь отправил «Обед: Панини…» дважды за 15 секунд —
+    вторая попытка упёрлась в уникальный ключ
+    (user_id, date, meal_time, meal_name) и дала необработанный
+    psycopg2.errors.UniqueViolation в helpers/db_save.py:204. Это были
+    единственные две ошибки бота за ту неделю. Теперь ловим IntegrityError,
+    откатываем транзакцию и возвращаем id уже существующей записи.
+    """
+    meal_data = {
+        "meal_items": [{"product": "Панини", "weight_g": 250, "calories": 750}],
+        "meal_totals": {"calories": 750, "protein": 24, "fats": 35, "carbs": 80},
+        "meal_time": "23:02",
+    }
+
+    with patch("helpers.db_save.SessionLocal", return_value=test_db):
+        first = save_meal_to_db(meal_data, "Обед: Панини", user_id=42)
+        second = save_meal_to_db(meal_data, "Обед: Панини", user_id=42)
+
+    assert first is not None
+    assert second == first, "второй вызов обязан вернуть ту же запись, а не None"
+
+    rows = (
+        test_db.query(NutritionLog).filter(NutritionLog.user_id == 42, NutritionLog.meal_name == "Обед: Панини").all()
+    )
+    assert len(rows) == 1, "дубль в БД появляться не должен"
