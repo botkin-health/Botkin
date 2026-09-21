@@ -1397,6 +1397,46 @@ def _truncate_tool_results_in_history(messages: list[dict]) -> list[dict]:
     return messages
 
 
+def record_failed_turn(user_id: int, error: BaseException, source: str = "botkinclaw") -> None:
+    """Зафиксировать несостоявшийся ход агента строкой role='error'.
+
+    Зачем: реплику пользователя `ask_agent` коммитит до обращения к модели, а
+    ответ пишется только при успехе. Поэтому сбой выглядит в данных как его
+    отсутствие — «не смог ответить» неотличимо от «никто не спрашивал».
+    Прецедент 24-25.08.2026: семь сообщений подряд без единого ответа,
+    ~27 часов тишины, и разбираться пришлось месяц спустя.
+
+    Пишем ОТДЕЛЬНОЙ сессией: та, в которой упал ход, может быть в битой
+    транзакции (например Postgres оборвал соединение по
+    idle_in_transaction_session_timeout), и писать в неё бессмысленно.
+
+    Сама по себе никогда не поднимает исключение: это диагностика, она не
+    вправе заменить собой исходную ошибку. Смерть процесса эта запись, конечно,
+    не поймает — для неё есть сторож scripts/server/check_stalled_turns.py.
+    """
+    try:
+        db = SessionLocal()
+    except Exception:
+        logger.exception("record_failed_turn: не удалось открыть сессию (user %s)", user_id)
+        return
+    try:
+        blocks = [
+            {
+                "type": "text",
+                "text": f"{type(error).__name__}: {str(error)[:500]}",
+            }
+        ]
+        _save_message(db, user_id, "error", blocks, source=f"{source}_error")
+        db.commit()
+    except Exception:
+        logger.exception("record_failed_turn: не удалось записать сбой (user %s)", user_id)
+    finally:
+        try:
+            db.close()
+        except Exception:
+            pass
+
+
 def _load_history(db, user_id: int, limit: int = HISTORY_WINDOW) -> list[dict]:
     """Load last N messages from agent_conversations in chronological order.
 
@@ -1416,6 +1456,7 @@ def _load_history(db, user_id: int, limit: int = HISTORY_WINDOW) -> list[dict]:
         SELECT role, content
         FROM agent_conversations
         WHERE user_id = :uid AND (source IS NULL OR source = 'botkinclaw')
+          AND role <> 'error'
         ORDER BY id DESC
         LIMIT :lim
         """
@@ -3394,5 +3435,11 @@ def ask_agent(
         # Exhausted iterations
         logger.warning("agent_chat: max iterations (%s) hit", MAX_TOOL_ITERATIONS)
         return "Не справился за разумное число шагов — попробуй переформулировать вопрос."
+    except BaseException as e:
+        # BaseException, а не Exception: отмена задачи (CancelledError) — как раз
+        # тот случай, когда хендлер до своей ветки `except` уже не доберётся и
+        # пользователь не увидит ничего. Такой ход обязан остаться в данных.
+        record_failed_turn(user_id, e, source=src)
+        raise
     finally:
         db.close()

@@ -392,7 +392,7 @@ class AgentConversation(Base):
     __tablename__ = "agent_conversations"
     __table_args__ = (
         CheckConstraint(
-            "role IN ('user','assistant','tool_use','tool_result')",
+            "role IN ('user','assistant','tool_use','tool_result','error')",
             name="agent_conversations_role_check",
         ),
         # На проде created_at DESC.
