@@ -38,7 +38,7 @@
 | `/api/supplements/day`, `/api/supplements/take` | `supplements_api.py` | добавки |
 | `/api/profile/bmr`, `/api/profile/timezone`, `/api/profile/data_sources`, `/api/dashboard_url` | `profile_api.py` | профиль, источники данных (#150), ссылка на дашборд |
 | `/api/settings` | `apple_health.py` | настройки mini-app |
-| `/api/agent/*` | `agent_tools_api.py` | agent-тулзы (под `/api/`) |
+| `/api/agent/*` | `agent_tools/` | agent-тулзы (под `/api/`) |
 | `/mc/{token}` | `dashboard.py` | дашборд (`/share`, iframe вкладки «Здоровье») |
 | `/r/{token}` | `report.py` | HTML-отчёты (`/report`, #204) |
 | `/telegram/webhook` | `bot.py` | приём апдейтов от Telegram (#387) |

@@ -264,7 +264,7 @@ python3 scripts/generate_exam_journal.py "Имя — Здоровье" --update-
 
 Инструменты агента живут в **двух синхронизируемых вручную местах** — нет codegen, связывающего их.
 
-1. **Backend-эндпоинт**: добавить в `telegram-bot/webhook/agent_tools_api.py` — Pydantic `BaseModel` для запроса, `Depends(get_agent_user)` для чтения или `Depends(require_agent_scope("rw"))` для записи. Импорты `database.crud`/`core.*` — внутри функции (избегает циклических импортов, этому следуют все существующие эндпоинты). Никогда не доверять `user_id` из тела запроса — брать `user.telegram_id` из разрешённого JWT.
+1. **Backend-эндпоинт**: добавить в подходящий модуль пакета `telegram-bot/webhook/agent_tools/` (nutrition/vitals/sleep/kb/…) — Pydantic `BaseModel` для запроса, `Depends(get_agent_user)` для чтения или `Depends(require_agent_scope("rw"))` для записи. Импорты `database.crud`/`core.*` — внутри функции (избегает циклических импортов, этому следуют все существующие эндпоинты). Никогда не доверять `user_id` из тела запроса — брать `user.telegram_id` из разрешённого JWT.
 2. **Схема инструмента**: добавить запись в константу `TOOLS` в `core/agent_chat.py` (JSON Schema для Claude — имя, описание, параметры).
 3. **Диспетчинг**: добавить ветку в `_call_tool()` (тот же файл) — маппинг имени инструмента на HTTP-вызов к эндпоинту из шага 1.
 4. **Прогресс-индикатор** (опционально): короткая строка в `_TOOL_PROGRESS_LABEL` («🍽 собираю питание» и т.п.) — показывается в Telegram пока агент работает.

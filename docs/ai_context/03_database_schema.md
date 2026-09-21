@@ -35,7 +35,7 @@
 | **`llm_usage_log`** | Учёт токенов/стоимости LLM-вызовов | `id` autoinc (BigInt) | `purpose`, `model`, `cost_usd` |
 | **`audit_log`** | Аудит доступа (DB-триггер `audit_admin_access`) | `id` autoinc (BigInt) | `db_user`, `query_type`, `table_name` |
 
-Кроме того в БД есть **orphan-таблицы**, управляемые ORM-моделями (зеркалят прод-схему для тестов/alembic-check), но **не читаемые бизнес-логикой бота**: `blood_pressure_logs` (пишут только raw-SQL пути `webhook/apple_health.py` и `webhook/agent_tools_api.py::log_bp`), `daily_summaries` (пуста на проде), `sleep_records` (пуста на проде), `workouts` (пишут raw-SQL пути `apple_health.py`/`android_health.py`/`agent_tools_api.py`). Из нового кода в эти таблицы — только через существующие raw-SQL функции, не через ORM напрямую.
+Кроме того в БД есть **orphan-таблицы**, управляемые ORM-моделями (зеркалят прод-схему для тестов/alembic-check), но **не читаемые бизнес-логикой бота**: `blood_pressure_logs` (пишут только raw-SQL пути `webhook/apple_health.py` и `webhook/agent_tools/vitals.py::log_bp`), `daily_summaries` (пуста на проде), `sleep_records` (пуста на проде), `workouts` (пишут raw-SQL пути `apple_health.py`/`android_health.py`/`agent_tools/`). Из нового кода в эти таблицы — только через существующие raw-SQL функции, не через ORM напрямую.
 
 ---
 
@@ -165,7 +165,7 @@ class NutritionLog(Base):
 ⚠️ **План УЖЕ входит в итог дня.** `get_nutrition_totals_by_date` не фильтрует по `status` — план считается съеденным сразу. Визуально помечается 📋 везде, где показывается (`/day`, мини-апп), но в SQL-суммах никак не отделён — если нужен именно факт, фильтровать `WHERE status = 'eaten'` явно.
 
 **Закрытие плана (план → факт):**
-- **Агент-инструмент `adjust_meal_items`** (`webhook/agent_tools_api.py` → `database/crud.py::adjust_meal_items`) — BotkinClaw правит вес/состав по диалогу с пользователем вечером, `dry_run=True` по умолчанию (сначала превью «было → станет», потом подтверждение). `close_plan=True` переключает `status` на `'eaten'`; можно оставить остаток отдельным новым `status='plan'` через `leftover_to_slot`.
+- **Агент-инструмент `adjust_meal_items`** (`webhook/agent_tools/nutrition.py` → `database/crud.py::adjust_meal_items`) — BotkinClaw правит вес/состав по диалогу с пользователем вечером, `dry_run=True` по умолчанию (сначала превью «было → станет», потом подтверждение). `close_plan=True` переключает `status` на `'eaten'`; можно оставить остаток отдельным новым `status='plan'` через `leftover_to_slot`.
 - **Вечернее напоминание** (`scripts/server/send_reminders.py::dispatch_plan_close`, диспетчер вне aiogram) шлёт вопрос «план на сегодня доеден целиком?» всем юзерам с открытыми планами за вчера/сегодня/завтра (по UTC-окну). Кнопки обрабатывает `telegram-bot/handlers/plan_close.py`: «Да, всё» — массово `status='eaten'` для всех планов даты (сессия БД закрывается **до** сетевого вызова в Telegram — правило про транзакции поперёк await, инцидент #347); «Что-то осталось» — просит текст, дальше обычный confirm-flow / `adjust_meal_items`.
 - Прецедент безопасности (06.09.2026, коммит `45ff925`): `AdjustChange.new_weight` теперь валидируется (`math.isfinite(v) and v >= 0`) — иначе NaN/отрицательный вес мог тихо испортить запись. И `dispatch_plan_close` коммитит **после каждого пользователя**, а не одним махом в конце — иначе исключение на одном юзере откатывало дедуп-ключ уже отправленных более ранним юзерам (дубли вечернего вопроса).
 

@@ -435,6 +435,31 @@ def create_nutrition_log(
     return log
 
 
+def get_nutrition_log_by_key(
+    db: Session,
+    user_id: int,
+    date: date,
+    meal_time,
+    meal_name: str,
+) -> Optional[NutritionLog]:
+    """Найти запись по уникальному ключу (user_id, date, meal_time, meal_name).
+
+    Нужен для идемпотентности: при повторной отправке того же блюда
+    `create_nutrition_log` упирается в `nutrition_log_user_id_date_meal_time_meal_name_key`,
+    и вызывающий код должен получить уже существующую строку, а не ошибку.
+    """
+    return (
+        db.query(NutritionLog)
+        .filter(
+            NutritionLog.user_id == user_id,
+            NutritionLog.date == date,
+            NutritionLog.meal_time == meal_time,
+            NutritionLog.meal_name == meal_name,
+        )
+        .first()
+    )
+
+
 def get_nutrition_logs_by_date(db: Session, user_id: int, date: date) -> List[NutritionLog]:
     """Get all nutrition logs for a specific date"""
     return (

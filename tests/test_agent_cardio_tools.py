@@ -208,8 +208,13 @@ def test_body_composition_survives_later_apple_row(client, db_session):
 
     `latest` берёт одну самую свежую строку, и величины Withings читаются как
     пустые. Отдельный блок body_composition обязан достать их из строки весов.
+
+    Время дня фиксируем полднем UTC (фикс 22.09.2026): раньше брали
+    `datetime.now(timezone.utc)`, а сверяли дату уже в МСК — при прогоне в
+    21:00–24:00 UTC (00:00–03:00 МСК) `day` в МСК перескакивал на следующие
+    сутки, а вставленная строка с `hour=5` — нет, и тест падал по ночам.
     """
-    day = datetime.now(timezone.utc) - timedelta(days=1)
+    day = (datetime.now(timezone.utc) - timedelta(days=1)).replace(hour=12, minute=0, second=0, microsecond=0)
     db_session.add(
         Weight(
             user_id=UID,

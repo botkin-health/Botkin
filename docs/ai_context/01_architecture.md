@@ -107,7 +107,7 @@
 | `apple_health.py` | Главный FastAPI app + сборка всех роутеров. POST `/apple_health_v2` — Health Auto Export (iOS, ежедневно автоматически). POST `/apple_health` (v1) — legacy Shortcuts. GET/POST `/api/settings`. Раздача статики мини-аппа `/webapp/*` (auto-versioning). |
 | `telegram_router.py` | `POST /telegram/webhook` — принимает апдейты Telegram (webhook-режим, не polling) и диспатчит в aiogram `Dispatcher`. |
 | `android_health.py` | `POST /android_health_v1` — приём сырых записей от Android Health Connect (агрегация по дням делается на сервере, в отличие от HAE). |
-| `agent_tools_api.py` | **~39 endpoints** `/api/agent/*` для BotkinClaw и MCP-коннектора — JWT+RLS изоляция по `user_id`. Категории: nutrition (`log_meal_text`, `edit_meal`, `adjust_meal_items`, `recent_meals`, `meal_context`), supplements, BP, body composition (`log_body_composition`), CGM/глюкоза (`recent_glucose`, `glucose_stats`), биомаркеры/KB (`recent_biomarkers`, `phenoage`, `kb_value`), профиль/настройки, отчёты (`doctor_report`, `render_report`, `render_chart`), фидбек, и единственный public endpoint `POST /exchange_pat_for_jwt` (PAT → JWT для MCP). Подробности — `04_workflows.md` и ADR-0006. |
+| `agent_tools/` (пакет, 19 модулей) | **~40 endpoints** `/api/agent/*` для BotkinClaw и MCP-коннектора — JWT+RLS изоляция по `user_id`. Категории: nutrition (`log_meal_text`, `edit_meal`, `adjust_meal_items`, `recent_meals`, `meal_context`), supplements, BP, body composition (`log_body_composition`), CGM/глюкоза (`recent_glucose`, `glucose_stats`), биомаркеры/KB (`recent_biomarkers`, `phenoage`, `kb_value`), профиль/настройки, отчёты (`doctor_report`, `render_report`, `render_chart`), фидбек, и единственный public endpoint `POST /exchange_pat_for_jwt` (PAT → JWT для MCP). Подробности — `04_workflows.md` и ADR-0006. |
 | `jwt_auth.py` | `get_agent_user()` / `require_agent_scope("rw"/"ro")` — валидация агентского JWT (per-user `jwt_secret`), выставление RLS-переменной `app.user_id` (`SET LOCAL`). |
 | `rate_limit.py` | `SlidingWindowRateLimiter` (in-process, per-IP) — используется на `/exchange_pat_for_jwt` (10 req/мин). |
 | `nutrition_api.py` | Endpoints мини-аппа для дневника еды: GET `/api/day`, POST/PATCH/DELETE `/api/meal/item`, PATCH/DELETE `/api/meal`, GET `/api/favorites`. |
@@ -233,7 +233,7 @@ core/
 
 **Модель:** `claude-sonnet-5` (env `BOTKIN_AGENT_MODEL`), fallback на `claude-sonnet-4-6` при 429/503/529 (одна быстрая ретрая на том же модели, потом одна попытка на fallback-модели). `effort="medium"`, `max_tokens=4000`.
 
-**Tool-loop:** стандартный Messages API tool-use цикл (до `MAX_TOOL_ITERATIONS=6`). Схемы ~34 инструментов заданы константой `TOOLS` прямо в `agent_chat.py` (НЕ импортируются из `agent_tools_api.py` — это раздельные структуры, которые надо поддерживать в синхронизации руками при любом изменении эндпоинтов). Каждый вызов инструмента — синхронный HTTP-запрос в `webhook/agent_tools_api.py` (тот же контейнер, `http://localhost:8081/api/agent/*`), авторизованный короткоживущим JWT (см. ниже).
+**Tool-loop:** стандартный Messages API tool-use цикл (до `MAX_TOOL_ITERATIONS=6`). Схемы ~34 инструментов заданы константой `TOOLS` прямо в `agent_chat.py` (НЕ импортируются из `agent_tools/` — это раздельные структуры, которые надо поддерживать в синхронизации руками при любом изменении эндпоинтов). Каждый вызов инструмента — синхронный HTTP-запрос в `webhook/agent_tools/` (тот же контейнер, `http://localhost:8081/api/agent/*`), авторизованный короткоживущим JWT (см. ниже).
 
 **История диалога:** таблица `agent_conversations` (не путать со state автосохранения — см. anti-pattern ниже). Читается с окном `HISTORY_WINDOW=20` последних сообщений, старые `tool_result` усекаются до 1500 символов для экономии токенов. Запись всей реплики (assistant + tool_result) — одной транзакцией, с проглатыванием ошибок персистентности (см. `CLAUDE.md` — оплаченный ответ LLM никогда не теряется из-за сбоя записи в БД).
 
@@ -245,17 +245,17 @@ core/
 
 ⚠️ **Не путать с превью подтверждения еды** (`services.state.state_manager`) — это разные механизмы хранения состояния, см. anti-pattern ниже.
 
-Подробности инструментов и endpoint'ов — `04_workflows.md` (workflow «изменить/добавить agent tool») и `telegram-bot/webhook/agent_tools_api.py`.
+Подробности инструментов и endpoint'ов — `04_workflows.md` (workflow «изменить/добавить agent tool») и пакет `telegram-bot/webhook/agent_tools/`.
 
 ---
 
 ## MCP-коннектор — личный AI-агент пользователя (Claude Desktop/Code)
 
-Второй потребитель того же `agent_tools_api.py` — не BotkinClaw, а **личный Claude пользователя** на его компьютере, согласно vision-схеме в корневом `CLAUDE.md` («гибридная приватность»).
+Второй потребитель того же пакета `agent_tools/` — не BotkinClaw, а **личный Claude пользователя** на его компьютере, согласно vision-схеме в корневом `CLAUDE.md` («гибридная приватность»).
 
 **Поток:** `/connect_mcp` в боте (`handlers/connect_claude.py`) → пользователь выбирает scope (`rw`/`ro`) → выпускается PAT-токен (`pat_<telegram_id>_<hex32>`, таблица `personal_access_tokens`) → пользователь один раз копирует его в конфиг Claude Desktop (MCP-бандл `scripts/mcp/manifest.json`, entry point `scripts/mcp/botkin_pat_mcp.py`).
 
-**`botkin_pat_mcp.py`** — stdio MCP-сервер (`FastMCP("Botkin")`), сам не хранит и не читает локальные файлы пользователя (KB, дневники) — это оставлено файловому коннектору Claude Desktop. Обменивает PAT на короткоживущий JWT через `POST /api/agent/exchange_pat_for_jwt` (единственный публичный, не-JWT endpoint в `agent_tools_api.py`, rate-limit 10 req/мин/IP), кэширует JWT до истечения. Даёт набор read-tools (`get_day_summary`, `get_recent_meals`, `get_recent_biomarkers`, …) + write-tools (`log_meal_text`, `log_bp`) под `rw`-скоупом, плюс generic `botkin_api(method, path, params)` escape-hatch.
+**`botkin_pat_mcp.py`** — stdio MCP-сервер (`FastMCP("Botkin")`), сам не хранит и не читает локальные файлы пользователя (KB, дневники) — это оставлено файловому коннектору Claude Desktop. Обменивает PAT на короткоживущий JWT через `POST /api/agent/exchange_pat_for_jwt` (единственный публичный, не-JWT endpoint в `agent_tools/auth.py`, rate-limit 10 req/мин/IP), кэширует JWT до истечения. Даёт набор read-tools (`get_day_summary`, `get_recent_meals`, `get_recent_biomarkers`, …) + write-tools (`log_meal_text`, `log_bp`) под `rw`-скоупом, плюс generic `botkin_api(method, path, params)` escape-hatch.
 
 **Отзыв:** `/my_connections` в боте показывает список PAT с кнопкой «❌ Отозвать» (soft-delete через `revoked_at`; уже выданные JWT доживают до истечения своего TTL ~5 мин).
 
@@ -366,7 +366,7 @@ Endpoint оставлен для обратной совместимости, н
 
 ❌ **Не пиши новые поля в `users` таблицу** для пользовательских настроек — цели/бюджет живут в `user_settings`. НО: у `users` теперь много «системных» полей, которых раньше не было (`cohort`, `jwt_secret`, `agent_system_prompt`, `onboarding_data`, `kb_status`, `smoking_status`) — это не то же самое, что «настройки», их добавлять можно, просто не дублируй `user_settings`.
 
-❌ **Не дублируй логику записи приёмов пищи.** Текстовый/голосовой флоу → `helpers/db_save.py`. Мини-апп → `nutrition_api.py:add_meal_item`. BotkinClaw/MCP → `agent_tools_api.py:log_meal_text`/`adjust_meal_items` → `database/crud.py`. Все делают `enrich_items_with_fiber` перед записью — следи чтобы любой новый путь записи делал то же.
+❌ **Не дублируй логику записи приёмов пищи.** Текстовый/голосовой флоу → `helpers/db_save.py`. Мини-апп → `nutrition_api.py:add_meal_item`. BotkinClaw/MCP → `agent_tools/nutrition.py:log_meal_text`/`adjust_meal_items` → `database/crud.py`. Все делают `enrich_items_with_fiber` перед записью — следи чтобы любой новый путь записи делал то же.
 
 ❌ **Не делай `SELECT … FROM nutrition_log WHERE date >= …` без `user_id`.** Регистрация открытая, пользователей много и их число растёт — без фильтра суммируются все.
 
@@ -409,7 +409,7 @@ PYTHONPATH=. pytest tests/ -v --ignore=tests/integration --ignore=tests/test_nut
 
 **Один Docker container держит aiogram + FastAPI + BotkinClaw.** Решение: изначально low traffic, деплой проще; при добавлении агента (21.05.2026) решили НЕ выносить его в отдельный контейнер (NanoClaw), а звать напрямую в процессе — тот же аргумент простоты, теперь уже осознанный, а не только исторический (ADR-0001/0002). Цена — долгий LLM-вызов из agent tool делит event loop с обычными handler'ами; см. правило про `_end_open_tx` и транзакции поперёк сети.
 
-**Tool-схемы агента заданы прямо в `agent_chat.py`, не сгенерированы из FastAPI-роутов `agent_tools_api.py`.** Решение: проще написать руками 34 JSON-схемы, чем городить codegen. Цена — два места (`TOOLS` + `_call_tool`) держать в синхронизации вручную при любом изменении эндпоинта.
+**Tool-схемы агента заданы прямо в `agent_chat.py`, не сгенерированы из FastAPI-роутов `agent_tools/`.py`.** Решение: проще написать руками 34 JSON-схемы, чем городить codegen. Цена — два места (`TOOLS` + `_call_tool`) держать в синхронизации вручную при любом изменении эндпоинта.
 
 **MCP-коннектор через долгоживущий PAT + короткоживущий JWT, а не прямой OAuth.** Решение: пользователь не хочет заводить отдельный OAuth-провайдер ради одного personal-инструмента; PAT — простой self-service токен, JWT обеспечивает то же самое короткое окно риска, что и у BotkinClaw. Цена — PAT нужно хранить у себя (keychain Claude Desktop), у него нет автоматической ротации, только ручной отзыв.
 
