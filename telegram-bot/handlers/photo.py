@@ -941,26 +941,58 @@ async def handle_document_image(message: Message, album: list = None, state: FSM
             # но ничего не сохранял (ни blood_tests, ни аллергии/диагнозы в профиль).
             # Дешёвая regex-эвристика перед дорогим ask_agent: похоже на анализ —
             # ведём тем же пайплайном, что /doc (превью + подтверждение сохранения).
-            if pdf_text and state is not None:
+            #
+            # Issue #504: эвристику раньше даже не запускали, если `state is None` —
+            # документ, распознанный (или НЕ распознанный из-за этого же условия)
+            # как анализ, тихо уходил в ask_agent, а пользователь получал осмысленный
+            # ответ и был уверен, что анализ сохранён в карту (реальный инцидент
+            # 25.08.2026, #503: 4 анализа семьи ни разу не попали в blood_tests).
+            # Теперь эвристика считается независимо от наличия state — run_doc_pipeline
+            # запускаем только когда state реально есть (ему нужен FSM для
+            # pending/confirm), а если анализ распознан, но state недоступен —
+            # НЕ прикидываемся, что всё сохранено: прямо говорим пользователю,
+            # что показатели не записаны, и просим прислать документ ещё раз.
+            is_medical_pdf = False
+            if pdf_text:
                 from core.health.doc_detect import looks_like_medical_document
 
-                if looks_like_medical_document(pdf_text):
-                    from handlers.doc_upload import run_doc_pipeline
+                is_medical_pdf = looks_like_medical_document(pdf_text)
 
-                    try:
-                        await processing_msg.delete()
-                    except Exception:
-                        pass
-                    await run_doc_pipeline(
-                        msg,
-                        state,
-                        content=pdf_path.read_bytes(),
-                        ext=".pdf",
-                        is_pdf=True,
-                        intro="📄 Похоже на анализ или заключение — читаю как /doc.",
-                        auto=True,
-                    )
-                    continue
+            if is_medical_pdf and state is not None:
+                from handlers.doc_upload import run_doc_pipeline
+
+                try:
+                    await processing_msg.delete()
+                except Exception:
+                    pass
+                await run_doc_pipeline(
+                    msg,
+                    state,
+                    content=pdf_path.read_bytes(),
+                    ext=".pdf",
+                    is_pdf=True,
+                    intro="📄 Похоже на анализ или заключение — читаю как /doc.",
+                    auto=True,
+                )
+                continue
+
+            if is_medical_pdf and state is None:
+                # Структурно не можем провести через run_doc_pipeline (ему нужен
+                # FSM, чтобы удержать pending до кнопки «Сохранить») — но и
+                # тихо отвечать через ask_agent нельзя: пользователь решит, что
+                # анализ сохранён в карту, а он не сохранён нигде.
+                logger.warning(
+                    "handle_document_image: медицинский PDF распознан, но FSM state недоступен "
+                    "(user %s) — показатели НЕ будут сохранены в blood_tests",
+                    message.from_user.id,
+                )
+                await processing_msg.edit_text(
+                    "📄 Похоже, это анализ или медицинское заключение — но сейчас я не смог "
+                    "начать его сохранение в карту здоровья (техническая заминка).\n\n"
+                    "Показатели пока НЕ записаны. Пришли, пожалуйста, этот файл ещё раз, "
+                    "лучше командой /doc — так я точно сохраню его как надо."
+                )
+                continue
 
             if pdf_text:
                 import asyncio
