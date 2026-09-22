@@ -47,15 +47,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.execute(
-        f"""
-        DO $$
-        BEGIN
-            IF EXISTS (
-                SELECT 1 FROM pg_constraint WHERE conname = '{_CONSTRAINT_NAME}'
-            ) THEN
-                ALTER TABLE workouts DROP CONSTRAINT {_CONSTRAINT_NAME};
-            END IF;
-        END $$;
-        """
-    )
+    # Намеренно пусто. На проде это ограничение существовало ДО этой миграции
+    # (добавлено вне репозитория), и upgrade там — no-op. Удалять при откате
+    # то, чего миграция не создавала, нельзя: откат снял бы защиту от дублей
+    # тренировок на проде. На свежей БД ограничение уходит вместе с таблицей
+    # при откате базовой миграции, так что round-trip в CI не страдает.
+    pass
