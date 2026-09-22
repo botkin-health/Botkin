@@ -1,15 +1,198 @@
-"""Agent tools: recent workouts (Garmin + Apple Health)."""
+"""Agent tools: recent workouts (Garmin + Apple Health) + manual logging."""
 
-from datetime import date, timedelta
-from typing import Any
+from datetime import date, datetime, timedelta
+from typing import Any, Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from webhook.jwt_auth import get_agent_user, get_db
-from .common import _today_in_user_tz
+from webhook.jwt_auth import get_agent_user, get_db, require_agent_scope
+from .common import _get_user_tz, _today_in_user_tz
 
 router = APIRouter(prefix="/api/agent", tags=["agent-tools-workouts"])
+
+
+class LogWorkoutRequest(BaseModel):
+    """Ручной ввод тренировки агентом (#500).
+
+    `start_time` — единственное поле, отвечающее «когда это было». Если агент
+    его не передал, сервер подставит «сейчас» в таймзоне пользователя — это
+    осознанный фоллбэк, а не автоматическая привязка события к сегодняшнему
+    дню (см. #502): описание тула в core/agent_chat.py прямо требует от LLM
+    проставлять start_time явно, как только в реплике есть указание на прошлое.
+    """
+
+    workout_type: str = Field(..., min_length=1, max_length=100, description="Тип тренировки, свободный текст")
+    duration_minutes: Optional[int] = Field(None, ge=1, le=1440, description="Длительность, минут")
+    distance_km: Optional[float] = Field(None, ge=0, le=500, description="Дистанция, км")
+    calories_burned: Optional[int] = Field(None, ge=0, le=10000, description="Сожжено ккал")
+    avg_heart_rate: Optional[int] = Field(None, ge=30, le=250, description="Средний пульс, уд/мин")
+    max_heart_rate: Optional[int] = Field(None, ge=30, le=250, description="Максимальный пульс, уд/мин")
+    start_time: Optional[str] = Field(None, description="ISO datetime начала тренировки; по умолчанию — сейчас")
+
+
+def _parse_manual_start_time(raw: Optional[str], user) -> datetime:
+    """Распарсить `start_time` и вернуть tz-aware datetime.
+
+    Дефекты ревью #500: `workouts.start_time` — timestamptz, а агент почти
+    всегда присылает naive-строку («2026-09-21T18:00:00», без офсета) — сам
+    промпт тула просит его лишь «вычислить дату», не заботясь о таймзоне.
+    Naive datetime, отправленный в БД как есть, интерпретируется как UTC —
+    для пользователя из Europe/Moscow (+3) вечерняя тренировка съезжает на
+    следующие сутки. Это ровно класс ошибок из #502, поэтому naive-значения
+    ЛОКАЛИЗУЕМ в таймзоне пользователя, а не доверяем считать их UTC.
+
+    Строка с явным офсетом (или 'Z') остаётся как есть — уважаем то, что
+    агент действительно посчитал сам.
+    """
+    tz = _get_user_tz(user)
+    if not raw:
+        return datetime.now(tz)
+    try:
+        dt = datetime.fromisoformat(raw)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid start_time: {raw!r}. Use ISO datetime.")
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=tz)
+    return dt
+
+
+@router.post("/log_workout")
+async def log_workout(
+    req: LogWorkoutRequest,
+    user=Depends(require_agent_scope("rw")),
+    db: Session = Depends(get_db),
+):
+    """Записать тренировку в `workouts` (ручной ввод, `source='manual'`).
+
+    Пишет raw-SQL, как остальные писатели `workouts` (apple_health.py) — не
+    через ORM (см. анти-паттерны в CLAUDE.md).
+
+    Идемпотентность — через реальное ограничение БД `uq_workouts_user_start
+    UNIQUE (user_id, start_time)` (существует на проде; см. database/models.py
+    и миграцию workuq01). Дедуп по `source` здесь не годится: пользователь
+    часто уточняет запись по частям («вчера в 18:00 велотренажёр 40 минут» →
+    «нет, 45 минут») — если бы source зависел от duration/distance/calories,
+    уточнение получало бы другой source, не находило старую строку и падало
+    бы в INSERT с IntegrityError на (user_id, start_time). Поэтому: сперва
+    ищем строку с тем же (user_id, start_time) и, если она есть, ОБНОВЛЯЕМ её
+    (уточнение перезаписывает, а не плодит дубль); если нет — создаём новую.
+
+    Пре-чек SELECT + branch выбран вместо `ON CONFLICT` намеренно: с ним не
+    нужна отдельная ветка по диалекту БД (SQLite/Postgres) и он тривиально
+    покрывается тестами на SQLite, где реальный прод-constraint воспроизведён
+    через `UniqueConstraint` в модели.
+
+    ВАЖНО (найдено на ревью): найденная по (user_id, start_time) строка может
+    принадлежать НЕ ручному каналу — HAE (`hae_<id>`), Garmin (`garmin_<id>`),
+    'Apple Watch — Nika' и т.п. Обновлять чужую запись нельзя — это тихая
+    потеря данных интеграции (хуже, чем упасть с ошибкой). Апдейт делаем
+    только когда `existing.source == 'manual'`; иначе ничего не трогаем и
+    возвращаем агенту, из какого источника уже есть запись на это время,
+    чтобы он мог сказать пользователю по-человечески или переспросить точное
+    время. Совпадение start_time с точностью до секунды не гарантирует, что
+    это одна и та же тренировка (18:00:37 у часов и «в 18:00» вручную не
+    столкнутся вовсе) — это осознанно не чинится, конфликт возможен только
+    при точном совпадении.
+    """
+    from sqlalchemy import text as _text
+
+    start_dt = _parse_manual_start_time(req.start_time, user)
+
+    existing = db.execute(
+        _text("SELECT id, source FROM workouts WHERE user_id = :uid AND start_time = :st LIMIT 1"),
+        {"uid": user.telegram_id, "st": start_dt},
+    ).first()
+
+    if existing and existing.source != "manual":
+        # Чужая запись (HAE/Garmin/другой канал) — не трогаем, не 500-им.
+        # 200 + status-поле, а не HTTP 409: так уже устроены остальные
+        # write-тулы проекта в похожих ситуациях (log_supplement возвращает
+        # status=duplicate_warning вместо ошибки) — агент читает status/hint
+        # и решает сам, а не ловит и разбирает исключение.
+        return {
+            "status": "conflict_other_source",
+            "created": False,
+            "updated": False,
+            "existing_workout_id": existing.id,
+            "existing_source": existing.source,
+            "date": start_dt.date().isoformat(),
+            "start_time": start_dt.isoformat(),
+            "hint": (
+                f"На это время уже есть тренировка из источника '{existing.source}' (скорее всего, "
+                "синхронизирована автоматически из часов/трекера). Запись НЕ создана и существующая "
+                "НЕ изменена. Скажи об этом пользователю (тренировка уже учтена) — либо, если это "
+                "правда другая тренировка, уточни у него точное время и повтори вызов."
+            ),
+        }
+
+    params = {
+        "user_id": user.telegram_id,
+        "date": start_dt.date(),
+        "workout_type": req.workout_type,
+        "duration_minutes": req.duration_minutes,
+        "start_time": start_dt,
+        "calories_burned": req.calories_burned,
+        "distance_km": req.distance_km,
+        "avg_heart_rate": req.avg_heart_rate,
+        "max_heart_rate": req.max_heart_rate,
+        "source": "manual",
+    }
+
+    if existing:
+        # existing.source == 'manual' здесь гарантирован проверкой выше.
+        db.execute(
+            _text(
+                """UPDATE workouts SET
+                       date = :date,
+                       workout_type = :workout_type,
+                       duration_minutes = :duration_minutes,
+                       calories_burned = :calories_burned,
+                       distance_km = :distance_km,
+                       avg_heart_rate = :avg_heart_rate,
+                       max_heart_rate = :max_heart_rate,
+                       source = :source
+                   WHERE id = :id"""
+            ),
+            {**params, "id": existing.id},
+        )
+        db.commit()
+        workout_id = existing.id
+        created = False
+    else:
+        row = db.execute(
+            _text(
+                """INSERT INTO workouts
+                   (user_id, date, workout_type, duration_minutes, start_time,
+                    calories_burned, distance_km, avg_heart_rate, max_heart_rate, source)
+                   VALUES (:user_id, :date, :workout_type, :duration_minutes, :start_time,
+                           :calories_burned, :distance_km, :avg_heart_rate, :max_heart_rate, :source)
+                   RETURNING id"""
+            ),
+            params,
+        ).first()
+        db.commit()
+        workout_id = row.id
+        created = True
+
+    return {
+        "status": "ok",
+        "created": created,
+        "updated": not created,
+        "workout_id": workout_id,
+        "date": start_dt.date().isoformat(),
+        "start_time": start_dt.isoformat(),
+        "workout_type": req.workout_type,
+        "duration_minutes": req.duration_minutes,
+        "distance_km": req.distance_km,
+        "calories_burned": req.calories_burned,
+        "avg_heart_rate": req.avg_heart_rate,
+        "max_heart_rate": req.max_heart_rate,
+        "hint": (
+            None if created else "На это же время уже была запись — параметры обновлены, вторая запись не создана."
+        ),
+    }
 
 
 @router.get("/recent_workouts")

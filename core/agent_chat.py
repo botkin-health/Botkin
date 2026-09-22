@@ -786,6 +786,51 @@ TOOLS: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "log_workout",
+        "description": (
+            "Залогировать тренировку вручную (когда нет интеграции с часами/трекером — "
+            "напр. Huawei Health, или пользователь просто рассказал о тренировке словами). "
+            "Пиши только по явной просьбе записать/залогировать, не по любому упоминанию спорта.\n\n"
+            "ДАТА/ВРЕМЯ (start_time) — КРИТИЧНО (см. известный баг с привязкой прошлых событий "
+            "к сегодняшнему дню): если пользователь указал, когда это было («вчера», "
+            "«позавчера», «в понедельник», «на прошлой неделе», конкретное время) — ВСЕГДА "
+            "вычисли и передай start_time (ISO datetime, YYYY-MM-DDTHH:MM:SS), опираясь на "
+            "сегодняшнюю дату. Без явного указания времени start_time НЕ передавай (запишется "
+            "текущим моментом). После записи назови дату в ответе, если она не сегодняшняя.\n\n"
+            "Ключ записи — start_time: повторный вызов с тем же start_time ОБНОВЛЯЕТ существующую "
+            "запись (вернёт updated=true), а не создаёт вторую — это нужно и для ретраев, и для "
+            "уточнений («40 минут» → «нет, погоди, 45 минут» — просто вызови снова с тем же "
+            "start_time и новой длительностью, старая запись перезапишется).\n\n"
+            "Если на это же start_time уже есть тренировка из ДРУГОГО источника (часы/трекер, "
+            "напр. HAE/Garmin) — вернётся status=conflict_other_source, запись НЕ создастся и "
+            "существующая НЕ изменится. Прочитай hint: скажи пользователю, что тренировка уже "
+            "учтена, либо, если это правда другое событие, переспроси точное время."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "workout_type": {
+                    "type": "string",
+                    "description": "Тип тренировки, напр. 'велотренажёр', 'бег', 'силовая'",
+                },
+                "duration_minutes": {"type": "integer", "description": "Длительность, минут"},
+                "distance_km": {"type": "number", "description": "Дистанция, км"},
+                "calories_burned": {"type": "integer", "description": "Сожжено ккал"},
+                "avg_heart_rate": {"type": "integer", "description": "Средний пульс, уд/мин"},
+                "max_heart_rate": {"type": "integer", "description": "Максимальный пульс, уд/мин"},
+                "start_time": {
+                    "type": "string",
+                    "description": (
+                        "ISO datetime начала тренировки (YYYY-MM-DDTHH:MM:SS). Передавай явно, "
+                        "если пользователь указал день/время (даже относительное — «вчера»). "
+                        "Без указания — не передавай, запишется текущим моментом."
+                    ),
+                },
+            },
+            "required": ["workout_type"],
+        },
+    },
+    {
         "name": "log_supplement",
         "description": (
             "Залогировать приём добавки/витамина. Если та же добавка уже логировалась "
@@ -1272,6 +1317,8 @@ def _call_tool(name: str, args: dict, token: str) -> str:
             r = requests.post(f"{TOOLS_API_BASE}/log_bp", json=args, headers=headers, timeout=10)
         elif name == "log_supplement":
             r = requests.post(f"{TOOLS_API_BASE}/log_supplement", json=args, headers=headers, timeout=10)
+        elif name == "log_workout":
+            r = requests.post(f"{TOOLS_API_BASE}/log_workout", json=args, headers=headers, timeout=10)
         elif name == "render_report":
             # Side-effect tool — генерит PNG и шлёт юзеру sendPhoto.
             # Возвращает только статус (не саму картинку), чтобы агент
@@ -2251,6 +2298,7 @@ _TOOL_PROGRESS_LABEL = {
     "adjust_meal_items": "📋 свожу план к факту",
     "log_supplement": "✍️ отмечаю добавку",
     "log_bp": "✍️ записываю давление",
+    "log_workout": "✍️ записываю тренировку",
     "regenerate_health_token": "🔑 пересоздаю токен",
     "update_profile_questionnaire": "📝 обновляю анкету",
     "save_health_profile": "📝 записываю медпрофиль",
