@@ -6,7 +6,6 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import html
-import io
 import json
 import logging
 import re
@@ -31,6 +30,14 @@ from aiogram.types import (
 from core.health.onboarding_lists import ALLERGY_KEYS, CONDITION_KEYS, onboarding_list
 from database import SessionLocal
 from database.crud import merge_onboarding_lists
+from handlers.doc_queue import (
+    archive_leftover_documents,
+    finish_step_or_advance,
+    format_progress_prefix,
+    format_skip_summary,
+    gather_source_files,
+    stage_queue_item,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -39,9 +46,6 @@ router = Router()
 # Корень проекта — два уровня выше telegram-bot/handlers/
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _UPLOADS_DIR = _PROJECT_ROOT / "data" / "uploads"
-
-_MAX_FILE_MB = 20
-_IMAGE_MIME = {"image/jpeg", "image/jpg", "image/png", "image/webp", "image/heic", "image/heif"}
 
 
 class DocUpload(StatesGroup):
@@ -71,25 +75,29 @@ _STALE_PENDING_SECONDS = 24 * 3600
 
 
 def _cleanup_stale_pending(user_id: int) -> None:
-    """Удаляет зависшие `.pending_*` файлы старше 24ч (issue #441 п.7б).
+    """Удаляет зависшие `.pending_*`/`.queued_*` файлы старше 24ч (issue #441 п.7б,
+    расширено issue #499 для файлов очереди).
 
     Если пайплайн упал где-то между записью `.pending_*` и подтверждением
     (docup_save/docup_cancel) — например, edit превью не удался и оба ретрая
     из `run_doc_pipeline` тоже упали — файл остаётся в uploads/ навсегда,
-    ничем не отличаясь от настоящих сохранённых документов на диске. Чистим
-    такие огрызки при каждом новом запуске пайплайна для этого юзера.
+    ничем не отличаясь от настоящих сохранённых документов на диске. То же
+    касается `.queued_*` — файлов очереди (issue #499), которые ждут своей
+    очереди на разбор, но так и не дождались (например, бот перезапустился).
+    Чистим такие огрызки при каждом новом запуске пайплайна для этого юзера.
     """
     try:
         uploads = _uploads_dir(user_id)
         cutoff = time.time() - _STALE_PENDING_SECONDS
-        for f in uploads.glob(".pending_*"):
-            try:
-                if f.stat().st_mtime < cutoff:
-                    f.unlink(missing_ok=True)
-            except OSError:
-                continue
+        for pattern in (".pending_*", ".queued_*"):
+            for f in uploads.glob(pattern):
+                try:
+                    if f.stat().st_mtime < cutoff:
+                        f.unlink(missing_ok=True)
+                except OSError:
+                    continue
     except OSError:
-        logger.debug("doc_upload: не удалось прибрать зависшие .pending_* для user %s", user_id)
+        logger.debug("doc_upload: не удалось прибрать зависшие .pending_*/.queued_* для user %s", user_id)
 
 
 def is_medical_document(router_result: Optional[dict]) -> bool:
@@ -362,6 +370,8 @@ async def run_doc_pipeline(
     processing_msg: Optional[Message] = None,
     auto: bool = False,
     question: Optional[str] = None,
+    user_id: Optional[int] = None,
+    progress: Optional[tuple[int, int]] = None,
 ) -> None:
     """Общее ядро doc-пайплайна: pending-файл → экстракция → превью с клавиатурой.
 
@@ -389,11 +399,18 @@ async def run_doc_pipeline(
     `question` — вопрос к документу, переданный явным текстом/голосом
     (issue #441 п.6, напр. из `handle_description`), а не через caption
     сообщения с файлом. Если не передан — берём `message.caption`, как раньше.
+    `user_id` — переопределяет `message.from_user.id` (issue #499): при
+    продолжении очереди из callback'а `docup_save`/`docup_cancel` роль
+    `message` играет `callback.message` (нужен только для `.answer()`), а его
+    `from_user` — это бот, а не пользователь.
+    `progress` — (позиция, всего) для пометки «Документ N из M» в очереди
+    из нескольких файлов (альбом/ZIP, issue #499). Одиночный файл — как
+    раньше, без пометки.
     """
     from core.health.doc_extractor import extract_medical_data
     from handlers.photo import _extract_pdf_text, _pdf_to_images
 
-    user_id = message.from_user.id
+    user_id = user_id if user_id is not None else message.from_user.id
     _cleanup_stale_pending(user_id)
     if processing_msg is not None:
         try:
@@ -448,6 +465,9 @@ async def run_doc_pipeline(
 
     existing = _read_existing_profile(user_id)
     preview = _preview_text(extracted, existing)
+    if progress:
+        pos, total = progress
+        preview = f"{format_progress_prefix(pos, total)}\n\n{preview}"
     if effective_question:
         preview += "\n\n❓ Отвечу на твой вопрос после сохранения."
     keyboard = _preview_keyboard(_has_content(extracted))
@@ -485,7 +505,8 @@ async def cmd_doc(message: Message, state: FSMContext) -> None:
     await state.set_state(DocUpload.waiting)
     await message.answer(
         "📄 Пришли PDF, фото или скан анализа / заключения врача.\n\n"
-        "Поддерживаются: PDF, JPG, PNG, HEIC.\n"
+        "Поддерживаются: PDF, JPG, PNG, HEIC, а также ZIP-архив или сразу "
+        "несколько файлов — разберу по одному.\n"
         "Выйти из режима загрузки — /cancel.",
         parse_mode="HTML",
     )
@@ -493,63 +514,74 @@ async def cmd_doc(message: Message, state: FSMContext) -> None:
 
 @router.message(Command("cancel"), DocUpload.waiting)
 async def cmd_cancel(message: Message, state: FSMContext) -> None:
-    """Выход из режима загрузки по /cancel."""
+    """Выход из режима загрузки по /cancel.
+
+    issue #499: если пользователь выходит посреди разбора пачки — текущий
+    документ и всё, что ещё ждало своей очереди, не пропадают молча (гарантия
+    issue #370), а архивируются как есть.
+    """
+    user_id = message.from_user.id
+    data = await state.get_data()
+    archived = archive_leftover_documents(user_id, data)
     await state.clear()
-    await message.answer("Вышел из режима загрузки документов.")
+
+    text = "Вышел из режима загрузки документов."
+    if archived:
+        word = "документ" if archived == 1 else "документа" if 2 <= archived <= 4 else "документов"
+        text += f"\n\nНе разобранные файлы ({archived} {word}) сохранил как есть в архив — просто не распознавал."
+    await message.answer(text)
 
 
 @router.message(DocUpload.waiting, F.document | F.photo)
 async def doc_received(message: Message, state: FSMContext, album: list = None) -> None:
-    """Обрабатывает входящий файл в режиме /doc. Тонкая обёртка над
-    `run_doc_pipeline` — тут только определение типа файла и скачивание."""
+    """Обрабатывает входящий файл (или несколько — альбом/ZIP) в режиме /doc.
 
-    # Альбом (несколько файлов одним сообщением) — пока не поддерживаем батч-обработку
-    # в /doc (FSM-state pending хранит один файл). Просим прислать по одному, вместо
-    # того чтобы молча обработать только первый файл и потерять остальные.
-    if album and len(album) > 1:
-        await message.answer(
-            "📎 Пришли, пожалуйста, документы по одному — так надёжнее, я смогу их правильно распознать."
-        )
-        return
-
+    issue #499: раньше альбом из нескольких файлов отбивался целиком, а ZIP
+    (так Windows пакует группу файлов для пересылки) не распознавался вовсе.
+    Теперь всё собирается в очередь и разбирается по одному, с прогрессом
+    «документ N из M» — остальное берёт на себя `handlers.doc_queue`.
+    """
     user_id = message.from_user.id
+    sources = album if album else [message]
 
-    # Определяем тип и скачиваем
-    if message.document:
-        doc = message.document
-        if (doc.file_size or 0) > _MAX_FILE_MB * 1024 * 1024:
-            await message.answer(
-                f"⚠️ Файл больше {_MAX_FILE_MB} МБ (лимит Telegram). Пришли PDF полегче или скриншоты страниц."
-            )
-            return
-        mime = (doc.mime_type or "").lower()
-        fname = (doc.file_name or "").lower()
-        is_pdf = mime == "application/pdf" or fname.endswith(".pdf")
-        is_image = mime in _IMAGE_MIME or fname.endswith((".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"))
-        if not is_pdf and not is_image:
-            await message.answer(
-                "📎 Такой формат пока не умею. Поддерживаю PDF, JPG/PNG/HEIC.\n"
-                "Если это .doc/.docx — сохрани как PDF или пришли фото страниц."
-            )
-            return
-        file_id = doc.file_id
-        ext = ".pdf" if is_pdf else (Path(fname).suffix or ".jpg")
-    else:
-        is_pdf = False
-        file_id = message.photo[-1].file_id
-        ext = ".jpg"
+    gathered = await gather_source_files(user_id, sources)
 
-    try:
-        tg_file = await message.bot.get_file(file_id)
-        buf = io.BytesIO()
-        await message.bot.download_file(tg_file.file_path, buf)
-        content = buf.getvalue()
-    except Exception:
-        logger.exception("doc_upload: не удалось скачать файл от %s", user_id)
-        await message.answer("⚠️ Не удалось скачать файл. Попробуй ещё раз.")
+    notes = list(gathered.archive_notes)
+    skip_summary = format_skip_summary(gathered.skip_counts)
+    if skip_summary:
+        notes.append(skip_summary)
+
+    if not gathered.items:
+        text = "⚠️ Не нашёл ни одного подходящего файла (PDF, JPG, PNG, HEIC)."
+        if notes:
+            text += "\n\n" + "\n".join(notes)
+        await message.answer(text)
         return
 
-    await run_doc_pipeline(message, state, content=content, ext=ext, is_pdf=is_pdf)
+    if notes:
+        await message.answer("\n".join(notes))
+
+    total = len(gathered.items)
+    first, rest_raw = gathered.items[0], gathered.items[1:]
+    staged_rest = [stage_queue_item(user_id, item) for item in rest_raw]
+
+    await state.update_data(queue=staged_rest, queue_total=total)
+
+    intro = None
+    progress = None
+    if total > 1:
+        progress = (1, total)
+        intro = f"{format_progress_prefix(1, total)} — читаю…"
+
+    await run_doc_pipeline(
+        message,
+        state,
+        content=first["content"],
+        ext=first["ext"],
+        is_pdf=first["is_pdf"],
+        intro=intro,
+        progress=progress,
+    )
 
 
 @router.callback_query(DocUpload.waiting, F.data.in_({"docup_save", "docup_cancel"}))
@@ -595,14 +627,17 @@ async def doc_confirm(callback: CallbackQuery, state: FSMContext) -> None:
             # /doc — пользователь сам явно вошёл в режим загрузки, тут отмена
             # действительно значит «выбросить», как и раньше.
             tmp_path.unlink(missing_ok=True)
-            close_text = "❌ Не сохранил. Пришли другой документ или /cancel."
+            close_text = "❌ Не сохранил."
 
-        if is_auto:
-            await state.clear()
-        else:
-            await state.update_data(pending=None)
-        await callback.message.edit_text(close_text)
-        await callback.answer()
+        # Issue #499: если следующий документ уже ждёт в очереди (альбом/ZIP) —
+        # сразу переходим к нему вместо того чтобы просто закрыть шаг.
+        await finish_step_or_advance(
+            callback,
+            state,
+            close_text,
+            is_auto=is_auto,
+            done_hint="Пришли другой документ или /cancel.",
+        )
         return
 
     # Сохранение
@@ -653,15 +688,18 @@ async def doc_confirm(callback: CallbackQuery, state: FSMContext) -> None:
     caption_question = (pending.get("caption") or "").strip()
 
     close_text = "✅ Сохранено в твою базу здоровья." + biomarkers_note + profile_note
-    if is_auto:
-        # Issue #441 п.1: авто-документ — закрываем FSM, «Пришли другой документ
-        # или /cancel» тут вводило бы в заблуждение (мы не в /doc-режиме).
-        await state.clear()
-    else:
-        await state.update_data(pending=None)
-        close_text += "\n\nМожешь прислать ещё документ или /cancel."
-    await callback.message.edit_text(close_text, parse_mode="HTML")
-    await callback.answer("Сохранено")
+    # Issue #499: следующий документ из очереди (альбом/ZIP) запускается сразу,
+    # без ожидания нового сообщения. Issue #441 п.1 остаётся в силе для
+    # авто-детекта — там очереди не бывает, и после save FSM просто закрывается.
+    await finish_step_or_advance(
+        callback,
+        state,
+        close_text,
+        is_auto=is_auto,
+        parse_mode="HTML",
+        answer_text="Сохранено",
+        done_hint="Можешь прислать ещё документ или /cancel.",
+    )
 
     # Issue #439 п.4: если к документу была подпись-вопрос — отвечаем на неё
     # ПОСЛЕ сохранения (см. пометку в превью из run_doc_pipeline), чтобы не
