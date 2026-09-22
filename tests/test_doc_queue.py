@@ -175,10 +175,11 @@ async def test_gather_duplicate_within_same_zip_deduped():
 
 
 @pytest.mark.asyncio
-async def test_gather_duplicate_across_calls_within_ttl():
-    """Тот же файл, присланный отдельным сообщением после того как уже был
-    поставлен в очередь ранее для этого юзера — считается дублем (issue #503:
-    один и тот же PDF пятью разными сообщениями)."""
+async def test_gather_duplicate_across_calls_while_still_in_progress():
+    """Тот же файл, присланный отдельным сообщением, пока первый экземпляр
+    ещё не подтверждён/сохранён — считается дублем «уже разбираю» (issue
+    #503: один и тот же PDF пятью разными сообщениями подряд, issue #516:
+    честная причина вместо общего «уже разобранного»)."""
     from handlers.doc_queue import gather_source_files
 
     content = b"%PDF-repeat-me"
@@ -190,7 +191,46 @@ async def test_gather_duplicate_across_calls_within_ttl():
 
     assert len(result1.items) == 1
     assert len(result2.items) == 0
-    assert result2.skip_counts["duplicate_content"] == 1
+    assert result2.skip_counts["duplicate_in_progress"] == 1
+
+
+@pytest.mark.asyncio
+async def test_gather_duplicate_across_calls_after_saved():
+    """Тот же файл, присланный повторно ПОСЛЕ того, как он уже был успешно
+    сохранён (`doc_dedup.mark_saved`) — считается дублем «уже сохранён
+    недавно», отдельная честная причина от «в обработке» (issue #516)."""
+    from handlers import doc_dedup
+    from handlers.doc_queue import gather_source_files
+
+    content = b"%PDF-already-saved"
+    doc_dedup.mark_saved(8, content)
+
+    msg = _make_doc_message(file_name="a.pdf", mime_type="application/pdf", file_size=10, content=content)
+    result = await gather_source_files(8, [msg])
+
+    assert result.items == []
+    assert result.skip_counts["duplicate_saved"] == 1
+
+
+@pytest.mark.asyncio
+async def test_gather_same_file_after_clear_is_not_duplicate():
+    """Issue #516 — регресс-guard основного сценария: если отметка снята
+    (`doc_dedup.clear`, как при отмене/сбое показа превью), повторная
+    отправка того же файла разбирается заново, а не отклоняется."""
+    from handlers import doc_dedup
+    from handlers.doc_queue import gather_source_files
+
+    content = b"%PDF-retry-me"
+    msg1 = _make_doc_message(file_name="a.pdf", mime_type="application/pdf", file_size=10, content=content)
+    result1 = await gather_source_files(9, [msg1])
+    assert len(result1.items) == 1
+
+    doc_dedup.clear(9, content)
+
+    msg2 = _make_doc_message(file_name="a.pdf", mime_type="application/pdf", file_size=10, content=content)
+    result2 = await gather_source_files(9, [msg2])
+    assert len(result2.items) == 1
+    assert not result2.skip_counts
 
 
 @pytest.mark.asyncio
@@ -234,3 +274,41 @@ def test_format_progress_prefix():
     from handlers.doc_queue import format_progress_prefix
 
     assert format_progress_prefix(2, 5) == "📄 Документ 2 из 5"
+
+
+# ── issue #516 п.3: честная шапка сводки, когда все файлы отсеяны ───────────
+
+
+def test_empty_gather_header_default_when_no_skips():
+    from handlers.doc_queue import GatherResult, empty_gather_header
+
+    assert "не нашёл ни одного подходящего файла" in empty_gather_header(GatherResult()).lower()
+
+
+def test_empty_gather_header_all_duplicates_saved():
+    from handlers.doc_queue import GatherResult, empty_gather_header
+
+    gathered = GatherResult()
+    gathered.skip_counts["duplicate_saved"] = 2
+    header = empty_gather_header(gathered)
+    assert "не нашёл ни одного подходящего файла" not in header.lower()
+    assert "уже" in header.lower()
+
+
+def test_empty_gather_header_all_password_protected():
+    from handlers.doc_queue import GatherResult, empty_gather_header
+
+    gathered = GatherResult()
+    gathered.skip_counts["password_protected"] = 3
+    header = empty_gather_header(gathered)
+    assert "не нашёл ни одного подходящего файла" not in header.lower()
+    assert "паролем" in header.lower()
+
+
+def test_empty_gather_header_mixed_reasons_falls_back_to_default():
+    from handlers.doc_queue import GatherResult, empty_gather_header
+
+    gathered = GatherResult()
+    gathered.skip_counts["duplicate_saved"] = 1
+    gathered.skip_counts["unsupported_type"] = 1
+    assert "не нашёл ни одного подходящего файла" in empty_gather_header(gathered).lower()

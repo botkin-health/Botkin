@@ -260,6 +260,7 @@ async def test_doc_received_album_is_queued_not_rejected(tmp_path, test_db, monk
     msg1, processing1 = _doc_message("a.pdf", "application/pdf", b"%PDF-a")
     msg2, _ = _doc_message("b.jpg", "image/jpeg", b"\xff\xd8-b")
     state = AsyncMock()
+    state.get_data = AsyncMock(return_value={})
     state.update_data = AsyncMock()
     state.set_state = AsyncMock()
 
@@ -445,6 +446,7 @@ async def test_doc_received_still_shows_preview_after_refactor(tmp_path, test_db
     msg.bot.download_file = AsyncMock(side_effect=fake_download)
 
     state = AsyncMock()
+    state.get_data = AsyncMock(return_value={})
     extracted = {"values": {"Hb": 130}}
     with patch("core.health.doc_extractor.extract_medical_data", AsyncMock(return_value=extracted)):
         await mod.doc_received(msg, state, album=None)
@@ -518,10 +520,15 @@ async def test_run_doc_pipeline_retries_without_html_on_bad_request(tmp_path, te
 
 
 @pytest.mark.asyncio
-async def test_run_doc_pipeline_cleans_up_state_and_tmp_file_when_preview_fails(tmp_path, test_db, monkeypatch):
-    """Issue #441 п.1: если превью так и не удалось показать (ни с HTML, ни без) —
-    пользователь не должен зависнуть в DocUpload.waiting без клавиатуры. Чистим
-    state и .pending-файл, исключение пробрасываем дальше."""
+async def test_run_doc_pipeline_archives_instead_of_deleting_when_preview_fails(tmp_path, test_db, monkeypatch):
+    """Issue #516: если превью так и не удалось показать (ни с HTML, ни без,
+    ни после ретраев на 429) — раньше это стирало FSM (`state.clear()`) и
+    удаляло `.pending_*` файл (`unlink`), нарушая гарантию issue #370.
+    Теперь документ архивируется под постоянным именем с KB-записью
+    `auto_archived`, и FSM всё равно закрывается (issue #441 п.1 остаётся в
+    силе — не зависаем в DocUpload.waiting без клавиатуры)."""
+    import json
+
     import handlers.doc_upload as mod
 
     monkeypatch.setattr(mod, "_PROJECT_ROOT", tmp_path)
@@ -529,8 +536,11 @@ async def test_run_doc_pipeline_cleans_up_state_and_tmp_file_when_preview_fails(
     monkeypatch.setattr(mod, "SessionLocal", lambda: test_db)
 
     message, processing = _make_message_with_processing(from_id=561)
+    message.answer = AsyncMock(return_value=processing)
     state = AsyncMock()
     state.clear = AsyncMock()
+    state.get_data = AsyncMock(return_value={})  # заполнится через update_data(pending=...) внутри пайплайна
+    state.update_data = AsyncMock(side_effect=lambda **kwargs: state.get_data.configure_mock(return_value=kwargs))
     processing.edit_text = AsyncMock(side_effect=RuntimeError("network is down"))
 
     extracted = {"values": {"Hb": 150}}
@@ -540,7 +550,21 @@ async def test_run_doc_pipeline_cleans_up_state_and_tmp_file_when_preview_fails(
 
     state.clear.assert_called_once()
     uploads = tmp_path / "data" / "uploads" / "561"
-    assert list(uploads.glob(".pending_*")) == []
+    assert list(uploads.glob(".pending_*")) == [], "не должно остаться зависшего .pending_*"
+
+    archived_files = [f for f in uploads.iterdir() if not f.name.startswith(".")]
+    assert len(archived_files) == 1, "документ должен быть перенесён в архив под постоянным именем, не удалён"
+
+    kb_path = tmp_path / "data" / "kb" / "kb_561.json"
+    data = json.loads(kb_path.read_text(encoding="utf-8"))
+    assert len(data["documents"]) == 1
+    entry = data["documents"][0]
+    assert entry["auto_archived"] is True
+    assert entry["user_confirmed"] is False
+
+    # Пользователь получил спокойное сообщение о том, что документ сохранён.
+    notify_calls = [c for c in message.answer.call_args_list if c.args and "архив" in c.args[0].lower()]
+    assert notify_calls, "пользователь должен быть уведомлён, что документ сохранён в архив"
 
 
 # ── issue #441 п.1/п.7а: авто-детект документы не оставляют FSM зависшим ────
@@ -685,9 +709,14 @@ async def test_doc_confirm_cancel_non_auto_still_deletes_file(tmp_path, monkeypa
 
 
 @pytest.mark.asyncio
-async def test_run_doc_pipeline_cleans_up_stale_pending_files(tmp_path, test_db, monkeypatch):
-    """.pending_* файлы старше 24ч (из прошлых упавших запусков) чистятся при
-    следующем запуске пайплайна для этого юзера. Свежие — не трогаем."""
+async def test_run_doc_pipeline_archives_stale_pending_files_not_deletes(tmp_path, test_db, monkeypatch):
+    """Issue #516: .pending_*/.queued_* файлы старше 24ч (из прошлых упавших
+    запусков, или осиротевшие после рестарта бота посреди разбора пачки —
+    FSM в MemoryStorage теряется целиком) раньше УДАЛЯЛИСЬ сторожем
+    (`f.unlink`), нарушая гарантию issue #370. Теперь они архивируются под
+    постоянным именем с KB-записью `auto_archived`, причина «не дождался
+    разбора». Свежие файлы (моложе порога) не трогаем."""
+    import json
     import os
 
     import handlers.doc_upload as mod
@@ -701,11 +730,14 @@ async def test_run_doc_pipeline_cleans_up_stale_pending_files(tmp_path, test_db,
     uploads.mkdir(parents=True)
     stale = uploads / ".pending_2026-01-01_stale0001.jpg"
     stale.write_bytes(b"old")
+    stale_queued = uploads / ".queued_2026-01-01_stale0002.jpg"
+    stale_queued.write_bytes(b"old-queued")
     fresh = uploads / ".pending_2026-08-01_fresh001.jpg"
     fresh.write_bytes(b"new")
 
     old_time = time.time() - 25 * 3600
     os.utime(stale, (old_time, old_time))
+    os.utime(stale_queued, (old_time, old_time))
 
     message, processing = _make_message_with_processing(from_id=user_id)
     state = AsyncMock()
@@ -714,8 +746,26 @@ async def test_run_doc_pipeline_cleans_up_stale_pending_files(tmp_path, test_db,
     with patch("core.health.doc_extractor.extract_medical_data", AsyncMock(return_value=extracted)):
         await mod.run_doc_pipeline(message, state, content=b"fake-jpeg", ext=".jpg", is_pdf=False)
 
-    assert not stale.exists(), "зависший .pending_* старше 24ч должен быть удалён"
+    assert not stale.exists(), "зависший .pending_* старше 24ч больше не должен лежать под старым именем"
+    assert not stale_queued.exists(), "зависший .queued_* старше 24ч больше не должен лежать под старым именем"
     assert fresh.exists(), "свежий .pending_* не должен трогаться"
+
+    assert (uploads / "2026-01-01_stale0001.jpg").exists(), (
+        "архивный .pending_* должен остаться на диске под постоянным именем"
+    )
+    assert (uploads / "2026-01-01_stale0002.jpg").exists(), (
+        "архивный .queued_* должен остаться на диске под постоянным именем"
+    )
+
+    kb_path = tmp_path / "data" / "kb" / f"kb_{user_id}.json"
+    data = json.loads(kb_path.read_text(encoding="utf-8"))
+    archived_entries = {d["file"]: d for d in data["documents"]}
+    assert "2026-01-01_stale0001.jpg" in archived_entries
+    assert "2026-01-01_stale0002.jpg" in archived_entries
+    for entry in archived_entries.values():
+        assert entry["auto_archived"] is True
+        assert entry["user_confirmed"] is False
+        assert entry["reason"] == "не дождался разбора"
 
 
 # ── issue #441 п.8: is_medical_document ──────────────────────────────────────
@@ -895,3 +945,565 @@ async def test_cmd_cancel_archives_pending_and_queue(tmp_path, monkeypatch):
 
     reply_text = msg.answer.call_args[0][0]
     assert "2" in reply_text
+
+
+# ── issue #516: сбой показа превью / рестарт не роняют пачку документов ────
+
+
+class _StatefulFSM:
+    """Простая in-memory замена FSMContext для тестов, где важно, чтобы
+    update_data/get_data/clear реально согласованно меняли одно и то же
+    состояние между вызовами (в отличие от AsyncMock с фиксированным
+    return_value) — нужно для сценариев, где run_doc_pipeline сам себе
+    читает/пишет `pending`/`queue` в несколько шагов."""
+
+    def __init__(self, data=None):
+        self._data = dict(data or {})
+        self.cleared = False
+
+    async def get_data(self):
+        return dict(self._data)
+
+    async def update_data(self, **kwargs):
+        self._data.update(kwargs)
+
+    async def set_state(self, _state):
+        pass
+
+    async def clear(self):
+        self._data = {}
+        self.cleared = True
+
+
+@pytest.mark.asyncio
+async def test_preview_failure_mid_batch_archives_entire_batch_none_deleted(tmp_path, test_db, monkeypatch):
+    """DoD issue #516: сбой edit_text на втором документе пачки из трёх —
+    все три документа оказываются в архиве (KB-записи + файлы под
+    постоянными именами), ни один не удалён."""
+    import handlers.doc_upload as mod
+
+    monkeypatch.setattr(mod, "_PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(mod, "_UPLOADS_DIR", tmp_path / "data" / "uploads")
+    monkeypatch.setattr(mod, "SessionLocal", lambda: test_db)
+
+    user_id = 950
+    uploads = tmp_path / "data" / "uploads" / str(user_id)
+    uploads.mkdir(parents=True)
+
+    # Пачка из трёх: документ 1 — текущий pending (будет сохранён обычным
+    # путём), документ 2 и 3 — ещё в очереди (.queued_*, не показывались).
+    # После сохранения документа 1 пайплайн сам поднимет документ 2 из
+    # очереди и попытается показать его превью — вот тут и сработает сбой.
+    pending1 = uploads / ".pending_2026-09-22_aaaa0001.pdf"
+    pending1.write_bytes(b"%PDF-one")
+    queued2 = uploads / ".queued_2026-09-22_bbbb0002.jpg"
+    queued2.write_bytes(b"\xff\xd8-two")
+    queued3 = uploads / ".queued_2026-09-22_cccc0003.jpg"
+    queued3.write_bytes(b"\xff\xd8-three")
+
+    callback = MagicMock()
+    callback.data = "docup_save"
+    callback.from_user.id = user_id
+    callback.message.edit_text = AsyncMock()
+    processing2 = AsyncMock()
+    processing2.edit_text = AsyncMock(side_effect=RuntimeError("edit failed"))
+    callback.message.answer = AsyncMock(return_value=processing2)
+
+    callback.answer = AsyncMock()
+
+    state = _StatefulFSM(
+        {
+            "pending": {
+                "tmp_path": str(pending1),
+                "stored_name": "2026-09-22_aaaa0001.pdf",
+                "extracted": {"values": {"Hb": 140}},
+            },
+            "queue": [
+                {"tmp_path": str(queued2), "ext": ".jpg", "is_pdf": False, "label": "b.jpg"},
+                {"tmp_path": str(queued3), "ext": ".jpg", "is_pdf": False, "label": "c.jpg"},
+            ],
+            "queue_total": 3,
+        }
+    )
+
+    extracted2 = {"values": {"ALT": 24}}
+    with patch("core.health.doc_extractor.extract_medical_data", AsyncMock(return_value=extracted2)):
+        with pytest.raises(RuntimeError):
+            await mod.doc_confirm(callback, state)
+
+    kb_path = tmp_path / "data" / "kb" / f"kb_{user_id}.json"
+    data = json.loads(kb_path.read_text(encoding="utf-8"))
+    # Документ 1 — обычное сохранение (user_confirmed=True), документ 2 и 3 —
+    # archived после сбоя показа превью документа 2 (документ 3 — хвост
+    # очереди, никогда не показывался).
+    assert len(data["documents"]) == 3
+    by_file = {d["file"]: d for d in data["documents"]}
+    assert by_file["2026-09-22_aaaa0001.pdf"]["user_confirmed"] is True
+    # Имя документа 2 генерируется динамически из его контента внутри
+    # run_doc_pipeline — найдём его по auto_archived (документы 2 и 3), а не
+    # по конкретному имени файла.
+    archived_docs = [d for d in data["documents"] if d.get("auto_archived") is True]
+    assert len(archived_docs) == 2
+    assert all(d["user_confirmed"] is False for d in archived_docs)
+
+    # Ни один файл не удалён — все лежат на диске под постоянными именами
+    # (без ведущей точки/префикса .pending_/.queued_).
+    remaining = [f.name for f in uploads.iterdir()]
+    assert not any(name.startswith(".pending_") or name.startswith(".queued_") for name in remaining)
+    assert len(remaining) == 3, f"ожидали 3 архивных файла на диске, получили: {remaining}"
+
+
+@pytest.mark.asyncio
+async def test_telegram_retry_after_is_not_fatal_retries_and_succeeds(tmp_path, test_db, monkeypatch):
+    """DoD issue #516: TelegramRetryAfter (429) приводит к ожиданию и
+    повтору, а не к очистке/архивации — превью в итоге показывается
+    успешно."""
+    import handlers.doc_upload as mod
+    from aiogram.exceptions import TelegramRetryAfter
+
+    monkeypatch.setattr(mod, "_PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(mod, "_UPLOADS_DIR", tmp_path / "data" / "uploads")
+    monkeypatch.setattr(mod, "SessionLocal", lambda: test_db)
+
+    sleep_calls = []
+
+    async def fake_sleep(seconds):
+        sleep_calls.append(seconds)
+
+    monkeypatch.setattr(mod.asyncio, "sleep", fake_sleep)
+
+    message, processing = _make_message_with_processing(from_id=563)
+    state = AsyncMock()
+    state.get_data = AsyncMock(return_value={})
+    state.update_data = AsyncMock()
+
+    flood_error = TelegramRetryAfter(method=MagicMock(), message="Too Many Requests", retry_after=2)
+    processing.edit_text = AsyncMock(side_effect=[flood_error, None])
+
+    extracted = {"values": {"Hb": 150}}
+    with patch("core.health.doc_extractor.extract_medical_data", AsyncMock(return_value=extracted)):
+        await mod.run_doc_pipeline(message, state, content=b"fake-jpeg", ext=".jpg", is_pdf=False)
+
+    assert processing.edit_text.call_count == 2
+    assert sleep_calls == [2]
+    state.clear.assert_not_called()
+    uploads = tmp_path / "data" / "uploads" / "563"
+    # Файл остался как .pending_* (ждёт подтверждения) — не архивирован и не удалён.
+    assert list(uploads.glob(".pending_*"))
+
+
+@pytest.mark.asyncio
+async def test_telegram_retry_after_gives_up_after_max_attempts_and_archives(tmp_path, test_db, monkeypatch):
+    """429 продолжает сыпаться дольше разумного числа попыток — не висим
+    вечно, документ архивируется как при любом другом неустранимом сбое
+    показа превью."""
+    import handlers.doc_upload as mod
+    from aiogram.exceptions import TelegramRetryAfter
+
+    monkeypatch.setattr(mod, "_PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(mod, "_UPLOADS_DIR", tmp_path / "data" / "uploads")
+    monkeypatch.setattr(mod, "SessionLocal", lambda: test_db)
+
+    async def fake_sleep(_seconds):
+        return None
+
+    monkeypatch.setattr(mod.asyncio, "sleep", fake_sleep)
+
+    message, processing = _make_message_with_processing(from_id=564)
+    message.answer = AsyncMock(return_value=processing)
+    state = _StatefulFSM()
+
+    flood_error = TelegramRetryAfter(method=MagicMock(), message="Too Many Requests", retry_after=1)
+    processing.edit_text = AsyncMock(side_effect=flood_error)
+
+    extracted = {"values": {"Hb": 150}}
+    with patch("core.health.doc_extractor.extract_medical_data", AsyncMock(return_value=extracted)):
+        with pytest.raises(TelegramRetryAfter):
+            await mod.run_doc_pipeline(message, state, content=b"fake-jpeg", ext=".jpg", is_pdf=False)
+
+    assert state.cleared
+    uploads = tmp_path / "data" / "uploads" / "564"
+    assert list(uploads.glob(".pending_*")) == []
+    archived = [f for f in uploads.iterdir() if not f.name.startswith(".")]
+    assert len(archived) == 1
+
+
+@pytest.mark.asyncio
+async def test_cancelled_document_can_be_resent_and_reparsed(tmp_path, test_db, monkeypatch):
+    """DoD issue #516: файл, отменённый кнопкой «Отмена», при повторной
+    отправке НЕ отклоняется дедупом как «уже разобранный» — разбирается
+    заново (регресс сценария, обнаруженного на дев-стенде: ТТГ отменили,
+    прислали снова, бот ответил «точный повтор»)."""
+    import handlers.doc_upload as mod
+    from handlers import doc_dedup
+    from handlers.doc_queue import gather_source_files
+
+    monkeypatch.setattr(mod, "_PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(mod, "_UPLOADS_DIR", tmp_path / "data" / "uploads")
+
+    doc_dedup.reset()
+    user_id = 971
+    content = b"%PDF-tsh-report"
+
+    uploads = tmp_path / "data" / "uploads" / str(user_id)
+    uploads.mkdir(parents=True)
+    pending_path = uploads / ".pending_2026-09-22_tttt0001.pdf"
+    pending_path.write_bytes(content)
+
+    # Симулируем, что gather_source_files уже пометил файл как "в обработке"
+    # (как это происходит на реальном пути через doc_received).
+    doc_dedup.mark_in_progress(user_id, content)
+
+    callback = MagicMock()
+    callback.data = "docup_cancel"
+    callback.from_user.id = user_id
+    callback.message.edit_text = AsyncMock()
+    callback.answer = AsyncMock()
+    state = AsyncMock()
+    state.get_data = AsyncMock(
+        return_value={
+            "pending": {
+                "tmp_path": str(pending_path),
+                "stored_name": "2026-09-22_tttt0001.pdf",
+                "extracted": {},
+            }
+        }
+    )
+    state.update_data = AsyncMock()
+
+    await mod.doc_confirm(callback, state)
+
+    # Файл отменён (не сохранён) — но повторная отправка того же контента
+    # больше не считается дублем.
+    msg = _make_doc_message_for_dedup(content, from_id=user_id)
+    result = await gather_source_files(user_id, [msg])
+    assert len(result.items) == 1
+    assert not result.skip_counts
+
+    doc_dedup.reset()
+
+
+@pytest.mark.asyncio
+async def test_saved_document_resent_within_ttl_is_rejected_with_honest_text(tmp_path, test_db, monkeypatch):
+    """DoD issue #516: документ, успешно сохранённый через docup_save, при
+    повторной отправке в течение TTL отклоняется как дубль — с честным
+    текстом «уже сохранил», а не «уже разобранного»."""
+    import handlers.doc_upload as mod
+    from handlers import doc_dedup
+    from handlers.doc_queue import format_skip_summary, gather_source_files
+
+    monkeypatch.setattr(mod, "_PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(mod, "_UPLOADS_DIR", tmp_path / "data" / "uploads")
+    monkeypatch.setattr(mod, "SessionLocal", lambda: test_db)
+
+    doc_dedup.reset()
+    user_id = 972
+    content = b"%PDF-hba1c-report"
+
+    uploads = tmp_path / "data" / "uploads" / str(user_id)
+    uploads.mkdir(parents=True)
+    pending_path = uploads / ".pending_2026-09-22_uuuu0001.pdf"
+    pending_path.write_bytes(content)
+    doc_dedup.mark_in_progress(user_id, content)
+
+    callback = MagicMock()
+    callback.data = "docup_save"
+    callback.from_user.id = user_id
+    callback.message.edit_text = AsyncMock()
+    callback.answer = AsyncMock()
+    state = AsyncMock()
+    state.get_data = AsyncMock(
+        return_value={
+            "pending": {
+                "tmp_path": str(pending_path),
+                "stored_name": "2026-09-22_uuuu0001.pdf",
+                "extracted": {"values": {"Hb": 140}},
+            }
+        }
+    )
+    state.update_data = AsyncMock()
+
+    await mod.doc_confirm(callback, state)
+
+    msg = _make_doc_message_for_dedup(content, from_id=user_id)
+    result = await gather_source_files(user_id, [msg])
+    assert result.items == []
+    assert result.skip_counts["duplicate_saved"] == 1
+    summary = format_skip_summary(result.skip_counts)
+    assert "уже" in summary.lower()
+    assert "разобранного" not in summary.lower()
+
+    doc_dedup.reset()
+
+
+def _make_doc_message_for_dedup(content: bytes, from_id: int):
+    """Мини doc-сообщение, совместимое с `gather_source_files` (то же, что
+    `_make_doc_message` в test_doc_queue.py — не импортируем напрямую, чтобы
+    не тянуть межфайловую зависимость тестов)."""
+    doc = MagicMock()
+    doc.file_name = "report.pdf"
+    doc.mime_type = "application/pdf"
+    doc.file_size = len(content)
+    doc.file_id = "file-report.pdf"
+
+    msg = MagicMock()
+    msg.document = doc
+    msg.photo = None
+    msg.from_user.id = from_id
+    msg.bot = AsyncMock()
+    msg.bot.get_file = AsyncMock(return_value=MagicMock(file_path="path/on/tg"))
+
+    async def fake_download(file_path, buf):
+        buf.write(content)
+
+    msg.bot.download_file = AsyncMock(side_effect=fake_download)
+    return msg
+
+
+# ── issue #516 доп. (независимый ревьюер): очередь не теряет файлы ──────────
+
+
+def _make_doc_message_dyn(file_name: str, mime_type: str, content: bytes, from_id: int):
+    """Doc-сообщение с уникальным content — для тестов очереди/дедупа, где
+    нужно несколько разных «файлов» подряд от одного юзера."""
+    doc = MagicMock()
+    doc.file_name = file_name
+    doc.mime_type = mime_type
+    doc.file_size = len(content)
+    doc.file_id = f"file-{file_name}-{len(content)}"
+
+    processing = AsyncMock()
+    processing.edit_text = AsyncMock()
+
+    msg = MagicMock()
+    msg.document = doc
+    msg.photo = None
+    msg.from_user.id = from_id
+    msg.caption = None
+    msg.answer = AsyncMock(return_value=processing)
+    msg.bot = AsyncMock()
+    msg.bot.get_file = AsyncMock(return_value=MagicMock(file_path="path/on/tg"))
+
+    async def fake_download(file_path, buf):
+        buf.write(content)
+
+    msg.bot.download_file = AsyncMock(side_effect=fake_download)
+    return msg, processing
+
+
+@pytest.mark.asyncio
+async def test_new_upload_during_active_queue_appends_not_replaces(tmp_path, test_db, monkeypatch):
+    """Дефект А (независимый ревьюер): альбом из 3 файлов уже в очереди
+    (документ 1 показан, ждёт подтверждения) — присланный ещё один файл
+    ДОБАВЛЯЕТСЯ в хвост (4 элемента, прогресс «из 4»), а не заменяет очередь.
+    Реальный сценарий: часть альбома пришла отдельным апдейтом из-за задержки
+    MediaGroupMiddleware, либо пользователь дослал документ вручную."""
+    import handlers.doc_upload as mod
+
+    monkeypatch.setattr(mod, "_PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(mod, "_UPLOADS_DIR", tmp_path / "data" / "uploads")
+    monkeypatch.setattr(mod, "SessionLocal", lambda: test_db)
+
+    user_id = 980
+    msg1, processing1 = _make_doc_message_dyn("a.pdf", "application/pdf", b"%PDF-one", user_id)
+    msg2, _ = _make_doc_message_dyn("b.jpg", "image/jpeg", b"\xff\xd8-two", user_id)
+    msg3, _ = _make_doc_message_dyn("c.jpg", "image/jpeg", b"\xff\xd8-three", user_id)
+    msg4, _ = _make_doc_message_dyn("d.jpg", "image/jpeg", b"\xff\xd8-four", user_id)
+
+    state = _StatefulFSM()
+
+    extracted = {"values": {"Hb": 150}}
+    with (
+        patch("handlers.photo._extract_pdf_text", return_value="Общий анализ крови\nHb 150 г/л"),
+        patch("core.health.doc_extractor.extract_medical_data", AsyncMock(return_value=extracted)),
+    ):
+        # Альбом из трёх файлов — документ 1 сразу показывается, 2 и 3 в очереди.
+        await mod.doc_received(msg1, state, album=[msg1, msg2, msg3])
+
+    data_after_album = await state.get_data()
+    assert data_after_album.get("pending") is not None
+    assert len(data_after_album.get("queue") or []) == 2
+    assert data_after_album.get("queue_total") == 3
+
+    # Ещё один файл приходит, пока документ 1 всё ещё ждёт подтверждения.
+    with patch("core.health.doc_extractor.extract_medical_data", AsyncMock(return_value=extracted)):
+        await mod.doc_received(msg4, state, album=None)
+
+    data_after_extra = await state.get_data()
+    # Текущий pending (документ 1) не тронут.
+    assert data_after_extra["pending"] == data_after_album["pending"]
+    # Очередь выросла до 3 элементов (2 и 3 остались, добавился 4), всего 4.
+    assert len(data_after_extra["queue"]) == 3
+    assert data_after_extra["queue_total"] == 4
+
+    # Пользователь уведомлён, что файл добавлен в очередь, а не начал новый показ.
+    msg4.answer.assert_called_once()
+    assert "очеред" in msg4.answer.call_args[0][0].lower()
+
+    # Ничего не потеряно на диске: 1 pending + 3 queued = 4 файла.
+    uploads = tmp_path / "data" / "uploads" / str(user_id)
+    all_files = list(uploads.glob(".pending_*")) + list(uploads.glob(".queued_*"))
+    assert len(all_files) == 4
+
+
+@pytest.mark.asyncio
+async def test_concurrent_uploads_do_not_lose_any_item(tmp_path, test_db, monkeypatch):
+    """Дефект А: два апдейта, обрабатываемые конкурентно (как это бывает под
+    webhook — Dispatcher не изолирует события одного пользователя), не должны
+    гонкой затирать очередь друг друга — оба файла должны остаться учтены
+    (один — pending, другой — в очереди), суммарно ни один не потерян."""
+    import asyncio as real_asyncio
+
+    import handlers.doc_upload as mod
+
+    monkeypatch.setattr(mod, "_PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(mod, "_UPLOADS_DIR", tmp_path / "data" / "uploads")
+    monkeypatch.setattr(mod, "SessionLocal", lambda: test_db)
+
+    user_id = 981
+    msg1, _ = _make_doc_message_dyn("a.pdf", "application/pdf", b"%PDF-race-one", user_id)
+    msg2, _ = _make_doc_message_dyn("b.jpg", "image/jpeg", b"\xff\xd8-race-two", user_id)
+
+    state = _StatefulFSM()
+
+    extracted = {"values": {"Hb": 150}}
+    with (
+        patch("handlers.photo._extract_pdf_text", return_value="Общий анализ крови\nHb 150 г/л"),
+        patch("core.health.doc_extractor.extract_medical_data", AsyncMock(return_value=extracted)),
+    ):
+        await real_asyncio.gather(
+            mod.doc_received(msg1, state, album=None),
+            mod.doc_received(msg2, state, album=None),
+        )
+
+    data = await state.get_data()
+    total_accounted = (1 if data.get("pending") else 0) + len(data.get("queue") or [])
+    assert total_accounted == 2, f"ожидали учесть оба файла, получили: {data}"
+
+    uploads = tmp_path / "data" / "uploads" / str(user_id)
+    all_files = list(uploads.glob(".pending_*")) + list(uploads.glob(".queued_*"))
+    assert len(all_files) == 2, f"ни один файл не должен потеряться на диске, нашли: {all_files}"
+
+
+@pytest.mark.asyncio
+async def test_stale_watchdog_does_not_touch_files_referenced_by_live_fsm(tmp_path, test_db, monkeypatch):
+    """Дефект Б: пользователь мог просто вернуться к живой очереди на
+    следующий день (MemoryStorage жив, рестарта не было) — файлы старше 24ч,
+    на которые ссылается ТЕКУЩЕЕ FSM-состояние (pending и хвост очереди), не
+    архивируются сторожем, иначе следующий docup_save/docup_cancel упадёт на
+    пропавшем файле."""
+    import os
+
+    import handlers.doc_upload as mod
+
+    monkeypatch.setattr(mod, "_PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(mod, "_UPLOADS_DIR", tmp_path / "data" / "uploads")
+    monkeypatch.setattr(mod, "SessionLocal", lambda: test_db)
+
+    user_id = 982
+    uploads = tmp_path / "data" / "uploads" / str(user_id)
+    uploads.mkdir(parents=True)
+
+    # Живой pending и живой хвост очереди — оба старше 24ч, но упомянуты в FSM.
+    live_pending = uploads / ".pending_2026-01-01_live00p1.pdf"
+    live_pending.write_bytes(b"%PDF-live-pending")
+    live_queued = uploads / ".queued_2026-01-01_live00q1.jpg"
+    live_queued.write_bytes(b"\xff\xd8-live-queued")
+    old_time = time.time() - 25 * 3600
+    os.utime(live_pending, (old_time, old_time))
+    os.utime(live_queued, (old_time, old_time))
+
+    state = _StatefulFSM(
+        {
+            "pending": {
+                "tmp_path": str(live_pending),
+                "stored_name": "2026-01-01_live00p1.pdf",
+                "extracted": {},
+            },
+            "queue": [{"tmp_path": str(live_queued), "ext": ".jpg", "is_pdf": False, "label": "b.jpg"}],
+            "queue_total": 2,
+        }
+    )
+
+    message, processing = _make_message_with_processing(from_id=user_id)
+    extracted = {"values": {"Hb": 150}}
+    # run_doc_pipeline вызовет _cleanup_stale_pending на КАЖДЫЙ запуск —
+    # используем его напрямую для проверки, что живые файлы не тронуты.
+    with patch("core.health.doc_extractor.extract_medical_data", AsyncMock(return_value=extracted)):
+        await mod.run_doc_pipeline(message, state, content=b"unrelated-new-doc", ext=".jpg", is_pdf=False)
+
+    assert live_pending.exists(), "живой pending не должен быть тронут сторожем"
+    assert live_queued.exists(), "живой элемент очереди не должен быть тронут сторожем"
+
+    kb_path = tmp_path / "data" / "kb" / f"kb_{user_id}.json"
+    if kb_path.exists():
+        data = json.loads(kb_path.read_text(encoding="utf-8"))
+        archived_files = {d["file"] for d in data.get("documents", [])}
+        assert "2026-01-01_live00p1.pdf" not in archived_files
+        assert "2026-01-01_live00q1.jpg" not in archived_files
+
+
+@pytest.mark.asyncio
+async def test_missing_queue_file_is_skipped_with_message_and_callback_answers(tmp_path, test_db, monkeypatch):
+    """Дефект Б: если файл элемента очереди пропал с диска — не роняем
+    callback без ответа (`FileNotFoundError` в `_load_staged_item` раньше
+    обрывал бы обработку) — пропускаем элемент с понятным сообщением и
+    переходим к следующему живому элементу очереди."""
+    import handlers.doc_upload as mod
+
+    monkeypatch.setattr(mod, "_PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(mod, "_UPLOADS_DIR", tmp_path / "data" / "uploads")
+    monkeypatch.setattr(mod, "SessionLocal", lambda: test_db)
+
+    user_id = 983
+    uploads = tmp_path / "data" / "uploads" / str(user_id)
+    uploads.mkdir(parents=True)
+
+    pending_path = uploads / ".pending_2026-09-23_missing1.pdf"
+    pending_path.write_bytes(b"%PDF-current")
+
+    # Второй элемент очереди — файл пропал с диска (не создаём его).
+    missing_queued_path = uploads / ".queued_2026-09-23_gone0002.jpg"
+    # Третий элемент — живой, должен быть показан вместо пропавшего.
+    alive_queued_path = uploads / ".queued_2026-09-23_alive003.jpg"
+    alive_queued_path.write_bytes(b"\xff\xd8-alive")
+
+    callback = MagicMock()
+    callback.data = "docup_save"
+    callback.from_user.id = user_id
+    callback.message.edit_text = AsyncMock()
+    callback.message.answer = AsyncMock(return_value=AsyncMock(edit_text=AsyncMock()))
+    callback.answer = AsyncMock()
+
+    state = _StatefulFSM(
+        {
+            "pending": {
+                "tmp_path": str(pending_path),
+                "stored_name": "2026-09-23_missing1.pdf",
+                "extracted": {"values": {"Hb": 140}},
+            },
+            "queue": [
+                {"tmp_path": str(missing_queued_path), "ext": ".jpg", "is_pdf": False, "label": "b.jpg"},
+                {"tmp_path": str(alive_queued_path), "ext": ".jpg", "is_pdf": False, "label": "c.jpg"},
+            ],
+            "queue_total": 3,
+        }
+    )
+
+    extracted2 = {"values": {"ALT": 24}}
+    with patch("core.health.doc_extractor.extract_medical_data", AsyncMock(return_value=extracted2)):
+        await mod.doc_confirm(callback, state)
+
+    # Callback ответил — не завис молча.
+    callback.answer.assert_called()
+    callback.message.edit_text.assert_called()
+
+    # Очередь продолжилась на живом элементе (третьем), а не оборвалась.
+    data = await state.get_data()
+    assert data.get("pending") is not None  # третий элемент теперь pending
+    assert data.get("queue") == []
+
+    # Пользователь получил понятное сообщение о пропущенном элементе — оно
+    # приписано к тексту закрытия шага (edit_text), который видит сразу.
+    edited_texts = [c.args[0] for c in callback.message.edit_text.call_args_list if c.args]
+    assert any("пропустил" in t.lower() or "не наш" in t.lower() for t in edited_texts)
