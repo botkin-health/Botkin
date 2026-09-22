@@ -90,6 +90,27 @@ def _looks_like_short_value(text: str) -> bool:
     return bool(_SHORT_VALUE_RE.match(t))
 
 
+# #514: пунктуация, которую не считаем "содержанием" при проверке, не осталось
+# ли после вырезания даты вообще ничего («позавчера.», «вчера!» и т.п.).
+_TRAILING_PUNCT = " \t\n.,:;!?-–—"
+
+
+def _is_lone_date_answer(custom_date: str | None, clean_text: str) -> bool:
+    """#514: True если ВСЁ сообщение было указанием даты («позавчера», «вчера»,
+    «yesterday», «day before yesterday», «15.09», «15/09» и т.п.) и после того,
+    как `extract_date_from_text()` вырезала это слово/дату, ничего не осталось.
+
+    Такое сообщение — почти всегда прямой ответ на уточняющий вопрос агента
+    «какой именно день?» (#507). `_looks_like_short_value` (#198) его не ловит:
+    та проверка заточена под КОРОТКИЕ ЧИСЛОВЫЕ ответы (вес/доза/АД), а не под
+    словесные даты. Раньше пустой `clean_text` проваливался в парсер еды и
+    получал «Это еда?» — до агента сообщение не доходило вообще.
+    """
+    if not custom_date:
+        return False
+    return not clean_text.strip(_TRAILING_PUNCT)
+
+
 # Addendum intent: "забыл добавить/упомянуть", "нужно добавить/дописать".
 # Must route to BotkinClaw agent (returns True) so the agent can call
 # get_recent_meals, find the last slot, and log the addendum with that slot.
@@ -765,12 +786,25 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
     # /my_products feature removed — no early-exit product matching, LLM handles all.
     router_result = None
 
+    # ── #514: сообщение целиком было датой («позавчера», «вчера», «15.09», ...) ──
+    # После вырезания слова о дате ничего не осталось. Это либо ответ на вопрос
+    # агента «какой именно день?» (#507), либо голое упоминание даты без
+    # контекста — в обоих случаях это НЕ еда, и агент справится лучше парсера
+    # (переспросит по-человечески, если пендинг-вопроса не было). Всегда в
+    # BotkinClaw, независимо от agent_last_turn_was_question — в отличие от
+    # #198 ниже, которое ловит короткие ЧИСЛОВЫЕ ответы и без вопроса агента
+    # рискует утащить в агента случайное короткое число.
+    if _is_lone_date_answer(custom_date, text):
+        debug_logger.info(f"🔀 #514 reroute: одинокая дата (custom_date={custom_date!r}) → BotkinClaw")
+        router_result = {"type": "other", "data": {}}
+        text = ""  # никаких огрызков пунктуации агенту — только директива о дате ниже
+
     # ── #198: короткий ответ после вопроса агента → агенту, не парсеру ───────
     # «сколько весишь?» → «54» перехватывался бы weight/BP-парсером, и агент не
     # получал ответ — диалог рвался. Если предыдущий ход агента был свежим (<10
     # мин) вопросом («?»), маршрутизируем короткое значение в BotkinClaw, минуя
     # парсеры. Проверка истории — только для коротких значений (дёшево, редко).
-    if _looks_like_short_value(text):
+    if not router_result and _looks_like_short_value(text):
         from core.agent_chat import agent_last_turn_was_question
 
         if agent_last_turn_was_question(int(user_id)):
