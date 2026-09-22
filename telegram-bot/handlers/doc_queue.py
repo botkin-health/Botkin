@@ -430,7 +430,7 @@ def archive_leftover_documents(user_id: int, data: dict[str, Any]) -> int:
     archived = 0
 
     pending = data.get("pending")
-    if pending:
+    if pending and pending.get("tmp_path"):
         tmp_path = Path(pending["tmp_path"])
         if archive_single_file(
             user_id,

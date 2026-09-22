@@ -1507,3 +1507,89 @@ async def test_missing_queue_file_is_skipped_with_message_and_callback_answers(t
     # приписано к тексту закрытия шага (edit_text), который видит сразу.
     edited_texts = [c.args[0] for c in callback.message.edit_text.call_args_list if c.args]
     assert any("пропустил" in t.lower() or "не наш" in t.lower() for t in edited_texts)
+
+
+@pytest.mark.asyncio
+async def test_intro_answer_failure_mid_batch_does_not_lose_document(tmp_path, test_db, monkeypatch):
+    """Ревью координатора #516: при продолжении очереди load_staged_item
+    читает .queued_ и СРАЗУ удаляет его с диска, а run_doc_pipeline первым
+    делом шлёт message.answer(«Документ 2 из 3 — читаю…») — и только потом
+    пишет .pending_. Если этот answer падает (429 после потолка ретраев,
+    сеть), документ 2 исчезает отовсюду: его нет ни на диске, ни в очереди,
+    ни в pending. Все три документа пачки должны оказаться в архиве."""
+    import handlers.doc_upload as mod
+
+    monkeypatch.setattr(mod, "_PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(mod, "_UPLOADS_DIR", tmp_path / "data" / "uploads")
+    monkeypatch.setattr(mod, "SessionLocal", lambda: test_db)
+
+    user_id = 951
+    uploads = tmp_path / "data" / "uploads" / str(user_id)
+    uploads.mkdir(parents=True)
+    pending1 = uploads / ".pending_2026-09-22_aaaa0011.pdf"
+    pending1.write_bytes(b"%PDF-one")
+    queued2 = uploads / ".queued_2026-09-22_bbbb0012.jpg"
+    queued2.write_bytes(b"\xff\xd8-two")
+    queued3 = uploads / ".queued_2026-09-22_cccc0013.jpg"
+    queued3.write_bytes(b"\xff\xd8-three")
+
+    callback = MagicMock()
+    callback.data = "docup_save"
+    callback.from_user.id = user_id
+    callback.message.edit_text = AsyncMock()
+    # Сбой именно на «Документ 2 из 3 — читаю…», ДО записи .pending_ документа 2.
+    callback.message.answer = AsyncMock(side_effect=RuntimeError("network down"))
+    callback.answer = AsyncMock()
+
+    state = _StatefulFSM(
+        {
+            "pending": {
+                "tmp_path": str(pending1),
+                "stored_name": "2026-09-22_aaaa0011.pdf",
+                "extracted": {"values": {"Hb": 140}},
+            },
+            "queue": [
+                {"tmp_path": str(queued2), "ext": ".jpg", "is_pdf": False, "label": "b.jpg"},
+                {"tmp_path": str(queued3), "ext": ".jpg", "is_pdf": False, "label": "c.jpg"},
+            ],
+            "queue_total": 3,
+        }
+    )
+
+    with patch("core.health.doc_extractor.extract_medical_data", AsyncMock(return_value={"values": {}})):
+        with pytest.raises(RuntimeError):
+            await mod.doc_confirm(callback, state)
+
+    kb_path = tmp_path / "data" / "kb" / f"kb_{user_id}.json"
+    data = json.loads(kb_path.read_text(encoding="utf-8"))
+    files = {d["file"] for d in data["documents"]}
+    assert len(data["documents"]) == 3, files
+    # содержимое документа 2 физически сохранено под постоянным именем
+    assert any((uploads / f).exists() and (uploads / f).read_bytes() == b"\xff\xd8-two" for f in files)
+
+
+def test_cancel_with_claiming_marker_does_not_crash_and_archives_tail(tmp_path, monkeypatch):
+    """Ревью координатора #516: doc_received на чистом старте ставит
+    pending={"claiming": True} — маркер без tmp_path. Если run_doc_pipeline
+    упал до записи настоящего pending, маркер застревает, и /cancel падал с
+    KeyError на pending["tmp_path"] — пользователь не мог выйти из сессии."""
+    import handlers.doc_upload as mod
+    from handlers.doc_queue import archive_leftover_documents
+
+    monkeypatch.setattr(mod, "_PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(mod, "_UPLOADS_DIR", tmp_path / "data" / "uploads")
+
+    user_id = 952
+    uploads = tmp_path / "data" / "uploads" / str(user_id)
+    uploads.mkdir(parents=True)
+    queued = uploads / ".queued_2026-09-22_dddd0014.jpg"
+    queued.write_bytes(b"\xff\xd8-tail")
+
+    data = {
+        "pending": {"claiming": True},
+        "queue": [{"tmp_path": str(queued), "ext": ".jpg", "is_pdf": False, "label": "d.jpg"}],
+    }
+    archived = archive_leftover_documents(user_id, data)
+
+    assert archived == 1
+    assert not queued.exists()

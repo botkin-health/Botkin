@@ -541,6 +541,17 @@ async def run_doc_pipeline(
 
     user_id = user_id if user_id is not None else message.from_user.id
     await _cleanup_stale_pending(user_id, state)
+
+    # Файл — на диск ДО любого сетевого вызова. При продолжении очереди
+    # load_staged_item уже удалил `.queued_*`, и содержимое живёт только в
+    # памяти: если бы первым шёл message.answer и он упал (429 после потолка
+    # ретраев, сеть), документ исчез бы отовсюду — ни на диске, ни в очереди,
+    # ни в pending (ревью координатора #516). Записанный `.pending_*` в худшем
+    # случае подберёт сторож или архивация ниже.
+    stored_name = _stored_name(content, ext)
+    tmp_path = _uploads_dir(user_id) / f".pending_{stored_name}"
+    tmp_path.write_bytes(content)
+
     if processing_msg is not None:
         try:
             await _call_with_flood_retry(
@@ -552,12 +563,19 @@ async def run_doc_pipeline(
     if processing_msg is not None:
         processing = processing_msg
     else:
-        processing = await message.answer(intro or "⏳ Читаю…")
-
-    # Сохраняем как .pending до подтверждения
-    stored_name = _stored_name(content, ext)
-    tmp_path = _uploads_dir(user_id) / f".pending_{stored_name}"
-    tmp_path.write_bytes(content)
+        try:
+            processing = await _call_with_flood_retry(
+                lambda: message.answer(intro or "⏳ Читаю…"), user_id=user_id, what="intro"
+            )
+        except Exception:
+            logger.exception("run_doc_pipeline: не удалось отправить «читаю…» (user %s)", user_id)
+            # Ставим текущий документ в pending, чтобы архивация его увидела:
+            # на чистом старте здесь может лежать маркер {"claiming": True}.
+            await state.update_data(
+                pending={"tmp_path": str(tmp_path), "stored_name": stored_name, "extracted": {}, "auto": auto}
+            )
+            await _archive_failed_preview(user_id, state, message)
+            raise
 
     # Извлекаем показатели
     loop = asyncio.get_event_loop()
