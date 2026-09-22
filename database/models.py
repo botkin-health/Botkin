@@ -692,6 +692,8 @@ class Workout(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=True
     )
     distance_km: Mapped[Optional[float]] = mapped_column(Numeric(8, 3), nullable=True)
+    avg_heart_rate: Mapped[Optional[int]] = mapped_column(SmallInteger, nullable=True)
+    max_heart_rate: Mapped[Optional[int]] = mapped_column(SmallInteger, nullable=True)
 
 
 class CgmConnection(Base):

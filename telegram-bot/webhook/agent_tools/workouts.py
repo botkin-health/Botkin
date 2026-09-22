@@ -1,15 +1,154 @@
-"""Agent tools: recent workouts (Garmin + Apple Health)."""
+"""Agent tools: recent workouts (Garmin + Apple Health) + manual logging."""
 
-from datetime import date, timedelta
-from typing import Any
+import hashlib
+from datetime import date, datetime, timedelta, timezone
+from typing import Any, Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from webhook.jwt_auth import get_agent_user, get_db
+from webhook.jwt_auth import get_agent_user, get_db, require_agent_scope
 from .common import _today_in_user_tz
 
 router = APIRouter(prefix="/api/agent", tags=["agent-tools-workouts"])
+
+
+class LogWorkoutRequest(BaseModel):
+    """Ручной ввод тренировки агентом (#500).
+
+    `start_time` — единственное поле, отвечающее «когда это было». Если агент
+    его не передал, сервер подставит «сейчас» в таймзоне пользователя — это
+    осознанный фоллбэк, а не автоматическая привязка события к сегодняшнему
+    дню (см. #502): описание тула в core/agent_chat.py прямо требует от LLM
+    проставлять start_time явно, как только в реплике есть указание на прошлое.
+    """
+
+    workout_type: str = Field(..., min_length=1, max_length=100, description="Тип тренировки, свободный текст")
+    duration_minutes: Optional[int] = Field(None, ge=1, le=1440, description="Длительность, минут")
+    distance_km: Optional[float] = Field(None, ge=0, le=500, description="Дистанция, км")
+    calories_burned: Optional[int] = Field(None, ge=0, le=10000, description="Сожжено ккал")
+    avg_heart_rate: Optional[int] = Field(None, ge=30, le=250, description="Средний пульс, уд/мин")
+    max_heart_rate: Optional[int] = Field(None, ge=30, le=250, description="Максимальный пульс, уд/мин")
+    start_time: Optional[str] = Field(None, description="ISO datetime начала тренировки; по умолчанию — сейчас")
+
+
+def _manual_workout_source(
+    user_id: int,
+    workout_type: str,
+    start_dt: datetime,
+    duration_minutes: Optional[int],
+    distance_km: Optional[float],
+    calories_burned: Optional[int],
+) -> str:
+    """Идемпотентность: та же фраза (те же параметры) → тот же `source`.
+
+    Префикс `manual_` (в отличие от `hae_<id>` в apple_health.py) держит канал
+    ручного ввода в отдельном неймспейсе — HAE-дедуп по source не задевается.
+    """
+    raw = "|".join(
+        [
+            str(user_id),
+            workout_type.strip().lower(),
+            start_dt.isoformat(),
+            str(duration_minutes),
+            str(distance_km),
+            str(calories_burned),
+        ]
+    )
+    digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
+    return f"manual_{digest}"
+
+
+@router.post("/log_workout")
+async def log_workout(
+    req: LogWorkoutRequest,
+    user=Depends(require_agent_scope("rw")),
+    db: Session = Depends(get_db),
+):
+    """Записать тренировку в `workouts` (ручной ввод, канал `source='manual_<hash>'`).
+
+    Пишет raw-SQL, как остальные писатели `workouts` (apple_health.py) — не
+    через ORM (см. анти-паттерны в CLAUDE.md). Дедуп — по идемпотентному
+    `source`, тем же способом, что и HAE-канал (_insert_new_workouts):
+    повторный вызов с теми же параметрами не создаёт вторую строку, а
+    возвращает уже существующую (status=ok, duplicate=true).
+    """
+    from sqlalchemy import text as _text
+
+    if req.start_time:
+        try:
+            start_dt = datetime.fromisoformat(req.start_time)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid start_time: {req.start_time!r}. Use ISO datetime.")
+    else:
+        tz_name = getattr(user, "timezone", None) or "Europe/Moscow"
+        try:
+            from zoneinfo import ZoneInfo
+
+            user_tz = ZoneInfo(tz_name)
+        except Exception:
+            user_tz = timezone.utc
+        start_dt = datetime.now(user_tz)
+
+    source = _manual_workout_source(
+        user.telegram_id,
+        req.workout_type,
+        start_dt,
+        req.duration_minutes,
+        req.distance_km,
+        req.calories_burned,
+    )
+
+    existing = db.execute(
+        _text("SELECT id, date FROM workouts WHERE user_id = :uid AND source = :src LIMIT 1"),
+        {"uid": user.telegram_id, "src": source},
+    ).first()
+    if existing:
+        return {
+            "status": "ok",
+            "duplicate": True,
+            "workout_id": existing.id,
+            "date": existing.date.isoformat() if hasattr(existing.date, "isoformat") else str(existing.date),
+            "hint": "Тренировка с этими же параметрами уже была записана ранее — новая запись не создана.",
+        }
+
+    row = db.execute(
+        _text(
+            """INSERT INTO workouts
+               (user_id, date, workout_type, duration_minutes, start_time,
+                calories_burned, distance_km, avg_heart_rate, max_heart_rate, source)
+               VALUES (:user_id, :date, :workout_type, :duration_minutes, :start_time,
+                       :calories_burned, :distance_km, :avg_heart_rate, :max_heart_rate, :source)
+               RETURNING id"""
+        ),
+        {
+            "user_id": user.telegram_id,
+            "date": start_dt.date(),
+            "workout_type": req.workout_type,
+            "duration_minutes": req.duration_minutes,
+            "start_time": start_dt,
+            "calories_burned": req.calories_burned,
+            "distance_km": req.distance_km,
+            "avg_heart_rate": req.avg_heart_rate,
+            "max_heart_rate": req.max_heart_rate,
+            "source": source,
+        },
+    ).first()
+    db.commit()
+
+    return {
+        "status": "ok",
+        "duplicate": False,
+        "workout_id": row.id,
+        "date": start_dt.date().isoformat(),
+        "workout_type": req.workout_type,
+        "duration_minutes": req.duration_minutes,
+        "distance_km": req.distance_km,
+        "calories_burned": req.calories_burned,
+        "avg_heart_rate": req.avg_heart_rate,
+        "max_heart_rate": req.max_heart_rate,
+    }
 
 
 @router.get("/recent_workouts")

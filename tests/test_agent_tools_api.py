@@ -27,7 +27,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from database.models import Base, User, NutritionLog, SupplementLog
+from database.models import Base, User, NutritionLog, SupplementLog, Workout
 from database.crud import create_nutrition_log, create_or_update_activity, create_weight
 
 
@@ -274,6 +274,141 @@ def test_log_bp_defaults_to_now(client, db_session, monkeypatch):
     # measured_at should be set automatically (not None)
     assert r.json()["measured_at"] is not None
     assert len(execute_calls) == 1
+
+
+# ── /log_workout (#500) ───────────────────────────────────────────────────────
+
+
+def test_log_workout_returns_200_and_stores_row(client, db_session):
+    """POST /log_workout stores a row in `workouts` with source='manual'."""
+    r = client.post(
+        "/api/agent/log_workout",
+        json={
+            "workout_type": "cycling",
+            "duration_minutes": 40,
+            "distance_km": 12,
+            "calories_burned": 300,
+            "avg_heart_rate": 110,
+            "max_heart_rate": 130,
+            "start_time": "2026-09-21T09:00:00",
+        },
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["status"] == "ok"
+    assert body["duplicate"] is False
+    assert body["date"] == "2026-09-21"
+
+    rows = db_session.query(Workout).filter_by(user_id=895655).all()
+    assert len(rows) == 1
+    row = rows[0]
+    assert row.workout_type == "cycling"
+    assert row.duration_minutes == 40
+    assert float(row.distance_km) == 12
+    assert row.calories_burned == 300
+    assert row.avg_heart_rate == 110
+    assert row.max_heart_rate == 130
+    assert row.source.startswith("manual_")
+    assert row.date.isoformat() == "2026-09-21"
+
+
+def test_log_workout_yesterday_keeps_explicit_date(client, db_session):
+    """Явно переданный start_time «вчера» не должен уехать на сегодня (#502)."""
+    r = client.post(
+        "/api/agent/log_workout",
+        json={
+            "workout_type": "cycling",
+            "duration_minutes": 30,
+            "start_time": "2026-09-20T18:00:00",
+        },
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["date"] == "2026-09-20"
+    row = db_session.query(Workout).filter_by(user_id=895655).one()
+    assert row.date.isoformat() == "2026-09-20"
+
+
+def test_log_workout_defaults_start_time_to_now(client, db_session):
+    """Без start_time — текущее время в таймзоне пользователя, не 422."""
+    r = client.post(
+        "/api/agent/log_workout",
+        json={"workout_type": "strength_training", "duration_minutes": 20},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["date"] == datetime.now(MSK).date().isoformat()
+
+
+def test_log_workout_same_call_twice_does_not_duplicate(client, db_session):
+    """Повторный вызов с теми же параметрами — идемпотентен, не плодит дубли."""
+    payload = {
+        "workout_type": "cycling",
+        "duration_minutes": 40,
+        "distance_km": 12,
+        "calories_burned": 300,
+        "start_time": "2026-09-21T09:00:00",
+    }
+    r1 = client.post("/api/agent/log_workout", json=payload)
+    r2 = client.post("/api/agent/log_workout", json=payload)
+    assert r1.status_code == 200 and r2.status_code == 200
+    assert r1.json()["duplicate"] is False
+    assert r2.json()["duplicate"] is True
+    assert r1.json()["workout_id"] == r2.json()["workout_id"]
+
+    rows = db_session.query(Workout).filter_by(user_id=895655).all()
+    assert len(rows) == 1
+
+
+def test_log_workout_different_params_creates_second_row(client, db_session):
+    """Другая тренировка (другое время) не должна дедупиться с первой."""
+    client.post(
+        "/api/agent/log_workout",
+        json={"workout_type": "cycling", "duration_minutes": 40, "start_time": "2026-09-21T09:00:00"},
+    )
+    r2 = client.post(
+        "/api/agent/log_workout",
+        json={"workout_type": "cycling", "duration_minutes": 40, "start_time": "2026-09-22T09:00:00"},
+    )
+    assert r2.json()["duplicate"] is False
+    rows = db_session.query(Workout).filter_by(user_id=895655).all()
+    assert len(rows) == 2
+
+
+def test_log_workout_does_not_touch_hae_rows(client, db_session):
+    """Ручной тул не должен трогать/дублировать HAE-канал (source=hae_<id>)."""
+    hae_row = Workout(
+        user_id=895655,
+        date=date(2026, 9, 21),
+        workout_type="Cycling",
+        duration_minutes=40,
+        calories_burned=300,
+        source="hae_ABC123",
+    )
+    db_session.add(hae_row)
+    db_session.commit()
+
+    r = client.post(
+        "/api/agent/log_workout",
+        json={
+            "workout_type": "cycling",
+            "duration_minutes": 40,
+            "calories_burned": 300,
+            "start_time": "2026-09-21T09:00:00",
+        },
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["duplicate"] is False
+
+    rows = db_session.query(Workout).filter_by(user_id=895655).order_by(Workout.id).all()
+    assert len(rows) == 2
+    assert rows[0].source == "hae_ABC123"
+    assert rows[1].source.startswith("manual_")
+
+
+def test_log_workout_requires_workout_type(client):
+    """POST /log_workout without workout_type → 422 (pydantic validation)."""
+    r = client.post("/api/agent/log_workout", json={"duration_minutes": 30})
+    assert r.status_code == 422
 
 
 def test_regenerate_health_token_returns_new_token(client, db_session):
