@@ -15,6 +15,8 @@ Telegram/FSM — легко тестировать в изоляции. Огра
 - берём только PDF/изображения, остальное пропускаем молча (но считаем и
   сообщаем пользователю сколько и почему);
 - вложенные архивы не разворачиваем;
+- парольный (зашифрованный) архив — отдельная понятная причина, не общий
+  «не подходящий формат»;
 - битый архив не роняет вызывающий код — возвращаем понятную причину.
 """
 
@@ -34,12 +36,21 @@ from typing import Optional
 MAX_ARCHIVE_BYTES = 20 * 1024 * 1024
 
 # Суммарный РАСПАКОВАННЫЙ размер содержимого архива — основная защита от
-# zip-bomb (маленький архив, разворачивающийся в гигабайты).
-MAX_UNCOMPRESSED_TOTAL_BYTES = 150 * 1024 * 1024
+# zip-bomb (маленький архив, разворачивающийся в гигабайты). Значение подогнано
+# под реальный прод-сервер (issue #499, ревью): 3.8 ГБ RAM всего, ~1.1 ГБ
+# available, контейнер бота уже занимает 459 МБ. `gather_source_files` держит
+# все извлечённые файлы одной пачки в памяти одновременно (байты уходят на
+# диск только на стадии стейджинга) — пик в 150 МБ на такой машине реально
+# ронял бы бота целиком из-за одного архива, а медицинских документов на
+# 150 МБ в одной пачке не бывает. 40 МБ — с запасом на несколько сканов
+# нормального размера, но далеко от риска OOM.
+MAX_UNCOMPRESSED_TOTAL_BYTES = 40 * 1024 * 1024
 
-# Один файл внутри архива после распаковки — не должен быть аномально большим
-# (скан на 100 МБ — не медицинский документ, а подозрительная нагрузка).
-MAX_SINGLE_ENTRY_BYTES = 30 * 1024 * 1024
+# Один файл внутри архива после распаковки — не должен быть аномально большим.
+# Ровно лимит Telegram на документ (MAX_ARCHIVE_BYTES выше): файл тяжелее бот
+# всё равно не принял бы отдельным сообщением, так что это естественный
+# потолок, а не произвольное число.
+MAX_SINGLE_ENTRY_BYTES = 20 * 1024 * 1024
 
 # Разумный размер пачки документов от одного пользователя разом.
 MAX_FILES_IN_ARCHIVE = 30
@@ -61,6 +72,7 @@ REASON_SYMLINK = "symlink"
 REASON_NESTED_ARCHIVE = "nested_archive"
 REASON_TOO_LARGE_ENTRY = "too_large_entry"
 REASON_SUSPICIOUS_RATIO = "suspicious_ratio"
+REASON_PASSWORD_PROTECTED = "password_protected"
 
 # Ошибки уровня всего архива (не пропуск отдельного файла, а отказ целиком).
 ERROR_TOO_LARGE = "archive_too_large"
@@ -110,6 +122,20 @@ def _is_symlink_entry(info: zipfile.ZipInfo) -> bool:
     return stat.S_ISLNK(unix_mode) if unix_mode else False
 
 
+def _is_dir_entry(info: zipfile.ZipInfo) -> bool:
+    try:
+        return info.is_dir()
+    except Exception:
+        return False
+
+
+def _is_password_protected(info: zipfile.ZipInfo) -> bool:
+    """Бит 0 general purpose flag — запись зашифрована (issue #499, ревью:
+    парольный ZIP раньше падал в общий except и показывался пользователю как
+    «не подходящий формат», хотя дело не в формате файла, а в пароле)."""
+    return bool(info.flag_bits & 0x1)
+
+
 def extract_zip_safely(content: bytes) -> ArchiveExtractionResult:
     """Разбирает ZIP-архив, отбрасывая всё небезопасное или неподходящее.
 
@@ -127,19 +153,19 @@ def extract_zip_safely(content: bytes) -> ArchiveExtractionResult:
     except Exception:
         return ArchiveExtractionResult(error=ERROR_CORRUPT)
 
-    if len(infolist) > MAX_FILES_IN_ARCHIVE:
+    # Считаем лимит по ЗАПИСЯМ-ФАЙЛАМ, а не по всем entries central directory
+    # (issue #499, ревью): Windows, упаковывая папку, кладёт в архив ещё и
+    # записи-директории — архив из папки ровно с MAX_FILES_IN_ARCHIVE файлами
+    # иначе отбивался бы целиком как «слишком много», хотя файлов ровно
+    # разрешённое количество.
+    file_entries = [info for info in infolist if not _is_dir_entry(info)]
+    if len(file_entries) > MAX_FILES_IN_ARCHIVE:
         return ArchiveExtractionResult(error=ERROR_TOO_MANY_FILES)
 
     result = ArchiveExtractionResult()
     running_total = 0
 
-    for info in infolist:
-        try:
-            if info.is_dir():
-                continue
-        except Exception:
-            continue
-
+    for info in file_entries:
         name = info.filename
         if not _is_safe_member_path(name):
             result.skipped[REASON_UNSAFE_PATH] += 1
@@ -147,6 +173,10 @@ def extract_zip_safely(content: bytes) -> ArchiveExtractionResult:
 
         if _is_symlink_entry(info):
             result.skipped[REASON_SYMLINK] += 1
+            continue
+
+        if _is_password_protected(info):
+            result.skipped[REASON_PASSWORD_PROTECTED] += 1
             continue
 
         basename = PurePosixPath(name.replace("\\", "/")).name
@@ -176,6 +206,12 @@ def extract_zip_safely(content: bytes) -> ArchiveExtractionResult:
             data = _read_entry_with_cap(zf, info, MAX_SINGLE_ENTRY_BYTES)
         except _EntryTooLarge:
             result.skipped[REASON_TOO_LARGE_ENTRY] += 1
+            continue
+        except RuntimeError:
+            # zipfile поднимает RuntimeError на попытке открыть зашифрованную
+            # запись без пароля — подстраховка на случай, если flag_bits по
+            # какой-то причине не выставлен, а архив всё равно защищён.
+            result.skipped[REASON_PASSWORD_PROTECTED] += 1
             continue
         except Exception:
             # Битая запись внутри архива — пропускаем как неподходящий файл,
