@@ -124,3 +124,42 @@ def test_old_incident_outside_lookback_is_ignored(session):
     """Недельной давности молчание разбирается отчётом, а не письмом сегодня."""
     _add(session, "user", minutes_ago=60 * 60)  # 2.5 суток назад
     assert _stalled(session, lookback=24) == []
+
+
+def test_food_confirm_messages_are_not_stalled(session):
+    """router_food — поток подтверждения еды, ответа в диалоге у него не бывает.
+
+    Поймано dry-run'ом на проде 22.09.2026 до первой боевой отправки: сторож
+    счёл «два яйца» оставшимся без ответа вопросом. Подтверждение еды живёт
+    кнопками в памяти процесса (services.state.state_manager) и в
+    agent_conversations ответа не оставляет НИКОГДА — значит каждое
+    залогированное блюдо выглядело бы зависшим ходом.
+    """
+    _add(session, "user", minutes_ago=45, source="router_food", body="два яйца")
+    assert _stalled(session) == []
+
+
+def test_food_after_unanswered_question_does_not_mask_it(session):
+    """Еда, записанная позже вопроса, не должна прятать сам вопрос.
+
+    Поэтому router-строки отсекаются ВНУТРИ выборки «последняя строка», а не
+    после неё: иначе «последней» оказалась бы еда, и вопрос потерялся бы.
+    """
+    _add(session, "user", minutes_ago=60, body="а мне можно креветки?")
+    _add(session, "user", minutes_ago=30, source="router_food", body="творог 200 г")
+    found = _stalled(session)
+    assert len(found) == 1
+    assert "креветки" in found[0].content
+
+
+def test_other_router_sources_are_ignored_too(session):
+    """Добавки, вес, замеры — тот же поток подтверждения."""
+    for src in ("router_vitamins", "router_weight", "router_multi_food", "router_body_measurements"):
+        _add(session, "user", minutes_ago=45, source=src, body=src)
+    assert _stalled(session) == []
+
+
+def test_e2e_rows_are_ignored(session):
+    """Тестовые прогоны не повод извиняться перед пользователем."""
+    _add(session, "user", minutes_ago=45, source="e2e_test", body="проверка")
+    assert _stalled(session) == []

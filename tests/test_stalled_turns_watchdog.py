@@ -121,3 +121,21 @@ def test_sql_skips_already_notified():
     """Иначе сторож будет слать извинение каждые 15 минут."""
     assert "watchdog_source" in watchdog._STALLED_SQL
     assert watchdog.WATCHDOG_SOURCE == "watchdog_notified"
+
+
+def test_sql_excludes_router_confirm_flows():
+    """router_* (еда/добавки/вес) ответа в agent_conversations не оставляют.
+
+    Без этого фильтра каждое залогированное блюдо выглядит как вопрос без
+    ответа — поймано dry-run'ом на проде 22.09.2026.
+    """
+    assert "source = 'botkinclaw'" in watchdog._AGENT_DIALOG_SOURCES
+    assert "source IS NULL" in watchdog._AGENT_DIALOG_SOURCES
+    assert "router" not in watchdog._STALLED_SQL
+
+
+def test_router_filter_applies_inside_last_row_selection():
+    """Фильтр должен стоять ДО выбора последней строки, иначе еда,
+    записанная после вопроса, спрячет сам вопрос."""
+    head = watchdog._STALLED_SQL.split("ORDER BY user_id")[0]
+    assert "source = 'botkinclaw'" in head

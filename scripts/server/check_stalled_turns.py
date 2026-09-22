@@ -89,12 +89,30 @@ USER_TEXT = (
 _OWNER_ENV = ("BOTKIN_OWNER_ID", "BOTKIN_USER_ID", "HEALTHVAULT_USER_ID")
 
 
-_STALLED_SQL = """
+# Какие строки вообще относятся к диалогу с агентом. Тот же принцип, что в
+# core/agent_chat.py::_load_history: source='router_*' — это поток подтверждения
+# еды/добавок/веса, он живёт кнопками в памяти процесса и ответа в
+# agent_conversations не оставляет НИКОГДА. Если их не отсечь, сторож примет
+# каждое «два яйца» за оставшийся без ответа вопрос (поймано dry-run'ом на
+# проде 22.09.2026 до первой боевой отправки).
+# NULL — легаси-ходы агента до появления колонки source, их учитываем.
+_AGENT_DIALOG_SOURCES = """
+        (source IS NULL
+         OR source = 'botkinclaw'
+         OR source = :watchdog_source
+         OR source LIKE '%\\_error' ESCAPE '\\')
+"""
+
+_STALLED_SQL = (
+    """
     WITH last_rows AS (
         SELECT DISTINCT ON (user_id)
                user_id, role, source, created_at, content
         FROM agent_conversations
         WHERE created_at >= NOW() - make_interval(hours => :lookback)
+          AND """
+    + _AGENT_DIALOG_SOURCES
+    + """
         ORDER BY user_id, created_at DESC, id DESC
     )
     SELECT lr.user_id, u.first_name, lr.role, lr.created_at,
@@ -108,6 +126,7 @@ _STALLED_SQL = """
       AND u.is_active
     ORDER BY lr.created_at
 """
+)
 
 
 def _owner_id() -> int | None:
