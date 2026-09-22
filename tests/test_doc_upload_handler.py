@@ -223,23 +223,61 @@ def test_read_existing_profile_reads_onboarding(test_db, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_doc_received_album_asks_to_send_one_by_one():
-    """Если пришёл альбом из нескольких файлов — просим прислать по одному,
-    не обрабатывая ни один из них (иначе остальные файлы молча теряются)."""
-    from handlers.doc_upload import doc_received
+async def test_doc_received_album_is_queued_not_rejected(tmp_path, test_db, monkeypatch):
+    """issue #499: альбом из нескольких файлов больше не отбивается — оба
+    файла ставятся в очередь, первый обрабатывается сразу с пометкой прогресса."""
+    import handlers.doc_upload as mod
 
-    doc1 = MagicMock()
-    doc2 = MagicMock()
-    msg1 = _make_message(document=doc1)
-    msg2 = _make_message(document=doc2)
+    monkeypatch.setattr(mod, "_PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(mod, "_UPLOADS_DIR", tmp_path / "data" / "uploads")
+    monkeypatch.setattr(mod, "SessionLocal", lambda: test_db)
+
+    def _doc_message(file_name, mime_type, content, from_id=999):
+        doc = MagicMock()
+        doc.file_name = file_name
+        doc.mime_type = mime_type
+        doc.file_size = len(content)
+        doc.file_id = f"file-{file_name}"
+
+        processing = AsyncMock()
+        processing.edit_text = AsyncMock()
+
+        msg = MagicMock()
+        msg.document = doc
+        msg.photo = None
+        msg.from_user.id = from_id
+        msg.caption = None
+        msg.answer = AsyncMock(return_value=processing)
+        msg.bot = AsyncMock()
+        msg.bot.get_file = AsyncMock(return_value=MagicMock(file_path="path/on/tg"))
+
+        async def fake_download(file_path, buf):
+            buf.write(content)
+
+        msg.bot.download_file = AsyncMock(side_effect=fake_download)
+        return msg, processing
+
+    msg1, processing1 = _doc_message("a.pdf", "application/pdf", b"%PDF-a")
+    msg2, _ = _doc_message("b.jpg", "image/jpeg", b"\xff\xd8-b")
     state = AsyncMock()
+    state.update_data = AsyncMock()
+    state.set_state = AsyncMock()
 
-    await doc_received(msg1, state, album=[msg1, msg2])
+    extracted = {"values": {"Hb": 150}}
+    with (
+        patch("handlers.photo._extract_pdf_text", return_value="Общий анализ крови\nHb 150 г/л"),
+        patch("core.health.doc_extractor.extract_medical_data", AsyncMock(return_value=extracted)),
+    ):
+        await mod.doc_received(msg1, state, album=[msg1, msg2])
 
-    msg1.answer.assert_called_once()
-    reply_text = msg1.answer.call_args[0][0]
-    assert "по одному" in reply_text.lower()
-    state.update_data.assert_not_called()
+    # Первый файл разобран сразу, очередь получила второй.
+    queue_call = [c for c in state.update_data.call_args_list if "queue" in c.kwargs]
+    assert queue_call, "queue должен был попасть в FSM"
+    assert len(queue_call[0].kwargs["queue"]) == 1
+
+    processing1.edit_text.assert_called_once()
+    intro_or_preview = processing1.edit_text.call_args[0][0]
+    assert "Hb" in intro_or_preview
 
 
 @pytest.mark.asyncio
@@ -707,3 +745,153 @@ def test_is_medical_document_false_for_other_type_and_bad_input():
     assert is_medical_document({"type": "other", "data": {}}) is False
     assert is_medical_document(None) is False
     assert is_medical_document("not a dict") is False
+
+
+# ── issue #499: очередь документов (альбом/ZIP) ──────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_doc_confirm_save_advances_to_next_queued_item(tmp_path, test_db, monkeypatch):
+    """После сохранения текущего документа, если в очереди есть следующий —
+    сразу запускается его разбор с пометкой «Документ 2 из 2»."""
+    import handlers.doc_upload as mod
+
+    monkeypatch.setattr(mod, "_PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(mod, "_UPLOADS_DIR", tmp_path / "data" / "uploads")
+    monkeypatch.setattr(mod, "SessionLocal", lambda: test_db)
+
+    uploads = tmp_path / "data" / "uploads" / "900"
+    uploads.mkdir(parents=True)
+    pending_path = uploads / ".pending_2026-09-22_aaaa1111.pdf"
+    pending_path.write_bytes(b"%PDF-first")
+    queued_path = uploads / ".queued_2026-09-22_bbbb2222.jpg"
+    queued_path.write_bytes(b"\xff\xd8-second")
+
+    callback = MagicMock()
+    callback.data = "docup_save"
+    callback.from_user.id = 900
+    callback.message.edit_text = AsyncMock()
+    callback.message.answer = AsyncMock(return_value=AsyncMock(edit_text=AsyncMock()))
+    callback.answer = AsyncMock()
+
+    fsm_data = {
+        "pending": {
+            "tmp_path": str(pending_path),
+            "stored_name": "2026-09-22_aaaa1111.pdf",
+            "extracted": {"values": {"Hb": 140}},
+        },
+        "queue": [
+            {"tmp_path": str(queued_path), "ext": ".jpg", "is_pdf": False, "label": "b.jpg"},
+        ],
+        "queue_total": 2,
+    }
+    state = AsyncMock()
+    state.get_data = AsyncMock(return_value=fsm_data)
+    state.update_data = AsyncMock()
+
+    extracted2 = {"values": {"ALT": 24}}
+    with patch("core.health.doc_extractor.extract_medical_data", AsyncMock(return_value=extracted2)):
+        await mod.doc_confirm(callback, state)
+
+    # Первый документ сохранён.
+    kb_path = tmp_path / "data" / "kb" / "kb_900.json"
+    data = json.loads(kb_path.read_text(encoding="utf-8"))
+    assert data["documents"][0]["user_confirmed"] is True
+
+    # Очередь обновлена — второй элемент выгружен из неё.
+    queue_updates = [c for c in state.update_data.call_args_list if "queue" in c.kwargs]
+    assert queue_updates
+    assert queue_updates[-1].kwargs["queue"] == []
+
+    # Второй элемент уже читается — новое сообщение с прогрессом отправлено.
+    callback.message.answer.assert_called_once()
+    intro_text = callback.message.answer.call_args[0][0]
+    assert "2" in intro_text and "из" in intro_text
+
+    # .queued_* файл больше не существует (перечитан и удалён), .pending_*
+    # для второго элемента создан заново процессом run_doc_pipeline.
+    assert not queued_path.exists()
+    assert list(uploads.glob(".pending_*"))
+
+
+@pytest.mark.asyncio
+async def test_doc_confirm_cancel_advances_to_next_queued_item(tmp_path, test_db, monkeypatch):
+    """Отмена текущего документа тоже продолжает очередь, а не просто
+    закрывает /doc — иначе следующий файл пришлось бы присылать заново."""
+    import handlers.doc_upload as mod
+
+    monkeypatch.setattr(mod, "_PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(mod, "_UPLOADS_DIR", tmp_path / "data" / "uploads")
+    monkeypatch.setattr(mod, "SessionLocal", lambda: test_db)
+
+    uploads = tmp_path / "data" / "uploads" / "901"
+    uploads.mkdir(parents=True)
+    pending_path = uploads / ".pending_2026-09-22_cccc3333.pdf"
+    pending_path.write_bytes(b"%PDF-first")
+    queued_path = uploads / ".queued_2026-09-22_dddd4444.jpg"
+    queued_path.write_bytes(b"\xff\xd8-second")
+
+    callback = MagicMock()
+    callback.data = "docup_cancel"
+    callback.from_user.id = 901
+    callback.message.edit_text = AsyncMock()
+    callback.message.answer = AsyncMock(return_value=AsyncMock(edit_text=AsyncMock()))
+    callback.answer = AsyncMock()
+
+    fsm_data = {
+        "pending": {"tmp_path": str(pending_path), "stored_name": "2026-09-22_cccc3333.pdf", "extracted": {}},
+        "queue": [{"tmp_path": str(queued_path), "ext": ".jpg", "is_pdf": False, "label": "b.jpg"}],
+        "queue_total": 2,
+    }
+    state = AsyncMock()
+    state.get_data = AsyncMock(return_value=fsm_data)
+    state.update_data = AsyncMock()
+
+    with patch("core.health.doc_extractor.extract_medical_data", AsyncMock(return_value={})):
+        await mod.doc_confirm(callback, state)
+
+    assert not pending_path.exists()  # первый документ выброшен, как при обычной отмене
+    callback.message.answer.assert_called_once()  # второй документ уже читается
+
+
+@pytest.mark.asyncio
+async def test_cmd_cancel_archives_pending_and_queue(tmp_path, monkeypatch):
+    """issue #499: /cancel посреди батча не роняет файлы молча — и текущий,
+    и весь хвост очереди архивируются (гарантия issue #370)."""
+    import handlers.doc_upload as mod
+
+    monkeypatch.setattr(mod, "_PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(mod, "_UPLOADS_DIR", tmp_path / "data" / "uploads")
+
+    uploads = tmp_path / "data" / "uploads" / "902"
+    uploads.mkdir(parents=True)
+    pending_path = uploads / ".pending_2026-09-22_eeee5555.pdf"
+    pending_path.write_bytes(b"%PDF-current")
+    queued_path = uploads / ".queued_2026-09-22_ffff6666.jpg"
+    queued_path.write_bytes(b"\xff\xd8-queued")
+
+    msg = _make_message(text="/cancel", from_id=902)
+    fsm_data = {
+        "pending": {"tmp_path": str(pending_path), "stored_name": "2026-09-22_eeee5555.pdf", "extracted": {}},
+        "queue": [{"tmp_path": str(queued_path), "ext": ".jpg", "is_pdf": False, "label": "b.jpg"}],
+        "queue_total": 2,
+    }
+    state = AsyncMock()
+    state.get_data = AsyncMock(return_value=fsm_data)
+    state.clear = AsyncMock()
+
+    await mod.cmd_cancel(msg, state)
+
+    state.clear.assert_called_once()
+    assert not pending_path.exists()
+    assert not queued_path.exists()
+    assert (uploads / "2026-09-22_eeee5555.pdf").exists()
+    assert (uploads / "2026-09-22_ffff6666.jpg").exists()
+
+    kb_path = tmp_path / "data" / "kb" / "kb_902.json"
+    data = json.loads(kb_path.read_text(encoding="utf-8"))
+    assert len(data["documents"]) == 2
+    assert all(d["auto_archived"] is True and d["user_confirmed"] is False for d in data["documents"])
+
+    reply_text = msg.answer.call_args[0][0]
+    assert "2" in reply_text
