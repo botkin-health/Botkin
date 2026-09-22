@@ -57,6 +57,26 @@ def test_preview_text_empty_extracted():
     assert "не нашёл" in text.lower() or "не найд" in text.lower() or "архив" in text.lower()
 
 
+def test_preview_text_unverified_labels_gets_honest_message():
+    """Issue #509: если doc_extractor отбросил все значения (названия не
+
+    подтвердились текстом документа), превью должно честно сказать «текст
+    читается плохо», а не общее «не нашёл данных» — пользователю нужно понимать,
+    что числа в документе БЫЛИ, просто бот не смог надёжно связать их с названием."""
+    from handlers.doc_upload import _preview_text
+
+    extracted = {
+        "date": "2026-09-20",
+        "values": {},
+        "_unverified_labels": ["glucose", "insulin", "HbA1c", "cholesterol_total", "HDL"],
+    }
+    text = _preview_text(extracted)
+    assert "плохо" in text.lower()
+    assert "архив" in text.lower()
+    # Не должно показывать выдуманные значения — их там просто нет.
+    assert "glucose" not in text.lower()
+
+
 def test_preview_text_values_only_no_date():
     """Если date отсутствует — превью не падает."""
     from handlers.doc_upload import _preview_text

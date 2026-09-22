@@ -11,6 +11,7 @@ from typing import Any
 import httpx
 
 from config.settings import get_settings
+from core.health.doc_marker_labels import split_verified_values
 from core.health.kb_schema import CANONICAL
 
 logger = logging.getLogger(__name__)
@@ -39,7 +40,9 @@ _SYSTEM_PROMPT_TEMPLATE = """Ты — медицинский парсер. Тв�
 - Не включай единицы измерения в значения — только число
 - "allergies" — список аллергий/непереносимостей, указанных в документе (аллергены, вещества, продукты). Строки на языке документа. Пусто [] если нет.
 - "conditions" — список хронических/персистирующих диагнозов из документа, с кодом МКБ если он есть (например "Бронхиальная астма (J45.0)"). Пусто [] если нет.
-- Не придумывай данных, которых нет в документе. Если чего-то нет — пустой список/пустой values."""
+- Не придумывай данных, которых нет в документе. Если чего-то нет — пустой список/пустой values.
+- КРИТИЧНО: название показателя в "values" бери ТОЛЬКО если оно реально прочитано в документе (напечатано рядом с числом). НИКОГДА не достраивай название по типичному составу панели, по порядку строк или по догадке о том, какой это может быть анализ. Если текст рядом с числом нечитаем, повреждён или отсутствует (например, вместо букв — точки, кракозябры, пустые места) — этот показатель в "values" НЕ включай вообще, даже если число само по себе читается чётко. Число без надёжно прочитанного названия хуже, чем отсутствие числа: неверно приписанное название — это другой анализ с другой нормой.
+- Если весь документ или его часть нечитаемы (повреждённый шрифт, плохое качество скана) — так и работай: верни только те показатели, названия которых ты действительно прочитал, а остальное не выдумывай."""
 
 
 def _build_system_prompt() -> str:
@@ -179,6 +182,21 @@ async def extract_medical_data(file_bytes: bytes, mime_type: str) -> dict[str, A
         if data:
             data["allergies"] = _as_str_list(data.get("allergies"))
             data["conditions"] = _as_str_list(data.get("conditions"))
+            if mime_type == "text/plain" and isinstance(data.get("values"), dict) and data["values"]:
+                # Программная сверка (issue #509): доступна только здесь, где
+                # file_bytes — РЕАЛЬНЫЙ текст документа (текстовый слой PDF,
+                # извлечённый локально через PyMuPDF в вызывающем коде), а не то,
+                # что вернула модель. Для image/pdf-без-текстового-слоя (vision)
+                # сверять не с чем — там защита только на уровне промпта выше.
+                doc_text = file_bytes.decode("utf-8", errors="replace")
+                verified, dropped = split_verified_values(data["values"], doc_text)
+                if dropped:
+                    logger.warning(
+                        "doc_extractor: название не подтверждено текстом документа, отброшено: %s",
+                        dropped,
+                    )
+                    data["_unverified_labels"] = dropped
+                data["values"] = verified
         return data
     except Exception as e:
         logger.error("doc_extractor: ошибка извлечения: %s", e)

@@ -126,9 +126,111 @@ async def test_text_plain_builds_text_block_not_image():
 
 @pytest.mark.asyncio
 async def test_text_plain_extracts_values():
-    """Путь text/plain доходит до парсинга ответа и возвращает извлечённые данные."""
+    """Путь text/plain доходит до парсинга ответа и возвращает извлечённые данные,
+
+    если название показателя реально встречается в тексте документа (issue #509:
+    после фикса значения сверяются с текстом, а не просто пропускаются насквозь)."""
+    doc_text = "Общий анализ крови. Гемоглобин: 155 г/л. Заключение: аллергия на амоксициллин."
     payload = {"date": "2026-07-10", "values": {"Hb": 155}, "allergies": ["амоксициллин"], "conditions": []}
     with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
-        out = await doc_extractor.extract_medical_data(b"any text bytes", "text/plain")
+        out = await doc_extractor.extract_medical_data(doc_text.encode(), "text/plain")
     assert out["values"] == {"Hb": 155}
     assert out["allergies"] == ["амоксициллин"]
+
+
+# ── issue #509: не выдумывать названия показателей по нечитаемому тексту ────
+
+
+@pytest.mark.asyncio
+async def test_text_plain_drops_values_whose_label_is_not_in_document_text():
+    """Регрессия #509: PDF с нечитаемыми названиями (дефект шрифта — только точки
+
+    и числа), где модель всё равно вернула правдоподобный, но выдуманный список
+    названий. Ни один показатель не должен пройти — названий в тексте нет."""
+    # Реальный вывод PyMuPDF для PDF, где кириллица набрана шрифтом без глифов
+    # (репро воспроизведено вживую перед фиксом, см. отчёт по issue #509).
+    doc_text = (
+        "·········· ······· ·····\n"
+        "····: 20.09.2026\n"
+        "·······: 5.4 ·····/·\n"
+        "·········: 88 ······/·\n"
+        "····· ··········: 5.9 ·····/·\n"
+        "····: 3.8 ·····/·\n"
+        "···: 27 ··/·"
+    )
+    payload = {
+        "date": "2026-09-20",
+        "laboratory": None,
+        "values": {
+            "glucose": 5.4,
+            "insulin": 88,  # в документе на самом деле креатинин
+            "HbA1c": 5.9,  # в документе на самом деле общий холестерин
+            "cholesterol_total": 3.8,  # в документе на самом деле ЛПНП
+            "HDL": 27,  # в документе на самом деле АЛТ
+        },
+        "allergies": [],
+        "conditions": [],
+    }
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(doc_text.encode(), "text/plain")
+
+    assert out["values"] == {}
+    assert set(out["_unverified_labels"]) == {"glucose", "insulin", "HbA1c", "cholesterol_total", "HDL"}
+
+
+@pytest.mark.asyncio
+async def test_text_plain_keeps_only_verified_values_partial_match():
+    """Если часть названий реально читается в тексте, а часть — нет, оставляем
+
+    только подтверждённые (не всё-или-ничего)."""
+    doc_text = "Биохимический анализ крови. Глюкоза: 5.4 ммоль/л. ....: 88 ....../."
+    payload = {"values": {"glucose": 5.4, "insulin": 88}}
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(doc_text.encode(), "text/plain")
+
+    assert out["values"] == {"glucose": 5.4}
+    assert out["_unverified_labels"] == ["insulin"]
+
+
+@pytest.mark.asyncio
+async def test_image_path_not_verified_against_text():
+    """Vision-путь (фото/скан без текстового слоя) не имеет текста документа для
+
+    сверки — значения не должны фильтроваться, иначе сломаем нормальный разбор
+    фотографий (issue #509, ограничение п.3)."""
+    payload = {"values": {"glucose": 5.4, "insulin": 88}}
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(b"jpeg-bytes-not-real-text", "image/jpeg")
+
+    assert out["values"] == {"glucose": 5.4, "insulin": 88}
+    assert "_unverified_labels" not in out
+
+
+@pytest.mark.asyncio
+async def test_text_plain_normal_document_fully_parsed():
+    """Обычный читаемый документ по-прежнему разбирается полностью — фикс не
+
+    должен ломать штатный путь, только защищать от галлюцинаций на битом тексте."""
+    doc_text = (
+        "Результаты анализа крови от 20.09.2026\n"
+        "Глюкоза: 5.4 ммоль/л\n"
+        "Креатинин: 88 мкмоль/л\n"
+        "Общий холестерин: 5.9 ммоль/л\n"
+        "ЛПНП: 3.8 ммоль/л\n"
+        "АЛТ: 27 Ед/л\n"
+    )
+    payload = {
+        "date": "2026-09-20",
+        "values": {
+            "glucose": 5.4,
+            "creatinine": 88,
+            "cholesterol_total": 5.9,
+            "LDL": 3.8,
+            "ALT": 27,
+        },
+    }
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(doc_text.encode(), "text/plain")
+
+    assert out["values"] == payload["values"]
+    assert "_unverified_labels" not in out
