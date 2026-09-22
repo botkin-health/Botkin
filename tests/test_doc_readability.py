@@ -47,3 +47,22 @@ def test_short_gibberish_with_a_few_stray_letters_is_not_readable():
     нужно и достаточную долю букв, и достаточно отдельных «слов»."""
     text = "х: 1.2 у: 3 z: 88.0 к: 5"
     assert is_document_text_readable(text) is False
+
+
+def test_short_readable_forms_are_not_rejected():
+    """Короткий, но нормальный бланк — не мусор. Ложное отсечение здесь =
+    тихая потеря настоящего анализа (ревью #509)."""
+    for text in (
+        "Глюкоза: 5.4 ммоль/л",
+        "Гемоглобин 141 г/л\nСОЭ 8 мм/ч",
+        "ПСА общий: 4.81 нг/мл",
+        "HbA1c 5.9 %",
+    ):
+        assert is_document_text_readable(text), text
+
+
+def test_control_char_garbage_from_broken_font_is_rejected():
+    """Реальный класс мусора с прода: вместо букв — управляющие символы
+    (доля букв 0.01–0.05), иногда с обрывками, похожими на «слова»."""
+    garbage = "  \x04\x05\x06\x07\x05\x08\x05\t \x0b\x0c\x05 ab \x0e\x06 cd \x0f\x10\x11 12.5 \x12 7.8"
+    assert not is_document_text_readable(garbage)
