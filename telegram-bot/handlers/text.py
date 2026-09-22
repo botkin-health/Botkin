@@ -525,6 +525,28 @@ def extract_date_from_text(text: str, user_tz=None) -> tuple[str, str]:
     return None, text
 
 
+def _agent_text_with_date_hint(text: str, custom_date: str | None) -> str:
+    """Восстанавливает для агента дату, которую `extract_date_from_text()` уже
+    вырезала из текста ("вчера" / "позавчера" / "yesterday" / ДД.ММ / ДД/ММ / ...).
+
+    Парсерам еды и добавок вырезание нужно (не мешает регэкспам), а BotkinClaw
+    получал бы текст уже без слова о дате и без custom_date — и логировал
+    событие на сегодня (#510: «вчера крутил велотренажёр…» → workouts.date =
+    сегодня). Директива короткая и однозначная, согласована с блоком
+    "📅 Сегодня: ..." в системном промпте (#502, core/agent_chat.py) — та
+    учит агента СЧИТАТЬ относительные даты от текущего дня, эта же говорит,
+    какая дата уже посчитана для конкретного сообщения (раз слово вырезано).
+    """
+    if not custom_date:
+        return text
+    return (
+        f"[Система: пользователь говорит про дату {custom_date} — слово об этом "
+        "уже распознано и вырезано из текста ниже, само вырезанное слово не "
+        "восстанавливай. Используй эту дату в полях даты/времени инструментов "
+        f"записи (start_time/date), не сегодняшнюю.] {text}"
+    )
+
+
 async def _replace_preview(message: Message, user_id: str, new_data: dict, text_html: str, keyboard) -> None:
     """Обновить карточку превью: правим уже отправленное сообщение, если можем.
 
@@ -1102,9 +1124,13 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
 
                 # E2E mode (task #62): is_e2e → ask_agent помечает все
                 # _save_message'ы source='e2e_test' и префиксует ответ.
+                # #510: если extract_date_from_text() вырезала «вчера»/«позавчера»/
+                # дату — восстанавливаем её агенту служебной директивой, иначе
+                # событие ложится на сегодня.
+                agent_text = _agent_text_with_date_hint(text, custom_date)
                 reply = await loop.run_in_executor(
                     None,
-                    lambda: ask_agent(int(user_id), text, _progress, is_e2e=is_e2e),
+                    lambda: ask_agent(int(user_id), agent_text, _progress, is_e2e=is_e2e),
                 )
                 if not reply:
                     reply = "Хм, у меня нет внятного ответа. Попробуй переформулировать."
@@ -1680,7 +1706,11 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
 
             await processing_msg.edit_text("⏳ Думаю…")
             try:
-                reply = await loop.run_in_executor(None, lambda: ask_agent(int(user_id), text))
+                # #510: та же служебная директива с датой, что и в основной
+                # 'other'-ветке выше — здесь тоже вырезанные «вчера»/«позавчера»/
+                # дата должны дойти до агента.
+                agent_text = _agent_text_with_date_hint(text, custom_date)
+                reply = await loop.run_in_executor(None, lambda: ask_agent(int(user_id), agent_text))
                 if not reply:
                     reply = "Хм, у меня нет внятного ответа. Попробуй переформулировать."
                 chunks = split_markdown_for_telegram(reply)
