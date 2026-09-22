@@ -290,13 +290,14 @@ def test_log_workout_returns_200_and_stores_row(client, db_session):
             "calories_burned": 300,
             "avg_heart_rate": 110,
             "max_heart_rate": 130,
-            "start_time": "2026-09-21T09:00:00",
+            "start_time": "2026-09-21T09:00:00+03:00",
         },
     )
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["status"] == "ok"
-    assert body["duplicate"] is False
+    assert body["created"] is True
+    assert body["updated"] is False
     assert body["date"] == "2026-09-21"
 
     rows = db_session.query(Workout).filter_by(user_id=895655).all()
@@ -308,7 +309,7 @@ def test_log_workout_returns_200_and_stores_row(client, db_session):
     assert row.calories_burned == 300
     assert row.avg_heart_rate == 110
     assert row.max_heart_rate == 130
-    assert row.source.startswith("manual_")
+    assert row.source == "manual"
     assert row.date.isoformat() == "2026-09-21"
 
 
@@ -319,7 +320,7 @@ def test_log_workout_yesterday_keeps_explicit_date(client, db_session):
         json={
             "workout_type": "cycling",
             "duration_minutes": 30,
-            "start_time": "2026-09-20T18:00:00",
+            "start_time": "2026-09-20T18:00:00+03:00",
         },
     )
     assert r.status_code == 200, r.text
@@ -339,49 +340,107 @@ def test_log_workout_defaults_start_time_to_now(client, db_session):
     assert body["date"] == datetime.now(MSK).date().isoformat()
 
 
-def test_log_workout_same_call_twice_does_not_duplicate(client, db_session):
-    """Повторный вызов с теми же параметрами — идемпотентен, не плодит дубли."""
+def test_log_workout_naive_start_time_localized_to_user_tz(client, db_session):
+    """Дефект #2 ревью: naive start_time ('вчера 23:30' без офсета) НЕ должен
+    трактоваться как UTC — иначе для Europe/Moscow (+3) поздняя вечерняя
+    тренировка уедет на следующие сутки (класс ошибок #502)."""
+    r = client.post(
+        "/api/agent/log_workout",
+        json={
+            "workout_type": "running",
+            "duration_minutes": 30,
+            "start_time": "2026-09-20T23:30:00",  # naive — без офсета/Z
+        },
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    # Если бы naive трактовалось как UTC, дата/время сместились бы (23:30 MSK
+    # == 20:30 UTC в тот же день, но граничные случаи 22:00-23:59 демонстрируют
+    # сдвиг иначе; здесь фиксируем факт локализации в MSK, а не в UTC).
+    assert body["date"] == "2026-09-20"
+    assert body["start_time"].startswith("2026-09-20T23:30:00+03:00")
+
+    row = db_session.query(Workout).filter_by(user_id=895655).one()
+    assert row.date.isoformat() == "2026-09-20"
+
+
+def test_log_workout_same_start_time_updates_instead_of_duplicating(client, db_session):
+    """Дефект #1 ревью: на проде есть UNIQUE(user_id, start_time). Уточнение
+    («40 минут» → «нет, 45 минут») с тем же start_time не должно падать
+    IntegrityError — должно тихо обновить существующую запись."""
+    base = {
+        "workout_type": "cycling",
+        "duration_minutes": 40,
+        "distance_km": 12,
+        "calories_burned": 300,
+        "start_time": "2026-09-21T09:00:00+03:00",
+    }
+    r1 = client.post("/api/agent/log_workout", json=base)
+    assert r1.status_code == 200, r1.text
+    assert r1.json()["created"] is True
+
+    corrected = {**base, "duration_minutes": 45, "distance_km": 13, "calories_burned": 320}
+    r2 = client.post("/api/agent/log_workout", json=corrected)
+    assert r2.status_code == 200, r2.text
+    body2 = r2.json()
+    assert body2["created"] is False
+    assert body2["updated"] is True
+    assert body2["workout_id"] == r1.json()["workout_id"]
+
+    rows = db_session.query(Workout).filter_by(user_id=895655).all()
+    assert len(rows) == 1
+    assert rows[0].duration_minutes == 45
+    assert float(rows[0].distance_km) == 13
+    assert rows[0].calories_burned == 320
+
+
+def test_log_workout_same_call_twice_is_idempotent_update(client, db_session):
+    """Повторный вызов с ИДЕНТИЧНЫМИ параметрами тоже не плодит дубли —
+    попадает в ту же ветку 'update' (значения просто перезаписываются теми же)."""
     payload = {
         "workout_type": "cycling",
         "duration_minutes": 40,
         "distance_km": 12,
         "calories_burned": 300,
-        "start_time": "2026-09-21T09:00:00",
+        "start_time": "2026-09-21T09:00:00+03:00",
     }
     r1 = client.post("/api/agent/log_workout", json=payload)
     r2 = client.post("/api/agent/log_workout", json=payload)
     assert r1.status_code == 200 and r2.status_code == 200
-    assert r1.json()["duplicate"] is False
-    assert r2.json()["duplicate"] is True
+    assert r1.json()["created"] is True
+    assert r2.json()["created"] is False
     assert r1.json()["workout_id"] == r2.json()["workout_id"]
 
     rows = db_session.query(Workout).filter_by(user_id=895655).all()
     assert len(rows) == 1
 
 
-def test_log_workout_different_params_creates_second_row(client, db_session):
-    """Другая тренировка (другое время) не должна дедупиться с первой."""
+def test_log_workout_different_start_time_creates_second_row(client, db_session):
+    """Другая тренировка (другое время) не должна дедупиться/обновлять первую."""
     client.post(
         "/api/agent/log_workout",
-        json={"workout_type": "cycling", "duration_minutes": 40, "start_time": "2026-09-21T09:00:00"},
+        json={"workout_type": "cycling", "duration_minutes": 40, "start_time": "2026-09-21T09:00:00+03:00"},
     )
     r2 = client.post(
         "/api/agent/log_workout",
-        json={"workout_type": "cycling", "duration_minutes": 40, "start_time": "2026-09-22T09:00:00"},
+        json={"workout_type": "cycling", "duration_minutes": 40, "start_time": "2026-09-22T09:00:00+03:00"},
     )
-    assert r2.json()["duplicate"] is False
+    assert r2.json()["created"] is True
     rows = db_session.query(Workout).filter_by(user_id=895655).all()
     assert len(rows) == 2
 
 
 def test_log_workout_does_not_touch_hae_rows(client, db_session):
-    """Ручной тул не должен трогать/дублировать HAE-канал (source=hae_<id>)."""
+    """Ручной тул не должен трогать/дублировать HAE-канал (source=hae_<id>),
+    пока их start_time не совпадают (обычный случай — HAE и ручной ввод
+    описывают разные тренировки)."""
     hae_row = Workout(
         user_id=895655,
         date=date(2026, 9, 21),
         workout_type="Cycling",
         duration_minutes=40,
         calories_burned=300,
+        start_time=datetime(2026, 9, 21, 7, 0, tzinfo=MSK),
         source="hae_ABC123",
     )
     db_session.add(hae_row)
@@ -393,16 +452,16 @@ def test_log_workout_does_not_touch_hae_rows(client, db_session):
             "workout_type": "cycling",
             "duration_minutes": 40,
             "calories_burned": 300,
-            "start_time": "2026-09-21T09:00:00",
+            "start_time": "2026-09-21T09:00:00+03:00",  # другое время — не пересекается с HAE
         },
     )
     assert r.status_code == 200, r.text
-    assert r.json()["duplicate"] is False
+    assert r.json()["created"] is True
 
     rows = db_session.query(Workout).filter_by(user_id=895655).order_by(Workout.id).all()
     assert len(rows) == 2
     assert rows[0].source == "hae_ABC123"
-    assert rows[1].source.startswith("manual_")
+    assert rows[1].source == "manual"
 
 
 def test_log_workout_requires_workout_type(client):

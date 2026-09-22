@@ -675,7 +675,15 @@ class Workout(Base):
     """Тренировки (пишутся raw-SQL путями apple_health/agent_tools_api). Зеркалит прод-таблицу."""
 
     __tablename__ = "workouts"
-    __table_args__ = (Index("idx_workouts_user_date", "user_id", text("date DESC")),)
+    __table_args__ = (
+        Index("idx_workouts_user_date", "user_id", text("date DESC")),
+        # Существует на проде (подтверждено `\d workouts`, 22.09.2026), но не была
+        # отражена в baseline-ревизии Alembic — добавлена на прод вне репозитория.
+        # Модель без неё расходилась со схемой, из-за чего SQLite-тесты не ловили
+        # IntegrityError, который реально возникает при двух workouts с одним
+        # (user_id, start_time). См. migrations/workuq01_add_workouts_unique_start.
+        UniqueConstraint("user_id", "start_time", name="uq_workouts_user_start"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(
