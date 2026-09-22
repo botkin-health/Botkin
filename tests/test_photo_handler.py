@@ -622,6 +622,45 @@ async def test_pdf_with_lab_markers_routes_to_doc_pipeline(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_pdf_with_lab_markers_but_no_fsm_state_does_not_silently_lose_data(tmp_path):
+    """Issue #504 (реальный инцидент 25.08.2026, #503): PDF-анализ, распознанный
+    эвристикой, но пришедший с state=None — раньше молча уходил в ask_agent:
+    бот отвечал осмысленно, но НИЧЕГО не сохранялось в blood_tests, а
+    пользователь был уверен, что документ сохранён. run_doc_pipeline требует
+    реальный FSMContext (хранит pending до кнопки «Сохранить»), поэтому при
+    state=None пайплайн технически недоступен — но теперь мы должны прямо
+    сказать пользователю, что показатели не записаны, а не отвечать так,
+    будто всё в порядке."""
+    from handlers.photo import handle_document_image
+
+    msg, processing_msg = _make_pdf_document_message(user_id=895802, file_name="biochem.pdf")
+    fake_pdf_path = tmp_path / "biochem.pdf"
+    fake_pdf_path.write_bytes(b"%PDF-fake-content")
+
+    lab_text = (
+        "Биохимический анализ крови. Глюкоза 5.1 ммоль/л. Креатинин 78 мкмоль/л. "
+        "Референсные значения указаны в графе норма. Заключение: без отклонений."
+    )
+    mock_run_pipeline = AsyncMock()
+    mock_ask_agent = MagicMock(return_value="не должно вызываться")
+
+    with (
+        patch("handlers.photo._download_pdf", AsyncMock(return_value=fake_pdf_path)),
+        patch("handlers.photo._extract_pdf_text", return_value=lab_text),
+        patch("handlers.doc_upload.run_doc_pipeline", mock_run_pipeline),
+        patch("core.agent_chat.ask_agent", mock_ask_agent),
+    ):
+        await handle_document_image(msg, album=None, state=None)
+
+    assert not mock_run_pipeline.called, "run_doc_pipeline не может работать без FSM state"
+    assert not mock_ask_agent.called, "ask_agent не должен молча 'проглатывать' нераспознанный как сохранённый анализ"
+    reply_text = processing_msg.edit_text.call_args.args[0].lower()
+    assert "не записан" in reply_text or "не сохран" in reply_text, (
+        "пользователь должен явно узнать, что показатели не попали в карту"
+    )
+
+
+@pytest.mark.asyncio
 async def test_pdf_without_lab_markers_uses_agent_as_before(tmp_path):
     """Регресс-guard: обычный текстовый PDF (не анализ) по-прежнему идёт в
     ask_agent, как до issue #439 — эвристика не должна ловить всё подряд."""
