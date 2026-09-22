@@ -234,3 +234,82 @@ async def test_text_plain_normal_document_fully_parsed():
 
     assert out["values"] == payload["values"]
     assert "_unverified_labels" not in out
+
+
+# ── ревью #509: реестр не должен терять реальные данные вне своего покрытия ──
+
+
+@pytest.mark.asyncio
+async def test_readable_document_with_out_of_registry_keys_keeps_all_values():
+    """Ретроспектива ревью: реестр `MARKER_LABELS` покрывает 70 из 729 реальных
+
+    ключей `blood_tests.values` на проде. Ключ вне реестра (`Ht`, `lymphocytes_pct`,
+    `chloride`, `urine_pH`, ...) должен пройти как есть на полностью читаемом
+    документе — иначе фикс #509 превращается в тихую потерю настоящих анализов
+    (первая версия фикса теряла 11 из 11 именно на таком наборе)."""
+    doc_text = (
+        "Общий анализ крови с лейкоформулой и биохимией\n"
+        "Гематокрит: 42 %\n"
+        "Лимфоциты: 32 %\n"
+        "Эозинофилы: 3 %\n"
+        "Моноциты: 6 %\n"
+        "Альбумин: 44 г/л\n"
+        "Хлор: 103 ммоль/л\n"
+        "Холестерин: 5.1 ммоль/л\n"
+        "Витамин D (25-OH): 34 нг/мл\n"
+        "Т4 свободный: 15.8 пмоль/л\n"
+        "pH: 6.0\n"
+        "Относительная плотность: 1.018\n"
+    )
+    values = {
+        "Ht": 42,
+        "lymphocytes_pct": 32,
+        "eosinophils_pct": 3,
+        "monocytes_pct": 6,
+        "albumin": 44,
+        "chloride": 103,
+        "cholesterol": 5.1,
+        "vitamin_d": 34,
+        "fT4": 15.8,
+        "urine_pH": 6.0,
+        "urine_density": 1.018,
+    }
+    payload = {"date": "2026-09-20", "values": values}
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(doc_text.encode(), "text/plain")
+
+    assert out["values"] == values, f"потеряно: {set(values) - set(out['values'])}"
+    assert "_unverified_labels" not in out
+
+
+@pytest.mark.asyncio
+async def test_registry_lookup_is_case_insensitive():
+    """`vitamin_d`/`vitamin_D` и `fT4`/`FT4` — один и тот же маркер по разным
+
+    источникам KB (см. core.health.kb_schema для похожей проблемы) — сверка
+    должна находить запись реестра независимо от регистра ключа."""
+    doc_text = "Витамин D (25-OH): 34 нг/мл. Т4 свободный: 15.8 пмоль/л."
+    payload = {"values": {"vitamin_d": 34, "fT4": 15.8}}
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(doc_text.encode(), "text/plain")
+
+    assert out["values"] == {"vitamin_d": 34, "fT4": 15.8}
+    assert "_unverified_labels" not in out
+
+
+@pytest.mark.asyncio
+async def test_hallucinated_known_marker_dropped_on_otherwise_readable_document():
+    """Худший случай галлюцинации (issue #509): текст читается нормально, но
+
+    модель приписала числу название ДРУГОГО известного показателя, которого в
+    документе нет (документ — креатинин, ответ модели — инсулин). `insulin`
+    есть в реестре, поэтому сверяется и отбрасывается, а не проходит по
+    fail-safe политике «неизвестный ключ не трогаем» (эта политика — только
+    для ключей ВНЕ реестра)."""
+    doc_text = "Биохимический анализ крови от 20.09.2026\nКреатинин: 88 мкмоль/л\n"
+    payload = {"date": "2026-09-20", "values": {"insulin": 88}}
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(doc_text.encode(), "text/plain")
+
+    assert out["values"] == {}
+    assert out["_unverified_labels"] == ["insulin"]

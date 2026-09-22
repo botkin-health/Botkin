@@ -12,6 +12,7 @@ import httpx
 
 from config.settings import get_settings
 from core.health.doc_marker_labels import split_verified_values
+from core.health.doc_readability import is_document_text_readable
 from core.health.kb_schema import CANONICAL
 
 logger = logging.getLogger(__name__)
@@ -183,20 +184,39 @@ async def extract_medical_data(file_bytes: bytes, mime_type: str) -> dict[str, A
             data["allergies"] = _as_str_list(data.get("allergies"))
             data["conditions"] = _as_str_list(data.get("conditions"))
             if mime_type == "text/plain" and isinstance(data.get("values"), dict) and data["values"]:
-                # Программная сверка (issue #509): доступна только здесь, где
+                # Программные проверки (issue #509) доступны только здесь, где
                 # file_bytes — РЕАЛЬНЫЙ текст документа (текстовый слой PDF,
                 # извлечённый локально через PyMuPDF в вызывающем коде), а не то,
                 # что вернула модель. Для image/pdf-без-текстового-слоя (vision)
                 # сверять не с чем — там защита только на уровне промпта выше.
+                #
+                # Два НЕЗАВИСИМЫХ гейта (переделано после ревью #509 — реестр
+                # синонимов один не годится, см. doc_marker_labels.py):
                 doc_text = file_bytes.decode("utf-8", errors="replace")
-                verified, dropped = split_verified_values(data["values"], doc_text)
-                if dropped:
+                if not is_document_text_readable(doc_text):
+                    # (А) документный гейт: в тексте по сути нет слов (только
+                    # цифры/точки/знаки — как при шрифте без нужных глифов).
+                    # Названия нельзя прочитать в принципе, независимо от того,
+                    # известен ли ключ реестру — отбрасываем всё.
+                    dropped = list(data["values"].keys())
                     logger.warning(
-                        "doc_extractor: название не подтверждено текстом документа, отброшено: %s",
+                        "doc_extractor: текст документа нечитаем (нет слов), отброшены все значения: %s",
                         dropped,
                     )
                     data["_unverified_labels"] = dropped
-                data["values"] = verified
+                    data["values"] = {}
+                else:
+                    # (Б) покомпонентная сверка: только для ключей, что ЕСТЬ в
+                    # реестре синонимов. Ключ вне реестра проверить нечем и он
+                    # НЕ отбрасывается (fail-safe в сторону сохранения данных).
+                    verified, dropped = split_verified_values(data["values"], doc_text)
+                    if dropped:
+                        logger.warning(
+                            "doc_extractor: название не подтверждено текстом документа, отброшено: %s",
+                            dropped,
+                        )
+                        data["_unverified_labels"] = dropped
+                    data["values"] = verified
         return data
     except Exception as e:
         logger.error("doc_extractor: ошибка извлечения: %s", e)
