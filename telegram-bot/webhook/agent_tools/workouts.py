@@ -77,21 +77,55 @@ async def log_workout(
     уточнение получало бы другой source, не находило старую строку и падало
     бы в INSERT с IntegrityError на (user_id, start_time). Поэтому: сперва
     ищем строку с тем же (user_id, start_time) и, если она есть, ОБНОВЛЯЕМ её
-    (uточнение перезаписывает, а не плодит дубль); если нет — создаём новую.
+    (уточнение перезаписывает, а не плодит дубль); если нет — создаём новую.
 
     Пре-чек SELECT + branch выбран вместо `ON CONFLICT` намеренно: с ним не
     нужна отдельная ветка по диалекту БД (SQLite/Postgres) и он тривиально
     покрывается тестами на SQLite, где реальный прод-constraint воспроизведён
     через `UniqueConstraint` в модели.
+
+    ВАЖНО (найдено на ревью): найденная по (user_id, start_time) строка может
+    принадлежать НЕ ручному каналу — HAE (`hae_<id>`), Garmin (`garmin_<id>`),
+    'Apple Watch — Nika' и т.п. Обновлять чужую запись нельзя — это тихая
+    потеря данных интеграции (хуже, чем упасть с ошибкой). Апдейт делаем
+    только когда `existing.source == 'manual'`; иначе ничего не трогаем и
+    возвращаем агенту, из какого источника уже есть запись на это время,
+    чтобы он мог сказать пользователю по-человечески или переспросить точное
+    время. Совпадение start_time с точностью до секунды не гарантирует, что
+    это одна и та же тренировка (18:00:37 у часов и «в 18:00» вручную не
+    столкнутся вовсе) — это осознанно не чинится, конфликт возможен только
+    при точном совпадении.
     """
     from sqlalchemy import text as _text
 
     start_dt = _parse_manual_start_time(req.start_time, user)
 
     existing = db.execute(
-        _text("SELECT id FROM workouts WHERE user_id = :uid AND start_time = :st LIMIT 1"),
+        _text("SELECT id, source FROM workouts WHERE user_id = :uid AND start_time = :st LIMIT 1"),
         {"uid": user.telegram_id, "st": start_dt},
     ).first()
+
+    if existing and existing.source != "manual":
+        # Чужая запись (HAE/Garmin/другой канал) — не трогаем, не 500-им.
+        # 200 + status-поле, а не HTTP 409: так уже устроены остальные
+        # write-тулы проекта в похожих ситуациях (log_supplement возвращает
+        # status=duplicate_warning вместо ошибки) — агент читает status/hint
+        # и решает сам, а не ловит и разбирает исключение.
+        return {
+            "status": "conflict_other_source",
+            "created": False,
+            "updated": False,
+            "existing_workout_id": existing.id,
+            "existing_source": existing.source,
+            "date": start_dt.date().isoformat(),
+            "start_time": start_dt.isoformat(),
+            "hint": (
+                f"На это время уже есть тренировка из источника '{existing.source}' (скорее всего, "
+                "синхронизирована автоматически из часов/трекера). Запись НЕ создана и существующая "
+                "НЕ изменена. Скажи об этом пользователю (тренировка уже учтена) — либо, если это "
+                "правда другая тренировка, уточни у него точное время и повтори вызов."
+            ),
+        }
 
     params = {
         "user_id": user.telegram_id,
@@ -107,6 +141,7 @@ async def log_workout(
     }
 
     if existing:
+        # existing.source == 'manual' здесь гарантирован проверкой выше.
         db.execute(
             _text(
                 """UPDATE workouts SET

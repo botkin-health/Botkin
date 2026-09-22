@@ -464,6 +464,65 @@ def test_log_workout_does_not_touch_hae_rows(client, db_session):
     assert rows[1].source == "manual"
 
 
+def test_log_workout_same_start_time_as_other_source_is_not_overwritten(client, db_session):
+    """Дефект найден на повторном ревью: та же (user_id, start_time), но строка
+    принадлежит другому каналу (HAE) — НЕ обновляем её, не теряем данные
+    интеграции. Возвращаем понятный статус с указанием источника, не 500."""
+    from sqlalchemy import text as _text
+
+    same_start = datetime(2026, 9, 21, 9, 0, tzinfo=MSK)
+    # Вставляем той же raw-SQL дорогой, что и реальные писатели (apple_health.py,
+    # log_workout сам) — вставка через ORM Workout(...) на SQLite сериализует
+    # tz-aware datetime иначе (теряет офсет), чем raw text()-bind, и точное
+    # сравнение start_time из ниже не найдёт эту строку (артефакт SQLite,
+    # не воспроизводится на Postgres, где start_time — timestamptz).
+    hae_id = db_session.execute(
+        _text(
+            """INSERT INTO workouts
+               (user_id, date, workout_type, duration_minutes, start_time, calories_burned, source)
+               VALUES (:uid, :date, :wt, :dur, :st, :cal, :src)
+               RETURNING id"""
+        ),
+        {
+            "uid": 895655,
+            "date": date(2026, 9, 21),
+            "wt": "Cycling",
+            "dur": 55,
+            "st": same_start,
+            "cal": 410,
+            "src": "hae_XYZ789",
+        },
+    ).scalar_one()
+    db_session.commit()
+
+    r = client.post(
+        "/api/agent/log_workout",
+        json={
+            "workout_type": "cycling",
+            "duration_minutes": 40,
+            "calories_burned": 300,
+            "start_time": "2026-09-21T09:00:00+03:00",  # то же самое время, что у HAE-строки
+        },
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["status"] == "conflict_other_source"
+    assert body["created"] is False
+    assert body["updated"] is False
+    assert body["existing_source"] == "hae_XYZ789"
+    assert body["existing_workout_id"] == hae_id
+    assert "hae_XYZ789" in body["hint"]
+
+    # HAE-строка осталась ровно такой же — ни одно поле не тронуто.
+    rows = db_session.query(Workout).filter_by(user_id=895655).all()
+    assert len(rows) == 1
+    row = rows[0]
+    assert row.id == hae_id
+    assert row.source == "hae_XYZ789"
+    assert row.duration_minutes == 55
+    assert row.calories_burned == 410
+
+
 def test_log_workout_requires_workout_type(client):
     """POST /log_workout without workout_type → 422 (pydantic validation)."""
     r = client.post("/api/agent/log_workout", json={"duration_minutes": 30})
