@@ -67,9 +67,11 @@ def test_system_prompt_fork_mentions_both_tools_for_mixed_phrase():
     assert "ОБА тула" in src
 
 
-def test_system_prompt_fork_references_issue_507_precedent():
+def test_system_prompt_fork_forbids_replacing_event_with_profile():
+    """Суть развилки: запись события нельзя подменить записью в медпрофиль —
+    именно так терялся приём («капотен несколько дней назад», #507)."""
     src = inspect.getsource(agent_chat)
-    assert "#507" in src
+    assert "заменять запись события записью в профиль нельзя" in src
 
 
 def test_system_prompt_fork_instructs_ask_when_ambiguous():
