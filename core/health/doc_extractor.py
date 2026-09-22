@@ -206,17 +206,22 @@ async def extract_medical_data(file_bytes: bytes, mime_type: str) -> dict[str, A
                     data["_unverified_labels"] = dropped
                     data["values"] = {}
                 else:
-                    # (Б) покомпонентная сверка: только для ключей, что ЕСТЬ в
-                    # реестре синонимов. Ключ вне реестра проверить нечем и он
-                    # НЕ отбрасывается (fail-safe в сторону сохранения данных).
-                    verified, dropped = split_verified_values(data["values"], doc_text)
-                    if dropped:
-                        logger.warning(
-                            "doc_extractor: название не подтверждено текстом документа, отброшено: %s",
-                            dropped,
+                    # (Б) покомпонентная сверка по реестру синонимов — ТОЛЬКО
+                    # диагностика, ничего не отбрасывает. Построчный поиск
+                    # подстроки на реальных бланках хрупок в принципе:
+                    # «Белок общий» vs «общий белок», латинская C vs кириллическая
+                    # С, перенос строки посреди названия. Независимое ревью
+                    # показало 2 из 8 на обычном читаемом бланке, среди
+                    # выброшенных — ALP (нужен phenoage). Ложный отсев — тихая
+                    # потеря настоящего анализа, и случается часто; а исходный
+                    # инцидент #509 был на нечитаемом тексте — его ловит гейт (А).
+                    # Лог нужен, чтобы видеть расхождения на реальных данных.
+                    _verified, unconfirmed = split_verified_values(data["values"], doc_text)
+                    if unconfirmed:
+                        logger.info(
+                            "doc_extractor: название не найдено в тексте документа (значение сохранено): %s",
+                            unconfirmed,
                         )
-                        data["_unverified_labels"] = dropped
-                    data["values"] = verified
         return data
     except Exception as e:
         logger.error("doc_extractor: ошибка извлечения: %s", e)
