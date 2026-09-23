@@ -78,6 +78,11 @@ zcat "$LATEST" | docker exec -i healthvault_postgres psql -U healthvault -d heal
 # 3. проверить
 docker exec healthvault_postgres psql -U healthvault -d healthvault \
   -c "SELECT count(*) FROM users; SELECT count(*) FROM nutrition_log;"
+
+# 4. файлы пользователей (сканы /doc, документы профиля, kb_<id>.json) —
+#    отдельный архив botkin_files_<TS>.tar.gz рядом с дампом (с 23.09.2026)
+LATEST_FILES=$(ls -t /opt/backups/botkin_files_*.tar.gz | head -1)
+tar -xzf "$LATEST_FILES" -C /opt/botkin/data   # развернёт uploads/ и kb/
 ```
 
 Безопасная проверка дампа без риска для прода — `healthvault_restore_test.sh`

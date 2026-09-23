@@ -7,6 +7,8 @@
 #
 # Делает:
 #   1) pg_dump | gzip → /opt/backups/healthvault_<TS>.sql.gz
+#   1b) файлы пользователей (data/uploads — сканы из /doc и сохранённые
+#       документы профиля; data/kb — их список documents[]) → botkin_files_<TS>.tar.gz
 #   2) локальная ротация — 14 последних
 #   3) offsite-копия на Google Drive (rclone remote gdrive:) — daily
 #   4) GFS: по воскресеньям → weekly, 1-го числа → monthly
@@ -35,6 +37,8 @@ LOG=/var/log/healthvault_backup.log
 KEEP_LOCAL=14
 
 BACKUP="$LOCAL_DIR/healthvault_${TS}.sql.gz"
+FILES_BACKUP="$LOCAL_DIR/botkin_files_${TS}.tar.gz"
+DATA_DIR=/opt/botkin/data
 
 log() { echo "$(date -Iseconds) $*" >> "$LOG"; }
 
@@ -50,8 +54,20 @@ fi
 SIZE=$(ls -lh "$BACKUP" | awk '{print $5}')
 log "backup created: $(basename "$BACKUP") ($SIZE)"
 
+# 1b) файлы пользователей ───────────────────────────────────────────────────────
+# До 23.09.2026 в бэкап попадала только БД: сканы из /doc и kb_<id>.json с их
+# списком жили на диске сервера без копии. Сбой архива файлов НЕ отменяет
+# бэкап БД — пишем ошибку в лог и идём дальше.
+if tar -czf "$FILES_BACKUP" -C "$DATA_DIR" uploads kb 2>>"$LOG" && [ -s "$FILES_BACKUP" ]; then
+    log "files backup created: $(basename "$FILES_BACKUP") ($(ls -lh "$FILES_BACKUP" | awk '{print $5}'))"
+else
+    log "ERROR: архив файлов не создан ($FILES_BACKUP)"
+    rm -f "$FILES_BACKUP"
+fi
+
 # 2) локальная ротация — KEEP_LOCAL последних ───────────────────────────────────
 ls -t "$LOCAL_DIR"/healthvault_*.sql.gz 2>/dev/null | tail -n +$((KEEP_LOCAL + 1)) | xargs -r rm -f
+ls -t "$LOCAL_DIR"/botkin_files_*.tar.gz 2>/dev/null | tail -n +$((KEEP_LOCAL + 1)) | xargs -r rm -f
 
 # 3) offsite — daily ───────────────────────────────────────────────────────────
 if rclone copy "$BACKUP" "$RCLONE_REMOTE/daily/" 2>>"$LOG"; then
@@ -59,13 +75,22 @@ if rclone copy "$BACKUP" "$RCLONE_REMOTE/daily/" 2>>"$LOG"; then
 else
     log "ERROR: offsite daily upload FAILED (rclone)"
 fi
+if [ -s "$FILES_BACKUP" ]; then
+    if rclone copy "$FILES_BACKUP" "$RCLONE_REMOTE/daily/" 2>>"$LOG"; then
+        log "offsite daily files OK → $RCLONE_REMOTE/daily/$(basename "$FILES_BACKUP")"
+    else
+        log "ERROR: offsite daily files upload FAILED (rclone)"
+    fi
+fi
 
 # 4) GFS: weekly (воскресенье) / monthly (1-е число) ────────────────────────────
 if [ "$DOW" = "7" ]; then
     rclone copy "$BACKUP" "$RCLONE_REMOTE/weekly/"  2>>"$LOG" && log "offsite weekly OK"
+    [ -s "$FILES_BACKUP" ] && rclone copy "$FILES_BACKUP" "$RCLONE_REMOTE/weekly/" 2>>"$LOG" && log "offsite weekly files OK"
 fi
 if [ "$DOM" = "01" ]; then
     rclone copy "$BACKUP" "$RCLONE_REMOTE/monthly/" 2>>"$LOG" && log "offsite monthly OK"
+    [ -s "$FILES_BACKUP" ] && rclone copy "$FILES_BACKUP" "$RCLONE_REMOTE/monthly/" 2>>"$LOG" && log "offsite monthly files OK"
 fi
 
 # 5) облачная ротация по возрасту ───────────────────────────────────────────────
