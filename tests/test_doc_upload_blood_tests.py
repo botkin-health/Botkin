@@ -94,6 +94,24 @@ def test_ultrasound_is_not_written(test_db):
     assert "Не распознал" not in note
 
 
+def test_unverified_labels_get_honest_note_not_written(test_db):
+    """Issue #509: если doc_extractor уже отбросил значения (названия не
+
+    подтвердились текстом документа), _save_to_blood_tests не должен писать
+    ничего в blood_tests и должен вернуть честную приписку про плохой текст,
+    а не generic «числовых показателей не нашёл» (которое звучит так, будто
+    в документе вообще не было чисел, хотя они были)."""
+    extracted = {
+        "date": "2026-09-20",
+        "values": {},
+        "_unverified_labels": ["glucose", "insulin", "HbA1c", "cholesterol_total", "HDL"],
+    }
+    note = _save(test_db, extracted)
+
+    assert get_all_blood_tests(test_db, USER_ID) == []
+    assert "плохо" in note.lower()
+
+
 def test_unmapped_key_warning_surfaces_in_confirmation_text(test_db):
     """Ключ вне CANONICAL (issue #445) не должен тихо теряться — пользователь
 

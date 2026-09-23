@@ -126,9 +126,201 @@ async def test_text_plain_builds_text_block_not_image():
 
 @pytest.mark.asyncio
 async def test_text_plain_extracts_values():
-    """Путь text/plain доходит до парсинга ответа и возвращает извлечённые данные."""
+    """Путь text/plain доходит до парсинга ответа и возвращает извлечённые данные,
+
+    если название показателя реально встречается в тексте документа (issue #509:
+    после фикса значения сверяются с текстом, а не просто пропускаются насквозь)."""
+    doc_text = "Общий анализ крови. Гемоглобин: 155 г/л. Заключение: аллергия на амоксициллин."
     payload = {"date": "2026-07-10", "values": {"Hb": 155}, "allergies": ["амоксициллин"], "conditions": []}
     with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
-        out = await doc_extractor.extract_medical_data(b"any text bytes", "text/plain")
+        out = await doc_extractor.extract_medical_data(doc_text.encode(), "text/plain")
     assert out["values"] == {"Hb": 155}
     assert out["allergies"] == ["амоксициллин"]
+
+
+# ── issue #509: не выдумывать названия показателей по нечитаемому тексту ────
+
+
+@pytest.mark.asyncio
+async def test_text_plain_drops_values_whose_label_is_not_in_document_text():
+    """Регрессия #509: PDF с нечитаемыми названиями (дефект шрифта — только точки
+
+    и числа), где модель всё равно вернула правдоподобный, но выдуманный список
+    названий. Ни один показатель не должен пройти — названий в тексте нет."""
+    # Реальный вывод PyMuPDF для PDF, где кириллица набрана шрифтом без глифов
+    # (репро воспроизведено вживую перед фиксом, см. отчёт по issue #509).
+    doc_text = (
+        "·········· ······· ·····\n"
+        "····: 20.09.2026\n"
+        "·······: 5.4 ·····/·\n"
+        "·········: 88 ······/·\n"
+        "····· ··········: 5.9 ·····/·\n"
+        "····: 3.8 ·····/·\n"
+        "···: 27 ··/·"
+    )
+    payload = {
+        "date": "2026-09-20",
+        "laboratory": None,
+        "values": {
+            "glucose": 5.4,
+            "insulin": 88,  # в документе на самом деле креатинин
+            "HbA1c": 5.9,  # в документе на самом деле общий холестерин
+            "cholesterol_total": 3.8,  # в документе на самом деле ЛПНП
+            "HDL": 27,  # в документе на самом деле АЛТ
+        },
+        "allergies": [],
+        "conditions": [],
+    }
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(doc_text.encode(), "text/plain")
+
+    assert out["values"] == {}
+    assert set(out["_unverified_labels"]) == {"glucose", "insulin", "HbA1c", "cholesterol_total", "HDL"}
+
+
+@pytest.mark.asyncio
+async def test_readable_document_values_never_dropped_by_label_registry(caplog):
+    """Читаемый документ: значения НЕ отбрасываются, даже если название не
+    найдено в тексте по реестру синонимов, — расхождение только логируется.
+
+    Построчная сверка хрупка (перестановка слов, латиница/кириллица, перенос
+    строки): независимое ревью #509 показало 2 из 8 на обычном бланке, среди
+    выброшенных — ALP для phenoage. Тихая потеря настоящего анализа хуже."""
+    doc_text = (
+        "Белок общий 72 г/л\nФосфатаза щелочная (ALP) 95 Ед/л\n"
+        "C-реактивный белок 2.1 мг/л\nВитамин В12 410 пг/мл\nКреатинин 88 мкмоль/л\n"
+        "Гликированный\nгемоглобин 5.9 %"
+    )
+    values = {"total_protein": 72, "ALP": 95, "CRP": 2.1, "vitamin_B12": 410, "creatinine": 88, "HbA1c": 5.9}
+    payload = {"values": dict(values)}
+    with caplog.at_level("INFO"):
+        with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+            out = await doc_extractor.extract_medical_data(doc_text.encode(), "text/plain")
+
+    assert out["values"] == values
+    assert "_unverified_labels" not in out
+
+
+@pytest.mark.asyncio
+async def test_image_path_not_verified_against_text():
+    """Vision-путь (фото/скан без текстового слоя) не имеет текста документа для
+
+    сверки — значения не должны фильтроваться, иначе сломаем нормальный разбор
+    фотографий (issue #509, ограничение п.3)."""
+    payload = {"values": {"glucose": 5.4, "insulin": 88}}
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(b"jpeg-bytes-not-real-text", "image/jpeg")
+
+    assert out["values"] == {"glucose": 5.4, "insulin": 88}
+    assert "_unverified_labels" not in out
+
+
+@pytest.mark.asyncio
+async def test_text_plain_normal_document_fully_parsed():
+    """Обычный читаемый документ по-прежнему разбирается полностью — фикс не
+
+    должен ломать штатный путь, только защищать от галлюцинаций на битом тексте."""
+    doc_text = (
+        "Результаты анализа крови от 20.09.2026\n"
+        "Глюкоза: 5.4 ммоль/л\n"
+        "Креатинин: 88 мкмоль/л\n"
+        "Общий холестерин: 5.9 ммоль/л\n"
+        "ЛПНП: 3.8 ммоль/л\n"
+        "АЛТ: 27 Ед/л\n"
+    )
+    payload = {
+        "date": "2026-09-20",
+        "values": {
+            "glucose": 5.4,
+            "creatinine": 88,
+            "cholesterol_total": 5.9,
+            "LDL": 3.8,
+            "ALT": 27,
+        },
+    }
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(doc_text.encode(), "text/plain")
+
+    assert out["values"] == payload["values"]
+    assert "_unverified_labels" not in out
+
+
+# ── ревью #509: реестр не должен терять реальные данные вне своего покрытия ──
+
+
+@pytest.mark.asyncio
+async def test_readable_document_with_out_of_registry_keys_keeps_all_values():
+    """Ретроспектива ревью: реестр `MARKER_LABELS` покрывает 70 из 729 реальных
+
+    ключей `blood_tests.values` на проде. Ключ вне реестра (`Ht`, `lymphocytes_pct`,
+    `chloride`, `urine_pH`, ...) должен пройти как есть на полностью читаемом
+    документе — иначе фикс #509 превращается в тихую потерю настоящих анализов
+    (первая версия фикса теряла 11 из 11 именно на таком наборе)."""
+    doc_text = (
+        "Общий анализ крови с лейкоформулой и биохимией\n"
+        "Гематокрит: 42 %\n"
+        "Лимфоциты: 32 %\n"
+        "Эозинофилы: 3 %\n"
+        "Моноциты: 6 %\n"
+        "Альбумин: 44 г/л\n"
+        "Хлор: 103 ммоль/л\n"
+        "Холестерин: 5.1 ммоль/л\n"
+        "Витамин D (25-OH): 34 нг/мл\n"
+        "Т4 свободный: 15.8 пмоль/л\n"
+        "pH: 6.0\n"
+        "Относительная плотность: 1.018\n"
+    )
+    values = {
+        "Ht": 42,
+        "lymphocytes_pct": 32,
+        "eosinophils_pct": 3,
+        "monocytes_pct": 6,
+        "albumin": 44,
+        "chloride": 103,
+        "cholesterol": 5.1,
+        "vitamin_d": 34,
+        "fT4": 15.8,
+        "urine_pH": 6.0,
+        "urine_density": 1.018,
+    }
+    payload = {"date": "2026-09-20", "values": values}
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(doc_text.encode(), "text/plain")
+
+    assert out["values"] == values, f"потеряно: {set(values) - set(out['values'])}"
+    assert "_unverified_labels" not in out
+
+
+@pytest.mark.asyncio
+async def test_registry_lookup_is_case_insensitive():
+    """`vitamin_d`/`vitamin_D` и `fT4`/`FT4` — один и тот же маркер по разным
+
+    источникам KB (см. core.health.kb_schema для похожей проблемы) — сверка
+    должна находить запись реестра независимо от регистра ключа."""
+    doc_text = "Витамин D (25-OH): 34 нг/мл. Т4 свободный: 15.8 пмоль/л."
+    payload = {"values": {"vitamin_d": 34, "fT4": 15.8}}
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(doc_text.encode(), "text/plain")
+
+    assert out["values"] == {"vitamin_d": 34, "fT4": 15.8}
+    assert "_unverified_labels" not in out
+
+
+@pytest.mark.asyncio
+async def test_known_limitation_hallucination_on_readable_text_is_logged_not_dropped(caplog):
+    """ИЗВЕСТНОЕ ОГРАНИЧЕНИЕ (осознанный компромисс, ревью #509).
+
+    Текст читается, а модель приписала числу название другого показателя
+    (документ — креатинин, ответ — инсулин). Программно это больше НЕ
+    отсекается: отсев по реестру давал частые ложные срабатывания на настоящих
+    анализах. На читаемом тексте защита — инструкция модели + лог расхождения.
+    Исходный инцидент #509 был на НЕЧИТАЕМОМ тексте — его ловит документный гейт.
+    Тест фиксирует поведение, чтобы снятую защиту не принимали за действующую."""
+    doc_text = "Биохимический анализ крови от 20.09.2026\nКреатинин: 88 мкмоль/л\n"
+    payload = {"date": "2026-09-20", "values": {"insulin": 88}}
+    with caplog.at_level("INFO"):
+        with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+            out = await doc_extractor.extract_medical_data(doc_text.encode(), "text/plain")
+
+    assert out["values"] == {"insulin": 88}
+    assert any("insulin" in r.getMessage() for r in caplog.records)

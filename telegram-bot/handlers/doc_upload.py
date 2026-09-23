@@ -155,6 +155,18 @@ def _preview_text(extracted: dict[str, Any], existing: Optional[dict] = None) ->
     existing_conditions = {s.lower() for s in onboarding_list(existing, CONDITION_KEYS)}
 
     if not _has_content(extracted):
+        if extracted and extracted.get("_unverified_labels"):
+            # Issue #509: LLM что-то нашёл, но не смог надёжно прочитать названия
+            # показателей (сверка с текстом документа не подтвердила ни одного) —
+            # честно говорим про плохое качество текста, а не молчим о том, что
+            # цифры вообще-то были.
+            return (
+                "⚠️ Текст документа читается плохо — не смог достоверно определить "
+                "названия показателей, поэтому не показываю и не сохраняю их в базу "
+                "(могу перепутать анализ с другим).\n\n"
+                "Сам документ всё равно можно сохранить как архив — "
+                "запомню что он есть, и смогу перечитать его при разговоре."
+            )
         return (
             "⚠️ Не нашёл данных для сохранения в документе.\n\n"
             "Это всё равно можно сохранить как архив — "
@@ -306,6 +318,14 @@ def _save_to_blood_tests(user_id: int, extracted: dict[str, Any], stored_name: s
     unmapped_note = _unmapped_keys_note(result.warnings)
 
     if result.row is None:
+        if result.reason == "no_values" and extracted.get("_unverified_labels"):
+            # Issue #509: значения были, но ни одно название не подтвердилось
+            # текстом документа (doc_extractor их уже отбросил) — отдельная,
+            # более честная формулировка вместо общего «не нашёл показателей».
+            return (
+                "\n📊 Текст документа читается плохо — названия показателей не "
+                "подтвердились, в динамику ничего не записал (документ остался в архиве)."
+            )
         note = _NO_ROW_NOTES.get(result.reason, "")
         # reason="not_lab": НИ ОДИН сырой ключ не распознан как лабораторный маркер
         # (типичный случай — УЗИ с размерами органов, это не наш стол вообще).
