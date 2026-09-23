@@ -430,6 +430,164 @@ def test_log_workout_different_start_time_creates_second_row(client, db_session)
     assert len(rows) == 2
 
 
+# ── #539: уточнение без start_time не должно дублировать запись ─────────────
+
+
+def test_log_workout_refine_without_start_time_updates_not_duplicates(client, db_session):
+    """Баг #539: «Сегодня бегал 30 минут» → запись; через минуту «уточни: это
+    было 5 км», БЕЗ start_time, — раньше создавало вторую запись, потому что
+    start_time каждый раз пересчитывался как «сейчас» и точное совпадение не
+    находилось. Должна остаться ОДНА запись с объединёнными полями."""
+    r1 = client.post(
+        "/api/agent/log_workout",
+        json={"workout_type": "running", "duration_minutes": 30},
+    )
+    assert r1.status_code == 200, r1.text
+    assert r1.json()["created"] is True
+    workout_id = r1.json()["workout_id"]
+
+    r2 = client.post(
+        "/api/agent/log_workout",
+        json={"workout_type": "running", "distance_km": 5},
+    )
+    assert r2.status_code == 200, r2.text
+    body2 = r2.json()
+    assert body2["created"] is False
+    assert body2["updated"] is True
+    assert body2["workout_id"] == workout_id
+
+    rows = db_session.query(Workout).filter_by(user_id=895655).all()
+    assert len(rows) == 1
+    row = rows[0]
+    # Поля объединены (COALESCE) — не затёрты пустыми значениями уточнения.
+    assert row.duration_minutes == 30
+    assert float(row.distance_km) == 5
+
+
+def test_log_workout_refine_with_echoed_start_time_without_microseconds(client, db_session):
+    """#539, найдено E2E на дев-стенде: первая запись без start_time, агент при
+    уточнении передаёт start_time из ответа, но БЕЗ долей секунды. Раньше
+    «сейчас» хранилось с микросекундами → точное совпадение не находилось →
+    дубль. Время должно храниться до секунды, запись — остаться одна."""
+    r1 = client.post("/api/agent/log_workout", json={"workout_type": "ходьба", "duration_minutes": 40})
+    assert r1.status_code == 200, r1.text
+    echoed = r1.json()["start_time"].split(".")[0]  # как агент: без долей секунды
+    if "+" not in echoed[10:] and not echoed.endswith("Z"):
+        echoed += r1.json()["start_time"][len(r1.json()["start_time"].split("+")[0]) :]
+    r2 = client.post(
+        "/api/agent/log_workout",
+        json={"workout_type": "ходьба", "distance_km": 3.5, "start_time": echoed},
+    )
+    assert r2.status_code == 200, r2.text
+    assert r2.json()["created"] is False
+    rows = db_session.query(Workout).filter_by(user_id=895655).all()
+    assert len(rows) == 1
+    assert rows[0].duration_minutes == 40
+    assert float(rows[0].distance_km) == 3.5
+
+
+def test_log_workout_refine_explicit_start_time_keeps_old_behavior(client, db_session):
+    """Если агент передал start_time явно — поведение прежнее: точное
+    совпадение (user_id, start_time), без эвристики «недавняя ручная того же
+    типа». Разное явное время → отдельные записи, как раньше."""
+    client.post(
+        "/api/agent/log_workout",
+        json={"workout_type": "running", "duration_minutes": 30, "start_time": "2026-09-21T09:00:00+03:00"},
+    )
+    r2 = client.post(
+        "/api/agent/log_workout",
+        json={"workout_type": "running", "distance_km": 5, "start_time": "2026-09-21T09:05:00+03:00"},
+    )
+    assert r2.json()["created"] is True
+    rows = db_session.query(Workout).filter_by(user_id=895655).all()
+    assert len(rows) == 2
+
+
+def test_log_workout_refine_different_type_creates_new_row(client, db_session):
+    """Уточнение без start_time другого ТИПА тренировки не должно мёржиться
+    в предыдущую запись другого типа — это разные тренировки."""
+    client.post(
+        "/api/agent/log_workout",
+        json={"workout_type": "running", "duration_minutes": 30},
+    )
+    r2 = client.post(
+        "/api/agent/log_workout",
+        json={"workout_type": "cycling", "duration_minutes": 40},
+    )
+    assert r2.json()["created"] is True
+    rows = db_session.query(Workout).filter_by(user_id=895655).all()
+    assert len(rows) == 2
+
+
+def test_log_workout_refine_does_not_touch_other_source_record(client, db_session):
+    """Недавняя запись того же типа из Garmin/HAE НЕ считается кандидатом на
+    мёрж — тихая потеря синхронизированных данных недопустима (см. docstring
+    log_workout про conflict_other_source). Уточнение без start_time должно
+    создать НОВУЮ ручную запись, а не трогать чужую."""
+    garmin_row = Workout(
+        user_id=895655,
+        date=datetime.now(MSK).date(),
+        workout_type="running",
+        duration_minutes=25,
+        source="garmin_123",
+    )
+    db_session.add(garmin_row)
+    db_session.commit()
+
+    r = client.post(
+        "/api/agent/log_workout",
+        json={"workout_type": "running", "duration_minutes": 30},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["created"] is True
+
+    rows = db_session.query(Workout).filter_by(user_id=895655, workout_type="running").all()
+    assert len(rows) == 2
+    sources = {row.source for row in rows}
+    assert sources == {"garmin_123", "manual"}
+    garmin_after = db_session.query(Workout).filter_by(id=garmin_row.id).one()
+    assert garmin_after.duration_minutes == 25  # не тронута
+
+
+def test_log_workout_refine_is_per_user(client, db_session):
+    """Недавняя ручная тренировка ДРУГОГО пользователя не должна попадать в
+    мёрж — иначе пользователи A и B делили бы записи друг друга."""
+    other_user = User(
+        telegram_id=111222,
+        first_name="Other",
+        cohort="owner",
+        container_id="nc-other",
+        pack_name="bariatric",
+        health_token="hvt_other",
+        jwt_secret="test_secret_other",
+        is_active=True,
+    )
+    db_session.add(other_user)
+    db_session.commit()
+    other_row = Workout(
+        user_id=111222,
+        date=datetime.now(MSK).date(),
+        workout_type="running",
+        duration_minutes=99,
+        source="manual",
+    )
+    db_session.add(other_row)
+    db_session.commit()
+
+    r = client.post(
+        "/api/agent/log_workout",
+        json={"workout_type": "running", "duration_minutes": 30},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["created"] is True
+
+    rows = db_session.query(Workout).filter_by(user_id=895655).all()
+    assert len(rows) == 1
+    assert rows[0].duration_minutes == 30
+    other_after = db_session.query(Workout).filter_by(id=other_row.id).one()
+    assert other_after.duration_minutes == 99  # не тронута
+
+
 def test_log_workout_does_not_touch_hae_rows(client, db_session):
     """Ручной тул не должен трогать/дублировать HAE-канал (source=hae_<id>),
     пока их start_time не совпадают (обычный случай — HAE и ручной ввод
