@@ -70,6 +70,11 @@ async def test_extract_handles_malformed_json_gracefully():
     assert result == {}
 
 
+def _fake_response_text(text: str) -> dict:
+    """Ответ Anthropic с произвольным текстом (не обязательно чистым JSON)."""
+    return {"content": [{"type": "text", "text": text}]}
+
+
 def _fake_response(payload: dict) -> dict:
     return {"content": [{"text": json.dumps(payload, ensure_ascii=False)}]}
 
@@ -171,11 +176,16 @@ async def test_text_plain_drops_values_whose_label_is_not_in_document_text():
         "allergies": [],
         "conditions": [],
     }
-    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+    call = AsyncMock(return_value=_fake_response(payload))
+    with patch.object(doc_extractor, "_call_anthropic", new=call):
         out = await doc_extractor.extract_medical_data(doc_text.encode(), "text/plain")
 
+    # Ни одного выдуманного показателя в карту. Модель на нечитаемом тексте
+    # больше не вызывается вовсе (гейт стоит ДО вызова), так что и выдумать
+    # ей нечего — поэтому отброшенных значений тоже нет, а флаг выставлен.
     assert out["values"] == {}
-    assert set(out["_unverified_labels"]) == {"glucose", "insulin", "HbA1c", "cholesterol_total", "HDL"}
+    assert out["_unreadable_text"] is True
+    call.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -337,3 +347,38 @@ async def test_unreadable_text_flag_set_even_when_model_returns_nothing():
 
     assert out["values"] == {}
     assert out.get("_unreadable_text") is True
+
+
+def test_parse_response_tolerates_text_after_json():
+    """E2E 23.09.2026: модель дописала пояснение после JSON — строгий
+    json.loads падал с «Extra data», разбор молча становился «не нашёл данных».
+    Критично для НОРМАЛЬНЫХ документов: так терялся бы весь разбор."""
+    text = '{"date": "2026-09-20", "values": {"glucose": 5.4}}\\n\\nПримечание: показатель в норме.'
+    assert doc_extractor._parse_response(_fake_response_text(text))["values"] == {"glucose": 5.4}
+
+
+def test_parse_response_tolerates_code_fence_and_trailing_text():
+    text = '```json\\n{"values": {"ALT": 27}}\\n```\\nЕсли нужно — уточню.'
+    assert doc_extractor._parse_response(_fake_response_text(text))["values"] == {"ALT": 27}
+
+
+def test_parse_response_tolerates_preamble():
+    text = 'Вот данные из документа:\\n{"values": {"Hb": 141}}'
+    assert doc_extractor._parse_response(_fake_response_text(text))["values"] == {"Hb": 141}
+
+
+def test_parse_response_returns_empty_without_json():
+    assert doc_extractor._parse_response(_fake_response_text("Текст нечитаем.")) == {}
+
+
+@pytest.mark.asyncio
+async def test_unreadable_text_does_not_call_model():
+    """Гейт читаемости до вызова модели: битый текст — ни вызова модели,
+    ни шанса на выдумку или нераспарсенный ответ; флаг выставлен."""
+    broken = "···········\\n·······: 5.4 ·····/·\\n·········: 88 ······/·"
+    call = AsyncMock()
+    with patch.object(doc_extractor, "_call_anthropic", new=call):
+        out = await doc_extractor.extract_medical_data(broken.encode(), "text/plain")
+    call.assert_not_called()
+    assert out["values"] == {}
+    assert out["_unreadable_text"] is True
