@@ -120,7 +120,8 @@ def _find_recent_manual_workout_for_refine(db: Session, user, workout_type: str,
         _text(
             """SELECT id, created_at, start_time
                FROM workouts
-               WHERE user_id = :uid AND source = 'manual' AND workout_type = :workout_type
+               WHERE user_id = :uid AND source = 'manual'
+                 AND lower(trim(workout_type)) = lower(trim(:workout_type))
                ORDER BY created_at DESC
                LIMIT 5"""
         ),
