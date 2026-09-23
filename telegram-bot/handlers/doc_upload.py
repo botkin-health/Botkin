@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from aiogram import F, Router
-from aiogram.exceptions import TelegramBadRequest
+from aiogram.exceptions import TelegramBadRequest, TelegramRetryAfter
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -30,12 +30,18 @@ from aiogram.types import (
 from core.health.onboarding_lists import ALLERGY_KEYS, CONDITION_KEYS, onboarding_list
 from database import SessionLocal
 from database.crud import merge_onboarding_lists
+from handlers import doc_dedup
 from handlers.doc_queue import (
     archive_leftover_documents,
+    archive_single_file,
+    empty_gather_header,
     finish_step_or_advance,
     format_progress_prefix,
     format_skip_summary,
     gather_source_files,
+    pluralize_docs,
+    pop_next_loadable,
+    queue_lock,
     stage_queue_item,
 )
 
@@ -74,30 +80,153 @@ def _has_content(extracted: dict) -> bool:
 _STALE_PENDING_SECONDS = 24 * 3600
 
 
-def _cleanup_stale_pending(user_id: int) -> None:
-    """Удаляет зависшие `.pending_*`/`.queued_*` файлы старше 24ч (issue #441 п.7б,
-    расширено issue #499 для файлов очереди).
+async def _cleanup_stale_pending(user_id: int, state: Optional[FSMContext] = None) -> None:
+    """Архивирует (не удаляет!) зависшие `.pending_*`/`.queued_*` файлы старше
+    24ч (issue #441 п.7б, расширено issue #499 для файлов очереди).
 
-    Если пайплайн упал где-то между записью `.pending_*` и подтверждением
-    (docup_save/docup_cancel) — например, edit превью не удался и оба ретрая
-    из `run_doc_pipeline` тоже упали — файл остаётся в uploads/ навсегда,
-    ничем не отличаясь от настоящих сохранённых документов на диске. То же
-    касается `.queued_*` — файлов очереди (issue #499), которые ждут своей
-    очереди на разбор, но так и не дождались (например, бот перезапустился).
-    Чистим такие огрызки при каждом новом запуске пайплайна для этого юзера.
+    Раньше сторож УДАЛЯЛ такие файлы (`f.unlink`) — это нарушало гарантию
+    issue #370 «документ никогда просто не исчезает»: если пайплайн упал
+    где-то между записью `.pending_*`/`.queued_*` и подтверждением, или бот
+    перезапустился посреди разбора пачки (FSM в MemoryStorage теряется целиком
+    при рестарте), документ исчезал безвозвратно через сутки, минуя KB
+    (issue #516).
+
+    Теперь такие файлы переносятся в архив тем же способом, что
+    `archive_leftover_documents` при явном `/cancel` (`archive_single_file`),
+    и попадают в KB как `auto_archived` с причиной «не дождался разбора».
+    Чистим такие огрызки при каждом новом запуске пайплайна для этого юзера —
+    поэтому сама проверка (`glob` по паттерну + `stat`) должна оставаться
+    дешёвой, а архивация — не падать наружу, если KB недоступна
+    (`archive_single_file` логирует сбой записи в KB, но не роняет пайплайн).
+
+    Issue #516 доп. (дефект Б, независимый ревьюер): бот НЕ обязательно
+    рестартовал — пользователь мог просто вернуться к живой очереди на
+    следующий день (MemoryStorage жив, старше 24ч бывает и у живой сессии,
+    например ZIP из 5 файлов, разобрали 2 вечером, продолжили на следующий).
+    Файлы, на которые ссылается ТЕКУЩЕЕ FSM-состояние этого пользователя
+    (`pending.tmp_path` и `tmp_path` элементов `queue`), не трогаем — иначе
+    следующий `docup_save`/`docup_cancel` упадёт в `load_staged_item` на
+    пропавшем файле. `state` передаётся из `run_doc_pipeline`, где он всегда
+    есть; без него (гипотетический вызов без FSM) защиты нет — но такого
+    вызывающего кода в проекте нет.
     """
+    protected_names: set[str] = set()
+    if state is not None:
+        try:
+            data = await state.get_data()
+        except Exception:
+            data = None
+        # Не доверяем форме данных, которые вернуло FSM (в тестах `state`
+        # часто — облегчённый мок без честного get_data; в проде это всегда
+        # обычный dict, но защититься дешевле, чем упасть на .get() чужого
+        # типа): не dict — считаем, что защищать нечего.
+        if not isinstance(data, dict):
+            data = {}
+        pending = data.get("pending")
+        if isinstance(pending, dict):
+            pending_tmp = pending.get("tmp_path")
+            if pending_tmp:
+                protected_names.add(Path(pending_tmp).name)
+        for staged in data.get("queue") or []:
+            if not isinstance(staged, dict):
+                continue
+            staged_tmp = staged.get("tmp_path")
+            if staged_tmp:
+                protected_names.add(Path(staged_tmp).name)
+
     try:
         uploads = _uploads_dir(user_id)
         cutoff = time.time() - _STALE_PENDING_SECONDS
         for pattern in (".pending_*", ".queued_*"):
             for f in uploads.glob(pattern):
+                if f.name in protected_names:
+                    continue
                 try:
                     if f.stat().st_mtime < cutoff:
-                        f.unlink(missing_ok=True)
+                        archive_single_file(user_id, f, reason="не дождался разбора")
                 except OSError:
                     continue
     except OSError:
         logger.debug("doc_upload: не удалось прибрать зависшие .pending_*/.queued_* для user %s", user_id)
+
+
+# Issue #516: 429 от Telegram (TelegramRetryAfter) не фатален. Очередь из
+# #499 делает несколько edit_text/answer подряд (закрыть предыдущий шаг →
+# показать «читаю» → показать превью) — реалистичный триггер флуд-контроля.
+# Потолок на попытки и на время ожидания, чтобы не повиснуть навсегда, если
+# Telegram вдруг попросит подождать несколько часов.
+_MAX_RETRY_AFTER_ATTEMPTS = 3
+_MAX_RETRY_AFTER_WAIT_SECONDS = 30
+
+
+async def _call_with_flood_retry(coro_factory, *, user_id: int, what: str):
+    """Вызывает `coro_factory()` (awaitable Telegram-вызов), при
+    `TelegramRetryAfter` ждёт `retry_after` (не дольше потолка) и повторяет —
+    issue #516. Не глушит другие исключения (TelegramBadRequest и прочее
+    обрабатывает вызывающий код, как и раньше)."""
+    attempt = 0
+    while True:
+        try:
+            return await coro_factory()
+        except TelegramRetryAfter as e:
+            attempt += 1
+            if attempt > _MAX_RETRY_AFTER_ATTEMPTS:
+                logger.warning(
+                    "run_doc_pipeline: %s — исчерпаны попытки после 429 (user %s, retry_after=%s)",
+                    what,
+                    user_id,
+                    e.retry_after,
+                )
+                raise
+            wait = min(e.retry_after, _MAX_RETRY_AFTER_WAIT_SECONDS)
+            logger.info(
+                "run_doc_pipeline: %s — 429 от Telegram, жду %.1fс и повторяю (попытка %d/%d, user %s)",
+                what,
+                wait,
+                attempt,
+                _MAX_RETRY_AFTER_ATTEMPTS,
+                user_id,
+            )
+            await asyncio.sleep(wait)
+
+
+async def _archive_failed_preview(user_id: int, state: FSMContext, message: Message) -> None:
+    """Issue #516: показ превью документа не удался даже после ретраев на
+    429. Раньше это стирало всё FSM-состояние (`state.clear()`) и удаляло
+    текущий файл (`tmp_path.unlink()`) — хвост очереди (`.queued_*` на диске)
+    оставался без ссылок в FSM и исчезал через сутки мимо KB, а текущий файл
+    пропадал сразу. Нарушает гарантию issue #370.
+
+    Вместо этого — архивируем текущий pending и весь хвост очереди тем же
+    способом, что явный `/cancel` (`archive_leftover_documents`), и сообщаем
+    пользователю спокойным текстом, что документы сохранены в архив, но
+    разобрать их сейчас не получилось. FSM всё равно закрывается — issue
+    #441 п.1 остаётся в силе: пользователь не должен зависнуть в
+    `DocUpload.waiting` без клавиатуры.
+    """
+    try:
+        data = await state.get_data()
+    except Exception:
+        logger.exception("run_doc_pipeline: не удалось прочитать FSM-состояние после сбоя превью (user %s)", user_id)
+        data = {}
+
+    archived = archive_leftover_documents(user_id, data)
+    await state.clear()
+
+    text = "⚠️ Не получилось показать, что нашёл в документе — Telegram не принял сообщение."
+    if archived:
+        word = "документ" if archived == 1 else "документа" if 2 <= archived <= 4 else "документов"
+        text += (
+            f"\n\nНичего не потерялось: сохранил как есть в архив ({archived} {word}) — "
+            "просто не успел показать разбор. Если нужно — пришли документ ещё раз."
+        )
+    else:
+        text += "\n\nК сожалению, файл не сохранился — пришли его ещё раз, пожалуйста."
+
+    try:
+        await message.answer(text)
+    except Exception:
+        logger.exception("run_doc_pipeline: не удалось сообщить пользователю о сбое превью (user %s)", user_id)
 
 
 def is_medical_document(router_result: Optional[dict]) -> bool:
@@ -431,22 +560,42 @@ async def run_doc_pipeline(
     from handlers.photo import _extract_pdf_text, _pdf_to_images
 
     user_id = user_id if user_id is not None else message.from_user.id
-    _cleanup_stale_pending(user_id)
+    await _cleanup_stale_pending(user_id, state)
+
+    # Файл — на диск ДО любого сетевого вызова. При продолжении очереди
+    # load_staged_item уже удалил `.queued_*`, и содержимое живёт только в
+    # памяти: если бы первым шёл message.answer и он упал (429 после потолка
+    # ретраев, сеть), документ исчез бы отовсюду — ни на диске, ни в очереди,
+    # ни в pending (ревью координатора #516). Записанный `.pending_*` в худшем
+    # случае подберёт сторож или архивация ниже.
+    stored_name = _stored_name(content, ext)
+    tmp_path = _uploads_dir(user_id) / f".pending_{stored_name}"
+    tmp_path.write_bytes(content)
+
     if processing_msg is not None:
         try:
-            await processing_msg.edit_text(intro or "⏳ Читаю…")
+            await _call_with_flood_retry(
+                lambda: processing_msg.edit_text(intro or "⏳ Читаю…"), user_id=user_id, what="intro"
+            )
         except Exception:
             logger.debug("run_doc_pipeline: не удалось отредактировать processing_msg, отправляю новое")
             processing_msg = None
     if processing_msg is not None:
         processing = processing_msg
     else:
-        processing = await message.answer(intro or "⏳ Читаю…")
-
-    # Сохраняем как .pending до подтверждения
-    stored_name = _stored_name(content, ext)
-    tmp_path = _uploads_dir(user_id) / f".pending_{stored_name}"
-    tmp_path.write_bytes(content)
+        try:
+            processing = await _call_with_flood_retry(
+                lambda: message.answer(intro or "⏳ Читаю…"), user_id=user_id, what="intro"
+            )
+        except Exception:
+            logger.exception("run_doc_pipeline: не удалось отправить «читаю…» (user %s)", user_id)
+            # Ставим текущий документ в pending, чтобы архивация его увидела:
+            # на чистом старте здесь может лежать маркер {"claiming": True}.
+            await state.update_data(
+                pending={"tmp_path": str(tmp_path), "stored_name": stored_name, "extracted": {}, "auto": auto}
+            )
+            await _archive_failed_preview(user_id, state, message)
+            raise
 
     # Извлекаем показатели
     loop = asyncio.get_event_loop()
@@ -495,27 +644,40 @@ async def run_doc_pipeline(
     # Issue #441 п.2: extracted-значения экранированы в _preview_text, но
     # Telegram HTML-парсер капризный (например к незакрытым тегам от «<» в
     # значениях, которые не удалось экранировать полностью) — ретраим один
-    # раз без parse_mode вместо падения с TelegramBadRequest. Если и это не
-    # получилось — пользователь не должен зависнуть в DocUpload.waiting без
-    # клавиатуры (issue #441 п.1): чистим state и .pending-файл и пробрасываем
-    # исключение выше (вызывающий код это залогирует).
+    # раз без parse_mode вместо падения с TelegramBadRequest.
+    #
+    # Issue #516: TelegramRetryAfter (429 — самый частый триггер в очереди из
+    # #499, где несколько edit_text/answer идут подряд) обрабатывается
+    # ожиданием и повтором (`_call_with_flood_retry`), а не как фатальный сбой.
+    #
+    # Если превью так и не удалось показать (ни с HTML, ни без, ни после
+    # ретраев на 429) — пользователь не должен зависнуть в DocUpload.waiting
+    # без клавиатуры (issue #441 п.1). Раньше это стирало state и удаляло
+    # .pending-файл; теперь текущий документ и хвост очереди архивируются
+    # (issue #516, гарантия issue #370 — файл никогда просто не исчезает).
     try:
-        await processing.edit_text(preview, reply_markup=keyboard, parse_mode="HTML")
+        await _call_with_flood_retry(
+            lambda: processing.edit_text(preview, reply_markup=keyboard, parse_mode="HTML"),
+            user_id=user_id,
+            what="preview",
+        )
     except TelegramBadRequest:
         logger.warning(
             "run_doc_pipeline: HTML-превью не прошло парсинг Telegram, ретраю без parse_mode (user %s)", user_id
         )
         try:
-            await processing.edit_text(preview, reply_markup=keyboard, parse_mode=None)
+            await _call_with_flood_retry(
+                lambda: processing.edit_text(preview, reply_markup=keyboard, parse_mode=None),
+                user_id=user_id,
+                what="preview-no-html",
+            )
         except Exception:
             logger.exception("run_doc_pipeline: не удалось показать превью документа даже без HTML (user %s)", user_id)
-            await state.clear()
-            tmp_path.unlink(missing_ok=True)
+            await _archive_failed_preview(user_id, state, message)
             raise
     except Exception:
         logger.exception("run_doc_pipeline: не удалось показать превью документа (user %s)", user_id)
-        await state.clear()
-        tmp_path.unlink(missing_ok=True)
+        await _archive_failed_preview(user_id, state, message)
         raise
 
 
@@ -572,7 +734,10 @@ async def doc_received(message: Message, state: FSMContext, album: list = None) 
         notes.append(skip_summary)
 
     if not gathered.items:
-        text = "⚠️ Не нашёл ни одного подходящего файла (PDF, JPG, PNG, HEIC)."
+        # Issue #516 п.3: если все отсеянные файлы — по одной и той же
+        # понятной причине (повтор, пароль), заголовок называет её прямо,
+        # а не «не нашёл подходящего файла» — файлы были подходящего формата.
+        text = empty_gather_header(gathered)
         if notes:
             text += "\n\n" + "\n".join(notes)
         await message.answer(text)
@@ -581,24 +746,77 @@ async def doc_received(message: Message, state: FSMContext, album: list = None) 
     if notes:
         await message.answer("\n".join(notes))
 
-    total = len(gathered.items)
-    first, rest_raw = gathered.items[0], gathered.items[1:]
-    staged_rest = [stage_queue_item(user_id, item) for item in rest_raw]
+    # Issue #516 доп. (дефект А, независимый ревьюер): webhook обрабатывает
+    # апдейты параллельно, и Dispatcher не изолирует события одного
+    # пользователя друг от друга. Раньше здесь БЕЗУСЛОВНО перезаписывалось
+    # `queue`/`queue_total` — если пользователь уже смотрит документ 1 из
+    # альбома (превью показано, ждёт «Сохранить/Отмена») и присылает ещё файл
+    # (или альбом пришёл частями из-за задержки MediaGroupMiddleware), новая
+    # запись стирала текущую очередь, и уже показанный документ и его хвост
+    # переставали быть упомянуты где-либо в FSM. Теперь: если сессия уже
+    # активна (есть pending или непустая очередь) — новые файлы ДОБАВЛЯЮТСЯ в
+    # хвост, текущий pending не трогаем. Чтение+запись идёт под `queue_lock`
+    # (общий per-user asyncio.Lock с `finish_step_or_advance`) — MemoryStorage
+    # не даёт атомарного read-modify-write, а два конкурентных апдейта могут
+    # одновременно делать get_data → update_data над одной и той же очередью.
+    async with queue_lock(user_id):
+        data = await state.get_data()
+        existing_queue = data.get("queue") or []
+        has_pending = bool(data.get("pending"))
+        session_active = has_pending or bool(existing_queue)
+        existing_total = (data.get("queue_total") or (len(existing_queue) + 1)) if session_active else 0
 
-    await state.update_data(queue=staged_rest, queue_total=total)
+        staged_new = [stage_queue_item(user_id, item) for item in gathered.items]
+        new_queue = existing_queue + staged_new
+        new_total = existing_total + len(gathered.items)
 
+        start_now = None
+        if session_active:
+            await state.update_data(queue=new_queue, queue_total=new_total)
+        else:
+            # Чистый старт (нет ни pending, ни очереди) — эта же горутина
+            # забирает голову себе. Взятие головы + отметка `pending`
+            # временным маркером происходят ВНУТРИ лока: конкурентный второй
+            # вызов, попавший в лок следом, увидит `pending` уже занятым и
+            # пойдёт по ветке добавления в хвост, а не запустит второй
+            # параллельный run_doc_pipeline поверх той же головы очереди.
+            loaded, skipped_labels, rest = pop_next_loadable(new_queue)
+            if loaded is not None:
+                await state.update_data(queue=rest, queue_total=new_total, pending={"claiming": True})
+                start_now = (loaded, skipped_labels, rest)
+            else:
+                await state.update_data(queue=rest, queue_total=new_total)
+
+    if session_active:
+        word = pluralize_docs(len(gathered.items))
+        await message.answer(
+            f"➕ Добавил ещё {len(gathered.items)} {word} в очередь — дойдёт черёд, разберу по одному."
+        )
+        return
+
+    if start_now is None:
+        # Ни один из присланных файлов не прочитался обратно с диска —
+        # не должно случаться в норме, но не молчим тишиной (issue #370).
+        await message.answer("⚠️ Не получилось прочитать присланные файлы — попробуй прислать ещё раз.")
+        return
+
+    (content, ext, is_pdf, _label), skipped_labels, rest = start_now
+    pos = new_total - len(rest)
     intro = None
     progress = None
-    if total > 1:
-        progress = (1, total)
-        intro = f"{format_progress_prefix(1, total)} — читаю…"
+    if new_total > 1:
+        progress = (pos, new_total)
+        intro = f"{format_progress_prefix(pos, new_total)} — читаю…"
+    if skipped_labels:
+        word = pluralize_docs(len(skipped_labels))
+        await message.answer(f"⚠️ Пропустил {len(skipped_labels)} {word} — файл не прочитался с диска.")
 
     await run_doc_pipeline(
         message,
         state,
-        content=first["content"],
-        ext=first["ext"],
-        is_pdf=first["is_pdf"],
+        content=content,
+        ext=ext,
+        is_pdf=is_pdf,
         intro=intro,
         progress=progress,
     )
@@ -628,6 +846,10 @@ async def doc_confirm(callback: CallbackQuery, state: FSMContext) -> None:
             # распространяется и на отмену: архивируем как auto_archived,
             # user_confirmed=False, с явной причиной отмены.
             final_path = _uploads_dir(user_id) / pending["stored_name"]
+            # Issue #516: читаем содержимое ДО переноса файла, чтобы снять
+            # отметку дедупликации («в обработке») — отменённый документ не
+            # должен блокировать повторную отправку того же файла.
+            content_for_dedup = tmp_path.read_bytes() if tmp_path.exists() else None
             try:
                 if tmp_path.exists():
                     tmp_path.replace(final_path)
@@ -642,10 +864,16 @@ async def doc_confirm(callback: CallbackQuery, state: FSMContext) -> None:
                 append_document_to_kb(user_id, entry)
             except Exception:
                 logger.exception("doc_upload: архивация отменённого авто-документа не удалась (user %s)", user_id)
+            if content_for_dedup is not None:
+                doc_dedup.clear(user_id, content_for_dedup)
             close_text = "❌ Показатели не сохранил, сам файл оставил в архиве документов."
         else:
             # /doc — пользователь сам явно вошёл в режим загрузки, тут отмена
             # действительно значит «выбросить», как и раньше.
+            # Issue #516: снимаем отметку дедупликации — отменённый документ
+            # не должен блокировать повторную отправку того же файла.
+            if tmp_path.exists():
+                doc_dedup.clear(user_id, tmp_path.read_bytes())
             tmp_path.unlink(missing_ok=True)
             close_text = "❌ Не сохранил."
 
@@ -662,6 +890,9 @@ async def doc_confirm(callback: CallbackQuery, state: FSMContext) -> None:
 
     # Сохранение
     final_path = _uploads_dir(user_id) / pending["stored_name"]
+    # Issue #516: содержимое читаем ДО переноса файла — нужно и для записи в
+    # KB (уже было так), и для пометки «успешно сохранён» в дедупе.
+    content_for_dedup = tmp_path.read_bytes() if tmp_path.exists() else None
     try:
         if tmp_path.exists():
             tmp_path.replace(final_path)
@@ -677,6 +908,11 @@ async def doc_confirm(callback: CallbackQuery, state: FSMContext) -> None:
         await callback.message.edit_text("⚠️ Не получилось сохранить, попробуй ещё раз.")
         await callback.answer()
         return
+
+    if content_for_dedup is not None:
+        # Успешно сохранён — теперь и только теперь считаем файл «уже
+        # виденным» на разумный срок (issue #516: не при приёме, а по факту).
+        doc_dedup.mark_saved(user_id, content_for_dedup)
 
     extracted = pending.get("extracted") or {}
     biomarkers_note = _save_to_blood_tests(user_id, extracted, pending["stored_name"])
