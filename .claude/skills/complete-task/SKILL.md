@@ -1,6 +1,6 @@
 ---
 name: complete-task
-description: Доводит готовую ветку Botkin до мержа в dev и закрывает issue. Триггеры — «закрой задачу», «заверши задачу», «/complete-task» (частая опечатка «/complete-taks»). Флоу-гейты по порядку: подлить свежий dev; создать DRAFT PR в dev с «Closes #N»; code-review (python-review) и фикс MEDIUM+; архитектурная проверка; security-review; тесты (план → апрув → реализация → покрытие); финальный прогон проверок; снять draft; мерж --merge после «да»; статус Done; удалить worktree; опц. спросить про PR dev→main с ревьюером @Lyskovsky. Прод НЕ деплоит. Парный к prepare-task.
+description: Доводит готовую ветку Botkin до мержа в dev и закрывает issue. Триггеры — «закрой задачу», «заверши задачу», «/complete-task» (частая опечатка «/complete-taks»). Флоу-гейты по порядку: подлить свежий dev; создать DRAFT PR в dev с «Closes #N»; code-review и фикс MEDIUM+; архитектурная проверка; security-review; тесты (план → апрув → реализация → покрытие); финальный прогон проверок; снять draft; мерж --merge после «да»; удалить worktree; опц. спросить про PR dev→main с ревьюером @Lyskovsky. Прод НЕ деплоит. Парный к prepare-task.
 ---
 
 # complete-task — довести ветку до мержа и закрыть задачу
