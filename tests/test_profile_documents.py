@@ -254,3 +254,17 @@ def test_detect_save_intent_ignores_food_captions():
     assert detect_save_intent("Сохрани, это мой завтрак") is False
     assert detect_save_intent("сохрани полис") is True
     assert detect_save_intent("Полис ОМС, на всякий случай") is True
+
+
+def test_default_category_medical_for_old_doc_entries():
+    """Документы из /doc до #370 без category: разобранные — «medical»."""
+    from core.health.profile_documents import _to_summary
+
+    lab = {"file": "a.pdf", "extracted": {"laboratory": "Лаборатория", "date": "2026-09-01"}}
+    usi = {"file": "b.jpg", "extracted": {"doc_type": "заключение УЗИ"}}
+    plain = {"file": "c.jpg", "extracted": {}}
+    explicit = {"file": "d.jpg", "extracted": {"laboratory": "X"}, "category": "insurance"}
+    assert _to_summary(lab)["category"] == "medical"
+    assert _to_summary(usi)["category"] == "medical"
+    assert _to_summary(plain)["category"] is None
+    assert _to_summary(explicit)["category"] == "insurance"
