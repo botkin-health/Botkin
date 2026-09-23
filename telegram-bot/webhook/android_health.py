@@ -194,14 +194,21 @@ def _hc_aggregate_by_day(payload: HealthConnectPayload, user_tz) -> dict:
         )
 
     # ── steps: суммируем ──────────────────────────────────────────────────────
+    # Датируем по НАЧАЛУ интервала, не по концу (#525.1): в суточном режиме
+    # (readDailyStepsData) приложение шлёт полный день N как [полночь N,
+    # полночь N+1) — конец интервала уже относится к следующему дню, и дата
+    # по end_time укладывала весь день N на N+1. Для коротких интервалов
+    # (raw/bucketed режимы), которые обычно не пересекают полночь, выбор
+    # начала/конца не важен; если такой интервал всё же пересечёт границу
+    # суток — он тоже относится целиком к дню своего начала (та же логика).
     for rec in payload.steps or []:
-        d = _to_local_date(rec.end_time, user_tz) or _to_local_date(rec.start_time, user_tz)
+        d = _to_local_date(rec.start_time, user_tz) or _to_local_date(rec.end_time, user_tz)
         if d:
             _slot(d)["steps"] += rec.count
 
     # ── distance: суммируем метры ─────────────────────────────────────────────
     for rec in payload.distance or []:
-        d = _to_local_date(rec.end_time, user_tz) or _to_local_date(rec.start_time, user_tz)
+        d = _to_local_date(rec.start_time, user_tz) or _to_local_date(rec.end_time, user_tz)
         if d:
             _slot(d)["distance_m"] += rec.meters
 
@@ -270,9 +277,11 @@ def _hc_aggregate_by_day(payload: HealthConnectPayload, user_tz) -> dict:
                 }
             )
 
-    # ── active_calories → raw_data ONLY (не в calories!) ─────────────────────
+    # ── active_calories → raw_data (см. #525.2 — активные калории также пишутся
+    # в колонку activity_log.active_calories в endpoint'е ниже, но не перетирая
+    # Garmin) ─────────────────────────────────────────────────────────────────
     for rec in payload.active_calories or []:
-        d = _to_local_date(rec.end_time, user_tz) or _to_local_date(rec.start_time, user_tz)
+        d = _to_local_date(rec.start_time, user_tz) or _to_local_date(rec.end_time, user_tz)
         if d:
             s = _slot(d)
             prev = s["raw_data"].get("hc_active_calories", 0.0)
@@ -280,7 +289,7 @@ def _hc_aggregate_by_day(payload: HealthConnectPayload, user_tz) -> dict:
 
     # ── total_calories → raw_data ONLY ───────────────────────────────────────
     for rec in payload.total_calories or []:
-        d = _to_local_date(rec.end_time, user_tz) or _to_local_date(rec.start_time, user_tz)
+        d = _to_local_date(rec.start_time, user_tz) or _to_local_date(rec.end_time, user_tz)
         if d:
             s = _slot(d)
             prev = s["raw_data"].get("hc_total_calories", 0.0)

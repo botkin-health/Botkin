@@ -488,3 +488,73 @@ def test_full_mock_payload():
 
     # distance
     assert agg["distance_km"] == pytest.approx(5.2, rel=0.01)
+
+
+# ── #525.1: полный день не должен ложиться на следующий ─────────────────────
+
+
+def test_full_day_app_format_steps_not_shifted_to_next_day():
+    """
+    Приложение в суточном режиме (readDailyStepsData) шлёт полный день N как
+    [полночь N, полночь N+1) — конец исключён. Старое поведение (дата по
+    end_time) укладывало весь день N на N+1. Дата должна определяться по
+    НАЧАЛУ интервала.
+
+    Payload: полный день 10 июня [00:00 10.06 МСК, 00:00 11.06 МСК) + неполный
+    день 11 июня [00:00 11.06 МСК, 15:00 11.06 МСК). МСК = UTC+3, поэтому в UTC
+    это [2026-06-09T21:00, 2026-06-10T21:00) и [2026-06-10T21:00, 2026-06-11T12:00).
+    """
+    payload = make_payload(
+        steps=[
+            # Полный день 10 июня (МСК) — 20000 шагов
+            {"count": 20000, "start_time": "2026-06-09T21:00:00Z", "end_time": "2026-06-10T21:00:00Z"},
+            # Неполный день 11 июня (МСК) — 3000 шагов
+            {"count": 3000, "start_time": "2026-06-10T21:00:00Z", "end_time": "2026-06-11T12:00:00Z"},
+        ]
+    )
+    result = _hc_aggregate_by_day(payload, MSK)
+    assert result[date(2026, 6, 10)]["steps"] == 20000, (
+        f"Полный день 10.06 должен остаться на 10.06, получили {result.get(date(2026, 6, 10))}"
+    )
+    assert result[date(2026, 6, 11)]["steps"] == 3000, (
+        f"Неполный день 11.06 не должен получить сумму, получили {result.get(date(2026, 6, 11))}"
+    )
+
+
+def test_full_day_app_format_distance_and_calories_by_start_time():
+    """Та же логика для distance/active_calories/total_calories — датируем по началу."""
+    payload = make_payload(
+        distance=[
+            {"meters": 8000, "start_time": "2026-06-09T21:00:00Z", "end_time": "2026-06-10T21:00:00Z"},
+            {"meters": 1000, "start_time": "2026-06-10T21:00:00Z", "end_time": "2026-06-11T12:00:00Z"},
+        ],
+        active_calories=[
+            {"calories": 500.0, "start_time": "2026-06-09T21:00:00Z", "end_time": "2026-06-10T21:00:00Z"},
+            {"calories": 50.0, "start_time": "2026-06-10T21:00:00Z", "end_time": "2026-06-11T12:00:00Z"},
+        ],
+        total_calories=[
+            {"calories": 2200.0, "start_time": "2026-06-09T21:00:00Z", "end_time": "2026-06-10T21:00:00Z"},
+            {"calories": 300.0, "start_time": "2026-06-10T21:00:00Z", "end_time": "2026-06-11T12:00:00Z"},
+        ],
+    )
+    result = _hc_aggregate_by_day(payload, MSK)
+    assert result[date(2026, 6, 10)]["distance_km"] == pytest.approx(8.0, rel=0.01)
+    assert result[date(2026, 6, 11)]["distance_km"] == pytest.approx(1.0, rel=0.01)
+    assert result[date(2026, 6, 10)]["raw_data"]["hc_active_calories"] == 500.0
+    assert result[date(2026, 6, 11)]["raw_data"]["hc_active_calories"] == 50.0
+    assert result[date(2026, 6, 10)]["raw_data"]["hc_total_calories"] == 2200.0
+    assert result[date(2026, 6, 11)]["raw_data"]["hc_total_calories"] == 300.0
+
+
+def test_sleep_still_dated_by_end_time_not_start():
+    """Сон НЕ трогаем — датируется по концу сессии (день пробуждения), это правильно."""
+    payload = make_payload(
+        sleep=[
+            # Сессия 23:00 (9 июня, МСК) → 07:00 (10 июня, МСК) — пробуждение 10-го
+            {"session_end_time": "2026-06-10T04:00:00Z", "duration_seconds": 28800},  # 8ч, конец 04:00 UTC=07:00 МСК
+        ]
+    )
+    result = _hc_aggregate_by_day(payload, MSK)
+    assert date(2026, 6, 10) in result
+    assert result[date(2026, 6, 10)]["sleep_hours"] == pytest.approx(8.0, rel=0.01)
+    assert date(2026, 6, 9) not in result
