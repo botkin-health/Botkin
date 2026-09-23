@@ -22,15 +22,13 @@ git checkout dev
 Если плагины не подтянулись автоматически — поставь руками:
 
 ```bash
-claude plugin marketplace add affaan-m/everything-claude-code
 claude plugin marketplace add clamp-sh/analytics-skills
 
-claude plugin install everything-claude-code@everything-claude-code
 claude plugin install posthog@claude-plugins-official
 claude plugin install chrome-devtools-mcp@claude-plugins-official
 claude plugin install analytics-skills@clamp-sh
 
-claude plugin list   # проверка: все 4 enabled
+claude plugin list   # проверка: все 3 enabled
 ```
 
 > Плагины ставятся на **user-scope** (`~/.claude`), не в репозиторий. Это нормально:
