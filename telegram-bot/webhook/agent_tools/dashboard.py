@@ -108,9 +108,14 @@ async def day_summary(
     nutrition = None
     meals = db.query(NutritionLog).filter(NutritionLog.user_id == uid, NutritionLog.date == target_date).all()
     if meals:
+        from core.food.water_table import sum_water_ml
 
         def _tot(key: str) -> float:
             return round(sum(float((m.totals or {}).get(key) or 0) for m in meals), 1)
+
+        # Вода (#526) не хранится в totals — считаем из items на чтении, как
+        # в get_nutrition_totals_by_date (database/crud.py).
+        water_ml = round(sum(sum_water_ml(m.items or []) for m in meals), 1)
 
         nutrition = {
             "calories": _tot("calories"),
@@ -118,6 +123,7 @@ async def day_summary(
             "fats_g": _tot("fats"),
             "carbs_g": _tot("carbs"),
             "fiber_g": _tot("fiber"),
+            "water_ml": water_ml,
             "meals_count": len(meals),
         }
 

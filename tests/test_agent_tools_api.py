@@ -1061,6 +1061,55 @@ def test_day_summary_live_aggregation(client, db_session):
     assert body["weight_kg"] == 82.4
 
 
+def test_day_summary_includes_water_ml_from_items(client, db_session):
+    """day_summary (#526): вода считается из items (не totals) и попадает в
+    nutrition.water_ml; чай/суп/водка воду не увеличивают."""
+    d = date(2026, 6, 3)
+    create_nutrition_log(
+        db_session,
+        user_id=895655,
+        date=d,
+        meal_time=time(9, 0),
+        meal_name="Завтрак",
+        items=[{"product": "Стакан воды", "weight_g": None}],
+        totals={"calories": 0},
+    )
+    create_nutrition_log(
+        db_session,
+        user_id=895655,
+        date=d,
+        meal_time=time(13, 0),
+        meal_name="Обед",
+        items=[
+            {"product": "Минеральная вода", "weight_g": 500},
+            {"product": "Куриный суп", "weight_g": 300, "calories": 150},
+        ],
+        totals={"calories": 150},
+    )
+    create_nutrition_log(
+        db_session,
+        user_id=895655,
+        date=d,
+        meal_time=time(20, 0),
+        meal_name="Ужин",
+        items=[{"product": "Водка", "weight_g": 50, "calories": 110}],
+        totals={"calories": 110},
+    )
+
+    r = client.get("/api/agent/day_summary?date=2026-06-03")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["status"] == "ok"
+    assert body["nutrition"]["water_ml"] == 750.0
+
+
+def test_day_summary_no_water_key_absent_when_no_meals(client):
+    """Без записей еды вообще — no_data, water_ml не всплывает как 0 (нет секции nutrition)."""
+    r = client.get("/api/agent/day_summary?date=2020-02-02")
+    body = r.json()
+    assert body["status"] == "no_data"
+
+
 def test_body_measurements_no_data(client):
     """GET /body_measurements with no data — returns no_data, not 500."""
     r = client.get("/api/agent/body_measurements")
