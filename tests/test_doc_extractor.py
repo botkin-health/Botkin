@@ -324,3 +324,16 @@ async def test_known_limitation_hallucination_on_readable_text_is_logged_not_dro
 
     assert out["values"] == {"insulin": 88}
     assert any("insulin" in r.getMessage() for r in caplog.records)
+
+
+@pytest.mark.asyncio
+async def test_unreadable_text_flag_set_even_when_model_returns_nothing():
+    """E2E 23.09.2026: на битом PDF модель сама вернула пустой values — гейт
+    отбрасывал ноль значений, _unverified_labels был пуст, и пользователь
+    получал общее «не нашёл данных» вместо честного «текст читается плохо»."""
+    broken = "···········\n·······: 5.4 ·····/·\n·········: 88 ······/·"
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response({"values": {}}))):
+        out = await doc_extractor.extract_medical_data(broken.encode(), "text/plain")
+
+    assert out["values"] == {}
+    assert out.get("_unreadable_text") is True
