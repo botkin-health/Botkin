@@ -816,13 +816,19 @@ def _insert_new_workouts(db, user_id: int, rows: list[dict]) -> int:
     """
     if not rows:
         return 0
+    from sqlalchemy import bindparam
     from sqlalchemy import text as _text
 
     sources = [r["source"] for r in rows]
+    # IN + expanding bindparam вместо Postgres-only `= ANY(:srcs)` — компилируется
+    # в обычный параметризованный IN на любом диалекте (Postgres на проде,
+    # SQLite в тестах), поведение то же самое.
     existing = {
         row[0]
         for row in db.execute(
-            _text("SELECT source FROM workouts WHERE user_id = :uid AND source = ANY(:srcs)"),
+            _text("SELECT source FROM workouts WHERE user_id = :uid AND source IN :srcs").bindparams(
+                bindparam("srcs", expanding=True)
+            ),
             {"uid": user_id, "srcs": sources},
         )
     }
