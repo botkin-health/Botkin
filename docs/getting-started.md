@@ -37,7 +37,7 @@ claude plugin list   # проверка: все 3 enabled
 
 ### 1.3. Что уже приедет с git и заработает без действий
 
-- проектные скиллы `.claude/skills/**` (architecture-patterns, tdd, to-issues, handoff, …);
+- проектные скиллы `.claude/skills/**` (prepare-task, complete-task, to-issues, handoff, …);
 - конфиг engineering-скиллов: `docs/agents/*` + блок `## Agent skills` в `CLAUDE.md`;
 - `CLAUDE.md`, ADR в `docs/architecture/decisions/`.
 
@@ -45,7 +45,7 @@ claude plugin list   # проверка: все 3 enabled
 
 | Инструмент | Зачем | Установка |
 |---|---|---|
-| **`gh` CLI** + `gh auth login` | скиллы `to-issues`/`triage`/`to-prd`/`qa` пишут в GitHub Issues (`botkin-health/Botkin`) | `brew install gh` |
+| **`gh` CLI** + `gh auth login` | скиллы `to-issues`/`to-prd`/`prepare-task` пишут в GitHub Issues (`botkin-health/Botkin`) | `brew install gh` |
 | **Google Chrome** | `chrome-devtools-mcp` (браузерная отладка, скриншоты) | — |
 | **Node.js** | часть плагинов/MCP запускается через npx | `brew install node` |
 
