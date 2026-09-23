@@ -558,3 +558,92 @@ def test_sleep_still_dated_by_end_time_not_start():
     assert date(2026, 6, 10) in result
     assert result[date(2026, 6, 10)]["sleep_hours"] == pytest.approx(8.0, rel=0.01)
     assert date(2026, 6, 9) not in result
+
+
+# ── #525.4: сон без стадий бодрствования ─────────────────────────────────────
+
+
+def test_sleep_excludes_awake_stage_seconds():
+    """
+    Сессия 8ч с одной стадией 'awake' (код 1) 10 минут → чистый сон 7ч50м.
+    Mi Fitness не считает пробуждения сном; сервер раньше брал duration_seconds
+    всей сессии целиком, включая awake/out_of_bed/awake_in_bed.
+    """
+    payload = make_payload(
+        sleep=[
+            {
+                "session_end_time": "2026-06-10T06:00:00Z",
+                "duration_seconds": 8 * 3600,
+                "stages": [
+                    # 22:00 → 22:10 awake (код "1"), затем sleeping до конца
+                    {"stage": "1", "start_time": "2026-06-09T22:00:00Z", "end_time": "2026-06-09T22:10:00Z"},
+                    {"stage": "2", "start_time": "2026-06-09T22:10:00Z", "end_time": "2026-06-10T06:00:00Z"},
+                ],
+            }
+        ]
+    )
+    result = _hc_aggregate_by_day(payload, MSK)
+    d = date(2026, 6, 10)
+    assert result[d]["sleep_hours"] == pytest.approx(7 + 50 / 60, rel=0.01), (
+        f"Ожидали 7ч50м без awake-стадии, получили {result[d]['sleep_hours']}"
+    )
+
+
+def test_sleep_excludes_out_of_bed_and_awake_in_bed_stages():
+    """Коды 3 (out_of_bed) и 7 (awake_in_bed) — тоже не сон, исключаются вместе с 1 (awake)."""
+    payload = make_payload(
+        sleep=[
+            {
+                "session_end_time": "2026-06-10T06:00:00Z",
+                "duration_seconds": 8 * 3600,
+                "stages": [
+                    {"stage": "1", "start_time": "2026-06-09T22:00:00Z", "end_time": "2026-06-09T22:05:00Z"},
+                    {"stage": "3", "start_time": "2026-06-09T22:05:00Z", "end_time": "2026-06-09T22:10:00Z"},
+                    {"stage": "7", "start_time": "2026-06-09T22:10:00Z", "end_time": "2026-06-09T22:15:00Z"},
+                    {"stage": "4", "start_time": "2026-06-09T22:15:00Z", "end_time": "2026-06-10T06:00:00Z"},
+                ],
+            }
+        ]
+    )
+    result = _hc_aggregate_by_day(payload, MSK)
+    d = date(2026, 6, 10)
+    # 8ч - 15 минут бодрствования = 7ч45м
+    assert result[d]["sleep_hours"] == pytest.approx(7 + 45 / 60, rel=0.01)
+
+
+def test_sleep_without_stages_behaves_as_before():
+    """Без stages — старое поведение: вся duration_seconds сессии."""
+    payload = make_payload(
+        sleep=[
+            {"session_end_time": "2026-06-10T06:00:00Z", "duration_seconds": 8 * 3600},
+        ]
+    )
+    result = _hc_aggregate_by_day(payload, MSK)
+    d = date(2026, 6, 10)
+    assert result[d]["sleep_hours"] == pytest.approx(8.0, rel=0.01)
+
+
+def test_sleep_stages_merge_across_overlapping_sessions():
+    """Мёрдж пересекающихся сессий (307b914) сохранён при работе со stages."""
+    payload = make_payload(
+        sleep=[
+            {
+                "session_end_time": "2026-06-10T06:00:00Z",
+                "duration_seconds": 7 * 3600,
+                "stages": [
+                    {"stage": "2", "start_time": "2026-06-09T23:00:00Z", "end_time": "2026-06-10T06:00:00Z"},
+                ],
+            },
+            {
+                "session_end_time": "2026-06-10T06:30:00Z",
+                "duration_seconds": 2.5 * 3600,
+                "stages": [
+                    {"stage": "2", "start_time": "2026-06-10T04:00:00Z", "end_time": "2026-06-10T06:30:00Z"},
+                ],
+            },
+        ]
+    )
+    result = _hc_aggregate_by_day(payload, MSK)
+    d = date(2026, 6, 10)
+    # 23:00 → 06:30 = 7.5ч после мёрджа пересечения
+    assert result[d]["sleep_hours"] == pytest.approx(7.5, rel=0.01)

@@ -129,6 +129,35 @@ def _parse_utc(ts: str) -> Optional[datetime]:
         return None
 
 
+# Health Connect SleepSessionRecord.Stage.STAGE_TYPE_* (androidx.health.connect.client) —
+# коды не-сна: бодрствование в разных формах. Подтверждено по исходнику библиотеки
+# (androidx/androidx, SleepSessionRecord.kt): 1=awake, 3=out_of_bed, 7=awake_in_bed.
+_HC_AWAKE_STAGE_CODES = {"1", "3", "7"}
+
+
+def _sleep_stage_intervals(stages: Optional[list]) -> list:
+    """Из сырых stages сессии вернуть (start, end) только для стадий СНА (не бодрствования).
+
+    Приложение шлёт `stage.stage.toString()` — числовой код Int строкой ("1".."7").
+    Если stages нет, пуст, или запись не парсится — возвращает [] (вызывающий код
+    в этом случае берёт всю сессию целиком, старое поведение).
+    """
+    if not stages:
+        return []
+    intervals = []
+    for st in stages:
+        if not isinstance(st, dict):
+            continue
+        code = str(st.get("stage", "")).strip()
+        if not code or code in _HC_AWAKE_STAGE_CODES:
+            continue
+        start_dt = _parse_utc(st.get("start_time"))
+        end_dt = _parse_utc(st.get("end_time"))
+        if start_dt and end_dt and start_dt < end_dt:
+            intervals.append((start_dt, end_dt))
+    return intervals
+
+
 def _merge_intervals_seconds(intervals: list) -> float:
     """Слить пересекающиеся (start, end) интервалы и вернуть суммарные секунды покрытия."""
     if not intervals:
@@ -240,13 +269,27 @@ def _hc_aggregate_by_day(payload: HealthConnectPayload, user_tz) -> dict:
     # Health Connect отдаёт сессии сырыми (readRecords, без aggregate()) — если
     # источник пришлёт две пересекающиеся сессии за одну ночь (пере-синк истории),
     # наивная сумма duration_seconds задвоит часы сна.
+    #
+    # #525.4: duration_seconds всей сессии включает бодрствование (Health Connect
+    # SleepSessionRecord.Stage коды — androidx.health.connect.client, STAGE_TYPE_*):
+    # 1=awake, 2=sleeping, 3=out_of_bed, 4=light, 5=deep, 6=rem, 7=awake_in_bed.
+    # Приложение шлёт `stage.stage.toString()` — числовой код строкой ("1".."7").
+    # Если stages пришли — берём как интервалы для мёрджа только НЕ-бодрствующие
+    # стадии (исключаем 1/3/7), не всю сессию целиком. Мёрдж пересечений (ниже,
+    # _merge_intervals_seconds) при этом продолжает работать как раньше — стадии
+    # разных сессий просто добавляются в тот же список интервалов дня.
+    # Если stages не пришли (или пусты) — поведение прежнее: вся duration_seconds.
     for rec in payload.sleep or []:
         d = _to_local_date(rec.session_end_time, user_tz)
         if d:
             end_dt = _parse_utc(rec.session_end_time)
             if end_dt:
                 start_dt = end_dt - timedelta(seconds=rec.duration_seconds)
-                _slot(d)["sleep_intervals"].append((start_dt, end_dt))
+                stage_intervals = _sleep_stage_intervals(rec.stages)
+                if stage_intervals:
+                    _slot(d)["sleep_intervals"].extend(stage_intervals)
+                else:
+                    _slot(d)["sleep_intervals"].append((start_dt, end_dt))
 
     # ── weight: копим все записи >30 кг, потом берём последнюю ───────────────
     for rec in payload.weight or []:
