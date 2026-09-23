@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from database.models import EcgRecord, HeartRateEvent
 from webhook.jwt_auth import get_agent_user, get_db, require_agent_scope
-from .common import _dt_isoformat_local
+from .common import _dt_isoformat_local, parse_agent_date_or_datetime
 
 router = APIRouter(prefix="/api/agent", tags=["agent-tools-vitals"])
 
@@ -81,14 +81,10 @@ async def log_bp(
     """Save a blood pressure reading to blood_pressure_logs."""
     from sqlalchemy import text as _text
 
-    # Parse measured_at
-    if req.measured_at:
-        try:
-            measured_at = datetime.fromisoformat(req.measured_at)
-        except ValueError:
-            raise HTTPException(status_code=400, detail=f"Invalid measured_at: {req.measured_at!r}. Use ISO datetime.")
-    else:
-        measured_at = datetime.now(timezone.utc)
+    # #518: naive datetime is localized in the USER's own timezone (not UTC),
+    # and a date-only value is combined with the current time-of-day instead
+    # of collapsing to midnight — see parse_agent_date_or_datetime() docstring.
+    measured_at = parse_agent_date_or_datetime(req.measured_at, user)
 
     db.execute(
         _text(

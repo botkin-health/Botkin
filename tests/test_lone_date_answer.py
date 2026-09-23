@@ -20,8 +20,10 @@ ask_agent маскирует.
 Покрытие:
   - одиночная дата после вопроса агента → в агента, с датой в хинте
   - одиночная дата БЕЗ предшествующего вопроса → тоже в агента (не «это еда?»)
-  - все формы: «вчера», «позавчера», «yesterday», «day before yesterday»,
-    «15.09», «15/09»
+  - словесные формы: «вчера», «позавчера», «yesterday», «day before yesterday»
+  - «15.09» / «15/09» — обновлено в #518: эти формы неотличимы от короткого
+    числового ответа (напр. «7.2»), поэтому больше НЕ режутся на дату — уходят
+    агенту как исходный текст (см. tests/test_numeric_vs_date_518.py)
   - негативный случай: «Вчера ужинал овсянкой» — обычное сообщение о еде
     по-прежнему уходит в парсер еды и логируется вчерашним днём (не сломано)
 """
@@ -127,15 +129,27 @@ async def test_lone_english_day_before_yesterday_reaches_agent():
 
 
 @pytest.mark.asyncio
-async def test_lone_dd_mm_dot_date_reaches_agent():
+async def test_lone_dd_mm_dot_date_reaches_agent_as_raw_text_not_cut_date():
+    """#518: «15.09» в одиночку неотличимо от короткого числового ответа
+    (_looks_like_short_value матчит его как «15.09» — валидное decimal-число).
+    Раньше это резалось в дату 2026-09-15 и агент получал только директиву —
+    теперь, чтобы не терять реальные числовые ответы вроде «7.2», такие
+    неоднозначные одиночные строки НЕ режутся на дату вообще: агент получает
+    исходный текст как есть и сам решает по контексту диалога (#198-путь
+    "короткий ответ после вопроса агента" по-прежнему приносит его в агента —
+    просто без даты-хинта)."""
     agent_text = await _run_and_capture_agent_text("15.09", agent_last_turn_was_question=True)
-    assert "-09-15" in agent_text
+    assert agent_text == "15.09"
+    assert "[Система" not in agent_text
 
 
 @pytest.mark.asyncio
-async def test_lone_dd_mm_slash_date_reaches_agent():
+async def test_lone_dd_mm_slash_date_reaches_agent_as_raw_text_not_cut_date():
+    """#518: тот же случай для слэш-формата — «15/09» матчит _looks_like_short_value
+    как «АД»-подобный паттерн (XX/YY), поэтому тоже уходит агенту как есть."""
     agent_text = await _run_and_capture_agent_text("15/09", agent_last_turn_was_question=True)
-    assert "-09-15" in agent_text
+    assert agent_text == "15/09"
+    assert "[Система" not in agent_text
 
 
 # ── Одиночная дата БЕЗ предшествующего вопроса ───────────────────────────────

@@ -777,11 +777,37 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
     # Прецедент 25.05.2026.
     from handlers.text import extract_date_from_text
 
+    # #518: короткий числовой ответ («7.2», «1.5», «5.5») целиком совпадает с
+    # форматом ДД.ММ шага 2 extract_date_from_text() — регэксп трактует его как
+    # дату, вырезает всё сообщение без остатка, и #514-реройт ниже отправляет
+    # агенту ТОЛЬКО директиву о дате: само число теряется (тихая порча данных,
+    # если агент спросил «какой сахар?» и т.п.). Такое сообщение — ровно
+    # «короткий ответ-значение» из #198 (_looks_like_short_value), который
+    # обязан дойти до агента как есть. Не изобретаем эвристику дня/месяца
+    # (ДД.ММ almost always parses as a valid day/month either way) — для
+    # неоднозначной одиночной цифро-точечной строки безопаснее пропустить
+    # извлечение даты вообще и отдать агенту исходный текст: он видит историю
+    # диалога и знает, какой вопрос задавал.
     custom_date = None
-    if not _is_clearly_conversational(text):
+    agent_date_hint = None
+    if not _is_clearly_conversational(text) and not _looks_like_short_value(text):
         custom_date, clean_text = extract_date_from_text(text, user_tz=user_tz)
         if custom_date:
-            text = clean_text
+            # #518: эвристика «вечером/перед сном» (case 4 внутри
+            # extract_date_from_text) НЕ вырезает слово — clean_text приходит
+            # равным исходному text. Она написана для food-парсера («Я вечером
+            # выпил кефир» утром = вчерашний вечер), но для агента текст вроде
+            # «пробежка, вечером ещё поплаваю» в 9 утра — это БУДУЩИЙ вечер
+            # сегодня, не вчера. Директиву агенту в этом случае не шлём;
+            # custom_date для food-парсера ниже по коду остаётся как есть.
+            if clean_text != text:
+                text = clean_text
+                agent_date_hint = custom_date
+            else:
+                debug_logger.info(
+                    f"🌙 #518: эвристика 'вечером/перед сном' (custom_date={custom_date!r}) "
+                    "— директива агенту не отправляется, только food-парсеру"
+                )
 
     # /my_products feature removed — no early-exit product matching, LLM handles all.
     router_result = None
@@ -1161,7 +1187,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                 # #510: если extract_date_from_text() вырезала «вчера»/«позавчера»/
                 # дату — восстанавливаем её агенту служебной директивой, иначе
                 # событие ложится на сегодня.
-                agent_text = _agent_text_with_date_hint(text, custom_date)
+                agent_text = _agent_text_with_date_hint(text, agent_date_hint)
                 reply = await loop.run_in_executor(
                     None,
                     lambda: ask_agent(int(user_id), agent_text, _progress, is_e2e=is_e2e),
@@ -1743,7 +1769,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                 # #510: та же служебная директива с датой, что и в основной
                 # 'other'-ветке выше — здесь тоже вырезанные «вчера»/«позавчера»/
                 # дата должны дойти до агента.
-                agent_text = _agent_text_with_date_hint(text, custom_date)
+                agent_text = _agent_text_with_date_hint(text, agent_date_hint)
                 reply = await loop.run_in_executor(None, lambda: ask_agent(int(user_id), agent_text))
                 if not reply:
                     reply = "Хм, у меня нет внятного ответа. Попробуй переформулировать."

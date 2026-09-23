@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from webhook.jwt_auth import get_agent_user, get_db, require_agent_scope
-from .common import _get_user_tz, _today_in_user_tz
+from .common import _today_in_user_tz, parse_agent_datetime
 
 router = APIRouter(prefix="/api/agent", tags=["agent-tools-workouts"])
 
@@ -45,17 +45,16 @@ def _parse_manual_start_time(raw: Optional[str], user) -> datetime:
 
     Строка с явным офсетом (или 'Z') остаётся как есть — уважаем то, что
     агент действительно посчитал сам.
+
+    #518: логика вынесена в общий хелпер `common.parse_agent_datetime` —
+    её же переиспользует `vitals.log_bp`, чтобы не дублировать код между
+    write-тулами.
     """
-    tz = _get_user_tz(user)
-    if not raw:
-        return datetime.now(tz)
     try:
-        dt = datetime.fromisoformat(raw)
-    except ValueError:
-        raise HTTPException(status_code=400, detail=f"Invalid start_time: {raw!r}. Use ISO datetime.")
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=tz)
-    return dt
+        return parse_agent_datetime(raw, user)
+    except HTTPException as e:
+        # Сохраняем формулировку ошибки под именем поля этого конкретного тула.
+        raise HTTPException(status_code=400, detail=f"Invalid start_time: {raw!r}. Use ISO datetime.") from e
 
 
 @router.post("/log_workout")
