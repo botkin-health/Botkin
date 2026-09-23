@@ -801,7 +801,9 @@ async def receive_android_health(
     finally:
         db.close()
 
-    logger.info(f"✅ Android Health Connect import: {len(daily)} day(s), {workouts_inserted} workout(s)")
+    logger.info(
+        f"✅ Android Health Connect import: user={target_user_id}, {len(daily)} day(s), {workouts_inserted} workout(s)"
+    )
     return {
         "status": "ok",
         "days": len(daily),
