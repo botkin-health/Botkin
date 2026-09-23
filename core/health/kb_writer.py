@@ -9,29 +9,19 @@ from pathlib import Path
 from typing import Any
 
 
-def append_document_to_kb(kb_path: Path, entry: dict[str, Any]) -> None:
-    """Добавляет запись в documents[] в kb файле.
+def read_kb(kb_path: Path) -> dict[str, Any]:
+    """Читает kb файл целиком. Отсутствие файла или битый JSON — пустой dict."""
+    if not kb_path.exists():
+        return {}
+    try:
+        return json.loads(kb_path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
 
-    Создаёт файл если не существует. Атомарная замена через tmpfile.
 
-    Args:
-        kb_path: абсолютный путь к kb_<user_id>.json
-        entry: dict с ключами added_at, file, extracted, user_confirmed
-    """
-    if kb_path.exists():
-        try:
-            kb = json.loads(kb_path.read_text(encoding="utf-8"))
-        except Exception:
-            kb = {}
-    else:
-        kb = {}
-        kb_path.parent.mkdir(parents=True, exist_ok=True)
-
-    if not isinstance(kb.get("documents"), list):
-        kb["documents"] = []
-
-    kb["documents"].append(entry)
-
+def write_kb(kb_path: Path, kb: dict[str, Any]) -> None:
+    """Атомарная запись kb файла целиком (создаёт директорию при необходимости)."""
+    kb_path.parent.mkdir(parents=True, exist_ok=True)
     tmp = tempfile.NamedTemporaryFile(
         mode="w",
         encoding="utf-8",
@@ -47,3 +37,21 @@ def append_document_to_kb(kb_path: Path, entry: dict[str, Any]) -> None:
     except Exception:
         Path(tmp.name).unlink(missing_ok=True)
         raise
+
+
+def append_document_to_kb(kb_path: Path, entry: dict[str, Any]) -> None:
+    """Добавляет запись в documents[] в kb файле.
+
+    Создаёт файл если не существует. Атомарная замена через tmpfile.
+
+    Args:
+        kb_path: абсолютный путь к kb_<user_id>.json
+        entry: dict с ключами added_at, file, extracted, user_confirmed
+    """
+    kb = read_kb(kb_path)
+
+    if not isinstance(kb.get("documents"), list):
+        kb["documents"] = []
+
+    kb["documents"].append(entry)
+    write_kb(kb_path, kb)
