@@ -691,6 +691,98 @@ async def test_pdf_without_lab_markers_uses_agent_as_before(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_same_nonmedical_pdf_sent_twice_does_not_call_agent_again(tmp_path):
+    """Issue #503: тот же файл, присланный разговорным путём (мимо /doc)
+    несколькими сообщениями подряд — реальный инцидент 25.08.2026, где один
+    и тот же PDF был разобран агентом (и отправлен пользователю) 5 раз.
+
+    Второй проход того же контента для того же пользователя не должен снова
+    дёргать ask_agent (платный LLM-вызов) и не должен присылать повторный
+    разбор — только короткое сообщение о том, что файл уже разобран."""
+    from handlers import doc_dedup
+    from handlers.photo import handle_document_image
+
+    doc_dedup.reset()
+    try:
+        user_id = 895802
+        plain_text = (
+            "Договор аренды офисного помещения. Стороны согласовали срок действия "
+            "договора, порядок оплаты и условия расторжения."
+        )
+        mock_ask_agent = MagicMock(return_value="Это договор аренды офиса.")
+
+        # Первая отправка — разбирается штатно.
+        msg1, processing_msg1 = _make_pdf_document_message(user_id=user_id, file_name="contract.pdf")
+        fake_pdf_path1 = tmp_path / "contract1.pdf"
+        fake_pdf_path1.write_bytes(b"%PDF-fake-content-503")
+        with (
+            patch("handlers.photo._download_pdf", AsyncMock(return_value=fake_pdf_path1)),
+            patch("handlers.photo._extract_pdf_text", return_value=plain_text),
+            patch("core.agent_chat.ask_agent", mock_ask_agent),
+        ):
+            await handle_document_image(msg1, album=None, state=AsyncMock())
+
+        assert mock_ask_agent.call_count == 1
+
+        # Вторая отправка — байт-в-байт тот же файл, другое сообщение (как в
+        # инциденте: разные message_id с одинаковым содержимым).
+        msg2, processing_msg2 = _make_pdf_document_message(user_id=user_id, file_name="contract.pdf")
+        fake_pdf_path2 = tmp_path / "contract2.pdf"
+        fake_pdf_path2.write_bytes(b"%PDF-fake-content-503")
+        with (
+            patch("handlers.photo._download_pdf", AsyncMock(return_value=fake_pdf_path2)),
+            patch("handlers.photo._extract_pdf_text", return_value=plain_text),
+            patch("core.agent_chat.ask_agent", mock_ask_agent),
+        ):
+            await handle_document_image(msg2, album=None, state=AsyncMock())
+
+        assert mock_ask_agent.call_count == 1, "повторный контент не должен снова уходить в LLM"
+        # Ни один edit_text второго сообщения не должен содержать повторный
+        # разбор от агента — только короткое уведомление о дубле.
+        second_call_texts = [call.args[0] for call in processing_msg2.edit_text.call_args_list]
+        assert not any("Это договор аренды офиса." in text for text in second_call_texts)
+    finally:
+        doc_dedup.reset()
+
+
+@pytest.mark.asyncio
+async def test_different_users_same_pdf_both_call_agent(tmp_path):
+    """Дедуп по контенту — per-user: одинаковый файл от РАЗНЫХ пользователей
+    не должен блокироваться (issue #503 просит независимость пользователей)."""
+    from handlers import doc_dedup
+    from handlers.photo import handle_document_image
+
+    doc_dedup.reset()
+    try:
+        plain_text = "Договор аренды офисного помещения, порядок оплаты и условия расторжения."
+        mock_ask_agent = MagicMock(return_value="Это договор аренды офиса.")
+
+        msg1, _ = _make_pdf_document_message(user_id=895803, file_name="contract.pdf")
+        fake_pdf_path1 = tmp_path / "contract_a.pdf"
+        fake_pdf_path1.write_bytes(b"%PDF-fake-content-shared")
+        with (
+            patch("handlers.photo._download_pdf", AsyncMock(return_value=fake_pdf_path1)),
+            patch("handlers.photo._extract_pdf_text", return_value=plain_text),
+            patch("core.agent_chat.ask_agent", mock_ask_agent),
+        ):
+            await handle_document_image(msg1, album=None, state=AsyncMock())
+
+        msg2, _ = _make_pdf_document_message(user_id=895804, file_name="contract.pdf")
+        fake_pdf_path2 = tmp_path / "contract_b.pdf"
+        fake_pdf_path2.write_bytes(b"%PDF-fake-content-shared")
+        with (
+            patch("handlers.photo._download_pdf", AsyncMock(return_value=fake_pdf_path2)),
+            patch("handlers.photo._extract_pdf_text", return_value=plain_text),
+            patch("core.agent_chat.ask_agent", mock_ask_agent),
+        ):
+            await handle_document_image(msg2, album=None, state=AsyncMock())
+
+        assert mock_ask_agent.call_count == 2, "разные пользователи не должны делить кэш дедупа"
+    finally:
+        doc_dedup.reset()
+
+
+@pytest.mark.asyncio
 async def test_album_of_two_medical_pdfs_asks_to_send_one_by_one(tmp_path):
     """Issue #441 п.3: альбом из ДВУХ PDF, оба похожи на анализ — раньше цикл
     обрабатывал их независимо, заводя run_doc_pipeline на каждый и затирая
