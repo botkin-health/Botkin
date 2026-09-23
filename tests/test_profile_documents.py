@@ -244,3 +244,13 @@ def test_guess_category_other_by_default():
 
     assert guess_category("сохрани на всякий случай") == "other"
     assert guess_category(None) == "other"
+
+
+def test_detect_save_intent_ignores_food_captions():
+    """«сохрани обед» — это дневник питания, а не документы (#370)."""
+    from core.health.profile_documents import detect_save_intent
+
+    assert detect_save_intent("сохрани обед") is False
+    assert detect_save_intent("Сохрани, это мой завтрак") is False
+    assert detect_save_intent("сохрани полис") is True
+    assert detect_save_intent("Полис ОМС, на всякий случай") is True

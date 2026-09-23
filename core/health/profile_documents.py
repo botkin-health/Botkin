@@ -38,6 +38,24 @@ SAVE_INTENT_KEYWORDS = (
     "страховк",
 )
 
+# Слова про еду: «сохрани обед» — просьба записать приём пищи, а не положить
+# фото в документы. При их наличии просьбу сохранить не распознаём.
+_FOOD_WORDS = (
+    "завтрак",
+    "обед",
+    "ужин",
+    "перекус",
+    "съел",
+    "съела",
+    "ем ",
+    "еда",
+    "еду",
+    "ккал",
+    "калори",
+    "блюдо",
+    "порци",
+)
+
 # Служебные слова/фразы, вычищаемые из подписи при построении title — сама
 # просьба сохранить, а не содержание документа (issue #370, фаза 3).
 _TITLE_STRIP_PHRASES = (
@@ -69,6 +87,9 @@ def detect_save_intent(caption: Optional[str]) -> bool:
     if not caption:
         return False
     lowered = caption.casefold()
+    if any(w in lowered for w in _FOOD_WORDS):
+        # «сохрани обед» — это про дневник питания, а не про документы.
+        return False
     return any(kw in lowered for kw in SAVE_INTENT_KEYWORDS)
 
 
