@@ -1128,6 +1128,24 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
         msg_type = router_result.get("type")
         data = router_result.get("data", {})
 
+        # Guard'ы weight/bp решают «сохранять ли замер» ДО выбора ветки.
+        # Раньше они стояли ВНУТРИ `elif msg_type == "weight"/"bp"` и делали
+        # `msg_type = None` с комментарием «отдаём в агент» — но выполнение уже
+        # было в выбранной ветке, и переприсвоение не переносит его в `else`:
+        # код выходил из цепочки, и пользователь не получал НИЧЕГО. Так молча
+        # терялись «7.2» на вопрос агента «Скажи значение» (E2E 23.09.2026),
+        # вопрос про диапазон давления (прецедент 28.05.2026) и замер с
+        # нереалистичными цифрами. Теперь такие сообщения идут в агента.
+        if msg_type == "weight":
+            _w = data.get("weight")
+            if not isinstance(_w, (int, float)) or not (20 <= _w <= 400):
+                msg_type = "other"
+        elif msg_type == "bp":
+            _s, _d = data.get("systolic"), data.get("diastolic")
+            _bp_valid = bool(_s and _d and (70 <= _s <= 250) and (40 <= _d <= 150) and (_s > _d))
+            if _is_bp_range or _is_bp_past or not _bp_valid:
+                msg_type = "other"
+
         # Логируем raw text для не-BotkinClaw веток (food / vitamins / bp / weight / ...).
         # BotkinClaw-ветка ('other') сама пишет user-turn внутри ask_agent.
         # См. core.agent_chat.log_router_raw_text — продукт-ревью увидит исходные
