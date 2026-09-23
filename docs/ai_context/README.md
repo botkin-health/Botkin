@@ -22,6 +22,8 @@
 |---|---|
 | Понять модули и поток данных | `01_architecture.md` |
 | Узнать откуда брать метрики (питание, сон, шаги, …) | `02_data_sources.md` |
+| Пайплайн анализов (KB → blood_tests), HAE, Apple Health XML, импортёры | `06_health_data_pipeline.md` |
+| AI-агент BotkinClaw: тулы, медпрофиль, кто что пишет | `botkinclaw.md` |
 | Написать SQL или менять модели | `03_database_schema.md` |
 | Сделать стандартную задачу (миграция, новая интеграция, изменение промпта, agent tool, MCP/CGM-подключение) | `04_workflows.md` |
 | Помочь owner разобрать обед/ужин | `05_food_logging_context.md` |
