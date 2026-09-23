@@ -11,6 +11,8 @@ from typing import Any
 import httpx
 
 from config.settings import get_settings
+from core.health.doc_marker_labels import split_verified_values
+from core.health.doc_readability import is_document_text_readable
 from core.health.kb_schema import CANONICAL
 
 logger = logging.getLogger(__name__)
@@ -39,7 +41,9 @@ _SYSTEM_PROMPT_TEMPLATE = """Ты — медицинский парсер. Тв�
 - Не включай единицы измерения в значения — только число
 - "allergies" — список аллергий/непереносимостей, указанных в документе (аллергены, вещества, продукты). Строки на языке документа. Пусто [] если нет.
 - "conditions" — список хронических/персистирующих диагнозов из документа, с кодом МКБ если он есть (например "Бронхиальная астма (J45.0)"). Пусто [] если нет.
-- Не придумывай данных, которых нет в документе. Если чего-то нет — пустой список/пустой values."""
+- Не придумывай данных, которых нет в документе. Если чего-то нет — пустой список/пустой values.
+- КРИТИЧНО: название показателя в "values" бери ТОЛЬКО если оно реально прочитано в документе (напечатано рядом с числом). НИКОГДА не достраивай название по типичному составу панели, по порядку строк или по догадке о том, какой это может быть анализ. Если текст рядом с числом нечитаем, повреждён или отсутствует (например, вместо букв — точки, кракозябры, пустые места) — этот показатель в "values" НЕ включай вообще, даже если число само по себе читается чётко. Число без надёжно прочитанного названия хуже, чем отсутствие числа: неверно приписанное название — это другой анализ с другой нормой.
+- Если весь документ или его часть нечитаемы (повреждённый шрифт, плохое качество скана) — так и работай: верни только те показатели, названия которых ты действительно прочитал, а остальное не выдумывай."""
 
 
 def _build_system_prompt() -> str:
@@ -134,19 +138,30 @@ def _build_pdf_message(file_bytes: bytes) -> dict:
 
 
 def _parse_response(response: dict) -> dict[str, Any]:
-    """Парсит ответ Claude в dict. Возвращает {} при любой ошибке."""
+    """Парсит ответ Claude в dict. Возвращает {} при любой ошибке.
+
+    Берём ПЕРВЫЙ JSON-объект в ответе и игнорируем текст до и после него.
+    Строгий json.loads падал с «Extra data», когда модель дописывала пояснение
+    после JSON (или после закрывающего ```), — разбор тогда молча превращался в
+    «не нашёл данных» (E2E 23.09.2026).
+    """
     try:
-        text = response["content"][0]["text"].strip()
-        if text.startswith("```"):
-            lines = text.split("\n")
-            text = "\n".join(lines[1:-1]) if len(lines) > 2 else text
-        data = json.loads(text)
-        if not isinstance(data, dict):
-            return {}
-        return data
+        text = response["content"][0]["text"]
     except Exception as e:
-        logger.debug("doc_extractor: не удалось распарсить ответ Claude: %s", e)
+        logger.warning("doc_extractor: неожиданная форма ответа Claude: %s", e)
         return {}
+    start = text.find("{")
+    if start == -1:
+        logger.warning("doc_extractor: в ответе Claude нет JSON-объекта: %r", text[:200])
+        return {}
+    try:
+        data, _end = json.JSONDecoder().raw_decode(text[start:])
+    except ValueError as e:
+        logger.warning("doc_extractor: не удалось распарсить ответ Claude: %s; начало: %r", e, text[:200])
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    return data
 
 
 def _as_str_list(v) -> list[str]:
@@ -167,6 +182,26 @@ async def extract_medical_data(file_bytes: bytes, mime_type: str) -> dict[str, A
         dict с ключами date, laboratory, values (или пустой dict если не нашёл)
     """
     try:
+        # Гейт читаемости (issue #509) — ДО вызова модели. Если в текстовом слое
+        # по сути нет букв (шрифт без нужных глифов), прочитать названия
+        # показателей нельзя в принципе: модель тут может только выдумать их или
+        # вернуть ответ, который не распарсится. Раньше гейт стоял после разбора
+        # и не срабатывал, когда разбор падал (E2E 23.09.2026). Заодно не платим
+        # за заведомо бесполезный вызов.
+        if mime_type == "text/plain":
+            doc_text = file_bytes.decode("utf-8", errors="replace")
+            if not is_document_text_readable(doc_text):
+                logger.warning("doc_extractor: текст документа нечитаем (нет слов) — модель не вызываем")
+                return {
+                    "date": None,
+                    "laboratory": None,
+                    "values": {},
+                    "allergies": [],
+                    "conditions": [],
+                    "_unverified_labels": [],
+                    "_unreadable_text": True,
+                }
+
         if mime_type == "application/pdf":
             message = _build_pdf_message(file_bytes)
         elif mime_type == "text/plain":
@@ -179,6 +214,29 @@ async def extract_medical_data(file_bytes: bytes, mime_type: str) -> dict[str, A
         if data:
             data["allergies"] = _as_str_list(data.get("allergies"))
             data["conditions"] = _as_str_list(data.get("conditions"))
+            # Без проверки «values непуст»: гейт читаемости должен срабатывать и
+            # тогда, когда модель сама вернула пустой список, — именно этот
+            # случай пользователю надо честно объяснить (E2E 23.09.2026).
+            if mime_type == "text/plain" and isinstance(data.get("values"), dict):
+                # Программные проверки (issue #509) доступны только здесь, где
+                # file_bytes — РЕАЛЬНЫЙ текст документа (текстовый слой PDF,
+                # извлечённый локально через PyMuPDF в вызывающем коде), а не то,
+                # что вернула модель. Для image/pdf-без-текстового-слоя (vision)
+                # сверять не с чем — там защита только на уровне промпта выше.
+                #
+                # Читаемость уже проверена до вызова модели (см. начало функции).
+                # Здесь — только сверка по реестру синонимов, и она ТОЛЬКО
+                # диагностика, ничего не отбрасывает: построчный поиск по реальным
+                # бланкам хрупок («Белок общий» vs «общий белок», латинская C vs
+                # кириллическая С, перенос строки). Независимое ревью #509 — 2 из 8
+                # на обычном бланке, среди выброшенных ALP для phenoage.
+                doc_text = file_bytes.decode("utf-8", errors="replace")
+                _verified, unconfirmed = split_verified_values(data["values"], doc_text)
+                if unconfirmed:
+                    logger.info(
+                        "doc_extractor: название не найдено в тексте документа (значение сохранено): %s",
+                        unconfirmed,
+                    )
         return data
     except Exception as e:
         logger.error("doc_extractor: ошибка извлечения: %s", e)

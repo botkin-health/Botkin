@@ -27,7 +27,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from database.models import Base, User, NutritionLog, SupplementLog
+from database.models import Base, User, NutritionLog, SupplementLog, Workout
 from database.crud import create_nutrition_log, create_or_update_activity, create_weight
 
 
@@ -274,6 +274,259 @@ def test_log_bp_defaults_to_now(client, db_session, monkeypatch):
     # measured_at should be set automatically (not None)
     assert r.json()["measured_at"] is not None
     assert len(execute_calls) == 1
+
+
+# ── /log_workout (#500) ───────────────────────────────────────────────────────
+
+
+def test_log_workout_returns_200_and_stores_row(client, db_session):
+    """POST /log_workout stores a row in `workouts` with source='manual'."""
+    r = client.post(
+        "/api/agent/log_workout",
+        json={
+            "workout_type": "cycling",
+            "duration_minutes": 40,
+            "distance_km": 12,
+            "calories_burned": 300,
+            "avg_heart_rate": 110,
+            "max_heart_rate": 130,
+            "start_time": "2026-09-21T09:00:00+03:00",
+        },
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["status"] == "ok"
+    assert body["created"] is True
+    assert body["updated"] is False
+    assert body["date"] == "2026-09-21"
+
+    rows = db_session.query(Workout).filter_by(user_id=895655).all()
+    assert len(rows) == 1
+    row = rows[0]
+    assert row.workout_type == "cycling"
+    assert row.duration_minutes == 40
+    assert float(row.distance_km) == 12
+    assert row.calories_burned == 300
+    assert row.avg_heart_rate == 110
+    assert row.max_heart_rate == 130
+    assert row.source == "manual"
+    assert row.date.isoformat() == "2026-09-21"
+
+
+def test_log_workout_yesterday_keeps_explicit_date(client, db_session):
+    """Явно переданный start_time «вчера» не должен уехать на сегодня (#502)."""
+    r = client.post(
+        "/api/agent/log_workout",
+        json={
+            "workout_type": "cycling",
+            "duration_minutes": 30,
+            "start_time": "2026-09-20T18:00:00+03:00",
+        },
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["date"] == "2026-09-20"
+    row = db_session.query(Workout).filter_by(user_id=895655).one()
+    assert row.date.isoformat() == "2026-09-20"
+
+
+def test_log_workout_defaults_start_time_to_now(client, db_session):
+    """Без start_time — текущее время в таймзоне пользователя, не 422."""
+    r = client.post(
+        "/api/agent/log_workout",
+        json={"workout_type": "strength_training", "duration_minutes": 20},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["date"] == datetime.now(MSK).date().isoformat()
+
+
+def test_log_workout_naive_start_time_localized_to_user_tz(client, db_session):
+    """Дефект #2 ревью: naive start_time ('вчера 23:30' без офсета) НЕ должен
+    трактоваться как UTC — иначе для Europe/Moscow (+3) поздняя вечерняя
+    тренировка уедет на следующие сутки (класс ошибок #502)."""
+    r = client.post(
+        "/api/agent/log_workout",
+        json={
+            "workout_type": "running",
+            "duration_minutes": 30,
+            "start_time": "2026-09-20T23:30:00",  # naive — без офсета/Z
+        },
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    # Если бы naive трактовалось как UTC, дата/время сместились бы (23:30 MSK
+    # == 20:30 UTC в тот же день, но граничные случаи 22:00-23:59 демонстрируют
+    # сдвиг иначе; здесь фиксируем факт локализации в MSK, а не в UTC).
+    assert body["date"] == "2026-09-20"
+    assert body["start_time"].startswith("2026-09-20T23:30:00+03:00")
+
+    row = db_session.query(Workout).filter_by(user_id=895655).one()
+    assert row.date.isoformat() == "2026-09-20"
+
+
+def test_log_workout_same_start_time_updates_instead_of_duplicating(client, db_session):
+    """Дефект #1 ревью: на проде есть UNIQUE(user_id, start_time). Уточнение
+    («40 минут» → «нет, 45 минут») с тем же start_time не должно падать
+    IntegrityError — должно тихо обновить существующую запись."""
+    base = {
+        "workout_type": "cycling",
+        "duration_minutes": 40,
+        "distance_km": 12,
+        "calories_burned": 300,
+        "start_time": "2026-09-21T09:00:00+03:00",
+    }
+    r1 = client.post("/api/agent/log_workout", json=base)
+    assert r1.status_code == 200, r1.text
+    assert r1.json()["created"] is True
+
+    corrected = {**base, "duration_minutes": 45, "distance_km": 13, "calories_burned": 320}
+    r2 = client.post("/api/agent/log_workout", json=corrected)
+    assert r2.status_code == 200, r2.text
+    body2 = r2.json()
+    assert body2["created"] is False
+    assert body2["updated"] is True
+    assert body2["workout_id"] == r1.json()["workout_id"]
+
+    rows = db_session.query(Workout).filter_by(user_id=895655).all()
+    assert len(rows) == 1
+    assert rows[0].duration_minutes == 45
+    assert float(rows[0].distance_km) == 13
+    assert rows[0].calories_burned == 320
+
+
+def test_log_workout_same_call_twice_is_idempotent_update(client, db_session):
+    """Повторный вызов с ИДЕНТИЧНЫМИ параметрами тоже не плодит дубли —
+    попадает в ту же ветку 'update' (значения просто перезаписываются теми же)."""
+    payload = {
+        "workout_type": "cycling",
+        "duration_minutes": 40,
+        "distance_km": 12,
+        "calories_burned": 300,
+        "start_time": "2026-09-21T09:00:00+03:00",
+    }
+    r1 = client.post("/api/agent/log_workout", json=payload)
+    r2 = client.post("/api/agent/log_workout", json=payload)
+    assert r1.status_code == 200 and r2.status_code == 200
+    assert r1.json()["created"] is True
+    assert r2.json()["created"] is False
+    assert r1.json()["workout_id"] == r2.json()["workout_id"]
+
+    rows = db_session.query(Workout).filter_by(user_id=895655).all()
+    assert len(rows) == 1
+
+
+def test_log_workout_different_start_time_creates_second_row(client, db_session):
+    """Другая тренировка (другое время) не должна дедупиться/обновлять первую."""
+    client.post(
+        "/api/agent/log_workout",
+        json={"workout_type": "cycling", "duration_minutes": 40, "start_time": "2026-09-21T09:00:00+03:00"},
+    )
+    r2 = client.post(
+        "/api/agent/log_workout",
+        json={"workout_type": "cycling", "duration_minutes": 40, "start_time": "2026-09-22T09:00:00+03:00"},
+    )
+    assert r2.json()["created"] is True
+    rows = db_session.query(Workout).filter_by(user_id=895655).all()
+    assert len(rows) == 2
+
+
+def test_log_workout_does_not_touch_hae_rows(client, db_session):
+    """Ручной тул не должен трогать/дублировать HAE-канал (source=hae_<id>),
+    пока их start_time не совпадают (обычный случай — HAE и ручной ввод
+    описывают разные тренировки)."""
+    hae_row = Workout(
+        user_id=895655,
+        date=date(2026, 9, 21),
+        workout_type="Cycling",
+        duration_minutes=40,
+        calories_burned=300,
+        start_time=datetime(2026, 9, 21, 7, 0, tzinfo=MSK),
+        source="hae_ABC123",
+    )
+    db_session.add(hae_row)
+    db_session.commit()
+
+    r = client.post(
+        "/api/agent/log_workout",
+        json={
+            "workout_type": "cycling",
+            "duration_minutes": 40,
+            "calories_burned": 300,
+            "start_time": "2026-09-21T09:00:00+03:00",  # другое время — не пересекается с HAE
+        },
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["created"] is True
+
+    rows = db_session.query(Workout).filter_by(user_id=895655).order_by(Workout.id).all()
+    assert len(rows) == 2
+    assert rows[0].source == "hae_ABC123"
+    assert rows[1].source == "manual"
+
+
+def test_log_workout_same_start_time_as_other_source_is_not_overwritten(client, db_session):
+    """Дефект найден на повторном ревью: та же (user_id, start_time), но строка
+    принадлежит другому каналу (HAE) — НЕ обновляем её, не теряем данные
+    интеграции. Возвращаем понятный статус с указанием источника, не 500."""
+    from sqlalchemy import text as _text
+
+    same_start = datetime(2026, 9, 21, 9, 0, tzinfo=MSK)
+    # Вставляем той же raw-SQL дорогой, что и реальные писатели (apple_health.py,
+    # log_workout сам) — вставка через ORM Workout(...) на SQLite сериализует
+    # tz-aware datetime иначе (теряет офсет), чем raw text()-bind, и точное
+    # сравнение start_time из ниже не найдёт эту строку (артефакт SQLite,
+    # не воспроизводится на Postgres, где start_time — timestamptz).
+    hae_id = db_session.execute(
+        _text(
+            """INSERT INTO workouts
+               (user_id, date, workout_type, duration_minutes, start_time, calories_burned, source)
+               VALUES (:uid, :date, :wt, :dur, :st, :cal, :src)
+               RETURNING id"""
+        ),
+        {
+            "uid": 895655,
+            "date": date(2026, 9, 21),
+            "wt": "Cycling",
+            "dur": 55,
+            "st": same_start,
+            "cal": 410,
+            "src": "hae_XYZ789",
+        },
+    ).scalar_one()
+    db_session.commit()
+
+    r = client.post(
+        "/api/agent/log_workout",
+        json={
+            "workout_type": "cycling",
+            "duration_minutes": 40,
+            "calories_burned": 300,
+            "start_time": "2026-09-21T09:00:00+03:00",  # то же самое время, что у HAE-строки
+        },
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["status"] == "conflict_other_source"
+    assert body["created"] is False
+    assert body["updated"] is False
+    assert body["existing_source"] == "hae_XYZ789"
+    assert body["existing_workout_id"] == hae_id
+    assert "hae_XYZ789" in body["hint"]
+
+    # HAE-строка осталась ровно такой же — ни одно поле не тронуто.
+    rows = db_session.query(Workout).filter_by(user_id=895655).all()
+    assert len(rows) == 1
+    row = rows[0]
+    assert row.id == hae_id
+    assert row.source == "hae_XYZ789"
+    assert row.duration_minutes == 55
+    assert row.calories_burned == 410
+
+
+def test_log_workout_requires_workout_type(client):
+    """POST /log_workout without workout_type → 422 (pydantic validation)."""
+    r = client.post("/api/agent/log_workout", json={"duration_minutes": 30})
+    assert r.status_code == 422
 
 
 def test_regenerate_health_token_returns_new_token(client, db_session):

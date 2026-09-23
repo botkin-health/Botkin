@@ -90,6 +90,27 @@ def _looks_like_short_value(text: str) -> bool:
     return bool(_SHORT_VALUE_RE.match(t))
 
 
+# #514: пунктуация, которую не считаем "содержанием" при проверке, не осталось
+# ли после вырезания даты вообще ничего («позавчера.», «вчера!» и т.п.).
+_TRAILING_PUNCT = " \t\n.,:;!?-–—"
+
+
+def _is_lone_date_answer(custom_date: str | None, clean_text: str) -> bool:
+    """#514: True если ВСЁ сообщение было указанием даты («позавчера», «вчера»,
+    «yesterday», «day before yesterday», «15.09», «15/09» и т.п.) и после того,
+    как `extract_date_from_text()` вырезала это слово/дату, ничего не осталось.
+
+    Такое сообщение — почти всегда прямой ответ на уточняющий вопрос агента
+    «какой именно день?» (#507). `_looks_like_short_value` (#198) его не ловит:
+    та проверка заточена под КОРОТКИЕ ЧИСЛОВЫЕ ответы (вес/доза/АД), а не под
+    словесные даты. Раньше пустой `clean_text` проваливался в парсер еды и
+    получал «Это еда?» — до агента сообщение не доходило вообще.
+    """
+    if not custom_date:
+        return False
+    return not clean_text.strip(_TRAILING_PUNCT)
+
+
 # Addendum intent: "забыл добавить/упомянуть", "нужно добавить/дописать".
 # Must route to BotkinClaw agent (returns True) so the agent can call
 # get_recent_meals, find the last slot, and log the addendum with that slot.
@@ -525,6 +546,28 @@ def extract_date_from_text(text: str, user_tz=None) -> tuple[str, str]:
     return None, text
 
 
+def _agent_text_with_date_hint(text: str, custom_date: str | None) -> str:
+    """Восстанавливает для агента дату, которую `extract_date_from_text()` уже
+    вырезала из текста ("вчера" / "позавчера" / "yesterday" / ДД.ММ / ДД/ММ / ...).
+
+    Парсерам еды и добавок вырезание нужно (не мешает регэкспам), а BotkinClaw
+    получал бы текст уже без слова о дате и без custom_date — и логировал
+    событие на сегодня (#510: «вчера крутил велотренажёр…» → workouts.date =
+    сегодня). Директива короткая и однозначная, согласована с блоком
+    "📅 Сегодня: ..." в системном промпте (#502, core/agent_chat.py) — та
+    учит агента СЧИТАТЬ относительные даты от текущего дня, эта же говорит,
+    какая дата уже посчитана для конкретного сообщения (раз слово вырезано).
+    """
+    if not custom_date:
+        return text
+    return (
+        f"[Система: пользователь говорит про дату {custom_date} — слово об этом "
+        "уже распознано и вырезано из текста ниже, само вырезанное слово не "
+        "восстанавливай. Используй эту дату, а не сегодняшнюю, — и при записи "
+        f"(start_time/date), и при запросе данных за этот день.] {text}"
+    )
+
+
 async def _replace_preview(message: Message, user_id: str, new_data: dict, text_html: str, keyboard) -> None:
     """Обновить карточку превью: правим уже отправленное сообщение, если можем.
 
@@ -734,21 +777,60 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
     # Прецедент 25.05.2026.
     from handlers.text import extract_date_from_text
 
+    # #518: короткий числовой ответ («7.2», «1.5», «5.5») целиком совпадает с
+    # форматом ДД.ММ шага 2 extract_date_from_text() — регэксп трактует его как
+    # дату, вырезает всё сообщение без остатка, и #514-реройт ниже отправляет
+    # агенту ТОЛЬКО директиву о дате: само число теряется (тихая порча данных,
+    # если агент спросил «какой сахар?» и т.п.). Такое сообщение — ровно
+    # «короткий ответ-значение» из #198 (_looks_like_short_value), который
+    # обязан дойти до агента как есть. Не изобретаем эвристику дня/месяца
+    # (ДД.ММ almost always parses as a valid day/month either way) — для
+    # неоднозначной одиночной цифро-точечной строки безопаснее пропустить
+    # извлечение даты вообще и отдать агенту исходный текст: он видит историю
+    # диалога и знает, какой вопрос задавал.
     custom_date = None
-    if not _is_clearly_conversational(text):
+    agent_date_hint = None
+    if not _is_clearly_conversational(text) and not _looks_like_short_value(text):
         custom_date, clean_text = extract_date_from_text(text, user_tz=user_tz)
         if custom_date:
-            text = clean_text
+            # #518: эвристика «вечером/перед сном» (case 4 внутри
+            # extract_date_from_text) НЕ вырезает слово — clean_text приходит
+            # равным исходному text. Она написана для food-парсера («Я вечером
+            # выпил кефир» утром = вчерашний вечер), но для агента текст вроде
+            # «пробежка, вечером ещё поплаваю» в 9 утра — это БУДУЩИЙ вечер
+            # сегодня, не вчера. Директиву агенту в этом случае не шлём;
+            # custom_date для food-парсера ниже по коду остаётся как есть.
+            if clean_text != text:
+                text = clean_text
+                agent_date_hint = custom_date
+            else:
+                debug_logger.info(
+                    f"🌙 #518: эвристика 'вечером/перед сном' (custom_date={custom_date!r}) "
+                    "— директива агенту не отправляется, только food-парсеру"
+                )
 
     # /my_products feature removed — no early-exit product matching, LLM handles all.
     router_result = None
+
+    # ── #514: сообщение целиком было датой («позавчера», «вчера», «15.09», ...) ──
+    # После вырезания слова о дате ничего не осталось. Это либо ответ на вопрос
+    # агента «какой именно день?» (#507), либо голое упоминание даты без
+    # контекста — в обоих случаях это НЕ еда, и агент справится лучше парсера
+    # (переспросит по-человечески, если пендинг-вопроса не было). Всегда в
+    # BotkinClaw, независимо от agent_last_turn_was_question — в отличие от
+    # #198 ниже, которое ловит короткие ЧИСЛОВЫЕ ответы и без вопроса агента
+    # рискует утащить в агента случайное короткое число.
+    if _is_lone_date_answer(custom_date, text):
+        debug_logger.info(f"🔀 #514 reroute: одинокая дата (custom_date={custom_date!r}) → BotkinClaw")
+        router_result = {"type": "other", "data": {}}
+        text = ""  # никаких огрызков пунктуации агенту — только директива о дате ниже
 
     # ── #198: короткий ответ после вопроса агента → агенту, не парсеру ───────
     # «сколько весишь?» → «54» перехватывался бы weight/BP-парсером, и агент не
     # получал ответ — диалог рвался. Если предыдущий ход агента был свежим (<10
     # мин) вопросом («?»), маршрутизируем короткое значение в BotkinClaw, минуя
     # парсеры. Проверка истории — только для коротких значений (дёшево, редко).
-    if _looks_like_short_value(text):
+    if not router_result and _looks_like_short_value(text):
         from core.agent_chat import agent_last_turn_was_question
 
         if agent_last_turn_was_question(int(user_id)):
@@ -1046,6 +1128,24 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
         msg_type = router_result.get("type")
         data = router_result.get("data", {})
 
+        # Guard'ы weight/bp решают «сохранять ли замер» ДО выбора ветки.
+        # Раньше они стояли ВНУТРИ `elif msg_type == "weight"/"bp"` и делали
+        # `msg_type = None` с комментарием «отдаём в агент» — но выполнение уже
+        # было в выбранной ветке, и переприсвоение не переносит его в `else`:
+        # код выходил из цепочки, и пользователь не получал НИЧЕГО. Так молча
+        # терялись «7.2» на вопрос агента «Скажи значение» (E2E 23.09.2026),
+        # вопрос про диапазон давления (прецедент 28.05.2026) и замер с
+        # нереалистичными цифрами. Теперь такие сообщения идут в агента.
+        if msg_type == "weight":
+            _w = data.get("weight")
+            if not isinstance(_w, (int, float)) or not (20 <= _w <= 400):
+                msg_type = "other"
+        elif msg_type == "bp":
+            _s, _d = data.get("systolic"), data.get("diastolic")
+            _bp_valid = bool(_s and _d and (70 <= _s <= 250) and (40 <= _d <= 150) and (_s > _d))
+            if _is_bp_range or _is_bp_past or not _bp_valid:
+                msg_type = "other"
+
         # Логируем raw text для не-BotkinClaw веток (food / vitamins / bp / weight / ...).
         # BotkinClaw-ветка ('other') сама пишет user-turn внутри ask_agent.
         # См. core.agent_chat.log_router_raw_text — продукт-ревью увидит исходные
@@ -1102,9 +1202,13 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
 
                 # E2E mode (task #62): is_e2e → ask_agent помечает все
                 # _save_message'ы source='e2e_test' и префиксует ответ.
+                # #510: если extract_date_from_text() вырезала «вчера»/«позавчера»/
+                # дату — восстанавливаем её агенту служебной директивой, иначе
+                # событие ложится на сегодня.
+                agent_text = _agent_text_with_date_hint(text, agent_date_hint)
                 reply = await loop.run_in_executor(
                     None,
-                    lambda: ask_agent(int(user_id), text, _progress, is_e2e=is_e2e),
+                    lambda: ask_agent(int(user_id), agent_text, _progress, is_e2e=is_e2e),
                 )
                 if not reply:
                     reply = "Хм, у меня нет внятного ответа. Попробуй переформулировать."
@@ -1680,7 +1784,11 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
 
             await processing_msg.edit_text("⏳ Думаю…")
             try:
-                reply = await loop.run_in_executor(None, lambda: ask_agent(int(user_id), text))
+                # #510: та же служебная директива с датой, что и в основной
+                # 'other'-ветке выше — здесь тоже вырезанные «вчера»/«позавчера»/
+                # дата должны дойти до агента.
+                agent_text = _agent_text_with_date_hint(text, agent_date_hint)
+                reply = await loop.run_in_executor(None, lambda: ask_agent(int(user_id), agent_text))
                 if not reply:
                     reply = "Хм, у меня нет внятного ответа. Попробуй переформулировать."
                 chunks = split_markdown_for_telegram(reply)

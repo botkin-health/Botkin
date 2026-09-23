@@ -10,6 +10,7 @@ tests/test_agent_tools_common.py pins that.
 """
 
 import logging
+import re
 from datetime import datetime, date, timezone
 from pathlib import Path
 from typing import Optional
@@ -36,6 +37,69 @@ def _get_user_tz(user) -> ZoneInfo:
             _DEFAULT_TZ,
         )
         return ZoneInfo(_DEFAULT_TZ)
+
+
+_DATE_ONLY_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def parse_agent_datetime(raw: Optional[str], user) -> datetime:
+    """Parse an ISO datetime string from an agent write-tool request.
+
+    A NAIVE value (no offset/'Z') is localized in the USER's own timezone —
+    NEVER treated as UTC. #518: agents almost always send a naive string
+    ("2026-09-21T23:00:00") because the tool's own prompt only asks them to
+    "figure out the date", not the timezone. If that naive value is stored
+    as-is in a `timestamptz` column, Postgres/`_dt_to_user_tz()` both assume
+    UTC — for a Europe/Moscow (+3) user, a 23:00 evening reading rolls onto
+    the next calendar day. Same class of bug as #500/#502
+    (`workouts._parse_manual_start_time`, which this shares logic with).
+
+    A string that already carries an explicit offset (or 'Z') is respected
+    as-is — the agent computed it itself, we don't second-guess it.
+    """
+    tz = _get_user_tz(user)
+    if not raw:
+        return datetime.now(tz)
+    try:
+        dt = datetime.fromisoformat(raw)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid datetime: {raw!r}. Use ISO datetime.")
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=tz)
+    return dt
+
+
+def parse_agent_date_or_datetime(raw: Optional[str], user) -> datetime:
+    """Like :func:`parse_agent_datetime`, but a DATE-ONLY value ("YYYY-MM-DD",
+    no time component) is combined with the CURRENT time-of-day in the user's
+    timezone instead of collapsing to midnight.
+
+    #518: a bare date used to become `datetime(y, m, d, 0, 0, 0)`, localized
+    (or — before this fix — misread as UTC midnight). Two different same-day
+    readings sent with only a date ("утром 130/85", "вечером 140/90") both
+    landed on that same midnight value, and `ON CONFLICT (user_id,
+    measured_at) DO UPDATE` silently overwrote the first with the second —
+    real data quietly lost. Combining the date with wall-clock "now" (down to
+    microseconds) makes distinct calls land on distinct timestamps, so they
+    no longer collide. A genuine retry of the exact same reading is expected
+    to carry an explicit time (not just a date) and dedupes via
+    :func:`parse_agent_datetime` instead.
+    """
+    if raw and _DATE_ONLY_RE.match(raw.strip()):
+        tz = _get_user_tz(user)
+        now_local = datetime.now(tz)
+        year, month, day = (int(part) for part in raw.strip().split("-"))
+        return datetime(
+            year,
+            month,
+            day,
+            now_local.hour,
+            now_local.minute,
+            now_local.second,
+            now_local.microsecond,
+            tzinfo=tz,
+        )
+    return parse_agent_datetime(raw, user)
 
 
 def _dt_to_user_tz(dt: datetime, user) -> datetime:
