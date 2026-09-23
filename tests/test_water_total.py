@@ -310,3 +310,9 @@ class TestNutritionServiceWaterMl:
         service = get_nutrition_service(user_id=user_id)
         stats = service.get_day_stats(today)
         assert stats["totals"].water_ml == 250.0
+
+
+@pytest.mark.parametrize("name", ["кофе, разбавленный водой", "американо с водой", "виски с водой"])
+def test_something_with_water_is_not_water(name):
+    """«X с водой» — это X, а не вода (ревью #526 на реальных названиях с прода)."""
+    assert is_water_item(name) is False
