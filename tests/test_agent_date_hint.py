@@ -134,3 +134,14 @@ async def test_no_date_leaves_text_untouched():
     agent_text = await _run_and_capture_agent_text("сегодня бегал 5 км")
     assert agent_text == "сегодня бегал 5 км"
     assert "[Система" not in agent_text
+
+
+def test_date_hint_covers_reading_not_only_writing():
+    """«что я ел вчера?» режется до «что я ел ?» — агенту дата нужна и для
+    ЧТЕНИЯ, не только для инструментов записи (аудит перед релизом #510)."""
+    from handlers.text import _agent_text_with_date_hint
+
+    hint = _agent_text_with_date_hint("что я ел ?", "2026-09-21")
+    assert "2026-09-21" in hint
+    assert "при запросе данных" in hint
+    assert "при записи" in hint
