@@ -86,6 +86,18 @@ class HCBodyFatRecord(BaseModel):
     time: str
 
 
+class HCExerciseRecord(BaseModel):
+    """ExerciseSessionRecord (#525.3) — приложение шлёт `exerciseType.toString()`,
+    то есть числовой код Int как строку (см. `_HC_EXERCISE_TYPE_NAMES`)."""
+
+    type: str
+    title: Optional[str] = None
+    start_time: str
+    end_time: str
+    distance_meters: Optional[float] = None
+    steps: Optional[int] = None
+
+
 class HealthConnectPayload(BaseModel):
     """
     Формат mcnaveen/health-connect-webhook v1.9.10.
@@ -109,6 +121,7 @@ class HealthConnectPayload(BaseModel):
     oxygen_saturation: Optional[List[HCSpo2Record]] = Field(default_factory=list)
     vo2_max: Optional[List[HCVo2MaxRecord]] = Field(default_factory=list)
     body_fat: Optional[List[HCBodyFatRecord]] = Field(default_factory=list)
+    exercise: Optional[List[HCExerciseRecord]] = Field(default_factory=list)
 
 
 # ── Агрегация по дням в таймзоне пользователя ────────────────────────────────
@@ -127,6 +140,35 @@ def _parse_utc(ts: str) -> Optional[datetime]:
         return dt
     except ValueError:
         return None
+
+
+# Health Connect SleepSessionRecord.Stage.STAGE_TYPE_* (androidx.health.connect.client) —
+# коды не-сна: бодрствование в разных формах. Подтверждено по исходнику библиотеки
+# (androidx/androidx, SleepSessionRecord.kt): 1=awake, 3=out_of_bed, 7=awake_in_bed.
+_HC_AWAKE_STAGE_CODES = {"1", "3", "7"}
+
+
+def _sleep_stage_intervals(stages: Optional[list]) -> list:
+    """Из сырых stages сессии вернуть (start, end) только для стадий СНА (не бодрствования).
+
+    Приложение шлёт `stage.stage.toString()` — числовой код Int строкой ("1".."7").
+    Если stages нет, пуст, или запись не парсится — возвращает [] (вызывающий код
+    в этом случае берёт всю сессию целиком, старое поведение).
+    """
+    if not stages:
+        return []
+    intervals = []
+    for st in stages:
+        if not isinstance(st, dict):
+            continue
+        code = str(st.get("stage", "")).strip()
+        if not code or code in _HC_AWAKE_STAGE_CODES:
+            continue
+        start_dt = _parse_utc(st.get("start_time"))
+        end_dt = _parse_utc(st.get("end_time"))
+        if start_dt and end_dt and start_dt < end_dt:
+            intervals.append((start_dt, end_dt))
+    return intervals
 
 
 def _merge_intervals_seconds(intervals: list) -> float:
@@ -152,6 +194,27 @@ def _to_local_date(ts: str, user_tz) -> Optional[date]:
     return dt.astimezone(user_tz).date()
 
 
+def _is_full_local_day(start_ts: str, end_ts: str, user_tz) -> bool:
+    """True, если интервал — ровно полные местные сутки [полночь N, полночь N+1).
+
+    Так приложение шлёт ЗАКОНЧЕННЫЙ день в суточном режиме (readDailyStepsData).
+    Частичными бывают: самый старый день окна синка (приложение обрезает его
+    границей окна LOOKBACK_HOURS, см. issue #72 приложения) и любые записи в
+    режимах raw/bucketed (там приходят только записи после прошлого синка).
+    Только полные сутки можно использовать для замещения сохранённого дня.
+    """
+    start, end = _parse_utc(start_ts), _parse_utc(end_ts)
+    if start is None or end is None:
+        return False
+    s_loc, e_loc = start.astimezone(user_tz), end.astimezone(user_tz)
+    midnight = (0, 0, 0)
+    return (
+        (s_loc.hour, s_loc.minute, s_loc.second) == midnight
+        and (e_loc.hour, e_loc.minute, e_loc.second) == midnight
+        and e_loc.date() == s_loc.date() + timedelta(days=1)
+    )
+
+
 def _hc_aggregate_by_day(payload: HealthConnectPayload, user_tz) -> dict:
     """
     Сгруппировать сырые записи Health Connect по локальным датам юзера.
@@ -165,19 +228,28 @@ def _hc_aggregate_by_day(payload: HealthConnectPayload, user_tz) -> dict:
 
     ⚠️ Timezone correctness: все timestamp'ы конвертируются в user_tz
        чтобы записи после 21:00 МСК не уезжали на следующий день.
-    ⚠️ active_calories НЕ пишется в поле calories — только в raw_data
-       (Garmin = source of truth для тройки bmr/active/total).
+    ⚠️ active_calories: здесь (в аггрегате) только в raw_data
+       (hc_active_calories) — запись в колонку activity_log.active_calories
+       и приоритет Garmin решаются в endpoint'е (_resolve_hc_active_calories,
+       #525.2), не в этой функции.
     ⚠️ weight: фильтр >30 кг (отсечь нулевые/мусорные записи).
     ⚠️ blood_pressure: каждый замер — отдельная строка (у папы до 10 в день).
     """
     # days: dict[date, dict с накопителями]
     days: dict = {}
 
+    def _mark_interval(slot: dict, start_ts: str, end_ts: str) -> None:
+        key = "full_interval" if _is_full_local_day(start_ts, end_ts, user_tz) else "partial_interval"
+        slot[key] = True
+
     def _slot(d: date) -> dict:
         return days.setdefault(
             d,
             {
                 "steps": 0,
+                # полные сутки vs частичные интервалы — для решения «замещать ли»
+                "full_interval": False,
+                "partial_interval": False,
                 "distance_m": 0.0,
                 "hr_sum": 0.0,
                 "hr_count": 0,
@@ -194,16 +266,25 @@ def _hc_aggregate_by_day(payload: HealthConnectPayload, user_tz) -> dict:
         )
 
     # ── steps: суммируем ──────────────────────────────────────────────────────
+    # Датируем по НАЧАЛУ интервала, не по концу (#525.1): в суточном режиме
+    # (readDailyStepsData) приложение шлёт полный день N как [полночь N,
+    # полночь N+1) — конец интервала уже относится к следующему дню, и дата
+    # по end_time укладывала весь день N на N+1. Для коротких интервалов
+    # (raw/bucketed режимы), которые обычно не пересекают полночь, выбор
+    # начала/конца не важен; если такой интервал всё же пересечёт границу
+    # суток — он тоже относится целиком к дню своего начала (та же логика).
     for rec in payload.steps or []:
-        d = _to_local_date(rec.end_time, user_tz) or _to_local_date(rec.start_time, user_tz)
+        d = _to_local_date(rec.start_time, user_tz) or _to_local_date(rec.end_time, user_tz)
         if d:
             _slot(d)["steps"] += rec.count
+            _mark_interval(_slot(d), rec.start_time, rec.end_time)
 
     # ── distance: суммируем метры ─────────────────────────────────────────────
     for rec in payload.distance or []:
-        d = _to_local_date(rec.end_time, user_tz) or _to_local_date(rec.start_time, user_tz)
+        d = _to_local_date(rec.start_time, user_tz) or _to_local_date(rec.end_time, user_tz)
         if d:
             _slot(d)["distance_m"] += rec.meters
+            _mark_interval(_slot(d), rec.start_time, rec.end_time)
 
     # ── heart_rate: avg/min/max ───────────────────────────────────────────────
     for rec in payload.heart_rate or []:
@@ -233,13 +314,27 @@ def _hc_aggregate_by_day(payload: HealthConnectPayload, user_tz) -> dict:
     # Health Connect отдаёт сессии сырыми (readRecords, без aggregate()) — если
     # источник пришлёт две пересекающиеся сессии за одну ночь (пере-синк истории),
     # наивная сумма duration_seconds задвоит часы сна.
+    #
+    # #525.4: duration_seconds всей сессии включает бодрствование (Health Connect
+    # SleepSessionRecord.Stage коды — androidx.health.connect.client, STAGE_TYPE_*):
+    # 1=awake, 2=sleeping, 3=out_of_bed, 4=light, 5=deep, 6=rem, 7=awake_in_bed.
+    # Приложение шлёт `stage.stage.toString()` — числовой код строкой ("1".."7").
+    # Если stages пришли — берём как интервалы для мёрджа только НЕ-бодрствующие
+    # стадии (исключаем 1/3/7), не всю сессию целиком. Мёрдж пересечений (ниже,
+    # _merge_intervals_seconds) при этом продолжает работать как раньше — стадии
+    # разных сессий просто добавляются в тот же список интервалов дня.
+    # Если stages не пришли (или пусты) — поведение прежнее: вся duration_seconds.
     for rec in payload.sleep or []:
         d = _to_local_date(rec.session_end_time, user_tz)
         if d:
             end_dt = _parse_utc(rec.session_end_time)
             if end_dt:
                 start_dt = end_dt - timedelta(seconds=rec.duration_seconds)
-                _slot(d)["sleep_intervals"].append((start_dt, end_dt))
+                stage_intervals = _sleep_stage_intervals(rec.stages)
+                if stage_intervals:
+                    _slot(d)["sleep_intervals"].extend(stage_intervals)
+                else:
+                    _slot(d)["sleep_intervals"].append((start_dt, end_dt))
 
     # ── weight: копим все записи >30 кг, потом берём последнюю ───────────────
     for rec in payload.weight or []:
@@ -270,21 +365,25 @@ def _hc_aggregate_by_day(payload: HealthConnectPayload, user_tz) -> dict:
                 }
             )
 
-    # ── active_calories → raw_data ONLY (не в calories!) ─────────────────────
+    # ── active_calories → raw_data (см. #525.2 — активные калории также пишутся
+    # в колонку activity_log.active_calories в endpoint'е ниже, но не перетирая
+    # Garmin) ─────────────────────────────────────────────────────────────────
     for rec in payload.active_calories or []:
-        d = _to_local_date(rec.end_time, user_tz) or _to_local_date(rec.start_time, user_tz)
+        d = _to_local_date(rec.start_time, user_tz) or _to_local_date(rec.end_time, user_tz)
         if d:
             s = _slot(d)
             prev = s["raw_data"].get("hc_active_calories", 0.0)
             s["raw_data"]["hc_active_calories"] = prev + rec.calories
+            _mark_interval(s, rec.start_time, rec.end_time)
 
     # ── total_calories → raw_data ONLY ───────────────────────────────────────
     for rec in payload.total_calories or []:
-        d = _to_local_date(rec.end_time, user_tz) or _to_local_date(rec.start_time, user_tz)
+        d = _to_local_date(rec.start_time, user_tz) or _to_local_date(rec.end_time, user_tz)
         if d:
             s = _slot(d)
             prev = s["raw_data"].get("hc_total_calories", 0.0)
             s["raw_data"]["hc_total_calories"] = prev + rec.calories
+            _mark_interval(s, rec.start_time, rec.end_time)
 
     # ── SpO2 → raw_data ───────────────────────────────────────────────────────
     for rec in payload.oxygen_saturation or []:
@@ -308,6 +407,10 @@ def _hc_aggregate_by_day(payload: HealthConnectPayload, user_tz) -> dict:
     result = {}
     for d, s in days.items():
         agg: dict = {}
+        # Замещать сохранённый день можно, только если ВСЕ интервальные метрики
+        # этого дня пришли полными сутками. У каждого типа данных в приложении
+        # своё разрешение: шаги могут прийти сутками, а дистанция — инкрементом.
+        agg["replaceable_full_day"] = bool(s["full_interval"] and not s["partial_interval"])
 
         # steps
         if s["steps"] > 0:
@@ -373,6 +476,125 @@ def _hc_aggregate_by_day(payload: HealthConnectPayload, user_tz) -> dict:
     return result
 
 
+# ── Тренировки (exercise → workouts, #525.3) ─────────────────────────────────
+
+# Health Connect ExerciseSessionRecord.EXERCISE_TYPE_* (androidx.health.connect.client,
+# сверено по исходнику androidx/androidx, ExerciseSessionRecord.kt) — приложение
+# шлёт `exerciseType.toString()`, т.е. Int-код строкой. Не полный список всех
+# типов библиотеки — только те, что реально встречаются у пользователей проекта;
+# неизвестный код не выбрасывается (см. _hc_exercise_type_name), просто без
+# читаемого имени.
+_HC_EXERCISE_TYPE_NAMES = {
+    "8": "велосипед",
+    "9": "велотренажёр",
+    "16": "танцы",
+    "34": "гимнастика",
+    "36": "высокоинтенсивная интервальная тренировка",
+    "37": "пеший поход",
+    "48": "пилатес",
+    "53": "гребля",
+    "54": "гребной тренажёр",
+    "56": "бег",
+    "57": "бег на дорожке",
+    "60": "катание на коньках",
+    "61": "лыжи",
+    "62": "сноуборд",
+    "64": "футбол",
+    "70": "силовая тренировка",
+    "71": "растяжка",
+    "72": "сёрфинг",
+    "73": "плавание в открытой воде",
+    "74": "плавание в бассейне",
+    "79": "ходьба",
+    "81": "тяжёлая атлетика",
+    "83": "йога",
+}
+
+
+def _hc_exercise_type_name(code: str) -> str:
+    """Человекочитаемое название типа тренировки; неизвестный код не выбрасываем."""
+    name = _HC_EXERCISE_TYPE_NAMES.get(code)
+    if name:
+        return name
+    return f"тренировка (код {code})"
+
+
+def _hc_exercise_to_rows(exercise: list, user_id: int) -> list:
+    """`exercise[]` (ExerciseSessionRecord, сырые dict) → строки таблицы `workouts`.
+
+    Повторяет паттерн `_hae_workouts_to_rows` (apple_health.py): невалидные
+    записи (без распознаваемых start/end) пропускаются, не падаем. Дедуп —
+    через `source`, стабильный для одного и того же payload (важно при
+    пере-синке: повтор не должен плодить дубли до реальной вставки в БД,
+    где дедуп окончательно решает `_insert_new_workouts` по UNIQUE(user_id,
+    start_time)).
+    """
+    rows = []
+    for rec in exercise or []:
+        if not isinstance(rec, dict):
+            continue
+        start_dt = _parse_utc(rec.get("start_time"))
+        end_dt = _parse_utc(rec.get("end_time"))
+        if start_dt is None or end_dt is None or not (start_dt < end_dt):
+            continue
+
+        type_code = str(rec.get("type", "")).strip()
+        workout_type = _hc_exercise_type_name(type_code)
+        duration_min = round((end_dt - start_dt).total_seconds() / 60)
+
+        distance_m = rec.get("distance_meters")
+        distance_km = round(distance_m / 1000, 3) if distance_m is not None else None
+
+        source = f"hc_{type_code}_{start_dt.isoformat()}_{end_dt.isoformat()}"
+
+        rows.append(
+            {
+                "user_id": user_id,
+                "date": start_dt.date().isoformat(),
+                "workout_type": workout_type,
+                "duration_minutes": duration_min,
+                "start_time": start_dt,
+                "end_time": end_dt,
+                "calories_burned": None,  # ExerciseSessionRecord не даёт калории напрямую
+                "distance_km": distance_km,
+                "source": source,
+            }
+        )
+    return rows
+
+
+def _resolve_hc_active_calories(existing_row, hc_active_calories):
+    """Значение для записи в activity_log.active_calories из Health Connect (#525.2).
+
+    Раньше active_calories писались ТОЛЬКО в raw_data — у пользователей без
+    Garmin калорий для бота/дашборда не существовало вовсе. Теперь пишем и в
+    колонку, но Garmin остаётся источником истины: если строка дня уже создана
+    Garmin-синком и active_calories там заполнены — не перетираем (возвращаем
+    None, CRUD оставит как есть). Паттерн зеркалит `_resolve_apple_bmr` в
+    apple_health.py (тот же приоритет Garmin > остальные каналы).
+    """
+    if hc_active_calories is None:
+        return None
+    if (
+        existing_row is not None
+        and existing_row.active_calories is not None
+        and (existing_row.source or "").startswith("garmin")
+    ):
+        return None
+    return hc_active_calories
+
+
+def _hc_owns_row(existing_row) -> bool:
+    """Строка дня либо ещё не существует, либо принадлежит health_connect (#525.5).
+
+    Используется, чтобы решить, можно ли замещать интервальные метрики
+    завершённого дня: если строку создал другой канал (Garmin, Apple Health,
+    ручной ввод) — замещение не применяем, остаёмся на безопасном
+    monotonic-max, как раньше.
+    """
+    return existing_row is None or str(existing_row.source or "").startswith("health_connect")
+
+
 # ── Endpoint POST /android_health_v1 ─────────────────────────────────────────
 
 
@@ -414,6 +636,8 @@ async def receive_android_health(
     from database.crud import create_or_update_activity, get_activity_by_date, get_user_by_health_token
     from sqlalchemy import text as _text
 
+    from webhook.apple_health import _insert_new_workouts
+
     # ── Resolve user ──────────────────────────────────────────────────────────
     _db_auth = SessionLocal()
     try:
@@ -434,8 +658,18 @@ async def receive_android_health(
 
     # ── Агрегируем по дням в таймзоне юзера ──────────────────────────────────
     daily = _hc_aggregate_by_day(payload, user_tz)
-    if not daily:
-        return {"status": "ok", "days": 0, "details": []}
+    # #525.3: exercise не день-бакетирован (сессия может пересекать полночь),
+    # поэтому пустой `daily` (payload только с тренировками, без steps/sleep/…)
+    # не должен резать exercise-путь ранним return'ом.
+    if not daily and not (payload.exercise or []):
+        return {"status": "ok", "days": 0, "details": [], "workouts_inserted": 0}
+
+    # #525.5: "сегодня" в таймзоне юзера — граница между завершённым и текущим
+    # днём. Критерий строится на календарной дате, а не на форме интервала
+    # (полночь-к-полночи), поэтому одинаково работает для суточного, raw и
+    # bucketed режимов приложения: день строго раньше сегодняшнего уже
+    # закончился на устройстве, все его данные записаны.
+    today_local = datetime.now(user_tz).date()
 
     details = []
     db = SessionLocal()
@@ -461,22 +695,40 @@ async def receive_android_health(
             existing_row = get_activity_by_date(db, target_user_id, record_date)
             # HC не имеет BMR поля — не пишем (в отличие от Apple Health)
 
+            # #525.2: active_calories — в колонку, но не перетирая Garmin.
+            active_calories = _resolve_hc_active_calories(
+                existing_row, (agg.get("raw_data") or {}).get("hc_active_calories")
+            )
+
+            # #525.5: завершённый день ЗАМЕЩАЕТ интервальные метрики (steps,
+            # distance_km, active_calories) вместо monotonic-max — история
+            # искажена багом #525.1 (день N лёг на N+1, старое значение
+            # завышено и monotonic-max его бы не поправил). Сегодняшний
+            # (незаконченный) день и строки, принадлежащие другому источнику
+            # (Garmin и т.п.), остаются на безопасном monotonic-режиме.
+            use_replace = (
+                record_date < today_local and _hc_owns_row(existing_row) and agg.get("replaceable_full_day", False)
+            )
+
             create_or_update_activity(
                 db=db,
                 user_id=target_user_id,
                 date=record_date,
                 steps=agg.get("steps"),
+                active_calories=active_calories,
                 distance_km=agg.get("distance_km"),
                 heart_rate_avg=heart_rate,
                 hrv=agg.get("hrv"),
                 sleep_hours=agg.get("sleep_hours"),
                 source="health_connect",
                 raw_data=raw_extra if raw_extra else None,
+                monotonic=not use_replace,
             )
             saved.append(
                 f"activity (steps={agg.get('steps')}, HR={heart_rate}, "
                 f"HRV={agg.get('hrv')}, sleep={agg.get('sleep_hours')}h, "
-                f"dist={agg.get('distance_km')}km)"
+                f"dist={agg.get('distance_km')}km, active_cal={active_calories}, "
+                f"replace={use_replace})"
             )
 
             # ── 2. blood_pressure_logs — каждый замер отдельно ────────────────
@@ -531,6 +783,15 @@ async def receive_android_health(
 
             details.append({"date": d.isoformat(), "saved": saved})
 
+        # ── 4. workouts — тренировки из exercise (#525.3) ─────────────────────
+        # Не день-бакетированы (сессия может пересекать полночь) — обрабатываем
+        # отдельно от daily. Дедуп/защита чужого источника — _insert_new_workouts
+        # (тот же паттерн, что и HAE-тренировки в apple_health.py).
+        workouts_inserted = 0
+        exercise_rows = _hc_exercise_to_rows([rec.model_dump() for rec in (payload.exercise or [])], target_user_id)
+        if exercise_rows:
+            workouts_inserted = _insert_new_workouts(db, target_user_id, exercise_rows)
+
         db.commit()
 
     except Exception as e:
@@ -540,10 +801,11 @@ async def receive_android_health(
     finally:
         db.close()
 
-    logger.info(f"✅ Android Health Connect import: {len(daily)} day(s)")
+    logger.info(f"✅ Android Health Connect import: {len(daily)} day(s), {workouts_inserted} workout(s)")
     return {
         "status": "ok",
         "days": len(daily),
         "details": details,
+        "workouts_inserted": workouts_inserted,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }

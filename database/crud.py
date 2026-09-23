@@ -509,9 +509,11 @@ def get_activity_logs_by_period(db: Session, user_id: int, start_date: date, end
 
 def get_nutrition_totals_by_date(db: Session, user_id: int, date: date) -> Dict:
     """Calculate total nutrition for a specific date"""
+    from core.food.water_table import sum_water_ml
+
     logs = get_nutrition_logs_by_date(db, user_id, date)
 
-    total = {"calories": 0, "protein": 0, "fats": 0, "carbs": 0, "fiber": 0}
+    total = {"calories": 0, "protein": 0, "fats": 0, "carbs": 0, "fiber": 0, "water_ml": 0.0}
 
     for log in logs:
         totals = log.totals or {}
@@ -525,7 +527,11 @@ def get_nutrition_totals_by_date(db: Session, user_id: int, date: date) -> Dict:
         total["fats"] += totals.get("fats") or 0
         total["carbs"] += totals.get("carbs") or 0
         total["fiber"] += totals.get("fiber") or 0
+        # Вода (#526) НЕ хранится в totals — считаем на чтении из items, как
+        # и клетчатку в enrich_items_with_fiber, но без записи обратно в БД.
+        total["water_ml"] += sum_water_ml(log.items or [])
 
+    total["water_ml"] = round(total["water_ml"], 1)
     return total
 
 
