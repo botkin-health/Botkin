@@ -8,7 +8,7 @@ description: Доводит готовую ветку Botkin до мержа в 
 ## Контекст репо (Botkin)
 
 - **Трекер:** GitHub Issues через `gh`, `botkin-health/Botkin` (`docs/agents/issue-tracker.md`).
-- **Проект (доска):** GitHub Project **Botkin #1** (owner `botkin-health`, id `PVT_kwDOEX3Lns4Bam1p`). Status-поле `PVTSSF_lADOEX3Lns4Bam1pzhVdNrw`, опции: **Todo** `f75ad846` · **In Progress** `47fc9ee4` · **In Review** `c02f7d5b` · **Done** `98236657`.
+- **Проект (доска):** GitHub Project **Botkin #1** (owner `botkin-health`, id `PVT_kwDOEX3Lns4Bam1p`). Status-поле `PVTSSF_lADOEX3Lns4Bam1pzhVdNrw`, опции: **Todo** `f75ad846` · **In Progress** `47fc9ee4` · **In Review** `c02f7d5b` · **Done** `98236657`. ⚠️ **Доска опциональна:** с сентября 2026 задачи туда не заносят; шаги с доской выполнять, только если пользователь попросил.
 - **Базовая ветка:** `dev`. Мерж — **merge-коммит** (`gh pr merge --merge`), как в истории репы.
 - **Worktree:** `.claude/worktrees/<ветка, `/`→`+`>`.
 - **Проверки (gate):** `ruff check .` · `ruff format --check .` · `PYTHONPATH=. pytest tests/ --ignore=tests/integration --ignore=tests/test_nutrition_parsing.py`.
@@ -40,7 +40,7 @@ Closes #<N>
 EOF
 )"
 ```
-Перевести issue в ревью: `gh issue comment <N> --body "В ревью: <ссылка на PR>"`. Выставить статус **In Review** (`c02f7d5b`) на доске Botkin #1 (см. «Доска»).
+Перевести issue в ревью: `gh issue comment <N> --body "В ревью: <ссылка на PR>"`.
 
 ### 3. Code-review на PR
 `/code-review`. Находки классифицировать по severity.
@@ -49,14 +49,14 @@ EOF
 Отдельными коммитами → fix-проход → push → повторный ревью. Цикл, пока не чисто. **LOW/INFO** можно отложить — короткой строкой в PR отметить, что именно отложено.
 
 ### 5. Архитектурная проверка
-`/improve-codebase-architecture` (он ищет проблемы; `architecture-patterns` — гайд, не аудит). Фикс значимого. При существенных правках — вернуться к шагу 3.
+`/improve-codebase-architecture`. Фикс значимого. При существенных правках — вернуться к шагу 3.
 
 ### 6. Security-review
 `/security-review`. Фикс MEDIUM+. Особое внимание: деньги (LLM-стоимость), auth/JWT/RLS, пользовательский ввод, внешние интеграции (Garmin/Zepp/Apple Health/Netatmo/WHOOP/Anthropic/OpenAI).
 
 ### 7. Тесты: план → апрув → реализация → покрытие
 - Показать **план тестов**, ждать апрува. Мало, но на важное.
-- Реализация; добить unit-покрытие (`/tdd`; `pytest --cov`, если стоит pytest-cov).
+- Реализация; добить unit-покрытие (`pytest --cov`, если стоит pytest-cov).
 - **E2E — только паттерн репы:** `tests/integration/` (НЕ generic-генератор). Учесть: `test_rls_isolation.py` требует SSH-туннель к проду; `onboarding_wizard` флакает.
 - Финальный план тестов — комментарием в issue.
 
@@ -67,7 +67,7 @@ EOF
 ```bash
 gh pr merge --merge --delete-branch <PR>
 ```
-`Closes #N` закроет issue — проверить `gh issue view <N> --json state` = `CLOSED`, иначе закрыть вручную. Выставить статус **Done** (`98236657`) на доске Botkin #1 (см. «Доска»). **Прод НЕ деплоить** (workflow «Deploy prod» не запускать).
+`Closes #N` закроет issue — проверить `gh issue view <N> --json state` = `CLOSED`, иначе закрыть вручную. **Прод НЕ деплоить** (workflow «Deploy prod» не запускать).
 
 ### 10. Удалить worktree
 Перейти в основной чекаут, затем:

@@ -306,7 +306,7 @@ Botkin/                          # ~/Botkin/ — ТОЛЬКО КОД И OPERATIO
 
 ## Agent skills
 
-Per-repo config consumed by the Matt Pocock engineering skills (`to-issues`, `triage`, `qa`, `review`, `tdd`, `improve-codebase-architecture`, etc.).
+Per-repo config consumed by the Matt Pocock engineering skills (`to-issues`, `to-prd`, `grill-with-docs`, `improve-codebase-architecture`, `handoff`).
 
 ### Issue tracker
 
