@@ -24,6 +24,7 @@ from .biomarkers import router as _biomarkers_router
 from .workouts import router as _workouts_router
 from .profile import router as _profile_router
 from .environment import router as _environment_router
+from .documents import router as _documents_router
 
 router = APIRouter()
 for _sub_router in (
@@ -43,5 +44,6 @@ for _sub_router in (
     _workouts_router,
     _profile_router,
     _environment_router,
+    _documents_router,
 ):
     router.include_router(_sub_router)

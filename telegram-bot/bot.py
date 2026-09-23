@@ -149,6 +149,17 @@ def register_handlers(dp: Dispatcher):
         logger.error(f"❌ Ошибка регистрации обработчика doc_upload: {e}")
 
     try:
+        from handlers.my_docs import router as my_docs_router
+
+        dp.include_router(my_docs_router)
+        count = len(my_docs_router.observers) if hasattr(my_docs_router, "observers") else 0
+        handlers_count += count
+        registered_modules.append("/my_docs")
+    except Exception as e:
+        errors.append(f"Обработчик /my_docs: {e}")
+        logger.error(f"❌ Ошибка регистрации обработчика /my_docs: {e}")
+
+    try:
         from handlers.photo import router as photo_router
 
         dp.include_router(photo_router)
@@ -384,6 +395,7 @@ async def main():
         BotCommand(command="week", description="Анализ недели"),
         BotCommand(command="vitamins", description="Чек-лист витаминов"),
         BotCommand(command="doc", description="Загрузить анализ или заключение врача"),
+        BotCommand(command="my_docs", description="Мои документы (полисы, справки и т.п.)"),
         BotCommand(command="share", description="Поделиться дашбордом здоровья"),
         BotCommand(command="profile", description="Настроить профиль (рост, возраст, цель)"),
         BotCommand(command="connect_mcp", description="Подключить AI-коннектор (MCP)"),

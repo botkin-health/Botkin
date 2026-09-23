@@ -699,6 +699,35 @@ async def process_photos_list(
                 await message.answer(prompt_text, parse_mode="HTML")
 
 
+async def _try_save_on_request(message: Message, user_id: str, file_paths: List[Path], caption: str) -> bool:
+    """Явная просьба «сохрани про запас» в подписи (issue #370, фаза 3) —
+    сохраняет файлы без разбора и отвечает пользователю одним подтверждением.
+
+    Возвращает True, если подпись содержала просьбу сохранить (обработано
+    здесь, дальше по обычному пайплайну еды/анализа файлы не идут) — вне
+    зависимости от того, сохранился ли реально новый файл (дедуп мог
+    пропустить все как недавние повторы).
+    """
+    from core.health.profile_documents import detect_save_intent
+
+    if not detect_save_intent(caption):
+        return False
+
+    from handlers.doc_upload import save_files_on_request
+
+    titles = save_files_on_request(int(user_id), file_paths, caption)
+    if not titles:
+        await message.answer("⚠️ Этот файл я уже сохранил недавно — повторно не стал.")
+        return True
+
+    title = titles[0]
+    count_note = f" ({len(titles)} файлов)" if len(titles) > 1 else ""
+    await message.answer(
+        f"📁 Сохранил в документы{count_note}: {title}.\nПопросить обратно — «покажи мои документы» или /my_docs."
+    )
+    return True
+
+
 @router.message(F.photo)
 async def handle_photo_message(message: Message, bot: Bot, user_id: int, album: list = None, state: FSMContext = None):
     """Обработка фото с описанием блюда"""
@@ -728,6 +757,11 @@ async def handle_photo_message(message: Message, bot: Bot, user_id: int, album: 
 
     # Ищем caption в сообщениях альбома, используем самый первый найденный, или пустую строку
     caption = next((msg.caption for msg in messages_to_process if msg.caption), "")
+
+    # Issue #370, фаза 3: явная просьба «сохрани про запас» — не гоним фото в
+    # распознавание еды/давления/разговорный разбор, сохраняем как есть.
+    if await _try_save_on_request(message, str(user_id), photo_paths, caption):
+        return
 
     # Подменяем message.caption для downstream логики
     message_with_caption = message
@@ -936,6 +970,28 @@ async def handle_document_image(message: Message, album: list = None, state: FSM
                 )
                 continue
 
+            # Issue #370, фаза 3: явная просьба «сохрани про запас» в подписи —
+            # сохраняем PDF как есть, без разбора на анализ/скан, приоритетнее
+            # эвристики "похоже на анализ" ниже.
+            pdf_caption = msg.caption or ""
+            try:
+                from core.health.profile_documents import detect_save_intent
+
+                if detect_save_intent(pdf_caption):
+                    from handlers.doc_upload import save_files_on_request
+
+                    titles = save_files_on_request(int(message.from_user.id), [pdf_path], pdf_caption)
+                    if not titles:
+                        await processing_msg.edit_text("⚠️ Этот файл я уже сохранил недавно — повторно не стал.")
+                    else:
+                        await processing_msg.edit_text(
+                            f"📁 Сохранил в документы: {titles[0]}.\n"
+                            "Попросить обратно — «покажи мои документы» или /my_docs."
+                        )
+                    continue
+            except Exception:
+                logger.exception("Не удалось сохранить PDF по явной просьбе (user %s)", message.from_user.id)
+
             # Issue #439: PDF с лабораторными маркерами, присланный БЕЗ /doc, раньше
             # уходил в ask_agent как «вот содержимое документа» — бот комментировал,
             # но ничего не сохранял (ни blood_tests, ни аллергии/диагнозы в профиль).
@@ -1078,6 +1134,12 @@ async def handle_document_image(message: Message, album: list = None, state: FSM
 
     # Ищем caption в сообщениях альбома
     caption = next((msg.caption for msg in messages_to_process if msg.caption), "")
+
+    # Issue #370, фаза 3: явная просьба «сохрани про запас» — те же правила,
+    # что и для обычных фото в handle_photo_message.
+    if await _try_save_on_request(message, str(message.from_user.id), photo_paths, caption):
+        return
+
     message_with_caption = message
     if caption and not message.caption:
         message_with_caption = next((msg for msg in messages_to_process if msg.caption), message)
@@ -1562,11 +1624,17 @@ async def handle_description(
                                     first = False
                                 else:
                                     await message.answer(chunk)
+                        # Issue #370: фото уже молча заархивировано выше — если ответ
+                        # агента об этом не упомянул, пользователь не поймёт, что файл
+                        # вообще куда-то делся. Короткая приписка отдельным сообщением.
+                        if archived_names and not any(kw in reply.lower() for kw in ("документ", "архив")):
+                            await message.answer("📁 (сохранил фото в документы)")
                     else:
                         context_snippet = actual_caption[:80] or recognized_reply[:80]
+                        note = " Фото сохранил в документы." if archived_names else ""
                         await processing_message.edit_text(
                             "🤔 Понял контекст фото («" + context_snippet + "»), "
-                            "но не смог сформулировать ответ. Попробуй переформулировать вопрос текстом."
+                            "но не смог сформулировать ответ. Попробуй переформулировать вопрос текстом." + note
                         )
                     return
                 except Exception as agent_err:
