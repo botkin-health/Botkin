@@ -169,3 +169,78 @@ def test_resolve_document_path_missing_on_disk(kb_dir):
     # no file on disk
     with pytest.raises(DocumentNotFoundError):
         resolve_document_path(1, "a.pdf")
+
+
+# --- Фаза 3: детект намерения сохранить / title / category (issue #370) ---
+
+
+def test_detect_save_intent_true_for_trigger_words():
+    from core.health.profile_documents import detect_save_intent
+
+    assert detect_save_intent("Сохрани, пожалуйста") is True
+    assert detect_save_intent("на всякий случай") is True
+    assert detect_save_intent("положи в документы") is True
+    assert detect_save_intent("вот мой полис ОМС") is True
+    assert detect_save_intent("СТРАХОВКА квартиры") is True
+
+
+def test_detect_save_intent_false_without_caption_or_keywords():
+    from core.health.profile_documents import detect_save_intent
+
+    assert detect_save_intent(None) is False
+    assert detect_save_intent("") is False
+    assert detect_save_intent("это что за блюдо?") is False
+
+
+def test_parse_save_title_strips_service_words():
+    from core.health.profile_documents import parse_save_title
+
+    assert parse_save_title("Сохрани, пожалуйста, полис ОМС") == "полис ОМС"
+    assert parse_save_title("на всякий случай сохрани справку от врача") == "справку от врача"
+
+
+def test_parse_save_title_empty_caption_falls_back_to_date():
+    from core.health.profile_documents import parse_save_title
+
+    assert parse_save_title("", fallback_date="2026-09-23") == "Документ от 2026-09-23"
+    assert parse_save_title("сохрани на всякий случай", fallback_date="2026-09-23") == "Документ от 2026-09-23"
+    assert parse_save_title(None, fallback_date="2026-09-23") == "Документ от 2026-09-23"
+
+
+def test_guess_category_insurance():
+    from core.health.profile_documents import guess_category
+
+    assert guess_category("вот мой полис ОМС") == "insurance"
+    assert guess_category("страховка на машину") == "insurance"
+    assert guess_category("ДМС от работы") == "insurance"
+
+
+def test_guess_category_certificate():
+    from core.health.profile_documents import guess_category
+
+    assert guess_category("справка для бассейна") == "certificate"
+    assert guess_category("сертификат о прививке") == "certificate"
+    assert guess_category("рецепт от врача") == "certificate"
+    assert guess_category("направление на анализ") == "certificate"
+
+
+def test_guess_category_contact():
+    from core.health.profile_documents import guess_category
+
+    assert guess_category("визитка врача") == "contact"
+    assert guess_category("телефон клиники") == "contact"
+
+
+def test_guess_category_medical():
+    from core.health.profile_documents import guess_category
+
+    assert guess_category("заключение врача") == "medical"
+    assert guess_category("выписка из истории болезни") == "medical"
+    assert guess_category("узи почек") == "medical"
+
+
+def test_guess_category_other_by_default():
+    from core.health.profile_documents import guess_category
+
+    assert guess_category("сохрани на всякий случай") == "other"
+    assert guess_category(None) == "other"

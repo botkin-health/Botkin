@@ -9,6 +9,8 @@
 from __future__ import annotations
 
 import logging
+import re
+from datetime import date
 from pathlib import Path
 from typing import Any, Optional
 
@@ -22,6 +24,82 @@ _KB_DIR = _PROJECT_ROOT / "data" / "kb"
 
 # Категории документов профиля — фиксированный список (issue #370, фаза 1).
 CATEGORIES = ("insurance", "certificate", "contact", "medical", "other")
+
+# Фаза 3 (issue #370): слова-триггеры явной просьбы «сохрани про запас» в
+# подписи к фото/PDF — регистронезависимо, ищем подстроку. Отдельно от
+# CATEGORIES — это детект НАМЕРЕНИЯ, а не типа документа (страховка/полис
+# тоже триггерят намерение, хотя формально это ключ категории).
+SAVE_INTENT_KEYWORDS = (
+    "сохрани",
+    "сохранить",
+    "на всякий случай",
+    "в документы",
+    "полис",
+    "страховк",
+)
+
+# Служебные слова/фразы, вычищаемые из подписи при построении title — сама
+# просьба сохранить, а не содержание документа (issue #370, фаза 3).
+_TITLE_STRIP_PHRASES = (
+    "на всякий случай",
+    "в документы",
+    "пожалуйста",
+    "сохрани его",
+    "сохрани это",
+    "сохранить его",
+    "сохранить это",
+    "сохрани",
+    "сохранить",
+)
+
+# Категория → ключевые слова (подстрока, регистронезависимо). Порядок важен —
+# проверяется по порядку, первое совпадение побеждает (issue #370, фаза 3).
+_CATEGORY_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("insurance", ("полис", "страховк", "омс", "дмс")),
+    ("certificate", ("справк", "сертификат", "прививк", "рецепт", "направлен")),
+    ("contact", ("визитк", "телефон", "контакт")),
+    ("medical", ("заключен", "выписк", "узи", "анализ")),
+)
+
+
+def detect_save_intent(caption: Optional[str]) -> bool:
+    """Явная просьба «сохрани про запас» в подписи к фото/PDF (issue #370,
+    фаза 3) — регистронезависимый поиск ключевых слов `SAVE_INTENT_KEYWORDS`.
+    """
+    if not caption:
+        return False
+    lowered = caption.casefold()
+    return any(kw in lowered for kw in SAVE_INTENT_KEYWORDS)
+
+
+def parse_save_title(caption: Optional[str], *, fallback_date: Optional[str] = None) -> str:
+    """Человекочитаемый title из подписи пользователя — вычищенной от
+    служебных слов просьбы сохранить («сохрани», «пожалуйста», «на всякий
+    случай» и т.п.). Пустой результат → «Документ от <дата>» (issue #370,
+    фаза 3).
+
+    `fallback_date` — для тестов; по умолчанию `date.today().isoformat()`.
+    """
+    text = (caption or "").strip()
+    lowered = text
+    for phrase in _TITLE_STRIP_PHRASES:
+        lowered = re.sub(re.escape(phrase), "", lowered, flags=re.IGNORECASE)
+    # Схлопываем лишние пробелы/пунктуацию, оставшиеся после вычистки фраз.
+    cleaned = re.sub(r"\s+", " ", lowered).strip(" ,.;:!-")
+    if cleaned:
+        return cleaned
+    return f"Документ от {fallback_date or date.today().isoformat()}"
+
+
+def guess_category(caption: Optional[str]) -> str:
+    """Категория документа по ключевым словам в подписи — первое совпадение
+    из `_CATEGORY_KEYWORDS` по порядку, иначе `"other"` (issue #370, фаза 3).
+    """
+    lowered = (caption or "").casefold()
+    for category, keywords in _CATEGORY_KEYWORDS:
+        if any(kw in lowered for kw in keywords):
+            return category
+    return "other"
 
 
 class DocumentNotFoundError(Exception):
