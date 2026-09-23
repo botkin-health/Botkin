@@ -144,6 +144,35 @@ def _find_recent_manual_workout_for_refine(db: Session, user, workout_type: str,
     return None
 
 
+def _find_manual_workout_same_second(db: Session, user, workout_type: str, start_dt: datetime):
+    """#539, найдено E2E на дев-стенде: ручная запись без start_time хранит
+    «сейчас» с долями секунды (16:48:27.368354), а агент при уточнении
+    передаёт время из ответа уже без них (16:48:27). Точное сравнение не
+    совпадает → дубль. Ищем ручную запись того же типа в пределах этой
+    секунды. Доли секунды в хранении оставляем: две разные тренировки,
+    записанные агентом в одном ответе, не должны сталкиваться по времени.
+    Фильтр по секунде — в Python: raw SQL на SQLite отдаёт время строкой.
+    """
+    from sqlalchemy import text as _text
+
+    rows = db.execute(
+        _text(
+            """SELECT id, source, start_time FROM workouts
+               WHERE user_id = :uid AND source = 'manual'
+                 AND lower(trim(workout_type)) = lower(trim(:workout_type))
+               ORDER BY id DESC
+               LIMIT 20"""
+        ),
+        {"uid": user.telegram_id, "workout_type": workout_type},
+    ).fetchall()
+    target = _as_aware_utc(start_dt)
+    for row in rows:
+        st = _as_aware_utc(row.start_time)
+        if st is not None and st.replace(microsecond=0) == target:
+            return row
+    return None
+
+
 @router.post("/log_workout")
 async def log_workout(
     req: LogWorkoutRequest,
@@ -204,6 +233,9 @@ async def log_workout(
         _text("SELECT id, source FROM workouts WHERE user_id = :uid AND start_time = :st LIMIT 1"),
         {"uid": user.telegram_id, "st": start_dt},
     ).first()
+
+    if existing is None and req.start_time is not None and start_dt.microsecond == 0:
+        existing = _find_manual_workout_same_second(db, user, req.workout_type, start_dt)
 
     if existing and existing.source != "manual":
         # Чужая запись (HAE/Garmin/другой канал) — не трогаем, не 500-им.
@@ -300,14 +332,16 @@ async def log_workout(
         # existing.source == 'manual' здесь гарантирован проверкой выше.
         db.execute(
             _text(
+                # #539: COALESCE — уточнение («прошёл 3.5 км») не должно стирать
+                # поля, которых в этом вызове нет (длительность из первой записи).
                 """UPDATE workouts SET
                        date = :date,
                        workout_type = :workout_type,
-                       duration_minutes = :duration_minutes,
-                       calories_burned = :calories_burned,
-                       distance_km = :distance_km,
-                       avg_heart_rate = :avg_heart_rate,
-                       max_heart_rate = :max_heart_rate,
+                       duration_minutes = COALESCE(:duration_minutes, duration_minutes),
+                       calories_burned = COALESCE(:calories_burned, calories_burned),
+                       distance_km = COALESCE(:distance_km, distance_km),
+                       avg_heart_rate = COALESCE(:avg_heart_rate, avg_heart_rate),
+                       max_heart_rate = COALESCE(:max_heart_rate, max_heart_rate),
                        source = :source
                    WHERE id = :id"""
             ),

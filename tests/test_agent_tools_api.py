@@ -464,6 +464,28 @@ def test_log_workout_refine_without_start_time_updates_not_duplicates(client, db
     assert float(row.distance_km) == 5
 
 
+def test_log_workout_refine_with_echoed_start_time_without_microseconds(client, db_session):
+    """#539, найдено E2E на дев-стенде: первая запись без start_time, агент при
+    уточнении передаёт start_time из ответа, но БЕЗ долей секунды. Раньше
+    «сейчас» хранилось с микросекундами → точное совпадение не находилось →
+    дубль. Время должно храниться до секунды, запись — остаться одна."""
+    r1 = client.post("/api/agent/log_workout", json={"workout_type": "ходьба", "duration_minutes": 40})
+    assert r1.status_code == 200, r1.text
+    echoed = r1.json()["start_time"].split(".")[0]  # как агент: без долей секунды
+    if "+" not in echoed[10:] and not echoed.endswith("Z"):
+        echoed += r1.json()["start_time"][len(r1.json()["start_time"].split("+")[0]) :]
+    r2 = client.post(
+        "/api/agent/log_workout",
+        json={"workout_type": "ходьба", "distance_km": 3.5, "start_time": echoed},
+    )
+    assert r2.status_code == 200, r2.text
+    assert r2.json()["created"] is False
+    rows = db_session.query(Workout).filter_by(user_id=895655).all()
+    assert len(rows) == 1
+    assert rows[0].duration_minutes == 40
+    assert float(rows[0].distance_km) == 3.5
+
+
 def test_log_workout_refine_explicit_start_time_keeps_old_behavior(client, db_session):
     """Если агент передал start_time явно — поведение прежнее: точное
     совпадение (user_id, start_time), без эвристики «недавняя ручная того же
