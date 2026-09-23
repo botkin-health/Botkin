@@ -178,6 +178,104 @@ def test_archive_photo_as_document_saves_file_and_kb_entry(tmp_path, monkeypatch
     assert doc_entry["reason"] == "не распознано как еда"
 
 
+def test_archive_photo_as_document_saved_on_request_sets_title_category(tmp_path, monkeypatch):
+    """Фаза 3 (issue #370): явная просьба сохранить — auto_archived=False,
+    user_confirmed=True, title/category и saved_on_request записаны."""
+    import handlers.doc_upload as mod
+
+    monkeypatch.setattr(mod, "_PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(mod, "_UPLOADS_DIR", tmp_path / "data" / "uploads")
+
+    photo_path = tmp_path / "policy.jpg"
+    photo_path.write_bytes(b"fake-policy-bytes")
+
+    stored_name = mod.archive_photo_as_document(
+        777,
+        photo_path,
+        title="Полис ОМС",
+        category="insurance",
+        saved_on_request=True,
+    )
+
+    kb_path = tmp_path / "data" / "kb" / "kb_777.json"
+    doc_entry = json.loads(kb_path.read_text(encoding="utf-8"))["documents"][0]
+    assert doc_entry["file"] == stored_name
+    assert doc_entry["title"] == "Полис ОМС"
+    assert doc_entry["category"] == "insurance"
+    assert doc_entry["auto_archived"] is False
+    assert doc_entry["user_confirmed"] is True
+    assert doc_entry["saved_on_request"] is True
+
+
+def test_save_files_on_request_saves_single_file(tmp_path, monkeypatch):
+    import handlers.doc_upload as mod
+    from handlers import doc_dedup
+
+    monkeypatch.setattr(mod, "_PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(mod, "_UPLOADS_DIR", tmp_path / "data" / "uploads")
+    doc_dedup.reset()
+
+    photo_path = tmp_path / "insurance.jpg"
+    photo_path.write_bytes(b"insurance-bytes")
+
+    titles = mod.save_files_on_request(555, [photo_path], "сохрани полис ОМС")
+
+    assert titles == ["полис ОМС"]
+    kb_path = tmp_path / "data" / "kb" / "kb_555.json"
+    doc_entry = json.loads(kb_path.read_text(encoding="utf-8"))["documents"][0]
+    assert doc_entry["title"] == "полис ОМС"
+    assert doc_entry["category"] == "insurance"
+    assert doc_entry["saved_on_request"] is True
+    doc_dedup.reset()
+
+
+def test_save_files_on_request_dedup_skips_recent_duplicate(tmp_path, monkeypatch):
+    """Тот же контент уже помечен doc_dedup как STATUS_SAVED — не сохраняем
+    повторно (issue #370, фаза 3: «не сохранять тот же файл дважды подряд»)."""
+    import handlers.doc_upload as mod
+    from handlers import doc_dedup
+
+    monkeypatch.setattr(mod, "_PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(mod, "_UPLOADS_DIR", tmp_path / "data" / "uploads")
+    doc_dedup.reset()
+
+    photo_path = tmp_path / "dup.jpg"
+    content = b"duplicate-bytes"
+    photo_path.write_bytes(content)
+    doc_dedup.mark_saved(999, content)
+
+    titles = mod.save_files_on_request(999, [photo_path], "сохрани на всякий случай")
+
+    assert titles == []
+    kb_path = tmp_path / "data" / "kb" / "kb_999.json"
+    assert not kb_path.exists()
+    doc_dedup.reset()
+
+
+def test_save_files_on_request_album_shares_title(tmp_path, monkeypatch):
+    """Альбом с одной подписью — все файлы сохраняются под одним title."""
+    import handlers.doc_upload as mod
+    from handlers import doc_dedup
+
+    monkeypatch.setattr(mod, "_PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(mod, "_UPLOADS_DIR", tmp_path / "data" / "uploads")
+    doc_dedup.reset()
+
+    p1 = tmp_path / "a.jpg"
+    p2 = tmp_path / "b.jpg"
+    p1.write_bytes(b"page-1")
+    p2.write_bytes(b"page-2")
+
+    titles = mod.save_files_on_request(111, [p1, p2], "сохрани справку от врача")
+
+    assert titles == ["справку от врача", "справку от врача"]
+    kb_path = tmp_path / "data" / "kb" / "kb_111.json"
+    docs = json.loads(kb_path.read_text(encoding="utf-8"))["documents"]
+    assert len(docs) == 2
+    assert all(d["title"] == "справку от врача" for d in docs)
+    doc_dedup.reset()
+
+
 def test_preview_shows_allergies_new_vs_existing():
     from handlers.doc_upload import _preview_text
 

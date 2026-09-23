@@ -249,6 +249,56 @@ TOOLS: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "list_documents",
+        "description": (
+            "Список ВСЕХ документов профиля пользователя (issue #370): и лабораторные, "
+            "загруженные через /doc, и общие — полис ОМС, справка, памятка страховой, "
+            "визитка врача, что угодно, что пользователь попросил «сохранить на всякий "
+            "случай». Каждый: id, title, category (insurance/certificate/contact/medical/"
+            "other), added_at, is_lab (есть ли извлечённые лабораторные показатели). "
+            "Зови когда пользователь спрашивает «что у меня сохранено», «покажи мои "
+            "документы», или перед send_document, чтобы найти нужный id по названию."
+        ),
+        "input_schema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "update_document",
+        "description": (
+            "Проставить/изменить title и/или category у уже сохранённого документа "
+            "профиля (issue #370). Зови сразу после того, как пользователь попросил "
+            "сохранить фото/файл «про запас» — НЕ отказывай в сохранении: документ уже "
+            "лежит в архиве, но название «Документ от <дата>» неинформативно. Уточни "
+            "у пользователя что это (если не очевидно) и запиши сюда. document_id — из "
+            "list_documents."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "document_id": {"type": "string"},
+                "title": {"type": "string", "description": "Человекочитаемое название, напр. «Полис ОМС»"},
+                "category": {
+                    "type": "string",
+                    "enum": ["insurance", "certificate", "contact", "medical", "other"],
+                },
+            },
+            "required": ["document_id"],
+        },
+    },
+    {
+        "name": "send_document",
+        "description": (
+            "Прислать пользователю обратно в Telegram ранее сохранённый документ "
+            "профиля — полис, справку, анализ и т.п. (issue #370). Зови когда "
+            "пользователь просит «покажи/пришли мой полис/справку/документ». "
+            "Сначала list_documents, чтобы найти document_id."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {"document_id": {"type": "string"}},
+            "required": ["document_id"],
+        },
+    },
+    {
         "name": "get_open_questions",
         "description": (
             "Открытые клинические вопросы и красные флаги пользователя из его KB. "
@@ -1314,6 +1364,25 @@ def _call_tool(name: str, args: dict, token: str) -> str:
                 headers=headers,
                 timeout=15,
             )
+        elif name == "list_documents":
+            r = requests.get(f"{TOOLS_API_BASE}/list_documents", headers=headers, timeout=10)
+        elif name == "update_document":
+            doc_args = dict(args)
+            document_id = doc_args.pop("document_id", "")
+            r = requests.post(
+                f"{TOOLS_API_BASE}/update_document",
+                params={"document_id": document_id},
+                json=doc_args,
+                headers=headers,
+                timeout=15,
+            )
+        elif name == "send_document":
+            r = requests.post(
+                f"{TOOLS_API_BASE}/send_document",
+                json=args,
+                headers=headers,
+                timeout=20,
+            )
         elif name == "update_user_settings":
             r = requests.post(
                 f"{TOOLS_API_BASE}/update_user_settings",
@@ -2343,6 +2412,9 @@ _TOOL_PROGRESS_LABEL = {
     "update_profile_questionnaire": "📝 обновляю анкету",
     "save_health_profile": "📝 записываю медпрофиль",
     "update_user_settings": "⚙️ обновляю настройки",
+    "list_documents": "📁 смотрю документы",
+    "update_document": "📁 подписываю документ",
+    "send_document": "📤 присылаю документ",
     # Render tools
     "render_report": "🎨 рисую график",
     "render_chart": "🎨 рисую график",

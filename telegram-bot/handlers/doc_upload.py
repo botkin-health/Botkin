@@ -479,13 +479,29 @@ def _save_to_blood_tests(user_id: int, extracted: dict[str, Any], stored_name: s
     return note + unmapped_note
 
 
-def archive_photo_as_document(user_id: int, photo_path: Path, reason: str = "") -> str:
-    """Сохраняет уже скачанное фото как документ профиля без парсинга.
+def archive_photo_as_document(
+    user_id: int,
+    photo_path: Path,
+    reason: str = "",
+    *,
+    title: Optional[str] = None,
+    category: Optional[str] = None,
+    saved_on_request: bool = False,
+) -> str:
+    """Сохраняет уже скачанное фото (или PDF — несмотря на имя, работает с
+    любым расширением через `photo_path.suffix`) как документ профиля без
+    парсинга.
 
     Для случаев когда LLM-vision не распознал фото ни как еду/вес/добавки/АД,
     и пользователь не через /doc его прислал — раньше файл просто терялся,
     а BotkinClaw мог только посоветовать /doc (issue #370). Теперь фото
     архивируется сразу, без дополнительного действия пользователя.
+
+    `saved_on_request=True` (issue #370, фаза 3) — явная просьба пользователя
+    «сохрани про запас» в подписи: `auto_archived=False`, `user_confirmed=True`,
+    записывается `saved_on_request=True`; в этом случае обычно уже известны
+    `title`/`category` (см. `core.health.profile_documents.parse_save_title`/
+    `guess_category`) — они пишутся в запись, если переданы.
 
     Возвращает stored_name сохранённого файла.
     """
@@ -499,13 +515,55 @@ def archive_photo_as_document(user_id: int, photo_path: Path, reason: str = "") 
         "added_at": date.today().isoformat(),
         "file": stored_name,
         "extracted": {},
-        "user_confirmed": False,
-        "auto_archived": True,
+        "user_confirmed": bool(saved_on_request),
+        "auto_archived": not saved_on_request,
     }
     if reason:
         entry["reason"] = reason
+    if title:
+        entry["title"] = title
+    if category:
+        entry["category"] = category
+    if saved_on_request:
+        entry["saved_on_request"] = True
     append_document_to_kb(user_id, entry)
     return stored_name
+
+
+def save_files_on_request(user_id: int, file_paths: list[Path], caption: str) -> list[str]:
+    """Сохраняет фото/PDF как документы профиля по явной просьбе пользователя
+    в подписи («сохрани», «на всякий случай», «полис» и т.п. — issue #370,
+    фаза 3). Title и category угадываются из подписи один раз для всей пачки
+    (`core.health.profile_documents.parse_save_title`/`guess_category`) —
+    альбом с одной подписью сохраняется целиком под этим title.
+
+    Дедуп по содержимому через `handlers.doc_dedup` (тот же кэш, что и
+    /doc-очередь): файл, уже отмеченный как `STATUS_SAVED`, пропускается —
+    не сохраняем один и тот же файл дважды подряд.
+
+    Возвращает список title фактически сохранённых файлов (пустой список —
+    все файлы из `file_paths` уже были недавно сохранены, новых записей нет).
+    """
+    from core.health.profile_documents import guess_category, parse_save_title
+
+    title = parse_save_title(caption)
+    category = guess_category(caption)
+
+    saved_titles: list[str] = []
+    for path in file_paths:
+        content = path.read_bytes()
+        if doc_dedup.status(user_id, content) == doc_dedup.STATUS_SAVED:
+            continue
+        archive_photo_as_document(
+            user_id,
+            path,
+            title=title,
+            category=category,
+            saved_on_request=True,
+        )
+        doc_dedup.mark_saved(user_id, content)
+        saved_titles.append(title)
+    return saved_titles
 
 
 async def run_doc_pipeline(
