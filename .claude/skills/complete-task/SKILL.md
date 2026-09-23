@@ -43,7 +43,7 @@ EOF
 Перевести issue в ревью: `gh issue comment <N> --body "В ревью: <ссылка на PR>"`. Выставить статус **In Review** (`c02f7d5b`) на доске Botkin #1 (см. «Доска»).
 
 ### 3. Code-review на PR
-`/everything-claude-code:python-review` (Python — основной ревьюер; при желании `/code-review`). Находки классифицировать по severity.
+`/code-review`. Находки классифицировать по severity.
 
 ### 4. Фикс всего MEDIUM+
 Отдельными коммитами → fix-проход → push → повторный ревью. Цикл, пока не чисто. **LOW/INFO** можно отложить — короткой строкой в PR отметить, что именно отложено.
@@ -52,7 +52,7 @@ EOF
 `/improve-codebase-architecture` (он ищет проблемы; `architecture-patterns` — гайд, не аудит). Фикс значимого. При существенных правках — вернуться к шагу 3.
 
 ### 6. Security-review
-`/security-review` (или `/everything-claude-code:security-review`). Фикс MEDIUM+. Особое внимание: деньги (LLM-стоимость), auth/JWT/RLS, пользовательский ввод, внешние интеграции (Garmin/Zepp/Apple Health/Netatmo/WHOOP/Anthropic/OpenAI).
+`/security-review`. Фикс MEDIUM+. Особое внимание: деньги (LLM-стоимость), auth/JWT/RLS, пользовательский ввод, внешние интеграции (Garmin/Zepp/Apple Health/Netatmo/WHOOP/Anthropic/OpenAI).
 
 ### 7. Тесты: план → апрув → реализация → покрытие
 - Показать **план тестов**, ждать апрува. Мало, но на важное.

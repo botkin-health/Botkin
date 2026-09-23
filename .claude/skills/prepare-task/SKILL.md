@@ -61,7 +61,7 @@ git worktree add .claude/worktrees/<slug> -b <feat|fix|…>/<slug> origin/dev
 ```
 Сообщить путь к worktree. **Самому туда не `cd`**, в основном чекауте `checkout` не делать.
 
-### 4. План — через `/everything-claude-code:plan`
+### 4. План
 Требование к структуре: план разбит на **фазы**, и КАЖДАЯ фаза заканчивается:
 - **Fix** — прогон gate-проверок (`ruff check .` + `ruff format --check .` + pytest) до зелёного;
 - **Commit** — атомарный conventional-коммит (русский) со ссылкой на issue (`… (#N)`);
