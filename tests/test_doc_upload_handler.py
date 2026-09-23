@@ -1613,3 +1613,12 @@ def test_cancel_with_claiming_marker_does_not_crash_and_archives_tail(tmp_path, 
 
     assert archived == 1
     assert not queued.exists()
+
+
+def test_preview_says_unreadable_when_model_returned_nothing():
+    """Честный текст про плохое качество скана — даже если модель сама
+    вернула пустой список и отбрасывать было нечего."""
+    from handlers.doc_upload import _preview_text
+
+    text = _preview_text({"values": {}, "_unverified_labels": [], "_unreadable_text": True}, {})
+    assert "читается плохо" in text

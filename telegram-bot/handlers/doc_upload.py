@@ -284,7 +284,7 @@ def _preview_text(extracted: dict[str, Any], existing: Optional[dict] = None) ->
     existing_conditions = {s.lower() for s in onboarding_list(existing, CONDITION_KEYS)}
 
     if not _has_content(extracted):
-        if extracted and extracted.get("_unverified_labels"):
+        if extracted and (extracted.get("_unverified_labels") or extracted.get("_unreadable_text")):
             # Issue #509: LLM что-то нашёл, но не смог надёжно прочитать названия
             # показателей (сверка с текстом документа не подтвердила ни одного) —
             # честно говорим про плохое качество текста, а не молчим о том, что
@@ -447,7 +447,7 @@ def _save_to_blood_tests(user_id: int, extracted: dict[str, Any], stored_name: s
     unmapped_note = _unmapped_keys_note(result.warnings)
 
     if result.row is None:
-        if result.reason == "no_values" and extracted.get("_unverified_labels"):
+        if result.reason == "no_values" and (extracted.get("_unverified_labels") or extracted.get("_unreadable_text")):
             # Issue #509: значения были, но ни одно название не подтвердилось
             # текстом документа (doc_extractor их уже отбросил) — отдельная,
             # более честная формулировка вместо общего «не нашёл показателей».

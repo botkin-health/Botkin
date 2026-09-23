@@ -183,7 +183,10 @@ async def extract_medical_data(file_bytes: bytes, mime_type: str) -> dict[str, A
         if data:
             data["allergies"] = _as_str_list(data.get("allergies"))
             data["conditions"] = _as_str_list(data.get("conditions"))
-            if mime_type == "text/plain" and isinstance(data.get("values"), dict) and data["values"]:
+            # Без проверки «values непуст»: гейт читаемости должен срабатывать и
+            # тогда, когда модель сама вернула пустой список, — именно этот
+            # случай пользователю надо честно объяснить (E2E 23.09.2026).
+            if mime_type == "text/plain" and isinstance(data.get("values"), dict):
                 # Программные проверки (issue #509) доступны только здесь, где
                 # file_bytes — РЕАЛЬНЫЙ текст документа (текстовый слой PDF,
                 # извлечённый локально через PyMuPDF в вызывающем коде), а не то,
@@ -204,6 +207,12 @@ async def extract_medical_data(file_bytes: bytes, mime_type: str) -> dict[str, A
                         dropped,
                     )
                     data["_unverified_labels"] = dropped
+                    # Флаг ставится ВСЕГДА, независимо от того, вернула ли модель
+                    # значения: если модель сама честно ответила пустым списком,
+                    # dropped пуст, и честное «текст читается плохо» не включалось —
+                    # пользователь получал общее «не нашёл данных» и не понимал,
+                    # что дело в качестве скана (E2E 23.09.2026).
+                    data["_unreadable_text"] = True
                     data["values"] = {}
                 else:
                     # (Б) покомпонентная сверка по реестру синонимов — ТОЛЬКО
