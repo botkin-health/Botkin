@@ -160,11 +160,21 @@ def _documents_list(kb: dict[str, Any]) -> list[dict[str, Any]]:
     return documents if isinstance(documents, list) else []
 
 
+def _default_category(entry: dict[str, Any]) -> Optional[str]:
+    """Категория для записей без явной `category` — документов, сохранённых
+    до #370 через /doc. Если разбор нашёл показатели, лабораторию или тип
+    медицинского документа — это «medical»; иначе категории нет."""
+    extracted = entry.get("extracted") or {}
+    if _is_lab(entry) or extracted.get("laboratory") or extracted.get("doc_type"):
+        return "medical"
+    return None
+
+
 def _to_summary(entry: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": entry.get("file"),
         "title": entry.get("title") or _fallback_title(entry),
-        "category": entry.get("category"),
+        "category": entry.get("category") or _default_category(entry),
         "added_at": entry.get("added_at"),
         "is_lab": _is_lab(entry),
     }
