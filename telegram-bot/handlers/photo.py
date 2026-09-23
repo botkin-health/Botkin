@@ -998,9 +998,34 @@ async def handle_document_image(message: Message, album: list = None, state: FSM
                 import asyncio
                 from core.agent_chat import ask_agent
                 from core.tg_markdown import md_to_html
+                from handlers import doc_dedup
 
                 user_id = message.from_user.id
                 caption = msg.caption or ""
+
+                # Issue #503: разговорный путь (документ, не опознанный
+                # looks_like_medical_document() и потому не ушедший в
+                # run_doc_pipeline) не имел дедупа по содержимому — тот же
+                # PDF, присланный несколько раз подряд разными сообщениями
+                # (реальный инцидент 25.08.2026), каждый раз уходил в
+                # полноценный LLM-разбор и слал пользователю повторный ответ.
+                # Переиспользуем тот же контент-хэш + кэш из doc_dedup, что и
+                # /doc-очередь, вместо параллельного механизма.
+                pdf_content = pdf_path.read_bytes()
+                dedup_status = doc_dedup.status(user_id, pdf_content)
+                if dedup_status == doc_dedup.STATUS_SAVED:
+                    await processing_msg.edit_text(
+                        "⚠️ Этот файл я уже разбирал недавно — повторный разбор не потребовался."
+                    )
+                    continue
+                if dedup_status == doc_dedup.STATUS_IN_PROGRESS:
+                    await processing_msg.edit_text(
+                        "⚠️ Этот документ я уже сейчас разбираю — подожди немного, пожалуйста."
+                    )
+                    continue
+
+                doc_dedup.mark_in_progress(user_id, pdf_content)
+
                 prompt = f"Вот содержимое PDF-документа:\n\n{pdf_text}"
                 if caption:
                     prompt = f"{caption}\n\n{prompt}"
@@ -1010,12 +1035,18 @@ async def handle_document_image(message: Message, album: list = None, state: FSM
                 try:
                     reply = await loop.run_in_executor(None, lambda: ask_agent(int(user_id), prompt))
                     if reply:
+                        # Помечаем «разобрано» только ПОСЛЕ успешного ответа
+                        # (урок #516/P6): отменённый/упавший разбор не должен
+                        # блокировать повторную отправку того же файла.
+                        doc_dedup.mark_saved(user_id, pdf_content)
                         await processing_msg.edit_text(md_to_html(reply), parse_mode="HTML")
                     else:
+                        doc_dedup.clear(user_id, pdf_content)
                         await processing_msg.edit_text(
                             "Получил документ, но не смог разобрать содержимое. Напиши вопрос текстом."
                         )
                 except Exception as e:
+                    doc_dedup.clear(user_id, pdf_content)
                     logger.error(f"PDF agent error: {e}")
                     await processing_msg.edit_text("Получил PDF — напиши текстом что хочешь узнать, и я разберу.")
             else:
