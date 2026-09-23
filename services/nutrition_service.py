@@ -126,6 +126,7 @@ class NutritionService:
                     self.fats = data["fats"]
                     self.carbs = data["carbs"]
                     self.fiber = data.get("fiber", 0)
+                    self.water_ml = data.get("water_ml", 0)
 
             return {
                 "date": day,

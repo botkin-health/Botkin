@@ -269,6 +269,10 @@ async def cmd_day(message: Message, user_id: int):
             fib_bar, fib_pct = make_block_bar(fiber_val, 30, invert=True)
             fiber_line = f"🌿 {fib_bar} {fiber_val:.0f}/30г"
 
+        # --- Water (#526): считается из nutrition_log items, строки нет если воды не было ---
+        water_ml = getattr(totals, "water_ml", 0) or 0
+        water_line = f"💧 Вода: {water_ml:.0f} мл" if water_ml > 0 else ""
+
         # --- Response Construction ---
         if show_bar:
             macro_lines = [
@@ -294,6 +298,8 @@ async def cmd_day(message: Message, user_id: int):
         ]
         if fiber_line:
             response_parts.append(fiber_line)
+        if water_line:
+            response_parts.append(water_line)
         if plans_text:
             response_parts.append(plans_text)
 
