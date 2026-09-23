@@ -1,6 +1,6 @@
 ---
 name: prepare-task
-description: Берёт задачу Botkin в работу и готовит план. Триггеры — «подготовь задачу», «возьми задачу #N в работу», «/prepare-task». Флоу: при отсутствии issue заводит его (короткий заголовок ≤5 слов + добавление в проект Botkin #1); находит задачу и собирает контекст; проходит гейт метаданных (лейблы/триаж-метки/проект/протухание/качество описания); self-assign + статус In Progress; создаёт git-worktree от свежего origin/dev; строит фазовый план (каждая фаза заканчивается Fix → Commit → Report); опц. ресёрч и прожарка; показывает план и ждёт «да»; постит план комментарием в issue. Парный к complete-task.
+description: Берёт задачу Botkin в работу и готовит план. Триггеры — «подготовь задачу», «возьми задачу #N в работу», «/prepare-task». Флоу: при отсутствии issue заводит его (короткий заголовок ≤5 слов ); находит задачу и собирает контекст; проходит гейт метаданных (лейблы/триаж-метки/протухание/качество описания); self-assign; создаёт git-worktree от свежего origin/dev; строит фазовый план (каждая фаза заканчивается Fix → Commit → Report); опц. ресёрч и прожарка; показывает план и ждёт «да»; постит план комментарием в issue. Парный к complete-task.
 ---
 
 # prepare-task — взять задачу в работу и подготовить план
@@ -8,7 +8,7 @@ description: Берёт задачу Botkin в работу и готовит п
 ## Контекст репо (Botkin)
 
 - **Трекер:** GitHub Issues через `gh`, репо `botkin-health/Botkin`. Конвенции — `docs/agents/issue-tracker.md`.
-- **Проект (доска):** GitHub Project **Botkin #1** (owner `botkin-health`, id `PVT_kwDOEX3Lns4Bam1p`). Status-поле `PVTSSF_lADOEX3Lns4Bam1pzhVdNrw`, опции: **Todo** `f75ad846` · **In Progress** `47fc9ee4` · **In Review** `c02f7d5b` · **Done** `98236657`. Все задачи заводим в этот проект. Статус **In Review** выставляет complete-task при создании PR — prepare-task его не трогает.
+- **Проект (доска):** GitHub Project **Botkin #1** (owner `botkin-health`, id `PVT_kwDOEX3Lns4Bam1p`). Status-поле `PVTSSF_lADOEX3Lns4Bam1pzhVdNrw`, опции: **Todo** `f75ad846` · **In Progress** `47fc9ee4` · **In Review** `c02f7d5b` · **Done** `98236657`. Статус **In Review** выставляет complete-task при создании PR — prepare-task его не трогает. ⚠️ **Доска опциональна:** с сентября 2026 задачи туда не заносят; шаги с доской выполнять, только если пользователь попросил.
 - **Базовая ветка:** `dev` (фич-ветки растут от `origin/dev`; в `main` льётся отдельно).
 - **Worktree:** `.claude/worktrees/<ветка, `/` → `+`>` (напр. ветка `fix/foo` → `.claude/worktrees/fix+foo`).
 - **Ветки:** `feat/ fix/ chore/ refactor/ test/ docs/` + короткий слаг. Номер issue в имя ветки НЕ кладём — связь через PR (`Closes #N`).
@@ -32,7 +32,6 @@ description: Берёт задачу Botkin в работу и готовит п
   EOF
   )"
   ```
-- Сразу добавить в проект **Botkin #1** со статусом **Todo** (см. «Доска» ниже).
 
 ### 1. Найти задачу и собрать контекст
 `gh issue view <N> --comments` (+ labels/assignees/author/createdAt). Дать краткое резюме: title, state, labels, суть, ключевые комментарии.
@@ -44,7 +43,6 @@ description: Берёт задачу Botkin в работу и готовит п
   - описание полное, критерии приёмки ясны, потянет AFK-агент → `ready-for-agent`;
   - нужна рука человека (UX-решение, доступы, ручная проверка на железе) → `ready-for-human`;
   - неясен scope/приоритет, надо обдумать → оставить `needs-triage` + **СТОП** (сначала оценить).
-- **Проект** — issue в проекте Botkin #1? Если нет — добавить (идемпотентно, см. «Доска»).
 - **Milestone** — если в репе ведётся; иначе пропустить.
 - **Протухание** — `createdAt` > 30 дней → предупредить, спросить актуальность.
 - **State** — если `CLOSED` → **СТОП** (задача закрыта).
@@ -52,7 +50,6 @@ description: Берёт задачу Botkin в работу и готовит п
 
 ### 2. Взять в работу
 - `gh issue edit <N> --add-assignee @me` (чужой ассайн не перехватывать без подтверждения).
-- Выставить статус **In Progress** (`47fc9ee4`) на доске Botkin #1 (см. «Доска»).
 
 ### 3. Создать worktree от свежего origin/dev
 ```bash
@@ -67,7 +64,7 @@ git worktree add .claude/worktrees/<slug> -b <feat|fix|…>/<slug> origin/dev
 - **Commit** — атомарный conventional-коммит (русский) со ссылкой на issue (`… (#N)`);
 - **Report** — итог фазы комментарием в issue (`gh issue comment <N>`).
 
-### 4.4 Опц. ресёрч — `/deep-research`
+### 4.4 Опц. ресёрч — `/research`
 Если без внешнего знания план мутный. Результат → `docs/researches/YYYY-MM-DD-<тема>.md` (папку создать при первом использовании).
 
 ### 4.5 Прожарка плана — `/grill-with-docs`
@@ -124,11 +121,10 @@ gh project item-edit --id "$ITEM_ID" --project-id PVT_kwDOEX3Lns4Bam1p \
 ```
 
 ## Чего НЕ делать
-- Не заводить задачу мимо проекта **Botkin #1**; статусы только Todo/In Progress/In Review/Done (другие не выдумывать). In Review ставит complete-task, не prepare-task.
 - Не пушить ветку/каждый коммит в origin сразу (пуш — в complete-task).
 - Не делать `cd`/`git checkout` в основном чекауте — только `git worktree add`.
 - Ветка только от `origin/dev` (не от локального dev, не от main).
 - Не планировать до взятия в работу и создания worktree.
-- Не пропускать гейт метаданных, добавление в проект и прожарку.
+- Не пропускать гейт метаданных и прожарку.
 - Не постить план без «да».
 - Не трогать чужие ассайни/приоритет/лейблы сверх необходимого.
