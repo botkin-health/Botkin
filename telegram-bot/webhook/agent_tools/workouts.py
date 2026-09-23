@@ -1,6 +1,6 @@
 """Agent tools: recent workouts (Garmin + Apple Health) + manual logging."""
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -12,6 +12,13 @@ from .common import _today_in_user_tz, parse_agent_datetime
 
 router = APIRouter(prefix="/api/agent", tags=["agent-tools-workouts"])
 
+# #539: окно, в котором «уточнение без start_time» ищет недавнюю РУЧНУЮ
+# тренировку того же типа для обновления вместо создания дубля. Два часа —
+# с запасом покрывает типичный обмен репликами («бегал 30 минут» → через
+# пару минут/полчаса «уточни, это было 5 км»), но не цепляет тренировку,
+# которую пользователь реально сделал сегодня же, но давно.
+_RECENT_MANUAL_WORKOUT_WINDOW = timedelta(hours=2)
+
 
 class LogWorkoutRequest(BaseModel):
     """Ручной ввод тренировки агентом (#500).
@@ -21,6 +28,13 @@ class LogWorkoutRequest(BaseModel):
     осознанный фоллбэк, а не автоматическая привязка события к сегодняшнему
     дню (см. #502): описание тула в core/agent_chat.py прямо требует от LLM
     проставлять start_time явно, как только в реплике есть указание на прошлое.
+
+    #539: при УТОЧНЕНИИ уже записанной тренировки («добавь, что это было 5 км»)
+    агенту лучше передать start_time исходной записи (она есть в ответе
+    предыдущего вызова log_workout) — тогда сервер точно найдёт и обновит ту
+    же строку. Если исходного времени нет под рукой — сервер сам попробует
+    найти недавнюю (см. `_RECENT_MANUAL_WORKOUT_WINDOW`) ручную запись того
+    же workout_type и обновить её, но это эвристика, а не гарантия.
     """
 
     workout_type: str = Field(..., min_length=1, max_length=100, description="Тип тренировки, свободный текст")
@@ -29,7 +43,15 @@ class LogWorkoutRequest(BaseModel):
     calories_burned: Optional[int] = Field(None, ge=0, le=10000, description="Сожжено ккал")
     avg_heart_rate: Optional[int] = Field(None, ge=30, le=250, description="Средний пульс, уд/мин")
     max_heart_rate: Optional[int] = Field(None, ge=30, le=250, description="Максимальный пульс, уд/мин")
-    start_time: Optional[str] = Field(None, description="ISO datetime начала тренировки; по умолчанию — сейчас")
+    start_time: Optional[str] = Field(
+        None,
+        description=(
+            "ISO datetime начала тренировки; по умолчанию — сейчас. При уточнении "
+            "уже записанной тренировки передавай start_time исходной записи (он "
+            "есть в ответе предыдущего вызова) — иначе сервер лишь попытается "
+            "угадать нужную запись по недавней ручной тренировке того же типа."
+        ),
+    )
 
 
 def _parse_manual_start_time(raw: Optional[str], user) -> datetime:
@@ -55,6 +77,71 @@ def _parse_manual_start_time(raw: Optional[str], user) -> datetime:
     except HTTPException as e:
         # Сохраняем формулировку ошибки под именем поля этого конкретного тула.
         raise HTTPException(status_code=400, detail=f"Invalid start_time: {raw!r}. Use ISO datetime.") from e
+
+
+def _as_aware_utc(value: Optional[Any]) -> Optional[datetime]:
+    """Нормализовать `created_at`/`start_time`, пришедшие сырым SQL, к tz-aware UTC.
+
+    #539: raw `db.execute(text(...))` не гоняет значения через ORM-типы, поэтому
+    один и тот же timestamptz-столбец приходит по-разному в зависимости от
+    диалекта — на SQLite (тесты) `created_at` это ПРОСТАЯ СТРОКА без таймзоны
+    ('2026-09-23 16:07:17', UTC по факту, т.к. это `CURRENT_TIMESTAMP`), а на
+    Postgres (прод) psycopg2 отдаёт уже tz-aware `datetime`. Без этой нормализации
+    сравнение `>= cutoff` либо падает (str vs datetime), либо (для naive
+    datetime) сравнивает как если бы значение было в локальной таймзоне —
+    тот же класс ошибок, что #502/#518.
+    """
+    if value is None:
+        return None
+    if isinstance(value, str):
+        value = datetime.fromisoformat(value.replace(" ", "T", 1))
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def _find_recent_manual_workout_for_refine(db: Session, user, workout_type: str, reference_dt: datetime):
+    """#539: найти РОВНО ОДНУ недавнюю ручную тренировку того же типа для мёржа.
+
+    Кандидаты: `source='manual'`, тот же `user_id` и `workout_type`, созданные
+    не раньше `reference_dt - _RECENT_MANUAL_WORKOUT_WINDOW`. «Создана» —
+    по `created_at`; если он NULL (старые строки до появления колонки) —
+    фоллбэк на `start_time`, потому что без явного start_time запись создаётся
+    ровно в момент вставки, то есть start_time и есть момент создания.
+
+    Возвращает найденную строку, только если она РОВНО ОДНА в окне — при
+    нескольких недавних ручных тренировках того же типа неоднозначно, какую
+    именно уточняет пользователь, поэтому безопаснее создать новую запись
+    (как раньше), чем гадать и обновить не ту.
+    """
+    from sqlalchemy import text as _text
+
+    candidates = db.execute(
+        _text(
+            """SELECT id, created_at, start_time
+               FROM workouts
+               WHERE user_id = :uid AND source = 'manual'
+                 AND lower(trim(workout_type)) = lower(trim(:workout_type))
+               ORDER BY created_at DESC
+               LIMIT 5"""
+        ),
+        {"uid": user.telegram_id, "workout_type": workout_type},
+    ).fetchall()
+
+    if not candidates:
+        return None
+
+    cutoff = _as_aware_utc(reference_dt) - _RECENT_MANUAL_WORKOUT_WINDOW
+    matches = []
+    for row in candidates:
+        created_ref = row.created_at if row.created_at is not None else row.start_time
+        created_aware = _as_aware_utc(created_ref)
+        if created_aware is not None and created_aware >= cutoff:
+            matches.append(row)
+
+    if len(matches) == 1:
+        return matches[0]
+    return None
 
 
 @router.post("/log_workout")
@@ -94,6 +181,20 @@ async def log_workout(
     это одна и та же тренировка (18:00:37 у часов и «в 18:00» вручную не
     столкнутся вовсе) — это осознанно не чинится, конфликт возможен только
     при точном совпадении.
+
+    #539: описанный выше точный поиск по (user_id, start_time) работает только
+    когда start_time известен — либо передан агентом явно, либо (при первой
+    записи) вычислен как «сейчас». Проблема в УТОЧНЕНИИ без start_time: тул
+    заново вычисляет start_time как «сейчас» (уже другая секунда), точное
+    совпадение не находится, и вместо обновления создаётся вторая запись —
+    хотя пользователь просто донёс детали той же тренировки («это было 5 км»).
+    Поэтому когда `req.start_time` НЕ передан и точного совпадения нет, тул
+    ДОПОЛНИТЕЛЬНО ищет недавнюю (`_RECENT_MANUAL_WORKOUT_WINDOW`) ручную
+    (`source='manual'`) запись ТОГО ЖЕ `workout_type` — и, если она ровно
+    одна, обновляет её через COALESCE (не переданные в этом вызове поля
+    остаются прежними, а не обнуляются), не трогая её исходные date/start_time.
+    Если явный start_time передан — эта эвристика не применяется вовсе
+    (поведение остаётся прежним, точное совпадение или его отсутствие).
     """
     from sqlalchemy import text as _text
 
@@ -125,6 +226,62 @@ async def log_workout(
                 "правда другая тренировка, уточни у него точное время и повтори вызов."
             ),
         }
+
+    if existing is None and req.start_time is None:
+        refine_match = _find_recent_manual_workout_for_refine(db, user, req.workout_type, reference_dt=start_dt)
+        if refine_match is not None:
+            db.execute(
+                _text(
+                    """UPDATE workouts SET
+                           duration_minutes = COALESCE(:duration_minutes, duration_minutes),
+                           distance_km = COALESCE(:distance_km, distance_km),
+                           calories_burned = COALESCE(:calories_burned, calories_burned),
+                           avg_heart_rate = COALESCE(:avg_heart_rate, avg_heart_rate),
+                           max_heart_rate = COALESCE(:max_heart_rate, max_heart_rate)
+                       WHERE id = :id"""
+                ),
+                {
+                    "duration_minutes": req.duration_minutes,
+                    "distance_km": req.distance_km,
+                    "calories_burned": req.calories_burned,
+                    "avg_heart_rate": req.avg_heart_rate,
+                    "max_heart_rate": req.max_heart_rate,
+                    "id": refine_match.id,
+                },
+            )
+            db.commit()
+
+            merged = db.execute(
+                _text(
+                    """SELECT id, date, start_time, workout_type, duration_minutes, distance_km,
+                              calories_burned, avg_heart_rate, max_heart_rate
+                       FROM workouts WHERE id = :id"""
+                ),
+                {"id": refine_match.id},
+            ).first()
+
+            return {
+                "status": "ok",
+                "created": False,
+                "updated": True,
+                "workout_id": merged.id,
+                "date": merged.date.isoformat() if hasattr(merged.date, "isoformat") else merged.date,
+                "start_time": merged.start_time.isoformat()
+                if hasattr(merged.start_time, "isoformat")
+                else merged.start_time,
+                "workout_type": merged.workout_type,
+                "duration_minutes": merged.duration_minutes,
+                "distance_km": float(merged.distance_km) if merged.distance_km is not None else None,
+                "calories_burned": merged.calories_burned,
+                "avg_heart_rate": merged.avg_heart_rate,
+                "max_heart_rate": merged.max_heart_rate,
+                "hint": (
+                    "start_time не передан — найдена недавняя ручная тренировка того же типа "
+                    "(в пределах последних 2 часов) и обновлена, чтобы не плодить дубль (#539). "
+                    "Если это была ДРУГАЯ тренировка, а не уточнение — в следующий раз передавай "
+                    "явный start_time."
+                ),
+            }
 
     params = {
         "user_id": user.telegram_id,
