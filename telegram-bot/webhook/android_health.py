@@ -194,8 +194,10 @@ def _hc_aggregate_by_day(payload: HealthConnectPayload, user_tz) -> dict:
 
     ⚠️ Timezone correctness: все timestamp'ы конвертируются в user_tz
        чтобы записи после 21:00 МСК не уезжали на следующий день.
-    ⚠️ active_calories НЕ пишется в поле calories — только в raw_data
-       (Garmin = source of truth для тройки bmr/active/total).
+    ⚠️ active_calories: здесь (в аггрегате) только в raw_data
+       (hc_active_calories) — запись в колонку activity_log.active_calories
+       и приоритет Garmin решаются в endpoint'е (_resolve_hc_active_calories,
+       #525.2), не в этой функции.
     ⚠️ weight: фильтр >30 кг (отсечь нулевые/мусорные записи).
     ⚠️ blood_pressure: каждый замер — отдельная строка (у папы до 10 в день).
     """
@@ -425,6 +427,38 @@ def _hc_aggregate_by_day(payload: HealthConnectPayload, user_tz) -> dict:
     return result
 
 
+def _resolve_hc_active_calories(existing_row, hc_active_calories):
+    """Значение для записи в activity_log.active_calories из Health Connect (#525.2).
+
+    Раньше active_calories писались ТОЛЬКО в raw_data — у пользователей без
+    Garmin калорий для бота/дашборда не существовало вовсе. Теперь пишем и в
+    колонку, но Garmin остаётся источником истины: если строка дня уже создана
+    Garmin-синком и active_calories там заполнены — не перетираем (возвращаем
+    None, CRUD оставит как есть). Паттерн зеркалит `_resolve_apple_bmr` в
+    apple_health.py (тот же приоритет Garmin > остальные каналы).
+    """
+    if hc_active_calories is None:
+        return None
+    if (
+        existing_row is not None
+        and existing_row.active_calories is not None
+        and (existing_row.source or "").startswith("garmin")
+    ):
+        return None
+    return hc_active_calories
+
+
+def _hc_owns_row(existing_row) -> bool:
+    """Строка дня либо ещё не существует, либо принадлежит health_connect (#525.5).
+
+    Используется, чтобы решить, можно ли замещать интервальные метрики
+    завершённого дня: если строку создал другой канал (Garmin, Apple Health,
+    ручной ввод) — замещение не применяем, остаёмся на безопасном
+    monotonic-max, как раньше.
+    """
+    return existing_row is None or str(existing_row.source or "").startswith("health_connect")
+
+
 # ── Endpoint POST /android_health_v1 ─────────────────────────────────────────
 
 
@@ -489,6 +523,13 @@ async def receive_android_health(
     if not daily:
         return {"status": "ok", "days": 0, "details": []}
 
+    # #525.5: "сегодня" в таймзоне юзера — граница между завершённым и текущим
+    # днём. Критерий строится на календарной дате, а не на форме интервала
+    # (полночь-к-полночи), поэтому одинаково работает для суточного, raw и
+    # bucketed режимов приложения: день строго раньше сегодняшнего уже
+    # закончился на устройстве, все его данные записаны.
+    today_local = datetime.now(user_tz).date()
+
     details = []
     db = SessionLocal()
     try:
@@ -513,22 +554,38 @@ async def receive_android_health(
             existing_row = get_activity_by_date(db, target_user_id, record_date)
             # HC не имеет BMR поля — не пишем (в отличие от Apple Health)
 
+            # #525.2: active_calories — в колонку, но не перетирая Garmin.
+            active_calories = _resolve_hc_active_calories(
+                existing_row, (agg.get("raw_data") or {}).get("hc_active_calories")
+            )
+
+            # #525.5: завершённый день ЗАМЕЩАЕТ интервальные метрики (steps,
+            # distance_km, active_calories) вместо monotonic-max — история
+            # искажена багом #525.1 (день N лёг на N+1, старое значение
+            # завышено и monotonic-max его бы не поправил). Сегодняшний
+            # (незаконченный) день и строки, принадлежащие другому источнику
+            # (Garmin и т.п.), остаются на безопасном monotonic-режиме.
+            use_replace = record_date < today_local and _hc_owns_row(existing_row)
+
             create_or_update_activity(
                 db=db,
                 user_id=target_user_id,
                 date=record_date,
                 steps=agg.get("steps"),
+                active_calories=active_calories,
                 distance_km=agg.get("distance_km"),
                 heart_rate_avg=heart_rate,
                 hrv=agg.get("hrv"),
                 sleep_hours=agg.get("sleep_hours"),
                 source="health_connect",
                 raw_data=raw_extra if raw_extra else None,
+                monotonic=not use_replace,
             )
             saved.append(
                 f"activity (steps={agg.get('steps')}, HR={heart_rate}, "
                 f"HRV={agg.get('hrv')}, sleep={agg.get('sleep_hours')}h, "
-                f"dist={agg.get('distance_km')}km)"
+                f"dist={agg.get('distance_km')}km, active_cal={active_calories}, "
+                f"replace={use_replace})"
             )
 
             # ── 2. blood_pressure_logs — каждый замер отдельно ────────────────
