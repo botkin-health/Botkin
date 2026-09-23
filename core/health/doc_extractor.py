@@ -138,19 +138,30 @@ def _build_pdf_message(file_bytes: bytes) -> dict:
 
 
 def _parse_response(response: dict) -> dict[str, Any]:
-    """Парсит ответ Claude в dict. Возвращает {} при любой ошибке."""
+    """Парсит ответ Claude в dict. Возвращает {} при любой ошибке.
+
+    Берём ПЕРВЫЙ JSON-объект в ответе и игнорируем текст до и после него.
+    Строгий json.loads падал с «Extra data», когда модель дописывала пояснение
+    после JSON (или после закрывающего ```), — разбор тогда молча превращался в
+    «не нашёл данных» (E2E 23.09.2026).
+    """
     try:
-        text = response["content"][0]["text"].strip()
-        if text.startswith("```"):
-            lines = text.split("\n")
-            text = "\n".join(lines[1:-1]) if len(lines) > 2 else text
-        data = json.loads(text)
-        if not isinstance(data, dict):
-            return {}
-        return data
+        text = response["content"][0]["text"]
     except Exception as e:
-        logger.debug("doc_extractor: не удалось распарсить ответ Claude: %s", e)
+        logger.warning("doc_extractor: неожиданная форма ответа Claude: %s", e)
         return {}
+    start = text.find("{")
+    if start == -1:
+        logger.warning("doc_extractor: в ответе Claude нет JSON-объекта: %r", text[:200])
+        return {}
+    try:
+        data, _end = json.JSONDecoder().raw_decode(text[start:])
+    except ValueError as e:
+        logger.warning("doc_extractor: не удалось распарсить ответ Claude: %s; начало: %r", e, text[:200])
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    return data
 
 
 def _as_str_list(v) -> list[str]:
@@ -171,6 +182,26 @@ async def extract_medical_data(file_bytes: bytes, mime_type: str) -> dict[str, A
         dict с ключами date, laboratory, values (или пустой dict если не нашёл)
     """
     try:
+        # Гейт читаемости (issue #509) — ДО вызова модели. Если в текстовом слое
+        # по сути нет букв (шрифт без нужных глифов), прочитать названия
+        # показателей нельзя в принципе: модель тут может только выдумать их или
+        # вернуть ответ, который не распарсится. Раньше гейт стоял после разбора
+        # и не срабатывал, когда разбор падал (E2E 23.09.2026). Заодно не платим
+        # за заведомо бесполезный вызов.
+        if mime_type == "text/plain":
+            doc_text = file_bytes.decode("utf-8", errors="replace")
+            if not is_document_text_readable(doc_text):
+                logger.warning("doc_extractor: текст документа нечитаем (нет слов) — модель не вызываем")
+                return {
+                    "date": None,
+                    "laboratory": None,
+                    "values": {},
+                    "allergies": [],
+                    "conditions": [],
+                    "_unverified_labels": [],
+                    "_unreadable_text": True,
+                }
+
         if mime_type == "application/pdf":
             message = _build_pdf_message(file_bytes)
         elif mime_type == "text/plain":
@@ -193,44 +224,19 @@ async def extract_medical_data(file_bytes: bytes, mime_type: str) -> dict[str, A
                 # что вернула модель. Для image/pdf-без-текстового-слоя (vision)
                 # сверять не с чем — там защита только на уровне промпта выше.
                 #
-                # Два НЕЗАВИСИМЫХ гейта (переделано после ревью #509 — реестр
-                # синонимов один не годится, см. doc_marker_labels.py):
+                # Читаемость уже проверена до вызова модели (см. начало функции).
+                # Здесь — только сверка по реестру синонимов, и она ТОЛЬКО
+                # диагностика, ничего не отбрасывает: построчный поиск по реальным
+                # бланкам хрупок («Белок общий» vs «общий белок», латинская C vs
+                # кириллическая С, перенос строки). Независимое ревью #509 — 2 из 8
+                # на обычном бланке, среди выброшенных ALP для phenoage.
                 doc_text = file_bytes.decode("utf-8", errors="replace")
-                if not is_document_text_readable(doc_text):
-                    # (А) документный гейт: в тексте по сути нет слов (только
-                    # цифры/точки/знаки — как при шрифте без нужных глифов).
-                    # Названия нельзя прочитать в принципе, независимо от того,
-                    # известен ли ключ реестру — отбрасываем всё.
-                    dropped = list(data["values"].keys())
-                    logger.warning(
-                        "doc_extractor: текст документа нечитаем (нет слов), отброшены все значения: %s",
-                        dropped,
+                _verified, unconfirmed = split_verified_values(data["values"], doc_text)
+                if unconfirmed:
+                    logger.info(
+                        "doc_extractor: название не найдено в тексте документа (значение сохранено): %s",
+                        unconfirmed,
                     )
-                    data["_unverified_labels"] = dropped
-                    # Флаг ставится ВСЕГДА, независимо от того, вернула ли модель
-                    # значения: если модель сама честно ответила пустым списком,
-                    # dropped пуст, и честное «текст читается плохо» не включалось —
-                    # пользователь получал общее «не нашёл данных» и не понимал,
-                    # что дело в качестве скана (E2E 23.09.2026).
-                    data["_unreadable_text"] = True
-                    data["values"] = {}
-                else:
-                    # (Б) покомпонентная сверка по реестру синонимов — ТОЛЬКО
-                    # диагностика, ничего не отбрасывает. Построчный поиск
-                    # подстроки на реальных бланках хрупок в принципе:
-                    # «Белок общий» vs «общий белок», латинская C vs кириллическая
-                    # С, перенос строки посреди названия. Независимое ревью
-                    # показало 2 из 8 на обычном читаемом бланке, среди
-                    # выброшенных — ALP (нужен phenoage). Ложный отсев — тихая
-                    # потеря настоящего анализа, и случается часто; а исходный
-                    # инцидент #509 был на нечитаемом тексте — его ловит гейт (А).
-                    # Лог нужен, чтобы видеть расхождения на реальных данных.
-                    _verified, unconfirmed = split_verified_values(data["values"], doc_text)
-                    if unconfirmed:
-                        logger.info(
-                            "doc_extractor: название не найдено в тексте документа (значение сохранено): %s",
-                            unconfirmed,
-                        )
         return data
     except Exception as e:
         logger.error("doc_extractor: ошибка извлечения: %s", e)
