@@ -86,6 +86,18 @@ class HCBodyFatRecord(BaseModel):
     time: str
 
 
+class HCExerciseRecord(BaseModel):
+    """ExerciseSessionRecord (#525.3) — приложение шлёт `exerciseType.toString()`,
+    то есть числовой код Int как строку (см. `_HC_EXERCISE_TYPE_NAMES`)."""
+
+    type: str
+    title: Optional[str] = None
+    start_time: str
+    end_time: str
+    distance_meters: Optional[float] = None
+    steps: Optional[int] = None
+
+
 class HealthConnectPayload(BaseModel):
     """
     Формат mcnaveen/health-connect-webhook v1.9.10.
@@ -109,6 +121,7 @@ class HealthConnectPayload(BaseModel):
     oxygen_saturation: Optional[List[HCSpo2Record]] = Field(default_factory=list)
     vo2_max: Optional[List[HCVo2MaxRecord]] = Field(default_factory=list)
     body_fat: Optional[List[HCBodyFatRecord]] = Field(default_factory=list)
+    exercise: Optional[List[HCExerciseRecord]] = Field(default_factory=list)
 
 
 # ── Агрегация по дням в таймзоне пользователя ────────────────────────────────
@@ -427,6 +440,93 @@ def _hc_aggregate_by_day(payload: HealthConnectPayload, user_tz) -> dict:
     return result
 
 
+# ── Тренировки (exercise → workouts, #525.3) ─────────────────────────────────
+
+# Health Connect ExerciseSessionRecord.EXERCISE_TYPE_* (androidx.health.connect.client,
+# сверено по исходнику androidx/androidx, ExerciseSessionRecord.kt) — приложение
+# шлёт `exerciseType.toString()`, т.е. Int-код строкой. Не полный список всех
+# типов библиотеки — только те, что реально встречаются у пользователей проекта;
+# неизвестный код не выбрасывается (см. _hc_exercise_type_name), просто без
+# читаемого имени.
+_HC_EXERCISE_TYPE_NAMES = {
+    "8": "велосипед",
+    "9": "велотренажёр",
+    "16": "танцы",
+    "34": "гимнастика",
+    "36": "высокоинтенсивная интервальная тренировка",
+    "37": "пеший поход",
+    "48": "пилатес",
+    "53": "гребля",
+    "54": "гребной тренажёр",
+    "56": "бег",
+    "57": "бег на дорожке",
+    "60": "катание на коньках",
+    "61": "лыжи",
+    "62": "сноуборд",
+    "64": "футбол",
+    "70": "силовая тренировка",
+    "71": "растяжка",
+    "72": "сёрфинг",
+    "73": "плавание в открытой воде",
+    "74": "плавание в бассейне",
+    "79": "ходьба",
+    "81": "тяжёлая атлетика",
+    "83": "йога",
+}
+
+
+def _hc_exercise_type_name(code: str) -> str:
+    """Человекочитаемое название типа тренировки; неизвестный код не выбрасываем."""
+    name = _HC_EXERCISE_TYPE_NAMES.get(code)
+    if name:
+        return name
+    return f"тренировка (код {code})"
+
+
+def _hc_exercise_to_rows(exercise: list, user_id: int) -> list:
+    """`exercise[]` (ExerciseSessionRecord, сырые dict) → строки таблицы `workouts`.
+
+    Повторяет паттерн `_hae_workouts_to_rows` (apple_health.py): невалидные
+    записи (без распознаваемых start/end) пропускаются, не падаем. Дедуп —
+    через `source`, стабильный для одного и того же payload (важно при
+    пере-синке: повтор не должен плодить дубли до реальной вставки в БД,
+    где дедуп окончательно решает `_insert_new_workouts` по UNIQUE(user_id,
+    start_time)).
+    """
+    rows = []
+    for rec in exercise or []:
+        if not isinstance(rec, dict):
+            continue
+        start_dt = _parse_utc(rec.get("start_time"))
+        end_dt = _parse_utc(rec.get("end_time"))
+        if start_dt is None or end_dt is None or not (start_dt < end_dt):
+            continue
+
+        type_code = str(rec.get("type", "")).strip()
+        workout_type = _hc_exercise_type_name(type_code)
+        duration_min = round((end_dt - start_dt).total_seconds() / 60)
+
+        distance_m = rec.get("distance_meters")
+        distance_km = round(distance_m / 1000, 3) if distance_m is not None else None
+
+        source = f"hc_{type_code}_{start_dt.isoformat()}_{end_dt.isoformat()}"
+
+        rows.append(
+            {
+                "user_id": user_id,
+                "date": start_dt.date().isoformat(),
+                "workout_type": workout_type,
+                "duration_minutes": duration_min,
+                "start_time": start_dt,
+                "end_time": end_dt,
+                "calories_burned": None,  # ExerciseSessionRecord не даёт калории напрямую
+                "distance_km": distance_km,
+                "source": source,
+            }
+        )
+    return rows
+
+
 def _resolve_hc_active_calories(existing_row, hc_active_calories):
     """Значение для записи в activity_log.active_calories из Health Connect (#525.2).
 
@@ -500,6 +600,8 @@ async def receive_android_health(
     from database.crud import create_or_update_activity, get_activity_by_date, get_user_by_health_token
     from sqlalchemy import text as _text
 
+    from webhook.apple_health import _insert_new_workouts
+
     # ── Resolve user ──────────────────────────────────────────────────────────
     _db_auth = SessionLocal()
     try:
@@ -520,8 +622,11 @@ async def receive_android_health(
 
     # ── Агрегируем по дням в таймзоне юзера ──────────────────────────────────
     daily = _hc_aggregate_by_day(payload, user_tz)
-    if not daily:
-        return {"status": "ok", "days": 0, "details": []}
+    # #525.3: exercise не день-бакетирован (сессия может пересекать полночь),
+    # поэтому пустой `daily` (payload только с тренировками, без steps/sleep/…)
+    # не должен резать exercise-путь ранним return'ом.
+    if not daily and not (payload.exercise or []):
+        return {"status": "ok", "days": 0, "details": [], "workouts_inserted": 0}
 
     # #525.5: "сегодня" в таймзоне юзера — граница между завершённым и текущим
     # днём. Критерий строится на календарной дате, а не на форме интервала
@@ -640,6 +745,15 @@ async def receive_android_health(
 
             details.append({"date": d.isoformat(), "saved": saved})
 
+        # ── 4. workouts — тренировки из exercise (#525.3) ─────────────────────
+        # Не день-бакетированы (сессия может пересекать полночь) — обрабатываем
+        # отдельно от daily. Дедуп/защита чужого источника — _insert_new_workouts
+        # (тот же паттерн, что и HAE-тренировки в apple_health.py).
+        workouts_inserted = 0
+        exercise_rows = _hc_exercise_to_rows([rec.model_dump() for rec in (payload.exercise or [])], target_user_id)
+        if exercise_rows:
+            workouts_inserted = _insert_new_workouts(db, target_user_id, exercise_rows)
+
         db.commit()
 
     except Exception as e:
@@ -649,10 +763,11 @@ async def receive_android_health(
     finally:
         db.close()
 
-    logger.info(f"✅ Android Health Connect import: {len(daily)} day(s)")
+    logger.info(f"✅ Android Health Connect import: {len(daily)} day(s), {workouts_inserted} workout(s)")
     return {
         "status": "ok",
         "days": len(daily),
         "details": details,
+        "workouts_inserted": workouts_inserted,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
