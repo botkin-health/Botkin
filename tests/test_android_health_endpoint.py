@@ -232,3 +232,46 @@ def test_completed_day_does_not_force_replace_garmin_steps(client, api_db):
     row = get_activity_by_date(api_db, TEST_UID, past_day)
     assert row.steps == 15000, f"Garmin-строка не должна быть заменена меньшим HC-значением, получили {row.steps}"
     assert row.source == "garmin"
+
+
+def test_partial_past_day_does_not_replace_full_value(client, api_db):
+    """Ревью координатора #525: прошедший день может прийти ЧАСТИЧНО —
+    (1) самый старый день окна синка приложение обрезает границей окна
+    (LOOKBACK_HOURS=48, см. readDailyStepsData и issue #72 приложения);
+    (2) в режимах raw/bucketed приложение шлёт только записи после lastSync.
+    Частичный интервал не должен замещать полное значение дня: потеря шагов."""
+    past_day = date(2026, 7, 1)
+    create_or_update_activity(db=api_db, user_id=TEST_UID, date=past_day, steps=11000, source="health_connect")
+
+    # Хвост дня: [15:00, полночь+1) по МСК — НЕ полные сутки
+    msk = timezone(timedelta(hours=3))
+    tail_start = datetime(past_day.year, past_day.month, past_day.day, 15, 0, tzinfo=msk)
+    day_end = datetime(past_day.year, past_day.month, past_day.day, tzinfo=msk) + timedelta(days=1)
+    r = _post(
+        client,
+        steps=[{"count": 2500, "start_time": tail_start.isoformat(), "end_time": day_end.isoformat()}],
+    )
+    assert r.status_code == 200
+    row = get_activity_by_date(api_db, TEST_UID, past_day)
+    assert row.steps == 11000, f"Частичный хвост прошедшего дня заместил полный день: {row.steps}"
+
+
+def test_mixed_full_steps_partial_distance_stays_monotonic(client, api_db):
+    """У каждого типа данных в приложении своё разрешение: шаги пришли полными
+    сутками, а дистанция — инкрементом. Замещение применяется ко всему вызову,
+    поэтому при любой частичной метрике — монотонно, иначе потеряем дистанцию."""
+    past_day = date(2026, 7, 2)
+    create_or_update_activity(
+        db=api_db, user_id=TEST_UID, date=past_day, steps=20000, distance_km=8.0, source="health_connect"
+    )
+    start_iso, end_iso = _completed_day_window(past_day)
+    msk = timezone(timedelta(hours=3))
+    tail_start = datetime(past_day.year, past_day.month, past_day.day, 18, 0, tzinfo=msk)
+    r = _post(
+        client,
+        steps=[{"count": 11000, "start_time": start_iso, "end_time": end_iso}],
+        distance=[{"meters": 900.0, "start_time": tail_start.isoformat(), "end_time": end_iso}],
+    )
+    assert r.status_code == 200
+    row = get_activity_by_date(api_db, TEST_UID, past_day)
+    assert float(row.distance_km) == 8.0, f"Частичная дистанция заместила полную: {row.distance_km}"

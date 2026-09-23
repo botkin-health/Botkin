@@ -194,6 +194,27 @@ def _to_local_date(ts: str, user_tz) -> Optional[date]:
     return dt.astimezone(user_tz).date()
 
 
+def _is_full_local_day(start_ts: str, end_ts: str, user_tz) -> bool:
+    """True, если интервал — ровно полные местные сутки [полночь N, полночь N+1).
+
+    Так приложение шлёт ЗАКОНЧЕННЫЙ день в суточном режиме (readDailyStepsData).
+    Частичными бывают: самый старый день окна синка (приложение обрезает его
+    границей окна LOOKBACK_HOURS, см. issue #72 приложения) и любые записи в
+    режимах raw/bucketed (там приходят только записи после прошлого синка).
+    Только полные сутки можно использовать для замещения сохранённого дня.
+    """
+    start, end = _parse_utc(start_ts), _parse_utc(end_ts)
+    if start is None or end is None:
+        return False
+    s_loc, e_loc = start.astimezone(user_tz), end.astimezone(user_tz)
+    midnight = (0, 0, 0)
+    return (
+        (s_loc.hour, s_loc.minute, s_loc.second) == midnight
+        and (e_loc.hour, e_loc.minute, e_loc.second) == midnight
+        and e_loc.date() == s_loc.date() + timedelta(days=1)
+    )
+
+
 def _hc_aggregate_by_day(payload: HealthConnectPayload, user_tz) -> dict:
     """
     Сгруппировать сырые записи Health Connect по локальным датам юзера.
@@ -217,11 +238,18 @@ def _hc_aggregate_by_day(payload: HealthConnectPayload, user_tz) -> dict:
     # days: dict[date, dict с накопителями]
     days: dict = {}
 
+    def _mark_interval(slot: dict, start_ts: str, end_ts: str) -> None:
+        key = "full_interval" if _is_full_local_day(start_ts, end_ts, user_tz) else "partial_interval"
+        slot[key] = True
+
     def _slot(d: date) -> dict:
         return days.setdefault(
             d,
             {
                 "steps": 0,
+                # полные сутки vs частичные интервалы — для решения «замещать ли»
+                "full_interval": False,
+                "partial_interval": False,
                 "distance_m": 0.0,
                 "hr_sum": 0.0,
                 "hr_count": 0,
@@ -249,12 +277,14 @@ def _hc_aggregate_by_day(payload: HealthConnectPayload, user_tz) -> dict:
         d = _to_local_date(rec.start_time, user_tz) or _to_local_date(rec.end_time, user_tz)
         if d:
             _slot(d)["steps"] += rec.count
+            _mark_interval(_slot(d), rec.start_time, rec.end_time)
 
     # ── distance: суммируем метры ─────────────────────────────────────────────
     for rec in payload.distance or []:
         d = _to_local_date(rec.start_time, user_tz) or _to_local_date(rec.end_time, user_tz)
         if d:
             _slot(d)["distance_m"] += rec.meters
+            _mark_interval(_slot(d), rec.start_time, rec.end_time)
 
     # ── heart_rate: avg/min/max ───────────────────────────────────────────────
     for rec in payload.heart_rate or []:
@@ -344,6 +374,7 @@ def _hc_aggregate_by_day(payload: HealthConnectPayload, user_tz) -> dict:
             s = _slot(d)
             prev = s["raw_data"].get("hc_active_calories", 0.0)
             s["raw_data"]["hc_active_calories"] = prev + rec.calories
+            _mark_interval(s, rec.start_time, rec.end_time)
 
     # ── total_calories → raw_data ONLY ───────────────────────────────────────
     for rec in payload.total_calories or []:
@@ -352,6 +383,7 @@ def _hc_aggregate_by_day(payload: HealthConnectPayload, user_tz) -> dict:
             s = _slot(d)
             prev = s["raw_data"].get("hc_total_calories", 0.0)
             s["raw_data"]["hc_total_calories"] = prev + rec.calories
+            _mark_interval(s, rec.start_time, rec.end_time)
 
     # ── SpO2 → raw_data ───────────────────────────────────────────────────────
     for rec in payload.oxygen_saturation or []:
@@ -375,6 +407,10 @@ def _hc_aggregate_by_day(payload: HealthConnectPayload, user_tz) -> dict:
     result = {}
     for d, s in days.items():
         agg: dict = {}
+        # Замещать сохранённый день можно, только если ВСЕ интервальные метрики
+        # этого дня пришли полными сутками. У каждого типа данных в приложении
+        # своё разрешение: шаги могут прийти сутками, а дистанция — инкрементом.
+        agg["replaceable_full_day"] = bool(s["full_interval"] and not s["partial_interval"])
 
         # steps
         if s["steps"] > 0:
@@ -670,7 +706,9 @@ async def receive_android_health(
             # завышено и monotonic-max его бы не поправил). Сегодняшний
             # (незаконченный) день и строки, принадлежащие другому источнику
             # (Garmin и т.п.), остаются на безопасном monotonic-режиме.
-            use_replace = record_date < today_local and _hc_owns_row(existing_row)
+            use_replace = (
+                record_date < today_local and _hc_owns_row(existing_row) and agg.get("replaceable_full_day", False)
+            )
 
             create_or_update_activity(
                 db=db,
