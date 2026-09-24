@@ -485,7 +485,10 @@ async def finish_step_or_advance(
         queue_total = data.get("queue_total") or (len(queue) + 1)
 
         loaded, skipped_labels, rest = (None, [], queue)
-        if not is_auto and queue:
+        # Очередь продолжаем и для авто-детекта: альбом без /doc (первое фото
+        # опознано как анализ, остальные встали в хвост через doc_received)
+        # раньше терял весь хвост на state.clear() — прецедент 24.09.2026.
+        if queue:
             loaded, skipped_labels, rest = pop_next_loadable(queue)
             await state.update_data(queue=rest)
 
@@ -510,7 +513,8 @@ async def finish_step_or_advance(
             ext=ext,
             is_pdf=is_pdf,
             intro=f"{format_progress_prefix(pos, queue_total)} — читаю…",
-            auto=False,
+            # auto наследуется, чтобы после последнего элемента FSM закрылся (#441 п.1)
+            auto=is_auto,
             user_id=user_id,
             progress=(pos, queue_total),
         )

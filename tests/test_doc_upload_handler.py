@@ -1720,3 +1720,58 @@ def test_preview_says_unreadable_when_model_returned_nothing():
 
     text = _preview_text({"values": {}, "_unverified_labels": [], "_unreadable_text": True}, {})
     assert "читается плохо" in text
+
+
+@pytest.mark.asyncio
+async def test_doc_confirm_save_auto_detected_with_queue_advances_not_drops(tmp_path, test_db, monkeypatch):
+    """Прецедент 24.09.2026: альбом из 16 фото анализов без /doc. Первое фото
+    ушло в пайплайн авто-детектом (auto=True), остальные встали в очередь через
+    doc_received. После «Сохранить» очередь раньше выбрасывалась (state.clear()
+    для auto), и 10 файлов навсегда оставались `.queued_*` на диске. Теперь
+    очередь продолжается, а auto-признак переходит на следующий элемент — чтобы
+    после последнего документа FSM всё равно закрылся (#441 п.1)."""
+    import handlers.doc_upload as mod
+
+    monkeypatch.setattr(mod, "_PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(mod, "_UPLOADS_DIR", tmp_path / "data" / "uploads")
+    monkeypatch.setattr(mod, "SessionLocal", lambda: test_db)
+
+    uploads = tmp_path / "data" / "uploads" / "901"
+    uploads.mkdir(parents=True)
+    pending_path = uploads / ".pending_2026-09-24_aaaa1111.jpg"
+    pending_path.write_bytes(b"\xff\xd8-first")
+    queued_path = uploads / ".queued_2026-09-24_bbbb2222.jpg"
+    queued_path.write_bytes(b"\xff\xd8-second")
+
+    callback = MagicMock()
+    callback.data = "docup_save"
+    callback.from_user.id = 901
+    callback.message.edit_text = AsyncMock()
+    callback.message.answer = AsyncMock(return_value=AsyncMock(edit_text=AsyncMock()))
+    callback.answer = AsyncMock()
+
+    fsm_data = {
+        "pending": {
+            "tmp_path": str(pending_path),
+            "stored_name": "2026-09-24_aaaa1111.jpg",
+            "extracted": {"values": {"Hb": 119}},
+            "auto": True,
+        },
+        "queue": [
+            {"tmp_path": str(queued_path), "ext": ".jpg", "is_pdf": False, "label": "b.jpg"},
+        ],
+        "queue_total": 2,
+    }
+    state = AsyncMock()
+    state.clear = AsyncMock()
+    state.get_data = AsyncMock(return_value=fsm_data)
+    state.update_data = AsyncMock()
+
+    with patch("core.health.doc_extractor.extract_medical_data", AsyncMock(return_value={"values": {"ALT": 24}})):
+        await mod.doc_confirm(callback, state)
+
+    state.clear.assert_not_called()
+    assert not queued_path.exists()
+    callback.message.answer.assert_called_once()
+    pending_updates = [c.kwargs["pending"] for c in state.update_data.call_args_list if "pending" in c.kwargs]
+    assert pending_updates and pending_updates[-1].get("auto") is True
