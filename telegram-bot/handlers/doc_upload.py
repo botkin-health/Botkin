@@ -71,10 +71,12 @@ def _stored_name(content: bytes, ext: str) -> str:
 
 
 def _has_content(extracted: dict) -> bool:
-    """Есть ли что сохранять: числа ИЛИ аллергии ИЛИ диагнозы."""
+    """Есть ли что сохранять: числа, аллергии, диагнозы или текстовое резюме (#558)."""
     if not extracted:
         return False
-    return bool(extracted.get("values") or extracted.get("allergies") or extracted.get("conditions"))
+    return bool(
+        extracted.get("values") or extracted.get("allergies") or extracted.get("conditions") or extracted.get("summary")
+    )
 
 
 _STALE_PENDING_SECONDS = 24 * 3600
@@ -322,6 +324,10 @@ def _preview_text(extracted: dict[str, Any], existing: Optional[dict] = None) ->
     doc_type = extracted.get("doc_type")
     if doc_type:
         lines.append(f"• <b>Тип:</b> {_esc(doc_type)}")
+
+    summary = extracted.get("summary")
+    if summary:
+        lines.append(f"• <b>Кратко:</b> {_esc(str(summary)[:600])}")
 
     values = extracted.get("values") or {}
     for key, val in list(values.items())[:15]:

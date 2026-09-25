@@ -445,3 +445,50 @@ async def test_response_with_leading_thinking_block_is_parsed():
         out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
     assert out["date"] == "2026-08-11"
     assert out["conditions"] == ["Акне (L70.0)"]
+
+
+# ── #558 фаза 2: тип документа, название и резюме ───────────────────────────
+
+
+def test_prompt_describes_doc_kind_summary_and_doc_type():
+    prompt = doc_extractor._SYSTEM_PROMPT
+    for token in ("doc_kind", "smear_pcr", "lab_panel", "summary", "doc_type"):
+        assert token in prompt
+
+
+@pytest.mark.asyncio
+async def test_smear_values_are_dropped_and_summary_kept():
+    payload = {
+        "date": "2026-09-08",
+        "doc_kind": "smear_pcr",
+        "doc_type": "Мазок и флороценоз",
+        "summary": "Лейкоциты 1–2 в п/зр; Gardnerella не обнаружена.",
+        "values": {"leukocytes": 50000, "WBC": 1.2},
+    }
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert out["values"] == {}
+    assert out["_dropped_values"] == {"leukocytes": 50000, "WBC": 1.2}
+    assert out["summary"].startswith("Лейкоциты")
+    assert out["doc_type"] == "Мазок и флороценоз"
+
+
+@pytest.mark.asyncio
+async def test_lab_panel_values_kept_and_unknown_kind_becomes_other():
+    lab = {"date": "2026-09-13", "doc_kind": "LAB_PANEL", "values": {"Hb": 119}}
+    odd = {"date": "2026-09-13", "doc_kind": "questionnaire", "values": {}}
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(lab))):
+        out_lab = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(odd))):
+        out_odd = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert out_lab["doc_kind"] == "lab_panel" and out_lab["values"] == {"Hb": 119}
+    assert out_odd["doc_kind"] == "other"
+
+
+@pytest.mark.asyncio
+async def test_missing_doc_kind_left_absent_for_legacy_readers():
+    payload = {"date": "2026-09-13", "values": {"Hb": 119}}
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert "doc_kind" not in out
+    assert out["values"] == {"Hb": 119}

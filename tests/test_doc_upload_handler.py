@@ -1775,3 +1775,20 @@ async def test_doc_confirm_save_auto_detected_with_queue_advances_not_drops(tmp_
     callback.message.answer.assert_called_once()
     pending_updates = [c.kwargs["pending"] for c in state.update_data.call_args_list if "pending" in c.kwargs]
     assert pending_updates and pending_updates[-1].get("auto") is True
+
+
+def test_preview_shows_summary_escaped_and_counts_as_content():
+    """#558: у мазка нет чисел, но есть резюме — это не «ничего не нашёл»."""
+    import handlers.doc_upload as mod
+
+    extracted = {
+        "date": "2026-09-08",
+        "doc_type": "ПЦР на ВПЧ",
+        "summary": "ДНК ВПЧ ВКР — не обнаружено; порог <3 lg",
+        "values": {},
+    }
+    assert mod._has_content(extracted) is True
+    text = mod._preview_text(extracted)
+    assert "ПЦР на ВПЧ" in text
+    assert "не обнаружено; порог &lt;3 lg" in text
+    assert "Не нашёл данных" not in text
