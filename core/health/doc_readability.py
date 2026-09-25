@@ -49,6 +49,8 @@ _MIN_WORD_TOKENS = 1
 _TABLE_MIN_ALPHA_RATIO = 0.1
 _TABLE_MIN_DISTINCT_WORDS = 8
 _LONG_WORD_RE = re.compile(r"[^\W\d_]{3,}", re.UNICODE)
+_CYRILLIC_RE = re.compile(r"[а-яё]")
+_TABLE_MIN_CYRILLIC_WORDS = 5
 
 
 def _alpha_ratio(text: str) -> float:
@@ -75,5 +77,9 @@ def is_document_text_readable(text: str) -> bool:
         if ratio < _TABLE_MIN_ALPHA_RATIO:
             return False
         words = {w.casefold() for w in _LONG_WORD_RE.findall(text)}
-        return len(words) >= _TABLE_MIN_DISTINCT_WORDS
+        # Слова кириллицей обязательны: битый шрифт #509 теряет именно кириллицу, а
+        # латинские сокращения (HGB, RBC, WBC) уцелевают — по ним одним табличная
+        # ветка пропустила бы бланк, где русские названия нечитаемы (ревью #564).
+        cyrillic = {w for w in words if _CYRILLIC_RE.search(w)}
+        return len(words) >= _TABLE_MIN_DISTINCT_WORDS and len(cyrillic) >= _TABLE_MIN_CYRILLIC_WORDS
     return len(_WORD_RE.findall(text)) >= _MIN_WORD_TOKENS

@@ -166,10 +166,6 @@ def build_blood_test_row(extracted: dict, *, stored_name: str, user_id: int) -> 
     return DocBloodTestResult(row, "ok", tuple(warnings), len(canon))
 
 
-def _unit_norm(unit: Any) -> str:
-    return "".join(str(unit).split()).casefold()
-
-
 @dataclass(frozen=True)
 class DocBloodTestRows:
     """Строки документа для blood_tests: одна у обычного бланка, по одной на дату у
@@ -199,19 +195,16 @@ def build_blood_test_rows(extracted: dict, *, stored_name: str, user_id: int) ->
     warnings: list[str] = []
     reasons: list[str] = []
     markers = 0
-    shared_units = extracted.get("units") if isinstance(extracted.get("units"), dict) else {}
     for entry in series:
         values = dict(entry.get("values") or {}) if isinstance(entry.get("values"), dict) else {}
-        own_units = entry.get("units") if isinstance(entry.get("units"), dict) else {}
-        for key, unit in own_units.items():
-            shared = shared_units.get(key)
-            if key in values and shared and _unit_norm(unit) != _unit_norm(shared):
-                # Строка таблицы в своей единице, которую пересчитать нечем (пролактин
-                # мкОд/мл среди нг/мл): blood_tests единиц не хранит, и число легло бы
-                # в динамику рядом с другими как будто в одной шкале (#559). В
-                # документе оно остаётся.
-                values.pop(key)
-                warnings.append(f"{entry.get('date')}: {key}: единица {unit} ≠ {shared} — не в динамику")
+        for key in entry.get("_not_in_dynamics") or []:
+            # Значение строки в своей единице, которую пересчитать нечем (пролактин
+            # мкОд/мл среди нг/мл): blood_tests единиц не хранит, и число легло бы в
+            # динамику рядом с другими как будто в одной шкале (#559). В документе
+            # остаётся. Решение — в doc_extractor._convert_units, там видна исходная
+            # единица.
+            if values.pop(key, None) is not None:
+                warnings.append(f"{entry.get('date')}: {key}: своя единица строки — не в динамику")
         result = build_blood_test_row(
             {
                 "doc_kind": extracted.get("doc_kind"),

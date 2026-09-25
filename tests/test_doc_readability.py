@@ -98,3 +98,12 @@ def test_multi_date_table_page_is_readable():
 def test_digits_with_few_short_words_still_rejected():
     garbage = "ab cd ef " + " ".join(f"{i}.{i} 12.5 7.8" for i in range(100))
     assert not is_document_text_readable(garbage)
+
+
+def test_broken_cyrillic_with_surviving_latin_abbreviations_rejected():
+    """Кириллица битым шрифтом, латинские сокращения уцелели — не читаемо (ревью #564)."""
+    garbage = "\x04\x05\x06 " * 40 + " ".join(
+        f"{abbr} {i}.{i}"
+        for i, abbr in enumerate(["HGB", "RBC", "WBC", "PLT", "HCT", "MCV", "MCH", "MCHC", "RDW", "ESR"])
+    )
+    assert not is_document_text_readable(garbage)

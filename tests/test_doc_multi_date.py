@@ -565,23 +565,105 @@ def test_row_unit_survives_collapse_and_merge():
     assert "units" not in merged["series"][0]
 
 
-def test_row_in_other_unconvertible_unit_kept_out_of_dynamics():
+async def _rows(payload):
+    out = await _extract(payload)
+    res = build_blood_test_rows(out, stored_name=STORED, user_id=1)
+    return {r["test_date"]: r["values"] for r in res.rows}, res
+
+
+@pytest.mark.asyncio
+async def test_row_in_other_unconvertible_unit_kept_out_of_dynamics():
     """Пролактин 2022 в мкОд/мл среди нг/мл: пересчитать нечем — в динамику не пишем."""
-    doc = {
-        "doc_kind": "lab_panel",
-        "laboratory": "досье",
-        "units": {"prolactin": "нг/мл", "testosterone": "нмоль/л"},
-        "series": [
-            {"date": "2020-06-19", "values": {"prolactin": 7.34, "testosterone": 18.4}},
-            {
-                "date": "2022-05-11",
-                "values": {"prolactin": 91.94, "testosterone": 12.54},
-                "units": {"prolactin": "мкОд/мл", "testosterone": "нмоль/л"},
-            },
-        ],
-    }
-    res = build_blood_test_rows(doc, stored_name=STORED, user_id=1)
-    by_date = {r["test_date"]: r["values"] for r in res.rows}
-    assert by_date["2022-05-11"] == {"testosterone": 12.54}
-    assert by_date["2020-06-19"] == {"prolactin": 7.34, "testosterone": 18.4}
-    assert any("prolactin: единица мкОд/мл ≠ нг/мл" in w for w in res.warnings)
+    rows, res = await _rows(
+        {
+            "doc_kind": "lab_panel",
+            "values": {},
+            "units": {"prolactin": "нг/мл", "testosterone": "нмоль/л"},
+            "series": [
+                {"date": "2020-06-19", "values": {"prolactin": 7.34, "testosterone": 18.4}},
+                {
+                    "date": "2022-05-11",
+                    "values": {"prolactin": 91.94, "testosterone": 3.617},
+                    "units": {"prolactin": "мкОд/мл", "testosterone": "нг/мл"},
+                },
+            ],
+        }
+    )
+    assert rows["2022-05-11"] == {"testosterone": pytest.approx(12.54, abs=0.01)}
+    assert rows["2020-06-19"] == {"prolactin": 7.34, "testosterone": 18.4}
+    assert any("prolactin: своя единица строки" in w for w in res.warnings)
+
+
+@pytest.mark.asyncio
+async def test_row_unit_duplicating_shared_convertible_unit_kept():
+    """Модель продублировала общую «мг/дл» в строках — пересчитано, в динамике все даты."""
+    rows, _ = await _rows(
+        {
+            "doc_kind": "lab_panel",
+            "values": {},
+            "units": {"hs_CRP": "мг/дл"},
+            "series": [
+                {"date": "2024-01-01", "values": {"hs_CRP": 0.3}, "units": {"hs_CRP": "мг/дл"}},
+                {"date": "2025-01-01", "values": {"hs_CRP": 0.4}, "units": {"hs_CRP": "мг/дл"}},
+            ],
+        }
+    )
+    assert rows == {"2024-01-01": {"hs_CRP": 3.0}, "2025-01-01": {"hs_CRP": 4.0}}
+
+
+@pytest.mark.asyncio
+async def test_row_unit_latin_spelling_of_shared_unit_kept():
+    rows, _ = await _rows(
+        {
+            "doc_kind": "lab_panel",
+            "values": {},
+            "units": {"Hb": "г/л"},
+            "series": [
+                {"date": "2024-01-01", "values": {"Hb": 150}, "units": {"Hb": "g/L"}},
+                {"date": "2025-01-01", "values": {"Hb": 148}},
+            ],
+        }
+    )
+    assert rows == {"2024-01-01": {"Hb": 150}, "2025-01-01": {"Hb": 148}}
+
+
+@pytest.mark.asyncio
+async def test_row_units_without_shared_minority_dropped():
+    """Общей единицы нет, у строк свои: значение в редкой единице — не в динамику."""
+    rows, _ = await _rows(
+        {
+            "doc_kind": "lab_panel",
+            "values": {},
+            "units": {},
+            "series": [
+                {"date": "2022-05-11", "values": {"prolactin": 91.9}, "units": {"prolactin": "мкМЕ/мл"}},
+                {"date": "2023-01-01", "values": {"prolactin": 7.3}, "units": {"prolactin": "нг/мл"}},
+                {"date": "2024-01-01", "values": {"prolactin": 6.9}, "units": {"prolactin": "нг/мл"}},
+            ],
+        }
+    )
+    assert "2022-05-11" not in rows
+    assert rows["2023-01-01"] == {"prolactin": 7.3}
+
+
+def test_merge_unit_taken_from_part_with_values():
+    parts = [
+        {"date": "2026-01-01", "doc_kind": "lab_panel", "values": {"ALT": 1}, "units": {"vitamin_D": "нмоль/л"}},
+        {"date": "2025-01-01", "doc_kind": "lab_panel", "values": {"vitamin_D": 31.1}, "units": {"vitamin_D": "нг/мл"}},
+    ]
+    assert doc_extractor.merge_extractions(parts)["units"]["vitamin_D"] == "нг/мл"
+
+
+@pytest.mark.asyncio
+async def test_context_tail_starts_at_line_boundary():
+    """Конец предыдущей части режется по строке: обрубок «.03.2023» — другая дата."""
+    call = AsyncMock(return_value=_fake_response({"date": "2026-07-14", "doc_kind": "lab_panel", "values": {"ALT": 1}}))
+    # Граница 1500 символов с конца попадает внутрь «11.03.2023».
+    second = "Печеночные пробы " + "б" * 3000 + "\n11.03.2023 5.4\n" + "б" * 1488
+    pages = [_lab_page("а"), second, _lab_page("в")]
+    with patch.object(doc_extractor, "_call_anthropic", new=call):
+        await doc_extractor.extract_medical_data_from_pages(pages)
+    context = call.await_args_list[2].args[0][0]["content"][0]["text"]
+    tail = context.split("…\n", 1)[1]
+    assert tail.startswith("б")
+    assert "03.2023" not in tail

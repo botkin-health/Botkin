@@ -420,6 +420,40 @@ _UNIT_CONVERSIONS.update(
 )
 
 
+# Латинское и русское написание одной единицы («g/L» = «г/л») — для сравнения единиц
+# строк сводной таблицы (#559). Не для пересчёта.
+_UNIT_TOKENS = {
+    "g": "г",
+    "mg": "мг",
+    "µg": "мкг",
+    "ug": "мкг",
+    "mcg": "мкг",
+    "ng": "нг",
+    "pg": "пг",
+    "l": "л",
+    "dl": "дл",
+    "ml": "мл",
+    "mol": "моль",
+    "mmol": "ммоль",
+    "µmol": "мкмоль",
+    "umol": "мкмоль",
+    "nmol": "нмоль",
+    "pmol": "пмоль",
+    "iu": "ме",
+    "miu": "мме",
+    "µiu": "мкме",
+    "uiu": "мкме",
+    "u": "ед",
+    "мкед": "мкме",
+    "мкод": "мкме",
+}
+
+
+def _unit_key(unit: Any) -> str:
+    parts = re.split(r"([/*·×^])", "".join(str(unit).split()).casefold())
+    return "".join(_UNIT_TOKENS.get(part, part) for part in parts)
+
+
 def _convert_units(data: dict) -> None:
     """Пересчитывает значения, напечатанные не в канонической единице (СРБ в мг/дл).
 
@@ -451,15 +485,38 @@ def _convert_units(data: dict) -> None:
         return changed
 
     top_converted.update(_apply(data.get("values"), original, ""))
-    for entry in data.get("series") or []:
-        if not isinstance(entry, dict):
-            continue
+    series = [e for e in data.get("series") or [] if isinstance(e, dict)]
+    # Единица, в которой таблица приведена по ключу: общая, а если её нет — самая
+    # частая среди своих единиц строк (исходных, до пересчёта).
+    reference: dict[str, str] = {k: _unit_key(u) for k, u in original.items() if u}
+    counts: dict[str, dict[str, int]] = {}
+    for entry in series:
+        for key, unit in (entry.get("units") or {}).items() if isinstance(entry.get("units"), dict) else ():
+            by_unit = counts.setdefault(key, {})
+            by_unit[_unit_key(unit)] = by_unit.get(_unit_key(unit), 0) + 1
+    for key, by_unit in counts.items():
+        reference.setdefault(key, max(by_unit, key=by_unit.get))
+    for entry in series:
         own = entry.get("units") if isinstance(entry.get("units"), dict) else {}
-        for key, canon_unit in _apply(entry.get("values"), {**original, **own}, f"{entry.get('date')} ").items():
+        own_before = dict(own)
+        converted = _apply(entry.get("values"), {**original, **own}, f"{entry.get('date')} ")
+        for key, canon_unit in converted.items():
             if key in own:
                 own[key] = canon_unit
             else:
                 top_converted[key] = canon_unit
+        # Своя единица строки, отличная от единицы таблицы, и пересчитать её нечем —
+        # значение остаётся в документе, но не в динамике (#559, ревью #564).
+        foreign = [
+            key
+            for key, unit in own_before.items()
+            if key in (entry.get("values") or {})
+            and key not in converted
+            and reference.get(key)
+            and _unit_key(unit) != reference[key]
+        ]
+        if foreign:
+            entry["_not_in_dynamics"] = foreign
     if top_converted and isinstance(data.get("units"), dict):
         data["units"].update(top_converted)
     if done:
@@ -642,6 +699,7 @@ def merge_extractions(parts: list[dict[str, Any]]) -> dict[str, Any]:
     series: list[dict[str, Any]] = []
     undated: dict[str, Any] = {}
     units: dict[str, Any] = {}
+    fallback_units: dict[str, Any] = {}
     for part in parts:
         for entry in part.get("series") or []:
             if isinstance(entry, dict):
@@ -653,8 +711,14 @@ def merge_extractions(parts: list[dict[str, Any]]) -> dict[str, Any]:
             for key, value in values.items():
                 undated.setdefault(key, value)
         if isinstance(part.get("units"), dict):
+            # Единица ключа — из части, где этот ключ есть: у части без значений
+            # единица не пересчитана и осталась бы бланковой (ревью #564).
+            present = set(values) | {k for e in part.get("series") or [] for k in (e.get("values") or {})}
             for key, unit in part["units"].items():
-                units.setdefault(key, unit)
+                if key in present:
+                    units.setdefault(key, unit)
+                else:
+                    fallback_units.setdefault(key, unit)
 
     rejected = [r for p in parts for r in p.get("_series_rejected") or []]
     rejected += [f"{p.get('_date_rejected')}: дата части" for p in parts if p.get("_date_rejected")]
@@ -665,7 +729,7 @@ def merge_extractions(parts: list[dict[str, Any]]) -> dict[str, Any]:
         "doc_type": next((p["doc_type"] for p in parts if p.get("doc_type")), None),
         "summary": "\n".join(_unique([p["summary"] for p in parts if p.get("summary")])) or None,
         "values": undated,
-        "units": units,
+        "units": {**fallback_units, **units},
         "series": series,
         "allergies": _unique([a for p in parts for a in p.get("allergies") or []]),
         "conditions": _unique([c for p in parts for c in p.get("conditions") or []]),
@@ -698,6 +762,9 @@ async def extract_medical_data_from_pages(pages: list[str], user_id: Optional[in
         if i == 0:
             return None
         tail = chunks[i - 1][-_CONTEXT_CHARS:]
+        if "\n" in tail:
+            # По границе строки: обрубок «1.03.2023» вместо «11.03.2023» — другая дата.
+            tail = tail.split("\n", 1)[1]
         return tail if i == 1 and len(chunks[0]) <= _CONTEXT_CHARS else f"{head}\n…\n{tail}"
 
     logger.info("doc_extractor: длинный документ (%d символов) — разбор по %d частям", len(text), len(chunks))
