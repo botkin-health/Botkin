@@ -498,23 +498,30 @@ async def test_missing_doc_kind_left_absent_for_legacy_readers():
 
 
 def test_prompt_forbids_z_codes_in_conditions():
-    assert "Z00–Z99" in doc_extractor._SYSTEM_PROMPT
+    assert "Z00–Z13" in doc_extractor._SYSTEM_PROMPT
 
 
 @pytest.mark.asyncio
 async def test_z_codes_filtered_real_diagnoses_kept():
+    """Отсеиваются только Z00–Z13 (осмотры, обследования, скрининг); статусы Z14+ —
+    стент, трансплантат, диализ, беременность — важны для агента (ревью #560)."""
     payload = {
         "values": {},
         "conditions": [
             "Гинекологическое обследование (общее) (рутинное) (Z01.4)",
             "Угри обыкновенные (L70.0)",
-            "Изменения окраски волос (L67.1)",
-            "Наблюдение Z34",
+            "Наличие коронарного стента (Z95.5)",
+            "Наблюдение за нормальной беременностью Z34",
+            "Скрининг на злокачественные новообразования (Z12.4)",
         ],
     }
     with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
         out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
-    assert out["conditions"] == ["Угри обыкновенные (L70.0)", "Изменения окраски волос (L67.1)"]
+    assert out["conditions"] == [
+        "Угри обыкновенные (L70.0)",
+        "Наличие коронарного стента (Z95.5)",
+        "Наблюдение за нормальной беременностью Z34",
+    ]
     assert len(out["_dropped_conditions"]) == 2
 
 
@@ -743,3 +750,9 @@ def test_date_of_tomorrow_utc_is_allowed_for_user_timezones():
     doc_extractor._sanitize_date(far, today=today)
     assert ok["date"] == "2026-09-26"
     assert far["date"] is None and far["_date_rejected"] == "future"
+
+
+def test_request_timeout_leaves_room_for_sonnet_with_long_output():
+    import inspect
+
+    assert "timeout=180" in inspect.getsource(doc_extractor._call_anthropic)

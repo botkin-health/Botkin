@@ -43,7 +43,8 @@ PRICING = {
     "claude-haiku-4-5": (1.00, 5.00),
 }
 
-_Z_CODE_RE = re.compile(r"\bZ\d{2}(?:\.\d+)?\b")
+# Как в doc_extractor: утечкой считаются только Z00–Z13 (осмотры/скрининг).
+_Z_CODE_RE = re.compile(r"\bZ(?:0\d|1[0-3])(?:\.\d+)?\b")
 
 
 def _close(a: Any, b: float, rel: float = 0.02) -> bool:
