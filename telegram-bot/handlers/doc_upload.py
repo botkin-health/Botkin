@@ -693,17 +693,17 @@ async def run_doc_pipeline(
         if is_pdf:
             pdf_text = await loop.run_in_executor(None, lambda: _extract_pdf_text(tmp_path))
             if pdf_text:
-                extracted = await extract_medical_data(pdf_text.encode(), "text/plain")
+                extracted = await extract_medical_data(pdf_text.encode(), "text/plain", user_id=user_id)
             else:
                 # Сканированный PDF — берём первую страницу как изображение
                 pages = await loop.run_in_executor(None, lambda: _pdf_to_images(tmp_path, max_pages=1))
                 if pages:
-                    extracted = await extract_medical_data(pages[0].read_bytes(), "image/jpeg")
+                    extracted = await extract_medical_data(pages[0].read_bytes(), "image/jpeg", user_id=user_id)
                 else:
                     extracted = {}
         else:
             media_type = "image/png" if ext == ".png" else "image/jpeg"
-            extracted = await extract_medical_data(content, media_type)
+            extracted = await extract_medical_data(content, media_type, user_id=user_id)
     except Exception:
         logger.exception("doc_upload: экстракция не удалась (user %s)", user_id)
         extracted = {}

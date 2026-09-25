@@ -581,3 +581,41 @@ async def test_truncated_response_is_logged_loudly(caplog):
         out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
     assert out == {}
     assert "обрезан по max_tokens" in caplog.text
+
+
+# ── #558 фаза 6: модель в config/models.py и учёт расходов ─────────────────
+
+
+def test_default_doc_model_is_sonnet_5_from_config():
+    from config.models import DOC_EXTRACT_MODEL
+
+    assert DOC_EXTRACT_MODEL == "claude-sonnet-5"
+    assert doc_extractor._MODEL == DOC_EXTRACT_MODEL
+
+
+@pytest.mark.asyncio
+async def test_usage_is_logged_with_user_id():
+    response = {
+        "model": "claude-sonnet-5",
+        "usage": {"input_tokens": 10, "output_tokens": 5},
+        "content": [{"type": "text", "text": json.dumps({"date": None, "values": {}})}],
+    }
+    with (
+        patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=response)),
+        patch("core.llm_usage.log_anthropic_response") as log_mock,
+    ):
+        await doc_extractor.extract_medical_data(b"x", "image/jpeg", user_id=42)
+    log_mock.assert_called_once()
+    assert log_mock.call_args.kwargs["purpose"] == "doc_extract"
+    assert log_mock.call_args.kwargs["user_id"] == 42
+
+
+@pytest.mark.asyncio
+async def test_usage_logging_failure_does_not_break_extraction():
+    response = {"content": [{"type": "text", "text": json.dumps({"date": "2026-09-13", "values": {"Hb": 119}})}]}
+    with (
+        patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=response)),
+        patch("core.llm_usage.log_anthropic_response", side_effect=RuntimeError("db down")),
+    ):
+        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert out["values"] == {"Hb": 119}

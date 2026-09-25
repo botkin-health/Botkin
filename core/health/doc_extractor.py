@@ -12,6 +12,7 @@ from typing import Any, Optional
 
 import httpx
 
+from config.models import DOC_EXTRACT_MODEL
 from config.settings import get_settings
 from core.health.doc_marker_labels import split_verified_values
 from core.health.doc_readability import is_document_text_readable
@@ -19,7 +20,7 @@ from core.health.kb_schema import CANONICAL
 
 logger = logging.getLogger(__name__)
 
-_MODEL = "claude-haiku-4-5-20251001"
+_MODEL = DOC_EXTRACT_MODEL
 _ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
 _ANTHROPIC_VERSION = "2023-06-01"
 
@@ -303,12 +304,13 @@ def _as_str_list(v) -> list[str]:
     return [str(x).strip() for x in v if str(x).strip()]
 
 
-async def extract_medical_data(file_bytes: bytes, mime_type: str) -> dict[str, Any]:
+async def extract_medical_data(file_bytes: bytes, mime_type: str, user_id: Optional[int] = None) -> dict[str, Any]:
     """Извлекает медицинские данные из документа через Claude.
 
     Args:
         file_bytes: байты файла (PDF или изображение)
         mime_type: MIME-тип файла
+        user_id: владелец документа — для учёта расходов в llm_usage_log
 
     Returns:
         dict с ключами date, laboratory, values (или пустой dict если не нашёл)
@@ -342,6 +344,12 @@ async def extract_medical_data(file_bytes: bytes, mime_type: str) -> dict[str, A
             message = _build_image_message(file_bytes, mime_type)
 
         response = await _call_anthropic([message])
+        try:
+            from core.llm_usage import log_anthropic_response
+
+            log_anthropic_response(purpose="doc_extract", model=_MODEL, response_json=response, user_id=user_id)
+        except Exception:
+            logger.exception("doc_extractor: учёт расходов не записался")
         if response.get("stop_reason") == "max_tokens":
             logger.warning("doc_extractor: ответ обрезан по max_tokens — JSON может не разобраться (%s)", mime_type)
         data = _parse_response(response)
