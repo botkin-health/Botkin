@@ -117,6 +117,7 @@ MARKER_LABELS: dict[str, tuple[str, ...]] = {
     # ── Other ────────────────────────────────────────────────────────────────
     "PSA_total": ("пса", "простатспецифич", "psa"),
     "calcium": ("кальций", "calcium"),
+    "calcium_ionized": ("кальций ионизированный", "ионизированный кальций", "ionized calcium", "ca++"),
     "potassium": ("калий", "potassium"),
     "sodium": ("натрий", "sodium"),
     "chloride": ("хлор", "chloride"),

@@ -125,7 +125,9 @@ CANONICAL: dict[str, CanonicalMarker] = {
     "albumin_g_l": CanonicalMarker("г/л", {"albumin_g_l": 1, "albumin": 1}),
     # ── Other ────────────────────────────────────────────────────────────────
     "PSA_total": CanonicalMarker("нг/мл", {"PSA_total": 1, "psa": 1, "psa_ng_ml": 1}),
-    "calcium": CanonicalMarker("ммоль/л", {"calcium": 1, "Ca": 1}),
+    "calcium": CanonicalMarker("ммоль/л", {"calcium": 1, "Ca": 1, "calcium_total": 1}),
+    # Ионизированный кальций — отдельный аналит (норма ≈1.12–1.32 ммоль/л), не общий (#558).
+    "calcium_ionized": CanonicalMarker("ммоль/л", {"calcium_ionized": 1, "Ca_ionized": 1, "ionized_calcium": 1}),
     "potassium": CanonicalMarker("ммоль/л", {"potassium": 1, "K": 1, "potassium_mmol_l": 1}),
     "sodium": CanonicalMarker("ммоль/л", {"sodium": 1, "Na": 1, "sodium_mmol_l": 1}),
     # ── CBC (extended) ───────────────────────────────────────────────────────

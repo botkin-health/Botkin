@@ -619,3 +619,39 @@ async def test_usage_logging_failure_does_not_break_extraction():
     ):
         out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
     assert out["values"] == {"Hb": 119}
+
+
+# ── #558 после сухого прогона: резюме без оценок, моча отдельно, Ca ионизированный ──
+
+
+def test_prompt_forbids_own_normality_verdicts_in_summary():
+    prompt = doc_extractor._SYSTEM_PROMPT
+    assert "в пределах нормы" in prompt
+    assert "«+»" in prompt
+
+
+def test_prompt_separates_urine_keys_from_blood():
+    prompt = doc_extractor._SYSTEM_PROMPT
+    assert "_urine" in prompt
+    assert "мочи" in prompt
+
+
+def test_calcium_ionized_is_canonical_and_distinct_from_total():
+    from core.health.kb_schema import to_canonical
+
+    canon, warnings = to_canonical({"calcium_ionized": 1.33, "calcium_total": 2.6})
+    assert canon["calcium_ionized"] == 1.33
+    assert canon["calcium"] == 2.6
+    assert not warnings
+
+
+def test_urine_keys_do_not_become_blood_row():
+    from core.health.doc_to_blood_test import build_blood_test_row
+
+    extracted = {
+        "date": "2026-07-02",
+        "doc_kind": "lab_panel",
+        "values": {"calcium_urine_daily": 5.02, "creatinine_urine_conc": 9227.3},
+    }
+    res = build_blood_test_row(extracted, stored_name="2026-09-11_f943398b.jpg", user_id=1)
+    assert res.row is None
