@@ -456,6 +456,13 @@ def test_prompt_describes_doc_kind_summary_and_doc_type():
         assert token in prompt
 
 
+def test_prompt_lists_exactly_the_registry_kinds():
+    """Типы в схеме ответа промпта = справочник doc_normalize.KINDS (#561)."""
+    line = next(ln for ln in doc_extractor._SYSTEM_PROMPT.splitlines() if ln.strip().startswith('"doc_kind"'))
+    listed = line.split(":", 1)[1].strip().strip('",').split(" | ")
+    assert tuple(listed) == doc_normalize.DOC_KINDS
+
+
 @pytest.mark.asyncio
 async def test_smear_values_are_dropped_and_summary_kept():
     payload = {

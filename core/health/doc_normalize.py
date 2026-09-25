@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 import re
+from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Any, Optional
 
@@ -129,7 +130,78 @@ def normalize_series(data: dict, today: Optional[date] = None) -> None:
     data["series"] = [by_date[d] for d in sorted(by_date)]
 
 
-DOC_KINDS = ("lab_panel", "imaging", "smear_pcr", "doctor_note", "other")
+@dataclass(frozen=True)
+class DocKind:
+    """Что разрешено документу этого типа — одно место для всех модулей /doc."""
+
+    name: str
+    # Строка в blood_tests: мазок/ПЦР и анкета — не лабораторная панель, даже если
+    # модель назвала число каноническим ключом (WBC из «1–2 в п/зр») — #558.
+    writes_blood_tests: bool
+    # Числа мазков («1–2 в п/зр», «> 50000») — не измерения, отбрасываются (#558).
+    keeps_values: bool
+    # Резюме при числах: у анализов не храним — модель пишет «в пределах нормы» и
+    # при значениях выше нормы (#558). Бланк без чисел резюме сохраняет.
+    keeps_summary_with_values: bool
+    # Дубли: две страницы без общих аналитов — разные страницы одной панели. У УЗИ
+    # ключи модель придумывает сама, несовпадение ключей там ничего не значит (#560).
+    compares_analytes: bool
+
+
+LAB_PANEL = "lab_panel"
+
+KINDS: dict[str, DocKind] = {
+    k.name: k
+    for k in (
+        DocKind(
+            LAB_PANEL,
+            writes_blood_tests=True,
+            keeps_values=True,
+            keeps_summary_with_values=False,
+            compares_analytes=True,
+        ),
+        DocKind(
+            "imaging",
+            writes_blood_tests=True,
+            keeps_values=True,
+            keeps_summary_with_values=True,
+            compares_analytes=False,
+        ),
+        DocKind(
+            "smear_pcr",
+            writes_blood_tests=False,
+            keeps_values=False,
+            keeps_summary_with_values=True,
+            compares_analytes=False,
+        ),
+        DocKind(
+            "doctor_note",
+            writes_blood_tests=True,
+            keeps_values=True,
+            keeps_summary_with_values=True,
+            compares_analytes=False,
+        ),
+        DocKind(
+            "other",
+            writes_blood_tests=False,
+            keeps_values=True,
+            keeps_summary_with_values=True,
+            compares_analytes=False,
+        ),
+    )
+}
+DOC_KINDS = tuple(KINDS)
+
+# Документ без doc_kind (разобран до #558) — ведёт себя как раньше: пишется в
+# blood_tests, числа и резюме хранятся, дубли сравниваются только по числам и тексту.
+_LEGACY = DocKind(
+    "", writes_blood_tests=True, keeps_values=True, keeps_summary_with_values=True, compares_analytes=False
+)
+
+
+def kind_of(extracted: Optional[dict]) -> DocKind:
+    """Свойства типа документа; нет или незнакомый doc_kind — поведение до #558."""
+    return KINDS.get(str((extracted or {}).get("doc_kind") or ""), _LEGACY)
 
 
 def normalize_kind(data: dict) -> None:
@@ -154,7 +226,8 @@ def normalize_kind(data: dict) -> None:
         if key in data:
             text = str(data.get(key) or "").strip()
             data[key] = text or None
-    if data.get("doc_kind") == "lab_panel" and data.get("summary") and (data.get("values") or data.get("series")):
+    kind = kind_of(data)
+    if not kind.keeps_summary_with_values and data.get("summary") and (data.get("values") or data.get("series")):
         # Резюме анализов от модели не храним: она регулярно пишет «все показатели в
         # пределах нормы» при значениях выше нормы (кальций 1.33 при норме до 1.32,
         # RBC 6.18 при норме до 5.70), и никакой фильтр фраз её не догоняет — каждая
@@ -163,11 +236,11 @@ def normalize_kind(data: dict) -> None:
         # сохраняет — это пересказ напечатанного. У УЗИ/мазков/заключений тоже (#558).
         data["summary"] = None
     values = data.get("values")
-    if data.get("doc_kind") == "smear_pcr" and isinstance(values, dict) and values:
+    if not kind.keeps_values and isinstance(values, dict) and values:
         logger.info("doc_normalize: у smear_pcr отброшены числа: %s", list(values))
         data["_dropped_values"] = values
         data["values"] = {}
-    if data.get("doc_kind") == "smear_pcr" and data.get("series"):
+    if not kind.keeps_values and data.get("series"):
         logger.info("doc_normalize: у smear_pcr отброшена сводная таблица (%d дат)", len(data["series"]))
         data["_dropped_series"] = data.pop("series")
 
@@ -175,14 +248,14 @@ def normalize_kind(data: dict) -> None:
 # Z00–Z13 — обращения для осмотра, обследования, скрининга: не диагнозы, в медпрофиль
 # не попадают (#558). Остальные Z — значимые состояния (Z95 стент, Z94 трансплантат,
 # Z99.2 диализ, Z21 ВИЧ, Z34 беременность, Z79 длительная терапия) — их оставляем.
-_Z_CODE_RE = re.compile(r"\bZ(?:0\d|1[0-3])(?:\.\d+)?\b")
+Z_CODE_RE = re.compile(r"\bZ(?:0\d|1[0-3])(?:\.\d+)?\b")
 
 
 def _filter_conditions(data: dict) -> None:
     """Убирает из conditions пункты с кодом Z00–Z13; убранное — в `_dropped_conditions`."""
     kept, dropped = [], []
     for item in data.get("conditions") or []:
-        (dropped if _Z_CODE_RE.search(item) else kept).append(item)
+        (dropped if Z_CODE_RE.search(item) else kept).append(item)
     if dropped:
         logger.info("doc_normalize: коды Z убраны из диагнозов: %s", dropped)
         data["_dropped_conditions"] = dropped

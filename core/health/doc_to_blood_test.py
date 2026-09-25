@@ -25,13 +25,12 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any, Optional
 
+from core.health.doc_normalize import kind_of
 from core.health.kb_schema import UNIT_SYSTEM_KEY, looks_like_us_units, to_canonical
 
 # test_type — VARCHAR(100) (database/models.py::BloodTest).
 _TEST_TYPE_MAX = 100
 _DEFAULT_LAB = "документ"
-# doc_kind из doc_extractor, у которых не бывает строки в blood_tests (#558).
-_NON_LAB_KINDS = frozenset({"smear_pcr", "other"})
 _TYPE_SEP = " · "
 
 # Ведущее число значения: «165 г/л» → 165, «3,42 ммоль/л» → 3.42.
@@ -132,9 +131,7 @@ def build_blood_test_row(extracted: dict, *, stored_name: str, user_id: int) -> 
         stored_name: имя сохранённого файла («ГГГГ-ММ-ДД_<8hex>.<ext>»)
         user_id: telegram_id владельца документа
     """
-    if (extracted or {}).get("doc_kind") in _NON_LAB_KINDS:
-        # Мазок/ПЦР/анкета — не лабораторная панель, даже если модель назвала число
-        # каноническим ключом (WBC из «1–2 в п/зр») — #558.
+    if not kind_of(extracted).writes_blood_tests:
         return DocBloodTestResult(None, "not_lab")
 
     coerced, warnings = _coerce_values((extracted or {}).get("values") or {})
