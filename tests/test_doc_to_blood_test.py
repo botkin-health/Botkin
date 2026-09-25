@@ -158,3 +158,22 @@ def test_empty_extracted_yields_no_row():
     res = _build({})
     assert res.row is None
     assert res.reason == "no_values"
+
+
+def test_smear_or_other_document_never_becomes_blood_row():
+    """#558: мазок/ПЦР/анкета не пишутся в blood_tests, даже если модель назвала число WBC."""
+    from core.health.doc_to_blood_test import build_blood_test_row
+
+    for kind in ("smear_pcr", "other"):
+        extracted = {"date": "2026-09-08", "doc_kind": kind, "values": {"WBC": 1.2}}
+        res = build_blood_test_row(extracted, stored_name="2026-09-24_aaaa1111.jpg", user_id=1)
+        assert res.row is None
+        assert res.reason == "not_lab"
+
+
+def test_lab_panel_document_still_becomes_blood_row():
+    from core.health.doc_to_blood_test import build_blood_test_row
+
+    extracted = {"date": "2026-09-13", "doc_kind": "lab_panel", "values": {"Hb": 119}}
+    res = build_blood_test_row(extracted, stored_name="2026-09-24_aaaa1111.jpg", user_id=1)
+    assert res.row is not None

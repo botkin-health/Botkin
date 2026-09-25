@@ -71,10 +71,12 @@ def _stored_name(content: bytes, ext: str) -> str:
 
 
 def _has_content(extracted: dict) -> bool:
-    """Есть ли что сохранять: числа ИЛИ аллергии ИЛИ диагнозы."""
+    """Есть ли что сохранять: числа, аллергии, диагнозы или текстовое резюме (#558)."""
     if not extracted:
         return False
-    return bool(extracted.get("values") or extracted.get("allergies") or extracted.get("conditions"))
+    return bool(
+        extracted.get("values") or extracted.get("allergies") or extracted.get("conditions") or extracted.get("summary")
+    )
 
 
 _STALE_PENDING_SECONDS = 24 * 3600
@@ -323,6 +325,10 @@ def _preview_text(extracted: dict[str, Any], existing: Optional[dict] = None) ->
     if doc_type:
         lines.append(f"• <b>Тип:</b> {_esc(doc_type)}")
 
+    summary = extracted.get("summary")
+    if summary:
+        lines.append(f"• <b>Кратко:</b> {_esc(str(summary)[:600])}")
+
     values = extracted.get("values") or {}
     for key, val in list(values.items())[:15]:
         lines.append(f"• {_esc(key)}: {_esc(str(val)[:50])}")
@@ -364,6 +370,32 @@ def _preview_keyboard(has_values: bool) -> InlineKeyboardMarkup:
             ]
         ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def _duplicate_note(user_id: int, extracted: dict[str, Any]) -> str:
+    """Строка-предупреждение, если в KB уже есть документ с тем же содержимым (#558).
+
+    Ловит повторную фотографию того же бланка (байты другие — `doc_dedup` не видит).
+    Ошибки чтения KB не мешают показу превью.
+    """
+    from core.health.doc_duplicates import find_similar_document
+
+    kb_path = _PROJECT_ROOT / "data" / "kb" / f"kb_{user_id}.json"
+    try:
+        documents = json.loads(kb_path.read_text(encoding="utf-8")).get("documents") or []
+    except Exception:
+        return ""
+    match = find_similar_document(documents, extracted)
+    if match is None:
+        return ""
+    old = match.get("extracted") or {}
+    name = match.get("title") or old.get("doc_type") or old.get("laboratory") or "документ"
+    when = old.get("date") or match.get("added_at")
+    label = f"{name} ({when})" if when else str(name)
+    return (
+        f"⚠️ Похоже, этот документ уже сохранён: {html.escape(label, quote=False)}. "
+        "Если это та же страница — нажми «Отмена»."
+    )
 
 
 def append_document_to_kb(user_id: int, entry: dict[str, Any]) -> None:
@@ -661,17 +693,17 @@ async def run_doc_pipeline(
         if is_pdf:
             pdf_text = await loop.run_in_executor(None, lambda: _extract_pdf_text(tmp_path))
             if pdf_text:
-                extracted = await extract_medical_data(pdf_text.encode(), "text/plain")
+                extracted = await extract_medical_data(pdf_text.encode(), "text/plain", user_id=user_id)
             else:
                 # Сканированный PDF — берём первую страницу как изображение
                 pages = await loop.run_in_executor(None, lambda: _pdf_to_images(tmp_path, max_pages=1))
                 if pages:
-                    extracted = await extract_medical_data(pages[0].read_bytes(), "image/jpeg")
+                    extracted = await extract_medical_data(pages[0].read_bytes(), "image/jpeg", user_id=user_id)
                 else:
                     extracted = {}
         else:
             media_type = "image/png" if ext == ".png" else "image/jpeg"
-            extracted = await extract_medical_data(content, media_type)
+            extracted = await extract_medical_data(content, media_type, user_id=user_id)
     except Exception:
         logger.exception("doc_upload: экстракция не удалась (user %s)", user_id)
         extracted = {}
@@ -692,6 +724,9 @@ async def run_doc_pipeline(
 
     existing = _read_existing_profile(user_id)
     preview = _preview_text(extracted, existing)
+    duplicate_note = _duplicate_note(user_id, extracted)
+    if duplicate_note:
+        preview = f"{duplicate_note}\n\n{preview}"
     if progress:
         pos, total = progress
         preview = f"{format_progress_prefix(pos, total)}\n\n{preview}"

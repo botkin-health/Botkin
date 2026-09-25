@@ -6,10 +6,13 @@ from __future__ import annotations
 import base64
 import json
 import logging
-from typing import Any
+import re
+from datetime import date, timedelta
+from typing import Any, Optional
 
 import httpx
 
+from config.models import DOC_EXTRACT_MODEL
 from config.settings import get_settings
 from core.health.doc_marker_labels import split_verified_values
 from core.health.doc_readability import is_document_text_readable
@@ -17,7 +20,7 @@ from core.health.kb_schema import CANONICAL
 
 logger = logging.getLogger(__name__)
 
-_MODEL = "claude-haiku-4-5-20251001"
+_MODEL = DOC_EXTRACT_MODEL
 _ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
 _ANTHROPIC_VERSION = "2023-06-01"
 
@@ -26,9 +29,17 @@ _SYSTEM_PROMPT_TEMPLATE = """Ты — медицинский парсер. Тв�
 Верни ТОЛЬКО валидный JSON объект без markdown-обёртки. Структура:
 {{
   "date": "ГГГГ-ММ-ДД или null",
+  "date_label": "подпись рядом с выбранной датой, как напечатано, или null",
   "laboratory": "название лаборатории или null",
+  "doc_kind": "lab_panel | imaging | smear_pcr | doctor_note | other",
+  "doc_type": "короткое название документа по-русски или null",
+  "summary": "1–4 предложения по-русски о том, что показал документ, или null",
   "values": {{
     "ключ": числовое_значение,
+    ...
+  }},
+  "units": {{
+    "ключ": "единица измерения, как напечатана на бланке",
     ...
   }},
   "allergies": ["строка", ...],
@@ -36,11 +47,19 @@ _SYSTEM_PROMPT_TEMPLATE = """Ты — медицинский парсер. Тв�
 }}
 
 Правила:
+- "date" — дата, когда сделано исследование или приём. Бери дату с подписью «Дата взятия материала», «Дата забора», «Дата исследования», «Дата приема», «Дата визита» (в таком порядке приоритета). НИКОГДА не бери «Дата печати», «Дата выдачи», «Дата регистрации», «Дата готовности», «Дата рождения» — на бланках лабораторий они часто стоят рядом с датой взятия и позже её на дни и недели. Если на странице нет даты исследования (например, это продолжение документа) — null. На бланке дата обычно ДД.ММ.ГГГГ — переведи в ГГГГ-ММ-ДД и внимательно проверь год.
+- "date_label" — подпись, стоящая рядом с выбранной датой, дословно (например «Дата взятия материала»); null, если date null.
+- "doc_kind" — тип документа: "lab_panel" — количественные анализы крови и мочи, биохимия, гормоны, витамины, микроэлементы; "imaging" — УЗИ, МРТ, КТ, рентген, ЭКГ, ЭхоКГ; "smear_pcr" — мазки, цитология, ПЦР, ВПЧ, посевы, флороценоз; "doctor_note" — приём, заключение или выписка врача; "other" — анкеты, направления, преаналитика и всё остальное.
+- "doc_type" — короткое название, как назвал бы документ врач: «Общий анализ крови», «УЗИ почек», «ПЦР на ВПЧ», «Заключение дерматолога».
+- "summary" — что показал документ, только то, что в нём напечатано: результаты, включая качественные («не обнаружено», «1–2 в п/зр»), и заключение/рекомендации врача, если есть. Без советов и интерпретаций от себя. НЕ пиши от себя оценок «в пределах нормы», «всё в порядке», «повышен» — только то, что напечатано на бланке: значение, референс и пометку лаборатории («+», «↑», «H», «*»), если она есть. Разные рекомендации не сливай в одну фразу — перечисли каждую отдельно, как в документе. Для "lab_panel" с числовыми показателями — null (значения уже в "values"); если на бланке анализа только качественные результаты — перечисли их без оценок.
+- Для "smear_pcr" поле "values" ВСЕГДА пустое {{}}: результаты мазков и ПЦР качественные или условные («не обнаружено», «1–2 в п/зр», «> 50000», «7×10⁶») — их пиши в "summary", а не в "values".
 - "values" — только числовые показатели (анализы крови, биохимия, гормоны, витамины, размеры органов в УЗИ и т.д.)
 - Используй короткие английские ключи. Если показатель есть в этом списке — используй ИМЕННО это имя: {canonical_keys}. Если показателя в списке нет — придумай короткий английский ключ сам.
-- Не включай единицы измерения в значения — только число
+- Не включай единицы измерения в значения — только число; единицу каждого показателя, как она напечатана на бланке (мг/дл, мг/л, пмоль/л…), положи в "units" под тем же ключом.
+- Показатели мочи (общий анализ мочи, суточная моча) — ключи с суффиксом "_urine" (например "calcium_urine", "creatinine_urine", "protein_urine"), НИКОГДА не ключи показателей крови ("creatinine", "calcium", "glucose"): креатинин мочи 9000 мкмоль/л под ключом крови выглядит как почечная недостаточность.
+- «Витамин B12 активный» / «холотранскобаламин» — ключ "holotranscobalamin", НЕ "vitamin_B12": это другой анализ с другой нормой. "vitamin_B12" — только общий витамин B12.
 - "allergies" — список аллергий/непереносимостей, указанных в документе (аллергены, вещества, продукты). Строки на языке документа. Пусто [] если нет.
-- "conditions" — список хронических/персистирующих диагнозов из документа, с кодом МКБ если он есть (например "Бронхиальная астма (J45.0)"). Пусто [] если нет.
+- "conditions" — список хронических/персистирующих диагнозов из документа, с кодом МКБ если он есть (например "Бронхиальная астма (J45.0)"). Пусто [] если нет. Только заболевания: НЕ включай коды Z00–Z13 (осмотры, обследования, скрининг — например «Z01.4 гинекологическое обследование»), цели визита и формулировки вроде «здорова». Значимые состояния с кодом Z (стент, трансплантат, диализ, беременность, длительный приём препарата) — включай.
 - Не придумывай данных, которых нет в документе. Если чего-то нет — пустой список/пустой values.
 - КРИТИЧНО: название показателя в "values" бери ТОЛЬКО если оно реально прочитано в документе (напечатано рядом с числом). НИКОГДА не достраивай название по типичному составу панели, по порядку строк или по догадке о том, какой это может быть анализ. Если текст рядом с числом нечитаем, повреждён или отсутствует (например, вместо букв — точки, кракозябры, пустые места) — этот показатель в "values" НЕ включай вообще, даже если число само по себе читается чётко. Число без надёжно прочитанного названия хуже, чем отсутствие числа: неверно приписанное название — это другой анализ с другой нормой.
 - Если весь документ или его часть нечитаемы (повреждённый шрифт, плохое качество скана) — так и работай: верни только те показатели, названия которых ты действительно прочитал, а остальное не выдумывай."""
@@ -70,7 +89,9 @@ async def _call_anthropic(messages: list[dict]) -> dict:
     if not api_key:
         raise RuntimeError("ANTHROPIC_API_KEY не настроен")
 
-    async with httpx.AsyncClient(timeout=60.0) as client:
+    # 180 с: Sonnet 5 + thinking + до 4096 токенов ответа не укладывается в 60 с на
+    # плотной странице, а тайм-аут = потерянный документ (ревью #560).
+    async with httpx.AsyncClient(timeout=180.0) as client:
         resp = await client.post(
             _ANTHROPIC_API_URL,
             headers={
@@ -80,7 +101,9 @@ async def _call_anthropic(messages: list[dict]) -> dict:
             },
             json={
                 "model": _MODEL,
-                "max_tokens": 1024,
+                # Резюме + до ~30 показателей + блок thinking у Sonnet 5 (он тоже тратит
+                # этот лимит). Обрезанный JSON = потерянный документ (#558).
+                "max_tokens": 4096,
                 "system": _SYSTEM_PROMPT,
                 "messages": messages,
             },
@@ -146,7 +169,9 @@ def _parse_response(response: dict) -> dict[str, Any]:
     «не нашёл данных» (E2E 23.09.2026).
     """
     try:
-        text = response["content"][0]["text"]
+        # Текстовые блоки, где бы они ни стояли: Sonnet 5 может начать ответ с
+        # блока thinking, и content[0]["text"] тогда падал KeyError (#558).
+        text = "".join(b["text"] for b in response["content"] if isinstance(b, dict) and "text" in b)
     except Exception as e:
         logger.warning("doc_extractor: неожиданная форма ответа Claude: %s", e)
         return {}
@@ -164,6 +189,131 @@ def _parse_response(response: dict) -> dict[str, Any]:
     return data
 
 
+# Подписи дат, которые не являются датой исследования (#558): на бланках КДЛ
+# «Дата печати» стоит рядом с «Датой взятия материала» и позже неё на дни.
+_NON_STUDY_DATE_LABELS = ("печат", "выдач", "регистрац", "готов", "рожден")
+
+
+def _sanitize_date(data: dict, today: Optional[date] = None) -> None:
+    """Проверяет `date` ответа модели на месте; неподходящую — обнуляет.
+
+    Причина отказа — в `_date_rejected` (для логов и превью): not_iso,
+    print_or_issue_date (модель сама подписала дату как печать/выдачу), future.
+    Дату не угадываем и не чиним — только отказываемся от явно неверной.
+    """
+    raw = data.get("date")
+    if raw is None:
+        return
+    label = str(data.get("date_label") or "").casefold()
+    try:
+        parsed = date.fromisoformat(str(raw).strip())
+    except ValueError:
+        reason = "not_iso"
+    else:
+        if any(marker in label for marker in _NON_STUDY_DATE_LABELS):
+            reason = "print_or_issue_date"
+        elif parsed > (today or date.today()) + timedelta(days=1):
+            # +1 день: сервер в UTC, а у пользователя в Москве/Израиле уже «завтра».
+            reason = "future"
+        else:
+            data["date"] = parsed.isoformat()
+            return
+    logger.info("doc_extractor: дата %r (подпись %r) отброшена: %s", raw, data.get("date_label"), reason)
+    data["date"] = None
+    data["_date_rejected"] = reason
+
+
+DOC_KINDS = ("lab_panel", "imaging", "smear_pcr", "doctor_note", "other")
+
+
+def _normalize_kind(data: dict) -> None:
+    """Приводит doc_kind/doc_type/summary; у мазков и ПЦР отбрасывает числа (#558).
+
+    Числа мазков («1–2 в п/зр», «> 50000») не являются измерениями — модель
+    выдумывает под них ключи вроде `leukocytes`, а может назвать и `WBC`.
+    Отброшенное остаётся в `_dropped_values` для логов. Нет doc_kind в ответе —
+    поле не добавляем (старые записи и читатели без него работают как раньше).
+    """
+    raw_kind = data.get("doc_kind")
+    if raw_kind is not None:
+        kind = re.sub(r"[\s\-]+", "_", str(raw_kind).strip().lower())
+        if kind in DOC_KINDS:
+            data["doc_kind"] = kind
+        else:
+            # Незнакомый тип ≠ «other»: other не пишется в blood_tests, и настоящая
+            # панель с опечаткой в типе молча пропала бы из динамики (ревью #560).
+            logger.info("doc_extractor: незнакомый doc_kind %r — поле убрано", raw_kind)
+            data.pop("doc_kind")
+    for key in ("doc_type", "summary"):
+        if key in data:
+            text = str(data.get(key) or "").strip()
+            data[key] = text or None
+    if data.get("doc_kind") == "lab_panel" and data.get("summary") and data.get("values"):
+        # Резюме анализов от модели не храним: она регулярно пишет «все показатели в
+        # пределах нормы» при значениях выше нормы (кальций 1.33 при норме до 1.32,
+        # RBC 6.18 при норме до 5.70), и никакой фильтр фраз её не догоняет — каждая
+        # новая формулировка проходит. Значения лежат рядом, оценка — дело агента по
+        # референсам. Бланк анализа без чисел (серология, «не обнаружено») резюме
+        # сохраняет — это пересказ напечатанного. У УЗИ/мазков/заключений тоже (#558).
+        data["summary"] = None
+    values = data.get("values")
+    if data.get("doc_kind") == "smear_pcr" and isinstance(values, dict) and values:
+        logger.info("doc_extractor: у smear_pcr отброшены числа: %s", list(values))
+        data["_dropped_values"] = values
+        data["values"] = {}
+
+
+# Z00–Z13 — обращения для осмотра, обследования, скрининга: не диагнозы, в медпрофиль
+# не попадают (#558). Остальные Z — значимые состояния (Z95 стент, Z94 трансплантат,
+# Z99.2 диализ, Z21 ВИЧ, Z34 беременность, Z79 длительная терапия) — их оставляем.
+_Z_CODE_RE = re.compile(r"\bZ(?:0\d|1[0-3])(?:\.\d+)?\b")
+
+
+def _filter_conditions(data: dict) -> None:
+    """Убирает из conditions пункты с кодом Z00–Z13; убранное — в `_dropped_conditions`."""
+    kept, dropped = [], []
+    for item in data.get("conditions") or []:
+        (dropped if _Z_CODE_RE.search(item) else kept).append(item)
+    if dropped:
+        logger.info("doc_extractor: коды Z убраны из диагнозов: %s", dropped)
+        data["_dropped_conditions"] = dropped
+    data["conditions"] = kept
+
+
+# Известные несовпадения единицы бланка с канонической (kb_schema): (ключ, единица
+# бланка без пробелов, casefold) → (множитель, каноническая единица). Только то, что
+# встречалось на реальных бланках; незнакомое не «чиним» молча (#558).
+# Ключи — в casefold: модель пишет и hs_CRP, и hsCRP, и crp.
+_UNIT_CONVERSIONS: dict[tuple[str, str], tuple[float, str]] = {
+    (key, unit): (10.0, "мг/л") for key in ("hs_crp", "hscrp", "crp") for unit in ("мг/дл", "mg/dl")
+}
+
+
+def _convert_units(data: dict) -> None:
+    """Пересчитывает значения, напечатанные не в канонической единице (СРБ в мг/дл).
+
+    Сделанные пересчёты — в `_unit_conversions`, `units[key]` обновляется на
+    каноническую единицу, чтобы повторная обработка не умножила ещё раз.
+    """
+    values, units = data.get("values"), data.get("units")
+    if not isinstance(values, dict) or not isinstance(units, dict):
+        return
+    done = []
+    for key, unit in list(units.items()):
+        norm = "".join(str(unit).split()).casefold()
+        rule = _UNIT_CONVERSIONS.get((str(key).casefold(), norm))
+        raw = values.get(key)
+        if rule is None or not isinstance(raw, (int, float)) or isinstance(raw, bool):
+            continue
+        factor, canon_unit = rule
+        values[key] = round(raw * factor, 6)
+        units[key] = canon_unit
+        done.append(f"{key}: {unit} → {canon_unit} ×{factor:g}")
+    if done:
+        logger.info("doc_extractor: пересчёт единиц: %s", done)
+        data["_unit_conversions"] = done
+
+
 def _as_str_list(v) -> list[str]:
     """Безопасно привести значение к списку непустых строк. Не-список → []."""
     if not isinstance(v, list):
@@ -171,12 +321,13 @@ def _as_str_list(v) -> list[str]:
     return [str(x).strip() for x in v if str(x).strip()]
 
 
-async def extract_medical_data(file_bytes: bytes, mime_type: str) -> dict[str, Any]:
+async def extract_medical_data(file_bytes: bytes, mime_type: str, user_id: Optional[int] = None) -> dict[str, Any]:
     """Извлекает медицинские данные из документа через Claude.
 
     Args:
         file_bytes: байты файла (PDF или изображение)
         mime_type: MIME-тип файла
+        user_id: владелец документа — для учёта расходов в llm_usage_log
 
     Returns:
         dict с ключами date, laboratory, values (или пустой dict если не нашёл)
@@ -210,10 +361,22 @@ async def extract_medical_data(file_bytes: bytes, mime_type: str) -> dict[str, A
             message = _build_image_message(file_bytes, mime_type)
 
         response = await _call_anthropic([message])
+        try:
+            from core.llm_usage import log_anthropic_response
+
+            log_anthropic_response(purpose="doc_extract", model=_MODEL, response_json=response, user_id=user_id)
+        except Exception:
+            logger.exception("doc_extractor: учёт расходов не записался")
+        if response.get("stop_reason") == "max_tokens":
+            logger.warning("doc_extractor: ответ обрезан по max_tokens — JSON может не разобраться (%s)", mime_type)
         data = _parse_response(response)
         if data:
+            _sanitize_date(data)
+            _normalize_kind(data)
+            _convert_units(data)
             data["allergies"] = _as_str_list(data.get("allergies"))
             data["conditions"] = _as_str_list(data.get("conditions"))
+            _filter_conditions(data)
             # Без проверки «values непуст»: гейт читаемости должен срабатывать и
             # тогда, когда модель сама вернула пустой список, — именно этот
             # случай пользователю надо честно объяснить (E2E 23.09.2026).

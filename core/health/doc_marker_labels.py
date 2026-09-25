@@ -93,6 +93,7 @@ MARKER_LABELS: dict[str, tuple[str, ...]] = {
     # ── Vitamins / nutrients ─────────────────────────────────────────────────
     "vitamin_D": ("витамин d", "vitamin d", "25-oh", "25(oh)"),
     "vitamin_B12": ("витамин b12", "vitamin b12", "цианокобаламин", "b-12"),
+    "holotranscobalamin": ("холотранскобаламин", "holotranscobalamin", "b12 активный", "активный b12", "holotc"),
     "ferritin": ("ферритин", "ferritin"),
     "folic_acid": ("фолиев", "фолат", "folate", "folic"),
     "magnesium": ("магний", "magnesium"),
@@ -116,6 +117,7 @@ MARKER_LABELS: dict[str, tuple[str, ...]] = {
     # ── Other ────────────────────────────────────────────────────────────────
     "PSA_total": ("пса", "простатспецифич", "psa"),
     "calcium": ("кальций", "calcium"),
+    "calcium_ionized": ("кальций ионизированный", "ионизированный кальций", "ionized calcium", "ca++"),
     "potassium": ("калий", "potassium"),
     "sodium": ("натрий", "sodium"),
     "chloride": ("хлор", "chloride"),

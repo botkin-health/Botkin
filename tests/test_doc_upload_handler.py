@@ -1775,3 +1775,50 @@ async def test_doc_confirm_save_auto_detected_with_queue_advances_not_drops(tmp_
     callback.message.answer.assert_called_once()
     pending_updates = [c.kwargs["pending"] for c in state.update_data.call_args_list if "pending" in c.kwargs]
     assert pending_updates and pending_updates[-1].get("auto") is True
+
+
+def test_preview_shows_summary_escaped_and_counts_as_content():
+    """#558: у мазка нет чисел, но есть резюме — это не «ничего не нашёл»."""
+    import handlers.doc_upload as mod
+
+    extracted = {
+        "date": "2026-09-08",
+        "doc_type": "ПЦР на ВПЧ",
+        "summary": "ДНК ВПЧ ВКР — не обнаружено; порог <3 lg",
+        "values": {},
+    }
+    assert mod._has_content(extracted) is True
+    text = mod._preview_text(extracted)
+    assert "ПЦР на ВПЧ" in text
+    assert "не обнаружено; порог &lt;3 lg" in text
+    assert "Не нашёл данных" not in text
+
+
+def test_duplicate_note_names_already_saved_document(tmp_path, monkeypatch):
+    """#558: тот же бланк повторной фотографией — предупреждаем, решает пользователь."""
+    import handlers.doc_upload as mod
+
+    monkeypatch.setattr(mod, "_PROJECT_ROOT", tmp_path)
+    kb = tmp_path / "data" / "kb" / "kb_555.json"
+    kb.parent.mkdir(parents=True)
+    values = {"Hb": 119, "WBC": 4.6, "RBC": 4.21, "PLT": 226}
+    kb.write_text(
+        json.dumps(
+            {
+                "documents": [
+                    {
+                        "file": "2026-09-24_aaaa1111.jpg",
+                        "added_at": "2026-09-24",
+                        "extracted": {"date": "2026-09-13", "doc_type": "Общий анализ крови", "values": values},
+                    }
+                ]
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    note = mod._duplicate_note(555, {"date": "2026-09-13", "values": dict(values)})
+    assert "уже сохранён" in note
+    assert "Общий анализ крови" in note
+    assert mod._duplicate_note(555, {"date": "2026-01-01", "values": dict(values)}) == ""
+    assert mod._duplicate_note(999, {"date": "2026-09-13", "values": dict(values)}) == ""

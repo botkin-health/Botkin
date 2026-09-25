@@ -31,6 +31,13 @@ AGENT_FALLBACK_MODEL = os.getenv("BOTKIN_AGENT_FALLBACK_MODEL", "claude-sonnet-4
 FOOD_TEXT_MODEL_ANTHROPIC = os.getenv("BOTKIN_FOOD_TEXT_MODEL", "claude-sonnet-5")
 FOOD_TEXT_MODEL_OPENAI = os.getenv("BOTKIN_FOOD_TEXT_MODEL_OPENAI", "gpt-4o")
 
+# ── Разбор медицинских документов /doc (core/health/doc_extractor.py) ────────
+# Sonnet 5 с 25.09.2026 (ADR-0010): на eval из 23 реальных страниц (дата, тип,
+# мазки, коды Z, B12/СРБ, дубли) — без ошибок; Haiku 4.5 — дата 19/23, тип 21/23.
+# Объём ~40 документов/мес, разница в цене < $0.5/мес. Sonnet 5 отдаёт блок
+# thinking (тратит max_tokens) — экстрактор это учитывает.
+DOC_EXTRACT_MODEL = os.getenv("BOTKIN_DOC_EXTRACT_MODEL", "claude-sonnet-5")
+
 # ── Vision: фото еды и меню ─────────────────────────────────────────────────
 VISION_MODEL_OPENAI = os.getenv("BOTKIN_VISION_MODEL_OPENAI", "gpt-4o")
 # gemini-2.0-flash снят Google (404 на dev-стенде 2026-09-10: «no longer available,

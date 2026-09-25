@@ -42,6 +42,7 @@
 | # | Название | Status |
 |---|---|---|
 | [0008](0008-doctor-report-ips-pdf.md) | Отчёт для врача: содержание по IPS, артефакт — человекочитаемый PDF | Accepted |
+| [0010](0010-doc-extractor-model-and-rules.md) | Разбор медицинских документов: Sonnet 5, дата взятия, тип и резюме, дубли | Accepted |
 | [0009](0009-food-parsing-model-and-prompt.md) | Парсинг еды: Sonnet 5 + короткий промпт, выбор по eval на 111 реальных кейсах | Accepted |
 | [0007](0007-verified-products-catalog.md) | Справочник проверенных продуктов: двухступенчатый матчинг, автонаполнение вместо CRUD | Accepted |
 | [0006](0006-mcp-connector-pat-jwt.md) | MCP-коннектор для Claude Desktop через PAT→JWT | Proposed |
