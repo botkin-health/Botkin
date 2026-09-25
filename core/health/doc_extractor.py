@@ -97,7 +97,8 @@ async def _call_anthropic(messages: list[dict]) -> dict:
 
     # 180 с: Sonnet 5 + thinking + до 4096 токенов ответа не укладывается в 60 с на
     # плотной странице, а тайм-аут = потерянный документ (ревью #560).
-    async with httpx.AsyncClient(timeout=180.0) as client:
+    # 300 с — под лимит ответа 16000 (#559).
+    async with httpx.AsyncClient(timeout=300.0) as client:
         resp = await client.post(
             _ANTHROPIC_API_URL,
             headers={
@@ -138,13 +139,32 @@ def _build_image_message(file_bytes: bytes, mime_type: str) -> dict:
     }
 
 
-def _build_text_message(file_bytes: bytes) -> dict:
+def _build_text_message(file_bytes: bytes, context: Optional[str] = None) -> dict:
     """Собирает Anthropic-сообщение из уже извлечённого текста документа (text-блок).
 
     Используется для PDF с текстовым слоем: текст извлекается в вызывающем коде и
     приходит сюда байтами. Раньше такой вход ошибочно паковался в image-блок с
     media_type=text/plain, который Anthropic отклоняет (см. #319)."""
     doc_text = file_bytes.decode("utf-8", errors="replace")
+    if context:
+        # Часть длинного документа (#559): без шапки страница-продолжение не знает ни
+        # даты взятия, ни единиц («мг/дл» в заголовке таблицы), ни названий столбцов.
+        return {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "Начало документа — только для контекста (шапка, дата, единицы, названия столбцов). "
+                    "Значения из этого блока не извлекай:\n" + context,
+                },
+                {"type": "text", "text": doc_text},
+                {
+                    "type": "text",
+                    "text": "Извлеки медицинские данные из этого фрагмента длинного документа. Если во фрагменте "
+                    "нет даты или единиц — возьми их из начала документа.",
+                },
+            ],
+        }
     return {
         "role": "user",
         "content": [
@@ -411,13 +431,23 @@ def _as_str_list(v) -> list[str]:
     return [str(x).strip() for x in v if str(x).strip()]
 
 
-async def extract_medical_data(file_bytes: bytes, mime_type: str, user_id: Optional[int] = None) -> dict[str, Any]:
+async def extract_medical_data(
+    file_bytes: bytes,
+    mime_type: str,
+    user_id: Optional[int] = None,
+    *,
+    context: Optional[str] = None,
+    check_readable: bool = True,
+) -> dict[str, Any]:
     """Извлекает медицинские данные из документа через Claude.
 
     Args:
         file_bytes: байты файла (PDF или изображение)
         mime_type: MIME-тип файла
         user_id: владелец документа — для учёта расходов в llm_usage_log
+        context: начало документа для части длинного PDF (#559), только text/plain
+        check_readable: False — читаемость уже проверена на всём документе (#559):
+            страница таблицы из дат и чисел сама по себе «без букв», но не мусор
 
     Returns:
         dict с ключами date, laboratory, values (или пустой dict если не нашёл)
@@ -429,7 +459,7 @@ async def extract_medical_data(file_bytes: bytes, mime_type: str, user_id: Optio
         # вернуть ответ, который не распарсится. Раньше гейт стоял после разбора
         # и не срабатывал, когда разбор падал (E2E 23.09.2026). Заодно не платим
         # за заведомо бесполезный вызов.
-        if mime_type == "text/plain":
+        if mime_type == "text/plain" and check_readable:
             doc_text = file_bytes.decode("utf-8", errors="replace")
             if not is_document_text_readable(doc_text):
                 logger.warning("doc_extractor: текст документа нечитаем (нет слов) — модель не вызываем")
@@ -446,7 +476,7 @@ async def extract_medical_data(file_bytes: bytes, mime_type: str, user_id: Optio
         if mime_type == "application/pdf":
             message = _build_pdf_message(file_bytes)
         elif mime_type == "text/plain":
-            message = _build_text_message(file_bytes)
+            message = _build_text_message(file_bytes, context)
         else:
             message = _build_image_message(file_bytes, mime_type)
 
@@ -509,6 +539,9 @@ _CHUNK_CHARS = 3_500
 # 15-страничное досье: 3 параллельно — 363 с (пять кругов по ~70 с thinking на
 # часть), 6 — три круга. Больше — упираемся в лимит запросов Anthropic.
 _MAX_PARALLEL_CHUNKS = 6
+# Начало первой страницы — контекст каждой следующей части: дата взятия, единицы,
+# названия столбцов (ревью #564).
+_CONTEXT_CHARS = 1_500
 
 
 def needs_chunking(pages: list[str]) -> bool:
@@ -572,6 +605,8 @@ def merge_extractions(parts: list[dict[str, Any]]) -> dict[str, Any]:
             for key, unit in part["units"].items():
                 units.setdefault(key, unit)
 
+    rejected = [r for p in parts for r in p.get("_series_rejected") or []]
+    rejected += [f"{p.get('_date_rejected')}: дата части" for p in parts if p.get("_date_rejected")]
     kinds = [p.get("doc_kind") for p in parts if p.get("doc_kind")]
     merged: dict[str, Any] = {
         "date": None,
@@ -589,27 +624,45 @@ def merge_extractions(parts: list[dict[str, Any]]) -> dict[str, Any]:
         merged["doc_kind"] = "lab_panel" if "lab_panel" in kinds else kinds[0]
     _normalize_series(merged)
     _normalize_kind(merged)
+    if rejected:
+        merged["_series_rejected"] = rejected + merged.get("_series_rejected", [])
     return merged
 
 
 async def extract_medical_data_from_pages(pages: list[str], user_id: Optional[int] = None) -> dict[str, Any]:
     """Текстовый PDF постранично: короткий — одним вызовом, длинный — по частям (#559)."""
     text = "\n".join(pages)
-    if not needs_chunking(pages):
+    # Читаемость — по всему документу (#509): отдельная страница таблицы из дат и
+    # чисел гейт не проходит, хотя документ целиком читается (ревью #564).
+    if not needs_chunking(pages) or not is_document_text_readable(text):
         return await extract_medical_data(text.encode(), "text/plain", user_id=user_id)
     chunks = chunk_pages(pages)
+    head = pages[0][:_CONTEXT_CHARS]
     logger.info("doc_extractor: длинный документ (%d символов) — разбор по %d частям", len(text), len(chunks))
     semaphore = asyncio.Semaphore(_MAX_PARALLEL_CHUNKS)
 
-    async def _one(chunk: str) -> dict[str, Any]:
+    async def _one(i: int, chunk: str) -> dict[str, Any]:
         async with semaphore:
-            return await extract_medical_data(chunk.encode(), "text/plain", user_id=user_id)
+            return await extract_medical_data(
+                chunk.encode(), "text/plain", user_id=user_id, context=head if i else None, check_readable=False
+            )
 
-    parts = await asyncio.gather(*(_one(c) for c in chunks))
+    parts = list(await asyncio.gather(*(_one(i, c) for i, c in enumerate(chunks))))
+    # Один повтор неразобранных частей: обрыв по max_tokens — это thinking, ушедший
+    # в разнос на плотной таблице, и повторный вызов обычно укладывается (прогон
+    # досье #559: 1 из 15 частей). Платим за повтор только при сбое.
+    retry = [i for i, p in enumerate(parts) if not p]
+    if retry:
+        logger.info("doc_extractor: повтор %d неразобранных частей", len(retry))
+        again = await asyncio.gather(*(_one(i, chunks[i]) for i in retry))
+        for i, part in zip(retry, again):
+            parts[i] = part
     failed = sum(1 for p in parts if not p)
     if failed:
         logger.warning("doc_extractor: %d из %d частей не разобрались", failed, len(parts))
-    merged = merge_extractions(list(parts))
-    if merged and failed:
-        merged["_chunks_failed"] = failed
+    merged = merge_extractions(parts)
+    if merged:
+        merged["_chunks_total"] = len(chunks)
+        if failed:
+            merged["_chunks_failed"] = failed
     return merged

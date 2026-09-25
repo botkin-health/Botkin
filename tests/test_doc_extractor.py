@@ -743,7 +743,7 @@ def test_date_of_tomorrow_utc_is_allowed_for_user_timezones():
 def test_request_timeout_leaves_room_for_sonnet_with_long_output():
     import inspect
 
-    assert "timeout=180" in inspect.getsource(doc_extractor._call_anthropic)
+    assert "timeout=300" in inspect.getsource(doc_extractor._call_anthropic)
 
 
 def test_calcium_ionized_unit_detected_by_magnitude_not_panel_flag():

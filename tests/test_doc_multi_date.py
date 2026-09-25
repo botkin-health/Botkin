@@ -262,6 +262,7 @@ async def test_long_pdf_failed_part_is_counted():
         side_effect=[
             _fake_response({"date": "2026-07-14", "doc_kind": "lab_panel", "values": {"ALT": 29}}),
             RuntimeError("timeout"),
+            RuntimeError("timeout again"),
         ]
     )
     pages = ["Печеночные пробы АЛТ " + "x" * 7000, "Печеночные пробы АЛТ " + "y" * 7000]
@@ -390,3 +391,103 @@ def test_blank_not_flagged_against_dossier():
     dossier = _series_doc()
     dossier["series"][1]["values"]["HDL"] = 2.43
     assert find_similar_document([{"file": "d.pdf", "extracted": dossier}], blank) is None
+
+
+# ── ревью #564 ───────────────────────────────────────────────────────────────
+
+
+def _lab_page(tag: str) -> str:
+    return "Печеночные пробы АЛТ АСТ ГГТ лаборатория " + tag * 5000
+
+
+@pytest.mark.asyncio
+async def test_numeric_only_page_is_not_dropped_by_readability_gate():
+    """Страница таблицы из дат и чисел сама «без букв», но документ читается целиком."""
+    responses = [
+        _fake_response({"date": "2026-07-14", "doc_kind": "lab_panel", "values": {"ALT": 29}}),
+        _fake_response({"date": "2023-03-01", "doc_kind": "lab_panel", "values": {"ALT": 12}}),
+    ]
+    call = AsyncMock(side_effect=responses)
+    digits = "\n".join(f"01.03.20{i:02d} 5.4 141 4.2 12.2 10.9" for i in range(300))
+    with patch.object(doc_extractor, "_call_anthropic", new=call):
+        out = await doc_extractor.extract_medical_data_from_pages([_lab_page("а"), digits])
+    assert call.await_count == 2
+    assert sorted(e["date"] for e in out["series"]) == ["2023-03-01", "2026-07-14"]
+
+
+@pytest.mark.asyncio
+async def test_unreadable_long_document_skips_model():
+    call = AsyncMock()
+    with patch.object(doc_extractor, "_call_anthropic", new=call):
+        out = await doc_extractor.extract_medical_data_from_pages(["." * 7000, "#" * 7000])
+    assert call.await_count == 0
+    assert out["_unreadable_text"] is True
+
+
+@pytest.mark.asyncio
+async def test_later_parts_get_document_head_as_context():
+    """Шапка первой страницы (дата взятия, единицы) — контекст каждой следующей части."""
+    call = AsyncMock(return_value=_fake_response({"date": "2026-07-14", "doc_kind": "lab_panel", "values": {"ALT": 1}}))
+    pages = ["ШАПКА мг/дл " + _lab_page("а"), _lab_page("б"), _lab_page("в")]
+    with patch.object(doc_extractor, "_call_anthropic", new=call):
+        await doc_extractor.extract_medical_data_from_pages(pages)
+    texts = [[b["text"] for b in c.args[0][0]["content"]] for c in call.await_args_list]
+    assert len(texts) == 3
+    assert not any("Начало документа" in t for t in texts[0])
+    for later in texts[1:]:
+        assert "ШАПКА мг/дл" in later[0] and "Начало документа" in later[0]
+
+
+@pytest.mark.asyncio
+async def test_failed_parts_counted_with_total():
+    call = AsyncMock(
+        side_effect=[
+            _fake_response({"date": "2026-07-14", "doc_kind": "lab_panel", "values": {"ALT": 29}}),
+            RuntimeError("timeout"),
+            _fake_response({"date": "2025-12-12", "doc_kind": "lab_panel", "values": {"ALT": 21}}),
+            RuntimeError("timeout again"),
+        ]
+    )
+    with patch.object(doc_extractor, "_call_anthropic", new=call):
+        out = await doc_extractor.extract_medical_data_from_pages([_lab_page("а"), _lab_page("б"), _lab_page("в")])
+    assert out["_chunks_failed"] == 1
+    assert out["_chunks_total"] == 3
+
+
+def test_preview_warns_about_failed_parts():
+    from handlers.doc_upload import _preview_text
+
+    doc = {**_series_doc(), "_chunks_failed": 2, "_chunks_total": 15}
+    assert "Не получилось разобрать 2 из 15 частей" in _preview_text(doc)
+    assert "Не получилось разобрать" not in _preview_text(_series_doc())
+
+
+def test_merge_keeps_rejected_rows_of_parts():
+    parts = [
+        {"date": "2026-07-14", "doc_kind": "lab_panel", "values": {"ALT": 29}, "_series_rejected": ["'2023': not_iso"]},
+        {"date": "2025-12-12", "doc_kind": "lab_panel", "values": {"ALT": 21}},
+    ]
+    assert doc_extractor.merge_extractions(parts)["_series_rejected"] == ["'2023': not_iso"]
+
+
+def test_series_document_is_lab_for_agent():
+    from core.health.profile_documents import _is_lab
+
+    assert _is_lab({"extracted": _series_doc()})
+
+
+@pytest.mark.asyncio
+async def test_failed_part_retried_once():
+    call = AsyncMock(
+        side_effect=[
+            _fake_response({"date": "2026-07-14", "doc_kind": "lab_panel", "values": {"ALT": 29}}),
+            RuntimeError("max_tokens"),
+            _fake_response({"date": "2024-01-10", "doc_kind": "lab_panel", "values": {"ALT": 18}}),
+            _fake_response({"date": "2025-12-12", "doc_kind": "lab_panel", "values": {"ALT": 21}}),
+        ]
+    )
+    with patch.object(doc_extractor, "_call_anthropic", new=call):
+        out = await doc_extractor.extract_medical_data_from_pages([_lab_page("а"), _lab_page("б"), _lab_page("в")])
+    assert call.await_count == 4
+    assert "_chunks_failed" not in out
+    assert sorted(e["date"] for e in out["series"]) == ["2024-01-10", "2025-12-12", "2026-07-14"]
