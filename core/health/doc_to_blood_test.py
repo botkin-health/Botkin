@@ -168,24 +168,39 @@ def build_blood_test_row(extracted: dict, *, stored_name: str, user_id: int) -> 
 
 
 # Одна единица в разных написаниях («µmol/L» = «мкмоль/л», «×10⁹/л» = «10^9/L»).
+# МЕ и Ед для сравнения не различаем: лаборатории пишут их вперемешку.
 _UNIT_TOKENS = {
     "g": "г", "mg": "мг", "мкg": "мкг", "mcg": "мкг", "ug": "мкг", "ng": "нг", "pg": "пг",
     "l": "л", "dl": "дл", "ml": "мл", "fl": "фл",
     "mol": "моль", "mmol": "ммоль", "мкmol": "мкмоль", "umol": "мкмоль", "nmol": "нмоль", "pmol": "пмоль",
-    "iu": "ме", "miu": "мме", "мкiu": "мкме", "uiu": "мкме", "мкед": "мкме", "мкод": "мкме",
-    "u": "ед", "mu": "мед", "мме": "мед", "mm": "мм", "h": "ч", "hr": "ч",
+    "iu": "ед", "u": "ед", "ме": "ед",
+    "miu": "мед", "mu": "мед", "мме": "мед",
+    "мкiu": "мкед", "uiu": "мкед", "мкме": "мкед", "мкод": "мкед",
+    "mm": "мм", "h": "ч", "hr": "ч", "час": "ч",
 }  # fmt: skip
+# Разные единицы одной шкалы — то же число (ревью #564: ферритин нг/мл и мкг/л,
+# ТТГ мкМЕ/мл и мМЕ/л из разных лабораторий одного досье).
+_SAME_SCALE = {
+    "мкг/л": "нг/мл",
+    "нг/л": "пг/мл",
+    "мед/л": "мкед/мл",
+    "тыс/мкл": "10^9/л",
+    "10^3/мкл": "10^9/л",
+    "млн/мкл": "10^12/л",
+    "10^6/мкл": "10^12/л",
+}
 _SUPERSCRIPTS = str.maketrans("⁰¹²³⁴⁵⁶⁷⁸⁹", string.digits)
 _POWER_RE = re.compile(r"[x×*·]?10(?:\^|\*\*|\*)?(\d+)")
 
 
 def unit_key(unit: Any) -> str:
     """Каноническое написание единицы — только для сравнения, не для пересчёта (#559)."""
-    text = "".join(str(unit).split()).casefold().translate(_SUPERSCRIPTS)
+    text = "".join(str(unit).split()).casefold().translate(_SUPERSCRIPTS).rstrip(".,;")
     text = text.replace("µ", "мк").replace("μ", "мк")
     text = _POWER_RE.sub(r"10^\1", text)
     parts = re.split(r"([/^])", text)
-    return "".join(_UNIT_TOKENS.get(part, part) for part in parts)
+    key = "".join(_UNIT_TOKENS.get(part, part) for part in parts)
+    return _SAME_SCALE.get(key, key)
 
 
 def _foreign_unit_keys(extracted: dict, series: list[dict]) -> dict[int, list[str]]:

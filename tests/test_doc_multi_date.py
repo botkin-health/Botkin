@@ -726,6 +726,13 @@ def test_foreign_unit_detected_after_merge_of_parts():
         ("Ед/л", "U/L"),
         ("г/л", "g/L"),
         ("%", "%"),
+        ("нг/мл", "мкг/л"),
+        ("пг/мл", "нг/л"),
+        ("мкМЕ/мл", "мМЕ/л"),
+        ("Ед/л", "МЕ/л"),
+        ("10^9/л", "тыс/мкл"),
+        ("мм/час", "мм/ч"),
+        ("г/л.", "г/л"),
     ],
 )
 def test_unit_spellings_equal(a, b):
@@ -739,3 +746,27 @@ def test_different_units_not_equal():
 
     assert unit_key("нг/мл") != unit_key("мкМЕ/мл")
     assert unit_key("нмоль/л") != unit_key("нг/мл")
+
+
+@pytest.mark.asyncio
+async def test_same_scale_units_from_different_labs_kept():
+    """Ферритин нг/мл и мкг/л, ТТГ мкМЕ/мл и мМЕ/л — одна шкала, все даты в динамике."""
+    rows, _ = await _rows(
+        {
+            "doc_kind": "lab_panel",
+            "values": {},
+            "units": {"ferritin": "нг/мл", "TSH": "мкМЕ/мл"},
+            "series": [
+                {"date": "2020-01-01", "values": {"ferritin": 300, "TSH": 2.1}},
+                {"date": "2023-01-01", "values": {"ferritin": 90, "TSH": 2.5}, "units": {"TSH": "мМЕ/л"}},
+                {"date": "2024-01-01", "values": {"ferritin": 60, "TSH": 2.7}, "units": {"TSH": "мМЕ/л"}},
+                {
+                    "date": "2025-01-01",
+                    "values": {"ferritin": 43.8, "TSH": 3.0},
+                    "units": {"ferritin": "мкг/л", "TSH": "мМЕ/л"},
+                },
+            ],
+        }
+    )
+    assert len(rows) == 4
+    assert all(set(v) == {"ferritin", "TSH"} for v in rows.values())
