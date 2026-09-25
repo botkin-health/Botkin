@@ -152,7 +152,8 @@ def _fallback_title(entry: dict[str, Any]) -> str:
 def _is_lab(entry: dict[str, Any]) -> bool:
     """Есть ли у документа извлечённые лабораторные показатели."""
     extracted = entry.get("extracted") or {}
-    return bool(extracted.get("values"))
+    # Сводная таблица (#559) держит значения в series, верхние values пусты.
+    return bool(extracted.get("values") or extracted.get("series"))
 
 
 def _documents_list(kb: dict[str, Any]) -> list[dict[str, Any]]:

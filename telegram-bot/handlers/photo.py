@@ -1183,8 +1183,8 @@ async def _download_pdf(message: Message) -> Path | None:
         return None
 
 
-def _extract_pdf_text(pdf_path: Path, max_pages: int = 10) -> str:
-    """Извлекает текст из PDF (работает для текстовых PDF, не сканов). Возвращает '' если текста нет."""
+def _extract_pdf_pages(pdf_path: Path, max_pages: int = 10) -> list[str]:
+    """Текст PDF по страницам (текстовые PDF, не сканы). [] если текста нет."""
     try:
         import fitz  # PyMuPDF
 
@@ -1195,11 +1195,15 @@ def _extract_pdf_text(pdf_path: Path, max_pages: int = 10) -> str:
                 break
             parts.append(page.get_text())
         doc.close()
-        text = "\n".join(parts).strip()
-        return text if len(text) > 50 else ""
+        return parts if len("\n".join(parts).strip()) > 50 else []
     except Exception as e:
         logging.getLogger(__name__).error(f"PDF text extract error: {e}")
-        return ""
+        return []
+
+
+def _extract_pdf_text(pdf_path: Path, max_pages: int = 10) -> str:
+    """Извлекает текст из PDF (работает для текстовых PDF, не сканов). Возвращает '' если текста нет."""
+    return "\n".join(_extract_pdf_pages(pdf_path, max_pages)).strip()
 
 
 def _pdf_to_images(pdf_path: Path, max_pages: int = 3) -> list[Path]:
