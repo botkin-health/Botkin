@@ -436,6 +436,9 @@ async def test_later_parts_get_document_head_as_context():
     assert not any("Начало документа" in t for t in texts[0])
     for later in texts[1:]:
         assert "ШАПКА мг/дл" in later[0] and "Начало документа" in later[0]
+    # Конец предыдущей страницы — там стоит заголовок таблицы, строки которой идут дальше.
+    assert pages[1][-100:] in texts[2][0]
+    assert pages[0][-100:] in texts[1][0]
 
 
 @pytest.mark.asyncio
@@ -491,3 +494,72 @@ async def test_failed_part_retried_once():
     assert call.await_count == 4
     assert "_chunks_failed" not in out
     assert sorted(e["date"] for e in out["series"]) == ["2024-01-10", "2025-12-12", "2026-07-14"]
+
+
+@pytest.mark.asyncio
+async def test_parts_use_medium_effort_plain_documents_default():
+    call = AsyncMock(return_value=_fake_response({"date": "2026-07-14", "doc_kind": "lab_panel", "values": {"ALT": 1}}))
+    with patch.object(doc_extractor, "_call_anthropic", new=call):
+        await doc_extractor.extract_medical_data_from_pages([_lab_page("а"), _lab_page("б"), _lab_page("в")])
+        await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    efforts = [c.args[1] if len(c.args) > 1 else None for c in call.await_args_list]
+    assert efforts == ["medium", "medium", "medium", None]
+
+
+# ── единица строки сводной таблицы ───────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_row_unit_overrides_shared_unit():
+    """Витамин D одной даты — в нмоль/л, остальных — в нг/мл: пересчитывается только эта дата."""
+    payload = {
+        "doc_kind": "lab_panel",
+        "values": {},
+        "units": {"vitamin_D": "нг/мл"},
+        "series": [
+            {"date": "2026-07-14", "values": {"vitamin_D": 77.7}, "units": {"vitamin_D": "нмоль/л"}},
+            {"date": "2025-12-12", "values": {"vitamin_D": 24.3}},
+        ],
+    }
+    out = await _extract(payload)
+    by_date = {e["date"]: e for e in out["series"]}
+    assert by_date["2026-07-14"]["values"]["vitamin_D"] == pytest.approx(31.13, abs=0.01)
+    assert by_date["2026-07-14"]["units"] == {"vitamin_D": "нг/мл"}
+    assert by_date["2025-12-12"]["values"]["vitamin_D"] == 24.3
+    assert out["units"]["vitamin_D"] == "нг/мл"
+
+
+@pytest.mark.asyncio
+async def test_testosterone_ng_ml_converted_to_nmol_l():
+    payload = {
+        "doc_kind": "lab_panel",
+        "values": {},
+        "units": {"testosterone": "нмоль/л"},
+        "series": [
+            {"date": "2022-05-11", "values": {"testosterone": 3.617}, "units": {"testosterone": "нг/мл"}},
+            {"date": "2025-12-12", "values": {"testosterone": 17.4}},
+        ],
+    }
+    out = await _extract(payload)
+    by_date = {e["date"]: e["values"]["testosterone"] for e in out["series"]}
+    assert by_date == {"2022-05-11": pytest.approx(12.54, abs=0.01), "2025-12-12": 17.4}
+
+
+@pytest.mark.asyncio
+async def test_plain_document_vitamin_d_nmol_converted():
+    out = await _extract({"date": "2026-07-14", "values": {"vitamin_D": 77.7}, "units": {"vitamin_D": "nmol/L"}})
+    assert out["values"]["vitamin_D"] == pytest.approx(31.13, abs=0.01)
+    assert out["units"]["vitamin_D"] == "нг/мл"
+
+
+def test_row_unit_survives_collapse_and_merge():
+    data = {"series": [{"date": "2026-07-14", "values": {"vitamin_D": 77.7}, "units": {"vitamin_D": "нмоль/л"}}]}
+    doc_extractor._normalize_series(data)
+    assert data["units"] == {"vitamin_D": "нмоль/л"}
+    parts = [
+        {"date": None, "series": [{"date": "2026-07-14", "values": {"D": 1}, "units": {"D": "нмоль/л"}}]},
+        {"date": "2025-12-12", "values": {"D": 2}},
+    ]
+    merged = doc_extractor.merge_extractions(parts)
+    assert merged["series"][1]["units"] == {"D": "нмоль/л"}
+    assert "units" not in merged["series"][0]

@@ -44,7 +44,7 @@ _SYSTEM_PROMPT_TEMPLATE = """Ты — медицинский парсер. Тв�
     ...
   }},
   "series": [
-    {{"date": "ГГГГ-ММ-ДД", "laboratory": "лаборатория из этой строки таблицы или null", "values": {{"ключ": числовое_значение}}}},
+    {{"date": "ГГГГ-ММ-ДД", "laboratory": "лаборатория из этой строки таблицы или null", "values": {{"ключ": числовое_значение}}, "units": {{"ключ": "единица, только если в этой строке она не та, что в общем units"}}}},
     ...
   ],
   "allergies": ["строка", ...],
@@ -58,7 +58,7 @@ _SYSTEM_PROMPT_TEMPLATE = """Ты — медицинский парсер. Тв�
 - "doc_type" — короткое название, как назвал бы документ врач: «Общий анализ крови», «УЗИ почек», «ПЦР на ВПЧ», «Заключение дерматолога».
 - "summary" — что показал документ, только то, что в нём напечатано: результаты, включая качественные («не обнаружено», «1–2 в п/зр»), и заключение/рекомендации врача, если есть. Без советов и интерпретаций от себя. НЕ пиши от себя оценок «в пределах нормы», «всё в порядке», «повышен» — только то, что напечатано на бланке: значение, референс и пометку лаборатории («+», «↑», «H», «*»), если она есть. Разные рекомендации не сливай в одну фразу — перечисли каждую отдельно, как в документе. Для "lab_panel" с числовыми показателями — null (значения уже в "values"); если на бланке анализа только качественные результаты — перечисли их без оценок.
 - Для "smear_pcr" поле "values" ВСЕГДА пустое {{}}: результаты мазков и ПЦР качественные или условные («не обнаружено», «1–2 в п/зр», «> 50000», «7×10⁶») — их пиши в "summary", а не в "values".
-- "series" — только для сводной таблицы или выписки «в динамике», где показатели приведены за НЕСКОЛЬКО дат (строки или столбцы с датами). Тогда каждая дата таблицы — отдельный элемент "series" со своими значениями (и лабораторией, если она указана в этой строке), а верхние "date" = null и "values" = {{}}. Дату элемента бери из строки или столбца таблицы; дату без дня («03.2023», «2023») не выдумывай — такую строку пропусти. Прочерк или пустая ячейка — показатель в этой дате не включай. Единицы — в общем "units". Сводная таблица анализов — тоже "lab_panel". У обычного бланка за одну дату "series" = [].
+- "series" — только для сводной таблицы или выписки «в динамике», где показатели приведены за НЕСКОЛЬКО дат (строки или столбцы с датами). Тогда каждая дата таблицы — отдельный элемент "series" со своими значениями (и лабораторией, если она указана в этой строке), а верхние "date" = null и "values" = {{}}. Дату элемента бери из строки или столбца таблицы; дату без дня («03.2023», «2023») не выдумывай — такую строку пропусти. Прочерк или пустая ячейка — показатель в этой дате не включай. Единицы — в общем "units"; если у строки своя единица (столбец «Ед.», сноска «2022 — нг/мл»), укажи её в "units" этого элемента. Если рядом со значением приведён пересчёт в другую единицу («77.7 нмоль/л (≈31.1 нг/мл)»), бери одно значение и укажи именно его единицу — число и единица должны соответствовать друг другу. Сводная таблица анализов — тоже "lab_panel". У обычного бланка за одну дату "series" = [].
 - "values" — только числовые показатели (анализы крови, биохимия, гормоны, витамины, размеры органов в УЗИ и т.д.)
 - Используй короткие английские ключи. Если показатель есть в этом списке — используй ИМЕННО это имя: {canonical_keys}. Если показателя в списке нет — придумай короткий английский ключ сам.
 - Не включай единицы измерения в значения — только число; единицу каждого показателя, как она напечатана на бланке (мг/дл, мг/л, пмоль/л…), положи в "units" под тем же ключом.
@@ -88,8 +88,8 @@ def _build_system_prompt() -> str:
 _SYSTEM_PROMPT = _build_system_prompt()
 
 
-async def _call_anthropic(messages: list[dict]) -> dict:
-    """Вызов Anthropic Messages API."""
+async def _call_anthropic(messages: list[dict], effort: Optional[str] = None) -> dict:
+    """Вызов Anthropic Messages API. `effort` — `output_config.effort`; None — дефолт модели."""
     settings = get_settings()
     api_key = settings.anthropic_api_key
     if not api_key:
@@ -116,6 +116,7 @@ async def _call_anthropic(messages: list[dict]) -> dict:
                 "max_tokens": 16000,
                 "system": _SYSTEM_PROMPT,
                 "messages": messages,
+                **({"output_config": {"effort": effort}} if effort else {}),
             },
         )
         resp.raise_for_status()
@@ -154,8 +155,8 @@ def _build_text_message(file_bytes: bytes, context: Optional[str] = None) -> dic
             "content": [
                 {
                     "type": "text",
-                    "text": "Начало документа — только для контекста (единицы, названия столбцов и показателей). "
-                    "Значения и даты из этого блока не извлекай:\n" + context,
+                    "text": "Начало документа и конец предыдущей страницы — только для контекста (единицы, "
+                    "названия столбцов и показателей). Значения и даты из этого блока не извлекай:\n" + context,
                 },
                 {"type": "text", "text": doc_text},
                 {
@@ -287,12 +288,18 @@ def _normalize_series(data: dict, today: Optional[date] = None) -> None:
     by_date: dict[str, dict[str, Any]] = {}
     rejected: list[str] = []
 
-    def _add(iso: str, laboratory: Any, values: dict[str, Any]) -> None:
+    def _add(iso: str, laboratory: Any, values: dict[str, Any], units: Any = None) -> None:
         entry = by_date.setdefault(iso, {"date": iso, "laboratory": None, "values": {}})
         if laboratory and not entry["laboratory"]:
             entry["laboratory"] = str(laboratory).strip() or None
         for key, value in values.items():
-            entry["values"].setdefault(key, value)
+            if key in entry["values"]:
+                continue
+            entry["values"][key] = value
+            # Своя единица строки (#559): в досье витамин D одной даты — нмоль/л,
+            # остальных — нг/мл. Хранится только для ключей этой записи.
+            if isinstance(units, dict) and units.get(key):
+                entry.setdefault("units", {})[key] = str(units[key])
 
     for item in raw if isinstance(raw, list) else []:
         if not isinstance(item, dict):
@@ -304,7 +311,7 @@ def _normalize_series(data: dict, today: Optional[date] = None) -> None:
         if iso is None:
             rejected.append(f"{item.get('date')!r}: {reason}")
             continue
-        _add(iso, item.get("laboratory"), values)
+        _add(iso, item.get("laboratory"), values, item.get("units"))
     if rejected:
         logger.info("doc_extractor: строки сводной таблицы отброшены: %s", rejected)
         data["_series_rejected"] = rejected
@@ -320,6 +327,8 @@ def _normalize_series(data: dict, today: Optional[date] = None) -> None:
         data["date"] = entry["date"]
         data["values"] = {**top_values, **entry["values"]}
         data["laboratory"] = data.get("laboratory") or entry["laboratory"]
+        if entry.get("units"):
+            data["units"] = {**(data.get("units") if isinstance(data.get("units"), dict) else {}), **entry["units"]}
         return
     data["date"] = None
     data["values"] = top_values
@@ -393,37 +402,66 @@ def _filter_conditions(data: dict) -> None:
 _UNIT_CONVERSIONS: dict[tuple[str, str], tuple[float, str]] = {
     (key, unit): (10.0, "мг/л") for key in ("hs_crp", "hscrp", "crp") for unit in ("мг/дл", "mg/dl")
 }
+# Досье #559: 25-OH витамин D в нмоль/л (1 нг/мл = 2.496 нмоль/л), общий тестостерон
+# в нг/мл (1 нг/мл = 3.467 нмоль/л) — строки одной таблицы в разных единицах.
+_UNIT_CONVERSIONS.update(
+    {
+        (key, unit): (round(1 / 2.496, 6), "нг/мл")
+        for key in ("vitamin_d", "vitamin_d3", "vitd", "vit_d")
+        for unit in ("нмоль/л", "nmol/l")
+    }
+)
+_UNIT_CONVERSIONS.update(
+    {
+        (key, unit): (3.467, "нмоль/л")
+        for key in ("testosterone", "testosterone_total", "total_testosterone")
+        for unit in ("нг/мл", "ng/ml")
+    }
+)
 
 
 def _convert_units(data: dict) -> None:
     """Пересчитывает значения, напечатанные не в канонической единице (СРБ в мг/дл).
 
-    Сделанные пересчёты — в `_unit_conversions`, `units[key]` обновляется на
-    каноническую единицу, чтобы повторная обработка не умножила ещё раз.
+    Сделанные пересчёты — в `_unit_conversions`; единица пересчитанного ключа
+    обновляется на каноническую, чтобы повторная обработка не умножила ещё раз.
+    У сводной таблицы (#559) единица значения — своя у строки (`series[].units`),
+    иначе общая `units`; общие единицы берутся в исходном виде для всех дат.
     """
-    units = data.get("units")
-    if not isinstance(units, dict):
-        return
-    # Единицы у сводной таблицы общие на все даты (#559): пересчитываем каждую дату,
-    # а units обновляем один раз в конце — иначе вторая дата уже не узнала бы мг/дл.
-    targets = [data.get("values")] + [e.get("values") for e in data.get("series") or [] if isinstance(e, dict)]
-    targets = [t for t in targets if isinstance(t, dict)]
-    done = []
-    for key, unit in list(units.items()):
-        norm = "".join(str(unit).split()).casefold()
-        rule = _UNIT_CONVERSIONS.get((str(key).casefold(), norm))
-        if rule is None:
+    top_units = data.get("units") if isinstance(data.get("units"), dict) else {}
+    original = dict(top_units)
+    done: list[str] = []
+    top_converted: dict[str, str] = {}
+
+    def _apply(values: Any, units: dict, where: str) -> dict[str, str]:
+        changed: dict[str, str] = {}
+        if not isinstance(values, dict):
+            return changed
+        for key, raw in list(values.items()):
+            unit = units.get(key)
+            if unit is None or not isinstance(raw, (int, float)) or isinstance(raw, bool):
+                continue
+            rule = _UNIT_CONVERSIONS.get((str(key).casefold(), "".join(str(unit).split()).casefold()))
+            if rule is None:
+                continue
+            factor, canon_unit = rule
+            values[key] = round(raw * factor, 6)
+            changed[key] = canon_unit
+            done.append(f"{where}{key}: {unit} → {canon_unit} ×{factor:g}")
+        return changed
+
+    top_converted.update(_apply(data.get("values"), original, ""))
+    for entry in data.get("series") or []:
+        if not isinstance(entry, dict):
             continue
-        factor, canon_unit = rule
-        converted = False
-        for values in targets:
-            raw = values.get(key)
-            if isinstance(raw, (int, float)) and not isinstance(raw, bool):
-                values[key] = round(raw * factor, 6)
-                converted = True
-        if converted:
-            units[key] = canon_unit
-            done.append(f"{key}: {unit} → {canon_unit} ×{factor:g}")
+        own = entry.get("units") if isinstance(entry.get("units"), dict) else {}
+        for key, canon_unit in _apply(entry.get("values"), {**original, **own}, f"{entry.get('date')} ").items():
+            if key in own:
+                own[key] = canon_unit
+            else:
+                top_converted[key] = canon_unit
+    if top_converted and isinstance(data.get("units"), dict):
+        data["units"].update(top_converted)
     if done:
         logger.info("doc_extractor: пересчёт единиц: %s", done)
         data["_unit_conversions"] = done
@@ -443,6 +481,7 @@ async def extract_medical_data(
     *,
     context: Optional[str] = None,
     check_readable: bool = True,
+    effort: Optional[str] = None,
 ) -> dict[str, Any]:
     """Извлекает медицинские данные из документа через Claude.
 
@@ -453,6 +492,7 @@ async def extract_medical_data(
         context: начало документа для части длинного PDF (#559), только text/plain
         check_readable: False — читаемость уже проверена на всём документе (#559):
             страница таблицы из дат и чисел сама по себе «без букв», но не мусор
+        effort: `output_config.effort` (low…max); None — дефолт модели (high у Sonnet 5)
 
     Returns:
         dict с ключами date, laboratory, values (или пустой dict если не нашёл)
@@ -485,7 +525,7 @@ async def extract_medical_data(
         else:
             message = _build_image_message(file_bytes, mime_type)
 
-        response = await _call_anthropic([message])
+        response = await _call_anthropic([message], effort) if effort else await _call_anthropic([message])
         try:
             from core.llm_usage import log_anthropic_response
 
@@ -544,9 +584,15 @@ _CHUNK_CHARS = 3_500
 # 15-страничное досье: 3 параллельно — 363 с (пять кругов по ~70 с thinking на
 # часть), 6 — три круга. Больше — упираемся в лимит запросов Anthropic.
 _MAX_PARALLEL_CHUNKS = 6
-# Начало первой страницы — контекст каждой следующей части: единицы и названия
-# столбцов (ревью #564). Дату из него модель не берёт — см. _build_text_message.
+# Начало первой страницы и конец предыдущей части — контекст каждой следующей части:
+# единицы и названия столбцов (ревью #564). Дату из него модель не берёт — см.
+# _build_text_message.
 _CONTEXT_CHARS = 1_500
+# Thinking на плотной странице таблицы при дефолтном high иногда съедает весь лимит
+# 16000 дважды подряд (досье #559). effort — рекомендованный Anthropic регулятор
+# глубины thinking у Sonnet 5 (docs: build-with-claude/effort). Только для частей
+# длинного документа: обычные бланки мерены eval'ом на дефолте (ADR-0010).
+_CHUNK_EFFORT = "medium"
 
 
 def needs_chunking(pages: list[str]) -> bool:
@@ -643,13 +689,29 @@ async def extract_medical_data_from_pages(pages: list[str], user_id: Optional[in
         return await extract_medical_data(text.encode(), "text/plain", user_id=user_id)
     chunks = chunk_pages(pages)
     head = pages[0][:_CONTEXT_CHARS]
+
+    def _context(i: int) -> Optional[str]:
+        # Шапка документа + конец предыдущей части: заголовок таблицы часто стоит в
+        # конце страницы, а её строки — на следующей (досье #559: гормоны — названия
+        # столбцов на стр. 4, числа на стр. 5; без них модель либо пропускала числа,
+        # либо угадывала названия).
+        if i == 0:
+            return None
+        tail = chunks[i - 1][-_CONTEXT_CHARS:]
+        return tail if i == 1 and len(chunks[0]) <= _CONTEXT_CHARS else f"{head}\n…\n{tail}"
+
     logger.info("doc_extractor: длинный документ (%d символов) — разбор по %d частям", len(text), len(chunks))
     semaphore = asyncio.Semaphore(_MAX_PARALLEL_CHUNKS)
 
     async def _one(i: int, chunk: str) -> dict[str, Any]:
         async with semaphore:
             return await extract_medical_data(
-                chunk.encode(), "text/plain", user_id=user_id, context=head if i else None, check_readable=False
+                chunk.encode(),
+                "text/plain",
+                user_id=user_id,
+                context=_context(i),
+                check_readable=False,
+                effort=_CHUNK_EFFORT,
             )
 
     parts = list(await asyncio.gather(*(_one(i, c) for i, c in enumerate(chunks))))
