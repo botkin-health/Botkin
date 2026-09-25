@@ -222,6 +222,19 @@ def _sanitize_date(data: dict, today: Optional[date] = None) -> None:
 
 DOC_KINDS = ("lab_panel", "imaging", "smear_pcr", "doctor_note", "other")
 
+# Оценки «в норме / повышен», которые модель пишет от себя в резюме анализов даже при
+# запрете в промпте — и ошибается (кальций 1.33 при норме до 1.32 → «в пределах нормы»).
+# У lab_panel значения и так рядом, оценка — дело агента по референсам; у УЗИ и
+# заключений похожие фразы — это напечатанный вывод врача, их не трогаем (#558).
+_VERDICT_RE = re.compile(r"в\s+пределах|в\s+норм|норм[аеуы]\b|повышен|понижен|снижен|отклонени|в\s+порядке", re.I)
+# Граница предложения — знак препинания И пробел после: «953.278» не режем.
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
+
+
+def _strip_verdicts(summary: str) -> Optional[str]:
+    sentences = [sent.strip() for sent in _SENTENCE_SPLIT_RE.split(summary.strip()) if sent.strip()]
+    return " ".join(sent for sent in sentences if not _VERDICT_RE.search(sent)) or None
+
 
 def _normalize_kind(data: dict) -> None:
     """Приводит doc_kind/doc_type/summary; у мазков и ПЦР отбрасывает числа (#558).
@@ -239,6 +252,8 @@ def _normalize_kind(data: dict) -> None:
         if key in data:
             text = str(data.get(key) or "").strip()
             data[key] = text or None
+    if data.get("doc_kind") == "lab_panel" and data.get("summary"):
+        data["summary"] = _strip_verdicts(data["summary"])
     values = data.get("values")
     if data.get("doc_kind") == "smear_pcr" and isinstance(values, dict) and values:
         logger.info("doc_extractor: у smear_pcr отброшены числа: %s", list(values))

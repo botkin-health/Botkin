@@ -655,3 +655,45 @@ def test_urine_keys_do_not_become_blood_row():
     }
     res = build_blood_test_row(extracted, stored_name="2026-09-11_f943398b.jpg", user_id=1)
     assert res.row is None
+
+
+@pytest.mark.asyncio
+async def test_lab_panel_summary_verdicts_are_stripped():
+    """#558: модель пишет «в пределах нормы» и для значений выше нормы — у lab_panel вырезаем."""
+    payload = {
+        "doc_kind": "lab_panel",
+        "summary": "Определён ионизированный кальций. Показатель в пределах нормы. Все показатели в норме!",
+        "values": {"calcium_ionized": 1.33},
+    }
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert out["summary"] == "Определён ионизированный кальций."
+
+
+@pytest.mark.asyncio
+async def test_imaging_conclusion_kept_verbatim():
+    payload = {
+        "doc_kind": "imaging",
+        "summary": "Размеры матки в норме. Заключение: патологии не выявлено.",
+        "values": {},
+    }
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert out["summary"] == "Размеры матки в норме. Заключение: патологии не выявлено."
+
+
+@pytest.mark.asyncio
+async def test_lab_summary_made_only_of_verdicts_becomes_none():
+    payload = {
+        "doc_kind": "lab_panel",
+        "summary": "Все показатели в пределах референсных значений.",
+        "values": {"Hb": 119},
+    }
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert out["summary"] is None
+
+
+def test_strip_verdicts_keeps_decimal_numbers_intact():
+    text = "Медь 953.278 мкг/л, селен 133,8 мкг/л. Оба в пределах нормы."
+    assert doc_extractor._strip_verdicts(text) == "Медь 953.278 мкг/л, селен 133,8 мкг/л."
