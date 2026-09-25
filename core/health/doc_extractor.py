@@ -97,7 +97,9 @@ async def _call_anthropic(messages: list[dict]) -> dict:
             },
             json={
                 "model": _MODEL,
-                "max_tokens": 2048,  # резюме + до ~30 показателей (#558); обрезанный JSON = потерянный документ
+                # Резюме + до ~30 показателей + блок thinking у Sonnet 5 (он тоже тратит
+                # этот лимит). Обрезанный JSON = потерянный документ (#558).
+                "max_tokens": 4096,
                 "system": _SYSTEM_PROMPT,
                 "messages": messages,
             },
@@ -340,6 +342,8 @@ async def extract_medical_data(file_bytes: bytes, mime_type: str) -> dict[str, A
             message = _build_image_message(file_bytes, mime_type)
 
         response = await _call_anthropic([message])
+        if response.get("stop_reason") == "max_tokens":
+            logger.warning("doc_extractor: ответ обрезан по max_tokens — JSON может не разобраться (%s)", mime_type)
         data = _parse_response(response)
         if data:
             _sanitize_date(data)

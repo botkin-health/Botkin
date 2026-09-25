@@ -568,3 +568,16 @@ async def test_crp_already_mg_l_and_latin_unit_variants():
         out_latin = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
     assert out_same["values"]["CRP"] == 3.0 and "_unit_conversions" not in out_same
     assert out_latin["values"]["CRP"] == pytest.approx(3.0)
+
+
+@pytest.mark.asyncio
+async def test_truncated_response_is_logged_loudly(caplog):
+    """#558: обрыв по лимиту раньше тихо превращался в {} — теперь хотя бы виден в логах."""
+    response = {
+        "stop_reason": "max_tokens",
+        "content": [{"type": "text", "text": '{"date": "2026-09-08", "summary": "Мат'}],
+    }
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=response)):
+        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert out == {}
+    assert "обрезан по max_tokens" in caplog.text
