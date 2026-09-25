@@ -58,6 +58,21 @@ def _values_match(new: dict[str, float], old: dict[str, float]) -> bool:
     return same / len(new) >= _MIN_SHARE
 
 
+def _values_conflict(new: dict[str, float], old: dict[str, float]) -> bool:
+    """Сопоставимые числа есть и расходятся — это разные анализы, как ни похож текст."""
+    common = [k for k in new if k in old]
+    if len(common) < _MIN_NUMERIC_VALUES:
+        return False
+    same = sum(1 for k in common if _same_number(new[k], old[k]))
+    return same / len(common) < _MIN_SHARE
+
+
+def _is_cancelled_archive(entry: dict) -> bool:
+    """Отменённый/неразобранный архив — не «уже сохранён» (ревью #560): иначе чёткое
+    фото, присланное вместо отменённого размытого, уговорили бы тоже отменить."""
+    return bool(entry.get("auto_archived")) and not entry.get("restored")
+
+
 def _tokens(doc: dict) -> set[str]:
     text = f"{doc.get('summary') or ''} {doc.get('doc_type') or ''}".casefold()
     return {w[:_STEM] for w in _WORD_RE.findall(text) if len(w) > 2 and w not in _STOPWORDS}
@@ -87,14 +102,15 @@ def find_similar_document(documents: list[Any], extracted: dict[str, Any]) -> Op
     extracted = extracted or {}
     new_values = _numeric(extracted.get("values"))
     for entry in documents or []:
-        if not isinstance(entry, dict):
+        if not isinstance(entry, dict) or _is_cancelled_archive(entry):
             continue
         old = entry.get("extracted")
         if not isinstance(old, dict):
             continue
+        old_values = _numeric(old.get("values"))
         if new_values and _dates_compatible(extracted.get("date"), old.get("date")):
-            if _values_match(new_values, _numeric(old.get("values"))):
+            if _values_match(new_values, old_values):
                 return entry
-        if _text_match(extracted, old):
+        if not _values_conflict(new_values, old_values) and _text_match(extracted, old):
             return entry
     return None

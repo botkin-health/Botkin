@@ -120,3 +120,34 @@ def test_imaging_with_differently_named_sizes_detected_by_summary():
         "values": {"kidney_left_mm": 107, "kidney_left_w": 50, "kidney_right_mm": 110},
     }
     assert find_similar_document(saved, new) is saved[0]
+
+
+def test_cancelled_archived_document_is_not_a_duplicate_target():
+    ex = {"date": "2026-09-13", "values": dict(CBC)}
+    cancelled = _doc(dict(ex), auto_archived=True, user_confirmed=False, reason="пользователь отменил разбор")
+    restored = _doc(dict(ex), file="2026-09-24_bbbb2222.jpg", auto_archived=True, restored=True)
+    assert find_similar_document([cancelled], dict(ex)) is None
+    assert find_similar_document([restored], dict(ex)) is restored
+
+
+def test_conflicting_numbers_block_text_match():
+    summary = "Общий анализ крови: гемоглобин, лейкоциты, эритроциты, тромбоциты, СОЭ, лейкоцитарная формула."
+    saved = [
+        _doc(
+            {
+                "date": "2026-09-13",
+                "doc_kind": "lab_panel",
+                "doc_type": "Общий анализ крови",
+                "summary": summary,
+                "values": {"Hb": 119, "WBC": 4.6, "RBC": 4.21},
+            }
+        )
+    ]
+    new = {
+        "date": "2026-09-13",
+        "doc_kind": "lab_panel",
+        "doc_type": "Общий анализ крови",
+        "summary": summary,
+        "values": {"Hb": 135, "WBC": 7.1, "RBC": 4.9},
+    }
+    assert find_similar_document(saved, new) is None

@@ -7,7 +7,7 @@ import base64
 import json
 import logging
 import re
-from datetime import date
+from datetime import date, timedelta
 from typing import Any, Optional
 
 import httpx
@@ -210,7 +210,8 @@ def _sanitize_date(data: dict, today: Optional[date] = None) -> None:
     else:
         if any(marker in label for marker in _NON_STUDY_DATE_LABELS):
             reason = "print_or_issue_date"
-        elif parsed > (today or date.today()):
+        elif parsed > (today or date.today()) + timedelta(days=1):
+            # +1 день: сервер в UTC, а у пользователя в Москве/Израиле уже «завтра».
             reason = "future"
         else:
             data["date"] = parsed.isoformat()
@@ -231,9 +232,27 @@ _VERDICT_RE = re.compile(r"в\s+пределах|в\s+норм|норм[аеуы
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
 
 
+# Явная оценка внутри предложения с числами: «…1.33 ммоль/л, в пределах нормы» —
+# вырезаем только её; референс «(норма 1.12–1.32)» и пометку лаборатории не трогаем.
+_VERDICT_CLAUSE_RE = re.compile(
+    r",?\s*(?:все\s+)?(?:показател\w*\s+)?(?:наход\w*\s+)?в\s+(?:пределах\s+(?:нормы|референсн\w*\s+значени\w*)|норме)",
+    re.I,
+)
+
+
 def _strip_verdicts(summary: str) -> Optional[str]:
-    sentences = [sent.strip() for sent in _SENTENCE_SPLIT_RE.split(summary.strip()) if sent.strip()]
-    return " ".join(sent for sent in sentences if not _VERDICT_RE.search(sent)) or None
+    kept = []
+    for sent in (x.strip() for x in _SENTENCE_SPLIT_RE.split(summary.strip())):
+        if not sent:
+            continue
+        if not any(ch.isdigit() for ch in sent):
+            if not _VERDICT_RE.search(sent):
+                kept.append(sent)
+            continue
+        cleaned = re.sub(r"\s+([.!?,;])", r"\1", _VERDICT_CLAUSE_RE.sub("", sent)).strip()
+        if cleaned:
+            kept.append(cleaned)
+    return " ".join(kept) or None
 
 
 def _normalize_kind(data: dict) -> None:
@@ -246,8 +265,14 @@ def _normalize_kind(data: dict) -> None:
     """
     raw_kind = data.get("doc_kind")
     if raw_kind is not None:
-        kind = str(raw_kind).strip().lower()
-        data["doc_kind"] = kind if kind in DOC_KINDS else "other"
+        kind = re.sub(r"[\s\-]+", "_", str(raw_kind).strip().lower())
+        if kind in DOC_KINDS:
+            data["doc_kind"] = kind
+        else:
+            # Незнакомый тип ≠ «other»: other не пишется в blood_tests, и настоящая
+            # панель с опечаткой в типе молча пропала бы из динамики (ревью #560).
+            logger.info("doc_extractor: незнакомый doc_kind %r — поле убрано", raw_kind)
+            data.pop("doc_kind")
     for key in ("doc_type", "summary"):
         if key in data:
             text = str(data.get(key) or "").strip()
@@ -280,11 +305,9 @@ def _filter_conditions(data: dict) -> None:
 # Известные несовпадения единицы бланка с канонической (kb_schema): (ключ, единица
 # бланка без пробелов, casefold) → (множитель, каноническая единица). Только то, что
 # встречалось на реальных бланках; незнакомое не «чиним» молча (#558).
+# Ключи — в casefold: модель пишет и hs_CRP, и hsCRP, и crp.
 _UNIT_CONVERSIONS: dict[tuple[str, str], tuple[float, str]] = {
-    ("hs_CRP", "мг/дл"): (10.0, "мг/л"),
-    ("hs_CRP", "mg/dl"): (10.0, "мг/л"),
-    ("CRP", "мг/дл"): (10.0, "мг/л"),
-    ("CRP", "mg/dl"): (10.0, "мг/л"),
+    (key, unit): (10.0, "мг/л") for key in ("hs_crp", "hscrp", "crp") for unit in ("мг/дл", "mg/dl")
 }
 
 
@@ -300,7 +323,7 @@ def _convert_units(data: dict) -> None:
     done = []
     for key, unit in list(units.items()):
         norm = "".join(str(unit).split()).casefold()
-        rule = _UNIT_CONVERSIONS.get((key, norm))
+        rule = _UNIT_CONVERSIONS.get((str(key).casefold(), norm))
         raw = values.get(key)
         if rule is None or not isinstance(raw, (int, float)) or isinstance(raw, bool):
             continue

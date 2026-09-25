@@ -482,7 +482,7 @@ async def test_lab_panel_values_kept_and_unknown_kind_becomes_other():
     with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(odd))):
         out_odd = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
     assert out_lab["doc_kind"] == "lab_panel" and out_lab["values"] == {"Hb": 119}
-    assert out_odd["doc_kind"] == "other"
+    assert "doc_kind" not in out_odd  # незнакомый тип — не «other», иначе теряется строка blood_tests
 
 
 @pytest.mark.asyncio
@@ -697,3 +697,49 @@ async def test_lab_summary_made_only_of_verdicts_becomes_none():
 def test_strip_verdicts_keeps_decimal_numbers_intact():
     text = "Медь 953.278 мкг/л, селен 133,8 мкг/л. Оба в пределах нормы."
     assert doc_extractor._strip_verdicts(text) == "Медь 953.278 мкг/л, селен 133,8 мкг/л."
+
+
+# ── ревью PR #560 ───────────────────────────────────────────────────────────
+
+
+def test_strip_verdicts_keeps_reference_and_lab_flag():
+    text = "Кальций 1.33 (норма 1.12–1.32), помечен H. Все показатели в пределах референсных значений."
+    assert doc_extractor._strip_verdicts(text) == "Кальций 1.33 (норма 1.12–1.32), помечен H."
+
+
+def test_strip_verdicts_removes_verdict_clause_from_numeric_sentence():
+    assert doc_extractor._strip_verdicts("Кальций ионизированный 1.33 ммоль/л, в пределах нормы.") == (
+        "Кальций ионизированный 1.33 ммоль/л."
+    )
+
+
+@pytest.mark.asyncio
+async def test_misspelled_lab_kind_normalised_and_unknown_dropped():
+    spaced = {"doc_kind": "Lab panel", "date": "2026-09-13", "values": {"Hb": 119}}
+    garbage = {"doc_kind": "lab_panel | imaging", "date": "2026-09-13", "values": {"Hb": 119}}
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(spaced))):
+        out_spaced = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(garbage))):
+        out_garbage = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert out_spaced["doc_kind"] == "lab_panel"
+    assert "doc_kind" not in out_garbage
+
+
+@pytest.mark.asyncio
+async def test_crp_conversion_case_insensitive_key():
+    payload = {"values": {"hsCRP": 0.07}, "units": {"hsCRP": "мг/дл"}}
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert out["values"]["hsCRP"] == pytest.approx(0.7)
+
+
+def test_date_of_tomorrow_utc_is_allowed_for_user_timezones():
+    from datetime import date, timedelta
+
+    today = date(2026, 9, 25)
+    ok = {"date": (today + timedelta(days=1)).isoformat()}
+    far = {"date": (today + timedelta(days=2)).isoformat()}
+    doc_extractor._sanitize_date(ok, today=today)
+    doc_extractor._sanitize_date(far, today=today)
+    assert ok["date"] == "2026-09-26"
+    assert far["date"] is None and far["_date_rejected"] == "future"
