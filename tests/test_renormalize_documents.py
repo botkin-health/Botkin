@@ -45,6 +45,7 @@ def test_main_reports_without_writing_kb(tmp_path, monkeypatch, capsys):
             },
             {"added_at": "2026-01-10", "extracted": {"doc_kind": "smear_pcr", "values": {"WBC": 1.2}}},
             {"added_at": "2026-01-11", "file": "no-extracted.jpg"},
+            {"added_at": "2026-09-25", "file": "archived.jpg", "auto_archived": True, "extracted": {}},
         ]
     }
     kb.write_text(json.dumps(docs, ensure_ascii=False), encoding="utf-8")

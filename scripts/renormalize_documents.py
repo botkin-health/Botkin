@@ -61,7 +61,13 @@ def main() -> None:
             uid = Path(kb_path).stem[3:]
             docs = json.loads(Path(kb_path).read_text(encoding="utf-8")).get("documents") or []
             for i, entry in enumerate(docs):
-                if not isinstance(entry, dict) or not isinstance(entry.get("extracted"), dict):
+                # Пустой extracted — документ не разбирался (архив, нечитаемый); экстрактор
+                # пустой ответ тоже не нормализует.
+                if (
+                    not isinstance(entry, dict)
+                    or not isinstance(entry.get("extracted"), dict)
+                    or not entry["extracted"]
+                ):
                     continue
                 if args.since and str(entry.get("added_at") or "") < args.since:
                     continue
