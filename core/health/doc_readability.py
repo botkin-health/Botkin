@@ -42,6 +42,14 @@ _MIN_ALPHA_RATIO = 0.3
 # Цена ложного отсечения здесь — тихая потеря настоящего анализа.
 _MIN_WORD_TOKENS = 1
 
+# Таблица за несколько дат (#559) — почти одни числа: доля букв 0.20–0.42 на
+# страницах досье при 12–21 разных словах («Дата», «лаборатория», названия
+# столбцов). Мусор битого шрифта — 0.0–0.05 и слова не длиннее двух букв. Такой
+# текст читаем, если букв хотя бы 0.1 и в нём ≥ 8 разных слов от трёх букв.
+_TABLE_MIN_ALPHA_RATIO = 0.1
+_TABLE_MIN_DISTINCT_WORDS = 8
+_LONG_WORD_RE = re.compile(r"[^\W\d_]{3,}", re.UNICODE)
+
 
 def _alpha_ratio(text: str) -> float:
     stripped = re.sub(r"\s+", "", text)
@@ -62,6 +70,10 @@ def is_document_text_readable(text: str) -> bool:
     """
     if not text:
         return False
-    if _alpha_ratio(text) < _MIN_ALPHA_RATIO:
-        return False
+    ratio = _alpha_ratio(text)
+    if ratio < _MIN_ALPHA_RATIO:
+        if ratio < _TABLE_MIN_ALPHA_RATIO:
+            return False
+        words = {w.casefold() for w in _LONG_WORD_RE.findall(text)}
+        return len(words) >= _TABLE_MIN_DISTINCT_WORDS
     return len(_WORD_RE.findall(text)) >= _MIN_WORD_TOKENS

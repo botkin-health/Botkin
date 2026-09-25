@@ -66,3 +66,35 @@ def test_control_char_garbage_from_broken_font_is_rejected():
     (доля букв 0.01–0.05), иногда с обрывками, похожими на «слова»."""
     garbage = "  \x04\x05\x06\x07\x05\x08\x05\t \x0b\x0c\x05 ab \x0e\x06 cd \x0f\x10\x11 12.5 \x12 7.8"
     assert not is_document_text_readable(garbage)
+
+
+# Страница сводной таблицы досье (#559, структура реальной страницы): доля букв ~0.2.
+TABLE_TEXT = (
+    "15. 2.7. ЗАК (ключевое)\nОбезличенная копия · для загрузки в Botkin · не для идентификации личности\n"
+    "Дата\nHb г/л\nHt %\nWBC\nPLT\nСОЭ\n"
+    + "".join(
+        f"{d}.0{m}.20{y}\n155\n44.1\n5.23\n215\n2\n"
+        for d, m, y in [
+            (12, 2, 25),
+            (6, 2, 25),
+            (2, 3, 23),
+            (11, 5, 22),
+            (20, 4, 22),
+            (23, 2, 21),
+            (19, 6, 20),
+            (26, 7, 19),
+            (5, 7, 16),
+            (2, 4, 16),
+        ]
+    )
+)
+
+
+def test_multi_date_table_page_is_readable():
+    """Таблица почти из одних чисел, но со словами — не битый шрифт (#559)."""
+    assert is_document_text_readable(TABLE_TEXT)
+
+
+def test_digits_with_few_short_words_still_rejected():
+    garbage = "ab cd ef " + " ".join(f"{i}.{i} 12.5 7.8" for i in range(100))
+    assert not is_document_text_readable(garbage)
