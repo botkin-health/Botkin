@@ -384,7 +384,7 @@ async def test_doc_received_album_is_queued_not_rejected(tmp_path, test_db, monk
 
     extracted = {"values": {"Hb": 150}}
     with (
-        patch("handlers.photo._extract_pdf_text", return_value="Общий анализ крови\nHb 150 г/л"),
+        patch("handlers.photo._extract_pdf_pages", return_value=["Общий анализ крови\nHb 150 г/л"]),
         patch("core.health.doc_extractor.extract_medical_data", AsyncMock(return_value=extracted)),
     ):
         await mod.doc_received(msg1, state, album=[msg1, msg2])
@@ -525,7 +525,7 @@ async def test_run_doc_pipeline_pdf_extracts_from_text(tmp_path, test_db, monkey
 
     extract_mock = AsyncMock(return_value={"values": {"Hb": 140}})
     with (
-        patch("handlers.photo._extract_pdf_text", return_value="Общий анализ крови\nHb 140 г/л"),
+        patch("handlers.photo._extract_pdf_pages", return_value=["Общий анализ крови\nHb 140 г/л"]),
         patch("core.health.doc_extractor.extract_medical_data", extract_mock),
     ):
         await mod.run_doc_pipeline(message, state, content=b"%PDF-fake", ext=".pdf", is_pdf=True)
@@ -1432,7 +1432,7 @@ async def test_new_upload_during_active_queue_appends_not_replaces(tmp_path, tes
 
     extracted = {"values": {"Hb": 150}}
     with (
-        patch("handlers.photo._extract_pdf_text", return_value="Общий анализ крови\nHb 150 г/л"),
+        patch("handlers.photo._extract_pdf_pages", return_value=["Общий анализ крови\nHb 150 г/л"]),
         patch("core.health.doc_extractor.extract_medical_data", AsyncMock(return_value=extracted)),
     ):
         # Альбом из трёх файлов — документ 1 сразу показывается, 2 и 3 в очереди.
@@ -1486,7 +1486,7 @@ async def test_concurrent_uploads_do_not_lose_any_item(tmp_path, test_db, monkey
 
     extracted = {"values": {"Hb": 150}}
     with (
-        patch("handlers.photo._extract_pdf_text", return_value="Общий анализ крови\nHb 150 г/л"),
+        patch("handlers.photo._extract_pdf_pages", return_value=["Общий анализ крови\nHb 150 г/л"]),
         patch("core.health.doc_extractor.extract_medical_data", AsyncMock(return_value=extracted)),
     ):
         await real_asyncio.gather(

@@ -75,11 +75,19 @@ def _has_content(extracted: dict) -> bool:
     if not extracted:
         return False
     return bool(
-        extracted.get("values") or extracted.get("allergies") or extracted.get("conditions") or extracted.get("summary")
+        extracted.get("values")
+        or extracted.get("series")
+        or extracted.get("allergies")
+        or extracted.get("conditions")
+        or extracted.get("summary")
     )
 
 
 _STALE_PENDING_SECONDS = 24 * 3600
+# Страниц текстового PDF для разбора: досье бывает на 15+ страниц (#559), а
+# больше 40 — уже не медицинский документ, а книга.
+_MAX_PDF_PAGES = 40
+_PREVIEW_SERIES_DATES = 6
 
 
 async def _cleanup_stale_pending(user_id: int, state: Optional[FSMContext] = None) -> None:
@@ -329,6 +337,22 @@ def _preview_text(extracted: dict[str, Any], existing: Optional[dict] = None) ->
     if summary:
         lines.append(f"• <b>Кратко:</b> {_esc(str(summary)[:600])}")
 
+    series = [e for e in extracted.get("series") or [] if isinstance(e, dict)]
+    if series:
+        # Сводная таблица (#559): строка на дату, свежие сверху — все значения
+        # 13 дат по 6 показателей в превью не поместить и не прочитать.
+        n = len(series)
+        lines.append(
+            f"• <b>Сводная таблица:</b> {n} {_plural_dates(n)}, {_esc(series[0]['date'])} — {_esc(series[-1]['date'])}"
+        )
+        for entry in list(reversed(series))[:_PREVIEW_SERIES_DATES]:
+            vals = ", ".join(f"{k} {v}" for k, v in (entry.get("values") or {}).items())
+            if len(vals) > 90:
+                vals = vals[:90].rsplit(",", 1)[0] + ", …"
+            lines.append(f"  {_esc(entry['date'])}: {_esc(vals)}")
+        if n > _PREVIEW_SERIES_DATES:
+            lines.append(f"  <i>...и ещё {n - _PREVIEW_SERIES_DATES} {_plural_dates(n - _PREVIEW_SERIES_DATES)}</i>")
+
     values = extracted.get("values") or {}
     for key, val in list(values.items())[:15]:
         lines.append(f"• {_esc(key)}: {_esc(str(val)[:50])}")
@@ -454,7 +478,8 @@ def _unmapped_keys_note(warnings: tuple[str, ...]) -> str:
     Не блокирует сохранение — показатели всё равно лежат в документе, просто не
     попали в динамику (blood_tests хранит только канонические ключи).
     """
-    keys = [m.group("key") for w in warnings if (m := _UNKNOWN_KEY_RE.search(w))]
+    # dict.fromkeys: у сводной таблицы (#559) тот же ключ приходит за каждую дату.
+    keys = list(dict.fromkeys(m.group("key") for w in warnings if (m := _UNKNOWN_KEY_RE.search(w))))
     if not keys:
         return ""
     return f"\n⚠️ Не распознал: {', '.join(keys)} (сохранены в документе, но не попали в динамику)."
@@ -470,15 +495,15 @@ def _save_to_blood_tests(user_id: int, extracted: dict[str, Any], stored_name: s
     документ к этому моменту уже сохранён в KB, и падение БД не должно выглядеть
     как несохранённый документ.
     """
-    from core.health.doc_to_blood_test import build_blood_test_row
+    from core.health.doc_to_blood_test import build_blood_test_rows
     from database.crud import upsert_blood_test
 
-    result = build_blood_test_row(extracted, stored_name=stored_name, user_id=user_id)
+    result = build_blood_test_rows(extracted, stored_name=stored_name, user_id=user_id)
     for warning in result.warnings:
         logger.info("doc_upload: user %s — %s", user_id, warning)
     unmapped_note = _unmapped_keys_note(result.warnings)
 
-    if result.row is None:
+    if not result.rows:
         if result.reason == "no_values" and (extracted.get("_unverified_labels") or extracted.get("_unreadable_text")):
             # Issue #509: значения были, но ни одно название не подтвердилось
             # текстом документа (doc_extractor их уже отбросил) — отдельная,
@@ -499,16 +524,29 @@ def _save_to_blood_tests(user_id: int, extracted: dict[str, Any], stored_name: s
 
     db = SessionLocal()
     try:
-        created = upsert_blood_test(db, result.row)
+        created = [upsert_blood_test(db, row) for row in result.rows]
     except Exception:
         logger.exception("doc_upload: запись в blood_tests не удалась (user %s)", user_id)
         return "\n⚠️ Показатели не попали в динамику — ошибка записи в базу."
     finally:
         db.close()
 
-    verb = "Добавил" if created else "Обновил"
-    note = f"\n📊 {verb} в динамику показателей: {result.marker_count} (дата анализа: {result.row['test_date']})."
+    verb = "Добавил" if any(created) else "Обновил"
+    dates = sorted(row["test_date"] for row in result.rows)
+    if len(dates) == 1:
+        when = f"дата анализа: {dates[0]}"
+    else:
+        when = f"{len(dates)} {_plural_dates(len(dates))}: {dates[0]} — {dates[-1]}"
+    note = f"\n📊 {verb} в динамику показателей: {result.marker_count} ({when})."
     return note + unmapped_note
+
+
+def _plural_dates(n: int) -> str:
+    if n % 10 == 1 and n % 100 != 11:
+        return "дата"
+    if 2 <= n % 10 <= 4 and not 12 <= n % 100 <= 14:
+        return "даты"
+    return "дат"
 
 
 def archive_photo_as_document(
@@ -646,8 +684,8 @@ async def run_doc_pipeline(
     из нескольких файлов (альбом/ZIP, issue #499). Одиночный файл — как
     раньше, без пометки.
     """
-    from core.health.doc_extractor import extract_medical_data
-    from handlers.photo import _extract_pdf_text, _pdf_to_images
+    from core.health.doc_extractor import extract_medical_data, extract_medical_data_from_pages, needs_chunking
+    from handlers.photo import _extract_pdf_pages, _pdf_to_images
 
     user_id = user_id if user_id is not None else message.from_user.id
     await _cleanup_stale_pending(user_id, state)
@@ -691,9 +729,20 @@ async def run_doc_pipeline(
     loop = asyncio.get_event_loop()
     try:
         if is_pdf:
-            pdf_text = await loop.run_in_executor(None, lambda: _extract_pdf_text(tmp_path))
-            if pdf_text:
-                extracted = await extract_medical_data(pdf_text.encode(), "text/plain", user_id=user_id)
+            # Сводное досье бывает на 15+ страниц (#559): прежние 10 страниц молча
+            # теряли хвост, длинный текст экстрактор режет на части сам.
+            pdf_pages = await loop.run_in_executor(None, lambda: _extract_pdf_pages(tmp_path, max_pages=_MAX_PDF_PAGES))
+            if pdf_pages:
+                if needs_chunking(pdf_pages):
+                    # 15 страниц — это минуты, а не секунды: без пометки «Читаю…»
+                    # выглядит зависшим.
+                    try:
+                        await processing.edit_text(
+                            f"⏳ Длинный документ ({len(pdf_pages)} стр.) — разбираю по частям, это займёт пару минут…"
+                        )
+                    except Exception:
+                        logger.debug("run_doc_pipeline: не удалось показать пометку о длинном документе")
+                extracted = await extract_medical_data_from_pages(pdf_pages, user_id=user_id)
             else:
                 # Сканированный PDF — берём первую страницу как изображение
                 pages = await loop.run_in_executor(None, lambda: _pdf_to_images(tmp_path, max_pages=1))

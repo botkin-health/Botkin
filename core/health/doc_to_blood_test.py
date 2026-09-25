@@ -164,3 +164,55 @@ def build_blood_test_row(extracted: dict, *, stored_name: str, user_id: int) -> 
         "status": "current",
     }
     return DocBloodTestResult(row, "ok", tuple(warnings), len(canon))
+
+
+@dataclass(frozen=True)
+class DocBloodTestRows:
+    """Строки документа для blood_tests: одна у обычного бланка, по одной на дату у
+    сводной таблицы (#559). `rows` пуст ⇒ не пишем, смотри `reason`."""
+
+    rows: tuple[dict, ...]
+    reason: str
+    warnings: tuple[str, ...] = ()
+    marker_count: int = 0
+
+
+def build_blood_test_rows(extracted: dict, *, stored_name: str, user_id: int) -> DocBloodTestRows:
+    """`extracted` → строки blood_tests; сводная таблица (`series`) — строка на каждую дату.
+
+    Все строки документа делят `test_type` (лаборатория · хэш файла), различает их
+    дата — ключ upsert'а `(user_id, test_date, test_type)`, поэтому перезалив того же
+    досье обновляет те же строки, а не плодит новые.
+    """
+    extracted = extracted or {}
+    series = [e for e in extracted.get("series") or [] if isinstance(e, dict)]
+    if not series:
+        single = build_blood_test_row(extracted, stored_name=stored_name, user_id=user_id)
+        rows = (single.row,) if single.row is not None else ()
+        return DocBloodTestRows(rows, single.reason, single.warnings, single.marker_count)
+
+    rows: list[dict] = []
+    warnings: list[str] = []
+    reasons: list[str] = []
+    markers = 0
+    for entry in series:
+        result = build_blood_test_row(
+            {
+                "doc_kind": extracted.get("doc_kind"),
+                "date": entry.get("date"),
+                "laboratory": entry.get("laboratory") or extracted.get("laboratory"),
+                "values": entry.get("values") or {},
+            },
+            stored_name=stored_name,
+            user_id=user_id,
+        )
+        warnings.extend(f"{entry.get('date')}: {w}" for w in result.warnings)
+        if result.row is None:
+            reasons.append(result.reason)
+            continue
+        rows.append(result.row)
+        markers += result.marker_count
+    if rows:
+        return DocBloodTestRows(tuple(rows), "ok", tuple(warnings), markers)
+    # Ни одной строки: причина первой даты (у таблицы они, как правило, одинаковые).
+    return DocBloodTestRows((), reasons[0] if reasons else "no_values", tuple(warnings))

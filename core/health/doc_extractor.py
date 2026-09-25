@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
 import logging
@@ -42,6 +43,10 @@ _SYSTEM_PROMPT_TEMPLATE = """Ты — медицинский парсер. Тв�
     "ключ": "единица измерения, как напечатана на бланке",
     ...
   }},
+  "series": [
+    {{"date": "ГГГГ-ММ-ДД", "laboratory": "лаборатория из этой строки таблицы или null", "values": {{"ключ": числовое_значение}}}},
+    ...
+  ],
   "allergies": ["строка", ...],
   "conditions": ["строка", ...]
 }}
@@ -53,6 +58,7 @@ _SYSTEM_PROMPT_TEMPLATE = """Ты — медицинский парсер. Тв�
 - "doc_type" — короткое название, как назвал бы документ врач: «Общий анализ крови», «УЗИ почек», «ПЦР на ВПЧ», «Заключение дерматолога».
 - "summary" — что показал документ, только то, что в нём напечатано: результаты, включая качественные («не обнаружено», «1–2 в п/зр»), и заключение/рекомендации врача, если есть. Без советов и интерпретаций от себя. НЕ пиши от себя оценок «в пределах нормы», «всё в порядке», «повышен» — только то, что напечатано на бланке: значение, референс и пометку лаборатории («+», «↑», «H», «*»), если она есть. Разные рекомендации не сливай в одну фразу — перечисли каждую отдельно, как в документе. Для "lab_panel" с числовыми показателями — null (значения уже в "values"); если на бланке анализа только качественные результаты — перечисли их без оценок.
 - Для "smear_pcr" поле "values" ВСЕГДА пустое {{}}: результаты мазков и ПЦР качественные или условные («не обнаружено», «1–2 в п/зр», «> 50000», «7×10⁶») — их пиши в "summary", а не в "values".
+- "series" — только для сводной таблицы или выписки «в динамике», где показатели приведены за НЕСКОЛЬКО дат (строки или столбцы с датами). Тогда каждая дата таблицы — отдельный элемент "series" со своими значениями (и лабораторией, если она указана в этой строке), а верхние "date" = null и "values" = {{}}. Дату элемента бери из строки или столбца таблицы; дату без дня («03.2023», «2023») не выдумывай — такую строку пропусти. Прочерк или пустая ячейка — показатель в этой дате не включай. Единицы — в общем "units". Сводная таблица анализов — тоже "lab_panel". У обычного бланка за одну дату "series" = [].
 - "values" — только числовые показатели (анализы крови, биохимия, гормоны, витамины, размеры органов в УЗИ и т.д.)
 - Используй короткие английские ключи. Если показатель есть в этом списке — используй ИМЕННО это имя: {canonical_keys}. Если показателя в списке нет — придумай короткий английский ключ сам.
 - Не включай единицы измерения в значения — только число; единицу каждого показателя, как она напечатана на бланке (мг/дл, мг/л, пмоль/л…), положи в "units" под тем же ключом.
@@ -102,8 +108,11 @@ async def _call_anthropic(messages: list[dict]) -> dict:
             json={
                 "model": _MODEL,
                 # Резюме + до ~30 показателей + блок thinking у Sonnet 5 (он тоже тратит
-                # этот лимит). Обрезанный JSON = потерянный документ (#558).
-                "max_tokens": 4096,
+                # этот лимит). Обрезанный JSON = потерянный документ (#558). Сводная
+                # таблица за 10+ дат («series») втрое длиннее обычного бланка (#559);
+                # платим за фактически выданные токены, не за лимит. На плотной
+                # таблице досье 8192 целиком ушли в thinking — JSON пустой (#559).
+                "max_tokens": 16000,
                 "system": _SYSTEM_PROMPT,
                 "messages": messages,
             },
@@ -194,6 +203,20 @@ def _parse_response(response: dict) -> dict[str, Any]:
 _NON_STUDY_DATE_LABELS = ("печат", "выдач", "регистрац", "готов", "рожден")
 
 
+def _check_date(raw: Any, label: Any = None, today: Optional[date] = None) -> tuple[Optional[str], Optional[str]]:
+    """(ISO-дата, None) или (None, причина отказа): not_iso, print_or_issue_date, future."""
+    try:
+        parsed = date.fromisoformat(str(raw).strip())
+    except ValueError:
+        return None, "not_iso"
+    if any(marker in str(label or "").casefold() for marker in _NON_STUDY_DATE_LABELS):
+        return None, "print_or_issue_date"
+    if parsed > (today or date.today()) + timedelta(days=1):
+        # +1 день: сервер в UTC, а у пользователя в Москве/Израиле уже «завтра».
+        return None, "future"
+    return parsed.isoformat(), None
+
+
 def _sanitize_date(data: dict, today: Optional[date] = None) -> None:
     """Проверяет `date` ответа модели на месте; неподходящую — обнуляет.
 
@@ -204,23 +227,78 @@ def _sanitize_date(data: dict, today: Optional[date] = None) -> None:
     raw = data.get("date")
     if raw is None:
         return
-    label = str(data.get("date_label") or "").casefold()
-    try:
-        parsed = date.fromisoformat(str(raw).strip())
-    except ValueError:
-        reason = "not_iso"
-    else:
-        if any(marker in label for marker in _NON_STUDY_DATE_LABELS):
-            reason = "print_or_issue_date"
-        elif parsed > (today or date.today()) + timedelta(days=1):
-            # +1 день: сервер в UTC, а у пользователя в Москве/Израиле уже «завтра».
-            reason = "future"
-        else:
-            data["date"] = parsed.isoformat()
-            return
+    iso, reason = _check_date(raw, data.get("date_label"), today)
+    if iso is not None:
+        data["date"] = iso
+        return
     logger.info("doc_extractor: дата %r (подпись %r) отброшена: %s", raw, data.get("date_label"), reason)
     data["date"] = None
     data["_date_rejected"] = reason
+
+
+# Пустая ячейка сводной таблицы — не значение (модель иногда переносит прочерк).
+_EMPTY_CELLS = frozenset({"", "—", "-", "–", "н/д", "нет"})
+
+
+def _series_values(raw: Any) -> dict[str, Any]:
+    if not isinstance(raw, dict):
+        return {}
+    return {
+        str(k): v for k, v in raw.items() if v is not None and not (isinstance(v, str) and v.strip() in _EMPTY_CELLS)
+    }
+
+
+def _normalize_series(data: dict, today: Optional[date] = None) -> None:
+    """Сводная таблица за несколько дат → `series` по одной записи на дату (#559).
+
+    Элемент без ISO-даты или с будущей датой отбрасывается (дату не угадываем —
+    «03.2023» не становится 1 марта), причины — в `_series_rejected`. Записи за
+    одну дату склеиваются (совпавший ключ — первое значение). Вышла одна дата —
+    это обычный документ: дата и значения поднимаются наверх, `series` убирается,
+    и все читатели документа работают как раньше. Две и больше — верхние
+    `date`/`values` описывают только то, что даты не имеет.
+    """
+    raw = data.pop("series", None)
+    by_date: dict[str, dict[str, Any]] = {}
+    rejected: list[str] = []
+
+    def _add(iso: str, laboratory: Any, values: dict[str, Any]) -> None:
+        entry = by_date.setdefault(iso, {"date": iso, "laboratory": None, "values": {}})
+        if laboratory and not entry["laboratory"]:
+            entry["laboratory"] = str(laboratory).strip() or None
+        for key, value in values.items():
+            entry["values"].setdefault(key, value)
+
+    for item in raw if isinstance(raw, list) else []:
+        if not isinstance(item, dict):
+            continue
+        values = _series_values(item.get("values"))
+        if not values:
+            continue
+        iso, reason = _check_date(item.get("date"), None, today)
+        if iso is None:
+            rejected.append(f"{item.get('date')!r}: {reason}")
+            continue
+        _add(iso, item.get("laboratory"), values)
+    if rejected:
+        logger.info("doc_extractor: строки сводной таблицы отброшены: %s", rejected)
+        data["_series_rejected"] = rejected
+    if not by_date:
+        return
+
+    top_values = data.get("values") if isinstance(data.get("values"), dict) else {}
+    if data.get("date") and top_values:
+        _add(data["date"], data.get("laboratory"), top_values)
+        top_values = {}
+    if len(by_date) == 1:
+        (entry,) = by_date.values()
+        data["date"] = entry["date"]
+        data["values"] = {**top_values, **entry["values"]}
+        data["laboratory"] = data.get("laboratory") or entry["laboratory"]
+        return
+    data["date"] = None
+    data["values"] = top_values
+    data["series"] = [by_date[d] for d in sorted(by_date)]
 
 
 DOC_KINDS = ("lab_panel", "imaging", "smear_pcr", "doctor_note", "other")
@@ -248,7 +326,7 @@ def _normalize_kind(data: dict) -> None:
         if key in data:
             text = str(data.get(key) or "").strip()
             data[key] = text or None
-    if data.get("doc_kind") == "lab_panel" and data.get("summary") and data.get("values"):
+    if data.get("doc_kind") == "lab_panel" and data.get("summary") and (data.get("values") or data.get("series")):
         # Резюме анализов от модели не храним: она регулярно пишет «все показатели в
         # пределах нормы» при значениях выше нормы (кальций 1.33 при норме до 1.32,
         # RBC 6.18 при норме до 5.70), и никакой фильтр фраз её не догоняет — каждая
@@ -261,6 +339,9 @@ def _normalize_kind(data: dict) -> None:
         logger.info("doc_extractor: у smear_pcr отброшены числа: %s", list(values))
         data["_dropped_values"] = values
         data["values"] = {}
+    if data.get("doc_kind") == "smear_pcr" and data.get("series"):
+        logger.info("doc_extractor: у smear_pcr отброшена сводная таблица (%d дат)", len(data["series"]))
+        data["_dropped_series"] = data.pop("series")
 
 
 # Z00–Z13 — обращения для осмотра, обследования, скрининга: не диагнозы, в медпрофиль
@@ -295,20 +376,29 @@ def _convert_units(data: dict) -> None:
     Сделанные пересчёты — в `_unit_conversions`, `units[key]` обновляется на
     каноническую единицу, чтобы повторная обработка не умножила ещё раз.
     """
-    values, units = data.get("values"), data.get("units")
-    if not isinstance(values, dict) or not isinstance(units, dict):
+    units = data.get("units")
+    if not isinstance(units, dict):
         return
+    # Единицы у сводной таблицы общие на все даты (#559): пересчитываем каждую дату,
+    # а units обновляем один раз в конце — иначе вторая дата уже не узнала бы мг/дл.
+    targets = [data.get("values")] + [e.get("values") for e in data.get("series") or [] if isinstance(e, dict)]
+    targets = [t for t in targets if isinstance(t, dict)]
     done = []
     for key, unit in list(units.items()):
         norm = "".join(str(unit).split()).casefold()
         rule = _UNIT_CONVERSIONS.get((str(key).casefold(), norm))
-        raw = values.get(key)
-        if rule is None or not isinstance(raw, (int, float)) or isinstance(raw, bool):
+        if rule is None:
             continue
         factor, canon_unit = rule
-        values[key] = round(raw * factor, 6)
-        units[key] = canon_unit
-        done.append(f"{key}: {unit} → {canon_unit} ×{factor:g}")
+        converted = False
+        for values in targets:
+            raw = values.get(key)
+            if isinstance(raw, (int, float)) and not isinstance(raw, bool):
+                values[key] = round(raw * factor, 6)
+                converted = True
+        if converted:
+            units[key] = canon_unit
+            done.append(f"{key}: {unit} → {canon_unit} ×{factor:g}")
     if done:
         logger.info("doc_extractor: пересчёт единиц: %s", done)
         data["_unit_conversions"] = done
@@ -372,6 +462,7 @@ async def extract_medical_data(file_bytes: bytes, mime_type: str, user_id: Optio
         data = _parse_response(response)
         if data:
             _sanitize_date(data)
+            _normalize_series(data)
             _normalize_kind(data)
             _convert_units(data)
             data["allergies"] = _as_str_list(data.get("allergies"))
@@ -404,3 +495,121 @@ async def extract_medical_data(file_bytes: bytes, mime_type: str, user_id: Optio
     except Exception as e:
         logger.error("doc_extractor: ошибка извлечения: %s", e)
         return {}
+
+
+# Длинный текстовый PDF одним вызовом не помещается в ответ: 15-страничное досье
+# (36 тыс. символов) обрывалось по max_tokens даже на 4096 (#559). Режем по страницам
+# на части не длиннее _CHUNK_CHARS и разбираем параллельно. Части по 8 тыс. символов
+# на том же досье обрывались 3 из 5 — модель тратила весь лимит на thinking над
+# плотной таблицей, поэтому часть ≈ одна страница. Обычный бланк (у всех
+# пользователей на 26.09.2026 — до 4.2 тыс. символов) идёт одним вызовом, как раньше:
+# при разрезе страница-продолжение теряла бы дату первой страницы.
+_CHUNK_THRESHOLD_CHARS = 12_000
+_CHUNK_CHARS = 3_500
+# 15-страничное досье: 3 параллельно — 363 с (пять кругов по ~70 с thinking на
+# часть), 6 — три круга. Больше — упираемся в лимит запросов Anthropic.
+_MAX_PARALLEL_CHUNKS = 6
+
+
+def needs_chunking(pages: list[str]) -> bool:
+    """Длинный документ — разбор по частям, дольше обычного (показать пользователю)."""
+    return len("\n".join(pages)) > _CHUNK_THRESHOLD_CHARS
+
+
+def chunk_pages(pages: list[str], limit: int = _CHUNK_CHARS) -> list[str]:
+    """Страницы → части не длиннее `limit` символов; страница не режется."""
+    chunks: list[str] = []
+    current: list[str] = []
+    size = 0
+    for page in pages:
+        if current and size + len(page) > limit:
+            chunks.append("\n".join(current))
+            current, size = [], 0
+        current.append(page)
+        size += len(page)
+    if current:
+        chunks.append("\n".join(current))
+    return chunks
+
+
+def _unique(items: list[str]) -> list[str]:
+    seen: set[str] = set()
+    out = []
+    for item in items:
+        key = item.casefold()
+        if key not in seen:
+            seen.add(key)
+            out.append(item)
+    return out
+
+
+def merge_extractions(parts: list[dict[str, Any]]) -> dict[str, Any]:
+    """Склеивает разборы частей одного документа в один `extracted` (#559).
+
+    Даты и значения всех частей собираются в `series` и проходят ту же
+    нормализацию, что и ответ одного вызова: одна дата на весь документ — обычный
+    документ, несколько — сводная таблица. Значения части без даты остаются
+    наверху: при одной дате документа они к ней и относятся (страница-продолжение),
+    при нескольких — в динамику не идут.
+    """
+    parts = [p for p in parts if p]
+    if not parts:
+        return {}
+    series: list[dict[str, Any]] = []
+    undated: dict[str, Any] = {}
+    units: dict[str, Any] = {}
+    for part in parts:
+        for entry in part.get("series") or []:
+            if isinstance(entry, dict):
+                series.append({**entry, "laboratory": entry.get("laboratory") or part.get("laboratory")})
+        values = part.get("values") if isinstance(part.get("values"), dict) else {}
+        if part.get("date") and values:
+            series.append({"date": part["date"], "laboratory": part.get("laboratory"), "values": values})
+        else:
+            for key, value in values.items():
+                undated.setdefault(key, value)
+        if isinstance(part.get("units"), dict):
+            for key, unit in part["units"].items():
+                units.setdefault(key, unit)
+
+    kinds = [p.get("doc_kind") for p in parts if p.get("doc_kind")]
+    merged: dict[str, Any] = {
+        "date": None,
+        "laboratory": next((p["laboratory"] for p in parts if p.get("laboratory")), None),
+        "doc_type": next((p["doc_type"] for p in parts if p.get("doc_type")), None),
+        "summary": "\n".join(_unique([p["summary"] for p in parts if p.get("summary")])) or None,
+        "values": undated,
+        "units": units,
+        "series": series,
+        "allergies": _unique([a for p in parts for a in p.get("allergies") or []]),
+        "conditions": _unique([c for p in parts for c in p.get("conditions") or []]),
+        "_chunks": len(parts),
+    }
+    if kinds:
+        merged["doc_kind"] = "lab_panel" if "lab_panel" in kinds else kinds[0]
+    _normalize_series(merged)
+    _normalize_kind(merged)
+    return merged
+
+
+async def extract_medical_data_from_pages(pages: list[str], user_id: Optional[int] = None) -> dict[str, Any]:
+    """Текстовый PDF постранично: короткий — одним вызовом, длинный — по частям (#559)."""
+    text = "\n".join(pages)
+    if not needs_chunking(pages):
+        return await extract_medical_data(text.encode(), "text/plain", user_id=user_id)
+    chunks = chunk_pages(pages)
+    logger.info("doc_extractor: длинный документ (%d символов) — разбор по %d частям", len(text), len(chunks))
+    semaphore = asyncio.Semaphore(_MAX_PARALLEL_CHUNKS)
+
+    async def _one(chunk: str) -> dict[str, Any]:
+        async with semaphore:
+            return await extract_medical_data(chunk.encode(), "text/plain", user_id=user_id)
+
+    parts = await asyncio.gather(*(_one(c) for c in chunks))
+    failed = sum(1 for p in parts if not p)
+    if failed:
+        logger.warning("doc_extractor: %d из %d частей не разобрались", failed, len(parts))
+    merged = merge_extractions(list(parts))
+    if merged and failed:
+        merged["_chunks_failed"] = failed
+    return merged
