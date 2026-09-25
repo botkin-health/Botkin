@@ -6,7 +6,8 @@ from __future__ import annotations
 import base64
 import json
 import logging
-from typing import Any
+from datetime import date
+from typing import Any, Optional
 
 import httpx
 
@@ -26,6 +27,7 @@ _SYSTEM_PROMPT_TEMPLATE = """Ты — медицинский парсер. Тв�
 Верни ТОЛЬКО валидный JSON объект без markdown-обёртки. Структура:
 {{
   "date": "ГГГГ-ММ-ДД или null",
+  "date_label": "подпись рядом с выбранной датой, как напечатано, или null",
   "laboratory": "название лаборатории или null",
   "values": {{
     "ключ": числовое_значение,
@@ -36,6 +38,8 @@ _SYSTEM_PROMPT_TEMPLATE = """Ты — медицинский парсер. Тв�
 }}
 
 Правила:
+- "date" — дата, когда сделано исследование или приём. Бери дату с подписью «Дата взятия материала», «Дата забора», «Дата исследования», «Дата приема», «Дата визита» (в таком порядке приоритета). НИКОГДА не бери «Дата печати», «Дата выдачи», «Дата регистрации», «Дата готовности», «Дата рождения» — на бланках лабораторий они часто стоят рядом с датой взятия и позже её на дни и недели. Если на странице нет даты исследования (например, это продолжение документа) — null. На бланке дата обычно ДД.ММ.ГГГГ — переведи в ГГГГ-ММ-ДД и внимательно проверь год.
+- "date_label" — подпись, стоящая рядом с выбранной датой, дословно (например «Дата взятия материала»); null, если date null.
 - "values" — только числовые показатели (анализы крови, биохимия, гормоны, витамины, размеры органов в УЗИ и т.д.)
 - Используй короткие английские ключи. Если показатель есть в этом списке — используй ИМЕННО это имя: {canonical_keys}. Если показателя в списке нет — придумай короткий английский ключ сам.
 - Не включай единицы измерения в значения — только число
@@ -146,7 +150,9 @@ def _parse_response(response: dict) -> dict[str, Any]:
     «не нашёл данных» (E2E 23.09.2026).
     """
     try:
-        text = response["content"][0]["text"]
+        # Текстовые блоки, где бы они ни стояли: Sonnet 5 может начать ответ с
+        # блока thinking, и content[0]["text"] тогда падал KeyError (#558).
+        text = "".join(b["text"] for b in response["content"] if isinstance(b, dict) and "text" in b)
     except Exception as e:
         logger.warning("doc_extractor: неожиданная форма ответа Claude: %s", e)
         return {}
@@ -162,6 +168,39 @@ def _parse_response(response: dict) -> dict[str, Any]:
     if not isinstance(data, dict):
         return {}
     return data
+
+
+# Подписи дат, которые не являются датой исследования (#558): на бланках КДЛ
+# «Дата печати» стоит рядом с «Датой взятия материала» и позже неё на дни.
+_NON_STUDY_DATE_LABELS = ("печат", "выдач", "регистрац", "готов", "рожден")
+
+
+def _sanitize_date(data: dict, today: Optional[date] = None) -> None:
+    """Проверяет `date` ответа модели на месте; неподходящую — обнуляет.
+
+    Причина отказа — в `_date_rejected` (для логов и превью): not_iso,
+    print_or_issue_date (модель сама подписала дату как печать/выдачу), future.
+    Дату не угадываем и не чиним — только отказываемся от явно неверной.
+    """
+    raw = data.get("date")
+    if raw is None:
+        return
+    label = str(data.get("date_label") or "").casefold()
+    try:
+        parsed = date.fromisoformat(str(raw).strip())
+    except ValueError:
+        reason = "not_iso"
+    else:
+        if any(marker in label for marker in _NON_STUDY_DATE_LABELS):
+            reason = "print_or_issue_date"
+        elif parsed > (today or date.today()):
+            reason = "future"
+        else:
+            data["date"] = parsed.isoformat()
+            return
+    logger.info("doc_extractor: дата %r (подпись %r) отброшена: %s", raw, data.get("date_label"), reason)
+    data["date"] = None
+    data["_date_rejected"] = reason
 
 
 def _as_str_list(v) -> list[str]:
@@ -212,6 +251,7 @@ async def extract_medical_data(file_bytes: bytes, mime_type: str) -> dict[str, A
         response = await _call_anthropic([message])
         data = _parse_response(response)
         if data:
+            _sanitize_date(data)
             data["allergies"] = _as_str_list(data.get("allergies"))
             data["conditions"] = _as_str_list(data.get("conditions"))
             # Без проверки «values непуст»: гейт читаемости должен срабатывать и

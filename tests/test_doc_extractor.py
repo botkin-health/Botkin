@@ -382,3 +382,66 @@ async def test_unreadable_text_does_not_call_model():
     call.assert_not_called()
     assert out["values"] == {}
     assert out["_unreadable_text"] is True
+
+
+# ── #558 фаза 1: дата взятия материала, а не дата печати ────────────────────
+
+
+def test_prompt_prioritises_sampling_date_over_print_date():
+    prompt = doc_extractor._SYSTEM_PROMPT
+    assert "Дата взятия материала" in prompt
+    assert "Дата печати" in prompt
+    assert "date_label" in prompt
+
+
+@pytest.mark.asyncio
+async def test_print_date_is_rejected():
+    payload = {"date": "2026-09-24", "date_label": "Дата печати", "values": {"Hb": 119}}
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert out["date"] is None
+    assert out["_date_rejected"] == "print_or_issue_date"
+    assert out["values"] == {"Hb": 119}
+
+
+@pytest.mark.asyncio
+async def test_future_date_is_rejected():
+    payload = {"date": "2028-09-13", "date_label": "Дата приема", "values": {}}
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert out["date"] is None
+    assert out["_date_rejected"] == "future"
+
+
+@pytest.mark.asyncio
+async def test_non_iso_date_is_dropped():
+    payload = {"date": "13.09.2026", "values": {}}
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert out["date"] is None
+    assert out["_date_rejected"] == "not_iso"
+
+
+@pytest.mark.asyncio
+async def test_sampling_date_kept_with_label():
+    payload = {"date": "2026-09-13", "date_label": "Дата взятия материала", "values": {"Hb": 119}}
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert out["date"] == "2026-09-13"
+    assert out["date_label"] == "Дата взятия материала"
+    assert "_date_rejected" not in out
+
+
+@pytest.mark.asyncio
+async def test_response_with_leading_thinking_block_is_parsed():
+    """Sonnet 5 может прислать перед ответом блок thinking — разбор не должен срываться (#558)."""
+    response = {
+        "content": [
+            {"type": "thinking", "thinking": "", "signature": "sig"},
+            {"type": "text", "text": json.dumps({"date": "2026-08-11", "values": {}, "conditions": ["Акне (L70.0)"]})},
+        ]
+    }
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=response)):
+        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert out["date"] == "2026-08-11"
+    assert out["conditions"] == ["Акне (L70.0)"]
