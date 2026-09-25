@@ -14,7 +14,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from core.health import doc_extractor
+from core.health import doc_extractor, doc_normalize
 from core.health.doc_duplicates import find_similar_document
 from core.health.doc_to_blood_test import build_blood_test_row, build_blood_test_rows
 from database.crud import get_all_blood_tests
@@ -89,7 +89,7 @@ async def test_series_month_only_date_rejected_not_guessed():
 
 def test_series_future_date_rejected():
     data = {"series": [{"date": "2030-01-01", "values": {"Hb": 1}}, {"date": "2026-01-01", "values": {"Hb": 2}}]}
-    doc_extractor._normalize_series(data, today=date(2026, 9, 26))
+    doc_normalize.normalize_series(data, today=date(2026, 9, 26))
     assert "series" not in data
     assert data["date"] == "2026-01-01"
     assert data["_series_rejected"] == ["'2030-01-01': future"]
@@ -120,7 +120,7 @@ def test_same_date_entries_merged_first_value_wins():
             {"date": "2025-12-12", "values": {"ALT": 21}},
         ]
     }
-    doc_extractor._normalize_series(data)
+    doc_normalize.normalize_series(data)
     assert data["series"][1] == {"date": "2026-07-14", "laboratory": None, "values": {"ALT": 29, "AST": 22}}
 
 
@@ -131,7 +131,7 @@ def test_top_level_dated_values_join_series():
         "values": {"ALT": 29},
         "series": [{"date": "2025-12-12", "values": {"ALT": 21}}],
     }
-    doc_extractor._normalize_series(data)
+    doc_normalize.normalize_series(data)
     assert data["date"] is None and data["values"] == {}
     assert [(e["date"], e["values"]) for e in data["series"]] == [
         ("2025-12-12", {"ALT": 21}),
@@ -141,7 +141,7 @@ def test_top_level_dated_values_join_series():
 
 def test_no_series_leaves_plain_document_untouched():
     data = {"date": "2026-07-14", "values": {"Hb": 150}}
-    doc_extractor._normalize_series(data)
+    doc_normalize.normalize_series(data)
     assert data == {"date": "2026-07-14", "values": {"Hb": 150}}
 
 
@@ -554,7 +554,7 @@ async def test_plain_document_vitamin_d_nmol_converted():
 
 def test_row_unit_survives_collapse_and_merge():
     data = {"series": [{"date": "2026-07-14", "values": {"vitamin_D": 77.7}, "units": {"vitamin_D": "нмоль/л"}}]}
-    doc_extractor._normalize_series(data)
+    doc_normalize.normalize_series(data)
     assert data["units"] == {"vitamin_D": "нмоль/л"}
     parts = [
         {"date": None, "series": [{"date": "2026-07-14", "values": {"D": 1}, "units": {"D": "нмоль/л"}}]},

@@ -3,7 +3,7 @@ import json
 import pytest
 from unittest.mock import AsyncMock, patch
 
-from core.health import doc_extractor
+from core.health import doc_extractor, doc_normalize
 from core.health.kb_schema import CANONICAL
 
 
@@ -734,8 +734,8 @@ def test_date_of_tomorrow_utc_is_allowed_for_user_timezones():
     today = date(2026, 9, 25)
     ok = {"date": (today + timedelta(days=1)).isoformat()}
     far = {"date": (today + timedelta(days=2)).isoformat()}
-    doc_extractor._sanitize_date(ok, today=today)
-    doc_extractor._sanitize_date(far, today=today)
+    doc_normalize.sanitize_date(ok, today=today)
+    doc_normalize.sanitize_date(far, today=today)
     assert ok["date"] == "2026-09-26"
     assert far["date"] is None and far["_date_rejected"] == "future"
 
