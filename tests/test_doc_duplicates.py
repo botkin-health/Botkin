@@ -151,3 +151,27 @@ def test_conflicting_numbers_block_text_match():
         "values": {"Hb": 135, "WBC": 7.1, "RBC": 4.9},
     }
     assert find_similar_document(saved, new) is None
+
+
+def test_second_page_of_same_lab_panel_is_not_duplicate():
+    """Ревью #560: вторая страница той же биохимии — другие аналиты, общий текст."""
+    summary = "Биохимический анализ крови, КДЛ: показатели обмена веществ, ферменты печени, электролиты."
+    saved = [
+        _doc(
+            {
+                "date": "2026-09-13",
+                "doc_kind": "lab_panel",
+                "doc_type": "Биохимия крови",
+                "summary": summary,
+                "values": {"ALT": 20, "AST": 22, "bilirubin_total": 12},
+            }
+        )
+    ]
+    new = {
+        "date": "2026-09-13",
+        "doc_kind": "lab_panel",
+        "doc_type": "Биохимия крови",
+        "summary": summary,
+        "values": {"sodium": 140, "potassium": 4.3, "chloride": 101},
+    }
+    assert find_similar_document(saved, new) is None

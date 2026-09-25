@@ -67,6 +67,17 @@ def _values_conflict(new: dict[str, float], old: dict[str, float]) -> bool:
     return same / len(common) < _MIN_SHARE
 
 
+def _distinct_lab_pages(new: dict, old: dict, new_values: dict, old_values: dict) -> bool:
+    """Две лабораторные страницы с числами без общих аналитов — разные страницы одной
+    панели, как ни похож текст (ревью #560). У УЗИ ключи модель придумывает сама —
+    там несовпадение ключей ничего не значит, поэтому только lab_panel."""
+    if not (new.get("doc_kind") == old.get("doc_kind") == "lab_panel"):
+        return False
+    if min(len(new_values), len(old_values)) < _MIN_NUMERIC_VALUES:
+        return False
+    return len(set(new_values) & set(old_values)) < _MIN_NUMERIC_VALUES
+
+
 def _is_cancelled_archive(entry: dict) -> bool:
     """Отменённый/неразобранный архив — не «уже сохранён» (ревью #560): иначе чёткое
     фото, присланное вместо отменённого размытого, уговорили бы тоже отменить."""
@@ -111,6 +122,8 @@ def find_similar_document(documents: list[Any], extracted: dict[str, Any]) -> Op
         if new_values and _dates_compatible(extracted.get("date"), old.get("date")):
             if _values_match(new_values, old_values):
                 return entry
-        if not _values_conflict(new_values, old_values) and _text_match(extracted, old):
+        if _values_conflict(new_values, old_values) or _distinct_lab_pages(extracted, old, new_values, old_values):
+            continue
+        if _text_match(extracted, old):
             return entry
     return None
