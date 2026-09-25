@@ -665,16 +665,20 @@ def test_urine_keys_do_not_become_blood_row():
 
 
 @pytest.mark.asyncio
-async def test_lab_panel_summary_verdicts_are_stripped():
-    """#558: модель пишет «в пределах нормы» и для значений выше нормы — у lab_panel вырезаем."""
-    payload = {
-        "doc_kind": "lab_panel",
-        "summary": "Определён ионизированный кальций. Показатель в пределах нормы. Все показатели в норме!",
-        "values": {"calcium_ionized": 1.33},
-    }
-    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
-        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
-    assert out["summary"] == "Определён ионизированный кальций."
+async def test_lab_panel_summary_is_not_kept():
+    """#558: модель пишет «в пределах нормы» и при значениях выше нормы — даже в новых
+    формулировках («в пределах указанных референсных значений»), поэтому резюме
+    анализов не храним вовсе."""
+    for summary in (
+        "Определён ионизированный кальций. Показатель в пределах нормы.",
+        "Представлены результаты общего анализа крови с лейкоцитарной формулой и СОЭ; "
+        "все показатели находятся в пределах указанных референсных значений.",
+    ):
+        payload = {"doc_kind": "lab_panel", "summary": summary, "values": {"RBC": 6.18}}
+        with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+            out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+        assert out["summary"] is None
+        assert out["values"] == {"RBC": 6.18}
 
 
 @pytest.mark.asyncio
@@ -701,23 +705,7 @@ async def test_lab_summary_made_only_of_verdicts_becomes_none():
     assert out["summary"] is None
 
 
-def test_strip_verdicts_keeps_decimal_numbers_intact():
-    text = "Медь 953.278 мкг/л, селен 133,8 мкг/л. Оба в пределах нормы."
-    assert doc_extractor._strip_verdicts(text) == "Медь 953.278 мкг/л, селен 133,8 мкг/л."
-
-
 # ── ревью PR #560 ───────────────────────────────────────────────────────────
-
-
-def test_strip_verdicts_keeps_reference_and_lab_flag():
-    text = "Кальций 1.33 (норма 1.12–1.32), помечен H. Все показатели в пределах референсных значений."
-    assert doc_extractor._strip_verdicts(text) == "Кальций 1.33 (норма 1.12–1.32), помечен H."
-
-
-def test_strip_verdicts_removes_verdict_clause_from_numeric_sentence():
-    assert doc_extractor._strip_verdicts("Кальций ионизированный 1.33 ммоль/л, в пределах нормы.") == (
-        "Кальций ионизированный 1.33 ммоль/л."
-    )
 
 
 @pytest.mark.asyncio
@@ -768,18 +756,3 @@ def test_calcium_ionized_unit_detected_by_magnitude_not_panel_flag():
     assert mmol_on_us_panel["calcium_ionized"] == pytest.approx(1.25)
     assert mgdl["calcium_ionized"] == pytest.approx(1.198, abs=0.01)
     assert any("calcium_ionized" in w for w in warnings)
-
-
-def test_strip_verdicts_keeps_printed_qualitative_results_and_recommendations():
-    text = "Уробилиноген: норма. Рекомендовано снижение потребления соли. Все показатели в пределах нормы."
-    assert doc_extractor._strip_verdicts(text) == "Уробилиноген: норма. Рекомендовано снижение потребления соли."
-
-
-def test_strip_verdicts_keeps_negated_verdicts():
-    """Ревью #560: «не в норме» — указание на отклонение, его не трогаем."""
-    assert doc_extractor._strip_verdicts("Ферритин 8 мкг/л — не в пределах нормы.") == (
-        "Ферритин 8 мкг/л — не в пределах нормы."
-    )
-    assert doc_extractor._strip_verdicts("Показатели не в норме: ферритин, железо.") == (
-        "Показатели не в норме: ферритин, железо."
-    )
