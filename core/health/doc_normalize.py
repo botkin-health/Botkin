@@ -204,7 +204,7 @@ def kind_of(extracted: Optional[dict]) -> DocKind:
     return KINDS.get(str((extracted or {}).get("doc_kind") or ""), _LEGACY)
 
 
-def normalize_kind(data: dict) -> None:
+def _normalize_kind(data: dict) -> None:
     """Приводит doc_kind/doc_type/summary; у мазков и ПЦР отбрасывает числа (#558).
 
     Числа мазков («1–2 в п/зр», «> 50000») не являются измерениями — модель
@@ -349,7 +349,7 @@ def normalize_extracted(data: dict[str, Any], today: Optional[date] = None) -> d
     """
     sanitize_date(data, today)
     normalize_series(data, today)
-    normalize_kind(data)
+    _normalize_kind(data)
     _convert_units(data)
     data["allergies"] = _as_str_list(data.get("allergies"))
     data["conditions"] = _as_str_list(data.get("conditions"))

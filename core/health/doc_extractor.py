@@ -14,7 +14,7 @@ import httpx
 from config.models import DOC_EXTRACT_MODEL
 from config.settings import get_settings
 from core.health.doc_marker_labels import split_verified_values
-from core.health.doc_normalize import LAB_PANEL, normalize_extracted, normalize_kind, normalize_series
+from core.health.doc_normalize import LAB_PANEL, normalize_extracted
 from core.health.doc_readability import is_document_text_readable
 from core.health.kb_schema import CANONICAL
 
@@ -446,8 +446,7 @@ def merge_extractions(parts: list[dict[str, Any]]) -> dict[str, Any]:
     }
     if kinds:
         merged["doc_kind"] = LAB_PANEL if LAB_PANEL in kinds else kinds[0]
-    normalize_series(merged)
-    normalize_kind(merged)
+    normalize_extracted(merged)
     if rejected:
         merged["_series_rejected"] = rejected + merged.get("_series_rejected", [])
     return merged
