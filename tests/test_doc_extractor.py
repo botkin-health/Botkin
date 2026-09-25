@@ -80,40 +80,6 @@ def _fake_response(payload: dict) -> dict:
 
 
 @pytest.mark.asyncio
-async def test_extract_returns_allergies_and_conditions():
-    payload = {
-        "date": "2026-04-13",
-        "laboratory": None,
-        "values": {},
-        "allergies": ["пыльца", "кошки"],
-        "conditions": ["Бронхиальная астма (J45.0)"],
-    }
-    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
-        out = await doc_extractor.extract_medical_data(b"x", "image/png")
-    assert out["allergies"] == ["пыльца", "кошки"]
-    assert out["conditions"] == ["Бронхиальная астма (J45.0)"]
-
-
-@pytest.mark.asyncio
-async def test_extract_missing_qualitative_defaults_to_empty_lists():
-    payload = {"date": None, "laboratory": None, "values": {"Hb": 155}}
-    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
-        out = await doc_extractor.extract_medical_data(b"x", "image/png")
-    assert out["allergies"] == []
-    assert out["conditions"] == []
-    assert out["values"] == {"Hb": 155}
-
-
-@pytest.mark.asyncio
-async def test_extract_coerces_nonlist_qualitative_to_empty():
-    payload = {"values": {}, "allergies": "пыльца", "conditions": None}
-    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
-        out = await doc_extractor.extract_medical_data(b"x", "image/png")
-    assert out["allergies"] == []
-    assert out["conditions"] == []
-
-
-@pytest.mark.asyncio
 async def test_text_plain_builds_text_block_not_image():
     """text/plain (текстовый слой PDF) уходит как text-блок, а не image с битым media_type."""
     doc_text = "Заключение: аллергия на амоксициллин. Гастрит (K29.5)."
@@ -395,44 +361,6 @@ def test_prompt_prioritises_sampling_date_over_print_date():
 
 
 @pytest.mark.asyncio
-async def test_print_date_is_rejected():
-    payload = {"date": "2026-09-24", "date_label": "Дата печати", "values": {"Hb": 119}}
-    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
-        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
-    assert out["date"] is None
-    assert out["_date_rejected"] == "print_or_issue_date"
-    assert out["values"] == {"Hb": 119}
-
-
-@pytest.mark.asyncio
-async def test_future_date_is_rejected():
-    payload = {"date": "2028-09-13", "date_label": "Дата приема", "values": {}}
-    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
-        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
-    assert out["date"] is None
-    assert out["_date_rejected"] == "future"
-
-
-@pytest.mark.asyncio
-async def test_non_iso_date_is_dropped():
-    payload = {"date": "13.09.2026", "values": {}}
-    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
-        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
-    assert out["date"] is None
-    assert out["_date_rejected"] == "not_iso"
-
-
-@pytest.mark.asyncio
-async def test_sampling_date_kept_with_label():
-    payload = {"date": "2026-09-13", "date_label": "Дата взятия материала", "values": {"Hb": 119}}
-    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
-        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
-    assert out["date"] == "2026-09-13"
-    assert out["date_label"] == "Дата взятия материала"
-    assert "_date_rejected" not in out
-
-
-@pytest.mark.asyncio
 async def test_response_with_leading_thinking_block_is_parsed():
     """Sonnet 5 может прислать перед ответом блок thinking — разбор не должен срываться (#558)."""
     response = {
@@ -456,6 +384,22 @@ def test_prompt_describes_doc_kind_summary_and_doc_type():
         assert token in prompt
 
 
+@pytest.mark.asyncio
+async def test_extractor_applies_normalization_to_model_answer():
+    """Склейка (#561): ответ модели проходит normalize_extracted, правила — в test_doc_normalize."""
+    payload = {
+        "date": "2026-09-24",
+        "date_label": "Дата печати",
+        "doc_kind": "smear_pcr",
+        "values": {"WBC": 1.2},
+        "conditions": ["Скрининг (Z12.4)"],
+    }
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert out == doc_normalize.normalize_extracted(dict(payload))
+    assert out["date"] is None and out["values"] == {} and out["conditions"] == []
+
+
 def test_prompt_lists_exactly_the_registry_kinds():
     """Типы в схеме ответа промпта = справочник doc_normalize.KINDS (#561)."""
     line = next(ln for ln in doc_extractor._SYSTEM_PROMPT.splitlines() if ln.strip().startswith('"doc_kind"'))
@@ -463,82 +407,11 @@ def test_prompt_lists_exactly_the_registry_kinds():
     assert tuple(listed) == doc_normalize.DOC_KINDS
 
 
-@pytest.mark.asyncio
-async def test_smear_values_are_dropped_and_summary_kept():
-    payload = {
-        "date": "2026-09-08",
-        "doc_kind": "smear_pcr",
-        "doc_type": "Мазок и флороценоз",
-        "summary": "Лейкоциты 1–2 в п/зр; Gardnerella не обнаружена.",
-        "values": {"leukocytes": 50000, "WBC": 1.2},
-    }
-    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
-        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
-    assert out["values"] == {}
-    assert out["_dropped_values"] == {"leukocytes": 50000, "WBC": 1.2}
-    assert out["summary"].startswith("Лейкоциты")
-    assert out["doc_type"] == "Мазок и флороценоз"
-
-
-@pytest.mark.asyncio
-async def test_lab_panel_values_kept_and_unknown_kind_becomes_other():
-    lab = {"date": "2026-09-13", "doc_kind": "LAB_PANEL", "values": {"Hb": 119}}
-    odd = {"date": "2026-09-13", "doc_kind": "questionnaire", "values": {}}
-    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(lab))):
-        out_lab = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
-    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(odd))):
-        out_odd = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
-    assert out_lab["doc_kind"] == "lab_panel" and out_lab["values"] == {"Hb": 119}
-    assert "doc_kind" not in out_odd  # незнакомый тип — не «other», иначе теряется строка blood_tests
-
-
-@pytest.mark.asyncio
-async def test_missing_doc_kind_left_absent_for_legacy_readers():
-    payload = {"date": "2026-09-13", "values": {"Hb": 119}}
-    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
-        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
-    assert "doc_kind" not in out
-    assert out["values"] == {"Hb": 119}
-
-
 # ── #558 фаза 3: коды Z (обращения, осмотры) — не диагнозы ─────────────────
 
 
 def test_prompt_forbids_z_codes_in_conditions():
     assert "Z00–Z13" in doc_extractor._SYSTEM_PROMPT
-
-
-@pytest.mark.asyncio
-async def test_z_codes_filtered_real_diagnoses_kept():
-    """Отсеиваются только Z00–Z13 (осмотры, обследования, скрининг); статусы Z14+ —
-    стент, трансплантат, диализ, беременность — важны для агента (ревью #560)."""
-    payload = {
-        "values": {},
-        "conditions": [
-            "Гинекологическое обследование (общее) (рутинное) (Z01.4)",
-            "Угри обыкновенные (L70.0)",
-            "Наличие коронарного стента (Z95.5)",
-            "Наблюдение за нормальной беременностью Z34",
-            "Скрининг на злокачественные новообразования (Z12.4)",
-        ],
-    }
-    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
-        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
-    assert out["conditions"] == [
-        "Угри обыкновенные (L70.0)",
-        "Наличие коронарного стента (Z95.5)",
-        "Наблюдение за нормальной беременностью Z34",
-    ]
-    assert len(out["_dropped_conditions"]) == 2
-
-
-@pytest.mark.asyncio
-async def test_word_with_letter_z_is_not_a_z_code():
-    payload = {"values": {}, "conditions": ["Синдром Золлингера-Эллисона (E16.4)", "Zinc deficiency (E60)"]}
-    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
-        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
-    assert len(out["conditions"]) == 2
-    assert "_dropped_conditions" not in out
 
 
 # ── #558 фаза 4: активный B12 и единицы ─────────────────────────────────────
@@ -556,32 +429,6 @@ def test_prompt_separates_active_b12_and_asks_units():
     prompt = doc_extractor._SYSTEM_PROMPT
     assert "холотранскобаламин" in prompt
     assert '"units"' in prompt
-
-
-@pytest.mark.asyncio
-async def test_crp_in_mg_dl_converted_to_mg_l():
-    payload = {
-        "values": {"hs_CRP": 0.07, "ferritin": 15.78},
-        "units": {"hs_CRP": "мг/дл", "ferritin": "нг/мл"},
-    }
-    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
-        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
-    assert out["values"]["hs_CRP"] == pytest.approx(0.7)
-    assert out["units"]["hs_CRP"] == "мг/л"
-    assert out["values"]["ferritin"] == 15.78
-    assert out["_unit_conversions"] == ["hs_CRP: мг/дл → мг/л ×10"]
-
-
-@pytest.mark.asyncio
-async def test_crp_already_mg_l_and_latin_unit_variants():
-    same = {"values": {"CRP": 3.0}, "units": {"CRP": "мг/л"}}
-    latin = {"values": {"CRP": 0.3}, "units": {"CRP": "mg/dL"}}
-    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(same))):
-        out_same = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
-    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(latin))):
-        out_latin = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
-    assert out_same["values"]["CRP"] == 3.0 and "_unit_conversions" not in out_same
-    assert out_latin["values"]["CRP"] == pytest.approx(3.0)
 
 
 @pytest.mark.asyncio
@@ -671,80 +518,7 @@ def test_urine_keys_do_not_become_blood_row():
     assert res.row is None
 
 
-@pytest.mark.asyncio
-async def test_lab_panel_summary_is_not_kept():
-    """#558: модель пишет «в пределах нормы» и при значениях выше нормы — даже в новых
-    формулировках («в пределах указанных референсных значений»), поэтому резюме
-    анализов не храним вовсе."""
-    for summary in (
-        "Определён ионизированный кальций. Показатель в пределах нормы.",
-        "Представлены результаты общего анализа крови с лейкоцитарной формулой и СОЭ; "
-        "все показатели находятся в пределах указанных референсных значений.",
-    ):
-        payload = {"doc_kind": "lab_panel", "summary": summary, "values": {"RBC": 6.18}}
-        with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
-            out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
-        assert out["summary"] is None
-        assert out["values"] == {"RBC": 6.18}
-
-
-@pytest.mark.asyncio
-async def test_imaging_conclusion_kept_verbatim():
-    payload = {
-        "doc_kind": "imaging",
-        "summary": "Размеры матки в норме. Заключение: патологии не выявлено.",
-        "values": {},
-    }
-    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
-        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
-    assert out["summary"] == "Размеры матки в норме. Заключение: патологии не выявлено."
-
-
-@pytest.mark.asyncio
-async def test_lab_summary_made_only_of_verdicts_becomes_none():
-    payload = {
-        "doc_kind": "lab_panel",
-        "summary": "Все показатели в пределах референсных значений.",
-        "values": {"Hb": 119},
-    }
-    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
-        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
-    assert out["summary"] is None
-
-
 # ── ревью PR #560 ───────────────────────────────────────────────────────────
-
-
-@pytest.mark.asyncio
-async def test_misspelled_lab_kind_normalised_and_unknown_dropped():
-    spaced = {"doc_kind": "Lab panel", "date": "2026-09-13", "values": {"Hb": 119}}
-    garbage = {"doc_kind": "lab_panel | imaging", "date": "2026-09-13", "values": {"Hb": 119}}
-    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(spaced))):
-        out_spaced = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
-    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(garbage))):
-        out_garbage = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
-    assert out_spaced["doc_kind"] == "lab_panel"
-    assert "doc_kind" not in out_garbage
-
-
-@pytest.mark.asyncio
-async def test_crp_conversion_case_insensitive_key():
-    payload = {"values": {"hsCRP": 0.07}, "units": {"hsCRP": "мг/дл"}}
-    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
-        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
-    assert out["values"]["hsCRP"] == pytest.approx(0.7)
-
-
-def test_date_of_tomorrow_utc_is_allowed_for_user_timezones():
-    from datetime import date, timedelta
-
-    today = date(2026, 9, 25)
-    ok = {"date": (today + timedelta(days=1)).isoformat()}
-    far = {"date": (today + timedelta(days=2)).isoformat()}
-    doc_normalize.sanitize_date(ok, today=today)
-    doc_normalize.sanitize_date(far, today=today)
-    assert ok["date"] == "2026-09-26"
-    assert far["date"] is None and far["_date_rejected"] == "future"
 
 
 def test_request_timeout_leaves_room_for_sonnet_with_long_output():
@@ -763,16 +537,3 @@ def test_calcium_ionized_unit_detected_by_magnitude_not_panel_flag():
     assert mmol_on_us_panel["calcium_ionized"] == pytest.approx(1.25)
     assert mgdl["calcium_ionized"] == pytest.approx(1.198, abs=0.01)
     assert any("calcium_ionized" in w for w in warnings)
-
-
-@pytest.mark.asyncio
-async def test_qualitative_lab_panel_without_numbers_keeps_summary():
-    """Ревью #562: бланк анализа без чисел — резюме единственный носитель результата."""
-    payload = {
-        "doc_kind": "lab_panel",
-        "summary": "Антитела к ВГС — не обнаружены; HBsAg — не обнаружен.",
-        "values": {},
-    }
-    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
-        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
-    assert out["summary"] == "Антитела к ВГС — не обнаружены; HBsAg — не обнаружен."

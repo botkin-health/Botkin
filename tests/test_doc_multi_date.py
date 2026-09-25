@@ -7,6 +7,7 @@
 каждую дату.
 """
 
+import copy
 import json
 from contextlib import contextmanager
 from datetime import date
@@ -28,8 +29,8 @@ def _fake_response(payload: dict) -> dict:
 
 
 async def _extract(payload: dict) -> dict:
-    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
-        return await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    """Ответ модели после нормализации — без мока API (#561)."""
+    return doc_normalize.normalize_extracted(copy.deepcopy(payload))
 
 
 LIPIDS = {
