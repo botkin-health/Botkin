@@ -756,3 +756,16 @@ def test_calcium_ionized_unit_detected_by_magnitude_not_panel_flag():
     assert mmol_on_us_panel["calcium_ionized"] == pytest.approx(1.25)
     assert mgdl["calcium_ionized"] == pytest.approx(1.198, abs=0.01)
     assert any("calcium_ionized" in w for w in warnings)
+
+
+@pytest.mark.asyncio
+async def test_qualitative_lab_panel_without_numbers_keeps_summary():
+    """Ревью #562: бланк анализа без чисел — резюме единственный носитель результата."""
+    payload = {
+        "doc_kind": "lab_panel",
+        "summary": "Антитела к ВГС — не обнаружены; HBsAg — не обнаружен.",
+        "values": {},
+    }
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert out["summary"] == "Антитела к ВГС — не обнаружены; HBsAg — не обнаружен."
