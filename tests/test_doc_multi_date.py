@@ -733,6 +733,10 @@ def test_foreign_unit_detected_after_merge_of_parts():
         ("10^9/л", "тыс/мкл"),
         ("мм/час", "мм/ч"),
         ("г/л.", "г/л"),
+        ("мМЕ/мл", "IU/L"),
+        ("мЕд/мл", "МЕ/л"),
+        ("µU/mL", "мкЕд/мл"),
+        ("uU/mL", "мкЕд/мл"),
     ],
 )
 def test_unit_spellings_equal(a, b):
