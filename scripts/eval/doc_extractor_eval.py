@@ -43,9 +43,6 @@ PRICING = {
     "claude-haiku-4-5": (1.00, 5.00),
 }
 
-# Как в doc_extractor: утечкой считаются только Z00–Z13 (осмотры/скрининг).
-_Z_CODE_RE = re.compile(r"\bZ(?:0\d|1[0-3])(?:\.\d+)?\b")
-
 
 def _close(a: Any, b: float, rel: float = 0.02) -> bool:
     return isinstance(a, (int, float)) and not isinstance(a, bool) and abs(a - b) <= abs(b) * rel
@@ -57,6 +54,7 @@ def score_case(case: dict, pred: dict) -> dict:
     Ключи результата: True/False по проверке либо None, если проверка к кейсу
     неприменима (например, `kind_ok` до того, как экстрактор начал отдавать doc_kind).
     """
+    from core.health.doc_normalize import Z_CODE_RE
     from core.health.doc_to_blood_test import build_blood_test_row
 
     pred = pred or {}
@@ -68,7 +66,7 @@ def score_case(case: dict, pred: dict) -> dict:
         "date_ok": pred.get("date") == case.get("date"),
         "print_date": bool(case.get("print_date")) and pred.get("date") == case.get("print_date"),
         "kind_ok": None if "doc_kind" not in pred else pred.get("doc_kind") == kind,
-        "z_leak": any(_Z_CODE_RE.search(c) for c in conditions),
+        "z_leak": any(Z_CODE_RE.search(c) for c in conditions),
         "smear_values": (kind == "smear_pcr" and bool(values)) if kind == "smear_pcr" else None,
         "has_summary": bool(str(pred.get("summary") or "").strip()) if kind != "lab_panel" else None,
     }

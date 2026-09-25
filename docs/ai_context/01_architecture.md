@@ -167,7 +167,8 @@ core/
 │   ├── kb_schema.py         ← единый реестр алиасов биомаркеров + конверсия единиц (read-time канонизация)
 │   ├── phenoage.py          ← расчёт биологического возраста (PhenoAge) по биомаркерам
 │   ├── biomarkers.py        ← агрегация биомаркеров из Postgres blood_tests
-│   ├── doc_extractor.py     ← LLM-извлечение (Anthropic, claude-haiku) данных из /doc-загрузки (лаборатория/значения/аллергии)
+│   ├── doc_extractor.py     ← LLM-извлечение (Anthropic, модель — config/models.py) данных из /doc-загрузки: промпт, вызов, разбор JSON
+│   ├── doc_normalize.py     ← правила после ответа модели + справочник типов документа (KINDS); идемпотентны, применимы к сохранённым extracted
 │   ├── doc_to_blood_test.py ← маппинг извлечённых значений → строка blood_tests (идемпотентность по хэшу файла)
 │   ├── glucose_stats.py     ← чистые функции: Time-in-Range, avg/min/max для CGM (без обращения к БД)
 │   ├── glucose_runtime.py   ← кэшированный LibreLinkUp-клиент для on-demand refresh глюкозы из agent tools
