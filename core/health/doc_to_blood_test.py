@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import re
+import string
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Optional
@@ -166,6 +167,68 @@ def build_blood_test_row(extracted: dict, *, stored_name: str, user_id: int) -> 
     return DocBloodTestResult(row, "ok", tuple(warnings), len(canon))
 
 
+# Одна единица в разных написаниях («µmol/L» = «мкмоль/л», «×10⁹/л» = «10^9/L»).
+_UNIT_TOKENS = {
+    "g": "г", "mg": "мг", "мкg": "мкг", "mcg": "мкг", "ug": "мкг", "ng": "нг", "pg": "пг",
+    "l": "л", "dl": "дл", "ml": "мл", "fl": "фл",
+    "mol": "моль", "mmol": "ммоль", "мкmol": "мкмоль", "umol": "мкмоль", "nmol": "нмоль", "pmol": "пмоль",
+    "iu": "ме", "miu": "мме", "мкiu": "мкме", "uiu": "мкме", "мкед": "мкме", "мкод": "мкме",
+    "u": "ед", "mu": "мед", "мме": "мед", "mm": "мм", "h": "ч", "hr": "ч",
+}  # fmt: skip
+_SUPERSCRIPTS = str.maketrans("⁰¹²³⁴⁵⁶⁷⁸⁹", string.digits)
+_POWER_RE = re.compile(r"[x×*·]?10(?:\^|\*\*|\*)?(\d+)")
+
+
+def unit_key(unit: Any) -> str:
+    """Каноническое написание единицы — только для сравнения, не для пересчёта (#559)."""
+    text = "".join(str(unit).split()).casefold().translate(_SUPERSCRIPTS)
+    text = text.replace("µ", "мк").replace("μ", "мк")
+    text = _POWER_RE.sub(r"10^\1", text)
+    parts = re.split(r"([/^])", text)
+    return "".join(_UNIT_TOKENS.get(part, part) for part in parts)
+
+
+def _foreign_unit_keys(extracted: dict, series: list[dict]) -> dict[int, list[str]]:
+    """Даты сводной таблицы, где показатель в другой единице, чем у большинства дат.
+
+    Смотрим итог после пересчёта (`doc_extractor._convert_units`): единица даты —
+    своя (`series[].units`), иначе общая. Если одна единица у большинства дат, даты
+    с другой в динамику не идут — blood_tests единиц не хранит, и пролактин 91.9
+    мкОд/мл лёг бы рядом с 7.3 нг/мл как будто в одной шкале. Ничья решается в
+    пользу общей единицы таблицы, а без неё никого не выбрасываем: какая шкала
+    правильная, по документу не понять.
+    """
+    shared = extracted.get("units") if isinstance(extracted.get("units"), dict) else {}
+    per_key: dict[str, list[tuple[int, str]]] = {}
+    for i, entry in enumerate(series):
+        own = entry.get("units") if isinstance(entry.get("units"), dict) else {}
+        for key in entry.get("values") or {}:
+            unit = own.get(key) or shared.get(key)
+            if unit:
+                per_key.setdefault(key, []).append((i, unit_key(unit)))
+    foreign: dict[int, list[str]] = {}
+    for key, marks in per_key.items():
+        counts: dict[str, int] = {}
+        for _, u in marks:
+            counts[u] = counts.get(u, 0) + 1
+        if len(counts) < 2:
+            continue
+        best = max(counts.values())
+        leaders = [u for u, n in counts.items() if n == best]
+        if len(leaders) == 1:
+            majority = leaders[0]
+        elif shared.get(key) and unit_key(shared[key]) in leaders:
+            # Ничья, но одна из единиц — единица таблицы: своя единица строки по
+            # определению исключение (так её и просят указывать в промпте).
+            majority = unit_key(shared[key])
+        else:
+            continue
+        for i, u in marks:
+            if u != majority:
+                foreign.setdefault(i, []).append(key)
+    return foreign
+
+
 @dataclass(frozen=True)
 class DocBloodTestRows:
     """Строки документа для blood_tests: одна у обычного бланка, по одной на дату у
@@ -195,16 +258,12 @@ def build_blood_test_rows(extracted: dict, *, stored_name: str, user_id: int) ->
     warnings: list[str] = []
     reasons: list[str] = []
     markers = 0
-    for entry in series:
+    foreign = _foreign_unit_keys(extracted, series)
+    for i, entry in enumerate(series):
         values = dict(entry.get("values") or {}) if isinstance(entry.get("values"), dict) else {}
-        for key in entry.get("_not_in_dynamics") or []:
-            # Значение строки в своей единице, которую пересчитать нечем (пролактин
-            # мкОд/мл среди нг/мл): blood_tests единиц не хранит, и число легло бы в
-            # динамику рядом с другими как будто в одной шкале (#559). В документе
-            # остаётся. Решение — в doc_extractor._convert_units, там видна исходная
-            # единица.
-            if values.pop(key, None) is not None:
-                warnings.append(f"{entry.get('date')}: {key}: своя единица строки — не в динамику")
+        for key in foreign.get(i, ()):
+            values.pop(key, None)
+            warnings.append(f"{entry.get('date')}: {key}: единица строки не та, что у таблицы — не в динамику")
         result = build_blood_test_row(
             {
                 "doc_kind": extracted.get("doc_kind"),

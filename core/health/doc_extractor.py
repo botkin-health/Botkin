@@ -420,40 +420,6 @@ _UNIT_CONVERSIONS.update(
 )
 
 
-# Латинское и русское написание одной единицы («g/L» = «г/л») — для сравнения единиц
-# строк сводной таблицы (#559). Не для пересчёта.
-_UNIT_TOKENS = {
-    "g": "г",
-    "mg": "мг",
-    "µg": "мкг",
-    "ug": "мкг",
-    "mcg": "мкг",
-    "ng": "нг",
-    "pg": "пг",
-    "l": "л",
-    "dl": "дл",
-    "ml": "мл",
-    "mol": "моль",
-    "mmol": "ммоль",
-    "µmol": "мкмоль",
-    "umol": "мкмоль",
-    "nmol": "нмоль",
-    "pmol": "пмоль",
-    "iu": "ме",
-    "miu": "мме",
-    "µiu": "мкме",
-    "uiu": "мкме",
-    "u": "ед",
-    "мкед": "мкме",
-    "мкод": "мкме",
-}
-
-
-def _unit_key(unit: Any) -> str:
-    parts = re.split(r"([/*·×^])", "".join(str(unit).split()).casefold())
-    return "".join(_UNIT_TOKENS.get(part, part) for part in parts)
-
-
 def _convert_units(data: dict) -> None:
     """Пересчитывает значения, напечатанные не в канонической единице (СРБ в мг/дл).
 
@@ -485,38 +451,15 @@ def _convert_units(data: dict) -> None:
         return changed
 
     top_converted.update(_apply(data.get("values"), original, ""))
-    series = [e for e in data.get("series") or [] if isinstance(e, dict)]
-    # Единица, в которой таблица приведена по ключу: общая, а если её нет — самая
-    # частая среди своих единиц строк (исходных, до пересчёта).
-    reference: dict[str, str] = {k: _unit_key(u) for k, u in original.items() if u}
-    counts: dict[str, dict[str, int]] = {}
-    for entry in series:
-        for key, unit in (entry.get("units") or {}).items() if isinstance(entry.get("units"), dict) else ():
-            by_unit = counts.setdefault(key, {})
-            by_unit[_unit_key(unit)] = by_unit.get(_unit_key(unit), 0) + 1
-    for key, by_unit in counts.items():
-        reference.setdefault(key, max(by_unit, key=by_unit.get))
-    for entry in series:
+    for entry in data.get("series") or []:
+        if not isinstance(entry, dict):
+            continue
         own = entry.get("units") if isinstance(entry.get("units"), dict) else {}
-        own_before = dict(own)
-        converted = _apply(entry.get("values"), {**original, **own}, f"{entry.get('date')} ")
-        for key, canon_unit in converted.items():
+        for key, canon_unit in _apply(entry.get("values"), {**original, **own}, f"{entry.get('date')} ").items():
             if key in own:
                 own[key] = canon_unit
             else:
                 top_converted[key] = canon_unit
-        # Своя единица строки, отличная от единицы таблицы, и пересчитать её нечем —
-        # значение остаётся в документе, но не в динамике (#559, ревью #564).
-        foreign = [
-            key
-            for key, unit in own_before.items()
-            if key in (entry.get("values") or {})
-            and key not in converted
-            and reference.get(key)
-            and _unit_key(unit) != reference[key]
-        ]
-        if foreign:
-            entry["_not_in_dynamics"] = foreign
     if top_converted and isinstance(data.get("units"), dict):
         data["units"].update(top_converted)
     if done:
@@ -700,13 +643,36 @@ def merge_extractions(parts: list[dict[str, Any]]) -> dict[str, Any]:
     undated: dict[str, Any] = {}
     units: dict[str, Any] = {}
     fallback_units: dict[str, Any] = {}
+
+    def _entry_units(part_units: dict, entry_values: dict, own: Any) -> dict:
+        # Единица каждой даты — итоговая единица её части: общие units склеенного
+        # документа берутся из первой части, и единица другой части иначе пропала бы
+        # (пролактин мкМЕ/мл одной части среди нг/мл другой — ревью #564).
+        own = own if isinstance(own, dict) else {}
+        return {k: own.get(k) or part_units[k] for k in entry_values if own.get(k) or part_units.get(k)}
+
     for part in parts:
+        part_units = part.get("units") if isinstance(part.get("units"), dict) else {}
         for entry in part.get("series") or []:
             if isinstance(entry, dict):
-                series.append({**entry, "laboratory": entry.get("laboratory") or part.get("laboratory")})
+                entry_values = entry.get("values") if isinstance(entry.get("values"), dict) else {}
+                series.append(
+                    {
+                        **entry,
+                        "laboratory": entry.get("laboratory") or part.get("laboratory"),
+                        "units": _entry_units(part_units, entry_values, entry.get("units")),
+                    }
+                )
         values = part.get("values") if isinstance(part.get("values"), dict) else {}
         if part.get("date") and values:
-            series.append({"date": part["date"], "laboratory": part.get("laboratory"), "values": values})
+            series.append(
+                {
+                    "date": part["date"],
+                    "laboratory": part.get("laboratory"),
+                    "values": values,
+                    "units": _entry_units(part_units, values, None),
+                }
+            )
         else:
             for key, value in values.items():
                 undated.setdefault(key, value)

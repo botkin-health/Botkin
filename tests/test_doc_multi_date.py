@@ -591,7 +591,7 @@ async def test_row_in_other_unconvertible_unit_kept_out_of_dynamics():
     )
     assert rows["2022-05-11"] == {"testosterone": pytest.approx(12.54, abs=0.01)}
     assert rows["2020-06-19"] == {"prolactin": 7.34, "testosterone": 18.4}
-    assert any("prolactin: своя единица строки" in w for w in res.warnings)
+    assert any("prolactin: единица строки не та" in w for w in res.warnings)
 
 
 @pytest.mark.asyncio
@@ -667,3 +667,75 @@ async def test_context_tail_starts_at_line_boundary():
     tail = context.split("…\n", 1)[1]
     assert tail.startswith("б")
     assert "03.2023" not in tail
+
+
+@pytest.mark.asyncio
+async def test_row_already_in_target_unit_kept_when_shared_is_converted():
+    """Общая — нмоль/л (пересчитывается), у строки своя — уже нг/мл: обе даты в динамике."""
+    rows, _ = await _rows(
+        {
+            "doc_kind": "lab_panel",
+            "values": {},
+            "units": {"vitamin_D": "нмоль/л"},
+            "series": [
+                {"date": "2023-01-01", "values": {"vitamin_D": 75}},
+                {"date": "2024-01-01", "values": {"vitamin_D": 31}, "units": {"vitamin_D": "нг/мл"}},
+            ],
+        }
+    )
+    assert rows["2023-01-01"]["vitamin_D"] == pytest.approx(30.05, abs=0.01)
+    assert rows["2024-01-01"] == {"vitamin_D": 31}
+
+
+def test_foreign_unit_detected_after_merge_of_parts():
+    """Строка в чужой единице одна в своей части — видна только на склеенном документе."""
+    parts = [
+        {
+            "date": None,
+            "doc_kind": "lab_panel",
+            "units": {"prolactin": "нг/мл"},
+            "series": [
+                {"date": "2020-06-19", "values": {"prolactin": 7.34}},
+                {"date": "2025-12-12", "values": {"prolactin": 6.71}},
+            ],
+        },
+        {
+            "date": "2022-05-11",
+            "doc_kind": "lab_panel",
+            "values": {"prolactin": 91.94},
+            "units": {"prolactin": "мкМЕ/мл"},
+        },
+    ]
+    merged = doc_extractor.merge_extractions(parts)
+    rows = {r["test_date"]: r["values"] for r in build_blood_test_rows(merged, stored_name=STORED, user_id=1).rows}
+    assert "2022-05-11" not in rows
+    assert rows["2020-06-19"] == {"prolactin": 7.34}
+
+
+@pytest.mark.parametrize(
+    "a,b",
+    [
+        ("мкмоль/л", "µmol/L"),
+        ("мкмоль/л", "μmol/l"),
+        ("мкМЕ/мл", "µIU/mL"),
+        ("×10⁹/л", "x10^9/L"),
+        ("10*9/л", "10^9/л"),
+        ("мЕд/л", "mU/L"),
+        ("фл", "fL"),
+        ("мм/ч", "mm/h"),
+        ("Ед/л", "U/L"),
+        ("г/л", "g/L"),
+        ("%", "%"),
+    ],
+)
+def test_unit_spellings_equal(a, b):
+    from core.health.doc_to_blood_test import unit_key
+
+    assert unit_key(a) == unit_key(b)
+
+
+def test_different_units_not_equal():
+    from core.health.doc_to_blood_test import unit_key
+
+    assert unit_key("нг/мл") != unit_key("мкМЕ/мл")
+    assert unit_key("нмоль/л") != unit_key("нг/мл")
