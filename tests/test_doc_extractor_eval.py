@@ -67,3 +67,18 @@ def test_summarize_ratio_and_markdown():
     assert summary["тип верен"] == "n/a"
     assert summary["p50, с"] == "2.0"
     assert "| m |" in ev.to_markdown([summary])
+
+
+def test_score_duplicates_counts_caught_and_false():
+    cbc = {"Hb": 119, "WBC": 4.6, "RBC": 4.21}
+    cases = [
+        {"file": "a.jpg", "dup_group": "A"},
+        {"file": "b.jpg", "dup_group": "A"},
+        {"file": "c.jpg", "dup_group": None},
+    ]
+    preds = [
+        {"date": "2026-09-13", "values": cbc},
+        {"date": "2026-09-13", "values": dict(cbc)},
+        {"date": "2026-09-13", "values": dict(cbc)},
+    ]
+    assert ev.score_duplicates(cases, preds) == {"expected": 1, "caught": 1, "false": 1}

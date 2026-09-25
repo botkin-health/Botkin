@@ -372,6 +372,32 @@ def _preview_keyboard(has_values: bool) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
+def _duplicate_note(user_id: int, extracted: dict[str, Any]) -> str:
+    """Строка-предупреждение, если в KB уже есть документ с тем же содержимым (#558).
+
+    Ловит повторную фотографию того же бланка (байты другие — `doc_dedup` не видит).
+    Ошибки чтения KB не мешают показу превью.
+    """
+    from core.health.doc_duplicates import find_similar_document
+
+    kb_path = _PROJECT_ROOT / "data" / "kb" / f"kb_{user_id}.json"
+    try:
+        documents = json.loads(kb_path.read_text(encoding="utf-8")).get("documents") or []
+    except Exception:
+        return ""
+    match = find_similar_document(documents, extracted)
+    if match is None:
+        return ""
+    old = match.get("extracted") or {}
+    name = match.get("title") or old.get("doc_type") or old.get("laboratory") or "документ"
+    when = old.get("date") or match.get("added_at")
+    label = f"{name} ({when})" if when else str(name)
+    return (
+        f"⚠️ Похоже, этот документ уже сохранён: {html.escape(label, quote=False)}. "
+        "Если это та же страница — нажми «Отмена»."
+    )
+
+
 def append_document_to_kb(user_id: int, entry: dict[str, Any]) -> None:
     """Атомарная запись записи в documents[] в kb_<user_id>.json."""
     kb_path = _PROJECT_ROOT / "data" / "kb" / f"kb_{user_id}.json"
@@ -698,6 +724,9 @@ async def run_doc_pipeline(
 
     existing = _read_existing_profile(user_id)
     preview = _preview_text(extracted, existing)
+    duplicate_note = _duplicate_note(user_id, extracted)
+    if duplicate_note:
+        preview = f"{duplicate_note}\n\n{preview}"
     if progress:
         pos, total = progress
         preview = f"{format_progress_prefix(pos, total)}\n\n{preview}"

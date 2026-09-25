@@ -89,6 +89,29 @@ def score_case(case: dict, pred: dict) -> dict:
     return res
 
 
+def score_duplicates(cases: list[dict], preds: list[dict]) -> dict[str, int]:
+    """Имитация загрузки по порядку: пойман ли повтор страницы из той же dup_group
+    (`core.health.doc_duplicates`) и нет ли ложных срабатываний на новых страницах."""
+    from core.health.doc_duplicates import find_similar_document
+
+    saved: list[dict] = []
+    seen_groups: set[str] = set()
+    counts = {"expected": 0, "caught": 0, "false": 0}
+    for case, pred in zip(cases, preds):
+        group = case.get("dup_group")
+        is_repeat = bool(group) and group in seen_groups
+        flagged = find_similar_document(saved, pred or {}) is not None
+        if is_repeat:
+            counts["expected"] += 1
+            counts["caught"] += int(flagged)
+        elif flagged:
+            counts["false"] += 1
+        saved.append({"file": case["file"], "extracted": pred or {}})
+        if group:
+            seen_groups.add(group)
+    return counts
+
+
 def _price(model: str) -> tuple[float, float]:
     for prefix, p in PRICING.items():
         if model.startswith(prefix):
@@ -130,7 +153,7 @@ async def run_model(model: str, cases: list[dict], files_dir: Path) -> list[dict
     return rows
 
 
-def summarize(model: str, rows: list[dict]) -> dict:
+def summarize(model: str, rows: list[dict], dups: Optional[dict] = None) -> dict:
     def ratio(key: str, want: bool = True) -> str:
         vals = [r["score"].get(key) for r in rows if r["score"].get(key) is not None]
         if not vals:
@@ -151,6 +174,8 @@ def summarize(model: str, rows: list[dict]) -> dict:
         "B12 активный": ratio("b12_ok"),
         "СРБ мг/л": ratio("crp_ok"),
         "нелаб. строка в blood_tests": ratio("non_lab_row"),
+        "дубли пойманы": f"{dups['caught']}/{dups['expected']}" if dups else "n/a",
+        "ложные дубли": str(dups["false"]) if dups else "n/a",
         "p50, с": f"{statistics.median(lat):.1f}" if lat else "n/a",
         "$/док": f"{statistics.mean(r['cost'] for r in rows):.4f}" if rows else "n/a",
     }
@@ -184,7 +209,8 @@ def main() -> None:
         with (out / f"{model}.jsonl").open("w", encoding="utf-8") as f:
             for r in rows:
                 f.write(json.dumps(r, ensure_ascii=False, default=str) + "\n")
-        summaries.append(summarize(model, rows))
+        dups = score_duplicates(cases, [r["pred"] for r in rows])
+        summaries.append(summarize(model, rows, dups))
 
     md = to_markdown(summaries)
     (out / "summary.md").write_text(md, encoding="utf-8")
