@@ -95,6 +95,11 @@ CANONICAL: dict[str, CanonicalMarker] = {
         "нг/мл", {"vitamin_D": 1, "vitamin_D3": 1, "vitD": 1, "vit_d": 1, "vitamin_d_ng_ml": 1}
     ),
     "vitamin_B12": CanonicalMarker("пг/мл", {"vitamin_B12": 1, "vitamin_b12_pmol_l": 1.355}),
+    # Активный B12 — отдельный аналит со своей нормой (≈25–165 пмоль/л). Записанный
+    # как vitamin_B12 (пг/мл общего B12) выглядит тяжёлым дефицитом (#558).
+    "holotranscobalamin": CanonicalMarker(
+        "пмоль/л", {"holotranscobalamin": 1, "holoTC": 1, "active_B12": 1, "vitamin_B12_active": 1}
+    ),
     "ferritin": CanonicalMarker("мкг/л", {"ferritin": 1, "ferritin_ng_ml": 1}),
     "folic_acid": CanonicalMarker("нг/мл", {"folic_acid": 1, "folate": 1, "folate_nmol_l": 1 / 2.266}),
     "magnesium": CanonicalMarker("ммоль/л", {"magnesium": 1, "Mg": 1}),

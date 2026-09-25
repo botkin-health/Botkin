@@ -37,6 +37,10 @@ _SYSTEM_PROMPT_TEMPLATE = """Ты — медицинский парсер. Тв�
     "ключ": числовое_значение,
     ...
   }},
+  "units": {{
+    "ключ": "единица измерения, как напечатана на бланке",
+    ...
+  }},
   "allergies": ["строка", ...],
   "conditions": ["строка", ...]
 }}
@@ -50,7 +54,8 @@ _SYSTEM_PROMPT_TEMPLATE = """Ты — медицинский парсер. Тв�
 - Для "smear_pcr" поле "values" ВСЕГДА пустое {{}}: результаты мазков и ПЦР качественные или условные («не обнаружено», «1–2 в п/зр», «> 50000», «7×10⁶») — их пиши в "summary", а не в "values".
 - "values" — только числовые показатели (анализы крови, биохимия, гормоны, витамины, размеры органов в УЗИ и т.д.)
 - Используй короткие английские ключи. Если показатель есть в этом списке — используй ИМЕННО это имя: {canonical_keys}. Если показателя в списке нет — придумай короткий английский ключ сам.
-- Не включай единицы измерения в значения — только число
+- Не включай единицы измерения в значения — только число; единицу каждого показателя, как она напечатана на бланке (мг/дл, мг/л, пмоль/л…), положи в "units" под тем же ключом.
+- «Витамин B12 активный» / «холотранскобаламин» — ключ "holotranscobalamin", НЕ "vitamin_B12": это другой анализ с другой нормой. "vitamin_B12" — только общий витамин B12.
 - "allergies" — список аллергий/непереносимостей, указанных в документе (аллергены, вещества, продукты). Строки на языке документа. Пусто [] если нет.
 - "conditions" — список хронических/персистирующих диагнозов из документа, с кодом МКБ если он есть (например "Бронхиальная астма (J45.0)"). Пусто [] если нет. Только заболевания: НЕ включай коды группы Z00–Z99 (осмотры, обследования, наблюдение, факторы обращения — например «Z01.4 гинекологическое обследование»), цели визита и формулировки вроде «здорова».
 - Не придумывай данных, которых нет в документе. Если чего-то нет — пустой список/пустой values.
@@ -253,6 +258,42 @@ def _filter_conditions(data: dict) -> None:
     data["conditions"] = kept
 
 
+# Известные несовпадения единицы бланка с канонической (kb_schema): (ключ, единица
+# бланка без пробелов, casefold) → (множитель, каноническая единица). Только то, что
+# встречалось на реальных бланках; незнакомое не «чиним» молча (#558).
+_UNIT_CONVERSIONS: dict[tuple[str, str], tuple[float, str]] = {
+    ("hs_CRP", "мг/дл"): (10.0, "мг/л"),
+    ("hs_CRP", "mg/dl"): (10.0, "мг/л"),
+    ("CRP", "мг/дл"): (10.0, "мг/л"),
+    ("CRP", "mg/dl"): (10.0, "мг/л"),
+}
+
+
+def _convert_units(data: dict) -> None:
+    """Пересчитывает значения, напечатанные не в канонической единице (СРБ в мг/дл).
+
+    Сделанные пересчёты — в `_unit_conversions`, `units[key]` обновляется на
+    каноническую единицу, чтобы повторная обработка не умножила ещё раз.
+    """
+    values, units = data.get("values"), data.get("units")
+    if not isinstance(values, dict) or not isinstance(units, dict):
+        return
+    done = []
+    for key, unit in list(units.items()):
+        norm = "".join(str(unit).split()).casefold()
+        rule = _UNIT_CONVERSIONS.get((key, norm))
+        raw = values.get(key)
+        if rule is None or not isinstance(raw, (int, float)) or isinstance(raw, bool):
+            continue
+        factor, canon_unit = rule
+        values[key] = round(raw * factor, 6)
+        units[key] = canon_unit
+        done.append(f"{key}: {unit} → {canon_unit} ×{factor:g}")
+    if done:
+        logger.info("doc_extractor: пересчёт единиц: %s", done)
+        data["_unit_conversions"] = done
+
+
 def _as_str_list(v) -> list[str]:
     """Безопасно привести значение к списку непустых строк. Не-список → []."""
     if not isinstance(v, list):
@@ -303,6 +344,7 @@ async def extract_medical_data(file_bytes: bytes, mime_type: str) -> dict[str, A
         if data:
             _sanitize_date(data)
             _normalize_kind(data)
+            _convert_units(data)
             data["allergies"] = _as_str_list(data.get("allergies"))
             data["conditions"] = _as_str_list(data.get("conditions"))
             _filter_conditions(data)

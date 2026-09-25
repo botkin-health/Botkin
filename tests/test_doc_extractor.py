@@ -525,3 +525,46 @@ async def test_word_with_letter_z_is_not_a_z_code():
         out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
     assert len(out["conditions"]) == 2
     assert "_dropped_conditions" not in out
+
+
+# ── #558 фаза 4: активный B12 и единицы ─────────────────────────────────────
+
+
+def test_holotranscobalamin_is_separate_canonical_marker():
+    from core.health.kb_schema import to_canonical
+
+    canon, _ = to_canonical({"holotranscobalamin": 138.3, "vitamin_B12": 400})
+    assert canon["holotranscobalamin"] == 138.3
+    assert canon["vitamin_B12"] == 400
+
+
+def test_prompt_separates_active_b12_and_asks_units():
+    prompt = doc_extractor._SYSTEM_PROMPT
+    assert "холотранскобаламин" in prompt
+    assert '"units"' in prompt
+
+
+@pytest.mark.asyncio
+async def test_crp_in_mg_dl_converted_to_mg_l():
+    payload = {
+        "values": {"hs_CRP": 0.07, "ferritin": 15.78},
+        "units": {"hs_CRP": "мг/дл", "ferritin": "нг/мл"},
+    }
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert out["values"]["hs_CRP"] == pytest.approx(0.7)
+    assert out["units"]["hs_CRP"] == "мг/л"
+    assert out["values"]["ferritin"] == 15.78
+    assert out["_unit_conversions"] == ["hs_CRP: мг/дл → мг/л ×10"]
+
+
+@pytest.mark.asyncio
+async def test_crp_already_mg_l_and_latin_unit_variants():
+    same = {"values": {"CRP": 3.0}, "units": {"CRP": "мг/л"}}
+    latin = {"values": {"CRP": 0.3}, "units": {"CRP": "mg/dL"}}
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(same))):
+        out_same = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(latin))):
+        out_latin = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert out_same["values"]["CRP"] == 3.0 and "_unit_conversions" not in out_same
+    assert out_latin["values"]["CRP"] == pytest.approx(3.0)
