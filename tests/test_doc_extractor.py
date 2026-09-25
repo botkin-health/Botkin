@@ -492,3 +492,36 @@ async def test_missing_doc_kind_left_absent_for_legacy_readers():
         out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
     assert "doc_kind" not in out
     assert out["values"] == {"Hb": 119}
+
+
+# ── #558 фаза 3: коды Z (обращения, осмотры) — не диагнозы ─────────────────
+
+
+def test_prompt_forbids_z_codes_in_conditions():
+    assert "Z00–Z99" in doc_extractor._SYSTEM_PROMPT
+
+
+@pytest.mark.asyncio
+async def test_z_codes_filtered_real_diagnoses_kept():
+    payload = {
+        "values": {},
+        "conditions": [
+            "Гинекологическое обследование (общее) (рутинное) (Z01.4)",
+            "Угри обыкновенные (L70.0)",
+            "Изменения окраски волос (L67.1)",
+            "Наблюдение Z34",
+        ],
+    }
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert out["conditions"] == ["Угри обыкновенные (L70.0)", "Изменения окраски волос (L67.1)"]
+    assert len(out["_dropped_conditions"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_word_with_letter_z_is_not_a_z_code():
+    payload = {"values": {}, "conditions": ["Синдром Золлингера-Эллисона (E16.4)", "Zinc deficiency (E60)"]}
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert len(out["conditions"]) == 2
+    assert "_dropped_conditions" not in out
