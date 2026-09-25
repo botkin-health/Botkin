@@ -773,3 +773,13 @@ def test_calcium_ionized_unit_detected_by_magnitude_not_panel_flag():
 def test_strip_verdicts_keeps_printed_qualitative_results_and_recommendations():
     text = "Уробилиноген: норма. Рекомендовано снижение потребления соли. Все показатели в пределах нормы."
     assert doc_extractor._strip_verdicts(text) == "Уробилиноген: норма. Рекомендовано снижение потребления соли."
+
+
+def test_strip_verdicts_keeps_negated_verdicts():
+    """Ревью #560: «не в норме» — указание на отклонение, его не трогаем."""
+    assert doc_extractor._strip_verdicts("Ферритин 8 мкг/л — не в пределах нормы.") == (
+        "Ферритин 8 мкг/л — не в пределах нормы."
+    )
+    assert doc_extractor._strip_verdicts("Показатели не в норме: ферритин, железо.") == (
+        "Показатели не в норме: ферритин, железо."
+    )
