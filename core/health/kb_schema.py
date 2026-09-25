@@ -95,6 +95,11 @@ CANONICAL: dict[str, CanonicalMarker] = {
         "нг/мл", {"vitamin_D": 1, "vitamin_D3": 1, "vitD": 1, "vit_d": 1, "vitamin_d_ng_ml": 1}
     ),
     "vitamin_B12": CanonicalMarker("пг/мл", {"vitamin_B12": 1, "vitamin_b12_pmol_l": 1.355}),
+    # Активный B12 — отдельный аналит со своей нормой (≈25–165 пмоль/л). Записанный
+    # как vitamin_B12 (пг/мл общего B12) выглядит тяжёлым дефицитом (#558).
+    "holotranscobalamin": CanonicalMarker(
+        "пмоль/л", {"holotranscobalamin": 1, "holoTC": 1, "active_B12": 1, "vitamin_B12_active": 1}
+    ),
     "ferritin": CanonicalMarker("мкг/л", {"ferritin": 1, "ferritin_ng_ml": 1}),
     "folic_acid": CanonicalMarker("нг/мл", {"folic_acid": 1, "folate": 1, "folate_nmol_l": 1 / 2.266}),
     "magnesium": CanonicalMarker("ммоль/л", {"magnesium": 1, "Mg": 1}),
@@ -120,7 +125,9 @@ CANONICAL: dict[str, CanonicalMarker] = {
     "albumin_g_l": CanonicalMarker("г/л", {"albumin_g_l": 1, "albumin": 1}),
     # ── Other ────────────────────────────────────────────────────────────────
     "PSA_total": CanonicalMarker("нг/мл", {"PSA_total": 1, "psa": 1, "psa_ng_ml": 1}),
-    "calcium": CanonicalMarker("ммоль/л", {"calcium": 1, "Ca": 1}),
+    "calcium": CanonicalMarker("ммоль/л", {"calcium": 1, "Ca": 1, "calcium_total": 1}),
+    # Ионизированный кальций — отдельный аналит (норма ≈1.12–1.32 ммоль/л), не общий (#558).
+    "calcium_ionized": CanonicalMarker("ммоль/л", {"calcium_ionized": 1, "Ca_ionized": 1, "ionized_calcium": 1}),
     "potassium": CanonicalMarker("ммоль/л", {"potassium": 1, "K": 1, "potassium_mmol_l": 1}),
     "sodium": CanonicalMarker("ммоль/л", {"sodium": 1, "Na": 1, "sodium_mmol_l": 1}),
     # ── CBC (extended) ───────────────────────────────────────────────────────
@@ -216,6 +223,15 @@ _GDL_MAGNITUDE_GUARD: dict[str, tuple[float, float]] = {
     "MCHC": (60.0, 10.0),
 }
 
+# Обратный guard: значение ВЫШЕ порога физиологически несовместимо с канонической
+# единицей и почти наверняка в мг/дл. Ca ионизированный: ммоль/л ≈ 1.0–1.5, мг/дл ≈ 4–5.6 —
+# диапазоны не пересекаются. Признак US-панели для него НЕ используем: он ставится по
+# гемоглобину, а ионизированный кальций часто печатают в ммоль/л и на US-панели (ревью #560).
+# {canon_key: (порог_выше_которого_считаем_mgdl, множитель)}
+_MGDL_MAGNITUDE_GUARD: dict[str, tuple[float, float]] = {
+    "calcium_ionized": (3.0, 0.2495),
+}
+
 # Служебный ключ в values, несущий систему единиц записи (инжектится импортом
 # биохимии из KB, см. scripts/import/kb_to_blood_tests.py). Не маркер.
 UNIT_SYSTEM_KEY = "_unit_system"
@@ -297,6 +313,10 @@ def to_canonical(
         new_val = raw_val * factor
         if is_us:
             new_val *= US_TO_METRIC.get(canon_key, 1.0)
+        high_guard = _MGDL_MAGNITUDE_GUARD.get(canon_key)
+        if high_guard is not None and new_val > high_guard[0]:
+            new_val *= high_guard[1]
+            warnings.append(f"{canon_key}={raw_val} похоже на мг/дл (> {high_guard[0]:g}) → ×{high_guard[1]:g}")
         guard = _GDL_MAGNITUDE_GUARD.get(canon_key)
         if guard is not None and 0 < new_val < guard[0]:
             new_val *= guard[1]

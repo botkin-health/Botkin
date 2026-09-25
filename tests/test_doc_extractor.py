@@ -382,3 +382,404 @@ async def test_unreadable_text_does_not_call_model():
     call.assert_not_called()
     assert out["values"] == {}
     assert out["_unreadable_text"] is True
+
+
+# ── #558 фаза 1: дата взятия материала, а не дата печати ────────────────────
+
+
+def test_prompt_prioritises_sampling_date_over_print_date():
+    prompt = doc_extractor._SYSTEM_PROMPT
+    assert "Дата взятия материала" in prompt
+    assert "Дата печати" in prompt
+    assert "date_label" in prompt
+
+
+@pytest.mark.asyncio
+async def test_print_date_is_rejected():
+    payload = {"date": "2026-09-24", "date_label": "Дата печати", "values": {"Hb": 119}}
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert out["date"] is None
+    assert out["_date_rejected"] == "print_or_issue_date"
+    assert out["values"] == {"Hb": 119}
+
+
+@pytest.mark.asyncio
+async def test_future_date_is_rejected():
+    payload = {"date": "2028-09-13", "date_label": "Дата приема", "values": {}}
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert out["date"] is None
+    assert out["_date_rejected"] == "future"
+
+
+@pytest.mark.asyncio
+async def test_non_iso_date_is_dropped():
+    payload = {"date": "13.09.2026", "values": {}}
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert out["date"] is None
+    assert out["_date_rejected"] == "not_iso"
+
+
+@pytest.mark.asyncio
+async def test_sampling_date_kept_with_label():
+    payload = {"date": "2026-09-13", "date_label": "Дата взятия материала", "values": {"Hb": 119}}
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert out["date"] == "2026-09-13"
+    assert out["date_label"] == "Дата взятия материала"
+    assert "_date_rejected" not in out
+
+
+@pytest.mark.asyncio
+async def test_response_with_leading_thinking_block_is_parsed():
+    """Sonnet 5 может прислать перед ответом блок thinking — разбор не должен срываться (#558)."""
+    response = {
+        "content": [
+            {"type": "thinking", "thinking": "", "signature": "sig"},
+            {"type": "text", "text": json.dumps({"date": "2026-08-11", "values": {}, "conditions": ["Акне (L70.0)"]})},
+        ]
+    }
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=response)):
+        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert out["date"] == "2026-08-11"
+    assert out["conditions"] == ["Акне (L70.0)"]
+
+
+# ── #558 фаза 2: тип документа, название и резюме ───────────────────────────
+
+
+def test_prompt_describes_doc_kind_summary_and_doc_type():
+    prompt = doc_extractor._SYSTEM_PROMPT
+    for token in ("doc_kind", "smear_pcr", "lab_panel", "summary", "doc_type"):
+        assert token in prompt
+
+
+@pytest.mark.asyncio
+async def test_smear_values_are_dropped_and_summary_kept():
+    payload = {
+        "date": "2026-09-08",
+        "doc_kind": "smear_pcr",
+        "doc_type": "Мазок и флороценоз",
+        "summary": "Лейкоциты 1–2 в п/зр; Gardnerella не обнаружена.",
+        "values": {"leukocytes": 50000, "WBC": 1.2},
+    }
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert out["values"] == {}
+    assert out["_dropped_values"] == {"leukocytes": 50000, "WBC": 1.2}
+    assert out["summary"].startswith("Лейкоциты")
+    assert out["doc_type"] == "Мазок и флороценоз"
+
+
+@pytest.mark.asyncio
+async def test_lab_panel_values_kept_and_unknown_kind_becomes_other():
+    lab = {"date": "2026-09-13", "doc_kind": "LAB_PANEL", "values": {"Hb": 119}}
+    odd = {"date": "2026-09-13", "doc_kind": "questionnaire", "values": {}}
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(lab))):
+        out_lab = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(odd))):
+        out_odd = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert out_lab["doc_kind"] == "lab_panel" and out_lab["values"] == {"Hb": 119}
+    assert "doc_kind" not in out_odd  # незнакомый тип — не «other», иначе теряется строка blood_tests
+
+
+@pytest.mark.asyncio
+async def test_missing_doc_kind_left_absent_for_legacy_readers():
+    payload = {"date": "2026-09-13", "values": {"Hb": 119}}
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert "doc_kind" not in out
+    assert out["values"] == {"Hb": 119}
+
+
+# ── #558 фаза 3: коды Z (обращения, осмотры) — не диагнозы ─────────────────
+
+
+def test_prompt_forbids_z_codes_in_conditions():
+    assert "Z00–Z13" in doc_extractor._SYSTEM_PROMPT
+
+
+@pytest.mark.asyncio
+async def test_z_codes_filtered_real_diagnoses_kept():
+    """Отсеиваются только Z00–Z13 (осмотры, обследования, скрининг); статусы Z14+ —
+    стент, трансплантат, диализ, беременность — важны для агента (ревью #560)."""
+    payload = {
+        "values": {},
+        "conditions": [
+            "Гинекологическое обследование (общее) (рутинное) (Z01.4)",
+            "Угри обыкновенные (L70.0)",
+            "Наличие коронарного стента (Z95.5)",
+            "Наблюдение за нормальной беременностью Z34",
+            "Скрининг на злокачественные новообразования (Z12.4)",
+        ],
+    }
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert out["conditions"] == [
+        "Угри обыкновенные (L70.0)",
+        "Наличие коронарного стента (Z95.5)",
+        "Наблюдение за нормальной беременностью Z34",
+    ]
+    assert len(out["_dropped_conditions"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_word_with_letter_z_is_not_a_z_code():
+    payload = {"values": {}, "conditions": ["Синдром Золлингера-Эллисона (E16.4)", "Zinc deficiency (E60)"]}
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert len(out["conditions"]) == 2
+    assert "_dropped_conditions" not in out
+
+
+# ── #558 фаза 4: активный B12 и единицы ─────────────────────────────────────
+
+
+def test_holotranscobalamin_is_separate_canonical_marker():
+    from core.health.kb_schema import to_canonical
+
+    canon, _ = to_canonical({"holotranscobalamin": 138.3, "vitamin_B12": 400})
+    assert canon["holotranscobalamin"] == 138.3
+    assert canon["vitamin_B12"] == 400
+
+
+def test_prompt_separates_active_b12_and_asks_units():
+    prompt = doc_extractor._SYSTEM_PROMPT
+    assert "холотранскобаламин" in prompt
+    assert '"units"' in prompt
+
+
+@pytest.mark.asyncio
+async def test_crp_in_mg_dl_converted_to_mg_l():
+    payload = {
+        "values": {"hs_CRP": 0.07, "ferritin": 15.78},
+        "units": {"hs_CRP": "мг/дл", "ferritin": "нг/мл"},
+    }
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert out["values"]["hs_CRP"] == pytest.approx(0.7)
+    assert out["units"]["hs_CRP"] == "мг/л"
+    assert out["values"]["ferritin"] == 15.78
+    assert out["_unit_conversions"] == ["hs_CRP: мг/дл → мг/л ×10"]
+
+
+@pytest.mark.asyncio
+async def test_crp_already_mg_l_and_latin_unit_variants():
+    same = {"values": {"CRP": 3.0}, "units": {"CRP": "мг/л"}}
+    latin = {"values": {"CRP": 0.3}, "units": {"CRP": "mg/dL"}}
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(same))):
+        out_same = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(latin))):
+        out_latin = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert out_same["values"]["CRP"] == 3.0 and "_unit_conversions" not in out_same
+    assert out_latin["values"]["CRP"] == pytest.approx(3.0)
+
+
+@pytest.mark.asyncio
+async def test_truncated_response_is_logged_loudly(caplog):
+    """#558: обрыв по лимиту раньше тихо превращался в {} — теперь хотя бы виден в логах."""
+    response = {
+        "stop_reason": "max_tokens",
+        "content": [{"type": "text", "text": '{"date": "2026-09-08", "summary": "Мат'}],
+    }
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=response)):
+        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert out == {}
+    assert "обрезан по max_tokens" in caplog.text
+
+
+# ── #558 фаза 6: модель в config/models.py и учёт расходов ─────────────────
+
+
+def test_default_doc_model_is_sonnet_5_from_config():
+    from config.models import DOC_EXTRACT_MODEL
+
+    assert DOC_EXTRACT_MODEL == "claude-sonnet-5"
+    assert doc_extractor._MODEL == DOC_EXTRACT_MODEL
+
+
+@pytest.mark.asyncio
+async def test_usage_is_logged_with_user_id():
+    response = {
+        "model": "claude-sonnet-5",
+        "usage": {"input_tokens": 10, "output_tokens": 5},
+        "content": [{"type": "text", "text": json.dumps({"date": None, "values": {}})}],
+    }
+    with (
+        patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=response)),
+        patch("core.llm_usage.log_anthropic_response") as log_mock,
+    ):
+        await doc_extractor.extract_medical_data(b"x", "image/jpeg", user_id=42)
+    log_mock.assert_called_once()
+    assert log_mock.call_args.kwargs["purpose"] == "doc_extract"
+    assert log_mock.call_args.kwargs["user_id"] == 42
+
+
+@pytest.mark.asyncio
+async def test_usage_logging_failure_does_not_break_extraction():
+    response = {"content": [{"type": "text", "text": json.dumps({"date": "2026-09-13", "values": {"Hb": 119}})}]}
+    with (
+        patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=response)),
+        patch("core.llm_usage.log_anthropic_response", side_effect=RuntimeError("db down")),
+    ):
+        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert out["values"] == {"Hb": 119}
+
+
+# ── #558 после сухого прогона: резюме без оценок, моча отдельно, Ca ионизированный ──
+
+
+def test_prompt_forbids_own_normality_verdicts_in_summary():
+    prompt = doc_extractor._SYSTEM_PROMPT
+    assert "в пределах нормы" in prompt
+    assert "«+»" in prompt
+
+
+def test_prompt_separates_urine_keys_from_blood():
+    prompt = doc_extractor._SYSTEM_PROMPT
+    assert "_urine" in prompt
+    assert "мочи" in prompt
+
+
+def test_calcium_ionized_is_canonical_and_distinct_from_total():
+    from core.health.kb_schema import to_canonical
+
+    canon, warnings = to_canonical({"calcium_ionized": 1.33, "calcium_total": 2.6})
+    assert canon["calcium_ionized"] == 1.33
+    assert canon["calcium"] == 2.6
+    assert not warnings
+
+
+def test_urine_keys_do_not_become_blood_row():
+    from core.health.doc_to_blood_test import build_blood_test_row
+
+    extracted = {
+        "date": "2026-07-02",
+        "doc_kind": "lab_panel",
+        "values": {"calcium_urine_daily": 5.02, "creatinine_urine_conc": 9227.3},
+    }
+    res = build_blood_test_row(extracted, stored_name="2026-09-11_f943398b.jpg", user_id=1)
+    assert res.row is None
+
+
+@pytest.mark.asyncio
+async def test_lab_panel_summary_verdicts_are_stripped():
+    """#558: модель пишет «в пределах нормы» и для значений выше нормы — у lab_panel вырезаем."""
+    payload = {
+        "doc_kind": "lab_panel",
+        "summary": "Определён ионизированный кальций. Показатель в пределах нормы. Все показатели в норме!",
+        "values": {"calcium_ionized": 1.33},
+    }
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert out["summary"] == "Определён ионизированный кальций."
+
+
+@pytest.mark.asyncio
+async def test_imaging_conclusion_kept_verbatim():
+    payload = {
+        "doc_kind": "imaging",
+        "summary": "Размеры матки в норме. Заключение: патологии не выявлено.",
+        "values": {},
+    }
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert out["summary"] == "Размеры матки в норме. Заключение: патологии не выявлено."
+
+
+@pytest.mark.asyncio
+async def test_lab_summary_made_only_of_verdicts_becomes_none():
+    payload = {
+        "doc_kind": "lab_panel",
+        "summary": "Все показатели в пределах референсных значений.",
+        "values": {"Hb": 119},
+    }
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert out["summary"] is None
+
+
+def test_strip_verdicts_keeps_decimal_numbers_intact():
+    text = "Медь 953.278 мкг/л, селен 133,8 мкг/л. Оба в пределах нормы."
+    assert doc_extractor._strip_verdicts(text) == "Медь 953.278 мкг/л, селен 133,8 мкг/л."
+
+
+# ── ревью PR #560 ───────────────────────────────────────────────────────────
+
+
+def test_strip_verdicts_keeps_reference_and_lab_flag():
+    text = "Кальций 1.33 (норма 1.12–1.32), помечен H. Все показатели в пределах референсных значений."
+    assert doc_extractor._strip_verdicts(text) == "Кальций 1.33 (норма 1.12–1.32), помечен H."
+
+
+def test_strip_verdicts_removes_verdict_clause_from_numeric_sentence():
+    assert doc_extractor._strip_verdicts("Кальций ионизированный 1.33 ммоль/л, в пределах нормы.") == (
+        "Кальций ионизированный 1.33 ммоль/л."
+    )
+
+
+@pytest.mark.asyncio
+async def test_misspelled_lab_kind_normalised_and_unknown_dropped():
+    spaced = {"doc_kind": "Lab panel", "date": "2026-09-13", "values": {"Hb": 119}}
+    garbage = {"doc_kind": "lab_panel | imaging", "date": "2026-09-13", "values": {"Hb": 119}}
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(spaced))):
+        out_spaced = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(garbage))):
+        out_garbage = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert out_spaced["doc_kind"] == "lab_panel"
+    assert "doc_kind" not in out_garbage
+
+
+@pytest.mark.asyncio
+async def test_crp_conversion_case_insensitive_key():
+    payload = {"values": {"hsCRP": 0.07}, "units": {"hsCRP": "мг/дл"}}
+    with patch.object(doc_extractor, "_call_anthropic", new=AsyncMock(return_value=_fake_response(payload))):
+        out = await doc_extractor.extract_medical_data(b"x", "image/jpeg")
+    assert out["values"]["hsCRP"] == pytest.approx(0.7)
+
+
+def test_date_of_tomorrow_utc_is_allowed_for_user_timezones():
+    from datetime import date, timedelta
+
+    today = date(2026, 9, 25)
+    ok = {"date": (today + timedelta(days=1)).isoformat()}
+    far = {"date": (today + timedelta(days=2)).isoformat()}
+    doc_extractor._sanitize_date(ok, today=today)
+    doc_extractor._sanitize_date(far, today=today)
+    assert ok["date"] == "2026-09-26"
+    assert far["date"] is None and far["_date_rejected"] == "future"
+
+
+def test_request_timeout_leaves_room_for_sonnet_with_long_output():
+    import inspect
+
+    assert "timeout=180" in inspect.getsource(doc_extractor._call_anthropic)
+
+
+def test_calcium_ionized_unit_detected_by_magnitude_not_panel_flag():
+    """Ревью #560: признак US ставится по гемоглобину, а Ca ионизированный часто в
+    ммоль/л и на US-панели. Единицу определяем по величине: ммоль/л ≈1–1.5, мг/дл ≈4–5.6."""
+    from core.health.kb_schema import to_canonical
+
+    mmol_on_us_panel, _ = to_canonical({"calcium_ionized": 1.25, "_unit_system": "US"})
+    mgdl, warnings = to_canonical({"calcium_ionized": 4.8})
+    assert mmol_on_us_panel["calcium_ionized"] == pytest.approx(1.25)
+    assert mgdl["calcium_ionized"] == pytest.approx(1.198, abs=0.01)
+    assert any("calcium_ionized" in w for w in warnings)
+
+
+def test_strip_verdicts_keeps_printed_qualitative_results_and_recommendations():
+    text = "Уробилиноген: норма. Рекомендовано снижение потребления соли. Все показатели в пределах нормы."
+    assert doc_extractor._strip_verdicts(text) == "Уробилиноген: норма. Рекомендовано снижение потребления соли."
+
+
+def test_strip_verdicts_keeps_negated_verdicts():
+    """Ревью #560: «не в норме» — указание на отклонение, его не трогаем."""
+    assert doc_extractor._strip_verdicts("Ферритин 8 мкг/л — не в пределах нормы.") == (
+        "Ферритин 8 мкг/л — не в пределах нормы."
+    )
+    assert doc_extractor._strip_verdicts("Показатели не в норме: ферритин, железо.") == (
+        "Показатели не в норме: ферритин, железо."
+    )
