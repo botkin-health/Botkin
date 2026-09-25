@@ -200,6 +200,7 @@ US_TO_METRIC: dict[str, float] = {
     "creatinine": 88.42,
     "uric_acid": 59.48,
     "calcium": 0.2495,
+    "calcium_ionized": 0.2495,  # мг/дл → ммоль/л, как у общего кальция (ревью #560)
     "iron": 0.1791,
     "bilirubin_total": 17.104,
     "cholesterol_total": 1 / 38.67,

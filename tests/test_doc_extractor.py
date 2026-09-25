@@ -756,3 +756,11 @@ def test_request_timeout_leaves_room_for_sonnet_with_long_output():
     import inspect
 
     assert "timeout=180" in inspect.getsource(doc_extractor._call_anthropic)
+
+
+def test_calcium_ionized_us_units_converted_to_mmol():
+    """Ревью #560: Ca ионизированный 4.8 мг/дл на US-панели ≈ 1.20 ммоль/л, а не 4.8."""
+    from core.health.kb_schema import to_canonical
+
+    canon, _ = to_canonical({"calcium_ionized": 4.8, "_unit_system": "US"})
+    assert canon["calcium_ionized"] == pytest.approx(1.198, abs=0.01)
