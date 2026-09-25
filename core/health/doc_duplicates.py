@@ -104,6 +104,34 @@ def _text_match(new: dict, old: dict) -> bool:
     return len(new_tokens & old_tokens) / len(new_tokens | old_tokens) >= _TEXT_SIMILARITY
 
 
+def _dated_points(doc: dict) -> dict[tuple[str, str], float]:
+    """Значения документа с датой: {(дата, ключ): число} — из `series` и из верха (#559)."""
+    points: dict[tuple[str, str], float] = {}
+    for entry in doc.get("series") or []:
+        if isinstance(entry, dict) and entry.get("date"):
+            for key, value in _numeric(entry.get("values")).items():
+                points[(entry["date"], key)] = value
+    if doc.get("date"):
+        for key, value in _numeric(doc.get("values")).items():
+            points.setdefault((doc["date"], key), value)
+    return points
+
+
+def _series_match(new: dict, old: dict) -> bool:
+    """Сводная таблица, уже сохранённая целиком: те же значения за те же даты.
+
+    Сравнение только в одну сторону — новая таблица должна почти вся найтись в
+    старой. Бланк за одну дату, чьи числа есть в досье, дублем досье не считается:
+    это разные документы, и первичный бланк ценнее пересказа.
+    """
+    points = _dated_points(new)
+    if len(points) < _MIN_NUMERIC_VALUES:
+        return False
+    old_points = _dated_points(old)
+    same = sum(1 for k, v in points.items() if k in old_points and _same_number(v, old_points[k]))
+    return same / len(points) >= _MIN_SHARE
+
+
 def find_similar_document(documents: list[Any], extracted: dict[str, Any]) -> Optional[dict[str, Any]]:
     """Первый сохранённый документ, совпадающий с `extracted` по содержимому, или None.
 
@@ -112,11 +140,18 @@ def find_similar_document(documents: list[Any], extracted: dict[str, Any]) -> Op
     """
     extracted = extracted or {}
     new_values = _numeric(extracted.get("values"))
+    is_series = bool(extracted.get("series"))
     for entry in documents or []:
         if not isinstance(entry, dict) or _is_cancelled_archive(entry):
             continue
         old = entry.get("extracted")
         if not isinstance(old, dict):
+            continue
+        if is_series:
+            # У сводной таблицы верхняя дата пуста, а значения разложены по датам —
+            # числовое и текстовое сравнение ниже её не видят (#559).
+            if _series_match(extracted, old):
+                return entry
             continue
         old_values = _numeric(old.get("values"))
         if new_values and _dates_compatible(extracted.get("date"), old.get("date")):

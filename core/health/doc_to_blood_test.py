@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import re
+import string
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Optional
@@ -164,3 +165,138 @@ def build_blood_test_row(extracted: dict, *, stored_name: str, user_id: int) -> 
         "status": "current",
     }
     return DocBloodTestResult(row, "ok", tuple(warnings), len(canon))
+
+
+# Одна единица в разных написаниях («µmol/L» = «мкмоль/л», «×10⁹/л» = «10^9/L»).
+# МЕ и Ед для сравнения не различаем: лаборатории пишут их вперемешку.
+_UNIT_TOKENS = {
+    "g": "г", "mg": "мг", "мкg": "мкг", "mcg": "мкг", "ug": "мкг", "ng": "нг", "pg": "пг",
+    "l": "л", "dl": "дл", "ml": "мл", "fl": "фл",
+    "mol": "моль", "mmol": "ммоль", "мкmol": "мкмоль", "umol": "мкмоль", "nmol": "нмоль", "pmol": "пмоль",
+    "iu": "ед", "u": "ед", "ме": "ед",
+    "miu": "мед", "mu": "мед", "мме": "мед",
+    "мкiu": "мкед", "uiu": "мкед", "мкме": "мкед", "мкод": "мкед", "мкu": "мкед", "uu": "мкед",
+    "mm": "мм", "h": "ч", "hr": "ч", "час": "ч",
+}  # fmt: skip
+# Разные единицы одной шкалы — то же число (ревью #564: ферритин нг/мл и мкг/л,
+# ТТГ мкМЕ/мл и мМЕ/л из разных лабораторий одного досье).
+_SAME_SCALE = {
+    "мкг/л": "нг/мл",
+    "нг/л": "пг/мл",
+    "мед/л": "мкед/мл",
+    "ед/л": "мед/мл",
+    "тыс/мкл": "10^9/л",
+    "10^3/мкл": "10^9/л",
+    "млн/мкл": "10^12/л",
+    "10^6/мкл": "10^12/л",
+}
+_SUPERSCRIPTS = str.maketrans("⁰¹²³⁴⁵⁶⁷⁸⁹", string.digits)
+_POWER_RE = re.compile(r"[x×*·]?10(?:\^|\*\*|\*)?(\d+)")
+
+
+def unit_key(unit: Any) -> str:
+    """Каноническое написание единицы — только для сравнения, не для пересчёта (#559)."""
+    text = "".join(str(unit).split()).casefold().translate(_SUPERSCRIPTS).rstrip(".,;")
+    text = text.replace("µ", "мк").replace("μ", "мк")
+    text = _POWER_RE.sub(r"10^\1", text)
+    parts = re.split(r"([/^])", text)
+    key = "".join(_UNIT_TOKENS.get(part, part) for part in parts)
+    return _SAME_SCALE.get(key, key)
+
+
+def _foreign_unit_keys(extracted: dict, series: list[dict]) -> dict[int, list[str]]:
+    """Даты сводной таблицы, где показатель в другой единице, чем у большинства дат.
+
+    Смотрим итог после пересчёта (`doc_extractor._convert_units`): единица даты —
+    своя (`series[].units`), иначе общая. Если одна единица у большинства дат, даты
+    с другой в динамику не идут — blood_tests единиц не хранит, и пролактин 91.9
+    мкОд/мл лёг бы рядом с 7.3 нг/мл как будто в одной шкале. Ничья решается в
+    пользу общей единицы таблицы, а без неё никого не выбрасываем: какая шкала
+    правильная, по документу не понять.
+    """
+    shared = extracted.get("units") if isinstance(extracted.get("units"), dict) else {}
+    per_key: dict[str, list[tuple[int, str]]] = {}
+    for i, entry in enumerate(series):
+        own = entry.get("units") if isinstance(entry.get("units"), dict) else {}
+        for key in entry.get("values") or {}:
+            unit = own.get(key) or shared.get(key)
+            if unit:
+                per_key.setdefault(key, []).append((i, unit_key(unit)))
+    foreign: dict[int, list[str]] = {}
+    for key, marks in per_key.items():
+        counts: dict[str, int] = {}
+        for _, u in marks:
+            counts[u] = counts.get(u, 0) + 1
+        if len(counts) < 2:
+            continue
+        best = max(counts.values())
+        leaders = [u for u, n in counts.items() if n == best]
+        if len(leaders) == 1:
+            majority = leaders[0]
+        elif shared.get(key) and unit_key(shared[key]) in leaders:
+            # Ничья, но одна из единиц — единица таблицы: своя единица строки по
+            # определению исключение (так её и просят указывать в промпте).
+            majority = unit_key(shared[key])
+        else:
+            continue
+        for i, u in marks:
+            if u != majority:
+                foreign.setdefault(i, []).append(key)
+    return foreign
+
+
+@dataclass(frozen=True)
+class DocBloodTestRows:
+    """Строки документа для blood_tests: одна у обычного бланка, по одной на дату у
+    сводной таблицы (#559). `rows` пуст ⇒ не пишем, смотри `reason`."""
+
+    rows: tuple[dict, ...]
+    reason: str
+    warnings: tuple[str, ...] = ()
+    marker_count: int = 0
+
+
+def build_blood_test_rows(extracted: dict, *, stored_name: str, user_id: int) -> DocBloodTestRows:
+    """`extracted` → строки blood_tests; сводная таблица (`series`) — строка на каждую дату.
+
+    Все строки документа делят `test_type` (лаборатория · хэш файла), различает их
+    дата — ключ upsert'а `(user_id, test_date, test_type)`, поэтому перезалив того же
+    досье обновляет те же строки, а не плодит новые.
+    """
+    extracted = extracted or {}
+    series = [e for e in extracted.get("series") or [] if isinstance(e, dict)]
+    if not series:
+        single = build_blood_test_row(extracted, stored_name=stored_name, user_id=user_id)
+        rows = (single.row,) if single.row is not None else ()
+        return DocBloodTestRows(rows, single.reason, single.warnings, single.marker_count)
+
+    rows: list[dict] = []
+    warnings: list[str] = []
+    reasons: list[str] = []
+    markers = 0
+    foreign = _foreign_unit_keys(extracted, series)
+    for i, entry in enumerate(series):
+        values = dict(entry.get("values") or {}) if isinstance(entry.get("values"), dict) else {}
+        for key in foreign.get(i, ()):
+            values.pop(key, None)
+            warnings.append(f"{entry.get('date')}: {key}: единица строки не та, что у таблицы — не в динамику")
+        result = build_blood_test_row(
+            {
+                "doc_kind": extracted.get("doc_kind"),
+                "date": entry.get("date"),
+                "laboratory": entry.get("laboratory") or extracted.get("laboratory"),
+                "values": values,
+            },
+            stored_name=stored_name,
+            user_id=user_id,
+        )
+        warnings.extend(f"{entry.get('date')}: {w}" for w in result.warnings)
+        if result.row is None:
+            reasons.append(result.reason)
+            continue
+        rows.append(result.row)
+        markers += result.marker_count
+    if rows:
+        return DocBloodTestRows(tuple(rows), "ok", tuple(warnings), markers)
+    # Ни одной строки: причина первой даты (у таблицы они, как правило, одинаковые).
+    return DocBloodTestRows((), reasons[0] if reasons else "no_values", tuple(warnings))
