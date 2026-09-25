@@ -563,3 +563,25 @@ def test_row_unit_survives_collapse_and_merge():
     merged = doc_extractor.merge_extractions(parts)
     assert merged["series"][1]["units"] == {"D": "нмоль/л"}
     assert "units" not in merged["series"][0]
+
+
+def test_row_in_other_unconvertible_unit_kept_out_of_dynamics():
+    """Пролактин 2022 в мкОд/мл среди нг/мл: пересчитать нечем — в динамику не пишем."""
+    doc = {
+        "doc_kind": "lab_panel",
+        "laboratory": "досье",
+        "units": {"prolactin": "нг/мл", "testosterone": "нмоль/л"},
+        "series": [
+            {"date": "2020-06-19", "values": {"prolactin": 7.34, "testosterone": 18.4}},
+            {
+                "date": "2022-05-11",
+                "values": {"prolactin": 91.94, "testosterone": 12.54},
+                "units": {"prolactin": "мкОд/мл", "testosterone": "нмоль/л"},
+            },
+        ],
+    }
+    res = build_blood_test_rows(doc, stored_name=STORED, user_id=1)
+    by_date = {r["test_date"]: r["values"] for r in res.rows}
+    assert by_date["2022-05-11"] == {"testosterone": 12.54}
+    assert by_date["2020-06-19"] == {"prolactin": 7.34, "testosterone": 18.4}
+    assert any("prolactin: единица мкОд/мл ≠ нг/мл" in w for w in res.warnings)
