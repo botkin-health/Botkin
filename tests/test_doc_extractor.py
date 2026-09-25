@@ -758,9 +758,18 @@ def test_request_timeout_leaves_room_for_sonnet_with_long_output():
     assert "timeout=180" in inspect.getsource(doc_extractor._call_anthropic)
 
 
-def test_calcium_ionized_us_units_converted_to_mmol():
-    """Ревью #560: Ca ионизированный 4.8 мг/дл на US-панели ≈ 1.20 ммоль/л, а не 4.8."""
+def test_calcium_ionized_unit_detected_by_magnitude_not_panel_flag():
+    """Ревью #560: признак US ставится по гемоглобину, а Ca ионизированный часто в
+    ммоль/л и на US-панели. Единицу определяем по величине: ммоль/л ≈1–1.5, мг/дл ≈4–5.6."""
     from core.health.kb_schema import to_canonical
 
-    canon, _ = to_canonical({"calcium_ionized": 4.8, "_unit_system": "US"})
-    assert canon["calcium_ionized"] == pytest.approx(1.198, abs=0.01)
+    mmol_on_us_panel, _ = to_canonical({"calcium_ionized": 1.25, "_unit_system": "US"})
+    mgdl, warnings = to_canonical({"calcium_ionized": 4.8})
+    assert mmol_on_us_panel["calcium_ionized"] == pytest.approx(1.25)
+    assert mgdl["calcium_ionized"] == pytest.approx(1.198, abs=0.01)
+    assert any("calcium_ionized" in w for w in warnings)
+
+
+def test_strip_verdicts_keeps_printed_qualitative_results_and_recommendations():
+    text = "Уробилиноген: норма. Рекомендовано снижение потребления соли. Все показатели в пределах нормы."
+    assert doc_extractor._strip_verdicts(text) == "Уробилиноген: норма. Рекомендовано снижение потребления соли."

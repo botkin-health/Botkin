@@ -200,7 +200,6 @@ US_TO_METRIC: dict[str, float] = {
     "creatinine": 88.42,
     "uric_acid": 59.48,
     "calcium": 0.2495,
-    "calcium_ionized": 0.2495,  # мг/дл → ммоль/л, как у общего кальция (ревью #560)
     "iron": 0.1791,
     "bilirubin_total": 17.104,
     "cholesterol_total": 1 / 38.67,
@@ -222,6 +221,15 @@ US_TO_METRIC: dict[str, float] = {
 _GDL_MAGNITUDE_GUARD: dict[str, tuple[float, float]] = {
     "Hb": (30.0, 10.0),
     "MCHC": (60.0, 10.0),
+}
+
+# Обратный guard: значение ВЫШЕ порога физиологически несовместимо с канонической
+# единицей и почти наверняка в мг/дл. Ca ионизированный: ммоль/л ≈ 1.0–1.5, мг/дл ≈ 4–5.6 —
+# диапазоны не пересекаются. Признак US-панели для него НЕ используем: он ставится по
+# гемоглобину, а ионизированный кальций часто печатают в ммоль/л и на US-панели (ревью #560).
+# {canon_key: (порог_выше_которого_считаем_mgdl, множитель)}
+_MGDL_MAGNITUDE_GUARD: dict[str, tuple[float, float]] = {
+    "calcium_ionized": (3.0, 0.2495),
 }
 
 # Служебный ключ в values, несущий систему единиц записи (инжектится импортом
@@ -305,6 +313,10 @@ def to_canonical(
         new_val = raw_val * factor
         if is_us:
             new_val *= US_TO_METRIC.get(canon_key, 1.0)
+        high_guard = _MGDL_MAGNITUDE_GUARD.get(canon_key)
+        if high_guard is not None and new_val > high_guard[0]:
+            new_val *= high_guard[1]
+            warnings.append(f"{canon_key}={raw_val} похоже на мг/дл (> {high_guard[0]:g}) → ×{high_guard[1]:g}")
         guard = _GDL_MAGNITUDE_GUARD.get(canon_key)
         if guard is not None and 0 < new_val < guard[0]:
             new_val *= guard[1]
