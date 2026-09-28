@@ -5,10 +5,9 @@ supplements_log — событие приёма терялось целиком,
 Развилка «разовое событие приёма» vs «факт о постоянной терапии» нигде не была
 описана явно — ни в описаниях тулов, ни в системном промпте. Тесты фиксируют
 формулировки, которые эту развилку описывают, по образцу test_agent_chrono_tools.py
-(схема/описание тула) и test_doc_extractor.py (текст промпта через inspect.getsource).
+(схема/описание тула); текст развилки проверяется в самом UNIVERSAL_META_PROMPT.
 """
 
-import inspect
 import sys
 from pathlib import Path
 
@@ -56,12 +55,12 @@ def test_log_supplement_description_still_has_date_time_guidance():
 
 
 def test_system_prompt_has_explicit_fork_section():
-    src = inspect.getsource(agent_chat)
+    src = agent_chat.UNIVERSAL_META_PROMPT
     assert "РАЗВИЛКА: приём или медпрофиль" in src
 
 
 def test_system_prompt_fork_mentions_both_tools_for_mixed_phrase():
-    src = inspect.getsource(agent_chat)
+    src = agent_chat.UNIVERSAL_META_PROMPT
     assert "log_supplement" in src
     assert "save_health_profile" in src
     assert "ОБА тула" in src
@@ -70,11 +69,11 @@ def test_system_prompt_fork_mentions_both_tools_for_mixed_phrase():
 def test_system_prompt_fork_forbids_replacing_event_with_profile():
     """Суть развилки: запись события нельзя подменить записью в медпрофиль —
     именно так терялся приём («капотен несколько дней назад», #507)."""
-    src = inspect.getsource(agent_chat)
+    src = agent_chat.UNIVERSAL_META_PROMPT
     assert "заменять запись события записью в профиль нельзя" in src
 
 
 def test_system_prompt_fork_instructs_ask_when_ambiguous():
     """DoD п.3: при неоднозначности агент должен переспросить, а не выбрать молча."""
-    src = inspect.getsource(agent_chat)
+    src = agent_chat.UNIVERSAL_META_PROMPT
     assert "переспроси" in src
