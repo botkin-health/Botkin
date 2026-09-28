@@ -12,6 +12,8 @@ from __future__ import annotations
 import re
 from typing import Any, Optional
 
+from core.health.doc_normalize import kind_of
+
 # Совпадений по числам меньше — случайность (две разные панели с общим Hb).
 _MIN_NUMERIC_VALUES = 3
 _MIN_SHARE = 0.8
@@ -71,7 +73,7 @@ def _distinct_lab_pages(new: dict, old: dict, new_values: dict, old_values: dict
     """Две лабораторные страницы с числами без общих аналитов — разные страницы одной
     панели, как ни похож текст (ревью #560). У УЗИ ключи модель придумывает сама —
     там несовпадение ключей ничего не значит, поэтому только lab_panel."""
-    if not (new.get("doc_kind") == old.get("doc_kind") == "lab_panel"):
+    if new.get("doc_kind") != old.get("doc_kind") or not kind_of(new).compares_analytes:
         return False
     if min(len(new_values), len(old_values)) < _MIN_NUMERIC_VALUES:
         return False
