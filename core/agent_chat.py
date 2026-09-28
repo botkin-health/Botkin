@@ -1153,51 +1153,6 @@ TOOLS: list[dict[str, Any]] = [
 # ---------------------------------------------------------------------------
 
 
-# Инструменты, которые всегда лежат в запросе: 4+ вызова за 90 дней по
-# agent_conversations (замер 28.09.2026). Остальные грузятся через tool search
-# по требованию — их схемы не входят в префикс (−~9K токенов на каждом вызове).
-AGENT_CORE_TOOLS = frozenset(
-    {
-        "get_kb_value",
-        "get_open_questions",
-        "add_agent_correction",
-        "get_recent_meals",
-        "flag_for_devs",
-        "get_recent_workouts",
-        "get_weight_history",
-        "get_latest_biomarkers",
-        "meal_context",
-        "get_recent_supplements",
-        "get_dashboard_summary",
-        "get_recent_trends",
-        "get_recent_glucose",
-        "get_recent_sleep",
-        "list_kb_keys",
-        "log_supplement",
-        "save_health_profile",
-        "get_recent_biomarkers",
-        "get_recent_bp",
-        "get_day_summary",
-        "get_user_settings",
-        "list_documents",
-        "log_meal_text",
-    }
-)
-TOOL_SEARCH_TOOL = {"type": "tool_search_tool_bm25_20251119", "name": "tool_search_tool_bm25"}
-
-
-def _build_agent_tools(tool_defs: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Ядро + tool search впереди, редкие инструменты — с defer_loading.
-
-    Breakpoint кеша — на последнем инструменте ядра: deferred-инструмент не
-    может нести cache_control (API вернёт 400), а в префикс он и не входит.
-    """
-    core = [dict(t) for t in tool_defs if t["name"] in AGENT_CORE_TOOLS]
-    deferred = [{**t, "defer_loading": True} for t in tool_defs if t["name"] not in AGENT_CORE_TOOLS]
-    core[-1]["cache_control"] = {"type": "ephemeral"}
-    return [dict(TOOL_SEARCH_TOOL)] + core + deferred
-
-
 def agent_id_for(user: User) -> str:
     """Deterministic agent identifier embedded in JWT payload.
 
@@ -2810,7 +2765,9 @@ def ask_agent(
         # #269: триаж-тулы инбокса — только админам; остальные их не видят.
         _admin_only = {"list_feedback", "triage_feedback"}
         _tool_defs = TOOLS if _is_admin(user_id) else [t for t in TOOLS if t["name"] not in _admin_only]
-        cached_tools = _build_agent_tools(_tool_defs)
+        cached_tools = [dict(t) for t in _tool_defs]
+        # breakpoint на последнем инструменте кеширует все схемы инструментов
+        cached_tools[-1]["cache_control"] = {"type": "ephemeral"}
         # Prompt caching давно GA — beta-хедер prompt-caching-2024-07-31 не нужен
         request_headers = dict(headers)
 
