@@ -1786,6 +1786,16 @@ def agent_last_turn_was_question(user_id: int, within_minutes: int = 10) -> bool
         db.close()
 
 
+def _is_user_turn_start(m: dict) -> bool:
+    """User-сообщение с реальным текстом, а не только tool_result'ы тул-цикла."""
+    if m.get("role") != "user":
+        return False
+    content = m.get("content")
+    if not isinstance(content, list):
+        return True
+    return any(not (isinstance(b, dict) and b.get("type") == "tool_result") for b in content)
+
+
 def _validate_history(messages: list[dict]) -> list[dict]:
     """Strip orphan tool_use/tool_result blocks that violate Anthropic API.
 
@@ -1794,13 +1804,30 @@ def _validate_history(messages: list[dict]) -> list[dict]:
     save crashes between tool_use save and matching tool_result save.
 
     Algorithm:
+      0. Trim the window to start at a real user turn (text, not tool_result):
+         the boundary often cuts a tool loop in the middle
       1. Collect all tool_use_id present anywhere in the window
       2. Drop any tool_result blocks whose tool_use_id isn't in that set
       3. Drop any tool_use blocks whose id isn't matched by a later tool_result
       4. Drop messages that become empty after block-stripping
-      5. Strip leading message if its only content was orphan tool blocks
-         (Anthropic requires first message to be 'user' with real text)
+      5. Drop leading non-user messages; repeat 1-5 until stable — popping a
+         leading assistant removes its tool_use and orphans the next
+         tool_result (прецедент 28.09.2026, dev: 400 на messages.0)
     """
+    start = next((i for i, m in enumerate(messages) if _is_user_turn_start(m)), 0)
+    cleaned = messages[start:]
+    while True:
+        prev = cleaned
+        cleaned = _strip_orphan_tool_blocks(cleaned)
+        # Anthropic requires first message role == "user".
+        while cleaned and cleaned[0]["role"] != "user":
+            cleaned.pop(0)
+        if cleaned == prev:
+            return cleaned
+
+
+def _strip_orphan_tool_blocks(messages: list[dict]) -> list[dict]:
+    """One pass of steps 1-4 of _validate_history; returns a new list."""
     # First pass: collect all tool_use_id and tool_result tool_use_id present
     tool_use_ids: set[str] = set()
     tool_result_ids: set[str] = set()
@@ -1847,11 +1874,6 @@ def _validate_history(messages: list[dict]) -> list[dict]:
         if new_blocks:
             cleaned.append({"role": m["role"], "content": new_blocks})
 
-    # Anthropic requires first message role == "user". If we somehow end up
-    # with an assistant-first list (because user msg got fully orphaned),
-    # drop leading assistants.
-    while cleaned and cleaned[0]["role"] != "user":
-        cleaned.pop(0)
     return cleaned
 
 
