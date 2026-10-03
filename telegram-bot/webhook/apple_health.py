@@ -144,7 +144,12 @@ class AppleHealthPayload(BaseModel):
     # Состав тела (от Zepp через Apple Health)
     weight_kg: Optional[float] = None
     body_fat_pct: Optional[float] = None
+    # В HealthKit нет «мышечной массы» — весы отдают туда Lean Body Mass
+    # (вес × (1 − жир%)), это не мышцы Zepp/Withings (те меньше на массу костей,
+    # ~2.8 кг). Поэтому значение пишется в weights.lean_mass_kg, не в muscle_mass.
+    # muscle_mass_kg — историческое имя поля в шорткате v1, несёт тот же Lean Body Mass.
     muscle_mass_kg: Optional[float] = None
+    lean_mass_kg: Optional[float] = None
     water_pct: Optional[float] = None
 
     # Сон и восстановление
@@ -403,12 +408,12 @@ async def receive_apple_health(
                 db.execute(
                     _text(
                         """INSERT INTO weights
-                           (user_id, measured_at, weight, body_fat, muscle_mass, water, source)
-                           VALUES (:uid, :ts, :w, :bf, :mm, :wt, 'apple_health_shortcut')
+                           (user_id, measured_at, weight, body_fat, lean_mass_kg, water, source)
+                           VALUES (:uid, :ts, :w, :bf, :lean, :wt, 'apple_health_shortcut')
                            ON CONFLICT (user_id, measured_at) DO UPDATE
                              SET weight = EXCLUDED.weight,
                                  body_fat = EXCLUDED.body_fat,
-                                 muscle_mass = EXCLUDED.muscle_mass,
+                                 lean_mass_kg = EXCLUDED.lean_mass_kg,
                                  water = EXCLUDED.water,
                                  source = EXCLUDED.source"""
                     ),
@@ -417,7 +422,7 @@ async def receive_apple_health(
                         "ts": weight_ts,
                         "w": payload.weight_kg,
                         "bf": payload.body_fat_pct,
-                        "mm": payload.muscle_mass_kg,
+                        "lean": _lean_mass_kg(payload),
                         "wt": payload.water_pct,
                     },
                 )
@@ -440,6 +445,11 @@ async def receive_apple_health(
         "saved": saved,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
+
+
+def _lean_mass_kg(payload: "AppleHealthPayload") -> Optional[float]:
+    """Lean Body Mass из payload: v2 кладёт в lean_mass_kg, шорткат v1 — в muscle_mass_kg."""
+    return payload.lean_mass_kg if payload.lean_mass_kg is not None else payload.muscle_mass_kg
 
 
 # ── /apple_health_v2 — приёмник нативного формата Health Auto Export ─────────
@@ -608,7 +618,7 @@ def _hae_to_daily_payloads(metrics: list[dict]) -> dict[str, AppleHealthPayload]
                 # HAE шлёт уже в процентах (например 27.4), не во фракции.
                 slot["body_fat_pct"] = round(float(_hae_pick(rec, "qty", "Avg", default=0)), 1)
             elif name == "lean_body_mass":
-                slot["muscle_mass_kg"] = round(float(_hae_pick(rec, "qty", "Avg", default=0)), 2)
+                slot["lean_mass_kg"] = round(float(_hae_pick(rec, "qty", "Avg", default=0)), 2)
             elif name == "vo2_max":
                 slot["vo2_max"] = round(float(_hae_pick(rec, "qty", "Avg", default=0)), 1)
             elif name == "respiratory_rate":
@@ -1587,12 +1597,12 @@ async def receive_apple_health_v2(
                 db.execute(
                     _text(
                         """INSERT INTO weights
-                           (user_id, measured_at, weight, body_fat, muscle_mass, water, source)
-                           VALUES (:uid, :ts, :w, :bf, :mm, :wt, 'apple_health_v2')
+                           (user_id, measured_at, weight, body_fat, lean_mass_kg, water, source)
+                           VALUES (:uid, :ts, :w, :bf, :lean, :wt, 'apple_health_v2')
                            ON CONFLICT (user_id, measured_at) DO UPDATE
                              SET weight = EXCLUDED.weight,
                                  body_fat = EXCLUDED.body_fat,
-                                 muscle_mass = EXCLUDED.muscle_mass,
+                                 lean_mass_kg = EXCLUDED.lean_mass_kg,
                                  water = EXCLUDED.water,
                                  source = EXCLUDED.source"""
                     ),
@@ -1601,7 +1611,7 @@ async def receive_apple_health_v2(
                         "ts": weight_ts,
                         "w": payload.weight_kg,
                         "bf": payload.body_fat_pct,
-                        "mm": payload.muscle_mass_kg,
+                        "lean": _lean_mass_kg(payload),
                         "wt": payload.water_pct,
                     },
                 )
