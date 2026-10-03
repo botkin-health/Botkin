@@ -153,3 +153,61 @@ def test_v1_bmr_never_overwrites_garmin(client, api_db):
     row = get_activity_by_date(api_db, TEST_UID, d)
     assert row.bmr_calories == 1600.0  # Garmin сохранён, не 1700
     assert row.source == "garmin"  # source-строки создателя не меняется
+
+
+# ── Lean Body Mass ≠ мышечная масса ──────────────────────────────────────────
+# В HealthKit нет типа «мышечная масса»: весы (Zepp, Withings) отдают туда
+# Lean Body Mass = вес × (1 − жир%). Zepp же считает «мышцы» как безжировую
+# массу минус кости, т.е. на ~2.8 кг меньше. Писать Lean Body Mass в
+# weights.muscle_mass — значит рисовать фантомный «рост мышц» на ~3 кг при
+# переключении источника. Место ему — weights.lean_mass_kg.
+
+
+def _weight_row(db):
+    from database.models import Weight
+
+    return db.query(Weight).filter(Weight.user_id == TEST_UID).one()
+
+
+def test_v1_lean_body_mass_goes_to_lean_mass_not_muscle(client, api_db):
+    # Шорткат шлёт Lean Body Mass под историческим именем muscle_mass_kg.
+    r = _post(client, weight_kg=76.0, body_fat_pct=26.5, muscle_mass_kg=55.86)
+    assert r.status_code == 200
+    row = _weight_row(api_db)
+    assert row.lean_mass_kg == 55.86
+    assert row.muscle_mass is None
+
+
+def test_v1_upsert_keeps_existing_muscle_mass(client, api_db):
+    from datetime import datetime
+
+    from sqlalchemy import text
+
+    # Сырым SQL, как пишет эндпоинт: в SQLite ORM и raw-биндинг сериализуют
+    # datetime по-разному, и ON CONFLICT не увидел бы дубль.
+    api_db.execute(
+        text(
+            "INSERT INTO weights (user_id, measured_at, weight, muscle_mass, source) "
+            "VALUES (:uid, :ts, 76.0, 52.94, 'zepp_life')"
+        ),
+        {"uid": TEST_UID, "ts": datetime(2026, 7, 19, 8, 0)},
+    )
+    api_db.commit()
+
+    assert _post(client, weight_kg=76.0, body_fat_pct=26.5, muscle_mass_kg=55.86).status_code == 200
+    api_db.expire_all()
+    row = _weight_row(api_db)
+    assert row.muscle_mass == 52.94
+    assert row.lean_mass_kg == 55.86
+
+
+def test_v2_lean_body_mass_parsed_as_lean_mass():
+    from webhook.apple_health import _hae_to_daily_payloads
+
+    metrics = [
+        {"name": "weight_body_mass", "units": "kg", "data": [{"date": "2026-10-03 10:10:00 +0300", "qty": 76.0}]},
+        {"name": "lean_body_mass", "units": "kg", "data": [{"date": "2026-10-03 10:10:00 +0300", "qty": 55.86}]},
+    ]
+    p = _hae_to_daily_payloads(metrics)["2026-10-03"]
+    assert p.lean_mass_kg == 55.86
+    assert p.muscle_mass_kg is None
