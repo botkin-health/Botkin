@@ -135,14 +135,14 @@ section .lead {
 
 .hero-photo {
   position: relative;
-  aspect-ratio: 4/5;
+  aspect-ratio: 4/3;
   border-radius: 16px;
   overflow: hidden;
   background: linear-gradient(135deg, var(--card), var(--card-hi));
   border: 1px solid var(--border);
 }
 .hero-photo img {
-  width: 100%; height: 100%; object-fit: cover;
+  width: 100%; height: 100%; object-fit: cover; object-position: left top;
   filter: brightness(0.95);
 }
 .hero-photo .placeholder {
@@ -241,22 +241,33 @@ section .lead {
 .mermaid svg { display: block; margin: 0 auto; }
 
 /* ─────────── Screenshots gallery ─────────── */
+/* Рамки берут пропорции у картинок (раньше фиксированная высота давала поля и обрезку) */
 .gallery {
-  display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px;
 }
+.gallery + .gallery { margin-top: 20px; }
 .shot {
   background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
   transition: transform .2s, border-color .2s;
+  display: flex; flex-direction: column;
 }
+.shot.full { grid-column: 1 / -1; }
 .shot:hover { transform: translateY(-4px); border-color: var(--g); }
 .shot .img-wrap {
-  height: 300px; background: var(--bg2); display: flex; align-items: center; justify-content: center;
+  background: var(--bg2); display: flex; align-items: center; justify-content: center;
   color: var(--dim); font-size: 12px; text-align: center; padding: 0; overflow: hidden;
 }
-.shot .img-wrap img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
-.shot .img-wrap.wide { height: 420px; }
-.shot .img-wrap.wide img { object-fit: contain; object-position: center; }
-.shot .caption { padding: 16px 20px; }
+.shot .img-wrap img { display: block; width: 100%; height: 100%; }
+.shot .img-wrap.wide { aspect-ratio: 1440 / 800; }
+.shot .img-wrap.wide img { object-fit: cover; object-position: left top; }
+/* Экраны мини-аппа — портретные, показываем целиком */
+.shot.phone { flex-direction: row; align-items: center; }
+.shot.phone .img-wrap { flex: 0 0 44%; aspect-ratio: 796 / 1394; padding: 16px 0 16px 16px; background: transparent; }
+.shot.phone .img-wrap img { object-fit: contain; border-radius: 10px; }
+.shot .caption { padding: 16px 20px; flex: 1; }
+@media (max-width: 720px) {
+  .gallery { grid-template-columns: minmax(0, 1fr); }
+}
 .shot .caption h4 { font-size: 14px; margin-bottom: 4px; }
 .shot .caption p { font-size: 13px; color: var(--muted); }
 
@@ -395,11 +406,11 @@ footer .bottom {
           <div class="l">источников данных</div>
         </div>
         <div class="stat">
-          <div class="n" id="meals-counter">1169+</div>
+          <div class="n" id="meals-counter">2281+</div>
           <div class="l">приёмов пищи распознано</div>
         </div>
         <div class="stat">
-          <div class="n" id="bio-counter">416+</div>
+          <div class="n" id="bio-counter">473+</div>
           <div class="l">видов биомаркеров</div>
         </div>
       </div>
@@ -468,11 +479,12 @@ footer .bottom {
     </div>
     <div class="text">
       <p>
-        49 лет, Москва. 30+ лет в технологических компаниях:
+        49 лет, Дубай. 30+ лет в технологических компаниях:
         <strong>Alawar</strong> (игры, экзит),
         <strong>Welltory</strong> (HealthTech, экзит),
         <strong>iFarm</strong> (AgriTech, вертикальные фермы в 9 странах),
         <strong>ДАО Тех</strong> (AI в промышленной роботизации).
+        Сейчас строит в Дубае венчурную студию роботов и AI.
       </p>
 
       <p>
@@ -619,10 +631,10 @@ flowchart LR
 <div class="container">
   <div class="eyebrow">Как это выглядит</div>
   <h2>Реальные экраны</h2>
-  <p class="lead">Дашборд, биомаркеры, активность, дневник питания и добавки — всё живое, не мокапы.</p>
+  <p class="lead">Дашборд, активность, дневник питания и добавки — всё живое, не мокапы.</p>
 
   <div class="gallery">
-    <div class="shot" style="grid-column: span 2;">
+    <div class="shot full">
       <div class="img-wrap wide">
         <img src="assets/dashboard-hero.jpg" alt="Botkin Mission Control — KPI тайлы: вес, жир%, ApoB, баланс биомаркеров + траектория трансформации">
       </div>
@@ -632,7 +644,7 @@ flowchart LR
       </div>
     </div>
 
-    <div class="shot">
+    <div class="shot full">
       <div class="img-wrap wide">
         <img src="assets/dashboard-activity.jpg" alt="Botkin — восстановление, активность, питание: Body Battery, HRV, сон, шаги, КБЖУ">
       </div>
@@ -642,17 +654,10 @@ flowchart LR
       </div>
     </div>
 
-    <div class="shot">
-      <div class="img-wrap wide">
-        <img src="assets/dashboard-biomarkers.jpg" alt="Botkin — биомаркеры: радар-чарт по системам, PhenoAge биологический возраст 35.7 лет">
-      </div>
-      <div class="caption">
-        <h4>Биомаркеры и биологический возраст</h4>
-        <p>Радар-чарт баланса по 9 системам (метаболизм, липиды, печень, гормоны…). PhenoAge Clock: биологических 35.7 лет при паспортных 49. Панели Attia, LE8, ASCVD, SCORE2.</p>
-      </div>
-    </div>
+  </div>
 
-    <div class="shot">
+  <div class="gallery">
+    <div class="shot phone">
       <div class="img-wrap">
         <img src="../user_guide/screenshots/miniapp-diary.png" alt="Mini-app: Дневник питания"
              onerror="this.parentElement.innerHTML='📱 Mini-app — Дневник';">
@@ -663,7 +668,7 @@ flowchart LR
       </div>
     </div>
 
-    <div class="shot">
+    <div class="shot phone">
       <div class="img-wrap">
         <img src="../user_guide/screenshots/miniapp-supps.png" alt="Mini-app: Добавки"
              onerror="this.parentElement.innerHTML='💊 Mini-app — Добавки';">
