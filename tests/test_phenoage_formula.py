@@ -108,3 +108,80 @@ def test_phenoage_known_reference_case():
     # sanity: для здоровых маркеров и 48 лет PhenoAge должен быть в разумном
     # диапазоне (не отрицательный, не абсурдно большой).
     assert 20 < got < 80, f"bio_age={got} вне физиологичного диапазона"
+
+
+# ── Сверка с опубликованной Table 1 (Levine 2018, PMC5940111) ────────────────
+# В статье нет расчёта на конкретном человеке — только веса. Поэтому эталон —
+# сама таблица: численная производная xb по каждому маркеру должна совпасть с
+# опубликованным весом (знак и величина, с точностью до округления Table 1).
+# CRP в таблице — log(мг/дл); функция принимает мг/л, d/d(ln) от масштаба не зависит.
+_TABLE1_WEIGHTS = {
+    "albumin_g_l": -0.0336,
+    "creatinine": 0.0095,
+    "glucose": 0.1953,
+    "lymphocytes": -0.0120,
+    "MCV": 0.0268,
+    "RDW_CV": 0.3306,
+    "ALP": 0.0019,
+    "WBC": 0.0554,
+}
+
+
+def _xb_from_phenoage(chrono: float, markers: dict) -> float:
+    """Обращение PhenoAge → xb (линейный предиктор): формула монотонна по xb."""
+    from core.health.phenoage import phenoage_from_markers
+
+    g = 0.0076927
+    pa = phenoage_from_markers(chrono, markers)
+    ln_1m = math.exp((pa - 141.50225) * 0.090165) / -0.00553  # = ln(1 - mort)
+    return math.log(-ln_1m * g / (math.exp(g * 120) - 1))
+
+
+@pytest.mark.parametrize("marker,weight", sorted(_TABLE1_WEIGHTS.items()))
+def test_phenoage_weights_match_levine_table1(marker, weight):
+    h = 1.0
+    hi = _xb_from_phenoage(48, dict(_MARKERS, **{marker: _MARKERS[marker] + h}))
+    lo = _xb_from_phenoage(48, dict(_MARKERS, **{marker: _MARKERS[marker] - h}))
+    assert (hi - lo) / (2 * h) == pytest.approx(weight, abs=0.00015), marker
+
+
+def test_phenoage_crp_and_age_weights_match_levine_table1():
+    crp = _xb_from_phenoage(48, dict(_MARKERS, hs_CRP=math.e)) - _xb_from_phenoage(48, _MARKERS)
+    assert crp == pytest.approx(0.0954, abs=1e-4)
+    age = _xb_from_phenoage(49, _MARKERS) - _xb_from_phenoage(48, _MARKERS)
+    assert age == pytest.approx(0.0804, abs=1e-4)
+
+
+# ── Регресс: путь «сырые KB values → канон → PhenoAge» ───────────────────────
+def test_phenoage_from_raw_kb_respects_crp_unit():
+    """hs-CRP в мг/дл (поле hs_CRP_unit) раньше читался как мг/л — в 10 раз
+    меньше, и биовозраст занижался. Теперь to_canonical учитывает *_unit."""
+    from core.health.kb_schema import to_canonical
+    from core.health.phenoage import PHENOAGE_MARKERS, phenoage_from_markers
+
+    raw = {
+        "albumin": 45.0,
+        "creatinine": 80.0,
+        "glucose": 5.0,
+        "hs_CRP": 0.1,
+        "hs_CRP_unit": "mg/dl",  # = 1.0 мг/л
+        "lymphocytes_rel": 30.0,
+        "MCV": 90.0,
+        "RDW": 13.0,
+        "alkaline_phosphatase": 95.0,
+        "WBC": 6.0,
+    }
+    canon, _ = to_canonical(raw)
+    assert canon["hs_CRP"] == pytest.approx(1.0)
+    got = phenoage_from_markers(48, {k: canon[k] for k in PHENOAGE_MARKERS})
+    assert got == pytest.approx(_levine_phenoage(48, _MARKERS), abs=1e-9)
+
+
+def test_dashboard_has_no_own_phenoage_formula():
+    """Формула живёт только в core.health.phenoage — дашборд её не дублирует
+    (дубликат разошёлся по знаку ALP и дал 35.7 вместо ~40 у владельца)."""
+    from pathlib import Path
+
+    src = (Path(__file__).resolve().parents[1] / "telegram-bot" / "dashboard_generator.py").read_text()
+    assert "phenoage_from_markers" in src
+    assert "-19.907" not in src and "0.00188" not in src

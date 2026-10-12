@@ -1,5 +1,7 @@
 # tests/test_kb_schema.py
 import math
+
+import pytest
 from core.health.kb_schema import to_canonical, CANONICAL, reverse_index
 
 
@@ -217,3 +219,63 @@ def test_gdl_guard_boundary_hemoglobin_low_metric():
     # Hb 130 г/л (нижняя граница нормы) — метрика, guard не трогает.
     canon, _ = to_canonical({"Hb": 130})
     assert canon["Hb"] == 130
+
+
+# ── Явные единицы маркера (*_unit) ───────────────────────────────────────────
+@pytest.mark.parametrize(
+    "unit,expected",
+    [
+        ("mg/dl", 1.1),  # hs-CRP в мг/дл → ×10
+        ("mg/dL", 1.1),
+        ("мг/дл", 1.1),
+        ("mg/L", 0.11),
+        ("мг/л", 0.11),
+    ],
+)
+def test_crp_unit_field_converted(unit, expected):
+    canon, _ = to_canonical({"hs_CRP": 0.11, "hs_CRP_unit": unit})
+    assert canon["hs_CRP"] == pytest.approx(expected)
+
+
+def test_unit_field_generic_mechanism():
+    canon, warnings = to_canonical(
+        {
+            "uric_acid": 0.45,
+            "uric_acid_unit": "mmol/l",  # → 450 мкмоль/л
+            "creatinine": 1.0,
+            "creatinine_unit": "mg/dL",  # через молярную массу → 88.4 мкмоль/л
+            "T4_free": 1.49,
+            "T4_free_unit": "ng/dL",  # → 19.2 пмоль/л
+            "PTH_intact": 5.3,
+            "PTH_intact_unit": "pmol/l",  # → ~50 пг/мл
+            "ferritin": 80,
+            "ferritin_unit": "ng/ml",  # = мкг/л, без изменений
+            "ALT": 20,
+            "ALT_unit": "U/L",  # не концентрация — не трогаем
+        }
+    )
+    assert canon["uric_acid"] == pytest.approx(450)
+    assert canon["creatinine"] == pytest.approx(88.4, abs=0.05)
+    assert canon["FT4"] == pytest.approx(19.18, abs=0.01)
+    assert canon["PTH_intact"] == pytest.approx(49.95, abs=0.01)
+    assert canon["ferritin"] == 80
+    assert canon["ALT"] == 20
+    assert any("uric_acid" in w for w in warnings)
+
+
+def test_unit_field_beats_us_flag():
+    """Явная единица точнее признака US-панели: двойной конверсии нет."""
+    canon, _ = to_canonical({"glucose": 5.0, "glucose_unit": "mmol/l", "_unit_system": "US"})
+    assert canon["glucose"] == pytest.approx(5.0)
+
+
+def test_absolute_count_under_percent_key_dropped():
+    """lymphocytes=2.14 с единицей 10^9/L — абсолютное число, не %."""
+    canon, warnings = to_canonical({"lymphocytes": 2.14, "lymphocytes_unit": "10^9/L", "lymphocytes_percent": 36.0})
+    assert canon["lymphocytes"] == 36.0
+    assert any("не %" in w for w in warnings)
+
+
+def test_no_unit_field_keeps_old_behaviour():
+    canon, _ = to_canonical({"hs_CRP": 0.11})
+    assert canon["hs_CRP"] == pytest.approx(0.11)
