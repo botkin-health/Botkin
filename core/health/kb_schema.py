@@ -15,6 +15,10 @@
   - Lookup case-insensitive (по lower() алиаса).
   - Конверсия единиц через множитель; алиас без известного фактора НЕ маппится
     и попадает в warnings (правило «не сглаживать молча»).
+  - Явная единица маркера (поле <ключ>_unit, напр. hs_CRP_unit="mg/dl") важнее
+    алиас-фактора и признака US-панели: множитель выводится из единицы (масса/моль
+    на объём, SI-приставки, MOLAR_MASS для масса↔моль). Нераспознанная единица
+    (Ед/л, МЕ/мл, 10^9/л) значение не меняет.
 
 Множители конверсии (сырой → каноническая единица), с источниками:
   insulin:  pmol/L → µIU/mL = ÷6.945   (1 µIU/mL = 6.945 pmol/L)
@@ -236,6 +240,103 @@ _MGDL_MAGNITUDE_GUARD: dict[str, tuple[float, float]] = {
 # биохимии из KB, см. scripts/import/kb_to_blood_tests.py). Не маркер.
 UNIT_SYSTEM_KEY = "_unit_system"
 
+# Суффикс поля единицы конкретного маркера в KB: {"hs_CRP": 0.11, "hs_CRP_unit": "mg/dl"}.
+UNIT_FIELD_SUFFIX = "_unit"
+
+# Явные единицы вида «масса/объём» и «моль/объём» с SI-приставками. Из них
+# множитель к канонической единице выводится арифметически — без таблицы на
+# каждый маркер. Межразмерная конверсия (мг/дл → ммоль/л) идёт через MOLAR_MASS;
+# маркер без молярной массы в такой паре не конвертируется (значение не трогаем).
+_MASS_PREFIX = {"g": 1.0, "mg": 1e-3, "µg": 1e-6, "ng": 1e-9, "pg": 1e-12}
+_MOL_PREFIX = {"mol": 1.0, "mmol": 1e-3, "µmol": 1e-6, "nmol": 1e-9, "pmol": 1e-12}
+_VOL_PREFIX = {"l": 1.0, "dl": 1e-1, "ml": 1e-3, "µl": 1e-6}
+
+# Молярная масса (г/моль) — для перевода масса ↔ моль, когда явная единица и
+# каноника разной размерности. Совпадает с источниками множителей US_TO_METRIC.
+MOLAR_MASS: dict[str, float] = {
+    "glucose": 180.16,
+    "creatinine": 113.12,
+    "uric_acid": 168.11,
+    "calcium": 40.08,
+    "calcium_ionized": 40.08,
+    "iron": 55.845,
+    "bilirubin_total": 584.66,
+    "cholesterol_total": 386.65,
+    "HDL": 386.65,
+    "LDL": 386.65,
+    "triglycerides": 885.7,
+    "FT4": 776.87,  # нг/дл → пмоль/л ×12.87
+    "FT3": 650.97,  # пг/мл → пмоль/л ×1.536
+    "PTH_intact": 9425.0,  # пмоль/л → пг/мл ×9.425 (как алиас pth_pmol_l)
+    "testosterone": 288.42,
+}
+
+# Кириллица → латиница (порядок важен: длинные префиксы раньше коротких).
+_UNIT_TRANSLIT = (
+    ("ммоль", "mmol"),
+    ("мкмоль", "µmol"),
+    ("нмоль", "nmol"),
+    ("пмоль", "pmol"),
+    ("моль", "mol"),
+    ("мкг", "µg"),
+    ("мг", "mg"),
+    ("нг", "ng"),
+    ("пг", "pg"),
+    ("г", "g"),
+    ("дл", "dl"),
+    ("мкл", "µl"),
+    ("мл", "ml"),
+    ("л", "l"),
+)
+
+
+def parse_concentration_unit(unit: str) -> tuple[str, float] | None:
+    """'mg/dl' → ('mass', 1e-2) — размерность и масштаб к г/л или моль/л.
+
+    None, если единица не «масса|моль / объём» (Ед/л, %, 10^9/л, МЕ/мл и т.п.) —
+    такие единицы не конвертируем и значение не трогаем.
+    """
+    u = unit.strip().lower().replace(" ", "").replace("μ", "µ")
+    if u.count("/") != 1:
+        return None
+    for cyr, lat in _UNIT_TRANSLIT:
+        u = u.replace(cyr, lat)
+    num, den = u.split("/")
+    # mkmol / mcg / umol → µ-приставка (лабораторная транслитерация)
+    for pre in ("mk", "mc", "u"):
+        if num.startswith(pre) and num[len(pre) :] in ("mol", "g"):
+            num = "µ" + num[len(pre) :]
+        if den == pre + "l":
+            den = "µl"
+    vol = _VOL_PREFIX.get(den)
+    if vol is None:
+        return None
+    if num in _MASS_PREFIX:
+        return "mass", _MASS_PREFIX[num] / vol
+    if num in _MOL_PREFIX:
+        return "molar", _MOL_PREFIX[num] / vol
+    return None
+
+
+def _explicit_unit_factor(canon_key: str, unit: str) -> float | None:
+    """Множитель «значение в явной единице unit → каноническая единица маркера».
+
+    None — единицу не распознали или не умеем конвертировать: вызывающий
+    оставляет прежнее поведение (алиас-фактор + US_TO_METRIC).
+    """
+    raw = parse_concentration_unit(unit)
+    canon = parse_concentration_unit(CANONICAL[canon_key].unit)
+    if raw is None or canon is None:
+        return None
+    if raw[0] == canon[0]:
+        return raw[1] / canon[1]
+    mw = MOLAR_MASS.get(canon_key)
+    if mw is None:
+        return None
+    if raw[0] == "mass":  # г/л → моль/л
+        return raw[1] / mw / canon[1]
+    return raw[1] * mw / canon[1]  # моль/л → г/л
+
 
 def looks_like_us_units(values: dict) -> bool:
     """US-панель без явного поля units: единицы заданы величиной маркера-индикатора.
@@ -310,9 +411,23 @@ def to_canonical(
                 warnings.append(f"unknown key {raw_key!r}: not in canonical registry, skipped")
             continue
         canon_key, factor = hit
-        new_val = raw_val * factor
-        if is_us:
-            new_val *= US_TO_METRIC.get(canon_key, 1.0)
+        # Явная единица маркера (hs_CRP_unit="mg/dl") точнее и алиас-фактора, и
+        # признака US-панели: если её удалось распознать — берём её множитель.
+        unit = values.get(raw_key + UNIT_FIELD_SUFFIX)
+        has_unit = isinstance(unit, str) and bool(unit.strip())
+        if has_unit and CANONICAL[canon_key].unit == "%" and unit.strip() != "%":
+            # Абсолютное число под %-ключом (lymphocytes=2.14, unit "10^9/L") — не доля.
+            warnings.append(f"{canon_key}={raw_val} {unit}: единица не %, пропущено")
+            continue
+        unit_factor = _explicit_unit_factor(canon_key, unit) if has_unit else None
+        if unit_factor is not None:
+            new_val = raw_val * unit_factor
+            if abs(unit_factor - 1.0) > 1e-9:
+                warnings.append(f"{canon_key}={raw_val} {unit} → ×{unit_factor:g} ({CANONICAL[canon_key].unit})")
+        else:
+            new_val = raw_val * factor
+            if is_us:
+                new_val *= US_TO_METRIC.get(canon_key, 1.0)
         high_guard = _MGDL_MAGNITUDE_GUARD.get(canon_key)
         if high_guard is not None and new_val > high_guard[0]:
             new_val *= high_guard[1]

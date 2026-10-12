@@ -18,6 +18,7 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from core.health.phenoage import PHENOAGE_MARKERS, phenoage_from_markers
 from core.health.staleness import days_ago_from_str, get_staleness_days, stale_label as _sl
 from core.health.supplements import check_lab_artefacts_for_user
 
@@ -1934,58 +1935,18 @@ def _build_payload(db: Session, user_id: int) -> dict:
     _bio_age = None
     _bio_age_corrected = None
     _bio_age_note_extra = ""
-    _crp_raw_mgL = bv("hs_CRP")
-    _all_markers_present = all(
-        v is not None
-        for v in [_alb_gdl, _creat_mgdl, _glc_mgdl, _crp_raw_mgL, _lymph_pct, _mcv, _rdw, _alp, _wbc, _age_score]
-    )
-    if _all_markers_present and _crp_raw_mgL > 0:
+    # Формула — одна на весь проект: core.health.phenoage (Levine 2018, ALP «+»).
+    # bv() отдаёт канонические единицы kb_schema — ровно то, что ждёт функция.
+    _pheno_inputs = {k: bv(k) for k in PHENOAGE_MARKERS}
+    _all_markers_present = _age_score is not None and all(v is not None for v in _pheno_inputs.values())
+    if _all_markers_present:
         try:
-            # Конверсия в единицы формулы (g/L, µmol/L, mmol/L)
-            _alb_gL = _alb_gdl * 10
-            _creat_umolL = _creat_mgdl * 88.4
-            _gluc_mmolL = _glc_mgdl / 18.0182
-            # Levine использует ln(CRP в mg/dL) = ln(CRP_mgL × 0.1)
-            _lncrp = math.log(_crp_raw_mgL * 0.1)
-
-            _xb = (
-                -19.907
-                + 0.0804 * _age_score
-                + (-0.0336) * _alb_gL
-                + 0.0095 * _creat_umolL
-                + 0.1953 * _gluc_mmolL
-                + 0.0954 * _lncrp
-                + (-0.0120) * _lymph_pct
-                + 0.0268 * _mcv
-                + 0.3306 * _rdw
-                + (-0.00188) * _alp
-                + 0.0554 * _wbc
-            )
-            _mort = 1 - math.exp(-math.exp(_xb) * (math.exp(0.0076927 * 120) - 1) / 0.0076927)
-            # Защита от ln(0) если M очень близко к 0
-            if 0 < _mort < 1:
-                _bio_age = round(141.50225 + math.log(-0.00553 * math.log(1 - _mort)) / 0.090165, 1)
-
-            # Скорректированный биовозраст с учётом креатин-артефакта.
-            # Пересчитываем _xb с _creat_corrected_mgdl × 88.4 вместо измеренного.
+            _bio_age = round(phenoage_from_markers(_age_score, _pheno_inputs), 1)
+            # Скорректированный биовозраст с учётом креатин-артефакта:
+            # тот же расчёт, но с креатинином × correction_factor.
             if _creat_corrected_mgdl is not None:
-                _creat_umolL_corr = _creat_corrected_mgdl * 88.4
-                _xb_corr = (
-                    -19.907
-                    + 0.0804 * _age_score
-                    + (-0.0336) * _alb_gL
-                    + 0.0095 * _creat_umolL_corr
-                    + 0.1953 * _gluc_mmolL
-                    + 0.0954 * _lncrp
-                    + (-0.0120) * _lymph_pct
-                    + 0.0268 * _mcv
-                    + 0.3306 * _rdw
-                    + (-0.00188) * _alp
-                    + 0.0554 * _wbc
-                )
-                _mort_corr = 1 - math.exp(-math.exp(_xb_corr) * (math.exp(0.0076927 * 120) - 1) / 0.0076927)
-                if 0 < _mort_corr < 1:
-                    _bio_age_corrected = round(141.50225 + math.log(-0.00553 * math.log(1 - _mort_corr)) / 0.090165, 1)
+                _corr_inputs = dict(_pheno_inputs, creatinine=_creat_corrected_mgdl * 88.4)
+                _bio_age_corrected = round(phenoage_from_markers(_age_score, _corr_inputs), 1)
         except (ValueError, OverflowError) as e:
             _bio_age_note_extra = f" [расчёт не удался: {e}]"
 
