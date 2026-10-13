@@ -105,6 +105,10 @@ DEFAULT_UNIT_WEIGHTS = {
 }
 
 
+# «Паста» как намазка/приправа — не порция макарон: ключ "паста" (250 г) к ним неприменим.
+_SPREAD_PASTE_RE = re.compile(r"(арахис|орех|ореш|миндал|кешью|фисташ|тахин|кунжут|шоколад|томат|чили|мисо|песто)")
+
+
 def get_default_unit_weight(product_name: str) -> float:
     """Возвращает вес одной штуки продукта, если он известен"""
     if not product_name:
@@ -120,6 +124,8 @@ def get_default_unit_weight(product_name: str) -> float:
     # (но осторожно, чтобы "лук" не нашел "лук порей" с другим весом, хотя тут это приемлемо)
     for key, weight in DEFAULT_UNIT_WEIGHTS.items():
         if key in name_lower:
+            if key == "паста" and _SPREAD_PASTE_RE.search(name_lower):
+                continue  # «арахисовая паста» — намазка, а не макароны 250 г
             return weight
 
     return 0
