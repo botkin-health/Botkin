@@ -104,3 +104,20 @@ def test_duplicate_meal_returns_existing_id_instead_of_crashing(test_db):
         test_db.query(NutritionLog).filter(NutritionLog.user_id == 42, NutritionLog.meal_name == "Обед: Панини").all()
     )
     assert len(rows) == 1, "дубль в БД появляться не должен"
+
+
+def test_long_meal_name_is_truncated_to_column_limit(test_db):
+    """Прецедент 13.10.2026: dish_name + подпись > 255 символов роняли INSERT."""
+    meal_data = {
+        "meal_items": [{"product": "Банан", "weight_g": 120, "calories": 110}],
+        "meal_totals": {"calories": 110, "protein": 1, "fats": 0, "carbs": 28},
+        "meal_time": "09:00",
+    }
+    long_name = "Обед: " + "очень длинное название " * 20
+
+    with patch("helpers.db_save.SessionLocal", return_value=test_db):
+        result = save_meal_to_db(meal_data, long_name, user_id=42)
+
+    assert isinstance(result, int)
+    row = test_db.query(NutritionLog).filter(NutritionLog.id == result).one()
+    assert row.meal_name == long_name[:255]

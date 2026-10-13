@@ -94,6 +94,9 @@ def normalize_item_to_canonical(item: Dict[str, Any]) -> Dict[str, Any]:
     return canonical
 
 
+MEAL_NAME_MAX_LEN = 255  # = nutrition_log.meal_name String(255)
+
+
 def save_meal_to_db(meal_data: dict, meal_name: str = None, user_id: int = None) -> Optional[int]:
     """
     Сохраняет приём пищи в PostgreSQL
@@ -148,6 +151,9 @@ def save_meal_to_db(meal_data: dict, meal_name: str = None, user_id: int = None)
         # Название приёма пищи
         if not meal_name:
             meal_name = meal_data.get("dish_name") or meal_data.get("meal_name") or "Приём пищи"
+        # nutrition_log.meal_name — VARCHAR(255): длинное название блюда + подпись к фото
+        # раньше роняли INSERT (StringDataRightTruncation), и приём не сохранялся.
+        meal_name = meal_name[:MEAL_NAME_MAX_LEN]
 
         # Формируем items
         # Enrich with fiber fallback before serialization — LLM may omit fiber
