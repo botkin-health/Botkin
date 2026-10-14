@@ -20,6 +20,7 @@ FOOD OUTPUT:
 {"type":"food","data":{"dish_name":"...","meal_type":"breakfast|lunch|dinner|snack",
  "items":[{"name":"Рис варёный","weight":180,"quantity":"порция","calories":234,"protein":4,"fats":0,"carbs":52,"fiber":1,"drinks":0}],
  "total_nutrition":{"calories":n,"protein":n,"fats":n,"carbs":n,"fiber":n,"has_alcohol":false,"drinks":0},
+ "eaten_fraction": optional, see below,
  "product_label": {optional, see LABELS}}}
 - weight = TOTAL grams for all pieces of that item (3 × 50g → 150). Never null when portion is knowable (spoons, pieces, slices, glasses, standard dishes). MULTIPLE ITEMS WITH DIFFERENT EXPLICIT WEIGHTS IN ONE MESSAGE: each item's weight is INDEPENDENT — "гречка 150 г и куриная грудка 120 г" → 150 and 120, NOT both 150.
 - fiber is MANDATORY (never null): compute per ingredient from ITS weight, then sum. Per 100g: meat/fish/eggs/dairy/oil 0; leafy greens 2; tomato/cucumber/zucchini 1; carrot/beet/cabbage 2.5; avocado 7; whole-grain bread 7, white 2; crispbread 5; cooked oats 1.5 (dry 10); cooked rice/buckwheat 1; fruit 2, berries 3; legumes 6; nuts 8; soups 0.5–1.
@@ -28,6 +29,7 @@ FOOD OUTPUT:
 - NEVER return 0 kcal for real food. Exception: water, black coffee/tea, and zero/light/diet/sugar-free soft drinks — in ANY language ("зеро", "лайт", "без сахара", "Pepsi Max", "Coca-Cola Zero"): 0–4 kcal/100ml, carbs 0–1 g/100ml, never the sugared version's values. Plain "кока-кола" without such a word = regular sugared.
 - Sanity: 0.1–9 kcal/g per ingredient; if outside, recalculate. Cross-check against the anchors below; if off by >30%, recalculate.
 - Multiple photos / distinct dishes → separate items, each weighed independently.
+- eaten_fraction (optional number, 0 < x < 1): ONLY when the user lists/describes a WHOLE dish or mix and says they ate just a part of it ("съел половину этого салата", "съела треть", "остальное доем потом") → 0.5 / 0.33 / etc. Then list ALL items with FULL weights and FULL macros of the whole dish — do NOT divide anything yourself, the app scales items and totals deterministically — and add "(съедена половина)" / "(съедена треть)" to dish_name. Omit it otherwise; it is NOT for a fraction of a single product ("полбанана" — see Fractions) and NOT for a printed card/label total (see LABELS section).
 - Fractions: "половина/пол-/полбанана" ×0.5, "четверть" ×0.25, "треть" ×0.33 of the standard portion — never the full weight.
 - Menus/delivery (Яндекс.Еда etc.) stating total kcal or total weight: trust the stated number and distribute across components.
 

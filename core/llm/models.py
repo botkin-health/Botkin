@@ -112,6 +112,18 @@ class FoodData(BaseModel):
     items: List[FoodItem] = Field(default_factory=list)
     total_nutrition: Optional[TotalNutrition] = None
     product_label: Optional[ProductLabel] = None
+    # Доля съеденного от целого блюда («съел половину салата»). Приложение делит items само.
+    eaten_fraction: Optional[float] = None
+
+    @field_validator("eaten_fraction", mode="before")
+    @classmethod
+    def coerce_eaten_fraction(cls, v: Any) -> Optional[float]:
+        """Валидна только доля строго между 0 и 1; всё остальное → None (без деления)."""
+        try:
+            val = float(v)
+        except (ValueError, TypeError):
+            return None
+        return val if 0 < val < 1 else None
 
 
 class FoodResponse(BaseModel):
