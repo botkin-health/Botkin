@@ -762,7 +762,27 @@ def _scale_item_by_factor(item: Dict, factor: float) -> Dict:
     return scaled
 
 
-def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List[Dict], Dict[str, float]]:
+def _stem_overlap_count(a: str, b: str) -> int:
+    sa = {_stem(t) for t in a.split() if len(t) > _STEM_MIN_TOKEN_LEN}
+    sb = {_stem(t) for t in b.split() if len(t) > _STEM_MIN_TOKEN_LEN}
+    return len(sa & sb)
+
+
+def _key_claimed_by_better_item(regex_key: str, name: str, items: List[Dict]) -> bool:
+    """Ключ regex-веса точнее подходит другому item списка, чем `name`.
+
+    «Оливки» и «Оливковое масло» делят стем «оливк»: без этой проверки вес «9 г оливкового
+    масла» перезаписывал вес оливок («66 г оливок» → 9 г, 14.10.2026).
+    """
+    mine = _stem_overlap_count(name.lower(), regex_key)
+    for other in items:
+        other_name = str(other.get("name") or "").lower()
+        if other_name and other_name != name.lower() and _stem_overlap_count(other_name, regex_key) > mine:
+            return True
+    return False
+
+
+def _process_llm_food_items(llm_data: Dict, description: str = None) -> Tuple[List[Dict], Dict[str, float]]:
     """
     Converts LLM Router 'food' data into internal meal structure.
     Calculates macros for items if LLM didn't provide them.
@@ -834,7 +854,12 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
                 regex_key = name.lower()
             if regex_key is None:
                 for r_name in regex_items_map:
-                    if len(r_name) > 3 and len(name) > 3 and _stems_overlap(name.lower(), r_name):
+                    if (
+                        len(r_name) > 3
+                        and len(name) > 3
+                        and _stems_overlap(name.lower(), r_name)
+                        and not _key_claimed_by_better_item(r_name, name, items)
+                    ):
                         regex_key = r_name
                         break
             if regex_key is not None:
@@ -1295,3 +1320,32 @@ def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List
     if warns:
         computed_totals["kcal_warnings"] = warns
     return meal_items, computed_totals
+
+
+def _apply_eaten_fraction(
+    meal_items: List[Dict], totals: Dict[str, float], fraction: float
+) -> Tuple[List[Dict], Dict[str, float]]:
+    """Делит всё блюдо на долю съеденного: вес, КБЖУ и клетчатка каждого item + итоги."""
+    scaled_items = []
+    for it in meal_items:
+        scaled = _scale_item_by_factor(it, fraction)
+        if scaled.get("weight_g"):
+            scaled["weight_g"] = round(float(scaled["weight_g"]) * fraction, 1)
+        scaled_items.append(scaled)
+    new_totals = dict(totals)
+    new_totals.update(calculate_meal_totals(scaled_items))
+    new_totals.pop("kcal_warnings", None)  # предупреждения считались по целому блюду
+    return scaled_items, new_totals
+
+
+def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List[Dict], Dict[str, float]]:
+    """Router 'food' → (items, totals); применяет eaten_fraction («съел половину салата»)."""
+    meal_items, totals = _process_llm_food_items(llm_data, description)
+    try:
+        fraction = float(((llm_data or {}).get("data") or {}).get("eaten_fraction"))
+    except (TypeError, ValueError):
+        return meal_items, totals
+    if meal_items and 0 < fraction < 1:
+        logger.info(f"🍽 eaten_fraction={fraction:g}: делим {len(meal_items)} items, было {totals.get('calories')} ккал")
+        return _apply_eaten_fraction(meal_items, totals, fraction)
+    return meal_items, totals
