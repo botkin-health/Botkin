@@ -5,7 +5,7 @@ get_user_tz(user_id) — per-user ZoneInfo из users.timezone (корректн
 обрабатывает DST, например Asia/Jerusalem UTC+2/+3).
 """
 
-from datetime import timedelta, timezone
+from datetime import datetime, timedelta, timezone
 
 MSK = timezone(timedelta(hours=3))
 
@@ -35,3 +35,13 @@ def get_user_tz(user_id: int):
             db.close()
     except Exception:
         return ZoneInfo(_DEFAULT_TZ_NAME)
+
+
+def now_in_user_tz(user_id):
+    """Текущее время в таймзоне пользователя (fallback — Europe/Moscow).
+
+    user_id=None → MSK (там, где пользователь неизвестен).
+    """
+    if user_id is None:
+        return datetime.now(MSK)
+    return datetime.now(get_user_tz(int(user_id)))

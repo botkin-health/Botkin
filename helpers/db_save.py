@@ -3,16 +3,16 @@ Database save functions - PostgreSQL Version
 
 Заменяет save_meal_to_json и save_weight_measurement
 для работы с PostgreSQL вместо JSON.
-Время и дата при сохранении — по Москве (UTC+3).
+Время и дата при сохранении — в таймзоне пользователя (users.timezone), fallback — Москва.
 """
 
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import datetime
 from typing import Dict, Any, Optional
 
-MSK = timezone(timedelta(hours=3))
-
 from sqlalchemy.exc import IntegrityError
+
+from core.infra.tz import now_in_user_tz
 
 from database import (
     SessionLocal,
@@ -131,6 +131,9 @@ def save_meal_to_db(meal_data: dict, meal_name: str = None, user_id: int = None)
         known_fields = MealStateData.model_fields.keys()
         MealStateData(**{k: v for k, v in meal_data.items() if k in known_fields})
 
+        # «Сейчас» — в таймзоне пользователя (Дубай UTC+4 и т.д.), не по Москве
+        now_local = now_in_user_tz(user_id)
+
         # Определяем дату
         custom_date = meal_data.get("date")
         if custom_date:
@@ -139,14 +142,14 @@ def save_meal_to_db(meal_data: dict, meal_name: str = None, user_id: int = None)
             else:
                 meal_date = custom_date
         else:
-            meal_date = datetime.now(MSK).date()
+            meal_date = now_local.date()
 
-        # Определяем время (по Москве)
-        meal_time_str = meal_data.get("meal_time", datetime.now(MSK).strftime("%H:%M"))
+        # Определяем время (локальное для пользователя)
+        meal_time_str = meal_data.get("meal_time", now_local.strftime("%H:%M"))
         try:
             meal_time = datetime.strptime(meal_time_str, "%H:%M").time()
         except:
-            meal_time = datetime.now(MSK).time()
+            meal_time = now_local.time()
 
         # Название приёма пищи
         if not meal_name:
@@ -352,7 +355,7 @@ def save_bp_to_db(
         raise ValueError("save_bp_to_db: user_id is required")
 
     if measured_at is None:
-        measured_at = datetime.now(MSK)
+        measured_at = now_in_user_tz(user_id)
 
     from sqlalchemy import text as _text
 
@@ -464,12 +467,12 @@ def save_body_measurement_to_db(data: Dict[str, Any], user_id: int = None) -> bo
     try:
         date_input = data.get("date")
         if not date_input:
-            measurement_date = datetime.now(MSK).date()
+            measurement_date = now_in_user_tz(user_id).date()
         else:
             try:
                 measurement_date = datetime.strptime(str(date_input), "%Y-%m-%d").date()
             except ValueError:
-                measurement_date = datetime.now(MSK).date()
+                measurement_date = now_in_user_tz(user_id).date()
 
         has_measurement = any(data.get(k) is not None for k in _MEASUREMENT_KEYS)
 

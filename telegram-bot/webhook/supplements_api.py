@@ -7,7 +7,7 @@ Endpoints:
 
   POST   /api/supplements/take
            Body: {"date": "YYYY-MM-DD", "name": "Витамин D3"}
-           Creates a supplements_log row with current MSK time.
+           Creates a supplements_log row with current time in the user's timezone.
 
   DELETE /api/supplements/take
            Body: {"date": "YYYY-MM-DD", "name": "Витамин D3"}
@@ -42,7 +42,7 @@ from webhook.tg_auth import get_tg_user
 
 router = APIRouter()
 
-from core.infra.tz import MSK  # noqa: E402  (общая TZ проекта)
+from core.infra.tz import now_in_user_tz  # noqa: E402  (время в TZ пользователя)
 
 # Mirror the slot order used in the mini-app UI.
 SLOTS = ("morning_before", "morning_with", "evening")
@@ -172,7 +172,7 @@ async def take_supplement(
                 "taken_at": last.time.strftime("%H:%M") if last.time else None,
             }
 
-        now_msk = datetime.now(MSK).time().replace(microsecond=0)
+        now_msk = now_in_user_tz(user_id).time().replace(microsecond=0)
         # Dose from the user's own configured schedule (no cross-user defaults).
         dose = dose_from_user_schedule(planned, payload.name)
         log = create_supplement_log(
