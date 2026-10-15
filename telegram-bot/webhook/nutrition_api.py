@@ -108,12 +108,12 @@ async def get_day(
         totals_day = _totals_to_wire(totals_raw)
         # Today's actual activity. Compute as (total - bmr) for math consistency
         # — DO NOT trust active_calories field directly (Apple Health may overwrite it).
-        # Use MSK (matches db_save.py date logic; server runs UTC by default).
+        # «Сегодня» — в таймзоне пользователя (как в db_save.py; сервер крутится в UTC).
         # ВАЖНО: синк сегодняшнего Garmin идёт ДО compute_goals — чтобы today-boost
         # считал цель по свежему фактическому расходу, а не по стейлу из БД.
-        from datetime import datetime as _dt, timezone as _tz, timedelta as _td
+        from core.infra.tz import now_in_user_tz
 
-        real_today = _dt.now(_tz(_td(hours=3))).date()
+        real_today = now_in_user_tz(user_id).date()
         if for_date == real_today:
             # sync_today_garmin pulls fresh Garmin data (15-min cache). Returns active_calories,
             # but for past days we recompute from total-bmr; for today we use this directly
