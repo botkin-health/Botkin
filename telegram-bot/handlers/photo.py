@@ -9,9 +9,8 @@ from aiogram import Bot
 from aiogram.fsm.context import FSMContext
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.exceptions import TelegramBadRequest
-from datetime import datetime
 
-from core.infra.tz import MSK  # noqa: E402  (общая TZ проекта)
+from core.infra.tz import now_in_user_tz  # noqa: E402  (время в TZ пользователя)
 from pathlib import Path
 import asyncio
 import html
@@ -319,10 +318,9 @@ async def process_photos_list(
                     try:
                         hh, mm = map(int, time_str.split(":")[:2])
                         if 0 <= hh <= 23 and 0 <= mm <= 59:
-                            # ВАЖНО: используем модульный MSK (line 13). НЕ переопределять
-                            # локально — Python сделает MSK local для всей функции и в
-                            # food-flow ниже (line 502) упадёт UnboundLocalError.
-                            measured_at = datetime.now(MSK).replace(hour=hh, minute=mm, second=0, microsecond=0)
+                            # ВАЖНО: now_in_user_tz — модульный импорт; НЕ импортировать его локально в
+                            # функции (иначе UnboundLocalError на всей функции, см. историю text.py af71067).
+                            measured_at = now_in_user_tz(user_id).replace(hour=hh, minute=mm, second=0, microsecond=0)
                     except (ValueError, IndexError):
                         pass
 
@@ -570,7 +568,7 @@ async def process_photos_list(
                     description=f"Фото: {p_name}",
                     meal_items=meal_items,
                     meal_totals=meal_totals,
-                    meal_time=datetime.now(MSK).strftime("%H:%M"),
+                    meal_time=now_in_user_tz(user_id).strftime("%H:%M"),
                     meal_name=p_name,
                     photo_paths=[str(p) for p in photo_paths],
                 ),
@@ -1154,7 +1152,7 @@ async def save_photo(message: Message, file_id: str) -> Path:
         file = await message.bot.get_file(file_id)
 
         # Создаем директорию для медиа
-        date_str = datetime.now(MSK).strftime("%Y-%m-%d")
+        date_str = now_in_user_tz(message.from_user.id).strftime("%Y-%m-%d")
         media_dir = Path(__file__).parent.parent.parent / "data" / "media" / "nutrition" / date_str
         media_dir.mkdir(parents=True, exist_ok=True)
 
@@ -1172,7 +1170,7 @@ async def _download_pdf(message: Message) -> Path | None:
     """Скачивает PDF-документ из Telegram на диск."""
     try:
         file = await message.bot.get_file(message.document.file_id)
-        date_str = datetime.now(MSK).strftime("%Y-%m-%d")
+        date_str = now_in_user_tz(message.from_user.id).strftime("%Y-%m-%d")
         media_dir = Path(__file__).parent.parent.parent / "data" / "media" / "nutrition" / date_str
         media_dir.mkdir(parents=True, exist_ok=True)
         pdf_path = media_dir / f"{message.document.file_unique_id}.pdf"
@@ -1234,7 +1232,7 @@ async def save_document_as_image(message: Message, file_id: str, file_name: str 
         file = await message.bot.get_file(file_id)
 
         # Создаем директорию для медиа
-        date_str = datetime.now(MSK).strftime("%Y-%m-%d")
+        date_str = now_in_user_tz(message.from_user.id).strftime("%Y-%m-%d")
         media_dir = Path(__file__).parent.parent.parent / "data" / "media" / "nutrition" / date_str
         media_dir.mkdir(parents=True, exist_ok=True)
 
@@ -1470,17 +1468,11 @@ async def handle_description(
                     try:
                         hh, mm = map(int, time_str.split(":")[:2])
                         if 0 <= hh <= 23 and 0 <= mm <= 59:
-                            # ВАЖНО: используем модульный MSK (line 13). НЕ переопределять
-                            # локально — Python сделает MSK local для ВСЕЙ функции, и в
-                            # food-flow (line 1052/1069) упадёт UnboundLocalError.
-                            # Прецедент 26.05.2026 17:39-17:42: после успешного распознавания
-                            # «Лосось в терияки 500 ккал» бот молча падал на datetime.now(MSK)
-                            # — пользователь видел только «📸 Получено…», карточка с КБЖУ
-                            # и кнопкой Сохранить не отрисовывалась. Лог: `Failed to feed
-                            # update to legacy bot: cannot access local variable 'MSK'`.
-                            # Тот же баг чинили в text.py (commit af71067), но в photo.py
-                            # его пропустили.
-                            measured_at = datetime.now(MSK).replace(hour=hh, minute=mm, second=0, microsecond=0)
+                            # ВАЖНО: now_in_user_tz — модульный импорт; НЕ импортировать его локально в
+                            # функции (иначе UnboundLocalError на всей функции, см. историю text.py af71067).
+                            measured_at = now_in_user_tz(telegram_user_id).replace(
+                                hour=hh, minute=mm, second=0, microsecond=0
+                            )
                     except (ValueError, IndexError):
                         pass
 
@@ -1692,7 +1684,7 @@ async def handle_description(
     if not meal_name or meal_name in ["breakfast", "lunch", "dinner"]:
         from handlers.text import extract_meal_name
 
-        meal_time = datetime.now(MSK).strftime("%H:%M")
+        meal_time = now_in_user_tz(message.from_user.id).strftime("%H:%M")
         meal_name_ru = extract_meal_name(full_description, meal_time)
         if meal_name_ru:
             meal_name = meal_name_ru
@@ -1725,7 +1717,7 @@ async def handle_description(
         meal_items=meal_items,
         meal_totals=meal_totals,
         portion_multiplier=1.0,  # Deprecated
-        meal_time=datetime.now(MSK).strftime("%H:%M"),
+        meal_time=now_in_user_tz(message.from_user.id).strftime("%H:%M"),
         meal_name=meal_name,
         photo_paths=user_state.data.get("photo_paths", []),
         date=custom_date,
@@ -1930,8 +1922,8 @@ async def handle_menu_photo(message: Message, menu_data: dict, photo_path: Path,
     # Фото без подписи — слот иначе молча выводится по времени суток и часто
     # промахивается (боул в 16:00 → «перекус» вместо обеда, #181 баг 4).
     # Показываем ряд выбора слота с дефолтом по времени; юзер правит одним тапом.
-    now_msk = datetime.now(MSK)
-    default_slot = slot_from_time(now_msk.time())
+    now_local = now_in_user_tz(user_id)
+    default_slot = slot_from_time(now_local.time())
     keyboard = _meal_confirm_keyboard("menu", selected_slot=default_slot)
 
     # Сохраняем данные в состояние для подтверждения
@@ -1951,7 +1943,7 @@ async def handle_menu_photo(message: Message, menu_data: dict, photo_path: Path,
                 "carbs": carbs,
             },
             photo_paths=[str(photo_path)],
-            meal_time=now_msk.strftime("%H:%M"),
+            meal_time=now_local.strftime("%H:%M"),
             menu_ocr=True,  # Флаг, что это меню
             product_label=menu_data.get("product_label"),  # #255
             slot=default_slot,  # #181: подсвеченный дефолт слот-пикера
@@ -2087,7 +2079,7 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
             if not meal_name or meal_name == "Приём пищи":
                 # Если не найдено, пробуем извлечь из описания
                 description = user_state.data.get("description", "")
-                meal_time = user_state.data.get("meal_time", datetime.now(MSK).strftime("%H:%M"))
+                meal_time = user_state.data.get("meal_time", now_in_user_tz(user_id).strftime("%H:%M"))
                 from handlers.text import extract_meal_name
 
                 meal_name = extract_meal_name(description, meal_time)
