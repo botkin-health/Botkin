@@ -27,12 +27,14 @@ function switchTab(tab) {
   flushDirtyInputs(); // save any typed-but-not-blurred inputs before leaving settings
   // Update tab bar active state
   document.querySelectorAll('.tab-item').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.tab === tab);
+    // Дашборд открывается из «Состояния» и своей кнопки в tab-bar не имеет
+    btn.classList.toggle('active', btn.dataset.tab === (tab === 'dashboard' ? 'state' : tab));
   });
   // Show/hide sections
   const sectionMap = {
     'day': 'day-section',
     'supplements-tab': 'supplements-tab-section',
+    'state': 'state-tab-section',
     'dashboard': 'dashboard-tab-section',
     'settings': 'settings-section',
   };
@@ -51,6 +53,7 @@ function switchTab(tab) {
   if (tab === 'supplements-tab') loadSupplementsDay();
   // When switching to dashboard tab, lazy-load the iframe (cached after first open)
   if (tab === 'dashboard') loadDashboard();
+  if (tab === 'state') loadState();
 }
 
 // ── Load settings ───────────────────────────────────────────────────────────

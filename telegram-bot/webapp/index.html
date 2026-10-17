@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="theme.css?v={{V}}">
   <link rel="stylesheet" href="day.css?v={{V}}">
   <link rel="stylesheet" href="settings.css?v={{V}}">
+  <link rel="stylesheet" href="state.css?v={{V}}">
 </head>
 <body>
 
@@ -466,7 +467,14 @@
   </div>
 </section>
 
+<section id="state-tab-section" class="section tab-panel">
+  <div id="state-container"><!-- rendered by loadState() in state.js --></div>
+</section>
+
 <section id="dashboard-tab-section" class="section tab-panel">
+  <div class="dashboard-back">
+    <button type="button" class="back-btn-ios" onclick="switchTab('state')"><svg class="ic"><use href="#i-chev-l"/></svg>Назад</button>
+  </div>
   <div id="dashboard-container"><!-- iframe injected by loadDashboard() in dashboard.js --></div>
 </section>
 
@@ -522,9 +530,9 @@
     <span class="tab-icon"><svg class="ic"><use href="#i-pill"/></svg></span>
     <span class="tab-label">Добавки</span>
   </button>
-  <button class="tab-item" data-tab="dashboard" onclick="switchTab('dashboard')">
+  <button class="tab-item" data-tab="state" onclick="switchTab('state')">
     <span class="tab-icon"><svg class="ic"><use href="#i-heart"/></svg></span>
-    <span class="tab-label">Здоровье</span>
+    <span class="tab-label">Состояние</span>
   </button>
   <button class="tab-item" data-tab="settings" onclick="switchTab('settings')">
     <span class="tab-icon"><svg class="ic"><use href="#i-sliders"/></svg></span>
@@ -536,5 +544,6 @@
 <script src="day.js?v={{V}}"></script>
 <script src="settings.js?v={{V}}"></script>
 <script src="dashboard.js?v={{V}}"></script>
+<script src="state.js?v={{V}}"></script>
 </body>
 </html>
