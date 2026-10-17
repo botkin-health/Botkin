@@ -42,28 +42,10 @@ def _one(db: Session, sql: str, **params):
 
 
 def _load_biomarkers_from_db(db, user_id: int) -> dict:
-    """Канонические биомаркеры пользователя из Postgres blood_tests.
+    """Реэкспорт: реализация переехала в core.health.biomarkers.load_biomarkers."""
+    from core.health.biomarkers import load_biomarkers
 
-    Заменяет чтение файла biomarkers_<id>.json. Структура результата идентична
-    тому, что строил generate_biomarkers_json (см. core.health.biomarkers).
-    """
-    import json as _json
-
-    from core.health.biomarkers import aggregate_biomarkers
-
-    rows = _rows(db, 'SELECT test_date, "values" AS vals FROM blood_tests WHERE user_id=:uid', uid=user_id)
-    tests = []
-    for r in rows:
-        vals = r.vals
-        if isinstance(vals, str):  # SQLite/JSON-as-text
-            try:
-                vals = _json.loads(vals)
-            except Exception:
-                vals = {}
-        td = r.test_date
-        date_str = td if isinstance(td, str) else td.isoformat()
-        tests.append({"date": date_str, "values": vals or {}})
-    return aggregate_biomarkers(tests)
+    return load_biomarkers(db, user_id)
 
 
 # ── sport block (HR-zones, polarized training analysis) ──────────────────────
