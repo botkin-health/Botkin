@@ -337,8 +337,8 @@ def test_results_en_uses_english_labels_and_units():
     from services.doctor_report import _results
 
     bio = {"Hb": {"value": 155.0, "date": "2026-06-09"}}
-    line_ru = _results(bio, "ru")[0]
-    line_en = _results(bio, "en")[0]
+    line_ru = _results(bio, "ru", "male")[0]
+    line_en = _results(bio, "en", "male")[0]
     assert line_ru == "Гемоглобин: 155.0 г/л (2026-06-09)"
     assert line_en == "Hemoglobin: 155.0 g/L (2026-06-09)"
 
@@ -448,6 +448,76 @@ def test_maccabi_hemoglobin_no_false_low_flag_end_to_end():
     assert canon["MCHC"] == 351.0
 
     bio = {"Hb": {"value": canon["Hb"], "date": "2026-06-09"}}
-    lines = _results(bio)
+    lines = _results(bio, sex="male")
     hb_line = next(line for line in lines if "155" in line)
     assert "↓" not in hb_line  # ложный флаг «низкий» ушёл
+
+
+# ── Флаги по полу (#591) ──────────────────────────────────────────────────────
+
+
+def test_results_male_flags_unchanged():
+    """Регрессия: для мужчины ↑/↓ — как до выноса в ref_ranges."""
+    from services.doctor_report import _results
+
+    bio = {
+        "Hb": {"value": 120.0, "date": "2026-06-09"},  # < 130 → ↓
+        "ALT": {"value": 60.0, "date": "2026-06-09"},  # > 41 → ↑
+        "glucose": {"value": 5.0, "date": "2026-06-09"},  # норма
+    }
+    lines = _results(bio, sex="male")
+    assert any("Гемоглобин" in ln and ln.endswith(" ↓") for ln in lines)
+    assert any("АЛТ" in ln and ln.endswith(" ↑") for ln in lines)
+    assert any("Глюкоза" in ln and "↑" not in ln and "↓" not in ln for ln in lines)
+
+
+@pytest.mark.parametrize("sex", ["female", "f", None, "", "other"])
+def test_results_no_flags_for_non_male_or_unknown_sex(sex):
+    """Женщина / пол не задан: значение показываем, флаг не ставим."""
+    from services.doctor_report import _results
+
+    bio = {"Hb": {"value": 120.0, "date": "2026-06-09"}, "ALT": {"value": 60.0, "date": "2026-06-09"}}
+    lines = _results(bio, sex=sex)
+    assert len(lines) == 2
+    assert all("↑" not in ln and "↓" not in ln for ln in lines)
+    assert any("120.0" in ln for ln in lines)
+
+
+def test_assemble_female_report_has_ref_note_and_no_flags(test_db):
+    from services.doctor_report import assemble_doctor_report, render_doctor_report_html
+
+    test_db.add(
+        User(telegram_id=910, first_name="Она", sex="female", is_active=True, cohort="external", pack_name="generic")
+    )
+    test_db.commit()
+    import services.doctor_report as dr
+
+    orig = dr._load_biomarkers
+    dr._load_biomarkers = lambda db, uid: {"Hb": {"value": 120.0, "date": "2026-06-09"}}
+    try:
+        out_ru = render_doctor_report_html(assemble_doctor_report(test_db, 910, "ru"), "ru")
+        out_en = render_doctor_report_html(assemble_doctor_report(test_db, 910, "en"), "en")
+    finally:
+        dr._load_biomarkers = orig
+    assert "Гемоглобин: 120.0 г/л (2026-06-09)</li>" in out_ru  # без флага
+    assert "для взрослых мужчин" in out_ru
+    assert "adult men" in out_en
+
+
+def test_assemble_male_report_has_no_ref_note(test_db):
+    from services.doctor_report import assemble_doctor_report, render_doctor_report_html
+
+    test_db.add(
+        User(telegram_id=911, first_name="Он", sex="male", is_active=True, cohort="external", pack_name="generic")
+    )
+    test_db.commit()
+    import services.doctor_report as dr
+
+    orig = dr._load_biomarkers
+    dr._load_biomarkers = lambda db, uid: {"Hb": {"value": 120.0, "date": "2026-06-09"}}
+    try:
+        out = render_doctor_report_html(assemble_doctor_report(test_db, 911, "ru"), "ru")
+    finally:
+        dr._load_biomarkers = orig
+    assert "Гемоглобин: 120.0 г/л (2026-06-09) ↓" in out
+    assert "для взрослых мужчин" not in out

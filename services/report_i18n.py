@@ -51,6 +51,9 @@ CHROME = {
         "weight_unit": "кг",
         "fat_label": "жир",
         "workouts_tpl": "Тренировок за {days} дней: {n}",
+        "ref_male_only_note": (
+            "Референсные значения в отчёте заданы для взрослых мужчин; для данного пола пометки ↑/↓ не проставляются."
+        ),
         "caption": (
             "📄 Отчёт о здоровье для врача. Сформирован автоматически из ваших данных "
             "в Botkin (wellness-сервис, не диагноз). Можно переслать врачу."
@@ -89,6 +92,10 @@ CHROME = {
         "weight_unit": "kg",
         "fat_label": "body fat",
         "workouts_tpl": "Workouts in last {days} days: {n}",
+        "ref_male_only_note": (
+            "Reference ranges in this report are defined for adult men; "
+            "no ↑/↓ out-of-range flags are shown for this sex."
+        ),
         "caption": (
             "📄 Health report for your doctor. Generated automatically from your data "
             "in Botkin (a wellness service, not a diagnosis). You can forward it to a physician."
