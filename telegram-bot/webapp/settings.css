@@ -436,3 +436,7 @@ code { background: var(--card-2); border-radius: 4px; padding: 1px 6px;
 
 /* Ссылки в справке — цвет темы, без подчёркивания */
 .help-body a { color: var(--link); text-decoration: none; }
+
+/* Клавиатура открыта — прячем закреплённые снизу элементы (см. settings.js) */
+body.kbd-open .tab-bar,
+body.kbd-open .day-footer { display: none; }

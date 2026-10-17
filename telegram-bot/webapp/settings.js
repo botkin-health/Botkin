@@ -982,3 +982,24 @@ function initThemeSwitch() {
 }
 
 initThemeSwitch();
+
+// ── Клавиатура на iOS ────────────────────────────────────────────────────────
+// Пока поле ввода в фокусе, закреплённые снизу элементы (таббар, панель БЖУ)
+// всплывают над клавиатурой и закрывают форму — прячем их. Тап мимо полей
+// закрывает клавиатуру: в WebView Telegram на iOS нет кнопки «Готово».
+(function () {
+  const isField = el => el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)
+    && !['checkbox', 'radio', 'range', 'button', 'submit', 'file'].includes(el.type);
+  document.addEventListener('focusin', e => {
+    if (isField(e.target)) document.body.classList.add('kbd-open');
+  });
+  document.addEventListener('focusout', () => {
+    setTimeout(() => {
+      if (!isField(document.activeElement)) document.body.classList.remove('kbd-open');
+    }, 50);
+  });
+  document.addEventListener('touchstart', e => {
+    const a = document.activeElement;
+    if (isField(a) && !isField(e.target) && !e.target.closest('label')) a.blur();
+  }, { passive: true });
+})();
