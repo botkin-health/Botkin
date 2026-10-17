@@ -482,6 +482,8 @@ class UserFeedback(Base):
     text: Mapped[str] = mapped_column(Text, nullable=False)
     source: Mapped[str] = mapped_column(String(16), nullable=False)
     agent_context: Mapped[Optional[dict]] = mapped_column(JSONBCompat, nullable=True)
+    # Вложения из мини-аппа: [{name, mime, size, file_id?}]; файлы в БД не храним.
+    attachments: Mapped[Optional[list]] = mapped_column(JSONBCompat, nullable=True)
     status: Mapped[str] = mapped_column(String(16), nullable=False, server_default="new")
     priority: Mapped[Optional[str]] = mapped_column(String(4), nullable=True)
     github_issue: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)

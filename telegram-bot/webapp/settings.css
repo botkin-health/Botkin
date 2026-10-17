@@ -383,6 +383,20 @@ code { background: var(--card-2); border-radius: 4px; padding: 1px 6px;
 .fb-wrap { padding: 0 12px 16px; }
 .fb-intro { color: var(--hint); font-size: 14px; margin: 0 4px 12px; }
 .fb-text { width: 100%; box-sizing: border-box; min-height: 40vh; margin-top: 12px; padding: 12px 14px; resize: vertical; background: var(--card); border-radius: var(--radius); font-size: 16px; line-height: 1.45; }
+.fb-attach { margin-top: 12px; }
+.fb-attach-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 12px 14px; background: var(--card); color: var(--accent); border: 0; border-radius: var(--radius); font-size: 16px; font-family: inherit; cursor: pointer; }
+.fb-attach-btn:disabled { opacity: .5; }
+.fb-attach-btn .ic { width: 20px; height: 20px; }
+.fb-attach-hint { color: var(--hint); font-size: 12px; margin: 6px 4px 0; }
+.fb-thumbs { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+.fb-thumbs:empty { display: none; }
+.fb-thumb { position: relative; width: 88px; height: 88px; border-radius: var(--radius-sm); background: var(--card-2); box-shadow: inset 0 0 0 1px rgba(128,128,128,.28); overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.fb-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.fb-thumb-file { flex-direction: column; gap: 4px; padding: 6px; box-sizing: border-box; color: var(--text); font-size: 11px; text-align: center; }
+.fb-thumb-file .ic { width: 24px; height: 24px; color: var(--hint); }
+.fb-thumb-file span { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fb-thumb-x { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; background: rgba(0,0,0,.6); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.fb-thumb-x .ic { width: 12px; height: 12px; }
 .fb-send { margin-top: 12px; padding: 13px 16px; width: 100%; font-size: 16px; border-radius: var(--radius); }
 .fb-status { margin-top: 10px; font-size: 13px; min-height: 18px; }
 .fb-status.ok { color: var(--ok); }

@@ -36,6 +36,7 @@ alembic>=1.12.0
 # API (Apple Health Integration)
 fastapi>=0.104.0
 uvicorn[standard]>=0.24.0
+python-multipart>=0.0.9  # multipart-формы: POST /api/feedback с вложениями
 
 # JWT auth (BotkinClaw — ex-NanoClaw, см. ADR-0002)
 # >=2.13.0: GHSA-752w-5fwx-jx9f (unknown crit header) + серия PYSEC-2026 (auth)
