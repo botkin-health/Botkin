@@ -5,19 +5,55 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>Botkin</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="theme.css?v={{V}}">
   <link rel="stylesheet" href="day.css?v={{V}}">
   <link rel="stylesheet" href="settings.css?v={{V}}">
 </head>
 <body>
 
+<!-- Иконки (контуры в стиле Tabler Icons, MIT). Использование: <svg class="ic"><use href="#i-pill"/></svg> -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M16 3v4M8 3v4M4 11h16"/></symbol>
+  <symbol id="i-pill" viewBox="0 0 24 24"><path d="M4.5 12.5l8-8a4.95 4.95 0 0 1 7 7l-8 8a4.95 4.95 0 0 1-7-7"/><path d="M8.5 8.5l7 7"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M19.5 12.57L12 20l-7.5-7.43A5 5 0 1 1 12 6.01a5 5 0 1 1 7.5 6.57"/><path d="M5 12h3l2-3 3 6 2-3h4"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 6h8M16 6h4M4 12h2M10 12h10M4 18h11M19 18h1"/><circle cx="14" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></symbol>
+  <symbol id="i-chev-l" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
+  <symbol id="i-chev-r" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-chev-d" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+  <symbol id="i-sunrise" viewBox="0 0 24 24"><path d="M3 17h1M20 17h1M5.6 10.6l.7.7M18.4 10.6l-.7.7M8 17a4 4 0 0 1 8 0M3 21h18M12 3v6M9 6l3-3 3 3"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 3v1M12 20v1M3 12h1M20 12h1M5.6 5.6l.7.7M18.4 5.6l-.7.7M17.7 17.7l.7.7M6.3 17.7l-.7.7"/></symbol>
+  <symbol id="i-apple" viewBox="0 0 24 24"><path d="M12 7c-2-2-7-1.5-7 3.5 0 4 3 10 7 9 4 1 7-5 7-9C19 5.5 14 5 12 7z"/><path d="M12 7c0-2 1-3.5 3-4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M5 7h1a2 2 0 0 0 2-2 1 1 0 0 1 1-1h6a1 1 0 0 1 1 1 2 2 0 0 0 2 2h1a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2"/><circle cx="12" cy="13" r="3"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></symbol>
+  <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 12c2-2.96 0-7-1-8 0 3.04-1.77 4.74-3 6-1.22 1.27-2 3.27-2 5a6 6 0 1 0 12 0c0-1.5-1.06-3.86-2-5-1.79 3-2.8 3-4 2z"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 3v7h6l-8 11v-7H5l8-11"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="9"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-clipboard" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="2"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 9v4M12 16h.01"/><path d="M10.24 3.96L2.47 17.5A2 2 0 0 0 4.21 20.5h15.58a2 2 0 0 0 1.74-3L13.74 3.96a2 2 0 0 0-3.5 0z"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"/></symbol>
+  <symbol id="i-message" viewBox="0 0 24 24"><path d="M8 9h8M8 13h6"/><path d="M18 4a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3h-5l-5 3v-3H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3h12z"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 17v.01M12 13.5a1.5 1.5 0 0 1 1-1.5 2.6 2.6 0 1 0-3-4"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M10 5a2 2 0 1 1 4 0 7 7 0 0 1 4 6v3a4 4 0 0 0 2 3H4a4 4 0 0 0 2-3v-3a7 7 0 0 1 4-6"/><path d="M9 17v1a3 3 0 0 0 6 0v-1"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 1 1 8 0v4"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
+  <symbol id="i-watch" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="3"/><path d="M9 18v3h6v-3M9 6V3h6v3"/></symbol>
+  <symbol id="i-scale" viewBox="0 0 24 24"><path d="M7 20h10M6 6l6-1 6 1M12 3v17M9 12L6 6l-3 6a3 3 0 0 0 6 0M21 12l-3-6-3 6a3 3 0 0 0 6 0"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M9 15l6-6M11 6l.46-.54a5 5 0 0 1 7.07 7.07L18 13M13 18l-.4.53a5.07 5.07 0 0 1-7.12 0 4.97 4.97 0 0 1 0-7.07L6 11"/></symbol>
+</svg>
+
 <!-- NEW: single-row app header (always visible) -->
 <div class="app-header">
-  <button class="day-nav" id="prev-day" aria-label="Предыдущий день">‹</button>
+  <button class="day-nav" id="prev-day" aria-label="Предыдущий день"><svg class="ic"><use href="#i-chev-l"/></svg></button>
   <label class="day-label-wrap" aria-label="Выбрать дату">
     <div class="app-header-date" id="day-label">Сегодня</div>
     <input type="date" id="date-picker" hidden>
   </label>
-  <button class="day-nav" id="next-day" aria-label="Следующий день">›</button>
+  <button class="day-nav" id="next-day" aria-label="Следующий день"><svg class="ic"><use href="#i-chev-r"/></svg></button>
 </div>
 
 <section id="day-section" class="section tab-panel active">
@@ -40,7 +76,7 @@
 <section id="settings-section" class="section tab-panel">
 
 <!-- HOME — flat grouped list with autosave -->
-<div id="home" class="section active" style="padding:0">
+<div id="home" class="section active">
 
   <div class="profile-header">
     <div class="profile-name" id="user-name">Botkin</div>
@@ -51,16 +87,17 @@
   <div class="group-title">Цели</div>
   <div class="settings-group">
     <div class="settings-row clickable" onclick="toggleBmrPanel()">
+      <span class="ri orange"><svg class="ic"><use href="#i-flame"/></svg></span>
       <div class="row-label">
         Базовый расход
         <div class="row-sub" id="bmr-source-text">…</div>
       </div>
       <div class="row-value" id="bmr-value">…</div>
-      <div class="row-chevron" id="bmr-chevron">›</div>
+      <div class="row-chevron" id="bmr-chevron"><svg class="ic"><use href="#i-chev-r"/></svg></div>
     </div>
     <div id="bmr-panel" class="calc-panel">
-      <div style="padding:8px 16px 14px">
-        <div class="field-label" style="margin-bottom:8px">Источник значения</div>
+      <div class="calc-body">
+        <div class="field-label">Источник значения</div>
         <div class="bmr-mode-pillbox">
           <label class="bmr-mode-opt"><input type="radio" name="bmr-mode" value="auto" id="bmr-mode-auto"><span>Авто (с часов)</span></label>
           <label class="bmr-mode-opt"><input type="radio" name="bmr-mode" value="manual" id="bmr-mode-manual"><span>Ручной (формула)</span></label>
@@ -68,49 +105,52 @@
         <div id="bmr-auto-info" class="bmr-info-block">…</div>
 
         <div id="bmr-manual-form" style="display:none">
-          <div class="field-label" style="margin:14px 0 6px">Параметры — формула Mifflin-St Jeor</div>
-          <div class="field-row" style="margin-bottom:8px">
+          <div class="field-label">Параметры — формула Mifflin-St Jeor</div>
+          <div class="field-row mb8">
             <span class="bmr-form-label">Пол</span>
             <label class="bmr-radio"><input type="radio" name="bmr-sex" value="male" checked> муж</label>
             <label class="bmr-radio"><input type="radio" name="bmr-sex" value="female"> жен</label>
           </div>
-          <div class="field-row" style="margin-bottom:8px">
+          <div class="field-row mb8">
             <span class="bmr-form-label">Возраст</span>
-            <input type="number" id="bmr-age" min="14" max="100" style="width:80px"><span class="unit">лет</span>
+            <input type="number" id="bmr-age" min="14" max="100" class="w80"><span class="unit">лет</span>
           </div>
-          <div class="field-row" style="margin-bottom:8px">
+          <div class="field-row mb8">
             <span class="bmr-form-label">Рост</span>
-            <input type="number" id="bmr-height" min="120" max="220" style="width:80px"><span class="unit">см</span>
+            <input type="number" id="bmr-height" min="120" max="220" class="w80"><span class="unit">см</span>
           </div>
-          <div class="field-row" style="margin-bottom:8px">
+          <div class="field-row mb8">
             <span class="bmr-form-label">Вес</span>
-            <input type="number" id="bmr-weight" step="0.1" min="30" max="200" style="width:80px"><span class="unit">кг</span>
+            <input type="number" id="bmr-weight" step="0.1" min="30" max="200" class="w80"><span class="unit">кг</span>
           </div>
-          <div class="field-row" style="margin-bottom:10px">
+          <div class="field-row mb10">
             <span class="bmr-form-label">Активность</span>
-            <select id="bmr-activity" style="flex:1; max-width:240px; border:1px solid #ddd; border-radius:8px; padding:8px 10px; font-size:13px; background:#fff">
+            <select id="bmr-activity" class="bmr-select">
               <option value="sedentary">Сидячая (×1.2)</option>
               <option value="light" selected>Лёгкая — бытовая ходьба (×1.375)</option>
               <option value="moderate">Умеренная — 3–5 трен/нед (×1.55)</option>
               <option value="high">Высокая — ежедневный спорт (×1.725)</option>
             </select>
           </div>
-          <div id="bmr-preview" class="bmr-info-block" style="margin-top:10px"></div>
-          <button class="calc-btn" id="bmr-save-btn" onclick="saveBmrManual()" style="margin-top:10px; padding:8px 14px; background:#34c759; color:#fff; border:none">💾 Сохранить</button>
+          <div id="bmr-preview" class="bmr-info-block bmr-preview"></div>
+          <button class="calc-btn primary mt10" id="bmr-save-btn" onclick="saveBmrManual()">Сохранить</button>
         </div>
       </div>
     </div>
     <div class="settings-row">
+      <span class="ri green"><svg class="ic"><use href="#i-scale"/></svg></span>
       <div class="row-label">Цель по весу</div>
       <input type="number" id="target-weight" class="row-input" placeholder="75" step="0.1">
       <span class="row-suffix">кг</span>
     </div>
     <div class="settings-row">
+      <span class="ri blue"><svg class="ic"><use href="#i-cal"/></svg></span>
       <div class="row-label">Дедлайн цели</div>
       <input type="date" id="target-date" class="row-input wide">
     </div>
     <div class="settings-row goal-slider-row">
       <div class="goal-slider-header">
+        <span class="ri green"><svg class="ic"><use href="#i-target"/></svg></span>
         <div class="row-label">Калорийная цель</div>
         <div class="goal-slider-badge" id="goal-pct-badge">Дефицит 15%</div>
       </div>
@@ -126,9 +166,10 @@
   <div class="group-title">Отображение</div>
   <div class="settings-group">
     <div class="settings-row">
+      <span class="ri teal"><svg class="ic"><use href="#i-chart"/></svg></span>
       <div class="row-label">
         Шкала калорий
-        <div class="row-sub">🟩🟥 в /day и при записи еды</div>
+        <div class="row-sub">Зелёная и красная шкала в /day и при записи еды</div>
       </div>
       <label class="toggle">
         <input type="checkbox" id="show-bar" checked>
@@ -141,11 +182,13 @@
   <div class="group-title">Добавки</div>
   <div class="settings-group">
     <div class="settings-row clickable" onclick="go('supplements')">
+      <span class="ri purple"><svg class="ic"><use href="#i-pill"/></svg></span>
       <div class="row-label">Управление списком</div>
       <div class="row-value" id="supp-count">…</div>
-      <div class="row-chevron">›</div>
+      <div class="row-chevron"><svg class="ic"><use href="#i-chev-r"/></svg></div>
     </div>
     <div class="settings-row">
+      <span class="ri orange"><svg class="ic"><use href="#i-bell"/></svg></span>
       <div class="row-label">
         Напоминания
         <div class="row-sub">Бот напишет в указанное время</div>
@@ -155,7 +198,7 @@
         <span class="slider"></span>
       </label>
     </div>
-    <div class="settings-row" id="reminder-time-row" style="display:none">
+    <div class="settings-row no-icon mt-hidden" id="reminder-time-row">
       <div class="row-label">Время напоминания</div>
       <input type="time" id="reminder-time" class="row-input" value="08:00">
     </div>
@@ -165,6 +208,7 @@
   <div class="group-title">Приватность</div>
   <div class="settings-group">
     <div class="settings-row">
+      <span class="ri blue"><svg class="ic"><use href="#i-lock"/></svg></span>
       <div class="row-label">
         Делиться диалогами с командой
         <div class="row-sub">Команда Botkin сможет читать твою переписку с ботом, чтобы находить баги и улучшать продукт. Никаких других данных — только сами сообщения.</div>
@@ -180,6 +224,7 @@
   <div class="group-title">Уведомления</div>
   <div class="settings-group">
     <div class="settings-row disabled">
+      <span class="ri yellow"><svg class="ic"><use href="#i-sun"/></svg></span>
       <div class="row-label">
         Утренний брифинг
         <div class="row-sub">Сон, HRV, план дня</div>
@@ -192,33 +237,36 @@
   <div class="group-title">Мои ссылки</div>
   <div class="settings-group">
     <div class="settings-row" id="link-dashboard-row">
-      <div class="row-label" onclick="openDashboard()" style="cursor:pointer;flex:1">
+      <span class="ri teal"><svg class="ic"><use href="#i-chart"/></svg></span>
+      <div class="row-label tap" onclick="openDashboard()">
         Мой дашборд
         <div class="row-sub">Персональная страница с данными</div>
       </div>
-      <button class="link-copy-btn" id="link-dashboard-copy" onclick="copyDashboard()" title="Скопировать ссылку">⎘</button>
-      <div class="row-chevron" onclick="openDashboard()" style="cursor:pointer">›</div>
+      <button class="link-copy-btn" id="link-dashboard-copy" onclick="copyDashboard()" title="Скопировать ссылку"><svg class="ic"><use href="#i-copy"/></svg></button>
+      <div class="row-chevron" onclick="openDashboard()"><svg class="ic"><use href="#i-chev-r"/></svg></div>
     </div>
     <div class="settings-row" id="link-report-row">
-      <div class="row-label" onclick="openReport()" style="cursor:pointer;flex:1">
+      <span class="ri gray"><svg class="ic"><use href="#i-link"/></svg></span>
+      <div class="row-label tap" onclick="openReport()">
         Снимок дашборда
         <div class="row-sub">Постоянная ссылка на копию дашборда</div>
       </div>
-      <button class="link-copy-btn" id="link-report-copy" onclick="copyReport()" title="Скопировать ссылку">⎘</button>
-      <div class="row-chevron" onclick="openReport()" style="cursor:pointer">›</div>
+      <button class="link-copy-btn" id="link-report-copy" onclick="copyReport()" title="Скопировать ссылку"><svg class="ic"><use href="#i-copy"/></svg></button>
+      <div class="row-chevron" onclick="openReport()"><svg class="ic"><use href="#i-chev-r"/></svg></div>
     </div>
-    <div class="settings-row" id="doctor-export-row" onclick="toggleDoctorLang()" style="cursor:pointer">
-      <div class="row-label" style="flex:1">
+    <div class="settings-row clickable" id="doctor-export-row" onclick="toggleDoctorLang()">
+      <span class="ri red"><svg class="ic"><use href="#i-file"/></svg></span>
+      <div class="row-label">
         Экспорт для врача (PDF)
         <div class="row-sub">PDF-файл придёт в чат</div>
       </div>
-      <div class="row-chevron">›</div>
+      <div class="row-chevron"><svg class="ic"><use href="#i-chev-r"/></svg></div>
     </div>
     <div id="doctor-lang-choice" class="doctor-lang-choice" hidden>
       <span class="doctor-lang-prompt">Язык:</span>
       <button type="button" class="lang-choice-btn" data-lang="ru" onclick="requestDoctorReport('ru')">Русский</button>
       <button type="button" class="lang-choice-btn" data-lang="en" onclick="requestDoctorReport('en')">English</button>
-      <button type="button" class="lang-choice-cancel" onclick="toggleDoctorLang()" aria-label="Отмена">✕</button>
+      <button type="button" class="lang-choice-cancel" onclick="toggleDoctorLang()" aria-label="Отмена"><svg class="ic"><use href="#i-x"/></svg></button>
     </div>
     <div id="doctor-export-status" class="doctor-export-status"></div>
   </div>
@@ -236,12 +284,14 @@
   <div class="group-title">Прочее</div>
   <div class="settings-group">
     <div class="settings-row clickable" onclick="go('feedback')">
+      <span class="ri green"><svg class="ic"><use href="#i-message"/></svg></span>
       <div class="row-label">Обратная связь<div class="row-sub">Сообщить об ошибке или идее</div></div>
-      <div class="row-chevron">›</div>
+      <div class="row-chevron"><svg class="ic"><use href="#i-chev-r"/></svg></div>
     </div>
     <div class="settings-row clickable" onclick="go('help')">
+      <span class="ri blue"><svg class="ic"><use href="#i-help"/></svg></span>
       <div class="row-label">Справка</div>
-      <div class="row-chevron">›</div>
+      <div class="row-chevron"><svg class="ic"><use href="#i-chev-r"/></svg></div>
     </div>
   </div>
 
@@ -249,19 +299,19 @@
 </div>
 
 <!-- SUPPLEMENTS (management list — drill-down from Profile) -->
-<div id="supplements" class="section" style="padding:0">
-  <button class="back-btn-ios" onclick="go('home')">‹ Назад</button>
-  <div class="drill-header">💊 Управление списком</div>
+<div id="supplements" class="section">
+  <button class="back-btn-ios" onclick="go('home')"><svg class="ic"><use href="#i-chev-l"/></svg>Назад</button>
+  <div class="drill-header">Управление списком</div>
   <div id="supp-slots"></div>
-  <div style="padding: 16px;">
-    <button class="add-open-btn" onclick="toggleAddPanel()">+ Добавить добавку</button>
-    <div class="add-panel" id="add-panel" style="margin-top:10px">
-      <input type="text" id="new-supp-name" placeholder="Название" style="flex:1;min-width:100px">
-      <input type="text" id="new-supp-dose" placeholder="Доза (напр. 2 капс)" style="flex:1;min-width:100px">
+  <div class="pad16">
+    <button class="add-open-btn" onclick="toggleAddPanel()"><svg class="ic"><use href="#i-plus"/></svg>Добавить добавку</button>
+    <div class="add-panel" id="add-panel">
+      <input type="text" id="new-supp-name" placeholder="Название">
+      <input type="text" id="new-supp-dose" placeholder="Доза (напр. 2 капс)">
       <select id="new-supp-slot">
-        <option value="morning_before">☀️ Утро (до еды)</option>
-        <option value="morning_with" selected>🌅 Утро (с завтраком)</option>
-        <option value="evening">🌙 Вечер</option>
+        <option value="morning_before">Утро (до еды)</option>
+        <option value="morning_with" selected>Утро (с завтраком)</option>
+        <option value="evening">Вечер</option>
       </select>
       <button class="add-confirm-btn" onclick="addSupplement()">Добавить</button>
     </div>
@@ -271,51 +321,34 @@
 <!-- NOTIFICATIONS moved inline into #home (Phase 2) -->
 
 <!-- FEEDBACK (сообщить об ошибке / идею — #271) -->
-<div id="feedback" class="section" style="padding:0">
-  <button class="back-btn-ios" onclick="go('home')">‹ Назад</button>
-  <div class="drill-header">💬 Обратная связь</div>
-  <div style="padding:0 16px 16px">
-    <p style="color:#8e8e93;font-size:13px;margin:0 0 12px">
+<div id="feedback" class="section">
+  <button class="back-btn-ios" onclick="go('home')"><svg class="ic"><use href="#i-chev-l"/></svg>Назад</button>
+  <div class="drill-header">Обратная связь</div>
+  <div class="fb-wrap">
+    <p class="fb-intro">
       Нашли ошибку или есть идея? Напишите — сообщение попадёт напрямую разработчикам.
     </p>
-    <div class="field-label" style="margin-bottom:8px">Тип</div>
+    <div class="field-label">Тип</div>
     <div class="bmr-mode-pillbox" id="fb-kind-box">
-      <label class="bmr-mode-opt"><input type="radio" name="fb-kind" value="bug" checked><span>🐞 Ошибка</span></label>
-      <label class="bmr-mode-opt"><input type="radio" name="fb-kind" value="feature"><span>💡 Идея</span></label>
-      <label class="bmr-mode-opt"><input type="radio" name="fb-kind" value="question"><span>❓ Вопрос</span></label>
+      <label class="bmr-mode-opt"><input type="radio" name="fb-kind" value="bug" checked><span>Ошибка</span></label>
+      <label class="bmr-mode-opt"><input type="radio" name="fb-kind" value="feature"><span>Идея</span></label>
+      <label class="bmr-mode-opt"><input type="radio" name="fb-kind" value="question"><span>Вопрос</span></label>
     </div>
-    <textarea id="fb-text" rows="5" maxlength="4000" placeholder="Опишите проблему или идею…"
-      style="width:100%;box-sizing:border-box;margin-top:12px;border:1px solid #ddd;border-radius:10px;padding:10px 12px;font-size:14px;font-family:inherit;resize:vertical"></textarea>
-    <button class="calc-btn" id="fb-send-btn" onclick="sendFeedback()"
-      style="margin-top:12px;padding:10px 16px;background:#34c759;color:#fff;border:none;width:100%">Отправить</button>
+    <textarea id="fb-text" class="fb-text" rows="5" maxlength="4000" placeholder="Опишите проблему или идею…"></textarea>
+    <button class="calc-btn primary fb-send" id="fb-send-btn" onclick="sendFeedback()">Отправить</button>
     <div id="fb-status" class="fb-status"></div>
   </div>
 </div>
 
 <!-- HELP -->
-<div id="help" class="section" style="padding:0">
-  <button class="back-btn-ios" onclick="go('home')">‹ Назад</button>
-  <div class="drill-header">📖 Справка</div>
-  <div style="padding:0 16px">
-
-  <!-- Оглавление -->
-  <div class="help-block">
-    <h3>Содержание</h3>
-    <ul style="list-style:none;padding-left:0">
-      <li><a href="javascript:void(0)" onclick="helpScroll('h-log')">🍽 Как логировать еду</a></li>
-      <li><a href="javascript:void(0)" onclick="helpScroll('h-plan')">📋 План на день и сведение к факту</a></li>
-      <li><a href="javascript:void(0)" onclick="helpScroll('h-supp')">💊 Как отметить добавки</a></li>
-      <li><a href="javascript:void(0)" onclick="helpScroll('h-cmd')">📊 Команды бота</a></li>
-      <li><a href="javascript:void(0)" onclick="helpScroll('h-burn')">🔥 Сколько калорий вы тратите</a></li>
-      <li><a href="javascript:void(0)" onclick="helpScroll('h-goal')">🎯 Как считается цель на день</a></li>
-      <li><a href="javascript:void(0)" onclick="helpScroll('h-today')">📅 Сегодня и прошлые дни — почему цифры разные</a></li>
-      <li><a href="javascript:void(0)" onclick="helpScroll('h-incomplete')">⚠️ «Итог оценочный» — что это значит</a></li>
-      <li><a href="javascript:void(0)" onclick="helpScroll('h-precision')">⚖️ Насколько точны цифры</a></li>
-    </ul>
-  </div>
+<div id="help" class="section">
+  <button class="back-btn-ios" onclick="go('home')"><svg class="ic"><use href="#i-chev-l"/></svg>Назад</button>
+  <div class="drill-header">Справка</div>
+  <div class="help-wrap">
 
   <div class="help-block" id="h-log">
-    <h3>🍽 Как логировать еду</h3>
+    <h3 onclick="toggleHelp(this)"><span class="help-title">🍽 Как логировать еду</span><svg class="ic"><use href="#i-chev-d"/></svg></h3>
+    <div class="help-body">
     <ul>
       <li><span class="emoji">✍️</span><span>Текст: <code>гречка 150г, курица 200г</code></span></li>
       <li><span class="emoji">📸</span><span>Фото тарелки — бот распознает блюдо и оценит КБЖУ</span></li>
@@ -323,33 +356,41 @@
       <li><span class="emoji">🎤</span><span>Голосовое сообщение — транскрибируется автоматически</span></li>
     </ul>
     <p>Пока карточка с кнопками не сохранена, её можно поправить текстом: <i>«без кускуса»</i>, <i>«половину»</i>, <i>«это было 200 г»</i>. Бот пересчитает и покажет, что убрал. Если прислали фото карточки рецепта с итогом на порцию — подпись «без …» вычтет продукт из этого итога.</p>
+    </div>
   </div>
 
   <div class="help-block" id="h-plan">
-    <h3>📋 План на день → факт</h3>
+    <h3 onclick="toggleHelp(this)"><span class="help-title">📋 План на день → факт</span><svg class="ic"><use href="#i-chev-d"/></svg></h3>
+    <div class="help-body">
     <p>Если удобнее внести еду заранее (например, собрали тарелку на весь день), начните сообщение со слова <b>«план:»</b> или <b>«на день:»</b> — текстом или голосом. Запись сохранится с пометкой 📋 и сразу посчитается в итог дня, как будто всё съедено.</p>
     <p>Потом просто скажите боту, что изменилось: <i>«минус 2 яйца»</i>, <i>«половину творога не съела»</i>, <i>«остаток на обед»</i>, <i>«съела всё»</i>. Бот покажет, что именно поменяет (было → станет), и после вашего «да» исправит запись. Недоеденное можно перенести на обед или на завтра — оно станет новым планом.</p>
     <p>Вечером, если план ещё открыт, бот спросит «Доедено целиком?» — одна кнопка, и день сведён. Здесь, в дневнике, план отмечен 📋, а кнопка «✓ Съедено целиком» закрывает его.</p>
+    </div>
   </div>
 
   <div class="help-block" id="h-supp">
-    <h3>💊 Как отметить добавки</h3>
+    <h3 onclick="toggleHelp(this)"><span class="help-title">💊 Как отметить добавки</span><svg class="ic"><use href="#i-chev-d"/></svg></h3>
+    <div class="help-body">
     <p>Напишите названия в чат: <code>Витамин Д, Омега</code> или тапните в табе 💊 Добавки.</p>
+    </div>
   </div>
 
   <div class="help-block" id="h-cmd">
-    <h3>📊 Команды бота</h3>
+    <h3 onclick="toggleHelp(this)"><span class="help-title">📊 Команды бота</span><svg class="ic"><use href="#i-chev-d"/></svg></h3>
+    <div class="help-body">
     <table class="cmd-table">
       <tr><td>/day</td><td>Итоги дня</td></tr>
       <tr><td>/week</td><td>Анализ недели</td></tr>
       <tr><td>/vitamins</td><td>Чек-лист добавок</td></tr>
       <tr><td>/help</td><td>Помощь</td></tr>
     </table>
-    <p style="margin-top:6px;font-size:11px;color:#888">⚙️ Настройки — в этом мини-аппе, таб Настройки.</p>
+    <p class="help-note">⚙️ Настройки — в этом мини-аппе, таб Настройки.</p>
+    </div>
   </div>
 
   <div class="help-block" id="h-burn">
-    <h3>🔥 Сколько калорий вы тратите</h3>
+    <h3 onclick="toggleHelp(this)"><span class="help-title">🔥 Сколько калорий вы тратите</span><svg class="ic"><use href="#i-chev-d"/></svg></h3>
+    <div class="help-body">
     <p>Ваш расход за день складывается из двух частей:</p>
     <ul>
       <li><span class="emoji">💤</span><span><b>Базовый обмен (BMR)</b> — калории, которые тело сжигает просто на жизнь: дыхание, сердце, мозг, тепло. Это большая часть расхода, обычно 1400–1900 ккал — даже если весь день лежать.</span></li>
@@ -362,42 +403,45 @@
       <li><span class="emoji">🤖</span><span><b>Android</b> — через Health Connect.</span></li>
     </ul>
     <p><b>Часов нет?</b> Настройки → Базовый расход → «Ручной (формула)»: укажите пол, возраст, рост, вес и уровень активности. Botkin посчитает расход по формуле Миффлина—Сан Жеора — тому же научному стандарту, которым пользуются MyFitnessPal, Cronometer и другие счётчики. Часы точнее формулы (видят каждый ваш день, а не «средний»), поэтому при их подключении данные часов в приоритете.</p>
+    </div>
   </div>
 
   <div class="help-block" id="h-goal">
-    <h3>🎯 Как считается цель на день</h3>
+    <h3 onclick="toggleHelp(this)"><span class="help-title">🎯 Как считается цель на день</span><svg class="ic"><use href="#i-chev-d"/></svg></h3>
+    <div class="help-body">
     <p><b>Цель = ваш расход − 15%.</b> Пример: тратите 2300 ккал → цель ~1950 ккал.</p>
     <p>Откуда бот знает ваш расход? Когда вы ведёте дневник хотя бы несколько недель, он выводит его <b>из ваших же данных</b> — сколько вы едите и как меняется вес. Это точнее любой формулы и любых часов: так же работает метод MacroFactor. Пока истории мало — берётся оценка с часов или формула из Настроек (см. раздел «Сколько калорий вы тратите»).</p>
     <p>Эти минус 15% — <b>дефицит</b>: вы едите чуть меньше, чем тратите, и тело добирает разницу из жировых запасов. Так и происходит похудение.</p>
     <p>Почему именно 15%, а не больше? Это темп, при котором уходит жир, а не мышцы, и не хочется сорваться. Жёсткие диеты (минус 30–50%) дают быстрый результат на весах, но за ними почти всегда следует срыв и откат. Процент можно поменять в Настройках: 0% — поддержание веса, плюс — набор массы.</p>
+    </div>
   </div>
 
   <div class="help-block" id="h-today">
-    <h3>📅 Сегодня и прошлые дни — почему цифры разные</h3>
+    <h3 onclick="toggleHelp(this)"><span class="help-title">📅 Сегодня и прошлые дни — почему цифры разные</span><svg class="ic"><use href="#i-chev-d"/></svg></h3>
+    <div class="help-body">
     <p><b>Сегодня</b> день ещё не закончен, и сколько вы потратите — неизвестно. Поэтому цель считается от среднего расхода за последние 14 дней. Если сегодня была тренировка и часы уже это увидели — цель поднимется по факту.</p>
     <p><b>Прошлые дни</b> уже закончились, расход известен точно — и итог считается честно, от факта. Поэтому вечерняя цифра «осталось» и завтрашний итог того же дня могут немного отличаться: прогноз уточнился фактом.</p>
     <p>💡 <b>Практический совет:</b> в малоподвижный день (мало шагов, без тренировки) не наедайте остаток до нуля — оставьте 150–300 ккал запаса. Прогноз по среднему в такие дни чуть щедрее реальности.</p>
+    </div>
   </div>
 
   <div class="help-block" id="h-incomplete">
-    <h3>⚠️ «Итог оценочный» — что это значит</h3>
+    <h3 onclick="toggleHelp(this)"><span class="help-title">⚠️ «Итог оценочный» — что это значит</span><svg class="ic"><use href="#i-chev-d"/></svg></h3>
+    <div class="help-body">
     <p>Иногда часы не успевают передать данные за весь день — например, лежали на зарядке. Тогда расход в этот день выглядит подозрительно маленьким.</p>
     <p>Botkin замечает такие дни и честно помечает их значком ⚠️ вместо вердикта «перебор»: раз мы не знаем ваш настоящий расход, несправедливо утверждать, что вы переели.</p>
+    </div>
   </div>
 
   <div class="help-block" id="h-precision">
-    <h3>⚖️ Насколько точны цифры</h3>
+    <h3 onclick="toggleHelp(this)"><span class="help-title">⚖️ Насколько точны цифры</span><svg class="ic"><use href="#i-chev-d"/></svg></h3>
+    <div class="help-body">
     <p>Подсчёт калорий — всегда оценка, а не аптечные весы. КБЖУ по фото — точность ±15–20%, расход с часов — ±10%. Это нормально и достаточно: для результата важна не точность одного дня, а <b>средняя картина за неделю</b> — тело считает баланс именно так.</p>
     <p>Поэтому не переживайте из-за «перебора +100» в один день: посмотрите /week — если неделя в среднем в дефиците, всё идёт по плану.</p>
+    </div>
   </div>
 
   </div><!-- /padding wrapper -->
-  <script>
-    function helpScroll(id) {
-      var el = document.getElementById(id);
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  </script>
 </div>
 
 </section><!-- /settings-section -->
@@ -414,13 +458,13 @@
 
 <div id="add-sheet" class="sheet-overlay">
   <div class="sheet">
-    <button class="sheet-close" id="add-sheet-close" aria-label="Закрыть">✕</button>
+    <button class="sheet-close" id="add-sheet-close" aria-label="Закрыть"><svg class="ic"><use href="#i-x"/></svg></button>
     <h3 id="add-sheet-title">Добавить</h3>
 
     <label class="form-row">
       <span>Часто используемое</span>
     </label>
-    <div id="fav-list" class="fav-list"><div style="color:#999;font-size:12px">Загружаем…</div></div>
+    <div id="fav-list" class="fav-list"><div class="fav-hint">Загружаем…</div></div>
 
     <div class="form-row">
       <label>Или ввести вручную</label>
@@ -437,17 +481,17 @@
 
 <div id="edit-sheet" class="sheet-overlay">
   <div class="sheet">
-    <button class="sheet-close" id="edit-sheet-close" aria-label="Закрыть">✕</button>
+    <button class="sheet-close" id="edit-sheet-close" aria-label="Закрыть"><svg class="ic"><use href="#i-x"/></svg></button>
     <h3 id="edit-sheet-title">Изменить вес</h3>
     <div class="form-row">
       <label>Вес, г</label>
       <input type="number" id="edit-weight" inputmode="numeric" min="1" max="5000">
     </div>
-    <div class="form-row" style="font-size:12px;color:#888;">
+    <div class="form-row form-hint">
       КБЖУ пересчитаются пропорционально.
     </div>
     <button class="primary-btn" id="edit-submit">Сохранить</button>
-    <button class="danger-btn" id="edit-delete">🗑 Удалить</button>
+    <button class="danger-btn" id="edit-delete"><svg class="ic"><use href="#i-trash"/></svg>Удалить</button>
   </div>
 </div>
 
@@ -457,19 +501,19 @@
 <!-- Tab bar -->
 <nav class="tab-bar" id="tab-bar">
   <button class="tab-item active" data-tab="day" onclick="switchTab('day')">
-    <span class="tab-icon">📅</span>
+    <span class="tab-icon"><svg class="ic"><use href="#i-cal"/></svg></span>
     <span class="tab-label">Дневник</span>
   </button>
   <button class="tab-item" data-tab="supplements-tab" onclick="switchTab('supplements-tab')">
-    <span class="tab-icon">💊</span>
+    <span class="tab-icon"><svg class="ic"><use href="#i-pill"/></svg></span>
     <span class="tab-label">Добавки</span>
   </button>
   <button class="tab-item" data-tab="dashboard" onclick="switchTab('dashboard')">
-    <span class="tab-icon">📊</span>
+    <span class="tab-icon"><svg class="ic"><use href="#i-heart"/></svg></span>
     <span class="tab-label">Здоровье</span>
   </button>
   <button class="tab-item" data-tab="settings" onclick="switchTab('settings')">
-    <span class="tab-icon">⚙️</span>
+    <span class="tab-icon"><svg class="ic"><use href="#i-sliders"/></svg></span>
     <span class="tab-label">Настройки</span>
   </button>
 </nav>
