@@ -58,6 +58,35 @@ def normalize_sex(sex: Optional[str]) -> Optional[str]:
     return None
 
 
+def explicit_sex(onboarding_data: object) -> Optional[str]:
+    """Пол, который пользователь задал сам (маркер — `onboarding_data["sex"]`), иначе None.
+
+    `users.sex` при создании строки получает server_default='male', поэтому само
+    по себе «male» не отличить от «не заполнено». Все пути, где пол вводит человек
+    (онбординг, /setup, профиль миниаппа, agent-tool), пишут также `onboarding_data["sex"]`
+    через `set_user_sex`. Для строк, заполненных ДО этого (#591), маркера нет → None
+    (флаги не ставятся). Миграции данных вслепую нет.
+    """
+    if isinstance(onboarding_data, dict):
+        return normalize_sex(onboarding_data.get("sex"))
+    return None
+
+
+def set_user_sex(user, sex: str) -> str:
+    """Записать пол, заданный пользователем: `users.sex` + маркер в `onboarding_data`.
+
+    Не коммитит. Возвращает нормализованное значение; ValueError — если пол не распознан.
+    """
+    sex_n = normalize_sex(sex)
+    if sex_n is None:
+        raise ValueError(f"unknown sex: {sex!r}")
+    user.sex = sex_n
+    data = dict(user.onboarding_data or {})
+    data["sex"] = sex_n
+    user.onboarding_data = data  # реассайн → SQLAlchemy видит изменение JSON
+    return sex_n
+
+
 def ref_range(canon_key: str, sex: Optional[str]) -> Optional[tuple[float, float]]:
     """Границы нормы (low, high) для маркера и пола; None — если для пары нормы нет."""
     sex_n = normalize_sex(sex)

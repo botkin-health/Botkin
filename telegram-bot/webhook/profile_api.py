@@ -184,7 +184,9 @@ async def set_bmr(payload: BmrSettingsPayload, tg_user: dict = Depends(get_tg_us
         # Persist sex/height/age in User table (canonical home for biometrics)
         user = get_user_by_telegram_id(db, user_id)
         if user:
-            user.sex = m.sex
+            from core.health.ref_ranges import set_user_sex
+
+            set_user_sex(user, m.sex)  # + маркер «пол задан явно» (#591)
             user.height_cm = m.height_cm
             # Convert age → birth_date (approximate: Jan 1 of birth year)
             today_d = _today_local(user_id)

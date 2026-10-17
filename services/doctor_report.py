@@ -36,7 +36,7 @@ from core.health.onboarding_lists import (
     onboarding_list as _onboarding_list,
     split_freetext as _split_freetext,  # noqa: F401 (re-export: tests import it from here)
 )
-from core.health.ref_ranges import flag_for, normalize_sex
+from core.health.ref_ranges import explicit_sex, flag_for
 from core.reports.biomarker_dynamics import MARKER_CONFIG
 from services.report_i18n import (
     CHROME,
@@ -284,7 +284,7 @@ def assemble_doctor_report(db: Session, user_id: int, lang: str = "ru") -> Docto
     """Собрать DoctorReport из БД в клиническом порядке секций IPS (каркас на lang)."""
     chrome = CHROME.get(lang, CHROME["ru"])
     user = db.execute(
-        text("SELECT first_name, last_name, onboarding_data, sex FROM users WHERE telegram_id = :uid"),
+        text("SELECT first_name, last_name, onboarding_data FROM users WHERE telegram_id = :uid"),
         {"uid": user_id},
     ).fetchone()
     onboarding = _coerce_dict(user.onboarding_data) if user else {}
@@ -296,8 +296,8 @@ def assemble_doctor_report(db: Session, user_id: int, lang: str = "ru") -> Docto
 
     bio = _load_biomarkers(db, user_id)
     # Референсы заданы только для мужчин (ref_ranges.py): иначе флаги не ставим, а в
-    # секции результатов — пометка. TODO(#591): отличать явно заданный пол от дефолта 'male'.
-    sex = normalize_sex(getattr(user, "sex", None)) if user else None
+    # секции результатов — пометка. Пол — только заданный явно (onboarding_data['sex']).
+    sex = explicit_sex(onboarding)  # users.sex на дефолте 'male' не считается заданным
     ref_footnote = "" if sex == "male" else chrome["ref_male_only_note"]
     builders = {
         "problems": lambda: _problems(onboarding),
