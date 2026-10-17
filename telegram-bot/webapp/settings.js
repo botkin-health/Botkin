@@ -310,12 +310,13 @@ function addSupplement() {
 
 // ── BMR section ─────────────────────────────────────────────────────────────
 const PAL = { sedentary: 1.2, light: 1.375, moderate: 1.55, high: 1.725 };
+// Подписи — в одну строку (row-sub однострочный, длинное обрежется «…»).
 const SOURCE_LABEL = {
-  adaptive: 'цель по вашим данным (питание + вес) · БМР с часов',
-  garmin: 'из Garmin · обновляется ежедневно по часам',
-  apple_health: 'из Apple Health · обновляется ежедневно с часов / телефона',
-  manual: 'формула Mifflin-St Jeor по твоим параметрам',
-  default: 'оценка по умолчанию · введи параметры для точности',
+  adaptive: 'по питанию, весу и часам',
+  garmin: 'с часов Garmin, ежедневно',
+  apple_health: 'из Apple Health, ежедневно',
+  manual: 'по твоим параметрам',
+  default: 'укажи свои параметры',
 };
 let bmrState = null;  // last fetched /api/profile/bmr
 
@@ -471,13 +472,6 @@ function toggleReminderTime() {
 // ── Supplements daily log ───────────────────────────────────────────────────
 // Tracks which supplements the user has taken on a given date, with times.
 // Syncs the currently viewed date with window.__nutri.state.date (Diary tab).
-// Просмотр сегодняшнего дня? (для подписи «Принято сегодня» / «за день»).
-function suppIsToday() {
-  const t = new Date();
-  const iso = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
-  return currentSuppDate() === iso;
-}
-
 function currentSuppDate() {
   // Reuse the date that Diary is viewing so calendar nav stays coherent.
   // day.js keeps state.date as a Date OBJECT — convert to YYYY-MM-DD (local, not UTC).
@@ -532,19 +526,8 @@ function renderSupplementsDay(data) {
     return;
   }
 
-  const pct = progress.total > 0 ? Math.round(100 * progress.taken / progress.total) : 0;
-
-  let html = `
-    <div class="supp-progress-card">
-      <div class="supp-progress-head">
-        <div>
-          <div class="supp-progress-title">${suppIsToday() ? 'Принято сегодня' : 'Принято за день'}</div>
-          <div class="supp-progress-big">${progress.taken} <small>из ${progress.total}</small></div>
-        </div>
-        <div class="supp-progress-count">${pct}%</div>
-      </div>
-      <div class="supp-progress-track"><div class="supp-progress-fill" style="width:${pct}%"></div></div>
-    </div>`;
+  // Сводку «Принято X из Y» не показываем: галочки у каждого пункта и так это видно.
+  let html = '';
 
   for (const slot of slots) {
     if (!slot.items.length) continue;
@@ -630,41 +613,20 @@ if (picker) picker.addEventListener('change', () => {
 
 // ── Profile links ────────────────────────────────────────────────────────────
 let _dashboardUrl = null;
-let _reportUrl = null;
 
 async function loadLinks() {
   try {
     const data = await window.API.getDashboardUrl();
     _dashboardUrl = data.dashboard_url || null;
-    _reportUrl = data.report_url || null;
   } catch(e) {
     console.error('Failed to load dashboard url', e);
   }
 }
 
-function openDashboard() {
-  if (_dashboardUrl) tg.openLink(_dashboardUrl);
-}
-
-function openReport() {
-  if (_reportUrl) tg.openLink(_reportUrl);
-}
-
-function copyReport() {
-  if (!_reportUrl) return;
-  navigator.clipboard.writeText(_reportUrl).then(() => {
-    const toast = document.getElementById('links-toast');
-    if (!toast) return;
-    toast.classList.remove('hidden');
-    setTimeout(() => toast.classList.add('hidden'), 2000);
-  }).catch(() => {
-    tg.openLink(_reportUrl);
-  });
-}
-
 function copyDashboard() {
   if (!_dashboardUrl) return;
   navigator.clipboard.writeText(_dashboardUrl).then(() => {
+    tg.HapticFeedback?.notificationOccurred?.('success');
     const toast = document.getElementById('links-toast');
     if (!toast) return;
     toast.classList.remove('hidden');
