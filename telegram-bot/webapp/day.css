@@ -34,28 +34,28 @@
 .day-sub { display: none; }
 
 /* ── Hero card: «осталось» + широкая шкала калорий ── */
-.budget-banner { padding: 12px 12px 0; }
+.budget-banner { padding: 8px 12px 0; }
 .hero-card {
   background: var(--card); border-radius: var(--radius);
-  padding: 14px 14px 12px;
+  padding: 10px 14px 10px;
 }
 .hero-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-.hero-num { font-size: 34px; font-weight: 700; letter-spacing: -0.8px; line-height: 1; }
+.hero-num { font-size: 30px; font-weight: 700; letter-spacing: -0.8px; line-height: 1; }
 .hero-label { font-size: 14px; color: var(--hint); margin-left: 6px; }
 .hero-total { font-size: 14px; color: var(--subtitle); white-space: nowrap; }
 .kcal-track {
-  height: 12px; border-radius: 6px; background: var(--track);
-  overflow: hidden; margin-top: 10px;
+  height: 8px; border-radius: 4px; background: var(--track);
+  overflow: hidden; margin-top: 8px;
 }
-.kcal-fill { height: 100%; border-radius: 6px; transition: width .4s ease; }
+.kcal-fill { height: 100%; border-radius: 4px; transition: width .4s ease; }
 .kcal-fill.tone-ok   { background: var(--ok); }
 .kcal-fill.tone-warn { background: var(--warn); }
 .kcal-fill.tone-bad  { background: var(--bad); }
 
-.macro-head { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
+.macro-head { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 3px; }
 .macro-val { color: var(--hint); white-space: nowrap; }
 .macro-val b { font-weight: 600; }
-.macro-track { height: 6px; border-radius: 3px; background: var(--track); overflow: hidden; }
+.macro-track { height: 5px; border-radius: 3px; background: var(--track); overflow: hidden; }
 .macro-fill { height: 100%; border-radius: 3px; transition: width .3s; }
 .macro-fill.p   { background: var(--c-p); }
 .macro-fill.f   { background: var(--c-f); }
@@ -63,13 +63,12 @@
 .macro-fill.fib { background: var(--c-fib); }
 
 .hero-chips {
-  display: flex; flex-wrap: wrap; gap: 5px; margin-top: 12px;
-  padding-top: 10px; border-top: 0.5px solid var(--separator);
+  display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px;
 }
 .chip {
   display: inline-flex; align-items: center; gap: 4px;
   font-size: 11.5px; color: var(--subtitle); white-space: nowrap;
-  background: var(--card-2); border-radius: 999px; padding: 4px 7px;
+  background: var(--card-2); border-radius: 999px; padding: 3px 7px;
 }
 .chip .ic { width: 13px; height: 13px; }
 /* «Сегодня» — справочно (в расчёт цели не входит), уступает среднему за 14 дней. */
@@ -83,10 +82,10 @@
 .day-footer {
   position: fixed; left: 0; right: 0; bottom: var(--tab-h); z-index: 15;
   max-width: 480px; margin: 0 auto; box-sizing: border-box;
-  padding: 12px 16px 10px;
+  padding: 8px 16px 6px;
   background: var(--bar-bg); border-top: 0.5px solid var(--separator);
 }
-.macros-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px 16px; }
+.macros-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; }
 @media (max-width: 350px) {
   .hero-num { font-size: 30px; }
   .macros-grid { gap: 8px 12px; }
@@ -95,7 +94,7 @@
 
 
 /* Под блюдами место для закреплённого блока БЖУ (~84px). */
-#slots-container { padding: 0 0 84px; }  /* + нижний отступ .tab-panel под таббар */
+#slots-container { padding: 0 0 72px; }  /* + нижний отступ .tab-panel под таббар */
 .load-error { padding: 20px; text-align: center; color: var(--hint); }
 
 /* Empty-state CTA: еда пишется в чате бота, не в миниаппе. */
@@ -112,10 +111,10 @@
 .empty-hint-foot { font-size: 12px; color: var(--hint); margin-top: 4px; }
 
 /* ── Слоты приёмов пищи ── */
-.slots-section { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.slots-section { padding: 8px 12px; display: flex; flex-direction: column; gap: 6px; }
 
 .slot {
-  background: var(--card); border-radius: var(--radius); padding: 12px 14px;
+  background: var(--card); border-radius: var(--radius); padding: 9px 12px;
   display: flex; justify-content: space-between; align-items: center;
 }
 .slot-header-row {
@@ -125,18 +124,18 @@
 .slot-left { flex: 1; min-width: 0; }
 .slot-right { flex-shrink: 0; padding-left: 8px; text-align: right; }
 
-.slots-section .slot-title { display: flex; margin: 0; color: var(--text); align-items: center; gap: 8px; font-weight: 600; font-size: 16px; }
+.slots-section .slot-title { display: flex; margin: 0; color: var(--text); align-items: center; gap: 8px; font-weight: 600; font-size: 15px; }
 .slot-ic {
-  width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
+  width: 24px; height: 24px; border-radius: 7px; flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center;
-  color: #fff; font-size: 16px;
+  color: #fff; font-size: 14px;
 }
 .slot-ic[data-slot="breakfast"] { background: var(--slot-breakfast); }
 .slot-ic[data-slot="lunch"]     { background: var(--slot-lunch); }
 .slot-ic[data-slot="snack"]     { background: var(--slot-snack); }
 .slot-ic[data-slot="dinner"]    { background: var(--slot-dinner); }
 
-.slot-meta { font-size: 18px; font-weight: 600; white-space: nowrap; }
+.slot-meta { font-size: 17px; font-weight: 600; white-space: nowrap; }
 .slot-unit { font-size: 12px; font-weight: 400; color: var(--hint); margin-left: 3px; }
 .slot-meta-empty { color: var(--hint); font-weight: 400; }
 .slot-fiber { font-size: 12px; color: var(--hint); white-space: nowrap; margin-top: 2px; }
@@ -144,10 +143,13 @@
 .slot.dim .slot-ic { opacity: .45; }
 .slots-section .slot.dim .slot-title { color: var(--hint); }
 .slot-empty, .slot-preview {
-  font-size: 14px; color: var(--hint); margin: 4px 0 0 36px;
+  font-size: 13px; color: var(--hint); margin: 2px 0 0 32px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .slot-header { display: contents; }
+/* Пустой приём пищи — одна строка: подсказку «пришлите в чат» не повторяем 4 раза. */
+.slot.dim { padding-top: 7px; padding-bottom: 7px; }
+.slot.dim .slot-empty { display: none; }
 
 /* Expanded slot */
 .slot.expanded { flex-direction: column; align-items: stretch; }
@@ -256,8 +258,8 @@
 /* Нижний отступ: безопасная зона Telegram (Bot API 8.0+) или iOS, минимум 10px —
    на iPhone без него подписи упираются в скруглённые углы экрана. */
 :root {
-  --tab-pad-b: max(10px, var(--tg-safe-area-inset-bottom, 0px), env(safe-area-inset-bottom, 0px));
-  --tab-h: calc(56px + var(--tab-pad-b));
+  --tab-pad-b: max(6px, var(--tg-safe-area-inset-bottom, 0px), env(safe-area-inset-bottom, 0px));
+  --tab-h: calc(48px + var(--tab-pad-b));
 }
 .tab-bar {
   position: fixed; bottom: 0; left: 0; right: 0; max-width: 480px; margin: 0 auto;
@@ -269,9 +271,9 @@
 }
 .tab-item {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 3px; background: none; border: none; cursor: pointer;
-  padding: 6px 0; color: var(--hint); font-family: inherit;
+  gap: 2px; background: none; border: none; cursor: pointer;
+  padding: 4px 0; color: var(--hint); font-family: inherit;
 }
-.tab-icon { font-size: 22px; line-height: 1; display: flex; }
+.tab-icon { font-size: 20px; line-height: 1; display: flex; }
 .tab-label { font-size: 10px; font-weight: 500; }
 .tab-item.active { color: var(--accent); }
