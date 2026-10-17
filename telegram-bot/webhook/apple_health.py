@@ -1834,6 +1834,10 @@ from webhook.doctor_report_api import router as doctor_report_router
 
 app.include_router(doctor_report_router)
 
+from webhook.health_summary_api import router as health_summary_router
+
+app.include_router(health_summary_router)
+
 from webhook.agent_tools import router as agent_tools_router
 
 app.include_router(agent_tools_router)

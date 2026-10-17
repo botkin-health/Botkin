@@ -97,7 +97,9 @@ function stAvgLine(s) {
   if (!s.avg || s.avg.value == null) return '';
   const unit = s.avg.unit ? ' ' + s.avg.unit : '';
   const n = s.avg.n != null ? `, N=${s.avg.n}` : '';
-  return `${stEsc(s.avg.label || 'среднее')} ${stNum(s.avg.value)}${stEsc(unit)}${n}`;
+    // Давление: «128/82» — у bp в avg есть value2 (диастолическое).
+  const val = s.avg.value2 != null ? `${stNum(s.avg.value)}/${stNum(s.avg.value2)}` : stNum(s.avg.value);
+  return `${stEsc(s.avg.label || 'среднее')} ${val}${stEsc(unit)}${n}`;
 }
 
 // Строки под значением: свежий факт с датой, среднее с N, специфика потока.
@@ -125,7 +127,8 @@ function stRenderHrv(s, asOf) {
   const h = s.extra?.pulse; // карточка пульса: {latest, avg, kind: resting|mixed}
   const hv = h?.latest?.value;
   const hl = hv != null ? `${h.kind === 'resting' ? 'пульс покоя' : 'пульс'} ${stNum(hv, 0)} ${stEsc(h.latest.unit || 'уд/мин')}` : '';
-  const src = s.extra?.source ? `источник: ${stEsc(s.extra.source)}` : '';
+  const SRC = { garmin: 'Garmin', apple: 'Apple Health', apple_health: 'Apple Health', android: 'Health Connect', health_connect: 'Health Connect', zepp: 'Zepp' };
+  const src = s.extra?.source ? `источник: ${stEsc(SRC[s.extra.source] || s.extra.source)}` : '';
   return stCardFor('HRV и пульс', s, asOf, [hl, src]);
 }
 

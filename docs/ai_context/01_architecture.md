@@ -118,6 +118,7 @@
 | `dashboard.py` | `GET /mc/{token}` — публичный персональный дашборд (botkin.health/mc/…), встраивается в мини-апп (таб «Здоровье») и шарится через `/share`. |
 | `report.py` | Публичные HTML-отчёты `GET /r/{token}` (таблица `health_reports`). |
 | `doctor_report_api.py` | Endpoint для генерации PDF-отчёта врачу (ISO 27269 IPS, ADR-0008) — тонкая обёртка над `services/doctor_report.py`. |
+| `health_summary_api.py` | `GET /api/health/summary?days=7&lang=ru\|en` — вкладка «Состояние» миниаппа: `attention` (≤4 пункта, детерминированные правила L/S/H/A/B/G/W без LLM), `summary_text`, карточки потоков за окно, `data_gaps`. Расчёты — `services/health_summary.py`, схема и контракт «нет потока» (не подключённые потоки отсутствуют в `streams`, причина в `data_gaps`) — `services/health_summary_schema.py`, пороги — константы в начале сервиса (**стартовые, утверждает врач**), тексты/`action` (плейсхолдеры) — `services/health_summary_texts.py`. |
 | `whoop_oauth.py` | OAuth 2.0 подключение носимого Whoop (`/whoop/connect`, `/whoop/callback`); токены в `data/cache/whoop_tokens.json`. |
 | `feedback_api.py` | API мини-аппа для отправки фидбека (кнопка в webapp). |
 | `admin.py` | Админ-эндпоинты (`/block`, `/users` подложка и т.п.). |
