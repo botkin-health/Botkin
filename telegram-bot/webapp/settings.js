@@ -801,6 +801,80 @@ function _fmtDate(iso) {
 }
 
 // ── Feedback (сообщить об ошибке / идею) — #271 ──────────────────────────────
+const FB_MAX_FILES = 3;
+const FB_MAX_BYTES = 10 * 1024 * 1024;
+const FB_MIME = ['image/jpeg', 'image/png', 'image/heic', 'image/heif', 'image/webp', 'application/pdf'];
+const FB_EXT_MIME = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', heic: 'image/heic', heif: 'image/heif', webp: 'image/webp', pdf: 'application/pdf' };
+let fbFiles = []; // [{file, url|null}]
+
+function fbMime(f) {
+  if (f.type) return f.type.toLowerCase();
+  return FB_EXT_MIME[(f.name.split('.').pop() || '').toLowerCase()] || '';
+}
+
+function fbSetStatus(msg, cls) {
+  const el = document.getElementById('fb-status');
+  el.textContent = msg;
+  el.className = 'fb-status' + (cls ? ' ' + cls : '');
+}
+
+function fbFilesPicked(input) {
+  const errors = [];
+  for (const f of Array.from(input.files || [])) {
+    if (fbFiles.length >= FB_MAX_FILES) { errors.push(`Можно прикрепить не больше ${FB_MAX_FILES} файлов`); break; }
+    if (!FB_MIME.includes(fbMime(f))) { errors.push(`«${f.name}»: допустимы фото (JPG, PNG, HEIC, WebP) и PDF`); continue; }
+    if (f.size > FB_MAX_BYTES) { errors.push(`«${f.name}»: больше 10 МБ`); continue; }
+    if (f.size === 0) { errors.push(`«${f.name}»: пустой файл`); continue; }
+    fbFiles.push({ file: f, url: fbMime(f).startsWith('image/') && fbMime(f) !== 'image/heic' && fbMime(f) !== 'image/heif' ? URL.createObjectURL(f) : null });
+  }
+  input.value = '';
+  fbRenderFiles();
+  fbSetStatus(errors.join('. '), errors.length ? 'error' : '');
+}
+
+function fbRemoveFile(i) {
+  const [item] = fbFiles.splice(i, 1);
+  if (item && item.url) URL.revokeObjectURL(item.url);
+  fbRenderFiles();
+  fbSetStatus('', '');
+}
+
+function fbClearFiles() {
+  fbFiles.forEach((it) => it.url && URL.revokeObjectURL(it.url));
+  fbFiles = [];
+  fbRenderFiles();
+}
+
+function fbRenderFiles() {
+  const box = document.getElementById('fb-thumbs');
+  box.innerHTML = '';
+  fbFiles.forEach((it, i) => {
+    const t = document.createElement('div');
+    if (it.url) {
+      t.className = 'fb-thumb';
+      const img = document.createElement('img');
+      img.src = it.url;
+      img.alt = it.file.name;
+      t.appendChild(img);
+    } else {
+      t.className = 'fb-thumb fb-thumb-file';
+      t.innerHTML = '<svg class="ic"><use href="#i-file"/></svg>';
+      const n = document.createElement('span');
+      n.textContent = it.file.name;
+      t.appendChild(n);
+    }
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.className = 'fb-thumb-x';
+    x.setAttribute('aria-label', 'Убрать файл');
+    x.innerHTML = '<svg class="ic"><use href="#i-x"/></svg>';
+    x.onclick = () => fbRemoveFile(i);
+    t.appendChild(x);
+    box.appendChild(t);
+  });
+  document.getElementById('fb-attach-btn').disabled = fbFiles.length >= FB_MAX_FILES;
+}
+
 async function sendFeedback() {
   const textEl = document.getElementById('fb-text');
   const statusEl = document.getElementById('fb-status');
@@ -818,7 +892,7 @@ async function sendFeedback() {
   statusEl.textContent = '';
   statusEl.className = 'fb-status';
   try {
-    const res = await window.API.sendFeedback({ text, kind });
+    const res = await window.API.sendFeedback({ text, kind, files: fbFiles.map((it) => it.file) });
     if (res && res.status === 'opted_out') {
       statusEl.textContent = 'Вы отключили отправку обратной связи в настройках.';
       statusEl.className = 'fb-status error';
@@ -826,10 +900,14 @@ async function sendFeedback() {
       statusEl.textContent = '✓ Спасибо! Отправлено разработчикам.';
       statusEl.className = 'fb-status ok';
       textEl.value = '';
+      fbClearFiles();
     }
   } catch (e) {
     console.error('sendFeedback failed', e);
-    statusEl.textContent = '⚠ Не удалось отправить. Попробуйте позже.';
+    const m = String(e.message || '');
+    statusEl.textContent = m.startsWith('413') ? '⚠ Файл слишком большой (максимум 10 МБ).'
+      : m.startsWith('422') && fbFiles.length ? '⚠ Не удалось принять вложения: проверьте тип и количество файлов.'
+      : '⚠ Не удалось отправить. Попробуйте позже.';
     statusEl.className = 'fb-status error';
   } finally {
     btn.disabled = false;

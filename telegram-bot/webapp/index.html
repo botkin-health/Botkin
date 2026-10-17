@@ -312,6 +312,14 @@
       <label class="bmr-mode-opt"><input type="radio" name="fb-kind" value="question"><span>Вопрос</span></label>
     </div>
     <textarea id="fb-text" class="fb-text" rows="10" maxlength="4000" placeholder="Опишите проблему или идею…"></textarea>
+    <div class="fb-attach">
+      <input type="file" id="fb-file" accept="image/*,application/pdf" multiple hidden onchange="fbFilesPicked(this)">
+      <button type="button" class="fb-attach-btn" id="fb-attach-btn" onclick="document.getElementById('fb-file').click()">
+        <svg class="ic"><use href="#i-camera"/></svg><span>Прикрепить фото или файл</span>
+      </button>
+      <div class="fb-attach-hint">До 3 файлов, каждый до 10 МБ: фото или PDF</div>
+      <div class="fb-thumbs" id="fb-thumbs"></div>
+    </div>
     <button class="calc-btn primary fb-send" id="fb-send-btn" onclick="sendFeedback()">Отправить</button>
     <div id="fb-status" class="fb-status"></div>
   </div>
