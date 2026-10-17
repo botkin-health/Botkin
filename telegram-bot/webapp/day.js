@@ -10,7 +10,8 @@
   };
 
   const FMT = new Intl.DateTimeFormat('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
-  const SLOT_LABEL = { breakfast: '🌅 Завтрак', lunch: '☀️ Обед', snack: '🍎 Перекусы', dinner: '🌙 Ужин' };
+  const SLOT_LABEL = { breakfast: 'Завтрак', lunch: 'Обед', snack: 'Перекусы', dinner: 'Ужин' };
+  const SLOT_ICON = { breakfast: 'sunrise', lunch: 'sun', snack: 'apple', dinner: 'moon' };
 
   function toISO(d) {
     const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'),
@@ -38,7 +39,7 @@
     } catch (e) {
       console.error(e);
       document.getElementById('slots-container').innerHTML =
-        `<div style="padding:20px;text-align:center;color:#999">Нет связи: ${e.message}</div>`;
+        `<div class="load-error">Нет связи: ${e.message}</div>`;
     }
   }
 
@@ -82,6 +83,29 @@
     renderFooter();
   }
 
+  const icon = (name, cls = '') => `<svg class="ic ${cls}"><use href="#i-${name}"/></svg>`;
+
+  const slotIcon = slot => `<span class="slot-ic" data-slot="${slot}">${icon(SLOT_ICON[slot])}</span>`;
+
+  // Семантика цвета: протеин/клетчатка — «больше лучше», ккал/жиры/углеводы —
+  // «не перебрать». Возвращает имя токена из theme.css.
+  function macroTone(val, goal, moreIsBetter) {
+    const pct = Math.round(((val || 0) / goal) * 100);
+    if (moreIsBetter) return pct >= 85 ? 'ok' : pct >= 60 ? 'warn' : 'bad';
+    return pct <= 100 ? 'ok' : pct <= 115 ? 'warn' : 'bad';
+  }
+
+  // Кольцо «осталось» — SVG, заполнение = съедено / цель.
+  function ringSvg(fraction, tone) {
+    const r = 46, c = 2 * Math.PI * r;
+    const dash = Math.max(0, Math.min(1, fraction)) * c;
+    return `<svg class="ring" viewBox="0 0 112 112" aria-hidden="true">
+      <circle cx="56" cy="56" r="${r}" class="ring-track"/>
+      <circle cx="56" cy="56" r="${r}" class="ring-fill tone-${tone}"
+              stroke-dasharray="${dash.toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 56 56)"/>
+    </svg>`;
+  }
+
   function renderBudgetBanner() {
     const { totals_day: t, goals: g } = state.data;
     const banner = document.getElementById('budget-banner');
@@ -94,63 +118,64 @@
     // Прошедший день с частичным Garmin-синком: цель оценочная (по среднему),
     // вердикт «перебор» по мусорным данным не выносим — нейтральный стиль и «≈».
     const incomplete = !!g.data_incomplete;
-    const cls = incomplete ? 'warn' : isOver ? 'over' : diff / goal < 0.15 ? 'warn' : 'ok';
+    const tone = incomplete ? 'warn' : isOver ? 'bad' : diff / goal < 0.15 ? 'warn' : 'ok';
 
-    const heroText = incomplete
-      ? `≈${isOver ? '−' : '+'}${Math.abs(diff)} ккал`
-      : isOver ? `−${Math.abs(diff)} ккал` : `+${diff} ккал`;
-    const subText = incomplete
-      ? `⚠️ данные о расходе неполные · съедено ${consumed} из ~${goal}`
-      : isOver
-      ? `перебор · съедено ${consumed} из ${goal}`
-      : `осталось · съедено ${consumed} из ${goal}`;
+    const heroNum = `${incomplete ? '≈' : ''}${Math.abs(diff)}`;
+    const heroLabel = isOver ? 'перебор' : 'осталось';
 
-    // Right column: 3-line readout (no duplication with hero text).
-    //   Line 1: 💤 БМР {bmr}                   — base
-    //   Line 2: 🏃 {today} сег · {avg} ср      — actual vs average activity
-    //   Line 3: 🎯 −15% дефицит / поддержание / +N% профицит
-    // Goal in kcal is already visible in the hero ("съедено X из Y"), no need to repeat.
-    let infoCol = '';
-    const bmr = g.bmr;
-    const actToday = g.activity_today;  // null if no Garmin sync for that day
-    const actAvg = g.activity_avg;       // 14-day average
+    // Макросы — справа от кольца. Ккал уже в кольце, здесь не дублируем.
+    const macros = [
+      { label: 'Белки',     cls: 'p',   val: t.p,   goal: g.protein, more: true  },
+      { label: 'Жиры',      cls: 'f',   val: t.f,   goal: g.fats,    more: false },
+      { label: 'Углеводы',  cls: 'c',   val: t.c,   goal: g.carbs,   more: false },
+      { label: 'Клетчатка', cls: 'fib', val: t.fib, goal: g.fiber,   more: true  },
+    ];
+    const macrosHtml = macros.map(m => {
+      const v = Math.round(m.val || 0);
+      if (m.goal == null) {
+        return `<div class="macro-row"><div class="macro-head"><span>${m.label}</span><span class="macro-val">${v} г</span></div></div>`;
+      }
+      const pct = Math.min(100, Math.round((v / m.goal) * 100));
+      const mt = macroTone(v, m.goal, m.more);
+      return `<div class="macro-row">
+        <div class="macro-head"><span>${m.label}</span><span class="macro-val"><b class="tone-${mt}">${v}</b> / ${m.goal} г</span></div>
+        <div class="macro-track"><div class="macro-fill ${m.cls}" style="width:${pct}%"></div></div>
+      </div>`;
+    }).join('');
+
+    // Строка расхода: БМР · активность (среднее за 14 дн. — входит в цель;
+    // сегодняшнее — справочно, приглушено) · режим цели.
+    const chips = [];
+    if (g.bmr) chips.push(`${icon('flame')}БМР ${g.bmr}`);
+    const actToday = g.activity_today;  // null, если за день нет синка часов
+    const actAvg = g.activity_avg;       // среднее за 14 дней
+    if (actAvg) chips.push(`${icon('bolt')}${actAvg} ср${actToday != null ? ` <span class="chip-dim">· ${actToday} сег</span>` : ''}`);
+    else if (actToday != null) chips.push(`${icon('bolt')}<span class="chip-dim">${actToday} сег</span>`);
     const goalPct = g.deficit_pct ?? g.calorie_goal_pct;
-    if (bmr || actToday != null || actAvg || goalPct != null) {
-      const lines = [];
-      if (bmr) lines.push(`💤 БМР ${bmr}`);
-
-      // Activity line — primary number (what goes into the goal) is the 14-day avg.
-      // Today's actual is secondary — shown in muted style to avoid visual confusion
-      // ("777 сег" next to a 1885 goal made user think the goal should be 2218×0.85).
-      // Order: AVG first (primary, used in calc), TODAY second (informational, faded).
-      if (actToday != null && actAvg) {
-        lines.push(`🏃 ${actAvg} ср <span class="bmr-today-hint">· ${actToday} сег</span>`);
-      } else if (actToday != null) {
-        lines.push(`🏃 <span class="bmr-today-hint">${actToday} сег</span>`);
-      } else if (actAvg) {
-        lines.push(`🏃 ${actAvg} ср`);
-      }
-
-      // Goal line — pure mode label, no kcal duplication.
-      if (goalPct != null) {
-        if (goalPct < 0) lines.push(`🎯 −${Math.abs(goalPct)}% дефицит`);
-        else if (goalPct > 0) lines.push(`🎯 +${goalPct}% профицит`);
-        else lines.push(`🎯 поддержание`);
-      }
-
-      infoCol = `<div class="budget-info-col">${lines.join('<br>')}</div>`;
+    if (goalPct != null) {
+      const mode = goalPct < 0 ? `дефицит ${Math.abs(goalPct)}%` : goalPct > 0 ? `профицит ${goalPct}%` : 'поддержание';
+      chips.push(`${icon('target')}${mode}`);
     }
+    // Источник цели (адаптивный TDEE) не выводим — деталь живёт в справке.
 
-    // Источник цели (адаптивный TDEE) в шапку НЕ выводим — деталь живёт в
-    // справке (решение 16.08.2026: любая четвёртая строка ломала раскладку).
+    const incompleteNote = incomplete
+      ? `<div class="hero-note">${icon('alert')}Данные о расходе неполные — итог оценочный</div>` : '';
 
     banner.innerHTML = `
-    <div class="budget-banner-inner">
-      <div>
-        <span class="budget-remaining ${cls}">${heroText}</span>
-        <span class="budget-sub">${subText}</span>
+    <div class="hero-card">
+      <div class="hero-main">
+        <div class="ring-wrap">
+          ${ringSvg(goal ? consumed / goal : 0, tone)}
+          <div class="ring-center">
+            <div class="ring-num tone-${tone}">${heroNum}</div>
+            <div class="ring-label">${heroLabel}</div>
+            <div class="ring-sub">${consumed} из ${incomplete ? '~' : ''}${goal}</div>
+          </div>
+        </div>
+        <div class="macros">${macrosHtml}</div>
       </div>
-      ${infoCol}
+      ${chips.length ? `<div class="hero-chips">${chips.map(c => `<span class="chip">${c}</span>`).join('')}</div>` : ''}
+      ${incompleteNote}
     </div>`;
   }
 
@@ -166,12 +191,12 @@
     // bot's chat does). Without this banner new users get stuck (see Лена 16.05.2026).
     const emptyHint = (state.data.meals.length === 0) ? `
       <div class="empty-hint">
-        <div class="empty-hint-title">🍽 Запиши еду в чате</div>
+        <div class="empty-hint-title">Запиши еду в чате</div>
         <div class="empty-hint-body">Бот понимает три формата:</div>
         <ul class="empty-hint-list">
-          <li>✍️ <b>Текст</b> — «овсянка 100г, кофе с молоком»</li>
-          <li>📸 <b>Фото</b> — тарелки или упаковки</li>
-          <li>🎤 <b>Голос</b> — наговори голосовое</li>
+          <li>${icon('message')}<span><b>Текст</b> — «овсянка 100г, кофе с молоком»</span></li>
+          <li>${icon('camera')}<span><b>Фото</b> — тарелки или упаковки</span></li>
+          <li>${icon('bell')}<span><b>Голос</b> — наговори голосовое</span></li>
         </ul>
         <div class="empty-hint-foot">Дневник заполнится автоматически.</div>
       </div>` : '';
@@ -182,34 +207,33 @@
         return `
         <div class="slot dim" data-slot="${slot}">
           <div class="slot-left">
-            <div class="slot-title">${SLOT_LABEL[slot]}</div>
-            <div class="slot-empty">Пусто</div>
+            <div class="slot-title">${slotIcon(slot)}${SLOT_LABEL[slot]}</div>
+            <div class="slot-empty">Пока пусто — пришлите фото или текст в чат</div>
           </div>
           <div class="slot-right">
-            <span class="slot-meta" style="color:#c7c7cc;">—</span>
+            <span class="slot-meta slot-meta-empty">—</span>
           </div>
         </div>`;
       }
       // Merge all meals in this slot into one card (items from each preserve their meal_id).
       const expandedKey = `exp:slot:${slot}`;
       const isExpanded = sessionStorage.getItem(expandedKey) === '1';
-      const hdrExtra = isExpanded ? '⌄' : '›';
-      const totalKcal = meals.reduce((s, m) => s + (m.totals.kcal || 0), 0);
+            const totalKcal = meals.reduce((s, m) => s + (m.totals.kcal || 0), 0);
       const totalFib  = meals.reduce((s, m) => s + (m.totals.fib  || 0), 0);
       const allItems = meals.flatMap(m => m.items);
       const previewText = allItems.map(it => it.name).join(' · ');
       const itemsHtml = isExpanded ? renderMergedItems(slot, meals) : '';
       const hasPlan = meals.some(m => m.status === 'plan');
-      const planBadge = hasPlan ? '<span class="badge-plan">📋 план</span>' : '';
+      const planBadge = hasPlan ? `<span class="badge-plan">${icon('clipboard')}план</span>` : '';
       return `
         <div class="slot ${isExpanded ? 'expanded' : ''}" data-slot="${slot}">
-          <div class="slot-header-row" data-toggle="slot:${slot}" style="display:flex;justify-content:space-between;align-items:flex-start;cursor:pointer;width:100%">
-            <div class="slot-left" style="flex:1;min-width:0;">
-              <div class="slot-title">${SLOT_LABEL[slot]}${planBadge}</div>
+          <div class="slot-header-row" data-toggle="slot:${slot}">
+            <div class="slot-left">
+              <div class="slot-title">${slotIcon(slot)}${SLOT_LABEL[slot]}${planBadge}</div>
               ${!isExpanded ? `<div class="slot-preview">${escapeHtml(previewText)}</div>` : ''}
             </div>
-            <div class="slot-right" style="flex-shrink:0;padding-left:8px;text-align:right;">
-              <div class="slot-meta">${Math.round(totalKcal)}</div>
+            <div class="slot-right">
+              <div class="slot-meta">${Math.round(totalKcal)}<span class="slot-unit">ккал</span></div>
             </div>
           </div>
           ${isExpanded ? itemsHtml : ''}
@@ -253,26 +277,26 @@
     }
     const itemsHtml = rows.map(({ meal, it }) => {
       const noMacros = it.kcal === 0 && it.p === 0 && it.f === 0 && it.c === 0;
-      const warn = noMacros ? '<span class="item-warn">❗</span> ' : '';
+      const warn = noMacros ? `<span class="item-warn">${icon('alert')}</span> ` : '';
       const planCls = meal.status === 'plan' ? ' item-plan' : '';
       return `
       <div class="item${planCls}" data-meal-id="${meal.id}" data-idx="${it.idx}">
         <div class="delete-bg">Удалить</div>
         <div class="item-row">
           <div class="item-name">${warn}${escapeHtml(it.name)}</div>
-          <div class="item-weight">${Math.round(it.weight)} г</div>
-          <div class="item-macros">Ккал <b>${Math.round(it.kcal)}</b> · Б <b>${it.p}</b> · Ж <b>${it.f}</b> · У <b>${it.c}</b> · Кл <b>${it.fib}</b></div>
+          <div class="item-kcal">${Math.round(it.kcal)}<span class="slot-unit">ккал</span></div>
+          <div class="item-macros">${Math.round(it.weight)} г · Б <b>${it.p}</b> · Ж <b>${it.f}</b> · У <b>${it.c}</b> · Кл <b>${it.fib}</b></div>
         </div>
       </div>`;
     }).join('');
     const planMeals = meals.filter(m => m.status === 'plan');
     const planCloseHtml = planMeals.map(m => `
-      <div class="plan-close" data-meal-id="${m.id}">✓ Съедено целиком — закрыть план</div>`).join('');
+      <div class="plan-close" data-meal-id="${m.id}">${icon('check')}Съедено целиком — закрыть план</div>`).join('');
     return `
     <div class="items">
       ${itemsHtml}
       ${planCloseHtml}
-      <div class="add-in-slot" data-slot="${slot}">+ добавить в ${SLOT_LABEL[slot].replace(/^\S+\s/, '').toLowerCase()}</div>
+      <div class="add-in-slot" data-slot="${slot}">${icon('plus')}Добавить в ${SLOT_LABEL[slot].toLowerCase()}</div>
     </div>`;
   }
 
@@ -282,40 +306,10 @@
     }[c]));
   }
 
+  // Прогресс БЖУ переехал в карточку-шапку (renderBudgetBanner) — подвал скрыт.
   function renderFooter() {
-    const { totals_day: t, goals: g } = state.data;
-    const bars = [
-      { label: 'Ккал',      cls: 'kcal', val: t.kcal, goal: g?.kcal,    unit: '',  moreIsBetter: false },
-      { label: 'Белки',     cls: 'p',    val: t.p,    goal: g?.protein, unit: 'г', moreIsBetter: true  },
-      { label: 'Жиры',      cls: 'f',    val: t.f,    goal: g?.fats,    unit: 'г', moreIsBetter: false },
-      { label: 'Углев.',    cls: 'c',    val: t.c,    goal: g?.carbs,   unit: 'г', moreIsBetter: false },
-      { label: 'Клетчатка', cls: 'fib',  val: t.fib,  goal: g?.fiber,   unit: 'г', moreIsBetter: true  },
-    ];
-    document.getElementById('bars').innerHTML = bars.map(b => {
-      if (b.goal == null) {
-        return `<div class="bar-row">
-              <span>${b.label}</span>
-              <div></div>
-              <span class="bar-value">${Math.round(b.val || 0)} ${b.unit}</span>
-            </div>`;
-      }
-      const rawPct = Math.round(((b.val || 0) / b.goal) * 100);   // uncapped, for color
-      const pct = Math.min(100, rawPct);                            // capped, for bar width
-      // Semantic coloring: red = problem, green = good
-      // moreIsBetter (protein, fiber): under = red, on/over target = green
-      // lowerIsBetter (kcal, fats, carbs): over = red, on/under target = green
-      let valColor;
-      if (b.moreIsBetter) {
-        valColor = rawPct >= 85 ? '#34c759' : rawPct >= 60 ? '#ff9500' : '#ff3b30';
-      } else {
-        valColor = rawPct <= 100 ? '#34c759' : rawPct <= 115 ? '#ff9500' : '#ff3b30';
-      }
-      return `<div class="bar-row">
-            <span>${b.label}</span>
-            <div class="bar-track"><div class="bar-fill ${b.cls}" style="width:${pct}%"></div></div>
-            <span class="bar-value" style="color:${valColor}">${Math.round(b.val || 0)}<span> / ${b.goal}${b.unit}</span></span>
-          </div>`;
-    }).join('');
+    const footer = document.getElementById('day-footer');
+    if (footer) footer.hidden = true;
   }
 
   // Expose for later tasks
@@ -326,11 +320,11 @@
   async function openAddSheet(slot) {
     activeSlot = slot;
     document.getElementById('add-sheet-title').textContent =
-      `Добавить в ${SLOT_LABEL[slot].replace(/^\S+\s/, '')}`;
+      `Добавить: ${SLOT_LABEL[slot].toLowerCase()}`;
     document.getElementById('add-sheet').classList.add('open');
     document.getElementById('add-name').value = '';
     document.getElementById('add-weight').value = '';
-    document.getElementById('fav-list').innerHTML = '<div style="color:#999;font-size:12px">Загружаем…</div>';
+    document.getElementById('fav-list').innerHTML = '<div class="fav-hint">Загружаем…</div>';
     try {
       const favs = await API.getFavorites(15);
       document.getElementById('fav-list').innerHTML = favs.length
@@ -339,7 +333,7 @@
               ${escapeHtml(f.name)}
               <span class="w">${Math.round(f.default_weight)} г</span>
             </button>`).join('')
-        : '<div style="color:#999;font-size:12px">Пока пусто</div>';
+        : '<div class="fav-hint">Пока пусто</div>';
       document.querySelectorAll('.fav-chip').forEach(c => {
         c.addEventListener('click', () => {
           document.getElementById('add-name').value = c.dataset.name;
@@ -421,6 +415,7 @@ function wireItemGestures(root) {
       if (!dragging) return;
       currentX = e.touches[0].clientX - startX;
       if (currentX < 0) row.style.transform = `translateX(${Math.max(currentX, -100)}px)`;
+      el.classList.toggle('swiping', currentX < 0);
     }, { passive: true });
     el.addEventListener('touchend', async () => {
       dragging = false;
@@ -428,6 +423,7 @@ function wireItemGestures(root) {
         await deleteItem(el);
       } else {
         row.style.transform = '';
+        el.classList.remove('swiping');
       }
       currentX = 0;
     });
