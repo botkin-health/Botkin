@@ -419,3 +419,6 @@ code { background: var(--card-2); border-radius: 4px; padding: 1px 6px;
 
 /* Без сводки сверху — отступ до первой карточки слота. */
 #supp-day-container { padding-top: 12px; }
+
+/* Ссылки в справке — цвет темы, без подчёркивания */
+.help-body a { color: var(--link); text-decoration: none; }
