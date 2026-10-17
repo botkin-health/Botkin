@@ -72,7 +72,7 @@
           {"date": "2026-10-15", "value": 41}, {"date": "2026-10-16", "value": 46},
           {"date": "2026-10-17", "value": 48}
         ],
-        "extra": {"source": "Garmin", "heart": {"value": 61, "unit": "уд/мин", "label": "пульс покоя"}}
+        "extra": {"source": "Garmin", "pulse": {"latest": {"value": 61, "unit": "уд/мин", "date": "2026-10-17"}, "kind": "resting"}}
       },
       "weight": {
         "status": "ok", "connected": true, "last_date": "2026-10-15", "stale_days": 2,

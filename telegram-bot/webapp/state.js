@@ -6,7 +6,7 @@
 // Проверка без бэкенда: открыть миниапп с ?mock=full | sparse | quiet | newbie
 // (сценарии лежат в state.fixture.json, числа вымышленные).
 
-const STATE_VISIBLE = ['ok', 'attention', 'stale'];
+const STATE_VISIBLE = ['ok', 'attention', 'stale', 'insufficient'];
 const STATE_REFRESH_MS = 60 * 1000;
 let _stateFetchedAt = 0;
 let _stateLoading = false;
@@ -84,7 +84,7 @@ function stCard(title, main, lines, spark, extraCls = '') {
 
 function stLatestValue(s) {
   const l = s.latest || {};
-  if (l.systolic != null && l.diastolic != null) return `${stNum(l.systolic, 0)}/${stNum(l.diastolic, 0)}`;
+  if (l.value2 != null) return `${stNum(l.value, 0)}/${stNum(l.value2, 0)}`; // давление: value/value2
   return stNum(l.value);
 }
 
@@ -107,7 +107,8 @@ function stCardFor(title, s, asOf, extraLines) {
   const main = `${stEsc(stLatestValue(s))}${unit}`;
   if (s.status === 'stale') return stCard(title, main, [stEsc(stStale(s, asOf))], '', 'stale');
   const when = s.latest?.date ? stEsc(stWhen(s.latest.date, asOf)) : '';
-  return stCard(title, main, [when, stAvgLine(s), ...extraLines], stSpark(s.series, s.latest?.unit));
+  const few = s.status === 'insufficient' ? 'мало данных для сравнения' : '';
+  return stCard(title, main, [when, few, stAvgLine(s), ...extraLines], stSpark(s.series, s.latest?.unit));
 }
 
 function stRenderSleep(s, asOf) { return stCardFor('Сон', s, asOf, []); }
@@ -121,8 +122,9 @@ function stRenderActivity(s, asOf) {
 }
 
 function stRenderHrv(s, asOf) {
-  const h = s.extra?.heart || s.extra?.pulse || s.extra?.heart_rate;
-  const hl = h && h.value != null ? `${stEsc(h.label || 'пульс')} ${stNum(h.value, 0)} ${stEsc(h.unit || 'уд/мин')}` : '';
+  const h = s.extra?.pulse; // карточка пульса: {latest, avg, kind: resting|mixed}
+  const hv = h?.latest?.value;
+  const hl = hv != null ? `${h.kind === 'resting' ? 'пульс покоя' : 'пульс'} ${stNum(hv, 0)} ${stEsc(h.latest.unit || 'уд/мин')}` : '';
   const src = s.extra?.source ? `источник: ${stEsc(s.extra.source)}` : '';
   return stCardFor('HRV и пульс', s, asOf, [hl, src]);
 }
@@ -136,7 +138,7 @@ function stRenderWeight(s, asOf) {
 function stRenderBp(s, asOf) { return stCardFor('Давление', s, asOf, []); }
 
 function stRenderGlucose(s, asOf) {
-  const tir = s.extra?.tir ?? s.tir;
+  const tir = s.extra?.tir_pct;
   const tl = tir != null ? `в целевом диапазоне за ${s.window_days || 7} дн.: ${stNum(tir, 0)} %` : '';
   return stCardFor('Глюкоза', s, asOf, [stEsc(tl)]);
 }
