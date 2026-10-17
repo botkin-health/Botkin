@@ -7,7 +7,27 @@
     date: new Date(),  // local date
     data: null,        // last /api/day response
     lastDeleted: null, // for undo
+    everLogged: null,  // записывал ли пользователь еду хоть раз (для онбординг-подсказки)
   };
+
+  // Подсказку «Запиши еду в чате» показываем только новичкам — тем, у кого ещё
+  // нет ни одной записи. Признак: непустой список «часто используемого» или
+  // любой день с едой. Запоминаем в localStorage, чтобы не спрашивать API каждый раз.
+  const EVER_KEY = 'botkin_ever_logged';
+  function markEverLogged() {
+    if (state.everLogged) return;
+    state.everLogged = true;
+    try { localStorage.setItem(EVER_KEY, '1'); } catch (_) {}
+  }
+  try { if (localStorage.getItem(EVER_KEY) === '1') state.everLogged = true; } catch (_) {}
+  if (!state.everLogged) {
+    window.API.getFavorites(1)
+      .then(favs => {
+        if (favs && favs.length) { markEverLogged(); if (state.data) renderSlots(); }
+        else if (state.everLogged == null) { state.everLogged = false; if (state.data) renderSlots(); }
+      })
+      .catch(() => {});
+  }
 
   const FMT = new Intl.DateTimeFormat('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
   const SLOT_LABEL = { breakfast: 'Завтрак', lunch: 'Обед', snack: 'Перекусы', dinner: 'Ужин' };
@@ -35,6 +55,7 @@
   async function loadDay() {
     try {
       state.data = await API.getDay(toISO(state.date));
+      if (state.data.meals && state.data.meals.length) markEverLogged();
       render();
     } catch (e) {
       console.error(e);
@@ -158,7 +179,7 @@
     // Empty-state hint: when the day has no meals yet, show a CTA that explains
     // how to log food (since the mini-app itself doesn't accept food input —
     // bot's chat does). Without this banner new users get stuck (see Лена 16.05.2026).
-    const emptyHint = (state.data.meals.length === 0) ? `
+    const emptyHint = (state.data.meals.length === 0 && state.everLogged === false) ? `
       <div class="empty-hint">
         <div class="empty-hint-title">Запиши еду в чате</div>
         <div class="empty-hint-body">Бот понимает три формата:</div>
