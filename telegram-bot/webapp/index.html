@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>Botkin</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script>
+    // Сохранённая тема — до первой отрисовки, чтобы не мигало (см. applyTheme в settings.js).
+    try { var t = localStorage.getItem('botkin_theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch (e) {}
+  </script>
   <link rel="stylesheet" href="theme.css?v={{V}}">
   <link rel="stylesheet" href="day.css?v={{V}}">
   <link rel="stylesheet" href="settings.css?v={{V}}">
@@ -165,6 +169,15 @@
   <!-- ОТОБРАЖЕНИЕ -->
   <div class="group-title">Отображение</div>
   <div class="settings-group">
+    <div class="settings-row theme-row">
+      <span class="ri gray"><svg class="ic"><use href="#i-moon"/></svg></span>
+      <div class="row-label">Оформление</div>
+      <div class="theme-seg" role="radiogroup" aria-label="Оформление">
+        <button type="button" data-theme-opt="auto" role="radio">Авто</button>
+        <button type="button" data-theme-opt="light" role="radio">Светлая</button>
+        <button type="button" data-theme-opt="dark" role="radio">Тёмная</button>
+      </div>
+    </div>
     <div class="settings-row">
       <span class="ri teal"><svg class="ic"><use href="#i-chart"/></svg></span>
       <div class="row-label">

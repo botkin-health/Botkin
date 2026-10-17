@@ -869,3 +869,66 @@ async function sendFeedback() {
 load();
 loadLinks();
 loadDataSources();
+
+// ── Оформление: Авто / Светлая / Тёмная ─────────────────────────────────────
+// «Авто» = тема Telegram (токены theme.css на --tg-theme-*). Явный выбор ставит
+// data-theme на <html> (перекрывает токены) и хранится в CloudStorage Telegram
+// (синк между устройствами) + localStorage (мгновенно при старте, см. <head>).
+const THEME_KEY = 'botkin_theme';
+
+function applyTheme(mode) {
+  const root = document.documentElement;
+  if (mode === 'light' || mode === 'dark') root.dataset.theme = mode;
+  else { delete root.dataset.theme; mode = 'auto'; }
+  document.querySelectorAll('[data-theme-opt]').forEach(b =>
+    b.setAttribute('aria-checked', String(b.dataset.themeOpt === mode)));
+  syncTelegramChrome(mode);
+  return mode;
+}
+
+// Шапка и фон самого Telegram вокруг миниаппа — в цвет выбранной темы.
+function syncTelegramChrome(mode) {
+  try {
+    if (mode === 'auto') {
+      tg.setHeaderColor?.('bg_color');
+      tg.setBackgroundColor?.('secondary_bg_color');
+      tg.setBottomBarColor?.('bottom_bar_bg_color');
+      return;
+    }
+    const cs = getComputedStyle(document.documentElement);
+    const hex = v => cs.getPropertyValue(v).trim();
+    tg.setHeaderColor?.(hex('--header-bg'));
+    tg.setBackgroundColor?.(hex('--bg'));
+    tg.setBottomBarColor?.(hex('--bar-bg'));
+  } catch (e) { /* старые клиенты Telegram без этих методов */ }
+}
+
+function saveTheme(mode) {
+  try { localStorage.setItem(THEME_KEY, mode); } catch (e) {}
+  try { tg.CloudStorage?.setItem(THEME_KEY, mode, () => {}); } catch (e) {}
+}
+
+function initThemeSwitch() {
+  let current = 'auto';
+  try { current = localStorage.getItem(THEME_KEY) || 'auto'; } catch (e) {}
+  current = applyTheme(current);
+  // CloudStorage — источник истины между устройствами.
+  try {
+    tg.CloudStorage?.getItem(THEME_KEY, (err, val) => {
+      if (!err && val && val !== current) {
+        current = applyTheme(val);
+        try { localStorage.setItem(THEME_KEY, current); } catch (e) {}
+      }
+    });
+  } catch (e) {}
+  document.querySelectorAll('[data-theme-opt]').forEach(b => b.addEventListener('click', () => {
+    if (b.dataset.themeOpt === current) return;
+    current = applyTheme(b.dataset.themeOpt);
+    saveTheme(current);
+    tg.HapticFeedback?.selectionChanged?.();
+  }));
+  // В «Авто» Telegram сам перекрашивает --tg-theme-*; шапку синхронизируем заново.
+  tg.onEvent?.('themeChanged', () => { if (current === 'auto') syncTelegramChrome('auto'); });
+}
+
+initThemeSwitch();

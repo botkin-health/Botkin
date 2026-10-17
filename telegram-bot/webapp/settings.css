@@ -394,3 +394,19 @@ code { background: var(--card-2); border-radius: 4px; padding: 1px 6px;
 .doctor-export-status:empty { min-height: 0; padding: 0; }
 .doctor-export-status.ok { color: var(--ok); }
 .doctor-export-status.error { color: var(--bad); }
+
+/* Оформление: Авто / Светлая / Тёмная */
+.theme-row { flex-wrap: wrap; }
+.theme-seg {
+  display: flex; background: var(--card-2); border-radius: 9px; padding: 2px; gap: 2px;
+  flex-basis: 100%; margin: 10px 0 2px 40px;
+}
+.theme-seg button {
+  flex: 1;
+  border: none; background: none; color: var(--text); font: inherit; font-size: 13px;
+  padding: 6px 10px; border-radius: 7px; cursor: pointer;
+}
+.theme-seg button[aria-checked="true"] {
+  background: var(--card); font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .12);
+}
