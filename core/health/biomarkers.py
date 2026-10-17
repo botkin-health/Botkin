@@ -8,8 +8,14 @@
 
 from __future__ import annotations
 
+import json
+from typing import Any
+
 from core.health.kb_schema import to_canonical
 from core.health.staleness import days_ago_from_str, get_staleness_days
+
+
+HISTORY_POINTS = 4
 
 
 def aggregate_biomarkers(tests: list[dict]) -> dict:
@@ -47,6 +53,7 @@ def aggregate_biomarkers(tests: list[dict]) -> dict:
             rec["peak_max"] = max(pts, key=lambda x: x["value"])
             rec["peak_min"] = min(pts, key=lambda x: x["value"])
             rec["n_history"] = len(pts)
+            rec["history"] = pts[-HISTORY_POINTS:]  # до 4 последних точек по возрастанию даты
         bio[k] = rec
 
     all_dates = sorted(t.get("date", "") for t in tests if t.get("date"))
@@ -56,3 +63,29 @@ def aggregate_biomarkers(tests: list[dict]) -> dict:
         "total_markers": len(bio),
     }
     return bio
+
+
+def load_biomarkers(db: Any, user_id: int) -> dict:
+    """Канонические биомаркеры пользователя из Postgres `blood_tests`.
+
+    Заменяет чтение файла biomarkers_<id>.json. Структура результата — как у
+    `aggregate_biomarkers`. Вынесено из `dashboard_generator._load_biomarkers_from_db`
+    (там остался реэкспорт старого имени).
+    """
+    from sqlalchemy import text
+
+    rows = db.execute(
+        text('SELECT test_date, "values" AS vals FROM blood_tests WHERE user_id=:uid'), {"uid": user_id}
+    ).fetchall()
+    tests = []
+    for r in rows:
+        vals = r.vals
+        if isinstance(vals, str):  # SQLite/JSON-as-text
+            try:
+                vals = json.loads(vals)
+            except Exception:
+                vals = {}
+        td = r.test_date
+        date_str = td if isinstance(td, str) else td.isoformat()
+        tests.append({"date": date_str, "values": vals or {}})
+    return aggregate_biomarkers(tests)
