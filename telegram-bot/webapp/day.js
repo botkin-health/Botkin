@@ -175,7 +175,7 @@
           <div class="ring-center">
             <div class="ring-num tone-${tone}">${heroNum}</div>
             <div class="ring-label">${heroLabel}</div>
-            <div class="ring-sub">${consumed} из ${incomplete ? '~' : ''}${goal}</div>
+            <div class="ring-sub">${consumed} / ${incomplete ? '~' : ''}${goal}</div>
           </div>
         </div>
         <div class="macros">${macrosHtml}</div>
