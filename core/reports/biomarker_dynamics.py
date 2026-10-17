@@ -34,8 +34,8 @@ logger = logging.getLogger(__name__)
 # консолидация аудита 11.06.2026) — здесь только presentation-поля.
 # Если в новом юзере увидишь незнакомый ключ — добавь сюда.
 #
-# Reference ranges — взрослые мужчины, общая популяция.
 from core.health.kb_schema import reverse_index, to_canonical
+from core.health.ref_ranges import ref_range
 
 
 def _kb_reverse_index():
@@ -52,135 +52,104 @@ def _kb_reverse_index():
 # намеренно РАЗНЫЕ маркеры — разные методики). Инвариант: каждый ключ панели и
 # каждый merge-источник обязаны существовать в kb_schema.CANONICAL (тест + guard).
 #
-# Reference ranges — взрослые мужчины, общая популяция.
+# Границы нормы (ref_low/ref_high) вынесены в core/health/ref_ranges.py (#591) и
+# подмешиваются ниже — здесь только presentation.
 MARKER_CONFIG = {
     "glucose": {
         "label": "Глюкоза",
         "label_en": "Glucose",
         "unit": "ммоль/л",
         "unit_en": "mmol/L",
-        "ref_low": 3.9,
-        "ref_high": 6.0,
     },
     "HbA1c": {
         "label": "HbA1c",
         "label_en": "HbA1c",
         "unit": "%",
         "unit_en": "%",
-        "ref_low": 4.0,
-        "ref_high": 5.7,
     },
     "Hb": {
         "label": "Гемоглобин",
         "label_en": "Hemoglobin",
         "unit": "г/л",
         "unit_en": "g/L",
-        "ref_low": 130,
-        "ref_high": 170,
     },
     "RBC": {
         "label": "Эритроциты",
         "label_en": "RBC",
         "unit": "×10¹²/л",
         "unit_en": "×10¹²/L",
-        "ref_low": 4.0,
-        "ref_high": 5.5,
     },
     "WBC": {
         "label": "Лейкоциты",
         "label_en": "WBC",
         "unit": "×10⁹/л",
         "unit_en": "×10⁹/L",
-        "ref_low": 4.0,
-        "ref_high": 9.0,
     },
     "HCT": {
         "label": "Гематокрит",
         "label_en": "Hematocrit",
         "unit": "%",
         "unit_en": "%",
-        "ref_low": 39,
-        "ref_high": 49,
     },
     "cholesterol_total": {
         "label": "Холестерин общий",
         "label_en": "Total cholesterol",
         "unit": "ммоль/л",
         "unit_en": "mmol/L",
-        "ref_low": 3.0,
-        "ref_high": 5.2,
     },
     "LDL": {
         "label": "ЛПНП",
         "label_en": "LDL",
         "unit": "ммоль/л",
         "unit_en": "mmol/L",
-        "ref_low": 0,
-        "ref_high": 3.0,
     },
     "HDL": {
         "label": "ЛПВП",
         "label_en": "HDL",
         "unit": "ммоль/л",
         "unit_en": "mmol/L",
-        "ref_low": 1.0,
-        "ref_high": 2.5,
     },
     "triglycerides": {
         "label": "Триглицериды",
         "label_en": "Triglycerides",
         "unit": "ммоль/л",
         "unit_en": "mmol/L",
-        "ref_low": 0,
-        "ref_high": 1.7,
     },
     "ApoB": {
         "label": "ApoB",
         "label_en": "ApoB",
         "unit": "г/л",
         "unit_en": "g/L",
-        "ref_low": 0,
-        "ref_high": 0.9,
     },
     "ALT": {
         "label": "АЛТ",
         "label_en": "ALT",
         "unit": "Ед/л",
         "unit_en": "U/L",
-        "ref_low": 0,
-        "ref_high": 41,
     },
     "AST": {
         "label": "АСТ",
         "label_en": "AST",
         "unit": "Ед/л",
         "unit_en": "U/L",
-        "ref_low": 0,
-        "ref_high": 40,
     },
     "creatinine": {
         "label": "Креатинин",
         "label_en": "Creatinine",
         "unit": "мкмоль/л",
         "unit_en": "µmol/L",
-        "ref_low": 64,
-        "ref_high": 104,
     },
     "bilirubin_total": {
         "label": "Билирубин",
         "label_en": "Bilirubin (total)",
         "unit": "мкмоль/л",
         "unit_en": "µmol/L",
-        "ref_low": 5,
-        "ref_high": 21,
     },
     "CRP": {
         "label": "СРБ",
         "label_en": "CRP",
         "unit": "мг/л",
         "unit_en": "mg/L",
-        "ref_low": 0,
-        "ref_high": 5,
         "merge": ["hs_CRP"],
     },
     "ferritin": {
@@ -188,50 +157,45 @@ MARKER_CONFIG = {
         "label_en": "Ferritin",
         "unit": "нг/мл",
         "unit_en": "ng/mL",
-        "ref_low": 30,
-        "ref_high": 300,
     },
     "PSA_total": {
         "label": "ПСА",
         "label_en": "PSA",
         "unit": "нг/мл",
         "unit_en": "ng/mL",
-        "ref_low": 0,
-        "ref_high": 4,
     },
     "TSH": {
         "label": "ТТГ",
         "label_en": "TSH",
         "unit": "мМЕ/л",
         "unit_en": "mIU/L",
-        "ref_low": 0.4,
-        "ref_high": 4.0,
     },
     "vitamin_D": {
         "label": "Витамин D",
         "label_en": "Vitamin D",
         "unit": "нг/мл",
         "unit_en": "ng/mL",
-        "ref_low": 30,
-        "ref_high": 100,
     },
     "testosterone": {
         "label": "Тестостерон",
         "label_en": "Testosterone",
         "unit": "нмоль/л",
         "unit_en": "nmol/L",
-        "ref_low": 8.6,
-        "ref_high": 29,
     },
     "iron": {
         "label": "Железо",
         "label_en": "Iron",
         "unit": "мкмоль/л",
         "unit_en": "µmol/L",
-        "ref_low": 10,
-        "ref_high": 30,
     },
 }
+
+# PNG-графики рисуют зону нормы: подмешиваем мужские границы (для других полов
+# зона не рисуется — см. `sex` в render_*_png). Тот же источник, что у flag_for.
+for _k, _cfg in MARKER_CONFIG.items():
+    _bounds = ref_range(_k, "male")
+    if _bounds is not None:
+        _cfg["ref_low"], _cfg["ref_high"] = _bounds
 
 # Приоритет для отбора первых 6 панелей. Идея — то что чаще всего интересно
 # при «разборе для врача»: метаболика + липиды + печень + одна функциональная.
@@ -399,6 +363,7 @@ def render_single_marker_png(
     kb_path: Path | str,
     marker: str,
     user_name: str = "",
+    sex: Optional[str] = "male",
 ) -> Optional[bytes] | dict:
     """Большой график одного биомаркера.
 
@@ -440,8 +405,8 @@ def render_single_marker_png(
     cfg = MARKER_CONFIG[canonical]
     dates = [datetime.strptime(d, "%Y-%m-%d") for d, _ in points]
     values = [v for _, v in points]
-    ref_low = cfg["ref_low"]
-    ref_high = cfg["ref_high"]
+    bounds = ref_range(canonical, sex)  # None → нормы для этого пола нет: зону/флаги не рисуем
+    ref_low, ref_high = bounds if bounds else (None, None)
 
     fig, ax = plt.subplots(figsize=(10, 5.5), dpi=130)
 
@@ -450,9 +415,11 @@ def render_single_marker_png(
         title += f"  ·  {user_name}"
     fig.suptitle(title, fontsize=15, fontweight="bold", y=0.97)
 
-    ax.axhspan(ref_low, ref_high, color="#34c759", alpha=0.13, zorder=0, label="норма")
-
-    colors = ["#34c759" if ref_low <= v <= ref_high else "#ff9500" for v in values]
+    if bounds:
+        ax.axhspan(ref_low, ref_high, color="#34c759", alpha=0.13, zorder=0, label="норма")
+        colors = ["#34c759" if ref_low <= v <= ref_high else "#ff9500" for v in values]
+    else:
+        colors = ["#48484a"] * len(values)
     ax.plot(dates, values, color="#48484a", linewidth=2.0, zorder=1)
     ax.scatter(dates, values, c=colors, s=90, zorder=2, edgecolor="white", linewidth=1.5)
 
@@ -476,25 +443,26 @@ def render_single_marker_png(
             color="#1c1c1e",
         )
 
-    # Линии нормы (вверху/внизу)
-    ax.axhline(ref_low, color="#34c759", linewidth=0.8, linestyle="--", alpha=0.6)
-    ax.axhline(ref_high, color="#34c759", linewidth=0.8, linestyle="--", alpha=0.6)
-    ax.text(
-        dates[-1],
-        ref_high,
-        f"  верх нормы {ref_high}",
-        fontsize=9,
-        color="#34c759",
-        va="bottom",
-    )
-    ax.text(
-        dates[-1],
-        ref_low,
-        f"  низ нормы {ref_low}",
-        fontsize=9,
-        color="#34c759",
-        va="top",
-    )
+    if bounds:
+        # Линии нормы (вверху/внизу)
+        ax.axhline(ref_low, color="#34c759", linewidth=0.8, linestyle="--", alpha=0.6)
+        ax.axhline(ref_high, color="#34c759", linewidth=0.8, linestyle="--", alpha=0.6)
+        ax.text(
+            dates[-1],
+            ref_high,
+            f"  верх нормы {ref_high}",
+            fontsize=9,
+            color="#34c759",
+            va="bottom",
+        )
+        ax.text(
+            dates[-1],
+            ref_low,
+            f"  низ нормы {ref_low}",
+            fontsize=9,
+            color="#34c759",
+            va="top",
+        )
 
     ax.tick_params(axis="x", labelsize=10, rotation=25)
     ax.tick_params(axis="y", labelsize=10)
@@ -504,8 +472,8 @@ def render_single_marker_png(
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
 
-    y_lo = min(min(values), ref_low) * 0.85
-    y_hi = max(max(values), ref_high) * 1.15
+    y_lo = min(min(values), ref_low if bounds else min(values)) * 0.85
+    y_hi = max(max(values), ref_high if bounds else max(values)) * 1.15
     if y_lo > 0 and min(values) > 0:
         ax.set_ylim(y_lo, y_hi)
     else:
@@ -534,6 +502,7 @@ def render_single_marker_png(
 def render_biomarker_dynamics_png(
     kb_path: Path | str,
     user_name: str = "",
+    sex: Optional[str] = "male",
 ) -> Optional[bytes]:
     """Сгенерировать PNG и вернуть байты. None если данных недостаточно."""
     import matplotlib
@@ -573,11 +542,13 @@ def render_biomarker_dynamics_png(
         dates = [datetime.strptime(d, "%Y-%m-%d") for d, _ in points]
         values = [v for _, v in points]
 
-        ref_low = cfg["ref_low"]
-        ref_high = cfg["ref_high"]
-        ax.axhspan(ref_low, ref_high, color="#34c759", alpha=0.12, zorder=0)
-
-        colors = ["#34c759" if ref_low <= v <= ref_high else "#ff9500" for v in values]
+        bounds = ref_range(canonical, sex)  # None → нормы для этого пола нет
+        ref_low, ref_high = bounds if bounds else (None, None)
+        if bounds:
+            ax.axhspan(ref_low, ref_high, color="#34c759", alpha=0.12, zorder=0)
+            colors = ["#34c759" if ref_low <= v <= ref_high else "#ff9500" for v in values]
+        else:
+            colors = ["#48484a"] * len(values)
         ax.plot(dates, values, color="#48484a", linewidth=1.5, zorder=1)
         ax.scatter(dates, values, c=colors, s=42, zorder=2, edgecolor="white", linewidth=1.2)
 
@@ -611,8 +582,8 @@ def render_biomarker_dynamics_png(
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
 
-        y_lo = min(min(values), ref_low) * 0.92
-        y_hi = max(max(values), ref_high) * 1.10
+        y_lo = min(min(values), ref_low if bounds else min(values)) * 0.92
+        y_hi = max(max(values), ref_high if bounds else max(values)) * 1.10
         # На случай ref_low=0 и значения у нуля — не уйти в отрицательную ось
         if y_lo > 0 and min(values) > 0:
             ax.set_ylim(y_lo, y_hi)
@@ -622,7 +593,9 @@ def render_biomarker_dynamics_png(
     fig.text(
         0.5,
         0.01,
-        "Зелёная зона — референсный диапазон. Жёлтая точка — вне нормы.",
+        "Зелёная зона — референсный диапазон. Жёлтая точка — вне нормы."
+        if ref_range(markers[0], sex) is not None
+        else "Референсные диапазоны для этого пола не заданы — оценка нормы не показана.",
         ha="center",
         fontsize=8.5,
         color="#6e6e72",

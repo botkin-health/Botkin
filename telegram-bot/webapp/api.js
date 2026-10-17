@@ -108,6 +108,11 @@
       });
     },
 
+    // GET /api/health/summary?days=7&lang=ru → сводка для вкладки «Состояние»
+    getHealthSummary(days = 7, lang = 'ru') {
+      return request(`/api/health/summary?days=${days}&lang=${lang}`);
+    },
+
     // Escape hatch for ad-hoc calls (e.g. /api/settings).
     request,
   };

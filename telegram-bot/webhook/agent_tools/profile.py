@@ -113,8 +113,18 @@ async def update_profile_questionnaire(
     from datetime import date as date_cls
 
     updates: dict[str, Any] = {}
+    sex_set = False
     if req.sex is not None:
-        updates["sex"] = req.sex
+        from core.health.ref_ranges import normalize_sex, set_user_sex
+
+        if normalize_sex(req.sex) is None:
+            return {"status": "error", "error": f"invalid sex: {req.sex!r} (male|female)"}
+        from database.crud import get_user_by_telegram_id
+
+        row = get_user_by_telegram_id(db, user.telegram_id)
+        if row is not None:
+            set_user_sex(row, req.sex)  # users.sex + маркер «пол задан явно» (#591)
+            sex_set = True
     if req.height_cm is not None:
         updates["height_cm"] = req.height_cm
     if req.birth_date is not None:
@@ -134,19 +144,20 @@ async def update_profile_questionnaire(
     if req.agent_system_prompt is not None:
         updates["agent_system_prompt"] = req.agent_system_prompt
 
-    if not updates:
+    if not updates and not sex_set:
         return {"status": "noop", "reason": "no fields provided"}
 
-    # Build dynamic UPDATE
-    set_clause = ", ".join([f"{k} = :{k}" for k in updates])
-    sql = f"UPDATE users SET {set_clause} WHERE telegram_id = :uid"
-    params = {**updates, "uid": user.telegram_id}
-    db.execute(sql_text(sql), params)
+    if updates:
+        # Build dynamic UPDATE
+        set_clause = ", ".join([f"{k} = :{k}" for k in updates])
+        sql = f"UPDATE users SET {set_clause} WHERE telegram_id = :uid"
+        params = {**updates, "uid": user.telegram_id}
+        db.execute(sql_text(sql), params)
     db.commit()
 
     return {
         "status": "ok",
-        "updated_fields": list(updates.keys()),
+        "updated_fields": (["sex"] if sex_set else []) + list(updates.keys()),
         "telegram_id": user.telegram_id,
     }
 

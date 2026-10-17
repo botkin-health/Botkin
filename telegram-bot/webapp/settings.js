@@ -5,10 +5,17 @@ tg.expand();
 let settings = {};
 const API = '/api/settings';
 const SLOTS = {
-  morning_before: '☀️ Утро (до еды)',
-  morning_with:   '🌅 Утро (с завтраком)',
-  evening:        '🌙 Вечер'
+  morning_before: 'Утро (до еды)',
+  morning_with:   'Утро (с завтраком)',
+  evening:        'Вечер'
 };
+const SLOT_ICONS = { morning_before: 'sunrise', morning_with: 'sun', evening: 'moon' };
+const icon = (name) => `<svg class="ic"><use href="#i-${name}"/></svg>`;
+// Вибрация Telegram (безопасно вне Telegram)
+const haptic = (kind) => { try { const h = window.Telegram?.WebApp?.HapticFeedback; kind === 'select' ? h?.selectionChanged?.() : h?.impactOccurred?.('light'); } catch (e) {} };
+
+// Аккордеон справки
+function toggleHelp(h3) { h3.parentElement.classList.toggle('open'); }
 
 // ── Navigation ──────────────────────────────────────────────────────────────
 function go(section) {
@@ -20,12 +27,14 @@ function switchTab(tab) {
   flushDirtyInputs(); // save any typed-but-not-blurred inputs before leaving settings
   // Update tab bar active state
   document.querySelectorAll('.tab-item').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.tab === tab);
+    // Дашборд открывается из «Состояния» и своей кнопки в tab-bar не имеет
+    btn.classList.toggle('active', btn.dataset.tab === (tab === 'dashboard' ? 'state' : tab));
   });
   // Show/hide sections
   const sectionMap = {
     'day': 'day-section',
     'supplements-tab': 'supplements-tab-section',
+    'state': 'state-tab-section',
     'dashboard': 'dashboard-tab-section',
     'settings': 'settings-section',
   };
@@ -44,6 +53,7 @@ function switchTab(tab) {
   if (tab === 'supplements-tab') loadSupplementsDay();
   // When switching to dashboard tab, lazy-load the iframe (cached after first open)
   if (tab === 'dashboard') loadDashboard();
+  if (tab === 'state') loadState();
 }
 
 // ── Load settings ───────────────────────────────────────────────────────────
@@ -77,8 +87,8 @@ function updateGoalSlider(pct) {
   }
   // Track fill: map [-30..+20] → [0..100]%
   const pos = ((pct - (-30)) / (20 - (-30))) * 100;
-  const color = pct < 0 ? '#ff9500' : pct === 0 ? '#8e8e93' : '#34c759';
-  const empty = window.matchMedia('(prefers-color-scheme: dark)').matches ? '#3a3a3c' : '#e5e5ea';
+  const color = pct < 0 ? 'var(--warn)' : pct === 0 ? 'var(--hint)' : 'var(--ok)';
+  const empty = 'var(--track)';
   slider.style.background =
     `linear-gradient(to right, ${color} 0%, ${color} ${pos}%, ${empty} ${pos}%, ${empty} 100%)`;
 }
@@ -242,16 +252,16 @@ function renderSupplements() {
     div.innerHTML = `<div class="group-title">${escapeHtml(label)}</div>
       <div class="settings-group">
         ${items.length === 0
-          ? '<div class="settings-row" style="color:#c7c7cc;font-style:italic;font-size:13px">— пусто —</div>'
+          ? '<div class="settings-row no-icon supp-empty-row">— пусто —</div>'
           : items.map(s => {
               const safeName = escapeHtml(s.name);
               const attrName = safeName.replace(/"/g, '&quot;');
               const safeDose = s.dose ? escapeHtml(s.dose) : '';
               const doseSpan = safeDose ? ` <span class="supp-dose">(${safeDose})</span>` : '';
               return `
-            <div class="settings-row">
+            <div class="settings-row no-icon">
               <div class="row-label">${safeName}${doseSpan}</div>
-              <button class="del-btn-round" data-slot="${slot}" data-name="${attrName}" aria-label="Удалить">✕</button>
+              <button class="del-btn-round" data-slot="${slot}" data-name="${attrName}" aria-label="Удалить">${icon('x')}</button>
             </div>`;
             }).join('')}
       </div>`;
@@ -359,8 +369,8 @@ function populateBmrForm() {
     lines.push(`<div><strong>Apple Health</strong> — ${tag}${r.source === 'apple_health' && r.bmr ? ` · ${r.bmr} ккал` : ''}</div>`);
   }
   if (!av.garmin && !av.apple_health) {
-    lines.push(`<div style="color:#8e8e93">Нет данных с часов. Используется среднее по умолчанию (~2150 ккал).</div>`);
-    lines.push(`<div style="color:#8e8e93; margin-top:6px">Подключи Garmin или Apple Health, либо переключи на «Ручной» и введи параметры.</div>`);
+    lines.push(`<div class="muted">Нет данных с часов. Используется среднее по умолчанию (~2150 ккал).</div>`);
+    lines.push(`<div class="muted" style="margin-top:6px">Подключи Garmin или Apple Health, либо переключи на «Ручной» и введи параметры.</div>`);
   }
   document.getElementById('bmr-auto-info').innerHTML = lines.join('');
 
@@ -382,7 +392,7 @@ function toggleBmrPanel() {
   const panel = document.getElementById('bmr-panel');
   const chevron = document.getElementById('bmr-chevron');
   panel.classList.toggle('open');
-  chevron.textContent = panel.classList.contains('open') ? '⌄' : '›';
+  chevron.classList.toggle('open', panel.classList.contains('open'));
 }
 
 function toggleBmrModeUI() {
@@ -399,7 +409,7 @@ function recomputeBmrPreview() {
   const act = document.getElementById('bmr-activity').value || 'light';
   const preview = document.getElementById('bmr-preview');
   if (!age || !h || !w) {
-    preview.innerHTML = '<div style="color:#8e8e93">Заполни все поля для расчёта</div>';
+    preview.innerHTML = '<div class="muted">Заполни все поля для расчёта</div>';
     return;
   }
   const base = 10 * w + 6.25 * h - 5 * age;
@@ -410,8 +420,8 @@ function recomputeBmrPreview() {
     <span class="bmr-big">${bmr} ккал</span>
     <span class="bmr-sub">базовый расход (BMR)</span>
     <div style="margin-top:8px; font-size:13px">
-      🏃 +${activity} ккал — активность (×${PAL[act]})<br>
-      🔥 <strong>${tdee} ккал/день</strong> — общий расход (TDEE)
+      +${activity} ккал — активность (×${PAL[act]})<br>
+      <strong>${tdee} ккал/день</strong> — общий расход (TDEE)
     </div>
   `;
 }
@@ -433,7 +443,7 @@ async function saveBmrManual() {
     });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     btn.textContent = '✓ Сохранено';
-    setTimeout(() => { btn.textContent = '💾 Сохранить'; btn.disabled = false; }, 1200);
+    setTimeout(() => { btn.textContent = 'Сохранить'; btn.disabled = false; }, 1200);
     await loadBmr();
   } catch (e) {
     console.error(e);
@@ -455,12 +465,19 @@ async function saveBmrSourceAuto() {
 // ── Reminder time toggle ────────────────────────────────────────────────────
 function toggleReminderTime() {
   const enabled = document.getElementById('reminders-toggle').checked;
-  document.getElementById('reminder-time-row').style.display = enabled ? 'block' : 'none';
+  document.getElementById('reminder-time-row').style.display = enabled ? 'flex' : 'none';
 }
 
 // ── Supplements daily log ───────────────────────────────────────────────────
 // Tracks which supplements the user has taken on a given date, with times.
 // Syncs the currently viewed date with window.__nutri.state.date (Diary tab).
+// Просмотр сегодняшнего дня? (для подписи «Принято сегодня» / «за день»).
+function suppIsToday() {
+  const t = new Date();
+  const iso = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+  return currentSuppDate() === iso;
+}
+
 function currentSuppDate() {
   // Reuse the date that Diary is viewing so calendar nav stays coherent.
   // day.js keeps state.date as a Date OBJECT — convert to YYYY-MM-DD (local, not UTC).
@@ -520,23 +537,27 @@ function renderSupplementsDay(data) {
   let html = `
     <div class="supp-progress-card">
       <div class="supp-progress-head">
-        <div class="supp-progress-title">Принято сегодня</div>
-        <div class="supp-progress-count">${progress.taken} из ${progress.total} · ${pct}%</div>
+        <div>
+          <div class="supp-progress-title">${suppIsToday() ? 'Принято сегодня' : 'Принято за день'}</div>
+          <div class="supp-progress-big">${progress.taken} <small>из ${progress.total}</small></div>
+        </div>
+        <div class="supp-progress-count">${pct}%</div>
       </div>
       <div class="supp-progress-track"><div class="supp-progress-fill" style="width:${pct}%"></div></div>
     </div>`;
 
   for (const slot of slots) {
     if (!slot.items.length) continue;
-    html += `<div class="supp-slot-title">${escapeHtml(slot.label)}</div>`;
-    html += `<div class="supp-slot-group">`;
+    // Ключи слотов приходят с сервера; эмодзи из подписи заменяем SVG-иконкой
+    const label = String(slot.label || '').replace(/^[^\p{L}\p{N}]+/u, '');
+    html += `<div class="supp-slot-group"><div class="supp-slot-title">${icon(SLOT_ICONS[slot.slot] || 'pill')}${escapeHtml(label)}</div>`;
     for (const it of slot.items) {
       const taken = !!it.taken_at;
       const safeName = escapeHtml(it.name);
       const safeDose = it.dose ? escapeHtml(it.dose) : '';
       html += `
         <div class="supp-row${taken ? ' taken' : ''}" data-name="${safeName.replace(/"/g, '&quot;')}">
-          <div class="supp-check"></div>
+          <div class="supp-check">${icon('check')}</div>
           <div class="supp-name">${safeName}${safeDose ? ` <span class="supp-dose">(${safeDose})</span>` : ''}</div>
         </div>`;
     }
@@ -557,8 +578,9 @@ async function toggleSupplement(row) {
   const isTaken = row.classList.contains('taken');
   const method = isTaken ? 'DELETE' : 'POST';
 
-  // Optimistic UI update
+  // Optimistic UI update + вибрация
   row.classList.toggle('taken');
+  haptic(isTaken ? 'select' : 'impact');
 
   try {
     const r = await fetch('/api/supplements/take', {
@@ -723,7 +745,7 @@ function _renderConnectPanel(s) {
         <li>Открой приложение <strong>FreeStyle Libre 3</strong> → ☰ → <strong>Connected Apps</strong> → <strong>LibreLinkUp</strong></li>
         <li>Нажми <strong>Invite Follower</strong> и введи email: <code>dr@botkin.health</code></li>
       </ol>
-      <p style="color:#8e8e93;font-size:12px">После отправки приглашения — запусти ожидание в боте. Бот сам поймает подключение (до 10 мин).</p>
+      <p class="muted-sm">После отправки приглашения — запусти ожидание в боте. Бот сам поймает подключение (до 10 мин).</p>
       <a class="connect-tg-btn" href="${deeplink}">Запустить ожидание в боте →</a>
     </div>`;
   }
@@ -776,7 +798,7 @@ function selectAppleMethod(method, token, sourceId) {
       <li>Format: JSON · v2 · Aggregate ON · Group by Day · Range: Yesterday</li>
       <li>Выбери нужные метрики и сохрани.</li>
     </ol>
-    <p style="color:#8e8e93;font-size:12px">Данные начнут поступать ночью (или через ручной экспорт в HAE).</p>`;
+    <p class="muted-sm">Данные начнут поступать ночью (или через ручной экспорт в HAE).</p>`;
   } else {
     detail.innerHTML = `<ol>
       <li>Выбери версию команды:<br>
@@ -786,7 +808,7 @@ function selectAppleMethod(method, token, sourceId) {
         <code>Bearer ${safeToken}</code><button class="copy-btn" data-action="copy" data-copy="Bearer ${safeToken}">Скопировать</button></li>
       <li>Установка, разрешения и автоматизация — в <a href="https://github.com/botkin-health/Botkin/blob/main/docs/user_guide/ru/apple-health.md#-%D0%B1%D0%B5%D1%81%D0%BF%D0%BB%D0%B0%D1%82%D0%BD%D1%8B%D0%B9-%D0%BF%D1%83%D1%82%D1%8C--ios-shortcuts-%D0%B1%D0%B5%D0%B7-hae" target="_blank">гайде</a></li>
     </ol>
-    <p style="color:#8e8e93;font-size:12px">Вес, давление и сон — только через HAE.</p>`;
+    <p class="muted-sm">Вес, давление и сон — только через HAE.</p>`;
   }
 }
 
@@ -857,3 +879,66 @@ async function sendFeedback() {
 load();
 loadLinks();
 loadDataSources();
+
+// ── Оформление: Авто / Светлая / Тёмная ─────────────────────────────────────
+// «Авто» = тема Telegram (токены theme.css на --tg-theme-*). Явный выбор ставит
+// data-theme на <html> (перекрывает токены) и хранится в CloudStorage Telegram
+// (синк между устройствами) + localStorage (мгновенно при старте, см. <head>).
+const THEME_KEY = 'botkin_theme';
+
+function applyTheme(mode) {
+  const root = document.documentElement;
+  if (mode === 'light' || mode === 'dark') root.dataset.theme = mode;
+  else { delete root.dataset.theme; mode = 'auto'; }
+  document.querySelectorAll('[data-theme-opt]').forEach(b =>
+    b.setAttribute('aria-checked', String(b.dataset.themeOpt === mode)));
+  syncTelegramChrome(mode);
+  return mode;
+}
+
+// Шапка и фон самого Telegram вокруг миниаппа — в цвет выбранной темы.
+function syncTelegramChrome(mode) {
+  try {
+    if (mode === 'auto') {
+      tg.setHeaderColor?.('bg_color');
+      tg.setBackgroundColor?.('secondary_bg_color');
+      tg.setBottomBarColor?.('bottom_bar_bg_color');
+      return;
+    }
+    const cs = getComputedStyle(document.documentElement);
+    const hex = v => cs.getPropertyValue(v).trim();
+    tg.setHeaderColor?.(hex('--header-bg'));
+    tg.setBackgroundColor?.(hex('--bg'));
+    tg.setBottomBarColor?.(hex('--bar-bg'));
+  } catch (e) { /* старые клиенты Telegram без этих методов */ }
+}
+
+function saveTheme(mode) {
+  try { localStorage.setItem(THEME_KEY, mode); } catch (e) {}
+  try { tg.CloudStorage?.setItem(THEME_KEY, mode, () => {}); } catch (e) {}
+}
+
+function initThemeSwitch() {
+  let current = 'auto';
+  try { current = localStorage.getItem(THEME_KEY) || 'auto'; } catch (e) {}
+  current = applyTheme(current);
+  // CloudStorage — источник истины между устройствами.
+  try {
+    tg.CloudStorage?.getItem(THEME_KEY, (err, val) => {
+      if (!err && val && val !== current) {
+        current = applyTheme(val);
+        try { localStorage.setItem(THEME_KEY, current); } catch (e) {}
+      }
+    });
+  } catch (e) {}
+  document.querySelectorAll('[data-theme-opt]').forEach(b => b.addEventListener('click', () => {
+    if (b.dataset.themeOpt === current) return;
+    current = applyTheme(b.dataset.themeOpt);
+    saveTheme(current);
+    tg.HapticFeedback?.selectionChanged?.();
+  }));
+  // В «Авто» Telegram сам перекрашивает --tg-theme-*; шапку синхронизируем заново.
+  tg.onEvent?.('themeChanged', () => { if (current === 'auto') syncTelegramChrome('auto'); });
+}
+
+initThemeSwitch();

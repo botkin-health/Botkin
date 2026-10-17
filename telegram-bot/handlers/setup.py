@@ -381,7 +381,9 @@ async def _save_profile(message: Message, state: FSMContext):
         if height_cm is not None:
             user.height_cm = height_cm
         if sex is not None:
-            user.sex = sex
+            from core.health.ref_ranges import set_user_sex
+
+            set_user_sex(user, sex)  # + маркер «пол задан явно» (#591)
         if target_weight is not None:
             user.target_weight_kg = target_weight
             # Also sync to user_settings if exists

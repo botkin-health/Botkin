@@ -1,0 +1,98 @@
+/* ── Botkin mini-app design tokens ─────────────────────────────────────────
+ *
+ * Единственное место, где живут цвета, радиусы и шрифты миниаппа.
+ * Цвета берутся из темы Telegram (--tg-theme-*, их ставит telegram-web-app.js
+ * и обновляет при смене темы), фолбэки — светлая палитра для браузера вне
+ * Telegram. В day.css / settings.css — только var(--…), без hex.
+ */
+:root {
+  /* Поверхности */
+  --bg:         var(--tg-theme-secondary-bg-color, #f2f2f7);   /* фон страницы */
+  --card:       var(--tg-theme-section-bg-color, var(--tg-theme-bg-color, #ffffff));
+  --card-2:     var(--tg-theme-secondary-bg-color, #f2f2f7);   /* поле внутри карточки */
+  --header-bg:  var(--tg-theme-header-bg-color, var(--tg-theme-bg-color, #ffffff));
+  --bar-bg:     var(--tg-theme-bottom-bar-bg-color, var(--tg-theme-bg-color, #ffffff));
+
+  /* Текст */
+  --text:       var(--tg-theme-text-color, #000000);
+  --hint:       var(--tg-theme-hint-color, #8e8e93);
+  --subtitle:   var(--tg-theme-subtitle-text-color, var(--tg-theme-hint-color, #8e8e93));
+  --section-title: var(--tg-theme-section-header-text-color, var(--tg-theme-hint-color, #6d6d72));
+  --link:       var(--tg-theme-link-color, #2481cc);
+
+  /* Акцент и кнопки */
+  --accent:     var(--tg-theme-button-color, #2481cc);
+  --on-accent:  var(--tg-theme-button-text-color, #ffffff);
+  --accent-text: var(--tg-theme-accent-text-color, var(--tg-theme-link-color, #2481cc));
+  --destructive: var(--tg-theme-destructive-text-color, #e53935);
+
+  /* Линии */
+  --separator:  var(--tg-theme-section-separator-color, rgba(60, 60, 67, 0.18));
+  --track:      color-mix(in srgb, var(--hint) 22%, transparent);  /* фон полосок/колец */
+
+  /* Семантика (одинаково читается в светлой и тёмной теме) */
+  --ok:   #34c759;
+  --warn: #ff9500;
+  --bad:  #ff3b30;
+  --plan: #c9a400;
+  --plan-bg: color-mix(in srgb, #c9a400 16%, transparent);
+
+  /* Нутриенты */
+  --c-kcal: #2481cc;
+  --c-p:    #e0577c;
+  --c-f:    #f5b02b;
+  --c-c:    #4cb563;
+  --c-fib:  #8e79d6;
+
+  /* Слоты дня */
+  --slot-breakfast: #f5a623;
+  --slot-lunch:     #4cb563;
+  --slot-snack:     #e0577c;
+  --slot-dinner:    #7f6fd6;
+
+  /* Форма */
+  --radius:    14px;
+  --radius-sm: 10px;
+  --gap:       12px;
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+html, body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* SVG-иконки из спрайта в index.html: <svg class="ic"><use href="#i-pill"/></svg> */
+.ic {
+  width: 1.25em; height: 1.25em; flex-shrink: 0;
+  fill: none; stroke: currentColor; stroke-width: 1.8;
+  stroke-linecap: round; stroke-linejoin: round;
+  vertical-align: -0.25em;
+}
+
+/* ── Принудительная тема (Настройки → Оформление) ──────────────────────────
+ * data-theme="light|dark" на <html> перекрывает токены фиксированной палитрой.
+ * Переменные --tg-theme-* Telegram ставит инлайном на <html>, поэтому
+ * перекрываем не их, а наши токены — у [data-theme] специфичность выше :root.
+ * Без атрибута («Авто») работают токены выше, то есть тема Telegram.
+ */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f2f2f7; --card: #ffffff; --card-2: #f2f2f7;
+  --header-bg: #ffffff; --bar-bg: #ffffff;
+  --text: #000000; --hint: #8e8e93; --subtitle: #8e8e93; --section-title: #6d6d72;
+  --link: #2481cc; --accent: #2481cc; --on-accent: #ffffff; --accent-text: #2481cc;
+  --destructive: #e53935; --separator: rgba(60, 60, 67, 0.18);
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0f0f0f; --card: #1c1c1d; --card-2: #2c2c2e;
+  --header-bg: #1c1c1d; --bar-bg: #1c1c1d;
+  --text: #ffffff; --hint: #98989e; --subtitle: #98989e; --section-title: #8d8e93;
+  --link: #3e88f7; --accent: #3e88f7; --on-accent: #ffffff; --accent-text: #3e88f7;
+  --destructive: #ff6b6b; --separator: rgba(84, 84, 88, 0.6);
+}

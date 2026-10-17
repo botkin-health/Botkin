@@ -36,6 +36,7 @@ from core.health.onboarding_lists import (
     onboarding_list as _onboarding_list,
     split_freetext as _split_freetext,  # noqa: F401 (re-export: tests import it from here)
 )
+from core.health.ref_ranges import explicit_sex, flag_for
 from core.reports.biomarker_dynamics import MARKER_CONFIG
 from services.report_i18n import (
     CHROME,
@@ -68,6 +69,7 @@ class ReportSection:
     items: list[str] = field(default_factory=list)
     self_reported: bool = False
     empty_note: str = "Нет данных"
+    footnote: str = ""  # короткая пометка под списком (напр. про референсы по полу, #591)
 
 
 @dataclass
@@ -102,6 +104,8 @@ def render_doctor_report_html(report: DoctorReport, lang: str = "ru") -> str:
             body = f"    <ul>\n{lis}\n    </ul>"
         else:
             body = f'    <p class="empty">{_esc(section.empty_note)}</p>'
+        if items and section.footnote:
+            body += f'\n    <p class="self">{_esc(section.footnote)}</p>'
         blocks.append(f"  <section>\n    <h2>{_esc(section.title)}{note}</h2>\n{body}\n  </section>")
 
     sections_html = "\n".join(blocks)
@@ -188,8 +192,12 @@ def _medications(db: Session, user_id: int, onboarding: Optional[dict]) -> list[
     return items
 
 
-def _results(bio: dict, lang: str = "ru") -> list[str]:
-    """Биомаркеры (канон) → строки label: value unit (date) [↑/↓ вне нормы]."""
+def _results(bio: dict, lang: str = "ru", sex: Optional[str] = None) -> list[str]:
+    """Биомаркеры (канон) → строки label: value unit (date) [↑/↓ вне нормы].
+
+    Флаги — по референсам для пола `sex` (core/health/ref_ranges.py, #591); если нормы
+    для этого пола нет (женщины, пол не задан) — флага нет, значение остаётся.
+    """
     lines: list[tuple[str, str]] = []
     for canon, rec in bio.items():
         value = rec.get("value")
@@ -198,15 +206,8 @@ def _results(bio: dict, lang: str = "ru") -> list[str]:
         cfg = MARKER_CONFIG.get(canon, {})
         label = cfg.get("label_en", cfg.get("label", canon)) if lang == "en" else cfg.get("label", canon)
         unit = cfg.get("unit_en", cfg.get("unit", "")) if lang == "en" else cfg.get("unit", "")
-        flag = ""
-        low, high = cfg.get("ref_low"), cfg.get("ref_high")
-        try:
-            if high is not None and value > high:
-                flag = " ↑"
-            elif low is not None and value < low:
-                flag = " ↓"
-        except TypeError:
-            flag = ""
+        flag_char = flag_for(canon, value, sex)
+        flag = f" {flag_char}" if flag_char else ""
         unit_part = f" {unit}" if unit else ""
         date_part = f" ({rec['date']})" if rec.get("date") else ""
         lines.append((label, f"{label}: {value}{unit_part}{date_part}{flag}"))
@@ -294,11 +295,15 @@ def assemble_doctor_report(db: Session, user_id: int, lang: str = "ru") -> Docto
         patient_label = transliterate_ru_to_latin(patient_label)
 
     bio = _load_biomarkers(db, user_id)
+    # Референсы заданы только для мужчин (ref_ranges.py): иначе флаги не ставим, а в
+    # секции результатов — пометка. Пол — только заданный явно (onboarding_data['sex']).
+    sex = explicit_sex(onboarding)  # users.sex на дефолте 'male' не считается заданным
+    ref_footnote = "" if sex == "male" else chrome["ref_male_only_note"]
     builders = {
         "problems": lambda: _problems(onboarding),
         "allergies": lambda: _allergies(onboarding),
         "medications": lambda: _medications(db, user_id, onboarding),
-        "results": lambda: _results(bio, lang),
+        "results": lambda: _results(bio, lang, sex),
         "vitals": lambda: _vitals(db, user_id, chrome),
         "social": lambda: _social(db, user_id, chrome),
     }
@@ -311,6 +316,7 @@ def assemble_doctor_report(db: Session, user_id: int, lang: str = "ru") -> Docto
             items=builders[key](),
             self_reported=key in self_reported,
             empty_note=chrome["no_data"],
+            footnote=ref_footnote if key == "results" else "",
         )
         for key, _title in SECTION_ORDER
     ]
