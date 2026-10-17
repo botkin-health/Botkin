@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import os
 import statistics
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Optional
@@ -161,6 +162,16 @@ def _series(by_date: dict[date, float], w: tuple[date, date], by2: Optional[dict
     return out
 
 
+class _NoActions(dict):
+    """Заглушка словаря ACTIONS: любой ключ → None (поле action не отдаётся)."""
+
+    def get(self, key, default=None):  # noqa: D401
+        return None
+
+    def __getitem__(self, key):
+        return None
+
+
 class _Ctx:
     """Параметры прогона: язык, окно, «сегодня»."""
 
@@ -169,7 +180,11 @@ class _Ctx:
         self.units = T.UNITS.get(lang, T.UNITS["ru"])
         self.labels = T.LABELS.get(lang, T.LABELS["ru"])
         self.items = T.ITEMS.get(lang, T.ITEMS["ru"])
-        self.actions = T.ACTIONS.get(lang, T.ACTIONS["ru"])
+        # Тексты «что делать» — плейсхолдеры, пока их не утвердил врач, пользователю не отдаём.
+        # Включить: HEALTH_SUMMARY_SHOW_ACTIONS=1 (после согласования формулировок).
+        self.actions = (
+            T.ACTIONS.get(lang, T.ACTIONS["ru"]) if os.getenv("HEALTH_SUMMARY_SHOW_ACTIONS") == "1" else _NoActions()
+        )
 
     def mean_label(self) -> str:
         return self.labels["mean"].format(days=self.days)

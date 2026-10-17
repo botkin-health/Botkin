@@ -10,7 +10,7 @@ from __future__ import annotations
 UNITS = {
     "ru": {
         "h": "ч",
-        "steps": "шаг",
+        "steps": "шагов",
         "ms": "мс",
         "bpm": "уд/мин",
         "kg": "кг",

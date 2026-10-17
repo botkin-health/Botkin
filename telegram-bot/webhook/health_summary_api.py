@@ -16,7 +16,9 @@ router = APIRouter()
 
 
 @router.get("/api/health/summary")
-async def get_health_summary(
+# Обычный def: FastAPI выполнит его в threadpool — синхронный SQLAlchemy
+# (~15 запросов) не блокирует event loop вебхука.
+def get_health_summary(
     days: int = Query(7, ge=7, le=30),
     lang: Optional[str] = Query(None),
     tg_user: dict = Depends(get_tg_user),

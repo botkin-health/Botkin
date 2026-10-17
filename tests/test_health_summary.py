@@ -385,7 +385,8 @@ def _test(db, d, **vals):
     db.commit()
 
 
-def test_labs_male_flags_history_and_l3_escalation(test_db):
+def test_labs_male_flags_history_and_l3_escalation(test_db, monkeypatch):
+    monkeypatch.setenv("HEALTH_SUMMARY_SHOW_ACTIONS", "1")
     _user(test_db, sex="male")
     d0 = TODAY - timedelta(days=200)
     _test(test_db, d0, LDL=3.2)
@@ -552,3 +553,12 @@ def test_api_returns_summary_with_contract_fields(api, api_db):
 def test_api_rejects_out_of_range_days(api):
     assert api.get("/api/health/summary?days=3").status_code == 422
     assert api.get("/api/health/summary?days=60").status_code == 422
+
+
+def test_actions_hidden_until_doctor_approval(test_db, monkeypatch):
+    """Тексты «что делать» не утверждены врачом — по умолчанию action не отдаём."""
+    monkeypatch.delenv("HEALTH_SUMMARY_SHOW_ACTIONS", raising=False)
+    _user(test_db, sex="male")
+    _test(test_db, TODAY - timedelta(days=30), LDL=3.9)
+    s = _build(test_db)
+    assert s.attention and all(a.action is None for a in s.attention)
