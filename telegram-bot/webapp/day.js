@@ -67,9 +67,11 @@
     if (document.getElementById('next-day').disabled) return;
     const d = new Date(state.date); d.setDate(d.getDate() + 1); setDate(d);
   });
-  document.querySelector('.day-label-wrap').addEventListener('click', (e) => {
-    e.preventDefault();
-    document.getElementById('date-picker').showPicker?.();
+  // iOS WebView не поддерживает showPicker() у скрытого input — поэтому input
+  // лежит прозрачным слоем поверх даты (day.css) и тап открывает нативный выбор.
+  // На десктопе дополнительно зовём showPicker().
+  document.getElementById('date-picker').addEventListener('click', (e) => {
+    try { e.currentTarget.showPicker?.(); } catch (_) { /* нет пользовательского жеста */ }
   });
   document.getElementById('date-picker').addEventListener('change', (e) => {
     if (e.target.value) setDate(new Date(e.target.value + 'T00:00:00'));
@@ -153,7 +155,8 @@
     const actToday = g.activity_today;  // null, если за день нет синка часов
     const actAvg = g.activity_avg;       // среднее за 14 дней
     if (actAvg) chips.push(`${icon('bolt')}${actAvg} ср${actToday != null ? ` <span class="chip-dim">· ${actToday} сег</span>` : ''}`);
-    else if (actToday != null) chips.push(`${icon('bolt')}<span class="chip-dim">${actToday} сег</span>`);
+    // Без среднего и при нуле за сегодня (часы ещё не синкнулись) чип ничего не сообщает.
+    else if (actToday) chips.push(`${icon('bolt')}<span class="chip-dim">${actToday} сег</span>`);
     const goalPct = g.deficit_pct ?? g.calorie_goal_pct;
     if (goalPct != null) {
       const mode = goalPct < 0 ? `дефицит ${Math.abs(goalPct)}%` : goalPct > 0 ? `профицит ${goalPct}%` : 'поддержание';

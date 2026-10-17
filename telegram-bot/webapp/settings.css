@@ -294,13 +294,13 @@ code { background: var(--card-2); border-radius: 4px; padding: 1px 6px;
 .back-btn-ios:active { opacity: .6; }
 
 /* Отступ под таб-бар */
-.tab-panel { padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px)); }
+.tab-panel { padding-bottom: calc(var(--tab-h) + 24px); }
 
 /* ── Вкладка «Дашборд» (iframe) ── */
 #dashboard-tab-section { padding-bottom: 0; }
 .dashboard-frame {
   display: block; width: 100%; border: none;
-  height: calc(100vh - 50px - env(safe-area-inset-bottom, 0px));
+  height: calc(100vh - var(--tab-h));
 }
 .dashboard-loading { padding: 60px 24px; text-align: center; color: var(--hint); font-size: 14px; }
 .dashboard-retry {

@@ -21,7 +21,12 @@
 }
 .day-nav:active { background: var(--card-2); }
 .day-nav:disabled { opacity: .3; cursor: not-allowed; }
-.day-label-wrap { cursor: pointer; flex: 1; text-align: center; }
+.day-label-wrap { cursor: pointer; flex: 1; text-align: center; position: relative; }
+#date-picker {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  opacity: 0; border: 0; padding: 0; margin: 0; cursor: pointer;
+  -webkit-appearance: none; appearance: none;
+}
 .app-header-label { display: none; }
 .app-header-date { font-size: 17px; font-weight: 600; line-height: 1.2; }
 
@@ -93,7 +98,7 @@
 /* Старый подвал прогресса — БЖУ теперь в шапке. */
 .day-footer[hidden] { display: none; }
 
-#slots-container { padding: 0 0 calc(80px + env(safe-area-inset-bottom, 0px)); }
+#slots-container { padding: 0 0 calc(var(--tab-h) + 24px); }
 .load-error { padding: 20px; text-align: center; color: var(--hint); }
 
 /* Empty-state CTA: еда пишется в чате бота, не в миниаппе. */
@@ -242,7 +247,7 @@
 .danger-btn:active { opacity: .7; }
 
 .snackbar {
-  position: fixed; bottom: calc(72px + env(safe-area-inset-bottom, 0px)); left: 16px; right: 16px;
+  position: fixed; bottom: calc(var(--tab-h) + 12px); left: 16px; right: 16px;
   max-width: 480px; margin: 0 auto;
   background: var(--text); color: var(--card); border-radius: var(--radius-sm); padding: 12px 14px;
   display: flex; justify-content: space-between; align-items: center; z-index: 200;
@@ -251,10 +256,16 @@
 .snackbar button { background: none; border: none; color: var(--card); font-weight: 600; cursor: pointer; text-decoration: underline; }
 
 /* ── Tab bar ── */
+/* Нижний отступ: безопасная зона Telegram (Bot API 8.0+) или iOS, минимум 10px —
+   на iPhone без него подписи упираются в скруглённые углы экрана. */
+:root {
+  --tab-pad-b: max(10px, var(--tg-safe-area-inset-bottom, 0px), env(safe-area-inset-bottom, 0px));
+  --tab-h: calc(56px + var(--tab-pad-b));
+}
 .tab-bar {
   position: fixed; bottom: 0; left: 0; right: 0; max-width: 480px; margin: 0 auto;
   display: flex; justify-content: space-around; align-items: stretch;
-  height: 56px; padding-bottom: env(safe-area-inset-bottom, 0px);
+  height: var(--tab-h); padding: 0 14px var(--tab-pad-b); box-sizing: border-box;
   background: var(--bar-bg);
   border-top: 0.5px solid var(--separator);
   z-index: 20;
