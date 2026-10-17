@@ -73,3 +73,26 @@ html, body {
   stroke-linecap: round; stroke-linejoin: round;
   vertical-align: -0.25em;
 }
+
+/* ── Принудительная тема (Настройки → Оформление) ──────────────────────────
+ * data-theme="light|dark" на <html> перекрывает токены фиксированной палитрой.
+ * Переменные --tg-theme-* Telegram ставит инлайном на <html>, поэтому
+ * перекрываем не их, а наши токены — у [data-theme] специфичность выше :root.
+ * Без атрибута («Авто») работают токены выше, то есть тема Telegram.
+ */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f2f2f7; --card: #ffffff; --card-2: #f2f2f7;
+  --header-bg: #ffffff; --bar-bg: #ffffff;
+  --text: #000000; --hint: #8e8e93; --subtitle: #8e8e93; --section-title: #6d6d72;
+  --link: #2481cc; --accent: #2481cc; --on-accent: #ffffff; --accent-text: #2481cc;
+  --destructive: #e53935; --separator: rgba(60, 60, 67, 0.18);
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0f0f0f; --card: #1c1c1d; --card-2: #2c2c2e;
+  --header-bg: #1c1c1d; --bar-bg: #1c1c1d;
+  --text: #ffffff; --hint: #98989e; --subtitle: #98989e; --section-title: #8d8e93;
+  --link: #3e88f7; --accent: #3e88f7; --on-accent: #ffffff; --accent-text: #3e88f7;
+  --destructive: #ff6b6b; --separator: rgba(84, 84, 88, 0.6);
+}
