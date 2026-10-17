@@ -74,8 +74,7 @@
   </div>
 
   <div class="day-footer" id="day-footer">
-    <div class="footer-title">Прогресс</div>
-    <div id="bars"></div>
+    <div id="bars" class="macros-grid"></div>
   </div>
 </section>
 
@@ -184,7 +183,7 @@
       <span class="ri teal"><svg class="ic"><use href="#i-chart"/></svg></span>
       <div class="row-label">
         Шкала калорий
-        <div class="row-sub">Зелёная и красная шкала в /day и при записи еды</div>
+        <div class="row-sub">В /day и при записи еды</div>
       </div>
       <label class="toggle">
         <input type="checkbox" id="show-bar" checked>
@@ -226,7 +225,7 @@
       <span class="ri blue"><svg class="ic"><use href="#i-lock"/></svg></span>
       <div class="row-label">
         Делиться диалогами с командой
-        <div class="row-sub">Команда Botkin сможет читать твою переписку с ботом, чтобы находить баги и улучшать продукт. Никаких других данных — только сами сообщения.</div>
+        <div class="row-sub row-sub-multi">Команда Botkin сможет читать твою переписку с ботом, чтобы находить баги и улучшать продукт. Никаких других данных — только сами сообщения.</div>
       </div>
       <label class="toggle">
         <input type="checkbox" id="review-consent-toggle">
@@ -248,44 +247,7 @@
     </div>
   </div>
 
-  <!-- МОИ ССЫЛКИ -->
-  <div class="group-title">Мои ссылки</div>
-  <div class="settings-group">
-    <div class="settings-row" id="link-dashboard-row">
-      <span class="ri teal"><svg class="ic"><use href="#i-chart"/></svg></span>
-      <div class="row-label tap" onclick="openDashboard()">
-        Мой дашборд
-        <div class="row-sub">Персональная страница с данными</div>
-      </div>
-      <button class="link-copy-btn" id="link-dashboard-copy" onclick="copyDashboard()" title="Скопировать ссылку"><svg class="ic"><use href="#i-copy"/></svg></button>
-      <div class="row-chevron" onclick="openDashboard()"><svg class="ic"><use href="#i-chev-r"/></svg></div>
-    </div>
-    <div class="settings-row" id="link-report-row">
-      <span class="ri gray"><svg class="ic"><use href="#i-link"/></svg></span>
-      <div class="row-label tap" onclick="openReport()">
-        Снимок дашборда
-        <div class="row-sub">Постоянная ссылка на копию дашборда</div>
-      </div>
-      <button class="link-copy-btn" id="link-report-copy" onclick="copyReport()" title="Скопировать ссылку"><svg class="ic"><use href="#i-copy"/></svg></button>
-      <div class="row-chevron" onclick="openReport()"><svg class="ic"><use href="#i-chev-r"/></svg></div>
-    </div>
-    <div class="settings-row clickable" id="doctor-export-row" onclick="toggleDoctorLang()">
-      <span class="ri red"><svg class="ic"><use href="#i-file"/></svg></span>
-      <div class="row-label">
-        Экспорт для врача (PDF)
-        <div class="row-sub">PDF-файл придёт в чат</div>
-      </div>
-      <div class="row-chevron"><svg class="ic"><use href="#i-chev-r"/></svg></div>
-    </div>
-    <div id="doctor-lang-choice" class="doctor-lang-choice" hidden>
-      <span class="doctor-lang-prompt">Язык:</span>
-      <button type="button" class="lang-choice-btn" data-lang="ru" onclick="requestDoctorReport('ru')">Русский</button>
-      <button type="button" class="lang-choice-btn" data-lang="en" onclick="requestDoctorReport('en')">English</button>
-      <button type="button" class="lang-choice-cancel" onclick="toggleDoctorLang()" aria-label="Отмена"><svg class="ic"><use href="#i-x"/></svg></button>
-    </div>
-    <div id="doctor-export-status" class="doctor-export-status"></div>
-  </div>
-  <div id="links-toast" class="links-toast hidden">Ссылка скопирована</div>
+  <!-- Ссылки (дашборд, копирование, PDF врачу) — во вкладке «Состояние». -->
 
   <!-- ИСТОЧНИКИ ДАННЫХ -->
   <div class="group-title">Источники данных</div>
@@ -349,7 +311,15 @@
       <label class="bmr-mode-opt"><input type="radio" name="fb-kind" value="feature"><span>Идея</span></label>
       <label class="bmr-mode-opt"><input type="radio" name="fb-kind" value="question"><span>Вопрос</span></label>
     </div>
-    <textarea id="fb-text" class="fb-text" rows="5" maxlength="4000" placeholder="Опишите проблему или идею…"></textarea>
+    <textarea id="fb-text" class="fb-text" rows="10" maxlength="4000" placeholder="Опишите проблему или идею…"></textarea>
+    <div class="fb-attach">
+      <input type="file" id="fb-file" accept="image/*,application/pdf" multiple hidden onchange="fbFilesPicked(this)">
+      <button type="button" class="fb-attach-btn" id="fb-attach-btn" onclick="document.getElementById('fb-file').click()">
+        <svg class="ic"><use href="#i-camera"/></svg><span>Прикрепить фото или файл</span>
+      </button>
+      <div class="fb-attach-hint">До 3 файлов, каждый до 10 МБ: фото или PDF</div>
+      <div class="fb-thumbs" id="fb-thumbs"></div>
+    </div>
     <button class="calc-btn primary fb-send" id="fb-send-btn" onclick="sendFeedback()">Отправить</button>
     <div id="fb-status" class="fb-status"></div>
   </div>
@@ -362,31 +332,43 @@
   <div class="help-wrap">
 
   <div class="help-block" id="h-log">
-    <h3 onclick="toggleHelp(this)"><span class="help-title">🍽 Как логировать еду</span><svg class="ic"><use href="#i-chev-d"/></svg></h3>
+    <h3 onclick="toggleHelp(this)"><span class="help-title">🍽 Как записать еду</span><svg class="ic"><use href="#i-chev-d"/></svg></h3>
     <div class="help-body">
+    <p>Пришлите еду в чат с ботом, дневник заполнится сам:</p>
     <ul>
-      <li><span class="emoji">✍️</span><span>Текст: <code>гречка 150г, курица 200г</code></span></li>
-      <li><span class="emoji">📸</span><span>Фото тарелки — бот распознает блюдо и оценит КБЖУ</span></li>
-      <li><span class="emoji">📦</span><span>Фото упаковки — бот считает с этикетки, укажите количество</span></li>
-      <li><span class="emoji">🎤</span><span>Голосовое сообщение — транскрибируется автоматически</span></li>
+      <li><span class="emoji">✍️</span><span>текстом: <code>гречка 150г, курица 200г</code>;</span></li>
+      <li><span class="emoji">📸</span><span>фото тарелки — бот узнает блюдо и оценит КБЖУ;</span></li>
+      <li><span class="emoji">📦</span><span>фото упаковки — посчитает по этикетке, напишите только, сколько съели;</span></li>
+      <li><span class="emoji">🎤</span><span>голосовым — бот сам его расшифрует.</span></li>
     </ul>
-    <p>Пока карточка с кнопками не сохранена, её можно поправить текстом: <i>«без кускуса»</i>, <i>«половину»</i>, <i>«это было 200 г»</i>. Бот пересчитает и покажет, что убрал. Если прислали фото карточки рецепта с итогом на порцию — подпись «без …» вычтет продукт из этого итога.</p>
+    <p>Пока карточка с кнопками не сохранена, её можно поправить словами: <i>«без кускуса»</i>, <i>«половину»</i>, <i>«это было 200 г»</i>. Бот пересчитает и покажет, что изменил. Если на фото рецепт с итогом на порцию, подпись «без …» вычтет продукт из этого итога.</p>
+    <p>В дневнике у каждого блюда справа его калории. Свайп влево удаляет блюдо, тап открывает правку веса.</p>
     </div>
   </div>
 
   <div class="help-block" id="h-plan">
     <h3 onclick="toggleHelp(this)"><span class="help-title">📋 План на день → факт</span><svg class="ic"><use href="#i-chev-d"/></svg></h3>
     <div class="help-body">
-    <p>Если удобнее внести еду заранее (например, собрали тарелку на весь день), начните сообщение со слова <b>«план:»</b> или <b>«на день:»</b> — текстом или голосом. Запись сохранится с пометкой 📋 и сразу посчитается в итог дня, как будто всё съедено.</p>
-    <p>Потом просто скажите боту, что изменилось: <i>«минус 2 яйца»</i>, <i>«половину творога не съела»</i>, <i>«остаток на обед»</i>, <i>«съела всё»</i>. Бот покажет, что именно поменяет (было → станет), и после вашего «да» исправит запись. Недоеденное можно перенести на обед или на завтра — оно станет новым планом.</p>
-    <p>Вечером, если план ещё открыт, бот спросит «Доедено целиком?» — одна кнопка, и день сведён. Здесь, в дневнике, план отмечен 📋, а кнопка «✓ Съедено целиком» закрывает его.</p>
+    <p>Если еду удобнее внести заранее, например собрали контейнеры на весь день, начните сообщение со слова <b>«план:»</b> или <b>«на день:»</b>. Запись сразу войдёт в итог дня, как будто всё уже съедено, а в дневнике получит значок «план».</p>
+    <p>Потом скажите боту, что изменилось: <i>«минус 2 яйца»</i>, <i>«половину творога не съела»</i>, <i>«остаток на обед»</i>. Бот покажет «было → станет» и поправит запись после вашего «да». Недоеденное можно перенести на обед или на завтра.</p>
+    <p>Вечером бот спросит, доеден ли план. Закрыть его можно и здесь: кнопка «Съедено целиком» в раскрытом приёме пищи.</p>
     </div>
   </div>
 
   <div class="help-block" id="h-supp">
-    <h3 onclick="toggleHelp(this)"><span class="help-title">💊 Как отметить добавки</span><svg class="ic"><use href="#i-chev-d"/></svg></h3>
+    <h3 onclick="toggleHelp(this)"><span class="help-title">💊 Добавки и лекарства</span><svg class="ic"><use href="#i-chev-d"/></svg></h3>
     <div class="help-body">
-    <p>Напишите названия в чат: <code>Витамин Д, Омега</code> или тапните в табе 💊 Добавки.</p>
+    <p>Отмечайте приём галочкой во вкладке «Добавки» — список разбит по времени дня. Можно и написать в чат: <code>Витамин Д, Омега</code>.</p>
+    <p>Список меняется в Настройках → «Управление списком», там же включаются напоминания. Стрелками сверху можно открыть прошлый день и отметить то, что забыли.</p>
+    </div>
+  </div>
+
+  <div class="help-block" id="h-ai">
+    <h3 onclick="toggleHelp(this)"><span class="help-title">🩺 Анализы и вопросы AI-врачу</span><svg class="ic"><use href="#i-chev-d"/></svg></h3>
+    <div class="help-body">
+    <p>В чате с ботом живёт AI-врач. Спросите его обычными словами: <i>«объясни мой последний анализ крови»</i>, <i>«почему вырос ApoB?»</i>, <i>«как я сплю на этой неделе?»</i>. Он видит ваши анализы, питание, сон и активность и помнит прошлые разговоры.</p>
+    <p>Анализ или заключение врача отправьте командой /doc — PDF, фото или скан. Бот вытащит показатели и разложит их по датам, динамика будет на дашборде.</p>
+    <p>AI-врач помогает разобраться в цифрах, но не ставит диагноз и не назначает лечение — это решаете вы с вашим врачом.</p>
     </div>
   </div>
 
@@ -397,62 +379,69 @@
       <tr><td>/day</td><td>Итоги дня</td></tr>
       <tr><td>/week</td><td>Анализ недели</td></tr>
       <tr><td>/vitamins</td><td>Чек-лист добавок</td></tr>
+      <tr><td>/doc</td><td>Загрузить анализ или заключение</td></tr>
+      <tr><td>/my_docs</td><td>Мои документы: полисы, справки</td></tr>
+      <tr><td>/share</td><td>Поделиться дашбордом</td></tr>
+      <tr><td>/profile</td><td>Рост, возраст, цель</td></tr>
+      <tr><td>/connect_mcp</td><td>Подключить свой AI (MCP)</td></tr>
+      <tr><td>/agent_reset</td><td>Сбросить контекст AI-врача</td></tr>
+      <tr><td>/feedback</td><td>Ошибка или идея</td></tr>
       <tr><td>/help</td><td>Помощь</td></tr>
     </table>
-    <p class="help-note">⚙️ Настройки — в этом мини-аппе, таб Настройки.</p>
     </div>
   </div>
 
   <div class="help-block" id="h-burn">
     <h3 onclick="toggleHelp(this)"><span class="help-title">🔥 Сколько калорий вы тратите</span><svg class="ic"><use href="#i-chev-d"/></svg></h3>
     <div class="help-body">
-    <p>Ваш расход за день складывается из двух частей:</p>
+    <p>Расход за день складывается из двух частей:</p>
     <ul>
-      <li><span class="emoji">💤</span><span><b>Базовый обмен (BMR)</b> — калории, которые тело сжигает просто на жизнь: дыхание, сердце, мозг, тепло. Это большая часть расхода, обычно 1400–1900 ккал — даже если весь день лежать.</span></li>
-      <li><span class="emoji">🏃</span><span><b>Активность</b> — всё движение за день: шаги, тренировки, уборка. Обычно 200–700 ккал.</span></li>
+      <li><span class="emoji">💤</span><span><b>базовый обмен (БМР)</b> — то, что тело тратит просто на жизнь: дыхание, сердце, мозг, тепло. Обычно 1400–1900 ккал, даже если весь день лежать;</span></li>
+      <li><span class="emoji">🏃</span><span><b>активность</b> — шаги, тренировки, уборка. Обычно 200–700 ккал.</span></li>
     </ul>
-    <p>Сумма — ваш <b>общий расход</b> (по-научному TDEE). Botkin предпочитает брать его с часов — они видят вашу реальную активность:</p>
-    <ul>
-      <li><span class="emoji">⌚</span><span><b>Garmin</b> — напрямую;</span></li>
-      <li><span class="emoji">🍎</span><span><b>Apple Watch / iPhone</b> — через Apple Health;</span></li>
-      <li><span class="emoji">🤖</span><span><b>Android</b> — через Health Connect.</span></li>
-    </ul>
-    <p><b>Часов нет?</b> Настройки → Базовый расход → «Ручной (формула)»: укажите пол, возраст, рост, вес и уровень активности. Botkin посчитает расход по формуле Миффлина—Сан Жеора — тому же научному стандарту, которым пользуются MyFitnessPal, Cronometer и другие счётчики. Часы точнее формулы (видят каждый ваш день, а не «средний»), поэтому при их подключении данные часов в приоритете.</p>
+    <p>Вместе это общий расход (TDEE). Botkin берёт его с часов, потому что они видят ваш реальный день: Garmin напрямую, Apple Watch и iPhone через Apple Health, Android через Health Connect.</p>
+    <p><b>Часов нет?</b> Настройки → «Базовый расход» → «Ручной (формула)». Укажите пол, возраст, рост, вес и активность, и Botkin посчитает расход по формуле Миффлина — Сан Жеора, как MyFitnessPal и Cronometer. Если потом подключите часы, их данные будут главнее формулы.</p>
     </div>
   </div>
 
   <div class="help-block" id="h-goal">
     <h3 onclick="toggleHelp(this)"><span class="help-title">🎯 Как считается цель на день</span><svg class="ic"><use href="#i-chev-d"/></svg></h3>
     <div class="help-body">
-    <p><b>Цель = ваш расход − 15%.</b> Пример: тратите 2300 ккал → цель ~1950 ккал.</p>
-    <p>Откуда бот знает ваш расход? Когда вы ведёте дневник хотя бы несколько недель, он выводит его <b>из ваших же данных</b> — сколько вы едите и как меняется вес. Это точнее любой формулы и любых часов: так же работает метод MacroFactor. Пока истории мало — берётся оценка с часов или формула из Настроек (см. раздел «Сколько калорий вы тратите»).</p>
-    <p>Эти минус 15% — <b>дефицит</b>: вы едите чуть меньше, чем тратите, и тело добирает разницу из жировых запасов. Так и происходит похудение.</p>
-    <p>Почему именно 15%, а не больше? Это темп, при котором уходит жир, а не мышцы, и не хочется сорваться. Жёсткие диеты (минус 30–50%) дают быстрый результат на весах, но за ними почти всегда следует срыв и откат. Процент можно поменять в Настройках: 0% — поддержание веса, плюс — набор массы.</p>
+    <p><b>Цель — это расход минус 15%.</b> Тратите 2300 ккал, значит цель около 1950.</p>
+    <p>Когда дневник ведётся хотя бы несколько недель, бот считает расход по вашим же данным: сколько вы едите и как меняется вес. Это точнее и формулы, и часов (так работает MacroFactor). Пока истории мало, берётся оценка с часов или формула из Настроек.</p>
+    <p>Минус 15% — умеренный дефицит: уходит жир, а не мышцы, и не тянет сорваться. На жёстких диетах (минус 30–50%) вес падает быстро, но почти всегда возвращается. Процент меняется в Настройках: 0% — держать вес, плюс — набирать.</p>
     </div>
   </div>
 
   <div class="help-block" id="h-today">
-    <h3 onclick="toggleHelp(this)"><span class="help-title">📅 Сегодня и прошлые дни — почему цифры разные</span><svg class="ic"><use href="#i-chev-d"/></svg></h3>
+    <h3 onclick="toggleHelp(this)"><span class="help-title">📅 Сегодня, прошлые дни и «оценка»</span><svg class="ic"><use href="#i-chev-d"/></svg></h3>
     <div class="help-body">
-    <p><b>Сегодня</b> день ещё не закончен, и сколько вы потратите — неизвестно. Поэтому цель считается от среднего расхода за последние 14 дней. Если сегодня была тренировка и часы уже это увидели — цель поднимется по факту.</p>
-    <p><b>Прошлые дни</b> уже закончились, расход известен точно — и итог считается честно, от факта. Поэтому вечерняя цифра «осталось» и завтрашний итог того же дня могут немного отличаться: прогноз уточнился фактом.</p>
-    <p>💡 <b>Практический совет:</b> в малоподвижный день (мало шагов, без тренировки) не наедайте остаток до нуля — оставьте 150–300 ккал запаса. Прогноз по среднему в такие дни чуть щедрее реальности.</p>
-    </div>
-  </div>
-
-  <div class="help-block" id="h-incomplete">
-    <h3 onclick="toggleHelp(this)"><span class="help-title">⚠️ «Итог оценочный» — что это значит</span><svg class="ic"><use href="#i-chev-d"/></svg></h3>
-    <div class="help-body">
-    <p>Иногда часы не успевают передать данные за весь день — например, лежали на зарядке. Тогда расход в этот день выглядит подозрительно маленьким.</p>
-    <p>Botkin замечает такие дни и честно помечает их значком ⚠️ вместо вердикта «перебор»: раз мы не знаем ваш настоящий расход, несправедливо утверждать, что вы переели.</p>
+    <p><b>Сегодня</b> день ещё идёт, и итоговый расход неизвестен. Поэтому цель считается от среднего расхода за 14 дней. Если часы уже увидели тренировку, цель поднимется.</p>
+    <p><b>Прошлые дни</b> считаются по факту. Поэтому вечернее «осталось» и завтрашний итог того же дня могут немного разойтись: прогноз уточнился.</p>
+    <p>Бывает, часы не передали данные за весь день, например лежали на зарядке. Тогда расход выглядит подозрительно маленьким, и вместо «перебор» Botkin пишет «≈ … оценка» с пометкой, что данные неполные.</p>
+    <p>💡 В малоподвижный день не доедайте остаток до нуля: оставьте 150–300 ккал. Прогноз по среднему в такие дни щедрее реальности.</p>
     </div>
   </div>
 
   <div class="help-block" id="h-precision">
     <h3 onclick="toggleHelp(this)"><span class="help-title">⚖️ Насколько точны цифры</span><svg class="ic"><use href="#i-chev-d"/></svg></h3>
     <div class="help-body">
-    <p>Подсчёт калорий — всегда оценка, а не аптечные весы. КБЖУ по фото — точность ±15–20%, расход с часов — ±10%. Это нормально и достаточно: для результата важна не точность одного дня, а <b>средняя картина за неделю</b> — тело считает баланс именно так.</p>
-    <p>Поэтому не переживайте из-за «перебора +100» в один день: посмотрите /week — если неделя в среднем в дефиците, всё идёт по плану.</p>
+    <p>Калории — всегда оценка, а не аптечные весы. По фото КБЖУ считаются с точностью ±15–20%, расход с часов ±10%. Для результата этого хватает: важна средняя картина за неделю, а не один день.</p>
+    <p>Поэтому «перебор +100» в один день не страшен. Загляните в /week: если неделя в среднем в дефиците, всё идёт по плану.</p>
+    </div>
+  </div>
+
+  <div class="help-block" id="h-about">
+    <h3 onclick="toggleHelp(this)"><span class="help-title">ℹ️ О проекте</span><svg class="ic"><use href="#i-chev-d"/></svg></h3>
+    <div class="help-body">
+    <p>Проект назван в честь Сергея Петровича Боткина (1832–1889), русского врача-терапевта. Он одним из первых стал лечить человека целиком, а не отдельную болезнь, и считал образ жизни решающим для здоровья. Botkin делает то же: смотрит на еду, сон, активность, добавки и анализы вместе.</p>
+    <p>Автор — Александр Лысковский, проект он делает вместе с сыновьями, Олегом и Игорем. Botkin задуман для себя и семьи: у каждого свой AI-врач, свои анализы и своя приватность.</p>
+    <ul>
+      <li><span class="emoji">🌐</span><span>Сайт: <a href="#" onclick="tg.openLink('https://botkin.health');return false;">botkin.health</a></span></li>
+      <li><span class="emoji">⭐</span><span>Код открыт (AGPL-3.0): <a href="#" onclick="tg.openLink('https://github.com/botkin-health/Botkin');return false;">GitHub</a></span></li>
+      <li><span class="emoji">✉️</span><span>Клиникам и исследователям: <a href="mailto:lyskovsky@gmail.com">lyskovsky@gmail.com</a></span></li>
+    </ul>
+    <p class="help-note">Botkin — не медицинский сервис. Решения о лечении принимайте вместе с врачом.</p>
     </div>
   </div>
 
@@ -516,6 +505,9 @@
     <button class="danger-btn" id="edit-delete"><svg class="ic"><use href="#i-trash"/></svg>Удалить</button>
   </div>
 </div>
+
+<!-- Тост «Ссылка скопирована» — общий для вкладок -->
+<div id="links-toast" class="links-toast hidden">Ссылка скопирована</div>
 
 <!-- Autosave indicator -->
 <div id="autosave-pill" class="autosave-pill">✓ Сохранено</div>

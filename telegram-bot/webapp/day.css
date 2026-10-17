@@ -33,31 +33,25 @@
 /* legacy */
 .day-sub { display: none; }
 
-/* ── Hero card: кольцо «осталось» + БЖУ ── */
+/* ── Hero card: «осталось» + широкая шкала калорий ── */
 .budget-banner { padding: 12px 12px 0; }
 .hero-card {
   background: var(--card); border-radius: var(--radius);
   padding: 14px 14px 12px;
 }
-.hero-main { display: flex; align-items: center; gap: 14px; }
-
-.ring-wrap { position: relative; width: 120px; height: 120px; flex-shrink: 0; }
-.ring { width: 100%; height: 100%; }
-.ring-track, .ring-fill { fill: none; stroke-width: 10; }
-.ring-track { stroke: var(--track); }
-.ring-fill { stroke-linecap: round; transition: stroke-dasharray .4s ease; }
-.ring-fill.tone-ok   { stroke: var(--ok); }
-.ring-fill.tone-warn { stroke: var(--warn); }
-.ring-fill.tone-bad  { stroke: var(--bad); }
-.ring-center {
-  position: absolute; inset: 0; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; text-align: center;
+.hero-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.hero-num { font-size: 34px; font-weight: 700; letter-spacing: -0.8px; line-height: 1; }
+.hero-label { font-size: 14px; color: var(--hint); margin-left: 6px; }
+.hero-total { font-size: 14px; color: var(--subtitle); white-space: nowrap; }
+.kcal-track {
+  height: 12px; border-radius: 6px; background: var(--track);
+  overflow: hidden; margin-top: 10px;
 }
-.ring-num { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; line-height: 1; }
-.ring-label { font-size: 12px; color: var(--hint); margin-top: 3px; max-width: 86px; line-height: 1.2; }
-.ring-sub { font-size: 11px; color: var(--hint); margin-top: 2px; }
+.kcal-fill { height: 100%; border-radius: 6px; transition: width .4s ease; }
+.kcal-fill.tone-ok   { background: var(--ok); }
+.kcal-fill.tone-warn { background: var(--warn); }
+.kcal-fill.tone-bad  { background: var(--bad); }
 
-.macros { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 9px; }
 .macro-head { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
 .macro-val { color: var(--hint); white-space: nowrap; }
 .macro-val b { font-weight: 600; }
@@ -85,20 +79,23 @@
   font-size: 12px; color: var(--warn);
 }
 .hero-note .ic { width: 15px; height: 15px; }
-
-/* Узкие экраны (iPhone SE и т.п.): кольцо меньше, чтобы «2380 из 2100» не упиралось в край. */
+/* ── БЖУ и клетчатка: закреплены над таббаром (раскладка прода), сетка 2×2 ── */
+.day-footer {
+  position: fixed; left: 0; right: 0; bottom: var(--tab-h); z-index: 15;
+  max-width: 480px; margin: 0 auto; box-sizing: border-box;
+  padding: 12px 16px 10px;
+  background: var(--bar-bg); border-top: 0.5px solid var(--separator);
+}
+.macros-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px 16px; }
 @media (max-width: 350px) {
-  .hero-main { gap: 10px; }
-  .ring-wrap { width: 108px; height: 108px; }
-  .ring-num { font-size: 24px; }
-  .ring-sub { font-size: 10px; letter-spacing: -0.2px; }
-  .ring-track, .ring-fill { stroke-width: 7; }
+  .hero-num { font-size: 30px; }
+  .macros-grid { gap: 8px 12px; }
+  .macro-head { font-size: 12px; }
 }
 
-/* Старый подвал прогресса — БЖУ теперь в шапке. */
-.day-footer[hidden] { display: none; }
 
-#slots-container { padding: 0 0 calc(var(--tab-h) + 24px); }
+/* Под блюдами место для закреплённого блока БЖУ (~84px). */
+#slots-container { padding: 0 0 84px; }  /* + нижний отступ .tab-panel под таббар */
 .load-error { padding: 20px; text-align: center; color: var(--hint); }
 
 /* Empty-state CTA: еда пишется в чате бота, не в миниаппе. */
