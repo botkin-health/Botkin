@@ -256,10 +256,9 @@ def _social(db: Session, user_id: int, chrome: dict) -> list[str]:
 def _load_biomarkers(db: Session, user_id: int) -> dict:
     """Канонизированные биомаркеры; при сбое импорта/чтения — пустой словарь."""
     try:
-        _ensure_bot_path()
-        from dashboard_generator import _load_biomarkers_from_db  # noqa: PLC0415
+        from core.health.biomarkers import load_biomarkers  # noqa: PLC0415
 
-        return _load_biomarkers_from_db(db, user_id) or {}
+        return load_biomarkers(db, user_id) or {}
     except Exception:
         return {}
 
