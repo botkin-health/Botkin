@@ -97,19 +97,6 @@
     return pct <= 100 ? 'ok' : pct <= 115 ? 'warn' : 'bad';
   }
 
-  // Кольцо «осталось» — SVG, заполнение = съедено / цель.
-  function ringSvg(fraction, tone) {
-    const r = 46, c = 2 * Math.PI * r;
-    const dash = Math.max(0, Math.min(1, fraction)) * c;
-    // При нуле скруглённый край рисует точку — не рисуем дугу вовсе.
-    if (dash < 0.5) return `<svg class="ring" viewBox="0 0 112 112" aria-hidden="true"><circle cx="56" cy="56" r="${r}" class="ring-track"/></svg>`;
-    return `<svg class="ring" viewBox="0 0 112 112" aria-hidden="true">
-      <circle cx="56" cy="56" r="${r}" class="ring-track"/>
-      <circle cx="56" cy="56" r="${r}" class="ring-fill tone-${tone}"
-              stroke-dasharray="${dash.toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 56 56)"/>
-    </svg>`;
-  }
-
   function renderBudgetBanner() {
     const { totals_day: t, goals: g } = state.data;
     const banner = document.getElementById('budget-banner');
@@ -126,27 +113,9 @@
 
     const heroNum = `${incomplete ? '≈' : ''}${Math.abs(diff)}`;
     // При неполных данных вердикт «перебор/осталось» не выносим — только оценка.
-    const heroLabel = incomplete ? 'оценка' : isOver ? 'перебор' : 'осталось';
-
-    // Макросы — справа от кольца. Ккал уже в кольце, здесь не дублируем.
-    const macros = [
-      { label: 'Белки',     cls: 'p',   val: t.p,   goal: g.protein, more: true  },
-      { label: 'Жиры',      cls: 'f',   val: t.f,   goal: g.fats,    more: false },
-      { label: 'Углеводы',  cls: 'c',   val: t.c,   goal: g.carbs,   more: false },
-      { label: 'Клетчатка', cls: 'fib', val: t.fib, goal: g.fiber,   more: true  },
-    ];
-    const macrosHtml = macros.map(m => {
-      const v = Math.round(m.val || 0);
-      if (m.goal == null) {
-        return `<div class="macro-row"><div class="macro-head"><span>${m.label}</span><span class="macro-val">${v} г</span></div></div>`;
-      }
-      const pct = Math.min(100, Math.round((v / m.goal) * 100));
-      const mt = macroTone(v, m.goal, m.more);
-      return `<div class="macro-row">
-        <div class="macro-head"><span>${m.label}</span><span class="macro-val"><b class="tone-${mt}">${v}</b> / ${m.goal} г</span></div>
-        <div class="macro-track"><div class="macro-fill ${m.cls}" style="width:${pct}%"></div></div>
-      </div>`;
-    }).join('');
+    const heroLabel = incomplete ? 'ккал · оценка' : isOver ? 'ккал перебор' : 'ккал осталось';
+    // Широкая шкала: заполнение = съедено / цель; при переборе — вся шкала красная.
+    const barPct = goal ? Math.min(100, Math.round((consumed / goal) * 100)) : 0;
 
     // Строка расхода: БМР · активность (среднее за 14 дн. — входит в цель;
     // сегодняшнее — справочно, приглушено) · режим цели.
@@ -169,17 +138,11 @@
 
     banner.innerHTML = `
     <div class="hero-card">
-      <div class="hero-main">
-        <div class="ring-wrap">
-          ${ringSvg(goal ? consumed / goal : 0, tone)}
-          <div class="ring-center">
-            <div class="ring-num tone-${tone}">${heroNum}</div>
-            <div class="ring-label">${heroLabel}</div>
-            <div class="ring-sub">${consumed} / ${incomplete ? '~' : ''}${goal}</div>
-          </div>
-        </div>
-        <div class="macros">${macrosHtml}</div>
+      <div class="hero-top">
+        <div><span class="hero-num tone-${tone}">${heroNum}</span><span class="hero-label">${heroLabel}</span></div>
+        <div class="hero-total">${consumed} / ${incomplete ? '~' : ''}${goal}</div>
       </div>
+      <div class="kcal-track"><div class="kcal-fill tone-${tone}" style="width:${barPct}%"></div></div>
       ${chips.length ? `<div class="hero-chips">${chips.map(c => `<span class="chip">${c}</span>`).join('')}</div>` : ''}
       ${incompleteNote}
     </div>`;
@@ -312,10 +275,27 @@
     }[c]));
   }
 
-  // Прогресс БЖУ переехал в карточку-шапку (renderBudgetBanner) — подвал скрыт.
+  // БЖУ и клетчатка — закреплённый блок над таббаром (как было на проде), сеткой 2×2.
   function renderFooter() {
-    const footer = document.getElementById('day-footer');
-    if (footer) footer.hidden = true;
+    const { totals_day: t, goals: g } = state.data;
+    const macros = [
+      { label: 'Белки',     cls: 'p',   val: t.p,   goal: g?.protein, more: true  },
+      { label: 'Жиры',      cls: 'f',   val: t.f,   goal: g?.fats,    more: false },
+      { label: 'Углеводы',  cls: 'c',   val: t.c,   goal: g?.carbs,   more: false },
+      { label: 'Клетчатка', cls: 'fib', val: t.fib, goal: g?.fiber,   more: true  },
+    ];
+    document.getElementById('bars').innerHTML = macros.map(m => {
+      const v = Math.round(m.val || 0);
+      if (m.goal == null) {
+        return `<div class="macro-row"><div class="macro-head"><span>${m.label}</span><span class="macro-val">${v} г</span></div></div>`;
+      }
+      const pct = Math.min(100, Math.round((v / m.goal) * 100));
+      const mt = macroTone(v, m.goal, m.more);
+      return `<div class="macro-row">
+        <div class="macro-head"><span>${m.label}</span><span class="macro-val"><b class="tone-${mt}">${v}</b> / ${m.goal} г</span></div>
+        <div class="macro-track"><div class="macro-fill ${m.cls}" style="width:${pct}%"></div></div>
+      </div>`;
+    }).join('');
   }
 
   // Expose for later tasks
