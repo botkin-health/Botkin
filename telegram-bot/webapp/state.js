@@ -304,6 +304,17 @@ async function loadState(force = false) {
     renderState(data);
     _stateFetchedAt = Date.now();
   } catch (e) {
+    // 404 — бэкенд сводки ещё не выкачен (фронт вкладки уехал раньше API): не пугаем
+    // ошибкой, а честно говорим «скоро» и оставляем рабочие кнопки ниже.
+    if (String(e && e.message).startsWith('404')) {
+      renderStateMessage(`<div class="st-empty st-soon">
+          <div class="st-soon-title">Скоро здесь будет сводка</div>
+          Сон, активность, пульс, вес и анализы — и на что обратить внимание.
+          Пока всё это есть на дашборде.
+        </div>
+        ${stRenderActions()}`);
+      return;
+    }
     console.error('loadState failed', e);
     renderStateMessage(`<div class="st-empty">Не удалось загрузить данные.</div>
       <button type="button" class="st-btn" onclick="loadState(true)">Повторить</button>
