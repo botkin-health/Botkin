@@ -122,7 +122,7 @@ input:disabled + .slider { opacity: .4; cursor: not-allowed; }
 .help-wrap { padding: 0 12px; }
 .help-block { margin-bottom: 8px; background: var(--card); border-radius: var(--radius); overflow: hidden; }
 .help-block h3 {
-  font-size: 15px; font-weight: 600; padding: 13px 14px; cursor: pointer;
+  font-size: 17px; font-weight: 600; padding: 14px 14px; cursor: pointer;
   display: flex; align-items: center; gap: 8px; user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
@@ -132,19 +132,19 @@ input:disabled + .slider { opacity: .4; cursor: not-allowed; }
 .help-block.open h3 .ic { transform: rotate(180deg); }
 .help-body { display: none; padding: 0 14px 14px; }
 .help-block.open .help-body { display: block; }
-.help-body p, .help-body li { font-size: 13px; color: var(--subtitle); line-height: 1.45; }
-.help-body p { margin-top: 8px; }
+.help-body p, .help-body li { font-size: 16px; color: var(--text); line-height: 1.5; }
+.help-body p { margin-top: 10px; }
 .help-body p:first-child { margin-top: 0; }
 .help-body ul { list-style: none; padding: 0; margin-top: 8px; }
-.help-body ul li { display: flex; gap: 6px; margin-bottom: 4px; align-items: baseline; }
-.help-body ul li .emoji { flex-shrink: 0; font-size: 12px; }
+.help-body ul li { display: flex; gap: 8px; margin-bottom: 8px; align-items: baseline; }
+.help-body ul li .emoji { flex-shrink: 0; font-size: 15px; }
 .help-body b { color: var(--text); }
 code { background: var(--card-2); border-radius: 4px; padding: 1px 6px;
-       font-size: 12px; font-family: monospace; color: var(--text); }
-.cmd-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.cmd-table td { padding: 4px 0; border-bottom: 0.5px solid var(--separator); line-height: 1.4; color: var(--subtitle); }
-.cmd-table td:first-child { color: var(--link); font-family: monospace; width: 78px; }
-.help-note { margin-top: 6px; font-size: 12px; color: var(--hint); }
+       font-size: 14px; font-family: monospace; color: var(--text); }
+.cmd-table { width: 100%; border-collapse: collapse; font-size: 16px; }
+.cmd-table td { padding: 6px 0; border-bottom: 0.5px solid var(--separator); line-height: 1.4; color: var(--text); }
+.cmd-table td:first-child { color: var(--link); font-family: monospace; width: 90px; }
+.help-note { margin-top: 8px; font-size: 14px; color: var(--hint); }
 
 /* ── Профиль-хедер ── */
 .profile-header { padding: 24px 28px 16px; text-align: left; }
@@ -410,3 +410,6 @@ code { background: var(--card-2); border-radius: 4px; padding: 1px 6px;
   background: var(--card); font-weight: 600;
   box-shadow: 0 1px 3px rgba(0, 0, 0, .12);
 }
+
+/* Без сводки сверху — отступ до первой карточки слота. */
+#supp-day-container { padding-top: 12px; }

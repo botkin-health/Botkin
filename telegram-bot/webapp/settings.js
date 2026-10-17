@@ -471,13 +471,6 @@ function toggleReminderTime() {
 // ── Supplements daily log ───────────────────────────────────────────────────
 // Tracks which supplements the user has taken on a given date, with times.
 // Syncs the currently viewed date with window.__nutri.state.date (Diary tab).
-// Просмотр сегодняшнего дня? (для подписи «Принято сегодня» / «за день»).
-function suppIsToday() {
-  const t = new Date();
-  const iso = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
-  return currentSuppDate() === iso;
-}
-
 function currentSuppDate() {
   // Reuse the date that Diary is viewing so calendar nav stays coherent.
   // day.js keeps state.date as a Date OBJECT — convert to YYYY-MM-DD (local, not UTC).
@@ -532,19 +525,8 @@ function renderSupplementsDay(data) {
     return;
   }
 
-  const pct = progress.total > 0 ? Math.round(100 * progress.taken / progress.total) : 0;
-
-  let html = `
-    <div class="supp-progress-card">
-      <div class="supp-progress-head">
-        <div>
-          <div class="supp-progress-title">${suppIsToday() ? 'Принято сегодня' : 'Принято за день'}</div>
-          <div class="supp-progress-big">${progress.taken} <small>из ${progress.total}</small></div>
-        </div>
-        <div class="supp-progress-count">${pct}%</div>
-      </div>
-      <div class="supp-progress-track"><div class="supp-progress-fill" style="width:${pct}%"></div></div>
-    </div>`;
+  // Сводку «Принято X из Y» не показываем: галочки у каждого пункта и так это видно.
+  let html = '';
 
   for (const slot of slots) {
     if (!slot.items.length) continue;
