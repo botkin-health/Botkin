@@ -44,6 +44,7 @@ async def render_report(
     Telegram всё равно надо отдельным вызовом. Проще, чтобы тул сам слал.
     """
     import requests as _requests
+    from core.health.ref_ranges import explicit_sex
     from core.reports.biomarker_dynamics import (
         render_biomarker_dynamics_png,
         render_single_marker_png,
@@ -69,14 +70,18 @@ async def render_report(
                     "error": "missing-marker: для single_biomarker нужен параметр marker",
                     "sent": False,
                 }
-            result = render_single_marker_png(kb_path, req.marker, user_name=user_name, sex=user.sex)
+            result = render_single_marker_png(
+                kb_path, req.marker, user_name=user_name, sex=explicit_sex(user.onboarding_data)
+            )
             # render_single_marker_png может вернуть dict с ошибкой
             if isinstance(result, dict):
                 return {"status": "error", "sent": False, **result}
             png_bytes = result
             caption_suffix = f" · {req.marker}"
         else:
-            png_bytes = render_biomarker_dynamics_png(kb_path, user_name=user_name, sex=user.sex)
+            png_bytes = render_biomarker_dynamics_png(
+                kb_path, user_name=user_name, sex=explicit_sex(user.onboarding_data)
+            )
     except Exception as e:
         logger.error("render_report failed for %s: %s", user.telegram_id, e, exc_info=True)
         return {"status": "error", "error": f"render-failed: {e}", "sent": False}

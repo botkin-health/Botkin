@@ -3,7 +3,7 @@
 import pytest
 
 from core.health.kb_schema import CANONICAL
-from core.health.ref_ranges import REF_RANGES, flag_for, normalize_sex, ref_range
+from core.health.ref_ranges import REF_RANGES, explicit_sex, flag_for, normalize_sex, ref_range, set_user_sex
 
 
 def test_keys_in_canonical():
@@ -37,3 +37,25 @@ def test_unknown_marker_and_non_numeric():
     assert flag_for("no_such_marker", 1, "male") == ""
     assert flag_for("Hb", "abc", "male") == ""
     assert flag_for("Hb", None, "male") == ""
+
+
+def test_explicit_sex_needs_marker():
+    assert explicit_sex({"sex": "female"}) == "female"
+    assert explicit_sex({"sex": "M"}) == "male"
+    assert explicit_sex({}) is None
+    assert explicit_sex(None) is None
+    assert explicit_sex({"sex": "??"}) is None
+
+
+def test_set_user_sex_writes_both_and_keeps_other_data():
+    class U:
+        sex = "male"
+        onboarding_data = {"age": 30}
+
+    u = U()
+    assert set_user_sex(u, "F") == "female"
+    assert u.sex == "female"
+    assert u.onboarding_data == {"age": 30, "sex": "female"}
+    assert explicit_sex(u.onboarding_data) == "female"
+    with pytest.raises(ValueError):
+        set_user_sex(u, "robot")

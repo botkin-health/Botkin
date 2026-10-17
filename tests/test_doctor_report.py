@@ -487,7 +487,15 @@ def test_assemble_female_report_has_ref_note_and_no_flags(test_db):
     from services.doctor_report import assemble_doctor_report, render_doctor_report_html
 
     test_db.add(
-        User(telegram_id=910, first_name="Она", sex="female", is_active=True, cohort="external", pack_name="generic")
+        User(
+            telegram_id=910,
+            first_name="Она",
+            sex="female",
+            onboarding_data={"sex": "female"},
+            is_active=True,
+            cohort="external",
+            pack_name="generic",
+        )
     )
     test_db.commit()
     import services.doctor_report as dr
@@ -508,7 +516,15 @@ def test_assemble_male_report_has_no_ref_note(test_db):
     from services.doctor_report import assemble_doctor_report, render_doctor_report_html
 
     test_db.add(
-        User(telegram_id=911, first_name="Он", sex="male", is_active=True, cohort="external", pack_name="generic")
+        User(
+            telegram_id=911,
+            first_name="Он",
+            sex="male",
+            onboarding_data={"sex": "male"},
+            is_active=True,
+            cohort="external",
+            pack_name="generic",
+        )
     )
     test_db.commit()
     import services.doctor_report as dr
@@ -521,3 +537,20 @@ def test_assemble_male_report_has_no_ref_note(test_db):
         dr._load_biomarkers = orig
     assert "Гемоглобин: 120.0 г/л (2026-06-09) ↓" in out
     assert "для взрослых мужчин" not in out
+
+
+def test_assemble_default_male_without_explicit_marker_has_no_flags(test_db):
+    """users.sex='male' (server_default) без onboarding_data['sex'] — пол не задан: флагов нет."""
+    from services.doctor_report import assemble_doctor_report, render_doctor_report_html
+    import services.doctor_report as dr
+
+    test_db.add(User(telegram_id=912, first_name="Дефолт", is_active=True, cohort="external", pack_name="generic"))
+    test_db.commit()
+    orig = dr._load_biomarkers
+    dr._load_biomarkers = lambda db, uid: {"Hb": {"value": 120.0, "date": "2026-06-09"}}
+    try:
+        out = render_doctor_report_html(assemble_doctor_report(test_db, 912, "ru"), "ru")
+    finally:
+        dr._load_biomarkers = orig
+    assert "Гемоглобин: 120.0 г/л (2026-06-09)</li>" in out
+    assert "для взрослых мужчин" in out
