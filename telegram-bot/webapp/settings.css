@@ -382,7 +382,7 @@ code { background: var(--card-2); border-radius: 4px; padding: 1px 6px;
 /* Обратная связь (#271) */
 .fb-wrap { padding: 0 12px 16px; }
 .fb-intro { color: var(--hint); font-size: 14px; margin: 0 4px 12px; }
-.fb-text { width: 100%; box-sizing: border-box; min-height: 40vh; margin-top: 12px; padding: 12px 14px; resize: vertical; background: var(--card); border-radius: var(--radius); font-size: 16px; line-height: 1.45; }
+.fb-text { width: 100%; box-sizing: border-box; min-height: 28vh; margin-top: 12px; padding: 12px 14px; resize: vertical; background: var(--card); border-radius: var(--radius); font-size: 16px; line-height: 1.45; }
 .fb-attach { margin-top: 12px; }
 .fb-attach-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 12px 14px; background: var(--card); color: var(--accent); border: 0; border-radius: var(--radius); font-size: 16px; font-family: inherit; cursor: pointer; }
 .fb-attach-btn:disabled { opacity: .5; }

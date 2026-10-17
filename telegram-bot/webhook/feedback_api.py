@@ -200,8 +200,10 @@ async def post_feedback(
         db.close()
 
     # Telegram — после закрытия транзакции БД (не держим tx поперёк сети).
+    # Админа уведомляем о каждом фидбеке из мини-аппа — иначе текстовый фидбек
+    # молча копится в user_feedback. Вложения (если есть) — следом.
+    meta = await _notify_admin(user_id, payload.kind, payload.text, files)
     if files:
-        meta = await _notify_admin(user_id, payload.kind, payload.text, files)
         if any("file_id" in m for m in meta):
             db = SessionLocal()
             try:

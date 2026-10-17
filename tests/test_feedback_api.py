@@ -225,3 +225,14 @@ def test_no_admin_configured_still_ok(client, app_and_db, fake_bot, monkeypatch)
     r = _post(client, [("files", PNG)])
     assert r.status_code == 200
     fake_bot.send_photo.assert_not_awaited()
+
+
+def test_json_feedback_without_files_also_notifies_admin(client, app_and_db, fake_bot):
+    """Текстовый фидбек тоже уходит админу — иначе он молча копится в user_feedback."""
+    _, db = app_and_db
+    r = client.post("/api/feedback", json={"text": "Не грузится дашборд", "kind": "bug"})
+    assert r.status_code == 200 and r.json()["status"] == "ok"
+    fake_bot.send_message.assert_awaited_once()
+    fake_bot.send_photo.assert_not_awaited()
+    fake_bot.send_document.assert_not_awaited()
+    assert db.query(UserFeedback).one().attachments is None
