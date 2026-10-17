@@ -71,9 +71,17 @@ function dashboardEmptyState(msg) {
 
 // Тап по строке «Экспорт для врача» раскрывает/сворачивает инлайн-выбор языка.
 // Обе кнопки языка равнозначны (одинаковое оформление, без подсветки дефолта).
-function toggleDoctorLang() {
-  const choice = document.getElementById('doctor-lang-choice');
-  const statusEl = document.getElementById('doctor-export-status');
+// scope — префикс id контейнера: '' = «Настройки», 'state' = вкладка «Состояние».
+function doctorEls(scope) {
+  const p = scope ? scope + '-' : '';
+  return {
+    choice: document.getElementById(p + 'doctor-lang-choice'),
+    statusEl: document.getElementById(p + 'doctor-export-status'),
+  };
+}
+
+function toggleDoctorLang(scope = '') {
+  const { choice, statusEl } = doctorEls(scope);
   if (!choice) return;
   const opening = choice.hidden;
   choice.hidden = !opening;
@@ -83,9 +91,8 @@ function toggleDoctorLang() {
   }
 }
 
-async function requestDoctorReport(language) {
-  const choice = document.getElementById('doctor-lang-choice');
-  const statusEl = document.getElementById('doctor-export-status');
+async function requestDoctorReport(language, scope = '') {
+  const { choice, statusEl } = doctorEls(scope);
   // Свернуть инлайн-выбор.
   if (choice) choice.hidden = true;
   if (statusEl) { statusEl.textContent = 'Готовим PDF…'; statusEl.className = 'doctor-export-status'; }

@@ -22,9 +22,11 @@
   }
 
   async function request(path, options = {}) {
+    // FormData: Content-Type с boundary выставит сам браузер — вручную не ставим.
+    const isForm = typeof FormData !== 'undefined' && options.body instanceof FormData;
     const headers = {
       ...authHeader(),
-      'Content-Type': 'application/json',
+      ...(isForm ? {} : { 'Content-Type': 'application/json' }),
       ...(options.headers || {}),
     };
     const r = await fetch(API_PREFIX + path, { ...options, headers });
@@ -92,7 +94,15 @@
     },
 
     // POST /api/feedback  {text, kind} → {status: "ok"|"opted_out", id?}  (#271)
-    sendFeedback({ text, kind = 'unspecified' }) {
+    // С файлами (File[]) уходит multipart/form-data: text, kind, files[].
+    sendFeedback({ text, kind = 'unspecified', files = [] }) {
+      if (files.length) {
+        const fd = new FormData();
+        fd.append('text', text);
+        fd.append('kind', kind);
+        files.forEach((f) => fd.append('files', f, f.name));
+        return request('/api/feedback', { method: 'POST', body: fd });
+      }
       return request('/api/feedback', {
         method: 'POST',
         body: JSON.stringify({ text, kind }),
@@ -106,6 +116,11 @@
         method: 'POST',
         body: JSON.stringify({ language }),
       });
+    },
+
+    // GET /api/health/summary?days=7&lang=ru → сводка для вкладки «Состояние»
+    getHealthSummary(days = 7, lang = 'ru') {
+      return request(`/api/health/summary?days=${days}&lang=${lang}`);
     },
 
     // Escape hatch for ad-hoc calls (e.g. /api/settings).

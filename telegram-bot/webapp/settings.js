@@ -27,12 +27,14 @@ function switchTab(tab) {
   flushDirtyInputs(); // save any typed-but-not-blurred inputs before leaving settings
   // Update tab bar active state
   document.querySelectorAll('.tab-item').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.tab === tab);
+    // Дашборд открывается из «Состояния» и своей кнопки в tab-bar не имеет
+    btn.classList.toggle('active', btn.dataset.tab === (tab === 'dashboard' ? 'state' : tab));
   });
   // Show/hide sections
   const sectionMap = {
     'day': 'day-section',
     'supplements-tab': 'supplements-tab-section',
+    'state': 'state-tab-section',
     'dashboard': 'dashboard-tab-section',
     'settings': 'settings-section',
   };
@@ -51,6 +53,7 @@ function switchTab(tab) {
   if (tab === 'supplements-tab') loadSupplementsDay();
   // When switching to dashboard tab, lazy-load the iframe (cached after first open)
   if (tab === 'dashboard') loadDashboard();
+  if (tab === 'state') loadState();
 }
 
 // ── Load settings ───────────────────────────────────────────────────────────
@@ -307,12 +310,13 @@ function addSupplement() {
 
 // ── BMR section ─────────────────────────────────────────────────────────────
 const PAL = { sedentary: 1.2, light: 1.375, moderate: 1.55, high: 1.725 };
+// Подписи — в одну строку (row-sub однострочный, длинное обрежется «…»).
 const SOURCE_LABEL = {
-  adaptive: 'цель по вашим данным (питание + вес) · БМР с часов',
-  garmin: 'из Garmin · обновляется ежедневно по часам',
-  apple_health: 'из Apple Health · обновляется ежедневно с часов / телефона',
-  manual: 'формула Mifflin-St Jeor по твоим параметрам',
-  default: 'оценка по умолчанию · введи параметры для точности',
+  adaptive: 'по питанию, весу и часам',
+  garmin: 'с часов Garmin, ежедневно',
+  apple_health: 'из Apple Health, ежедневно',
+  manual: 'по твоим параметрам',
+  default: 'укажи свои параметры',
 };
 let bmrState = null;  // last fetched /api/profile/bmr
 
@@ -522,19 +526,8 @@ function renderSupplementsDay(data) {
     return;
   }
 
-  const pct = progress.total > 0 ? Math.round(100 * progress.taken / progress.total) : 0;
-
-  let html = `
-    <div class="supp-progress-card">
-      <div class="supp-progress-head">
-        <div>
-          <div class="supp-progress-title">Принято сегодня</div>
-          <div class="supp-progress-big">${progress.taken} <small>из ${progress.total}</small></div>
-        </div>
-        <div class="supp-progress-count">${pct}%</div>
-      </div>
-      <div class="supp-progress-track"><div class="supp-progress-fill" style="width:${pct}%"></div></div>
-    </div>`;
+  // Сводку «Принято X из Y» не показываем: галочки у каждого пункта и так это видно.
+  let html = '';
 
   for (const slot of slots) {
     if (!slot.items.length) continue;
@@ -620,41 +613,20 @@ if (picker) picker.addEventListener('change', () => {
 
 // ── Profile links ────────────────────────────────────────────────────────────
 let _dashboardUrl = null;
-let _reportUrl = null;
 
 async function loadLinks() {
   try {
     const data = await window.API.getDashboardUrl();
     _dashboardUrl = data.dashboard_url || null;
-    _reportUrl = data.report_url || null;
   } catch(e) {
     console.error('Failed to load dashboard url', e);
   }
 }
 
-function openDashboard() {
-  if (_dashboardUrl) tg.openLink(_dashboardUrl);
-}
-
-function openReport() {
-  if (_reportUrl) tg.openLink(_reportUrl);
-}
-
-function copyReport() {
-  if (!_reportUrl) return;
-  navigator.clipboard.writeText(_reportUrl).then(() => {
-    const toast = document.getElementById('links-toast');
-    if (!toast) return;
-    toast.classList.remove('hidden');
-    setTimeout(() => toast.classList.add('hidden'), 2000);
-  }).catch(() => {
-    tg.openLink(_reportUrl);
-  });
-}
-
 function copyDashboard() {
   if (!_dashboardUrl) return;
   navigator.clipboard.writeText(_dashboardUrl).then(() => {
+    tg.HapticFeedback?.notificationOccurred?.('success');
     const toast = document.getElementById('links-toast');
     if (!toast) return;
     toast.classList.remove('hidden');
@@ -829,6 +801,80 @@ function _fmtDate(iso) {
 }
 
 // ── Feedback (сообщить об ошибке / идею) — #271 ──────────────────────────────
+const FB_MAX_FILES = 3;
+const FB_MAX_BYTES = 10 * 1024 * 1024;
+const FB_MIME = ['image/jpeg', 'image/png', 'image/heic', 'image/heif', 'image/webp', 'application/pdf'];
+const FB_EXT_MIME = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', heic: 'image/heic', heif: 'image/heif', webp: 'image/webp', pdf: 'application/pdf' };
+let fbFiles = []; // [{file, url|null}]
+
+function fbMime(f) {
+  if (f.type) return f.type.toLowerCase();
+  return FB_EXT_MIME[(f.name.split('.').pop() || '').toLowerCase()] || '';
+}
+
+function fbSetStatus(msg, cls) {
+  const el = document.getElementById('fb-status');
+  el.textContent = msg;
+  el.className = 'fb-status' + (cls ? ' ' + cls : '');
+}
+
+function fbFilesPicked(input) {
+  const errors = [];
+  for (const f of Array.from(input.files || [])) {
+    if (fbFiles.length >= FB_MAX_FILES) { errors.push(`Можно прикрепить не больше ${FB_MAX_FILES} файлов`); break; }
+    if (!FB_MIME.includes(fbMime(f))) { errors.push(`«${f.name}»: допустимы фото (JPG, PNG, HEIC, WebP) и PDF`); continue; }
+    if (f.size > FB_MAX_BYTES) { errors.push(`«${f.name}»: больше 10 МБ`); continue; }
+    if (f.size === 0) { errors.push(`«${f.name}»: пустой файл`); continue; }
+    fbFiles.push({ file: f, url: fbMime(f).startsWith('image/') && fbMime(f) !== 'image/heic' && fbMime(f) !== 'image/heif' ? URL.createObjectURL(f) : null });
+  }
+  input.value = '';
+  fbRenderFiles();
+  fbSetStatus(errors.join('. '), errors.length ? 'error' : '');
+}
+
+function fbRemoveFile(i) {
+  const [item] = fbFiles.splice(i, 1);
+  if (item && item.url) URL.revokeObjectURL(item.url);
+  fbRenderFiles();
+  fbSetStatus('', '');
+}
+
+function fbClearFiles() {
+  fbFiles.forEach((it) => it.url && URL.revokeObjectURL(it.url));
+  fbFiles = [];
+  fbRenderFiles();
+}
+
+function fbRenderFiles() {
+  const box = document.getElementById('fb-thumbs');
+  box.innerHTML = '';
+  fbFiles.forEach((it, i) => {
+    const t = document.createElement('div');
+    if (it.url) {
+      t.className = 'fb-thumb';
+      const img = document.createElement('img');
+      img.src = it.url;
+      img.alt = it.file.name;
+      t.appendChild(img);
+    } else {
+      t.className = 'fb-thumb fb-thumb-file';
+      t.innerHTML = '<svg class="ic"><use href="#i-file"/></svg>';
+      const n = document.createElement('span');
+      n.textContent = it.file.name;
+      t.appendChild(n);
+    }
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.className = 'fb-thumb-x';
+    x.setAttribute('aria-label', 'Убрать файл');
+    x.innerHTML = '<svg class="ic"><use href="#i-x"/></svg>';
+    x.onclick = () => fbRemoveFile(i);
+    t.appendChild(x);
+    box.appendChild(t);
+  });
+  document.getElementById('fb-attach-btn').disabled = fbFiles.length >= FB_MAX_FILES;
+}
+
 async function sendFeedback() {
   const textEl = document.getElementById('fb-text');
   const statusEl = document.getElementById('fb-status');
@@ -846,7 +892,7 @@ async function sendFeedback() {
   statusEl.textContent = '';
   statusEl.className = 'fb-status';
   try {
-    const res = await window.API.sendFeedback({ text, kind });
+    const res = await window.API.sendFeedback({ text, kind, files: fbFiles.map((it) => it.file) });
     if (res && res.status === 'opted_out') {
       statusEl.textContent = 'Вы отключили отправку обратной связи в настройках.';
       statusEl.className = 'fb-status error';
@@ -854,10 +900,14 @@ async function sendFeedback() {
       statusEl.textContent = '✓ Спасибо! Отправлено разработчикам.';
       statusEl.className = 'fb-status ok';
       textEl.value = '';
+      fbClearFiles();
     }
   } catch (e) {
     console.error('sendFeedback failed', e);
-    statusEl.textContent = '⚠ Не удалось отправить. Попробуйте позже.';
+    const m = String(e.message || '');
+    statusEl.textContent = m.startsWith('413') ? '⚠ Файл слишком большой (максимум 10 МБ).'
+      : m.startsWith('422') && fbFiles.length ? '⚠ Не удалось принять вложения: проверьте тип и количество файлов.'
+      : '⚠ Не удалось отправить. Попробуйте позже.';
     statusEl.className = 'fb-status error';
   } finally {
     btn.disabled = false;
@@ -932,3 +982,24 @@ function initThemeSwitch() {
 }
 
 initThemeSwitch();
+
+// ── Клавиатура на iOS ────────────────────────────────────────────────────────
+// Пока поле ввода в фокусе, закреплённые снизу элементы (таббар, панель БЖУ)
+// всплывают над клавиатурой и закрывают форму — прячем их. Тап мимо полей
+// закрывает клавиатуру: в WebView Telegram на iOS нет кнопки «Готово».
+(function () {
+  const isField = el => el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)
+    && !['checkbox', 'radio', 'range', 'button', 'submit', 'file'].includes(el.type);
+  document.addEventListener('focusin', e => {
+    if (isField(e.target)) document.body.classList.add('kbd-open');
+  });
+  document.addEventListener('focusout', () => {
+    setTimeout(() => {
+      if (!isField(document.activeElement)) document.body.classList.remove('kbd-open');
+    }, 50);
+  });
+  document.addEventListener('touchstart', e => {
+    const a = document.activeElement;
+    if (isField(a) && !isField(e.target) && !e.target.closest('label')) a.blur();
+  }, { passive: true });
+})();

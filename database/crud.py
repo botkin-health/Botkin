@@ -1696,6 +1696,7 @@ def create_feedback(
     source: str,
     kind: str = "unspecified",
     agent_context: Optional[dict] = None,
+    attachments: Optional[list] = None,
 ) -> UserFeedback:
     """Записать обратную связь в единый инбокс user_feedback (#188).
 
@@ -1708,12 +1709,19 @@ def create_feedback(
         source=source,
         kind=kind,
         agent_context=agent_context,
+        attachments=attachments,
         status="new",
     )
     db.add(row)
     db.commit()
     db.refresh(row)
     return row
+
+
+def set_feedback_attachments(db: Session, feedback_id: int, attachments: list) -> None:
+    """Обновить метаданные вложений (после отправки в Telegram — с file_id)."""
+    db.query(UserFeedback).filter(UserFeedback.id == feedback_id).update({"attachments": attachments})
+    db.commit()
 
 
 def list_recent_feedback(db: Session, *, status: Optional[str] = "new", limit: int = 20) -> List[UserFeedback]:

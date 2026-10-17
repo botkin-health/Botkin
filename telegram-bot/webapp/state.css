@@ -1,0 +1,80 @@
+/* ── Вкладка «Состояние» ─────────────────────────────────────────────────────
+ * Только токены из theme.css (var(--…)), без своих hex.
+ */
+#state-container { padding: 0 12px; max-width: 480px; margin: 0 auto; }
+
+.st-header { display: flex; justify-content: space-between; align-items: baseline; padding: 16px 4px 4px; }
+.st-header b { font-size: 22px; font-weight: 600; }
+.st-header span { font-size: 13px; color: var(--hint); }
+
+.st-title { margin: 18px 4px 6px; font-size: 13px; font-weight: 600; color: var(--section-title); }
+.st-sub { margin-top: 3px; font-size: 13px; line-height: 1.35; color: var(--hint); }
+.st-faint { opacity: .8; }
+.st-unit { font-size: 14px; font-weight: 400; color: var(--hint); }
+.st-note { font-style: normal; margin-top: 8px; }
+.st-empty { margin: 4px 4px 0; padding: 12px 14px; font-size: 14px; color: var(--hint); background: var(--card); border-radius: var(--radius); }
+
+/* Пункты «На что обратить внимание» */
+.st-att {
+  margin-top: 8px; padding: 10px 12px; background: var(--card);
+  border-radius: var(--radius-sm); border-left: 4px solid var(--hint);
+}
+.st-att.high { border-left-color: var(--bad); }
+.st-att.medium { border-left-color: var(--warn); }
+.st-att-title { font-size: 15px; font-weight: 600; }
+.st-action { margin-top: 5px; font-size: 13px; color: var(--accent-text); }
+
+/* Карточки потоков */
+.st-card {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-top: 8px; padding: 12px; background: var(--card); border-radius: var(--radius);
+}
+.st-card.stale .st-main { color: var(--hint); }
+.st-card-body { min-width: 0; flex: 1; }
+.st-card-title { font-size: 13px; color: var(--hint); }
+.st-main { margin-top: 2px; font-size: 22px; font-weight: 600; line-height: 1.2; }
+.st-main-sm { font-size: 16px; }
+.st-newbie { display: block; }
+
+/* Мини-график */
+.st-spark { display: flex; align-items: flex-end; gap: 3px; height: 32px; flex-shrink: 0; }
+.st-spark i { width: 7px; background: var(--track); border-radius: 2px; }
+.st-spark i.last { background: var(--accent); }
+.st-spark i.gap { height: 2px; background: var(--track); opacity: .6; }
+
+/* Анализы */
+.st-labs { display: block; padding: 0; overflow: hidden; }
+.st-labs-head {
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px;
+  background: none; border: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.st-labs-head:disabled { cursor: default; }
+.st-chev { color: var(--hint); transition: transform .15s; }
+.st-labs-head.open .st-chev { transform: rotate(180deg); }
+.st-labs-body { padding: 0 12px 12px; }
+.st-labs-body[hidden] { display: none; }
+.st-lab { padding: 8px 0; border-top: 0.5px solid var(--separator); }
+.st-lab-row { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; }
+
+/* Кнопки внизу */
+.st-actions { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
+.st-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
+  padding: 12px; font: inherit; font-size: 15px; color: var(--accent-text);
+  background: var(--card); border: none; border-radius: var(--radius); cursor: pointer;
+}
+.st-btn:active { opacity: .7; }
+.st-empty + .st-btn { margin-top: 8px; }
+
+/* Дашборд открыт из «Состояния»: полоса «Назад» над iframe */
+#dashboard-tab-section .dashboard-back {
+  display: flex; align-items: center; height: 40px; background: var(--header-bg);
+  border-bottom: 0.5px solid var(--separator);
+}
+#dashboard-tab-section .dashboard-frame {
+  height: calc(100vh - 40px - 56px - env(safe-area-inset-bottom, 0px));
+}
+
+/* Заглушка «скоро», пока /api/health/summary не выкачен */
+.st-soon { line-height: 1.45; }
+.st-soon-title { color: var(--text); font-weight: 600; font-size: 16px; margin-bottom: 4px; }
