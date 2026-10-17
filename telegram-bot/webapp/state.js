@@ -224,11 +224,14 @@ function stRenderAttention(d) {
   return `<div class="st-title">На что обратить внимание</div>${body}`;
 }
 
-// ── Нижние кнопки: дашборд и PDF ─────────────────────────────────────────────
+// ── Нижние кнопки: дашборд, ссылка на него и PDF ─────────────────────────────────────────────
 function stRenderActions() {
   return `<div class="st-actions">
     <button type="button" class="st-btn" onclick="switchTab('dashboard')">
       <svg class="ic"><use href="#i-chart"/></svg>Открыть дашборд
+    </button>
+    <button type="button" class="st-btn" onclick="copyDashboard()">
+      <svg class="ic"><use href="#i-copy"/></svg>Скопировать ссылку на дашборд
     </button>
     <button type="button" class="st-btn" onclick="toggleDoctorLang('state')">
       <svg class="ic"><use href="#i-file"/></svg>Отчёт для врача (PDF)
