@@ -1,0 +1,163 @@
+{
+  "_comment": "Вымышленные данные для проверки экрана «Состояние» без бэкенда: открыть миниапп с ?mock=full | sparse | newbie | quiet. Реальных медданных здесь нет.",
+  "full": {
+    "as_of": "2026-10-17",
+    "tz": "Asia/Dubai",
+    "window_days": 7,
+    "sex": "male",
+    "attention": [
+      {
+        "id": "labs_ldl_high",
+        "stream": "labs",
+        "severity": "high",
+        "title": "ЛПНП выше нормы",
+        "detail": "3,6 ммоль/л (норма до 3,0) · анализ от 02.09 · 3,9 → 3,6 с ноября",
+        "action": "Обсудить с врачом, пересдать липидограмму",
+        "data_date": "2026-09-02"
+      },
+      {
+        "id": "sleep_low_7d",
+        "stream": "sleep",
+        "severity": "medium",
+        "title": "Сон короче обычного",
+        "detail": "5,9 ч (среднее за 7 дн., N=6) против 7,1 ч (медиана 14 дн., N=14)",
+        "action": "Проверить режим сна",
+        "data_date": "2026-10-17"
+      },
+      {
+        "id": "labs_stale",
+        "stream": "labs",
+        "severity": "info",
+        "title": "Просрочены анализы: 2",
+        "detail": "Витамин D и B12 сдавались больше года назад",
+        "action": "Пересдать",
+        "data_date": "2026-09-02"
+      }
+    ],
+    "streams": {
+      "sleep": {
+        "status": "attention", "connected": true, "last_date": "2026-10-17", "stale_days": 0,
+        "latest": {"value": 5.4, "unit": "ч", "date": "2026-10-17"},
+        "avg": {"value": 5.9, "unit": "ч", "n": 6, "label": "среднее за 7 дн."},
+        "baseline": {"value": 7.1, "n": 14, "label": "медиана 14 дн. до окна"},
+        "series": [
+          {"date": "2026-10-11", "value": 6.2}, {"date": "2026-10-12", "value": null},
+          {"date": "2026-10-13", "value": 5.8}, {"date": "2026-10-14", "value": 6.6},
+          {"date": "2026-10-15", "value": 5.1}, {"date": "2026-10-16", "value": 6.4},
+          {"date": "2026-10-17", "value": 5.4}
+        ],
+        "extra": {"score": 71, "deep_min": 62, "rem_min": 88}
+      },
+      "activity": {
+        "status": "ok", "connected": true, "last_date": "2026-10-16", "stale_days": 1,
+        "latest": {"value": 8420, "unit": "шагов", "date": "2026-10-16"},
+        "avg": {"value": 7900, "unit": "шагов", "n": 7, "label": "среднее за 7 дн."},
+        "baseline": {"value": 8100, "n": 14, "label": "медиана 14 дн. до окна"},
+        "series": [
+          {"date": "2026-10-11", "value": 6100}, {"date": "2026-10-12", "value": 9400},
+          {"date": "2026-10-13", "value": 7200}, {"date": "2026-10-14", "value": 10300},
+          {"date": "2026-10-15", "value": 5200}, {"date": "2026-10-16", "value": 8420},
+          {"date": "2026-10-17", "value": null}
+        ],
+        "workouts": {"count": 3, "minutes": 142, "last_date": "2026-10-15"}
+      },
+      "hrv": {
+        "status": "ok", "connected": true, "last_date": "2026-10-17", "stale_days": 0,
+        "latest": {"value": 48, "unit": "мс", "date": "2026-10-17"},
+        "avg": {"value": 46, "unit": "мс", "n": 7, "label": "среднее за 7 дн."},
+        "baseline": {"value": 47, "n": 14, "label": "медиана 14 дн. до окна"},
+        "series": [
+          {"date": "2026-10-11", "value": 44}, {"date": "2026-10-12", "value": 47},
+          {"date": "2026-10-13", "value": 45}, {"date": "2026-10-14", "value": 50},
+          {"date": "2026-10-15", "value": 41}, {"date": "2026-10-16", "value": 46},
+          {"date": "2026-10-17", "value": 48}
+        ],
+        "extra": {"source": "Garmin", "pulse": {"latest": {"value": 61, "unit": "уд/мин", "date": "2026-10-17"}, "kind": "resting"}}
+      },
+      "weight": {
+        "status": "ok", "connected": true, "last_date": "2026-10-15", "stale_days": 2,
+        "latest": {"value": 82.3, "unit": "кг", "date": "2026-10-15"},
+        "series": [],
+        "extra": {"body_fat": {"value": 22, "unit": "%"}}
+      },
+      "labs": {
+        "status": "attention", "last_test_date": "2026-09-02", "n_markers": 31,
+        "out_of_range": [
+          {"key": "LDL", "label": "ЛПНП", "value": 3.6, "unit": "ммоль/л", "ref_low": 0, "ref_high": 3.0,
+           "direction": "high", "deviation_pct": 20, "date": "2026-09-02",
+           "history": [{"date": "2025-11-10", "value": 3.9}, {"date": "2026-03-05", "value": 3.7}, {"date": "2026-09-02", "value": 3.6}]},
+          {"key": "ferritin", "label": "Ферритин", "value": 28, "unit": "мкг/л", "ref_low": 30, "ref_high": 400,
+           "direction": "low", "deviation_pct": 7, "date": "2026-09-02",
+           "history": [{"date": "2026-03-05", "value": 41}, {"date": "2026-09-02", "value": 28}]}
+        ],
+        "stale": [
+          {"key": "vitamin_D", "label": "Витамин D", "days_ago": 410, "threshold_days": 365},
+          {"key": "B12", "label": "Витамин B12", "days_ago": 388, "threshold_days": 365}
+        ],
+        "ref_note": "Референсы для взрослых мужчин"
+      },
+      "bp": {"status": "not_connected", "connected": false},
+      "glucose": {"status": "no_data", "connected": true}
+    },
+    "data_gaps": [{"stream": "bp", "reason": "not_connected", "hint_source": "apple_health"}]
+  },
+  "sparse": {
+    "as_of": "2026-10-17",
+    "tz": "Europe/Moscow",
+    "window_days": 7,
+    "sex": null,
+    "attention": [],
+    "streams": {
+      "sleep": {
+        "status": "stale", "connected": true, "last_date": "2026-10-05", "stale_days": 12,
+        "latest": {"value": 7.2, "unit": "ч", "date": "2026-10-05"}
+      },
+      "weight": {
+        "status": "ok", "connected": true, "last_date": "2026-10-09", "stale_days": 8,
+        "latest": {"value": 64.0, "unit": "кг", "date": "2026-10-09"},
+        "series": [],
+        "extra": {}
+      },
+      "labs": {
+        "status": "ok", "last_test_date": "2026-05-23", "n_markers": 12,
+        "out_of_range": [], "stale": [],
+        "ref_note": "Референсы пока заданы для мужчин, флаги не ставим"
+      },
+      "activity": {"status": "no_data", "connected": true},
+      "hrv": {"status": "not_connected", "connected": false}
+    },
+    "data_gaps": []
+  },
+  "quiet": {
+    "as_of": "2026-10-17",
+    "tz": "Asia/Dubai",
+    "window_days": 7,
+    "sex": "male",
+    "attention": [],
+    "streams": {
+      "sleep": {
+        "status": "ok", "connected": true, "last_date": "2026-10-17", "stale_days": 0,
+        "latest": {"value": 7.3, "unit": "ч", "date": "2026-10-17"},
+        "avg": {"value": 7.1, "unit": "ч", "n": 7, "label": "среднее за 7 дн."},
+        "baseline": {"value": 7.0, "n": 14, "label": "медиана 14 дн. до окна"},
+        "series": [
+          {"date": "2026-10-11", "value": 7.0}, {"date": "2026-10-12", "value": 6.9},
+          {"date": "2026-10-13", "value": 7.4}, {"date": "2026-10-14", "value": 7.1},
+          {"date": "2026-10-15", "value": 6.8}, {"date": "2026-10-16", "value": 7.2},
+          {"date": "2026-10-17", "value": 7.3}
+        ]
+      }
+    },
+    "data_gaps": []
+  },
+  "newbie": {
+    "as_of": "2026-10-17",
+    "tz": "Europe/Moscow",
+    "window_days": 7,
+    "sex": null,
+    "onboarding": true,
+    "attention": [],
+    "streams": {},
+    "data_gaps": []
+  }
+}
