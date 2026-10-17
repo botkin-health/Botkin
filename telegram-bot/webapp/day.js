@@ -99,6 +99,8 @@
   function ringSvg(fraction, tone) {
     const r = 46, c = 2 * Math.PI * r;
     const dash = Math.max(0, Math.min(1, fraction)) * c;
+    // При нуле скруглённый край рисует точку — не рисуем дугу вовсе.
+    if (dash < 0.5) return `<svg class="ring" viewBox="0 0 112 112" aria-hidden="true"><circle cx="56" cy="56" r="${r}" class="ring-track"/></svg>`;
     return `<svg class="ring" viewBox="0 0 112 112" aria-hidden="true">
       <circle cx="56" cy="56" r="${r}" class="ring-track"/>
       <circle cx="56" cy="56" r="${r}" class="ring-fill tone-${tone}"
@@ -121,7 +123,8 @@
     const tone = incomplete ? 'warn' : isOver ? 'bad' : diff / goal < 0.15 ? 'warn' : 'ok';
 
     const heroNum = `${incomplete ? '≈' : ''}${Math.abs(diff)}`;
-    const heroLabel = isOver ? 'перебор' : 'осталось';
+    // При неполных данных вердикт «перебор/осталось» не выносим — только оценка.
+    const heroLabel = incomplete ? 'оценка' : isOver ? 'перебор' : 'осталось';
 
     // Макросы — справа от кольца. Ккал уже в кольце, здесь не дублируем.
     const macros = [
@@ -196,7 +199,7 @@
         <ul class="empty-hint-list">
           <li>${icon('message')}<span><b>Текст</b> — «овсянка 100г, кофе с молоком»</span></li>
           <li>${icon('camera')}<span><b>Фото</b> — тарелки или упаковки</span></li>
-          <li>${icon('bell')}<span><b>Голос</b> — наговори голосовое</span></li>
+          <li>${icon('mic')}<span><b>Голос</b> — наговори голосовое</span></li>
         </ul>
         <div class="empty-hint-foot">Дневник заполнится автоматически.</div>
       </div>` : '';
@@ -208,7 +211,7 @@
         <div class="slot dim" data-slot="${slot}">
           <div class="slot-left">
             <div class="slot-title">${slotIcon(slot)}${SLOT_LABEL[slot]}</div>
-            <div class="slot-empty">Пока пусто — пришлите фото или текст в чат</div>
+            <div class="slot-empty">Пришлите фото или текст в чат</div>
           </div>
           <div class="slot-right">
             <span class="slot-meta slot-meta-empty">—</span>
