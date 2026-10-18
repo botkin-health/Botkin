@@ -30,7 +30,16 @@ _COUNTABLE_STEMS = (
 )
 _SIZE_WORD = r"(?:маленьк|небольш|мелк|средн|больш|крупн)[а-яё]*"
 _UNICODE_FRACTIONS = {"½": 0.5, "⅓": 1 / 3, "⅔": 2 / 3, "¼": 0.25, "¾": 0.75}
-_BEFORE_COUNTABLE = r"(?=\s*(?:" + _SIZE_WORD + r"\s+)?(?:" + _COUNTABLE_STEMS + r"))"
+# Меры объёма/порции: «1/2 стакана», «полторы чашки», «0,5 л». Дробь перед ними
+# превращаем в десятичную, чтобы счётчик порций не увидел в «1/2» только «2».
+_MEASURE_STEMS = r"стакан|чашк|кружк|бокал|рюмк|стопк|бутылк|банк|ложк|ложечк|пачк|порци|литр|л\b"
+_BEFORE_COUNTABLE = r"(?=\s*(?:" + _SIZE_WORD + r"\s+)?(?:" + _COUNTABLE_STEMS + r"|" + _MEASURE_STEMS + r"))"
+# Проценты читаем как долю штуки только для «круглых» долей: у жирности молочки
+# бывают 1.5/2.5/5/10%, и «кефир 2.5% банан» (без запятой) не должен стать 0.025 банана.
+_PERCENT_FRACTIONS = frozenset({25, 33, 50, 66, 67, 75, 100})
+_WORD_FRACTIONS = {"четверть": 0.25, "четверти": 0.25, "треть": 1 / 3, "трети": 1 / 3}
+_TIME_RE = re.compile(r"(?<![\d:])(?:[01]?\d|2[0-3]):[0-5]\d(?![\d:])")
+_DATE_RE = re.compile(r"(?<![\d./])(?:0?[1-9]|[12]\d|3[01])[./](?:0?[1-9]|1[0-2])[./](?:\d{4}|\d{2})(?![\d./])")
 
 # Фрукты с поправкой на размер: (каноническое имя, regex основы, маленький, средний, большой), г.
 # Средний = прежний вес штуки; маленький/большой — ориентир по порциям USDA FoodData
@@ -62,16 +71,46 @@ def normalize_fractions(text: str) -> str:
 
     text = re.sub(r"(\d+)?\s*([½⅓⅔¼¾])" + _BEFORE_COUNTABLE, _unicode, text)
 
+    def _mixed(m: re.Match) -> str:
+        den = int(m.group(3))
+        return _fmt_num(int(m.group(1)) + int(m.group(2)) / den) if den else m.group(0)
+
+    # «1 1/2 банана» → 1.5 (целая часть + дробь), иначе дробь «1/2» съела бы только вторую цифру
+    text = re.sub(
+        r"(?<![\d.,/])(\d{1,2})\s+(\d{1,2})\s*/\s*(\d{1,2})(?![\d/])" + _BEFORE_COUNTABLE,
+        _mixed,
+        text,
+    )
+
     def _slash(m: re.Match) -> str:
         num, den = int(m.group(1)), int(m.group(2))
         return _fmt_num(num / den) if den else m.group(0)
 
     text = re.sub(r"(?<![\d.,/])(\d{1,2})\s*/\s*(\d{1,2})(?![\d/])" + _BEFORE_COUNTABLE, _slash, text)
 
+    # Слова: «2 с половиной яблока», «3 четверти груши», «четверть яблока».
+    # Целые числительные к этому моменту уже цифры (replace_text_numbers).
+    text = re.sub(
+        r"(?<![\d.,])(\d{1,2})\s+с\s+половин(?:ой|кой)" + _BEFORE_COUNTABLE,
+        lambda m: _fmt_num(int(m.group(1)) + 0.5),
+        text,
+    )
+    text = re.sub(
+        r"(?<![\d.,])(?:(\d{1,2})\s+)?(четверть|четверти|треть|трети)" + _BEFORE_COUNTABLE,
+        lambda m: _fmt_num(int(m.group(1) or 1) * _WORD_FRACTIONS[m.group(2)]),
+        text,
+    )
+
     def _percent(m: re.Match) -> str:
-        return _fmt_num(float(m.group(1).replace(",", ".")) / 100)
+        value = float(m.group(1).replace(",", "."))
+        return _fmt_num(value / 100) if value in _PERCENT_FRACTIONS else m.group(0)
 
     return re.sub(r"(\d+(?:[.,]\d+)?)\s*%" + _BEFORE_COUNTABLE, _percent, text)
+
+
+def _mask_times_and_dates(text: str) -> str:
+    """Время «13:30» и даты «18.10.2026» убираем из текста: иначе «30 банан» читается как счётчик."""
+    return _DATE_RE.sub(" ", _TIME_RE.sub(" ", text))
 
 
 # Вес одной штуки продукта (для оценки, если вес не указан)
@@ -448,7 +487,7 @@ def extract_products_from_description(description: str) -> List[Dict[str, any]]:
         [{'name': 'куриное филе', 'weight': 385.6, 'source': 'photo'}, ...]
     """
     products = []
-    description_lower = description.lower()
+    description_lower = _mask_times_and_dates(description.lower())
     added_products = set()  # Для отслеживания уже добавленных продуктов
 
     # Сначала ищем простые названия продуктов (для случаев типа "кофе к завтраку", "кофе", "чай")
@@ -646,6 +685,9 @@ def extract_products_from_description(description: str) -> List[Dict[str, any]]:
 
                 try:
                     weight = float(weight_str)
+                    # «0,5 л молока», «пол литра воды»: литры → граммы (≈ 1 г/мл, как и для мл)
+                    if re.search(r"\d\s*(?:л|литр[а-я]*)(?![а-яёa-z])", match.group(0)):
+                        weight *= 1000
                     normalized = normalize_product_name(product_name)
                     if normalized and len(normalized) > 2:
                         # Дополнительная проверка - не является ли это названием приёма пищи
@@ -711,13 +753,15 @@ def extract_products_from_description(description: str) -> List[Dict[str, any]]:
             "половину": "0.5",
             "половина": "0.5",
             "половинку": "0.5",
+            "половинка": "0.5",
+            "половины": "0.5",
             "полтора": "1.5",
             "полторы": "1.5",
         }
 
         # Разбиваем слитные "пол-" формы: "полгруши" → "0.5 груши", "полбанана" → "0.5 банана"
         # Исключаем самостоятельные слова: половина, половину, половинку, полностью, положить и т.д.
-        text = re.sub(r"\bпол(?!ов|ност|ожи|учи|ураз|оск|тор)([а-яё]{3,})", r"0.5 \1", text)
+        text = re.sub(r"\bпол-?(?!ов|ност|ожи|учи|ураз|оск|тор)([а-яё]{3,})", r"0.5 \1", text)
 
         words = text.split()
         new_words = []
@@ -773,7 +817,7 @@ def extract_products_from_description(description: str) -> List[Dict[str, any]]:
     # Фрукты: «2 яблока», «маленькое яблоко», «0.5 большого банана». Без числа и без
     # размера («яблоко») не матчим — вес остаётся за LLM, как и раньше.
     for product_name, stem, small_g, medium_g, large_g in _FRUIT_SIZES:
-        pattern = r"(?:" + _N_CNT + r"\s*)?(?:(" + _SIZE_WORD + r")\s+)?" + stem
+        pattern = r"(?:" + _N_CNT + r"\s*(?:шт[а-яё]*\.?\s*)?)?(?:(" + _SIZE_WORD + r")\s+)?" + stem
         for match in re.finditer(pattern, description_lower):
             count_str, size = match.group(1), match.group(2)
             if count_str is None and size is None:
@@ -846,9 +890,9 @@ def extract_products_from_description(description: str) -> List[Dict[str, any]]:
 
     # Порции без веса: "чайная ложка масла", "кусок хлеба"
     portion_patterns = [
-        (r"(\d+)\s*чайн[а-я]*\s*ложк[а-я]*\s+([а-яё\s]+)", PORTION_WEIGHTS["чайная ложка"]),
+        (r"(\d+(?:[.,]\d+)?)\s*чайн[а-я]*\s*ложк[а-я]*\s+([а-яё\s]+)", PORTION_WEIGHTS["чайная ложка"]),
         (r"чайн[а-я]*\s*ложк[а-я]*\s+([а-яё\s]+)", PORTION_WEIGHTS["чайная ложка"]),  # Implied 1
-        (r"(\d+)\s*столов[а-я]*\s*ложк[а-я]*\s+([а-яё\s]+)", PORTION_WEIGHTS["столовая ложка"]),
+        (r"(\d+(?:[.,]\d+)?)\s*столов[а-я]*\s*ложк[а-я]*\s+([а-яё\s]+)", PORTION_WEIGHTS["столовая ложка"]),
         (r"столов[а-я]*\s*ложк[а-я]*\s+([а-яё\s]+)", PORTION_WEIGHTS["столовая ложка"]),  # Implied 1
         (
             r"(?:маленьк[а-я]*|небольш[а-я]*)\s*кусочк[а-я]*\s+([а-яё\s]+)",
@@ -862,15 +906,15 @@ def extract_products_from_description(description: str) -> List[Dict[str, any]]:
         (r"ломтик\s+([а-яё\s]+)", PORTION_WEIGHTS["ломтик"]),
         (r"порция\s+([а-яё\s]+)", PORTION_WEIGHTS["порция"]),
         # Новые паттерны
-        (r"(\d+)\s*бокал[а-я]*\s+([а-яё\s]+)", PORTION_WEIGHTS["бокал"]),
+        (r"(\d+(?:[.,]\d+)?)\s*бокал[а-я]*\s+([а-яё\s]+)", PORTION_WEIGHTS["бокал"]),
         (r"бокал\s+([а-яё\s]+)", PORTION_WEIGHTS["бокал"]),
-        (r"(\d+)\s*стакан[а-я]*\s+([а-яё\s]+)", PORTION_WEIGHTS["стакан"]),
+        (r"(\d+(?:[.,]\d+)?)\s*стакан[а-я]*\s+([а-яё\s]+)", PORTION_WEIGHTS["стакан"]),
         (r"стакан\s+([а-яё\s]+)", PORTION_WEIGHTS["стакан"]),
-        (r"(\d+)\s*кружк[а-я]*\s+([а-яё\s]+)", PORTION_WEIGHTS["кружка"]),
+        (r"(\d+(?:[.,]\d+)?)\s*кружк[а-я]*\s+([а-яё\s]+)", PORTION_WEIGHTS["кружка"]),
         (r"кружка\s+([а-яё\s]+)", PORTION_WEIGHTS["кружка"]),
-        (r"(\d+)\s*бутылк[а-я]*\s+([а-яё\s]+)", PORTION_WEIGHTS["бутылка"]),
+        (r"(\d+(?:[.,]\d+)?)\s*бутылк[а-я]*\s+([а-яё\s]+)", PORTION_WEIGHTS["бутылка"]),
         (r"бутылка\s+([а-яё\s]+)", PORTION_WEIGHTS["бутылка"]),
-        (r"(\d+)\s*банк[а-я]*\s+([а-яё\s]+)", PORTION_WEIGHTS["банка"]),
+        (r"(\d+(?:[.,]\d+)?)\s*банк[а-я]*\s+([а-яё\s]+)", PORTION_WEIGHTS["банка"]),
         (r"банка\s+([а-яё\s]+)", PORTION_WEIGHTS["банка"]),
     ]
 
@@ -879,9 +923,9 @@ def extract_products_from_description(description: str) -> List[Dict[str, any]]:
         for match in re.finditer(pattern, description_lower):
             if len(match.groups()) == 2:
                 # "2 чайных ложки масла"
-                count = int(match.group(1))
+                count = float(match.group(1).replace(",", "."))
                 product_name = match.group(2).strip()
-                weight = default_weight * count
+                weight = round(default_weight * count, 1)
             else:
                 # "кусок хлеба" или "маленький кусок масла"
                 product_name = match.group(1).strip()
