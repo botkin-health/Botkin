@@ -64,7 +64,7 @@ class TestFractionCounts:
 
         assert normalize_fractions("стакан молока 2.5%") == "стакан молока 2.5%"
         assert normalize_fractions("2.5% молоко") == "2.5% молоко"
-        assert normalize_fractions("1/2 стакана молока") == "1/2 стакана молока"
+        assert normalize_fractions("кефир 2.5% банан") == "кефир 2.5% банан"
 
 
 class TestFruitSize:

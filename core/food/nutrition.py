@@ -705,6 +705,30 @@ def _subportion_weight_plausible(weight, default_weight: float) -> bool:
     return w >= _SUBPORTION_MIN_G and w >= default_weight * _SUBPORTION_MIN_RATIO
 
 
+def _named_in_description(name: str, description: str) -> bool:
+    """Пользователь назвал продукт в тексте (хотя бы по стему)."""
+    return bool(description) and _stems_overlap(name.lower(), description.lower())
+
+
+def _weight_held_by_other_items(regex_weight: float, idx: int, items: List[Dict], regex_weights) -> bool:
+    """Явный вес из текста LLM уже поставил другим позициям — каждый указанный пользователем
+    экземпляр этого веса занят. Тогда совпадение по стему с текущей позицией — ложное:
+    «бургер с фри 100г» → LLM дал фри 100 г, а regex-ключ «бургер с фри» навязывал
+    100 г бургеру (1410 → 1050 ккал, eval 18.10.2026)."""
+
+    def _same(w) -> bool:
+        try:
+            return abs(float(w) - regex_weight) < _WEIGHT_EQ_TOLERANCE_G
+        except (TypeError, ValueError):
+            return False
+
+    if _same(items[idx].get("weight")):
+        return False
+    holders = sum(1 for j, it in enumerate(items) if j != idx and _same(it.get("weight")))
+    stated = sum(1 for w in regex_weights if _same(w))
+    return holders > 0 and holders >= stated
+
+
 def _unique_weight_match(weight: float, regex_weights) -> bool:
     """LLM-вес совпал ровно с одним из явно указанных пользователем весов.
     Если одинаковый вес указан у нескольких продуктов — совпадение неоднозначно, не доверяем."""
@@ -871,6 +895,12 @@ def _process_llm_food_items(llm_data: Dict, description: str = None) -> Tuple[Li
                         f"({weight}г) более чем в {_ESTIMATE_VS_LLM_MAX_RATIO:g}× — оставляем вес LLM"
                     )
                     regex_weight = None
+                elif _weight_held_by_other_items(float(regex_weight), idx, items, regex_weights_list):
+                    logger.warning(
+                        f"⚠️ Вес из текста {regex_weight}г уже стоит у другой позиции LLM — "
+                        f"не переносим его на '{name}' ({weight}г)"
+                    )
+                    regex_weight = None
             if not regex_weight and weight:
                 # Имя не пересекается даже по стемам, но LLM-вес совпадает с явно
                 # указанным пользователем весом ровно одного продукта — доверяем.
@@ -889,11 +919,13 @@ def _process_llm_food_items(llm_data: Dict, description: str = None) -> Tuple[Li
             from .description_parser import get_default_unit_weight
 
             default_weight = get_default_unit_weight(name)
-            # Пользователь назвал суб-порцию («ложка салата») и LLM дал правдоподобный
-            # вес — справочник порций его не перекрывает (#470).
+            # Справочник порций не перекрывает правдоподобный вес LLM, если пользователь
+            # назвал суб-порцию («ложка салата», #470) или вовсе не называл продукт в тексте:
+            # позицию с фото/карточки LLM оценил по картинке, а совпадение по подстроке
+            # («Паста из трав» → паста 250 г) — случайное (eval 18.10.2026: 233 → 1165 ккал).
             if (
                 weight
-                and mentions_subportion(description, name)
+                and (mentions_subportion(description, name) or not _named_in_description(name, description))
                 and _subportion_weight_plausible(weight, default_weight)
             ):
                 default_weight = 0

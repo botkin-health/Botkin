@@ -34,8 +34,11 @@ sys.path.insert(0, str(ROOT))
 from core.llm.models import parse_llm_response  # noqa: E402
 from core.llm.router import SYSTEM_PROMPT  # noqa: E402
 
-CASES_PATH = ROOT / "data" / "eval" / "food" / "cases.json"
-RESULTS_DIR = ROOT / "data" / "eval" / "food" / "results"
+# FOOD_EVAL_DATA — каталог с cases.json/results, если харнесс лежит не в /app/scripts/eval
+# (на проде копия харнесса кладётся в data/, чтобы не трогать файлы образа).
+DATA_DIR = Path(os.getenv("FOOD_EVAL_DATA", str(ROOT / "data" / "eval" / "food")))
+CASES_PATH = DATA_DIR / "cases.json"
+RESULTS_DIR = DATA_DIR / "results"
 
 KCAL_TOL = 0.15
 PROTEIN_TOL_G = 5.0
@@ -44,25 +47,47 @@ TIMEOUT_S = 60
 
 
 # $/1M токенов: (input, output, cache_write, cache_read). Источники — официальные
-# страницы цен, проверены 2026-09-13; для Gemini/OpenAI cache_write=0 (неявный кэш).
+# страницы цен, проверены 2026-09-13 (Haiku 5.5, Sonnet 5.5, luna, Groq/Cerebras/DeepSeek —
+# 2026-10-18, docs/researches/food-fast-llm-benchmark.md); для Gemini/OpenAI cache_write=0 (неявный кэш).
 PRICING = {
     "claude-sonnet-4-6": (3.00, 15.00, 3.75, 0.30),
     "claude-sonnet-5": (2.00, 10.00, 2.50, 0.20),
     "claude-haiku-4-5": (1.00, 5.00, 1.25, 0.10),
+    "claude-haiku-5-5": (0.10, 0.50, 0.125, 0.01),
+    "claude-sonnet-5-5": (2.00, 10.00, 2.50, 0.10),
+    "claude-opus-5-5": (4.00, 20.00, 5.00, 0.20),
     "gemini-3.6-flash": (0.75, 3.75, 0.0, 0.1875),
     "gemini-3.5-flash-lite": (0.30, 2.50, 0.0, 0.075),
     "gpt-5-mini": (0.25, 2.00, 0.0, 0.03),
     "gpt-5-nano": (0.05, 0.40, 0.0, 0.005),
+    "gpt-6-luna": (0.10, 0.50, 0.0, 0.01),
+    "gpt-5.4-mini": (0.75, 4.50, 0.0, 0.075),
+    "gpt-5.6-luna": (0.20, 1.20, 0.0, 0.02),
+    "gemini-3.8-flash": (0.75, 3.75, 0.0, 0.075),
+    "qwen/qwen3.8-27b": (0.80, 4.00, 0.0, 0.0),
+    "qwen-3.8-27b": (0.99, 1.49, 0.0, 0.0),
+    "deepseek-flash": (0.30, 1.20, 0.0, 0.006),
 }
 
 CONFIGS = {
     "sonnet46": ("anthropic", "claude-sonnet-4-6"),
     "sonnet5": ("anthropic", "claude-sonnet-5"),
     "haiku45": ("anthropic", "claude-haiku-4-5"),
+    "haiku55": ("anthropic", "claude-haiku-5-5"),
+    "haiku55nt": ("anthropic", "claude-haiku-5-5#nothink"),
+    "sonnet55": ("anthropic", "claude-sonnet-5-5"),
+    "opus55": ("anthropic", "claude-opus-5-5"),
     "gemini36": ("gemini", "gemini-3.6-flash"),
     "gemini35lite": ("gemini", "gemini-3.5-flash-lite"),
     "gpt5mini": ("openai", "gpt-5-mini"),
     "gpt5nano": ("openai", "gpt-5-nano"),
+    "gpt6luna": ("openai", "gpt-6-luna"),
+    "gpt54mini": ("openai", "gpt-5.4-mini"),
+    "gpt56luna": ("openai", "gpt-5.6-luna"),
+    "gemini38": ("gemini", "gemini-3.8-flash"),
+    "groqqwen": ("groq", "qwen/qwen3.8-27b"),
+    "cerebrasqwen": ("cerebras", "qwen-3.8-27b"),
+    "deepseekflash": ("deepseek", "deepseek-flash"),
 }
 
 PHOTO_DEFAULT_CAPTION = "Что на фото? Название продукта или блюда, вес и КБЖУ."
@@ -103,10 +128,23 @@ def _strip_fences(s: str) -> str:
     return s.strip()
 
 
+def extract_json(raw: str) -> dict:
+    """Первый JSON-объект в ответе. Мелкие модели дописывают текст после JSON, а Opus 5.5 /
+    Sonnet 5.5 иногда пишут рассуждение ДО него («Plum ~46 kcal/100g … ```json {…}»)."""
+    s = _strip_fences(raw)
+    try:
+        return json.JSONDecoder().raw_decode(s)[0]
+    except json.JSONDecodeError:
+        i = s.find("{")
+        if i < 0:
+            raise
+        return json.JSONDecoder().raw_decode(s[i:])[0]
+
+
 def _finish(raw: str, t0: float, usage: dict) -> CallResult:
     latency = time.perf_counter() - t0
     try:
-        parsed = parse_llm_response(json.loads(_strip_fences(raw)))
+        parsed = parse_llm_response(extract_json(raw))
         return CallResult(parsed, raw, latency, usage)
     except Exception as e:  # noqa: BLE001
         return CallResult(None, raw, latency, usage, error=f"json: {e}")
@@ -116,6 +154,9 @@ def _finish(raw: str, t0: float, usage: dict) -> CallResult:
 
 
 def call_anthropic(model: str, system: str, case: dict) -> CallResult:
+    # Вариант «model#nothink»: thinking выключен, лимит 4000 — адаптивный thinking
+    # Haiku 5.5 съедает max_tokens=2000 и JSON обрезается (прогон 18.10.2026).
+    model, _, variant = model.partition("#")
     content = []
     if case.get("photo"):
         content.append(
@@ -128,11 +169,14 @@ def call_anthropic(model: str, system: str, case: dict) -> CallResult:
         "system": [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
         "messages": [{"role": "user", "content": content}],
     }
-    # Sonnet 5 не принимает temperature; Haiku 4.5 не знает effort — как в проде для 4.6.
-    if model != "claude-sonnet-5":
+    # Семейство 5.x не принимает temperature; Haiku 4.5 не знает effort — как в проде.
+    if "-4-" in model:
         payload["temperature"] = 0.1
     if model != "claude-haiku-4-5":
         payload["output_config"] = {"effort": "low"}
+    if variant == "nothink":
+        payload["thinking"] = {"type": "disabled"}
+        payload["max_tokens"] = 4000
     headers = {
         "x-api-key": _env("ANTHROPIC_API_KEY"),
         "anthropic-version": "2023-06-01",
@@ -203,7 +247,9 @@ def call_openai(model: str, system: str, case: dict) -> CallResult:
         "max_completion_tokens": 2000,
         "response_format": {"type": "json_object"},
     }
-    if model.startswith("gpt-5"):
+    if "luna" in model or model.startswith("gpt-5.4"):
+        payload["reasoning_effort"] = "none"  # у новых моделей нет minimal, есть none
+    elif model.startswith("gpt-5"):
         payload["reasoning_effort"] = "minimal"
     else:
         payload["temperature"] = 0.1
@@ -223,6 +269,43 @@ def call_openai(model: str, system: str, case: dict) -> CallResult:
     }
     text = j["choices"][0]["message"].get("content") or ""
     return _finish(text, t0, usage)
+
+
+# OpenAI-совместимые хостинги открытых моделей. Ключей в /opt/botkin/.env нет (18.10.2026):
+# конфигурации есть, но без ключа прогон падает с SystemExit — «не замерено».
+OPENAI_COMPAT = {
+    "groq": ("https://api.groq.com/openai/v1/chat/completions", "GROQ_API_KEY"),
+    "cerebras": ("https://api.cerebras.ai/v1/chat/completions", "CEREBRAS_API_KEY"),
+    "deepseek": ("https://api.deepseek.com/chat/completions", "DEEPSEEK_API_KEY"),
+}
+
+
+def _call_openai_compat(provider: str, model: str, system: str, case: dict) -> CallResult:
+    url, key_env = OPENAI_COMPAT[provider]
+    content = [{"type": "text", "text": f"USER MESSAGE: {case['text'] or PHOTO_DEFAULT_CAPTION}"}]
+    if case.get("photo"):
+        content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{_b64(case['photo'])}"}})
+    payload = {
+        "model": model,
+        "messages": [{"role": "system", "content": system}, {"role": "user", "content": content}],
+        "max_tokens": 2000,
+        "temperature": 0.1,
+        "response_format": {"type": "json_object"},
+    }
+    t0 = time.perf_counter()
+    r = requests.post(url, headers={"Authorization": f"Bearer {_env(key_env)}"}, json=payload, timeout=TIMEOUT_S)
+    if r.status_code >= 400:
+        return CallResult(None, r.text[:500], time.perf_counter() - t0, error=f"http {r.status_code}")
+    j = r.json()
+    u = j.get("usage", {})
+    cached = (u.get("prompt_tokens_details") or {}).get("cached_tokens", 0) or u.get("prompt_cache_hit_tokens", 0)
+    usage = {
+        "input": u.get("prompt_tokens", 0) - cached,
+        "output": u.get("completion_tokens", 0),
+        "cache_write": 0,
+        "cache_read": cached,
+    }
+    return _finish(j["choices"][0]["message"].get("content") or "", t0, usage)
 
 
 def _with_retry(fn):
@@ -245,14 +328,19 @@ PROVIDERS = {
     "anthropic": _with_retry(call_anthropic),
     "gemini": _with_retry(call_gemini),
     "openai": _with_retry(call_openai),
+    **{name: _with_retry(lambda m, sy, c, _p=name: _call_openai_compat(_p, m, sy, c)) for name in OPENAI_COMPAT},
 }
+
+# Мед. документы (/doc) — медданные пользователей: только в Anthropic (наш основной
+# провайдер). Сторонним моделям уходят лишь тексты/фото еды и синтетические «не еда».
+MED_ALLOWED_PROVIDERS = {"anthropic"}
 
 
 # ── скоринг ──────────────────────────────────────────────────────────────────
 
 
 def cost_usd(model: str, u: dict) -> float:
-    inp, out, cw, cr = PRICING[model]
+    inp, out, cw, cr = PRICING[model.partition("#")[0]]
     return (
         u.get("input", 0) * inp + u.get("output", 0) * out + u.get("cache_write", 0) * cw + u.get("cache_read", 0) * cr
     ) / 1e6
@@ -406,6 +494,8 @@ def main() -> None:
             }
         with (out_dir / f"{label}.jsonl").open("w", encoding="utf-8") as fh:
             for i, case in enumerate(cases, 1):
+                if case["id"].startswith("med-") and provider not in MED_ALLOWED_PROVIDERS:
+                    continue
                 if case["id"] in done and not done[case["id"]].get("error"):
                     fh.write(json.dumps(done[case["id"]], ensure_ascii=False) + "\n")
                     rows.append(done[case["id"]])

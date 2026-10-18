@@ -115,10 +115,11 @@ def test_rice_and_salmon_weights_not_swapped_by_regex_safety_net():
 
 def test_ambiguous_equal_weights_do_not_bypass_default_override():
     # Два продукта по 50 г в тексте; LLM-имя третьего не совпадает ни с одним, но вес 50 совпадает
-    # с обоими — совпадение неоднозначно, дефолтная порция для «каши» применяется (и макросы масштабируются)
+    # с обоими — совпадение неоднозначно, дефолтная порция для «каши» применяется (и макросы масштабируются).
+    # «каша» названа в тексте без граммов: позиции, которых в тексте нет, справочник не трогает (eval 18.10.2026)
     items, _ = process_llm_food_data(
         _llm([{"name": "Каша", "weight": 50, "calories": 55, "protein": 2, "fats": 0.5, "carbs": 10.5}]),
-        description="50 г огурцов и 50 г сыра",
+        description="каша, 50 г огурцов и 50 г сыра",
     )
     assert items[0]["weight_g"] == 250
     assert items[0]["calories"] == 275
