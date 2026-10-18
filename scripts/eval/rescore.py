@@ -19,7 +19,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from food_parsing_eval import CASES_PATH, PRICING, _strip_fences, cost_usd  # noqa: E402
+from food_parsing_eval import CASES_PATH, PRICING, cost_usd, extract_json  # noqa: E402
 
 GOLDEN_V3 = Path(__file__).resolve().parent / "golden_v3.json"
 
@@ -27,7 +27,7 @@ GOLDEN_V3 = Path(__file__).resolve().parent / "golden_v3.json"
 def _totals(raw: str) -> tuple[str | None, dict, str | None]:
     """→ (type, total_nutrition, subtype). Пустой dict, если JSON обрезан."""
     try:
-        p = json.JSONDecoder().raw_decode(_strip_fences(raw))[0]
+        p = extract_json(raw)
     except Exception:  # noqa: BLE001
         return None, {}, None
     data = p.get("data") or {}
@@ -45,7 +45,7 @@ def _postproc_totals(raw: str, text: str) -> dict | None:
     """Прод-постобработка (regex-веса description_parser, этикетка, eaten_fraction) поверх
     сырого ответа модели — то, что реально ляжет в nutrition_log. Только type=food."""
     try:
-        p = json.JSONDecoder().raw_decode(_strip_fences(raw))[0]
+        p = extract_json(raw)
     except Exception:  # noqa: BLE001
         return None
     if p.get("type") != "food":

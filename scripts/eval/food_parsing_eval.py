@@ -55,11 +55,13 @@ PRICING = {
     "claude-haiku-4-5": (1.00, 5.00, 1.25, 0.10),
     "claude-haiku-5-5": (0.10, 0.50, 0.125, 0.01),
     "claude-sonnet-5-5": (2.00, 10.00, 2.50, 0.10),
+    "claude-opus-5-5": (4.00, 20.00, 5.00, 0.20),
     "gemini-3.6-flash": (0.75, 3.75, 0.0, 0.1875),
     "gemini-3.5-flash-lite": (0.30, 2.50, 0.0, 0.075),
     "gpt-5-mini": (0.25, 2.00, 0.0, 0.03),
     "gpt-5-nano": (0.05, 0.40, 0.0, 0.005),
     "gpt-6-luna": (0.10, 0.50, 0.0, 0.01),
+    "gpt-5.4-mini": (0.75, 4.50, 0.0, 0.075),
     "gpt-5.6-luna": (0.20, 1.20, 0.0, 0.02),
     "gemini-3.8-flash": (0.75, 3.75, 0.0, 0.075),
     "qwen/qwen3.8-27b": (0.80, 4.00, 0.0, 0.0),
@@ -74,11 +76,13 @@ CONFIGS = {
     "haiku55": ("anthropic", "claude-haiku-5-5"),
     "haiku55nt": ("anthropic", "claude-haiku-5-5#nothink"),
     "sonnet55": ("anthropic", "claude-sonnet-5-5"),
+    "opus55": ("anthropic", "claude-opus-5-5"),
     "gemini36": ("gemini", "gemini-3.6-flash"),
     "gemini35lite": ("gemini", "gemini-3.5-flash-lite"),
     "gpt5mini": ("openai", "gpt-5-mini"),
     "gpt5nano": ("openai", "gpt-5-nano"),
     "gpt6luna": ("openai", "gpt-6-luna"),
+    "gpt54mini": ("openai", "gpt-5.4-mini"),
     "gpt56luna": ("openai", "gpt-5.6-luna"),
     "gemini38": ("gemini", "gemini-3.8-flash"),
     "groqqwen": ("groq", "qwen/qwen3.8-27b"),
@@ -124,11 +128,23 @@ def _strip_fences(s: str) -> str:
     return s.strip()
 
 
+def extract_json(raw: str) -> dict:
+    """Первый JSON-объект в ответе. Мелкие модели дописывают текст после JSON, а Opus 5.5 /
+    Sonnet 5.5 иногда пишут рассуждение ДО него («Plum ~46 kcal/100g … ```json {…}»)."""
+    s = _strip_fences(raw)
+    try:
+        return json.JSONDecoder().raw_decode(s)[0]
+    except json.JSONDecodeError:
+        i = s.find("{")
+        if i < 0:
+            raise
+        return json.JSONDecoder().raw_decode(s[i:])[0]
+
+
 def _finish(raw: str, t0: float, usage: dict) -> CallResult:
     latency = time.perf_counter() - t0
     try:
-        # raw_decode: мелкие модели иногда дописывают текст после JSON («Extra data»).
-        parsed = parse_llm_response(json.JSONDecoder().raw_decode(_strip_fences(raw))[0])
+        parsed = parse_llm_response(extract_json(raw))
         return CallResult(parsed, raw, latency, usage)
     except Exception as e:  # noqa: BLE001
         return CallResult(None, raw, latency, usage, error=f"json: {e}")
@@ -231,8 +247,8 @@ def call_openai(model: str, system: str, case: dict) -> CallResult:
         "max_completion_tokens": 2000,
         "response_format": {"type": "json_object"},
     }
-    if "luna" in model:
-        payload["reasoning_effort"] = "none"  # у luna нет minimal, есть none
+    if "luna" in model or model.startswith("gpt-5.4"):
+        payload["reasoning_effort"] = "none"  # у новых моделей нет minimal, есть none
     elif model.startswith("gpt-5"):
         payload["reasoning_effort"] = "minimal"
     else:
