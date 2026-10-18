@@ -28,7 +28,11 @@ AGENT_FALLBACK_MODEL = os.getenv("BOTKIN_AGENT_FALLBACK_MODEL", "claude-sonnet-4
 # равно Sonnet 4.6 (ккал в интервале 84% vs 86%, белок 92% vs 89%), латентность
 # p50 4.0 с vs 6.3 с, цена −23%. Haiku 4.5 отвергнут: 48% по ккал, карточки
 # Elementaree 27%. ⚠️ Sonnet 5 не принимает `temperature` — роутер гейтит параметр.
-FOOD_TEXT_MODEL_ANTHROPIC = os.getenv("BOTKIN_FOOD_TEXT_MODEL", "claude-sonnet-5")
+# Sonnet 5.5 с 18.10.2026 (ADR-0011): на golden_v3 ккал в интервале 89% как у
+# Sonnet 5, p95 4.6 с vs 9.2 с, цена −9%. Дешёвый tier (Haiku 5.5, gpt-luna) —
+# 75–79%, отвергнут. Иногда пишет рассуждение перед JSON — роутер берёт первый
+# JSON-объект (_extract_json_object). Откат без пересборки: BOTKIN_FOOD_TEXT_MODEL=claude-sonnet-5.
+FOOD_TEXT_MODEL_ANTHROPIC = os.getenv("BOTKIN_FOOD_TEXT_MODEL", "claude-sonnet-5-5")
 FOOD_TEXT_MODEL_OPENAI = os.getenv("BOTKIN_FOOD_TEXT_MODEL_OPENAI", "gpt-4o")
 
 # ── Разбор медицинских документов /doc (core/health/doc_extractor.py) ────────

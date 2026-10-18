@@ -65,6 +65,30 @@ def _is_claude_4x(model: str) -> bool:
     return "-4-" in model or model.endswith("-4")
 
 
+def _extract_json_object(raw: str) -> Dict:
+    """Первый JSON-объект в ответе модели (ADR-0011 п. 4).
+
+    Sonnet 5.5 / Opus 5.5 иногда пишут короткое рассуждение перед JSON
+    («Plum ~46 kcal/100g … ```json {…}```»), мелкие модели — пояснение после.
+    Строгий json.loads по всему тексту ронял такие ответы в ретраи и fallback.
+    """
+    s = raw.strip()
+    if s.startswith("```"):
+        s = s.split("\n", 1)[1] if "\n" in s else ""
+        s = s.rsplit("```", 1)[0]
+    decoder = json.JSONDecoder()
+    start = s.find("{")
+    while start >= 0:
+        try:
+            obj = decoder.raw_decode(s[start:])[0]
+            if isinstance(obj, dict):
+                return obj
+        except json.JSONDecodeError:
+            pass
+        start = s.find("{", start + 1)
+    raise ValueError("no JSON object in model response")
+
+
 def analyze_message_claude(
     text: str = None,
     image_paths: List[Union[str, Path]] = None,
@@ -158,12 +182,7 @@ def analyze_message_claude(
             ]
             if not text_blocks:
                 raise KeyError("no text block in Claude response content")
-            content_str = text_blocks[0]
-            # Извлечь JSON если обёрнут в markdown
-            content_str = content_str.strip()
-            if content_str.startswith("```"):
-                content_str = content_str.split("\n", 1)[1]
-                content_str = content_str.rsplit("```", 1)[0]
+            content_str = "\n".join(text_blocks)
 
             cache_stats = result.get("usage", {})
             cached = cache_stats.get("cache_read_input_tokens", 0)
@@ -185,7 +204,7 @@ def analyze_message_claude(
             except Exception:
                 logger.exception("router: Claude usage logging failed")
 
-            return parse_llm_response(json.loads(content_str))
+            return parse_llm_response(_extract_json_object(content_str))
 
         except requests.exceptions.HTTPError as e:
             logger.warning(f"Claude HTTP error (attempt {attempt + 1}): {e}")
