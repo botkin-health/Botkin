@@ -123,7 +123,13 @@ class TestInterference:
 
 
 class TestEndToEnd:
-    def test_half_glass_overrides_wrong_llm_weight(self):
+    def test_half_glass_fills_missing_llm_weight(self):
+        # ADR-0011 п. 5: вес модели не перекрывается; граммы из текста — только если веса нет
+        llm = {"type": "food", "data": {"items": [{"name": "Молоко", "calories": 60, "protein": 3}]}}
+        items, _ = process_llm_food_data(llm, "полстакана молока")
+        assert items[0]["weight_g"] == 100
+
+    def test_half_glass_keeps_llm_weight_on_mismatch(self, caplog):
         llm = {
             "type": "food",
             "data": {
@@ -131,8 +137,9 @@ class TestEndToEnd:
             },
         }
         items, totals = process_llm_food_data(llm, "полстакана молока")
-        assert items[0]["weight_g"] == 100
-        assert totals["calories"] < 80, totals
+        assert items[0]["weight_g"] == 200
+        assert totals["calories"] == 120
+        assert "расходится с текстом" in caplog.text
 
     def test_half_liter_not_half_gram(self):
         llm = {

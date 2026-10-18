@@ -121,9 +121,35 @@ def test_explicit_weight_already_held_by_other_item_is_not_reassigned():
     assert totals["calories"] == 1110
 
 
-def test_explicit_weight_still_overrides_when_no_other_item_holds_it():
-    # «бургер 300г», LLM дал 250 — вес пользователя побеждает (поведение не меняется)
+def test_explicit_weight_mismatch_keeps_llm_weight():
+    # ADR-0011 п. 5: «бургер 300г», LLM дал 250 — цифра модели остаётся, расхождение — в лог
     llm = _llm([_item("Бургер", 250, 600), _item("Картофель фри", 120, 340)])
     items, _ = process_llm_food_data(llm, "бургер 300г и картошка фри")
-    assert items[0]["weight_g"] == 300
-    assert items[0]["calories"] == 720
+    assert items[0]["weight_g"] == 250
+    assert items[0]["calories"] == 600
+
+
+def test_dry_weight_with_eaten_fraction_keeps_cooked_weight():
+    # golden_v4 v4-29: «100 г гречки (сухой вес), сварил, съел половину». Модель дала 300 г
+    # варёной (из 100 г сухой, 340 ккал) и eaten_fraction=0.5 → 170 ккал. Раньше regex
+    # подменял 300 г на 100 г «гречки» и масштабировал ккал: 340 → 113 → 57 после дроби.
+    llm = _llm([_item("Гречка варёная (из 100 г сухой)", 300, 340)], eaten_fraction=0.5)
+    _, totals = process_llm_food_data(llm, "100 г гречки (сухой вес), сварил, съел половину")
+    assert totals["calories"] == 170
+
+
+def test_two_explicit_weights_keep_model_split():
+    # golden_v4 v4-30: модель верно разложила 150 г гречки и 100 г грудки (330 ккал);
+    # раньше regex-подмена давала 412 ккал.
+    llm = _llm([_item("Гречка варёная", 150, 165), _item("Куриная грудка варёная", 100, 165)])
+    items, totals = process_llm_food_data(llm, "гречка с курицей: гречки 150 г варёной, грудки 100 г")
+    assert [it["weight_g"] for it in items] == [150, 100]
+    assert totals["calories"] == 330
+
+
+def test_label_item_weight_untouched_even_without_llm_weight():
+    # Этикетка: вес не подставляется из текста — КБЖУ модель читает с упаковки
+    llm = _llm([{"name": "Мороженое пломбир", "calories": 230, "protein": 4, "fats": 14, "carbs": 22}])
+    llm["data"]["product_label"] = {"calories_per_100g": 230, "protein_per_100g": 4}
+    items, _ = process_llm_food_data(llm, "мороженое пломбир 80 г")
+    assert items[0]["weight_g"] != 80
