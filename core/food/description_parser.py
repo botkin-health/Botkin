@@ -276,26 +276,65 @@ def is_zero_calorie_drink(name: str) -> bool:
     if not name or not isinstance(name, str):
         return False
     n = name.lower().strip()
-    markers = (
-        "zero",
-        "зера",
-        "зеро",  # coke zero
-        "diet ",
-        "диет",
-        "лайт",
-        "light ",
-        "без сахара",
-        "sugar-free",
-        "sugar free",
-        "no sugar",
-        "безуглеводн",
-        "zero calorie",
-        "0 ккал",
-        "кола нулевая",
-        "coca-cola zero",
-        "pepsi zero",
-    )
-    return any(m in n for m in markers)
+    if any(m in n for m in _ZERO_DRINK_MARKERS):
+        return True
+    # «без сахара», «лайт», «диет» бывают и у еды (мороженое, шоколад, батончики):
+    # без слова-напитка такая позиция не «0 ккал» (eval 18.10.2026: мороженое 403 → 0 ккал).
+    return any(m in n for m in _SUGAR_FREE_MARKERS) and bool(_DRINK_WORD_RE.search(n))
+
+
+# Маркеры, которые сами по себе означают напиток без калорий.
+_ZERO_DRINK_MARKERS = (
+    "zero",
+    "зера",
+    "зеро",  # coke zero
+    "zero calorie",
+    "0 ккал",
+    "кола нулевая",
+)
+# Маркеры «облегчённого» продукта: 0 ккал только у напитка.
+_SUGAR_FREE_MARKERS = (
+    "diet ",
+    "диет",
+    "лайт",
+    "light ",
+    "без сахара",
+    "sugar-free",
+    "sugar free",
+    "no sugar",
+    "безуглеводн",
+)
+_DRINK_WORDS = (
+    "напит",
+    "газиров",
+    "лимонад",
+    "кола",
+    "cola",
+    "coke",
+    "пепси",
+    "pepsi",
+    "спрайт",
+    "sprite",
+    "фанта",
+    "fanta",
+    "тоник",
+    "tonic",
+    "швепс",
+    "schweppes",
+    "энергетик",
+    "energy",
+    "red bull",
+    "ред булл",
+    "7up",
+    "dr pepper",
+    "вода",
+    "чай",
+    "кофе",
+    "айс ти",
+    "ice tea",
+)
+# С начала слова: иначе «шоколад» ловится как «кола».
+_DRINK_WORD_RE = re.compile(r"\b(?:" + "|".join(re.escape(w) for w in _DRINK_WORDS) + ")")
 
 
 def _estimate_product_size(product_name: str) -> float:
