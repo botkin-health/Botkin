@@ -21,6 +21,59 @@ except ImportError:
 # Инцидент 07.09.2026: 15900 г перца и 334 г клетчатки в дневнике.
 MAX_PLAUSIBLE_ITEM_WEIGHT_G = 2000
 
+# Штучные продукты, перед которыми дробь/процент — это доля штуки («1/2 банана»,
+# «50% яблока»). Нормализуем ТОЛЬКО перед ними: «молоко 2.5%» — жирность, а
+# «1/2 стакана» разбирают другие ветки.
+_COUNTABLE_STEMS = (
+    r"банан|яблок|груш|апельсин|мандарин|киви|яйц|яиц|томат|помидор|черри|"
+    r"перц|перец|голубц|голубец|котлет|сосиск|сырник|оладь|батончик"
+)
+_SIZE_WORD = r"(?:маленьк|небольш|мелк|средн|больш|крупн)[а-яё]*"
+_UNICODE_FRACTIONS = {"½": 0.5, "⅓": 1 / 3, "⅔": 2 / 3, "¼": 0.25, "¾": 0.75}
+_BEFORE_COUNTABLE = r"(?=\s*(?:" + _SIZE_WORD + r"\s+)?(?:" + _COUNTABLE_STEMS + r"))"
+
+# Фрукты с поправкой на размер: (каноническое имя, regex основы, маленький, средний, большой), г.
+# Средний = прежний вес штуки; маленький/большой — ориентир по порциям USDA FoodData
+# Central (SR Legacy: apple small 149 / large 223, banana small 101 / large 136,
+# orange small 96 / large 184), округлено и сдвинуто к весу без несъедобного.
+_FRUIT_SIZES = (
+    ("киви", r"киви", 60, 75, 100),
+    ("мандарин", r"мандарин[а-яё]*", 60, 80, 110),
+    ("яблоко", r"яблок[а-яё]*", 130, 160, 220),
+    ("груша", r"груш[а-яё]*", 110, 140, 180),
+    ("банан", r"банан[а-яё]*", 100, 120, 140),
+    ("апельсин", r"апельсин[а-яё]*", 110, 150, 190),
+)
+
+
+def _fmt_num(value: float) -> str:
+    return f"{value:.4f}".rstrip("0").rstrip(".")
+
+
+def normalize_fractions(text: str) -> str:
+    """«1/2 банана», «½ банана», «50% банана» → «0.5 банана» (только перед штучными продуктами).
+
+    Регрессия 18.10.2026: счётчик штук видел в «1/2 банана» только «2 банана» → 240 г.
+    """
+
+    def _unicode(m: re.Match) -> str:
+        whole = float(m.group(1)) if m.group(1) else 0.0
+        return _fmt_num(whole + _UNICODE_FRACTIONS[m.group(2)])
+
+    text = re.sub(r"(\d+)?\s*([½⅓⅔¼¾])" + _BEFORE_COUNTABLE, _unicode, text)
+
+    def _slash(m: re.Match) -> str:
+        num, den = int(m.group(1)), int(m.group(2))
+        return _fmt_num(num / den) if den else m.group(0)
+
+    text = re.sub(r"(?<![\d.,/])(\d{1,2})\s*/\s*(\d{1,2})(?![\d/])" + _BEFORE_COUNTABLE, _slash, text)
+
+    def _percent(m: re.Match) -> str:
+        return _fmt_num(float(m.group(1).replace(",", ".")) / 100)
+
+    return re.sub(r"(\d+(?:[.,]\d+)?)\s*%" + _BEFORE_COUNTABLE, _percent, text)
+
+
 # Вес одной штуки продукта (для оценки, если вес не указан)
 DEFAULT_UNIT_WEIGHTS = {
     # Фрукты
@@ -658,11 +711,13 @@ def extract_products_from_description(description: str) -> List[Dict[str, any]]:
             "половину": "0.5",
             "половина": "0.5",
             "половинку": "0.5",
+            "полтора": "1.5",
+            "полторы": "1.5",
         }
 
         # Разбиваем слитные "пол-" формы: "полгруши" → "0.5 груши", "полбанана" → "0.5 банана"
         # Исключаем самостоятельные слова: половина, половину, половинку, полностью, положить и т.д.
-        text = re.sub(r"\bпол(?!ов|ност|ожи|учи|ураз|оск)([а-яё]{3,})", r"0.5 \1", text)
+        text = re.sub(r"\bпол(?!ов|ност|ожи|учи|ураз|оск|тор)([а-яё]{3,})", r"0.5 \1", text)
 
         words = text.split()
         new_words = []
@@ -675,7 +730,7 @@ def extract_products_from_description(description: str) -> List[Dict[str, any]]:
         return " ".join(new_words)
 
     # Предварительная обработка описания: заменяем текстовые числа
-    description_lower = replace_text_numbers(description_lower)
+    description_lower = normalize_fractions(replace_text_numbers(description_lower))
 
     # Специальные продукты с количеством: яйца, томаты и т.д.
     # NOTE: используем \d+(?:[.,]\d+)? чтобы матчить дробные числа (0.5 груши → половина)
@@ -688,13 +743,7 @@ def extract_products_from_description(description: str) -> List[Dict[str, any]]:
         (r"(\d+(?:[.,]\d+)?(?:-х|-и|-о)?)\s*(?:шт|штук|шт\.)?\s*(?:яйц|яиц)", 55, "яйцо"),
         (_N + r"\s*(?:томат|томатов|помидор|помидоров)", 100, "томат"),
         (_N + r"\s*(?:томат[а-я]*\s+)?(?:черри)", 15, "томат черри"),
-        # Fruits
-        (_N + r"\s*(?:киви)", 75, "киви"),
-        (_N + r"\s*(?:мандарин[а-я]*)", 80, "мандарин"),
-        (_N + r"\s*(?:яблок[а-я]*)", 160, "яблоко"),
-        (_N + r"\s*(?:груш[а-я]*)", 140, "груша"),
-        (_N + r"\s*(?:банан[а-я]*)", 120, "банан"),
-        (_N + r"\s*(?:апельсин[а-я]*)", 150, "апельсин"),
+        # Фрукты — ниже, отдельным циклом (учитывает размер «маленькое яблоко»)
         (r"маленьк[а-я]*\s*(?:луковичк|лук)", 50, "лук"),
         (r"средн[а-я]*\s*(?:луковичк|лук)", 80, "лук"),
         (r"больш[а-я]*\s*(?:луковичк|лук)", 120, "лук"),
@@ -720,6 +769,36 @@ def extract_products_from_description(description: str) -> List[Dict[str, any]]:
             "батончик bombbar",
         ),
     ]
+
+    # Фрукты: «2 яблока», «маленькое яблоко», «0.5 большого банана». Без числа и без
+    # размера («яблоко») не матчим — вес остаётся за LLM, как и раньше.
+    for product_name, stem, small_g, medium_g, large_g in _FRUIT_SIZES:
+        pattern = r"(?:" + _N_CNT + r"\s*)?(?:(" + _SIZE_WORD + r")\s+)?" + stem
+        for match in re.finditer(pattern, description_lower):
+            count_str, size = match.group(1), match.group(2)
+            if count_str is None and size is None:
+                continue
+            # «250 г маленьких яблок» — вес уже задан граммами, размер не трогаем
+            if count_str is None and re.search(
+                r"\d\s*(?:г|гр|грамм[а-я]*|кг)\.?\s*$", description_lower[: match.start()]
+            ):
+                continue
+            count = float(count_str.replace(",", ".")) if count_str else 1.0
+            if size and size.startswith(("маленьк", "небольш", "мелк")):
+                unit_g = small_g
+            elif size and size.startswith(("больш", "крупн")):
+                unit_g = large_g
+            else:
+                unit_g = medium_g
+            total_weight = round(unit_g * count, 1)
+            source = "quantity_estimate"
+            if total_weight > MAX_PLAUSIBLE_ITEM_WEIGHT_G:
+                total_weight = count
+                source = "description"
+            normalized = normalize_product_name(product_name)
+            if normalized and normalized not in added_products:
+                products.append({"name": normalized, "weight": total_weight, "source": source})
+                added_products.add(normalized)
 
     for pattern, weight_per_unit, product_name in quantity_patterns:
         for match in re.finditer(pattern, description_lower):
