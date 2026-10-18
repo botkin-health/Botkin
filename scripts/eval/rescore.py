@@ -3,6 +3,7 @@
 не перезапуская модели. Работает по сохранённому `raw` в results/*.jsonl.
 
     python3 scripts/eval/rescore.py data/eval/food/results/<dir> [--configs sonnet46 haiku45] [--detail]
+    python3 scripts/eval/rescore.py <dir> --golden scripts/eval/golden_v4.json   # кейсы берутся из самого эталона
 
 Метрики: type_ok (еда / не-еда / медицина+subtype), kcal_in_range, protein_in_range,
 по источникам эталона (card/label/computed/user/visual), латентность, $.
@@ -19,7 +20,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from food_parsing_eval import CASES_PATH, PRICING, cost_usd, extract_json  # noqa: E402
+from food_parsing_eval import CASES_PATH, PRICING, cost_usd, extract_json, load_cases  # noqa: E402
 
 GOLDEN_V3 = Path(__file__).resolve().parent / "golden_v3.json"
 
@@ -132,10 +133,15 @@ def main() -> None:
     ap.add_argument(
         "--postproc", action="store_true", help="ккал после прод-постобработки (process_llm_food_data), не сырые"
     )
+    ap.add_argument(
+        "--golden", type=Path, default=GOLDEN_V3, help="эталон с интервалами (golden_v3.json / golden_v4.json)"
+    )
     args = ap.parse_args()
 
-    cases = {c["id"]: c for c in json.loads(CASES_PATH.read_text(encoding="utf-8"))}
-    truth = {k: v for k, v in json.loads(GOLDEN_V3.read_text(encoding="utf-8")).items() if not k.startswith("_")}
+    truth = {k: v for k, v in json.loads(args.golden.read_text(encoding="utf-8")).items() if not k.startswith("_")}
+    # v4 и новее самодостаточны: текст кейса лежит в эталоне, cases.json не нужен
+    self_contained = any(t.get("text") for t in truth.values())
+    cases = {c["id"]: c for c in load_cases(args.golden if self_contained else CASES_PATH)}
     files = sorted(args.results_dir.glob("*.jsonl"))
     files = [f for f in files if not f.stem.startswith("judge_") and (not args.configs or f.stem in args.configs)]
 

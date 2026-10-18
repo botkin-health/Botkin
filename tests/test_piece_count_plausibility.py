@@ -9,8 +9,6 @@
 тогда закрыли случай с явной единицей, здесь — число без единицы.
 """
 
-import pytest
-
 from core.food import description_parser
 from core.food.description_parser import extract_products_from_description
 from core.food.nutrition import process_llm_food_data
@@ -81,7 +79,7 @@ class TestLlmWeightNotOverriddenByBadEstimate:
         items, _ = process_llm_food_data(_llm([PEPPER_LLM]), "106 перца")
         assert items[0]["weight_g"] == 106
 
-    def test_quantity_estimate_close_to_llm_weight_still_wins(self, monkeypatch):
+    def test_quantity_estimate_close_to_llm_weight_does_not_override(self, monkeypatch):
         monkeypatch.setattr(
             description_parser,
             "extract_products_from_description",
@@ -89,31 +87,40 @@ class TestLlmWeightNotOverriddenByBadEstimate:
         )
         llm_item = dict(PEPPER_LLM, weight=250, calories=68)
         items, _ = process_llm_food_data(_llm([llm_item]), "2 перца")
-        assert items[0]["weight_g"] == 300
+        assert items[0]["weight_g"] == 250  # ADR-0011 п. 5: вес модели остаётся
 
-    def test_explicit_grams_override_llm_even_if_far(self, monkeypatch):
+    def test_explicit_grams_do_not_override_llm_weight(self, monkeypatch):
         monkeypatch.setattr(
             description_parser,
             "extract_products_from_description",
             lambda _d: [{"name": "перец", "weight": 1000.0, "source": "description"}],
         )
         items, _ = process_llm_food_data(_llm([PEPPER_LLM]), "1000 г перца")
+        assert items[0]["weight_g"] == 106  # расхождение → warning в лог, цифра модели остаётся
+
+    def test_explicit_grams_fill_missing_llm_weight(self, monkeypatch):
+        monkeypatch.setattr(
+            description_parser,
+            "extract_products_from_description",
+            lambda _d: [{"name": "перец", "weight": 1000.0, "source": "description"}],
+        )
+        no_weight = {k: v for k, v in PEPPER_LLM.items() if k != "weight"}
+        items, _ = process_llm_food_data(_llm([no_weight]), "1000 г перца")
         assert items[0]["weight_g"] == 1000
 
 
-class TestMacrosScaleWhenWeightOverridden:
-    """Если regex меняет вес, взятый LLM, макросы масштабируются — иначе 15900 г при 34 ккал."""
+class TestMacrosConsistentWithWeight:
+    """Вес и КБЖУ позиции остаются от модели вместе — без 15900 г при 34 ккал."""
 
-    def test_explicit_weight_scales_calories(self, monkeypatch):
+    def test_mismatched_explicit_weight_keeps_llm_weight_and_macros(self, monkeypatch):
         monkeypatch.setattr(
             description_parser,
             "extract_products_from_description",
             lambda _d: [{"name": "перец", "weight": 212.0, "source": "description"}],
         )
         items, _ = process_llm_food_data(_llm([PEPPER_LLM]), "212 г перца")
-        assert items[0]["weight_g"] == 212
-        assert items[0]["calories"] == pytest.approx(68, abs=0.5)
-        assert items[0]["carbs"] == pytest.approx(14, abs=0.5)
+        assert items[0]["weight_g"] == 106
+        assert items[0]["calories"] == 34
 
     def test_same_weight_leaves_macros_untouched(self, monkeypatch):
         monkeypatch.setattr(
