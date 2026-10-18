@@ -35,6 +35,10 @@ _PRICING: dict[str, tuple[float, float, float, float]] = {
     "claude-opus-4-8": (5.00, 25.00, 6.25, 0.50),
     "claude-opus-4-7": (5.00, 25.00, 6.25, 0.50),
     "claude-sonnet-5": (2.00, 10.00, 2.50, 0.20),
+    # Sonnet 5.5 — $2/$10, cache_read $0.10 (platform.claude.com/docs/en/about-claude/pricing,
+    # сверено 18.10.2026 в docs/researches/food-fast-llm-benchmark.md). Без явной строки
+    # prefix-match отдал бы цену Sonnet 5.
+    "claude-sonnet-5-5": (2.00, 10.00, 2.50, 0.10),
     "claude-sonnet-4-6": (3.00, 15.00, 3.75, 0.30),
     "claude-sonnet-4-5": (3.00, 15.00, 3.75, 0.30),
     "claude-sonnet-4-5-20251001": (3.00, 15.00, 3.75, 0.30),
@@ -56,10 +60,11 @@ def compute_cost(
     """Return USD cost for the given token mix. 0 if model unknown."""
     rate = _PRICING.get(model)
     if not rate:
-        # Try prefix match (claude-sonnet-4-5-20251001 → claude-sonnet-4-5)
-        for known, prices in _PRICING.items():
+        # Try prefix match (claude-sonnet-4-5-20251001 → claude-sonnet-4-5). Самый длинный
+        # префикс первым: иначе claude-sonnet-5-5-<дата> получит цену claude-sonnet-5.
+        for known in sorted(_PRICING, key=len, reverse=True):
             if model.startswith(known):
-                rate = prices
+                rate = _PRICING[known]
                 break
     if not rate:
         logger.warning("compute_cost: unknown model %r, returning 0", model)
