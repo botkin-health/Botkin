@@ -27,7 +27,7 @@ GOLDEN_V3 = Path(__file__).resolve().parent / "golden_v3.json"
 def _totals(raw: str) -> tuple[str | None, dict, str | None]:
     """→ (type, total_nutrition, subtype). Пустой dict, если JSON обрезан."""
     try:
-        p = json.loads(_strip_fences(raw))
+        p = json.JSONDecoder().raw_decode(_strip_fences(raw))[0]
     except Exception:  # noqa: BLE001
         return None, {}, None
     data = p.get("data") or {}
@@ -41,6 +41,24 @@ def _totals(raw: str) -> tuple[str | None, dict, str | None]:
     return p.get("type"), tn, data.get("subtype")
 
 
+def _postproc_totals(raw: str, text: str) -> dict | None:
+    """Прод-постобработка (regex-веса description_parser, этикетка, eaten_fraction) поверх
+    сырого ответа модели — то, что реально ляжет в nutrition_log. Только type=food."""
+    try:
+        p = json.JSONDecoder().raw_decode(_strip_fences(raw))[0]
+    except Exception:  # noqa: BLE001
+        return None
+    if p.get("type") != "food":
+        return None
+    import core.food.nutrition as nutr
+
+    nutr.search_product_online = lambda name: None  # без сетевых вызовов при пересчёте
+    from core.llm.models import parse_llm_response
+
+    _, totals = nutr.process_llm_food_data(parse_llm_response(p), text or "")
+    return totals
+
+
 def _in(v, rng) -> bool | None:
     if v is None or not isinstance(v, (int, float)):
         return None
@@ -48,11 +66,15 @@ def _in(v, rng) -> bool | None:
     return lo <= v <= hi
 
 
-def score_row(case: dict, truth: dict | None, row: dict) -> dict:
+def score_row(case: dict, truth: dict | None, row: dict, postproc: bool = False) -> dict:
     g = dict(case["golden"])
     if truth and truth.get("type"):
         g["type"] = truth["type"]
     ptype, tn, sub = _totals(row.get("raw", ""))
+    if postproc and ptype == "food":
+        pt = _postproc_totals(row.get("raw", ""), case.get("text"))
+        if pt:
+            tn = pt
     if ptype is None:
         ptype = row.get("pred_type")
     out = {
@@ -80,6 +102,15 @@ def score_row(case: dict, truth: dict | None, row: dict) -> dict:
         if isinstance(pk, (int, float)):
             lo, hi = truth["kcal"]
             out["kcal_dist"] = 0.0 if lo <= pk <= hi else (lo - pk) / max(lo, 1) if pk < lo else (pk - hi) / max(hi, 1)
+        # Абсолютная ошибка до интервала (0 внутри). Тип не распознан как еда → в дневник
+        # ничего не легло: ошибка = середина интервала, относительная = 100%.
+        lo, hi = truth["kcal"]
+        if out["type_ok"] and isinstance(pk, (int, float)):
+            out["kcal_abs_err"] = max(lo - pk, pk - hi, 0.0)
+            out["kcal_rel_err"] = out["kcal_dist"]
+        else:
+            out["kcal_abs_err"] = (lo + hi) / 2
+            out["kcal_rel_err"] = 1.0
     return out
 
 
@@ -98,6 +129,9 @@ def main() -> None:
     ap.add_argument("results_dir", type=Path)
     ap.add_argument("--configs", nargs="*", default=None)
     ap.add_argument("--detail", action="store_true", help="построчно: кейс × конфигурация (ккал)")
+    ap.add_argument(
+        "--postproc", action="store_true", help="ккал после прод-постобработки (process_llm_food_data), не сырые"
+    )
     args = ap.parse_args()
 
     cases = {c["id"]: c for c in json.loads(CASES_PATH.read_text(encoding="utf-8"))}
@@ -118,8 +152,11 @@ def main() -> None:
         "kcal_visual",
         "protein",
         "miss_median_dist",
+        "kcal_MAE",
+        "err>25%",
         "lat_p50",
         "lat_p90",
+        "lat_p95",
         "$/call",
     ]
     print("| " + " | ".join(header) + " |")
@@ -128,7 +165,7 @@ def main() -> None:
     for f in files:
         rows = [json.loads(l) for l in f.read_text(encoding="utf-8").splitlines() if l.strip()]
         model = rows[0].get("model") if rows and rows[0].get("model") else None
-        scored = [score_row(cases[r["id"]], truth.get(r["id"]), r) for r in rows if r["id"] in cases]
+        scored = [score_row(cases[r["id"]], truth.get(r["id"]), r, args.postproc) for r in rows if r["id"] in cases]
         scored_all[f.stem] = {s["id"]: s for s in scored}
         by_kind = defaultdict(list)
         for s in scored:
@@ -140,7 +177,11 @@ def main() -> None:
 
         cfg = f.stem.split("-")[0]
         model = CONFIGS.get(cfg, (None, None))[1]
-        cost = sum(cost_usd(model, s["usage"]) for s in scored) / max(len(scored), 1) if model in PRICING else 0
+        cost = (
+            sum(cost_usd(model, s["usage"]) for s in scored) / max(len(scored), 1)
+            if model and model.partition("#")[0] in PRICING
+            else 0
+        )
         dists = [s["kcal_dist"] for s in food if s.get("kcal_dist") not in (None, 0.0)]
         line = [
             f.stem,
@@ -155,8 +196,11 @@ def main() -> None:
             pct([s.get("kcal_ok") for s in by_kind["visual"]]),
             pct([s.get("protein_ok") for s in food]),
             f"{100 * statistics.median(dists):.0f}%" if dists else "—",
+            f"{statistics.mean(e):.0f}" if (e := [s["kcal_abs_err"] for s in food if "kcal_abs_err" in s]) else "—",
+            pct([s["kcal_rel_err"] > 0.25 for s in food if "kcal_rel_err" in s]),
             f"{p(lat, 0.5):.1f}s",
             f"{p(lat, 0.9):.1f}s",
+            f"{p(lat, 0.95):.1f}s",
             f"${cost:.4f}",
         ]
         print("| " + " | ".join(line) + " |")
