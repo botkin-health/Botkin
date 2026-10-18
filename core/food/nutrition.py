@@ -747,6 +747,13 @@ _ESTIMATE_VS_LLM_MAX_RATIO = 5.0
 _SCALED_MACROS = ("calories", "protein", "fats", "carbs", "fiber")
 
 
+def _has_weight(weight) -> bool:
+    try:
+        return float(weight) > 0
+    except (TypeError, ValueError):
+        return False
+
+
 def _estimate_contradicts_llm(regex_weight: float, regex_source: str, llm_weight) -> bool:
     if regex_source not in _ESTIMATE_SOURCES or not llm_weight or llm_weight <= 0:
         return False
@@ -829,6 +836,7 @@ def _process_llm_food_items(llm_data: Dict, description: str = None) -> Tuple[Li
     from .label_consistency import reconcile_items_with_label
 
     items = reconcile_items_with_label(items, data.get("product_label"))
+    label_or_card = bool(data.get("product_label")) or data.get("totals_anchor") == "card"
 
     meal_items = []
 
@@ -907,10 +915,18 @@ def _process_llm_food_items(llm_data: Dict, description: str = None) -> Tuple[Li
                 if _unique_weight_match(float(weight), regex_weights_list):
                     regex_weight = weight
             if regex_weight is not None:
-                # Вес взят из описания → КБЖУ LLM пересчитываем под него (иначе 15900 г при 34 ккал)
-                item = _scale_item_macros(item, weight, regex_weight)
-                weight = regex_weight
+                # ADR-0011 п. 5: regex — пост-проверка, а не подмена. Вес модели остаётся;
+                # граммы из текста подставляем, только когда у позиции веса нет. Карточки и
+                # этикетки не трогаем вовсе — их вес и КБЖУ модель читает с картинки.
                 regex_matched = True
+                if _has_weight(weight) or label_or_card:
+                    if _has_weight(weight) and abs(float(weight) - float(regex_weight)) >= _WEIGHT_EQ_TOLERANCE_G:
+                        logger.warning(
+                            f"⚠️ Вес '{name}' от модели {weight}г расходится с текстом ({regex_weight}г) — "
+                            f"оставляем вес модели"
+                        )
+                else:
+                    weight = regex_weight
 
         # Только если пользователь НЕ указал вес явно — используем default для бутылок/порций
         # Иначе "100г пельменей" перезаписывалось бы на 250г стандартной порции

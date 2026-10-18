@@ -116,6 +116,30 @@ def _env(name: str) -> str:
     return val
 
 
+def load_cases(path: Path) -> list[dict]:
+    """cases.json (список кейсов) или самодостаточный эталон (golden_v4.json: id → text + интервалы).
+    Из эталона строятся текстовые кейсы; golden.calories/protein — середины интервалов."""
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    if isinstance(raw, list):
+        return raw
+    return [
+        {
+            "id": cid,
+            "user": "synthetic",
+            "source": "text",
+            "text": t["text"],
+            "photo": None,
+            "golden": {
+                "type": "food",
+                "calories": sum(t["kcal"]) / 2,
+                "protein": sum(t["protein"]) / 2,
+            },
+        }
+        for cid, t in raw.items()
+        if not cid.startswith("_") and t.get("text")
+    ]
+
+
 def _b64(path: str) -> str:
     return base64.b64encode(Path(path).read_bytes()).decode()
 
@@ -444,6 +468,9 @@ def main() -> None:
     ap.add_argument("--configs", nargs="+", default=["sonnet46"], help=f"{list(CONFIGS)} или all")
     ap.add_argument("--limit", type=int, default=None, help="первые N кейсов (smoke-тест)")
     ap.add_argument("--only", choices=["text", "photo", "neg"], default=None)
+    ap.add_argument(
+        "--cases", type=Path, default=CASES_PATH, help="cases.json или самодостаточный эталон (golden_v4.json)"
+    )
     ap.add_argument("--prompt-file", type=Path, default=None, help="альтернативный system-промпт")
     ap.add_argument("--tag", default="", help="суффикс к имени конфигурации в отчёте")
     ap.add_argument(
@@ -458,7 +485,7 @@ def main() -> None:
     args = ap.parse_args()
 
     names = list(CONFIGS) if args.configs == ["all"] else args.configs
-    cases = json.loads(CASES_PATH.read_text(encoding="utf-8"))
+    cases = load_cases(args.cases)
     if args.photo_dir:
         for c in cases:
             if c.get("photo"):
@@ -515,7 +542,12 @@ def main() -> None:
     (out_dir / "summary.md").write_text(to_markdown(summaries) + "\n", encoding="utf-8")
     (out_dir / "meta.json").write_text(
         json.dumps(
-            {"cases": len(cases), "prompt_chars": len(system), "prompt_file": str(args.prompt_file or "SYSTEM_PROMPT")},
+            {
+                "cases": len(cases),
+                "cases_file": str(args.cases),
+                "prompt_chars": len(system),
+                "prompt_file": str(args.prompt_file or "SYSTEM_PROMPT"),
+            },
             indent=1,
         )
     )
