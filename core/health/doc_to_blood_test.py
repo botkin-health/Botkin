@@ -26,7 +26,7 @@ from datetime import date
 from typing import Any, Optional
 
 from core.health.doc_normalize import kind_of
-from core.health.kb_schema import UNIT_SYSTEM_KEY, looks_like_us_units, to_canonical
+from core.health.kb_schema import UNIT_SYSTEM_KEY, looks_like_us_units, mark_gdl_units, to_canonical
 
 # test_type — VARCHAR(100) (database/models.py::BloodTest).
 _TEST_TYPE_MAX = 100
@@ -152,6 +152,9 @@ def build_blood_test_row(extracted: dict, *, stored_name: str, user_id: int) -> 
     if looks_like_us_units(values):
         # US-панель (g/dL·mg/dL): признак доедет до to_canonical на чтении (#95, #295).
         values[UNIT_SYSTEM_KEY] = "US"
+    else:
+        # Только Hb/MCHC в г/дл, остальное метрическое (ИНВИТРО): явные единицы.
+        values = mark_gdl_units(values)
 
     row = {
         "user_id": user_id,

@@ -376,7 +376,12 @@ TOOLS: list[dict[str, Any]] = [
             "границы окна [start_date, end_date]. День без даты в списке = "
             "не принимал → можно сопоставлять с get_recent_sleep / get_recent_bp "
             "и т.п. по дням. Опц. параметр supplement — фильтр по одному "
-            "препарату (подстрока имени). Период по умолчанию 30 дней."
+            "препарату (подстрока имени). Период по умолчанию 30 дней. "
+            "Разные написания одного препарата уже слиты в одну группу "
+            "(name_variants). ДОЗА ПО ДАТАМ — в intakes [{date,time,dosage}] "
+            "(есть, если доза менялась; иначе dosage_constant=true). "
+            "last_dosage — только ПОСЛЕДНЯЯ доза: не растягивай её на прошлые "
+            "даты, для таблицы доз бери intakes."
         ),
         "input_schema": {
             "type": "object",
@@ -1786,6 +1791,42 @@ def agent_last_turn_was_question(user_id: int, within_minutes: int = 10) -> bool
         db.close()
 
 
+def agent_last_turn_is_fresh(user_id: int, within_minutes: int = 10) -> bool:
+    """True если ПОСЛЕДНИЙ assistant-ход у пользователя — реальный ход агента
+    (source NULL/botkinclaw, не парсер-подтверждение) и он не старше within_minutes.
+
+    Нужно, чтобы реплика-продолжение/правка («да, и утренний приём неточно…»)
+    после свежего ответа агента не уходила в LLM-роутер и шаблонные ветки.
+    """
+    from sqlalchemy import text as sql_text
+    from datetime import datetime, timezone, timedelta
+
+    try:
+        db = SessionLocal()
+    except Exception:
+        return False
+    try:
+        row = db.execute(
+            sql_text(
+                "SELECT source, created_at FROM agent_conversations "
+                "WHERE user_id = :uid AND role = 'assistant' ORDER BY id DESC LIMIT 1"
+            ),
+            {"uid": user_id},
+        ).fetchone()
+        if row is None:
+            return False
+        source, created_at = row
+        if source not in (None, "botkinclaw") or created_at is None:
+            return False
+        if created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=timezone.utc)
+        return datetime.now(timezone.utc) - created_at <= timedelta(minutes=within_minutes)
+    except Exception:
+        return False
+    finally:
+        db.close()
+
+
 def _is_user_turn_start(m: dict) -> bool:
     """User-сообщение с реальным текстом, а не только tool_result'ы тул-цикла."""
     if m.get("role") != "user":
@@ -2258,6 +2299,31 @@ def claims_data_unavailable(text: str) -> bool:
     if not text:
         return False
     return bool(_UNAVAILABLE_MARKERS.search(text))
+
+
+# Ложное утверждение о действии: «передал/отметил разработчикам» без вызова
+# flag_for_devs в этом ходе. Ловим только прошедшее время 1-го лица; «могу
+# передать», «передам», «хочешь, передам?» не срабатывают.
+_DEV_FLAG_CLAIM = re.compile(
+    r"\b(?:уже\s+|сразу\s+|также\s+|тоже\s+)?"
+    r"(?:передал[аи]?|отметил[аи]?|сообщил[аи]?|написал[аи]?|отправил[аи]?|зафиксировал[аи]?)\s+"
+    r"(?:\w+\s+){0,3}?"
+    r"(?:разработчик\w*|команд\w+|александр\w*|авторам?)",
+    re.IGNORECASE,
+)
+
+NO_DEV_FLAG_NUDGE = (
+    "[Система] Ты утверждаешь, что передал разработчикам, но flag_for_devs не вызван: "
+    "вызови его или не утверждай. Пользователю про эту служебную реплику не упоминай."
+)
+
+
+def claims_dev_flag_without_tool(text: str) -> bool:
+    """Ответ утверждает «передал разработчикам» (прошедшее время) — проверять
+    вместе с фактом вызова flag_for_devs в этом ходе."""
+    if not text:
+        return False
+    return bool(_DEV_FLAG_CLAIM.search(text))
 
 
 def _save_message(
@@ -2798,6 +2864,7 @@ def ask_agent(
         # лимиту MAX_TOOL_ITERATIONS добавляется максимум один.
         tool_called_this_turn = False
         nudged = False
+        tools_called_this_turn: set[str] = set()
         # Тексты всех tool_result этого хода — по ним проверяем, подкреплено ли
         # заявление «данных нет» (см. tool_results_report_emptiness).
         turn_tool_result_texts: list[str] = []
@@ -2936,6 +3003,7 @@ def ask_agent(
                     args = block.get("input", {})
                     tu_id = block["id"]
                     logger.info("agent_chat tool: %s args=%s", name, args)
+                    tools_called_this_turn.add(name)
                     result_text = _call_tool(name, args, token)
                     tool_results.append(
                         {
@@ -2994,6 +3062,24 @@ def ask_agent(
                         logger.exception("progress_cb nudge failed")
                 history.append({"role": "assistant", "content": blocks})
                 history.append({"role": "user", "content": NO_TOOL_NUDGE})
+                continue
+
+            # Ложное «передал разработчикам» без вызова flag_for_devs. Делит
+            # одноразовый флаг nudged с #477: два нуджа подряд и цикл невозможны.
+            if (
+                not nudged
+                and "flag_for_devs" not in tools_called_this_turn
+                and claims_dev_flag_without_tool(reply_text)
+            ):
+                nudged = True
+                logger.warning(
+                    "agent_chat: «передал разработчикам» без flag_for_devs — нудж (user=%s): %.120s",
+                    user_id,
+                    reply_text.replace("\n", " "),
+                )
+                _persist_turns(db, user_id, [("assistant", blocks)], f"{src}_nudged")
+                history.append({"role": "assistant", "content": blocks})
+                history.append({"role": "user", "content": NO_DEV_FLAG_NUDGE})
                 continue
 
             # #347: ответ уже сгенерирован и оплачен — сбой записи в историю

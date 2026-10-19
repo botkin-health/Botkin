@@ -2,7 +2,7 @@
 import math
 
 import pytest
-from core.health.kb_schema import to_canonical, CANONICAL, reverse_index
+from core.health.kb_schema import to_canonical, CANONICAL, reverse_index, looks_like_us_units
 
 
 def test_alexander_camelcase_keys_map():
@@ -279,3 +279,50 @@ def test_absolute_count_under_percent_key_dropped():
 def test_no_unit_field_keeps_old_behaviour():
     canon, _ = to_canonical({"hs_CRP": 0.11})
     assert canon["hs_CRP"] == pytest.approx(0.11)
+
+
+# ── смешанная запись: Hb в г/дл, остальное метрика (ИНВИТРО) ─────────────────
+
+
+def test_mixed_invitro_record_with_us_flag_keeps_metric_markers():
+    vals = {
+        "_unit_system": "US",
+        "Hb": 15.3,
+        "MCHC": 33.8,
+        "LDL": 6.23,
+        "HDL": 1.34,
+        "cholesterol_total": 7.91,
+        "triglycerides": 0.74,
+        "glucose": 5.9,
+        "creatinine": 77,
+        "uric_acid": 388,
+    }
+    canon, _ = to_canonical(vals)
+    assert canon["Hb"] == pytest.approx(153)
+    assert canon["MCHC"] == pytest.approx(338)
+    for k in ("LDL", "HDL", "cholesterol_total", "triglycerides", "glucose", "creatinine", "uric_acid"):
+        assert canon[k] == vals[k], k
+
+
+def test_real_us_panel_still_converted():
+    canon, _ = to_canonical({"_unit_system": "US", "Hb": 14.5, "glucose": 99, "LDL": 130, "creatinine": 1.0})
+    assert canon["Hb"] == pytest.approx(145)
+    assert canon["glucose"] == pytest.approx(99 / 18.0156)
+    assert canon["LDL"] == pytest.approx(130 / 38.67)
+    assert canon["creatinine"] == pytest.approx(88.42)
+
+
+def test_us_guard_idempotent_on_converted_values():
+    canon, _ = to_canonical({"_unit_system": "US", "Hb": 14.5, "glucose": 99, "creatinine": 1.0})
+    again, _ = to_canonical({"_unit_system": "US", **canon})
+    assert again == pytest.approx(canon)
+
+
+def test_looks_like_us_units_needs_second_sign():
+    assert looks_like_us_units({"Hb": 15.3, "LDL": 6.23, "glucose": 5.9}) is False
+    assert looks_like_us_units({"Hb": 15.3}) is False
+    assert looks_like_us_units({"Hb": 15.3, "glucose": 99}) is True
+    assert looks_like_us_units({"Hb": 15.3, "cholesterol_total": 190}) is True
+    assert looks_like_us_units({"Hb": 15.3, "creatinine": 1.0}) is True
+    assert looks_like_us_units({"glucose": 99}) is False
+    assert looks_like_us_units({"Hb": 153, "glucose": 99}) is False

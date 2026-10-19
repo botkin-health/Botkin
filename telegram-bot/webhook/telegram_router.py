@@ -16,6 +16,7 @@ IMPORTANT: Этот роутер НЕ парсит текст. Он только
 - onboarding-state → routing decision (новый юзер → onboarding wizard, иначе legacy)
 """
 
+import asyncio
 import hmac
 import logging
 import os
@@ -83,6 +84,36 @@ async def _feed_legacy_bot(payload: dict) -> bool:
         return False
 
 
+# Ссылки на фоновые задачи: без них event loop держит задачу слабой ссылкой и GC может её убить.
+_background_tasks: set[asyncio.Task] = set()
+
+
+def _log_background_result(task: asyncio.Task) -> None:
+    _background_tasks.discard(task)
+    if task.cancelled():
+        return
+    exc = task.exception()
+    if exc is not None:
+        logger.error("Фоновая обработка update упала: %s", exc, exc_info=exc)
+
+
+async def _feed_legacy_for_message(payload: dict, msg: dict) -> None:
+    """Альбом (media_group_id) отдаём в обработку фоном, остальное — синхронно.
+
+    Webhook обрабатывает update внутри HTTP-запроса, а Telegram не шлёт следующий
+    update, пока не получит ответ на текущий. Части альбома приходят подряд, и если
+    держать первую до конца обработки, MediaGroupMiddleware не дождётся соседей:
+    каждое фото разбирается отдельно. Фон + мгновенный 200 позволяют собрать альбом.
+    _feed_legacy_bot сам глотает исключения, так что ретраев Telegram и здесь нет.
+    """
+    if msg.get("media_group_id"):
+        task = asyncio.create_task(_feed_legacy_bot(payload))
+        _background_tasks.add(task)
+        task.add_done_callback(_log_background_result)
+        return
+    await _feed_legacy_bot(payload)
+
+
 async def _send_fallback(chat_id: int, text: str) -> None:
     """Send a fallback message via Telegram Bot API."""
     bot_token = resolve_bot_token()
@@ -134,7 +165,7 @@ async def telegram_webhook(
         # Photo or voice — forward to legacy aiogram dispatcher
         if "photo" in msg or "voice" in msg:
             logger.info("Media message received — forwarding to legacy bot")
-            await _feed_legacy_bot(payload)
+            await _feed_legacy_for_message(payload, msg)
             return {"status": "ok", "action": "legacy_media"}
 
         # New user — start onboarding wizard
@@ -156,7 +187,7 @@ async def telegram_webhook(
             return {"status": "ok", "action": "setup"}
 
         # All other text — legacy aiogram dispatcher (BotkinClaw lives there)
-        await _feed_legacy_bot(payload)
+        await _feed_legacy_for_message(payload, msg)
         return {"status": "ok", "action": "legacy_text"}
     except Exception:
         # 5xx заставит Telegram повторить update и обработать его дважды.

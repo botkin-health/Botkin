@@ -366,7 +366,7 @@ def test_system_prompt_forces_fresh_meal_tool_call(agent_db, monkeypatch):
 
 def test_system_prompt_instructs_flag_for_devs(agent_db, monkeypatch):
     """#188: в system-prompt есть директива флагать баги/пожелания через flag_for_devs."""
-    fake = FakeRequests([_anthropic_text("Передал разработчикам.")])
+    fake = FakeRequests([_anthropic_text("Понял, учту.")])
     monkeypatch.setattr(agent_chat, "requests", fake)
 
     agent_chat.ask_agent(895655, "почему ты не умеешь строить графики сна?")
@@ -970,3 +970,82 @@ def test_record_failed_turn_never_raises(monkeypatch):
 
     monkeypatch.setattr(agent_chat, "SessionLocal", _no_db)
     agent_chat.record_failed_turn(895655, ValueError("original"))  # не должно бросить
+
+
+# ── ложное «передал разработчикам» без flag_for_devs ─────────────────────────
+
+
+def test_claims_dev_flag_detector():
+    from core.agent_chat import claims_dev_flag_without_tool
+
+    for text_str in (
+        "Это я уже отметил разработчикам.",
+        "Передал Александру, он посмотрит.",
+        "Я передала это команде разработки",
+        "Написал разработчикам про вашу проблему",
+    ):
+        assert claims_dev_flag_without_tool(text_str), f"не поймали: {text_str}"
+    for text_str in (
+        "Могу передать разработчикам, если хочешь.",
+        "Хочешь, передам разработчикам?",
+        "Передам команде, как только скажешь",
+        "Разработчики уже знают о проблеме",
+        "",
+    ):
+        assert not claims_dev_flag_without_tool(text_str), f"ложное срабатывание: {text_str}"
+
+
+def test_dev_flag_claim_without_tool_triggers_one_nudge(agent_db, monkeypatch):
+    fake = FakeRequests(
+        [
+            _anthropic_text("Это я уже отметил разработчикам."),
+            _anthropic_text("Вызвать передачу пока не смог, но могу передать, если хочешь."),
+        ],
+    )
+    monkeypatch.setattr(agent_chat, "requests", fake)
+
+    reply = agent_chat.ask_agent(895655, "а разработчикам передали?")
+
+    assert "отметил" not in reply
+    assert len(fake.anthropic_calls) == 2
+    msgs = fake.anthropic_calls[-1]["payload"]["messages"]
+    assert sum(1 for m in msgs if m.get("content") == agent_chat.NO_DEV_FLAG_NUDGE) == 1
+
+
+def test_dev_flag_claim_second_answer_goes_out_even_if_still_claims(agent_db, monkeypatch):
+    fake = FakeRequests(
+        [
+            _anthropic_text("Передал разработчикам."),
+            _anthropic_text("Передал разработчикам, правда."),
+        ],
+    )
+    monkeypatch.setattr(agent_chat, "requests", fake)
+
+    reply = agent_chat.ask_agent(895655, "что с багом?")
+
+    assert reply == "Передал разработчикам, правда."
+    assert len(fake.anthropic_calls) == 2, "нудж одноразовый, без цикла"
+
+
+def test_dev_flag_claim_with_tool_call_has_no_nudge(agent_db, monkeypatch):
+    fake = FakeRequests(
+        [
+            _anthropic_tool_use("flag_for_devs", {"category": "bug", "user_msg": "x", "agent_note": "y"}),
+            _anthropic_text("Передал разработчикам."),
+        ],
+        tool_payload={"status": "ok"},
+    )
+    monkeypatch.setattr(agent_chat, "requests", fake)
+
+    reply = agent_chat.ask_agent(895655, "это баг")
+
+    assert reply == "Передал разработчикам."
+    assert len(fake.anthropic_calls) == 2
+
+
+def test_meta_prompt_garmin_and_commands_rules():
+    src = agent_chat.UNIVERSAL_META_PROMPT
+    assert "Garmin пользователь сам из бота подключить не может" in src
+    assert "Health Auto Export" in src
+    assert "/connect_garmin" not in src
+    assert "подтверждён на дату анализа" in src
