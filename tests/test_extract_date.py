@@ -125,3 +125,42 @@ def test_evening_marker_with_segodnya_stays_today():
     tz = _tz_with_local_hour(8)
     text = "сегодня вечером буду есть рыбу"
     assert extract_date_from_text(text, user_tz=tz) == (None, text)
+
+
+# --- Явное вечернее время, отправленное после полуночи (#629) -----------------
+
+
+def _yesterday(tz) -> str:
+    return (datetime.now(tz) - timedelta(days=1)).strftime("%Y-%m-%d")
+
+
+def test_explicit_evening_time_after_midnight_means_yesterday():
+    tz = _tz_with_local_hour(1)
+    text = "ел это в 23:00, сэндвич с тунцом"
+    assert extract_date_from_text(text, user_tz=tz) == (_yesterday(tz), text)
+
+
+def test_explicit_time_after_midnight_hour_form():
+    tz = _tz_with_local_hour(2)
+    assert extract_date_from_text("в 9 вечера паста", user_tz=tz)[0] == _yesterday(tz)
+
+
+def test_explicit_morning_time_at_night_stays_today():
+    tz = _tz_with_local_hour(2)  # «в 4:30» — ранний сегодняшний час, не вчерашний вечер
+    assert extract_date_from_text("в 4:30 перекус", user_tz=tz) == (None, "в 4:30 перекус")
+
+
+def test_explicit_past_time_at_night_stays_today():
+    tz = _tz_with_local_hour(3)
+    assert extract_date_from_text("в 0:30 кефир", user_tz=tz) == (None, "в 0:30 кефир")
+
+
+def test_explicit_evening_time_with_segodnya_stays_today():
+    tz = _tz_with_local_hour(1)
+    text = "сегодня в 23:00 ужин"
+    assert extract_date_from_text(text, user_tz=tz) == (None, text)
+
+
+def test_explicit_evening_time_in_daytime_stays_today():
+    tz = _tz_with_local_hour(14)  # днём «в 18:00» — сегодняшний вечер (или план)
+    assert extract_date_from_text("в 18:00 ужин", user_tz=tz) == (None, "в 18:00 ужин")

@@ -813,7 +813,9 @@ def _key_claimed_by_better_item(regex_key: str, name: str, items: List[Dict]) ->
     return False
 
 
-def _process_llm_food_items(llm_data: Dict, description: str = None) -> Tuple[List[Dict], Dict[str, float]]:
+def _process_llm_food_items(
+    llm_data: Dict, description: str = None, anchor_stated_total: bool = False
+) -> Tuple[List[Dict], Dict[str, float]]:
     """
     Converts LLM Router 'food' data into internal meal structure.
     Calculates macros for items if LLM didn't provide them.
@@ -1309,6 +1311,22 @@ def _process_llm_food_items(llm_data: Dict, description: str = None) -> Tuple[Li
     # Calculate totals from items first (as baseline)
     computed_totals = calculate_meal_totals(meal_items)
 
+    # #629: итог, названный пользователем в тексте («по данным сети 506 ккал, Б22 Ж27 У45»),
+    # — такой же якорь, как итог карточки (#427). Только по флагу вызывающего: в multi_food
+    # описание общее на несколько блюд, и названный итог нельзя приписать каждому.
+    anchor = data.get("totals_anchor")
+    if anchor_stated_total and description and anchor is None and not data.get("product_label") and len(meal_items) > 1:
+        from .stated_total import extract_stated_totals, should_anchor
+
+        stated = extract_stated_totals(description)
+        computed_calories = float(computed_totals.get("calories") or 0)
+        if stated and should_anchor(stated, meal_items, computed_calories):
+            factor = stated["calories"] / computed_calories
+            total_nutrition = {"calories": stated["calories"]}
+            for key in ("protein", "fats", "carbs"):
+                total_nutrition[key] = stated.get(key, round(float(computed_totals.get(key) or 0) * factor, 1))
+            anchor = "text"
+
     # ТОЛЬКО для рецептурных карточек (1 продукт с явной этикеткой питания),
     # НЕ для списков блюд (где LLM может вернуть total_nutrition только для последнего продукта)
     dish_name = data.get("dish_name", "")
@@ -1318,7 +1336,7 @@ def _process_llm_food_items(llm_data: Dict, description: str = None) -> Tuple[Li
         # а items — состав ВСЕГО набора (см. handlers/, которые проставляют этот флаг после
         # разбора caption). Тогда масштабируем items под заявленный итог, а не игнорируем его.
         stated_calories = float(total_nutrition.get("calories") or 0)
-        if data.get("totals_anchor") == "card" and len(meal_items) > 1 and stated_calories > 0:
+        if anchor in ("card", "text") and len(meal_items) > 1 and stated_calories > 0:
             computed_calories = float(computed_totals.get("calories") or 0)
             factor = stated_calories / computed_calories if computed_calories > 0 else 1.0
             anchored_items = [_scale_item_by_factor(it, factor) for it in meal_items]
@@ -1386,9 +1404,15 @@ def _apply_eaten_fraction(
     return scaled_items, new_totals
 
 
-def process_llm_food_data(llm_data: Dict, description: str = None) -> Tuple[List[Dict], Dict[str, float]]:
-    """Router 'food' → (items, totals); применяет eaten_fraction («съел половину салата»)."""
-    meal_items, totals = _process_llm_food_items(llm_data, description)
+def process_llm_food_data(
+    llm_data: Dict, description: str = None, anchor_stated_total: bool = False
+) -> Tuple[List[Dict], Dict[str, float]]:
+    """Router 'food' → (items, totals); применяет eaten_fraction («съел половину салата»).
+
+    anchor_stated_total: description — текст ровно этого приёма пищи, и названный в нём итог
+    ккал («по данным сети 506 ккал») можно брать якорем (#629).
+    """
+    meal_items, totals = _process_llm_food_items(llm_data, description, anchor_stated_total)
     try:
         fraction = float(((llm_data or {}).get("data") or {}).get("eaten_fraction"))
     except (TypeError, ValueError):
