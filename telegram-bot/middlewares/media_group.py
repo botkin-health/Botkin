@@ -10,9 +10,8 @@ class MediaGroupMiddleware(BaseMiddleware):
     """
 
     ALBUM_DATA: Dict[str, List[Message]] = {}
-    ALBUM_TIMEOUT = 1.0  # сек ожидания
 
-    def __init__(self, latency: float | int = 0.5):
+    def __init__(self, latency: float | int = 1.5):
         self.latency = latency
 
     async def __call__(
