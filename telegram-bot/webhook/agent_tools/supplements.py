@@ -1,6 +1,7 @@
 """Agent tools: supplement logging and history."""
 
 import logging
+import re
 from datetime import datetime, timedelta
 from typing import Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -172,6 +173,32 @@ async def recent_supplements(
     }
 
 
+_BRACKETS_RE = re.compile(r"\([^)]*\)|\[[^\]]*\]")
+_DOSE_TAIL_RE = re.compile(
+    r"\s*(\d+(?:[.,]\d+)?\s*(?:мкг|мг|мл|ме|г|mcg|mg|ml|iu|ug|µg|g|таб\w*|tab\w*|капс\w*|caps?\w*|шт\w*))\.?\s*$",
+    re.IGNORECASE,
+)
+
+
+def _supplement_group_key(raw: str) -> tuple:
+    """(ключ группировки, доза из хвоста имени | None).
+
+    lower, без содержимого скобок, без хвоста-дозы, схлопнутые пробелы,
+    затем синонимы из core.health.supplements.
+    """
+    from core.health.supplements import normalize_supplement_name
+
+    name = _BRACKETS_RE.sub(" ", raw or "")
+    name = " ".join(name.split())
+    dose = None
+    m = _DOSE_TAIL_RE.search(name)
+    if m:
+        dose = " ".join(m.group(1).split())
+        name = name[: m.start()].strip()
+    key = normalize_supplement_name(name) or (raw or "").strip().lower()
+    return key, dose
+
+
 @router.get("/supplement_daily_log")
 async def supplement_daily_log(
     days: int = 30,
@@ -189,9 +216,20 @@ async def supplement_daily_log(
     строки. Отдаём разреженно: taken_dates + [start_date, end_date] полностью
     определяют taken/not-taken для любого дня без плотной сетки N×дни.
 
+    Группировка — по нормализованному имени (lower, без скобок и без хвоста-дозы
+    вида «0.5 мг»/«500mg»/«1 таб»), поэтому разные написания одного препарата
+    сливаются в одну группу; оригинальные имена — в name_variants (если их >1).
+
+    Дозы по датам: если в группе больше одного уникального значения дозы —
+    отдаётся `intakes` [{date, time, dosage}] (каждая строка лога, хронологически;
+    dosage берётся из строки, а если пусто — из хвоста-дозы в имени). Если доза
+    одна (или её нет) — `dosage_constant: true` без intakes, чтобы ответ не
+    раздувался (ежедневные добавки за 180 дней). `last_dosage` — только
+    ПОСЛЕДНЯЯ доза, на прошлые даты её распространять нельзя.
+
     Параметры:
       days: окно, 1..180 (дефолт 30).
-      supplement: опц. подстрока имени (регистронезависимо) — один препарат.
+      supplement: опц. подстрока ОРИГИНАЛЬНОГО имени (регистронезависимо).
     """
     from datetime import time as _dtime
 
@@ -225,31 +263,49 @@ async def supplement_daily_log(
 
     name_filter = supplement.strip().lower() if supplement else None
 
-    # Группируем по имени добавки, копим множество дат приёма + последнюю дозу.
+    # Группируем по НОРМАЛИЗОВАННОМУ ключу: один препарат часто записан под
+    # несколькими именами («Витамин B12», «Витамин B12 (цианокобаламин) 0.5 мг»).
     groups: dict = {}
-    for r in rows:
+    for r in sorted(rows, key=lambda x: (x.date, x.time or _dtime.min)):
         name = r.supplement_name or ""
         if name_filter and name_filter not in name.lower():
             continue
-        g = groups.setdefault(name, {"dates": set(), "last_key": None, "last_dosage": None})
+        key, name_dose = _supplement_group_key(name)
+        g = groups.setdefault(key, {"dates": set(), "names": {}, "intakes": []})
         g["dates"].add(r.date)
-        key = (r.date, r.time or _dtime.min)
-        if g["last_key"] is None or key > g["last_key"]:
-            g["last_key"] = key
-            g["last_dosage"] = r.dosage
-
-    supplements = []
-    for name, g in groups.items():
-        dates_sorted = sorted(g["dates"])
-        supplements.append(
+        g["names"][name] = g["names"].get(name, 0) + 1
+        g["intakes"].append(
             {
-                "supplement": name,
-                "days_taken": len(dates_sorted),
-                "adherence_pct": round(100 * len(dates_sorted) / days, 1),
-                "taken_dates": [d.isoformat() for d in dates_sorted],
-                "last_dosage": g["last_dosage"],
+                "date": r.date.isoformat(),
+                "time": r.time.strftime("%H:%M") if r.time else None,
+                # Доза из строки; если пусто — доза, зашитая в имя («... 0.5 мг»).
+                "dosage": r.dosage or name_dose,
             }
         )
+
+    supplements = []
+    for g in groups.values():
+        dates_sorted = sorted(g["dates"])
+        # Самое частое оригинальное имя (при равенстве — первое встреченное).
+        names_by_freq = sorted(g["names"], key=lambda n: -g["names"][n])
+        item = {
+            "supplement": names_by_freq[0],
+            "days_taken": len(dates_sorted),
+            "adherence_pct": round(100 * len(dates_sorted) / days, 1),
+            "taken_dates": [d.isoformat() for d in dates_sorted],
+            # Только ПОСЛЕДНЯЯ доза (intakes отсортированы хронологически).
+            "last_dosage": g["intakes"][-1]["dosage"],
+        }
+        if len(names_by_freq) > 1:
+            item["name_variants"] = names_by_freq
+        # Сравниваем дозы без пробелов и регистра («1мг» == «1 мг»), пустые не в счёт:
+        # иначе у ежедневной добавки с изредка пустой дозой intakes раздувается на всё окно.
+        distinct = {re.sub(r"\s+", "", i["dosage"]).lower() for i in g["intakes"] if i["dosage"]}
+        if len(distinct) > 1:
+            item["intakes"] = g["intakes"]
+        else:
+            item["dosage_constant"] = True
+        supplements.append(item)
     # По убыванию частоты, затем по имени — как в /recent_supplements.
     supplements.sort(key=lambda s: (-s["days_taken"], s["supplement"]))
 
