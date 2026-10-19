@@ -1791,6 +1791,42 @@ def agent_last_turn_was_question(user_id: int, within_minutes: int = 10) -> bool
         db.close()
 
 
+def agent_last_turn_is_fresh(user_id: int, within_minutes: int = 10) -> bool:
+    """True если ПОСЛЕДНИЙ assistant-ход у пользователя — реальный ход агента
+    (source NULL/botkinclaw, не парсер-подтверждение) и он не старше within_minutes.
+
+    Нужно, чтобы реплика-продолжение/правка («да, и утренний приём неточно…»)
+    после свежего ответа агента не уходила в LLM-роутер и шаблонные ветки.
+    """
+    from sqlalchemy import text as sql_text
+    from datetime import datetime, timezone, timedelta
+
+    try:
+        db = SessionLocal()
+    except Exception:
+        return False
+    try:
+        row = db.execute(
+            sql_text(
+                "SELECT source, created_at FROM agent_conversations "
+                "WHERE user_id = :uid AND role = 'assistant' ORDER BY id DESC LIMIT 1"
+            ),
+            {"uid": user_id},
+        ).fetchone()
+        if row is None:
+            return False
+        source, created_at = row
+        if source not in (None, "botkinclaw") or created_at is None:
+            return False
+        if created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=timezone.utc)
+        return datetime.now(timezone.utc) - created_at <= timedelta(minutes=within_minutes)
+    except Exception:
+        return False
+    finally:
+        db.close()
+
+
 def _is_user_turn_start(m: dict) -> bool:
     """User-сообщение с реальным текстом, а не только tool_result'ы тул-цикла."""
     if m.get("role") != "user":

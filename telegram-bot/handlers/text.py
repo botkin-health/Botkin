@@ -124,6 +124,22 @@ _ADDENDUM_RE = re.compile(
 )
 
 
+# Реплика-продолжение/правка к только что полученному ответу агента:
+# «да, и утренний приём неточно», «ты не указал X», «ты забыл», «поправь»…
+# Узкий список: используется ТОЛЬКО когда роутер вернул vitamins и последний
+# ход агента свежий (<=10 мин). К еде/весу/АД не применяется.
+_AGENT_FOLLOWUP_RE = re.compile(
+    r"^\s*(?:да[,.!\s]+и\b|а\s+(?:ещё|еще)\b)"
+    r"|\b(?:неточно|неверно|ты\s+(?:не\s+указал[а]?|не\s+учёл|не\s+учел|забыл[а]?|пропустил[а]?|ошибся|перепутал[а]?)"
+    r"|поправь|исправь|не\s+так)\b",
+    re.IGNORECASE,
+)
+
+
+def _is_agent_followup_text(text: str) -> bool:
+    return bool(text and _AGENT_FOLLOWUP_RE.search(text))
+
+
 def _inject_bp_to_agent_conv(
     user_id: int,
     raw_text: str,
@@ -1185,6 +1201,25 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             if _is_bp_range or _is_bp_past or not _bp_valid:
                 msg_type = "other"
 
+        # Витамины: (1) action='metadata' — не приём, логировать нечего, шаблон
+        # «не приём» терял уточнения пользователя (прецедент NS-1019: правка списка
+        # лекарств после ответа агента) → отдаём в агента, как обычный диалог.
+        # (2) Реплика-продолжение/правка сразу после свежего хода агента → тоже в
+        # агента. Только для vitamins: еда/вес/АД этим guard'ом не затрагиваются.
+        if msg_type == "vitamins":
+            if data.get("action") == "metadata":
+                debug_logger.info("🔀 vitamins/metadata → BotkinClaw (шаблон «не приём» отключён)")
+                msg_type = "other"
+            elif _is_agent_followup_text(text):
+                try:
+                    from core.agent_chat import agent_last_turn_is_fresh
+
+                    if agent_last_turn_is_fresh(int(user_id)):
+                        debug_logger.info("🔀 vitamins + правка после свежего хода агента → BotkinClaw")
+                        msg_type = "other"
+                except Exception as _e:
+                    debug_logger.warning(f"agent followup guard failed: {_e}")
+
         # Логируем raw text для не-BotkinClaw веток (food / vitamins / bp / weight / ...).
         # BotkinClaw-ветка ('other') сама пишет user-turn внутри ask_agent.
         # См. core.agent_chat.log_router_raw_text — продукт-ревью увидит исходные
@@ -1312,22 +1347,6 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
 
         elif msg_type == "vitamins":
             items = data.get("items", [])
-            action = data.get("action", "logged")
-
-            # 🐛 FIX task #65: text-route — если LLM понял intent='metadata' (а не intake),
-            # не логировать как приём. Симметрично photo.py.
-            if action == "metadata" and items:
-                items_list = "\n".join(
-                    [f"• {html.escape(i['name'] if isinstance(i, dict) else str(i))}" for i in items]
-                )
-                e2e_prefix = "🧪 [E2E] " if is_e2e else ""
-                await processing_msg.edit_text(
-                    f"{e2e_prefix}📋 <b>Распознал:</b>\n{items_list}\n\n"
-                    f"Это <b>не приём</b>, просто запись. Когда реально выпьешь — "
-                    f"напиши «выпил магний» или подобное.",
-                    parse_mode="HTML",
-                )
-                return
 
             # Нормализуем имена витаминов перед сохранением
             _NORMALIZE = {
