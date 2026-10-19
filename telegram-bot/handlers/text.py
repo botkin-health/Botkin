@@ -598,6 +598,21 @@ def extract_date_from_text(text: str, user_tz=None) -> tuple[str, str]:
         date_str = (datetime.now(_tz) - timedelta(days=1)).strftime("%Y-%m-%d")
         return date_str, text
 
+    # 5. Явное дневное/вечернее время после полуночи (#629): «ел в 23:00», отправлено
+    # в 00:40 — это вчерашний вечер, а не сегодняшние 23:00. Узко: сейчас до 05:00,
+    # названный час не раньше 12:00 и позже текущего, явного «сегодня» нет.
+    # Слово не вырезаем — как в case 4 (#518: агенту директиву не шлём).
+    now_local = datetime.now(_tz)
+    explicit = _explicit_clock_time(text_lower)
+    if (
+        explicit
+        and now_local.hour < 5
+        and int(explicit[:2]) >= 12
+        and explicit > now_local.strftime("%H:%M")
+        and not re.search(r"\bсегодня\b", text_lower)
+    ):
+        return (now_local - timedelta(days=1)).strftime("%Y-%m-%d"), text
+
     return None, text
 
 
@@ -1491,8 +1506,9 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             # 2. Обрабатываем еду через стандартный food pipeline
             if food_data and food_data.get("items"):
                 food_router_result = {"type": "food", "data": food_data}
+                # True: текст — один приём пищи, названный итог ккал = якорь (#629)
                 meal_items, meal_totals = await loop.run_in_executor(
-                    None, process_llm_food_data, food_router_result, text
+                    None, process_llm_food_data, food_router_result, text, True
                 )
             else:
                 meal_items, meal_totals = [], {}
@@ -1710,7 +1726,8 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             debug_logger.info("⏳ Running process_llm_food_data in executor...")
 
             # Using run_in_executor to not block the main loop
-            meal_items, meal_totals = await loop.run_in_executor(None, process_llm_food_data, router_result, text)
+            # True: текст — один приём пищи, названный итог ккал = якорь (#629)
+            meal_items, meal_totals = await loop.run_in_executor(None, process_llm_food_data, router_result, text, True)
             debug_logger.info(f"✅ process_llm_food_data finished in executor. Items: {len(meal_items)}")
 
             if not meal_items:
