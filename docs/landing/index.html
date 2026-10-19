@@ -265,8 +265,14 @@ section .lead {
 .shot.phone .img-wrap { flex: 0 0 44%; aspect-ratio: 796 / 1394; padding: 16px 0 16px 16px; background: transparent; }
 .shot.phone .img-wrap img { object-fit: contain; border-radius: 10px; }
 .shot .caption { padding: 16px 20px; flex: 1; }
+/* Три экрана мини-аппа в ряд: телефон сверху, подпись снизу */
+.gallery.phones { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.gallery.phones .shot.phone { flex-direction: column; align-items: stretch; }
+.gallery.phones .shot.phone .img-wrap { flex: none; aspect-ratio: 390 / 844; padding: 16px 16px 0; }
+.gallery.phones .shot.phone .img-wrap img { border-radius: 14px; }
 @media (max-width: 720px) {
-  .gallery { grid-template-columns: minmax(0, 1fr); }
+  .gallery, .gallery.phones { grid-template-columns: minmax(0, 1fr); }
+  .gallery.phones .shot.phone .img-wrap { width: min(100%, 300px); margin: 0 auto; }
 }
 .shot .caption h4 { font-size: 14px; margin-bottom: 4px; }
 .shot .caption p { font-size: 13px; color: var(--muted); }
@@ -631,7 +637,7 @@ flowchart LR
 <div class="container">
   <div class="eyebrow">Как это выглядит</div>
   <h2>Реальные экраны</h2>
-  <p class="lead">Дашборд, активность, дневник питания и добавки — всё живое, не мокапы.</p>
+  <p class="lead">Дашборд в браузере и мини-приложение в Telegram: дневник питания, добавки и сводка состояния.</p>
 
   <div class="gallery">
     <div class="shot full">
@@ -656,26 +662,34 @@ flowchart LR
 
   </div>
 
-  <div class="gallery">
+  <div class="gallery phones">
     <div class="shot phone">
       <div class="img-wrap">
-        <img src="../user_guide/screenshots/miniapp-diary.png" alt="Mini-app: Дневник питания"
-             onerror="this.parentElement.innerHTML='📱 Mini-app — Дневник';">
+        <img src="assets/miniapp-diary.png" alt="Мини-приложение: дневник питания — остаток калорий, приёмы пищи, БЖУ и клетчатка" loading="lazy">
       </div>
       <div class="caption">
         <h4>Дневник питания</h4>
-        <p>Дневная норма, приёмы пищи, прогресс по БЖУ — прямо в Telegram.</p>
+        <p>Сколько калорий осталось на сегодня, каждый приём пищи с составом, белки, жиры, углеводы и клетчатка к цели.</p>
       </div>
     </div>
 
     <div class="shot phone">
       <div class="img-wrap">
-        <img src="../user_guide/screenshots/miniapp-supps.png" alt="Mini-app: Добавки"
-             onerror="this.parentElement.innerHTML='💊 Mini-app — Добавки';">
+        <img src="assets/miniapp-supps.png" alt="Мини-приложение: добавки и лекарства по времени приёма" loading="lazy">
       </div>
       <div class="caption">
         <h4>Добавки и лекарства</h4>
-        <p>Чек-листы по слотам (утро/обед/вечер/ночь), прогресс «Принято сегодня».</p>
+        <p>Чек-лист по времени приёма: утро до еды, с завтраком, вечер. Отметка — одним касанием.</p>
+      </div>
+    </div>
+
+    <div class="shot phone">
+      <div class="img-wrap">
+        <img src="assets/miniapp-state.png" alt="Мини-приложение: состояние — на что обратить внимание, сон, активность, HRV" loading="lazy">
+      </div>
+      <div class="caption">
+        <h4>Состояние</h4>
+        <p>На что обратить внимание по анализам и сну, плюс потоки за неделю: сон, шаги, HRV и пульс, вес.</p>
       </div>
     </div>
   </div>
