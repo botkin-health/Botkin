@@ -6,6 +6,7 @@
   3. дата не выдумывается — нет даты в документе, нет строки.
 """
 
+import pytest
 from core.health.doc_to_blood_test import build_blood_test_row
 
 STORED = "2026-07-25_a1b2c3d4.pdf"
@@ -117,8 +118,28 @@ def test_different_files_same_date_differ_by_type():
 def test_us_panel_is_marked_for_read_time_conversion():
     """Hb=15.5 физиологически возможен только в g/dL → метим _unit_system, чтобы
     to_canonical сконвертировал на чтении (issue #95/#295)."""
-    res = _build({"date": "2026-06-09", "laboratory": "Maccabi", "values": {"Hb": 15.5, "albumin": 5.1}})
+    res = _build({"date": "2026-06-09", "laboratory": "Maccabi", "values": {"Hb": 15.5, "albumin": 5.1, "glucose": 99}})
     assert res.row["values"]["_unit_system"] == "US"
+
+
+def test_hb_only_in_gdl_gets_explicit_unit_not_us_flag():
+    """ИНВИТРО: Hb в г/дл, биохимия в метрике → без US-флага, но с Hb_unit; на чтении Hb 153."""
+    from core.health.kb_schema import to_canonical
+
+    res = _build(
+        {
+            "date": "2026-10-01",
+            "laboratory": "INVITRO",
+            "values": {"Hb": 15.3, "MCHC": 33.8, "LDL": 6.23, "glucose": 5.9, "creatinine": 77},
+        }
+    )
+    vals = res.row["values"]
+    assert "_unit_system" not in vals
+    assert vals["Hb_unit"] == "g/dl" and vals["MCHC_unit"] == "g/dl"
+    canon, _ = to_canonical(vals)
+    assert canon["Hb"] == pytest.approx(153)
+    assert canon["MCHC"] == pytest.approx(338)
+    assert canon["LDL"] == 6.23 and canon["glucose"] == 5.9 and canon["creatinine"] == 77
 
 
 def test_metric_panel_is_not_marked():

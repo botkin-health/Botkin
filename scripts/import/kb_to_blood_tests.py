@@ -32,7 +32,7 @@ from typing import Iterable
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from core.health.kb_schema import looks_like_us_units  # noqa: E402
+from core.health.kb_schema import looks_like_us_units, mark_gdl_units  # noqa: E402
 
 # SSH-tunnel out, write directly into Postgres via subprocess psql. Keeps deps
 # minimal — no psycopg2 needed locally. The script runs on Mac, ships rows to
@@ -105,6 +105,9 @@ def _extract_rows(kb: dict, user_id: int) -> Iterable[dict]:
             explicit_us = "mg/dl" in units or "g/dl" in units or "us" in units
             if values_dict and (explicit_us or looks_like_us_units(values_dict)):
                 values_dict = {**values_dict, "_unit_system": "US"}
+            elif values_dict:
+                # Только Hb/MCHC в г/дл, остальное метрическое (ИНВИТРО): явные единицы.
+                values_dict = mark_gdl_units(values_dict)
 
             yield {
                 "user_id": user_id,

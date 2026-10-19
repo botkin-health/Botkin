@@ -62,8 +62,9 @@ def test_extracted_us_row_canonizes_to_metric():
     assert canon["ALP"] == 55
 
 
-def test_units_less_gdl_panel_detected_as_us():
+def test_units_less_gdl_cbc_converted_via_explicit_units():
     # maccabi CBC: единицы заданы инлайновыми _ref, поля units нет; hemoglobin в g/dL (#295).
+    # Второго US-признака нет → без _unit_system, но Hb/MCHC получают явную g/dl и на чтении ×10.
     kb = {
         "blood_tests": [
             {
@@ -73,8 +74,12 @@ def test_units_less_gdl_panel_detected_as_us():
             }
         ]
     }
+    from core.health.kb_schema import to_canonical
+
     rows = list(mod._extract_rows(kb, 42))
-    assert rows[0]["values"]["_unit_system"] == "US"
+    assert "_unit_system" not in rows[0]["values"]
+    canon, _ = to_canonical(rows[0]["values"])
+    assert abs(canon["Hb"] - 155) < 1e-6 and abs(canon["MCHC"] - 351) < 1e-6
 
 
 def test_metric_cbc_not_flagged_us():
@@ -82,3 +87,16 @@ def test_metric_cbc_not_flagged_us():
     kb = {"blood_tests": [{"date": "2026-06-09", "values": {"hemoglobin": 155, "hematocrit": 44}}]}
     rows = list(mod._extract_rows(kb, 42))
     assert "_unit_system" not in rows[0]["values"]
+
+
+def test_hb_only_gdl_entry_gets_explicit_unit_not_us_flag():
+    from core.health.kb_schema import to_canonical
+
+    kb = {
+        "biochemistry": [{"date": "2026-10-01", "lab": "INVITRO", "values": {"Hb": 15.3, "LDL": 6.23, "glucose": 5.9}}]
+    }
+    vals = list(mod._extract_rows(kb, 42))[0]["values"]
+    assert "_unit_system" not in vals
+    assert vals["Hb_unit"] == "g/dl"
+    canon, _ = to_canonical(vals)
+    assert canon["Hb"] == 153 and canon["LDL"] == 6.23 and canon["glucose"] == 5.9
