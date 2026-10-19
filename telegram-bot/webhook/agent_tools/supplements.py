@@ -199,6 +199,135 @@ def _supplement_group_key(raw: str) -> tuple:
     return key, dose
 
 
+class EditSupplementLogRequest(BaseModel):
+    date: Optional[str] = None  # YYYY-MM-DD, дата ЗАПИСАННОГО приёма (обязательна без log_id)
+    supplement: Optional[str] = None  # имя добавки (обязательно без log_id)
+    dosage_from: Optional[str] = None  # текущая доза строки — сузить выбор, если в день их несколько
+    log_id: Optional[int] = None  # точный id строки из candidates (имеет приоритет над поиском)
+    # Действия (одно из группы изменений либо delete):
+    new_dosage: Optional[str] = None
+    new_date: Optional[str] = None
+    new_supplement_name: Optional[str] = None
+    delete: bool = False
+
+
+def _norm_dose(value: Optional[str]) -> str:
+    return re.sub(r"\s+", "", value or "").lower()
+
+
+def _supplement_row_dict(r) -> dict:
+    return {
+        "id": r.id,
+        "date": r.date.isoformat() if r.date else None,
+        "time": r.time.strftime("%H:%M") if r.time else None,
+        "supplement_name": r.supplement_name,
+        "dosage": r.dosage,
+    }
+
+
+@router.post("/edit_supplement_log")
+async def edit_supplement_log(
+    req: EditSupplementLogRequest,
+    user=Depends(require_agent_scope("rw")),
+    db: Session = Depends(get_db),
+):
+    """Исправить или удалить УЖЕ записанный приём добавки.
+
+    Находит строку пользователя по (date, supplement[, dosage_from]) либо по log_id
+    и применяет одно действие: new_dosage / new_date / new_supplement_name / delete.
+    0 строк → status=not_found + candidates (±3 дня); >1 → status=ambiguous + candidates,
+    ничего не меняется (повторить с log_id). Только строки текущего пользователя.
+    """
+    from database.models import SupplementLog
+
+    has_change = any(v is not None for v in (req.new_dosage, req.new_date, req.new_supplement_name))
+    if not has_change and not req.delete:
+        raise HTTPException(
+            status_code=422,
+            detail="Не указано действие: new_dosage, new_date, new_supplement_name или delete=true.",
+        )
+    if req.delete and has_change:
+        raise HTTPException(status_code=422, detail="delete нельзя совмещать с изменением полей.")
+    if req.new_supplement_name is not None and not req.new_supplement_name.strip():
+        raise HTTPException(status_code=422, detail="new_supplement_name не может быть пустым.")
+
+    new_date = None
+    if req.new_date is not None:
+        new_date = _parse_date(req.new_date, user)
+        tz_name = getattr(user, "timezone", None) or "Europe/Moscow"
+        try:
+            user_tz = ZoneInfo(tz_name)
+        except (ZoneInfoNotFoundError, KeyError):
+            user_tz = ZoneInfo("Europe/Moscow")
+        if new_date > datetime.now(user_tz).date():
+            raise HTTPException(status_code=422, detail="new_date не может быть в будущем.")
+
+    base = db.query(SupplementLog).filter(SupplementLog.user_id == user.telegram_id)
+
+    if req.log_id is not None:
+        matches = base.filter(SupplementLog.id == req.log_id).all()
+        if not matches:
+            return {"status": "not_found", "candidates": []}
+    else:
+        if not req.date or not (req.supplement or "").strip():
+            raise HTTPException(status_code=422, detail="Нужны date и supplement (либо log_id).")
+        day = _parse_date(req.date, user)
+        want = req.supplement.strip()
+        want_key, _ = _supplement_group_key(want)
+        want_low = want.lower()
+
+        def _similar(name: str) -> bool:
+            key, _d = _supplement_group_key(name)
+            low = (name or "").lower()
+            return key == want_key or want_low in low or want_key in key or key in want_key
+
+        day_rows = base.filter(SupplementLog.date == day).order_by(SupplementLog.time, SupplementLog.id).all()
+        matches = [r for r in day_rows if _supplement_group_key(r.supplement_name)[0] == want_key]
+        if not matches:
+            matches = [r for r in day_rows if want_low in (r.supplement_name or "").lower()]
+        if req.dosage_from and len(matches) > 1:
+            nd = _norm_dose(req.dosage_from)
+            narrowed = [r for r in matches if _norm_dose(r.dosage) == nd]
+            if not narrowed:
+                narrowed = [r for r in matches if nd and nd in _norm_dose(r.dosage)]
+            if narrowed:
+                matches = narrowed
+
+        if not matches:
+            near = (
+                base.filter(
+                    SupplementLog.date >= day - timedelta(days=3),
+                    SupplementLog.date <= day + timedelta(days=3),
+                )
+                .order_by(SupplementLog.date, SupplementLog.time, SupplementLog.id)
+                .all()
+            )
+            return {
+                "status": "not_found",
+                "candidates": [_supplement_row_dict(r) for r in near if _similar(r.supplement_name)],
+            }
+
+    if len(matches) > 1:
+        return {"status": "ambiguous", "candidates": [_supplement_row_dict(r) for r in matches]}
+
+    row = matches[0]
+    before = _supplement_row_dict(row)
+    if req.delete:
+        db.delete(row)
+        db.commit()
+        return {"status": "ok", "action": "deleted", "before": before, "after": None}
+
+    if req.new_dosage is not None:
+        row.dosage = req.new_dosage.strip() or None
+    if new_date is not None:
+        row.date = new_date
+    if req.new_supplement_name is not None:
+        row.supplement_name = req.new_supplement_name.strip()
+    db.commit()
+    db.refresh(row)
+    return {"status": "ok", "action": "updated", "before": before, "after": _supplement_row_dict(row)}
+
+
 @router.get("/supplement_daily_log")
 async def supplement_daily_log(
     days: int = 30,
