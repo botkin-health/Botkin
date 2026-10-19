@@ -126,7 +126,8 @@ def test_list_feedback_non_admin_403(client, monkeypatch):
     assert r.status_code == 403
 
 
-def test_triage_feedback_admin_updates(client, db_session, monkeypatch):
+def test_triage_feedback_admin_updates(client, db_session, monkeypatch, sent_messages):
+    # status=done шлёт автору уведомление — без sent_messages тест ходил в реальный Telegram.
     row = _mk(db_session)
     _set_admin(monkeypatch, True)
     r = client.post(
@@ -137,6 +138,7 @@ def test_triage_feedback_admin_updates(client, db_session, monkeypatch):
     fb = r.json()["feedback"]
     assert fb["status"] == "done" and fb["priority"] == "P1" and fb["github_issue"] == "300"
     assert fb["resolved_at"] is not None
+    assert len(sent_messages) == 1
 
 
 def test_triage_feedback_non_admin_403(client, db_session, monkeypatch):
