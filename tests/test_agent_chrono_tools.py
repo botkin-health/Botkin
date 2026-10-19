@@ -109,3 +109,19 @@ def test_system_prompt_date_line_mentions_any_writing_tool():
 
     src = inspect.getsource(agent_chat)
     assert "ЛЮБОГО инструмента записи данных" in src
+
+
+# ── edit_supplement_log: тул зарегистрирован и диспатчится на свой URL ──────
+
+
+def test_edit_supplement_log_registered_and_dispatched(monkeypatch):
+    tool = _tool("edit_supplement_log")
+    assert {"date", "supplement", "log_id", "new_dosage", "delete"} <= set(tool["input_schema"]["properties"])
+    assert "edit_supplement_log" in _tool("log_supplement")["description"]
+
+    fake = _FakeRequests()
+    monkeypatch.setattr(agent_chat, "requests", fake)
+    args = {"date": "2026-08-12", "supplement": "Магний", "new_dosage": "0.25 мг"}
+    agent_chat._call_tool("edit_supplement_log", args, "tok")
+    assert fake.calls[0]["url"].endswith("/edit_supplement_log")
+    assert fake.calls[0]["json"] == args

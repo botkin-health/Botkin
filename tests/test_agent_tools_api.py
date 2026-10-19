@@ -1556,6 +1556,122 @@ class TestSupplementDailyLog:
         assert body["supplements"] == []
 
 
+class TestEditSupplementLog:
+    """POST /edit_supplement_log — правка и удаление уже записанного приёма."""
+
+    URL = "/api/agent/edit_supplement_log"
+
+    def _add(self, db, name, d, dosage=None, t=time(9, 0), uid=895655):
+        row = SupplementLog(user_id=uid, date=d, time=t, supplement_name=name, dosage=dosage)
+        db.add(row)
+        db.commit()
+        return row
+
+    def test_change_dosage(self, client, db_session):
+        d = datetime.now(MSK).date() - timedelta(days=3)
+        row = self._add(db_session, "Магний", d, dosage="1 мг")
+        r = client.post(self.URL, json={"date": d.isoformat(), "supplement": "Магний", "new_dosage": "0.25 мг"})
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["status"] == "ok" and body["action"] == "updated"
+        assert body["before"]["dosage"] == "1 мг"
+        assert body["after"]["dosage"] == "0.25 мг"
+        db_session.expire_all()
+        assert db_session.get(SupplementLog, row.id).dosage == "0.25 мг"
+
+    def test_delete(self, client, db_session):
+        d = datetime.now(MSK).date() - timedelta(days=1)
+        row = self._add(db_session, "Магний", d, dosage="400 мг")
+        rid = row.id
+        r = client.post(self.URL, json={"date": d.isoformat(), "supplement": "Магний", "delete": True})
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["action"] == "deleted" and body["after"] is None
+        assert body["before"]["id"] == rid
+        db_session.expire_all()
+        assert db_session.get(SupplementLog, rid) is None
+
+    def test_not_found_returns_candidates(self, client, db_session):
+        d = datetime.now(MSK).date() - timedelta(days=5)
+        self._add(db_session, "Магний", d - timedelta(days=1), dosage="400 мг")
+        self._add(db_session, "Витамин D", d, dosage="2000 МЕ")
+        r = client.post(self.URL, json={"date": d.isoformat(), "supplement": "Магний", "new_dosage": "200 мг"})
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["status"] == "not_found"
+        assert [c["supplement_name"] for c in body["candidates"]] == ["Магний"]
+        assert body["candidates"][0]["date"] == (d - timedelta(days=1)).isoformat()
+
+    def test_ambiguous_then_edit_by_log_id(self, client, db_session):
+        d = datetime.now(MSK).date() - timedelta(days=2)
+        a = self._add(db_session, "Магний", d, dosage="200 мг", t=time(9, 0))
+        b = self._add(db_session, "Магний", d, dosage="400 мг", t=time(21, 0))
+        payload = {"date": d.isoformat(), "supplement": "Магний", "new_dosage": "300 мг"}
+        r = client.post(self.URL, json=payload)
+        body = r.json()
+        assert body["status"] == "ambiguous"
+        assert {c["id"] for c in body["candidates"]} == {a.id, b.id}
+        db_session.expire_all()
+        assert db_session.get(SupplementLog, a.id).dosage == "200 мг"
+        assert db_session.get(SupplementLog, b.id).dosage == "400 мг"
+
+        r = client.post(self.URL, json={"log_id": b.id, "new_dosage": "300 мг"})
+        assert r.json()["status"] == "ok"
+        db_session.expire_all()
+        assert db_session.get(SupplementLog, b.id).dosage == "300 мг"
+        assert db_session.get(SupplementLog, a.id).dosage == "200 мг"
+
+    def test_dosage_from_narrows_to_one(self, client, db_session):
+        d = datetime.now(MSK).date() - timedelta(days=2)
+        a_id = self._add(db_session, "Магний", d, dosage="200 мг", t=time(9, 0)).id
+        self._add(db_session, "Магний", d, dosage="400 мг", t=time(21, 0))
+        r = client.post(
+            self.URL,
+            json={"date": d.isoformat(), "supplement": "Магний", "dosage_from": "200мг", "delete": True},
+        )
+        assert r.json()["status"] == "ok"
+        db_session.expire_all()
+        assert db_session.get(SupplementLog, a_id) is None
+
+    def test_foreign_log_id_is_not_found(self, client, db_session):
+        db_session.add(
+            User(telegram_id=222, first_name="Other", is_active=True, cohort="external", pack_name="generic")
+        )
+        db_session.commit()
+        d = datetime.now(MSK).date() - timedelta(days=1)
+        foreign = self._add(db_session, "Магний", d, dosage="400 мг", uid=222)
+        r = client.post(self.URL, json={"log_id": foreign.id, "delete": True})
+        assert r.json()["status"] == "not_found"
+        r = client.post(self.URL, json={"date": d.isoformat(), "supplement": "Магний", "delete": True})
+        assert r.json()["status"] == "not_found"
+        db_session.expire_all()
+        assert db_session.get(SupplementLog, foreign.id).dosage == "400 мг"
+
+    def test_name_variant_matches(self, client, db_session):
+        d = datetime.now(MSK).date() - timedelta(days=1)
+        row = self._add(db_session, "Витамин D (холекальциферол)", d, dosage="1000 МЕ")
+        r = client.post(self.URL, json={"date": d.isoformat(), "supplement": "Витамин D", "new_dosage": "2000 МЕ"})
+        body = r.json()
+        assert body["status"] == "ok", body
+        assert body["after"]["id"] == row.id and body["after"]["dosage"] == "2000 МЕ"
+
+    def test_move_date_and_future_rejected(self, client, db_session):
+        today = datetime.now(MSK).date()
+        d = today - timedelta(days=2)
+        self._add(db_session, "Магний", d)
+        base = {"date": d.isoformat(), "supplement": "Магний"}
+        r = client.post(self.URL, json={**base, "new_date": (today + timedelta(days=2)).isoformat()})
+        assert r.status_code == 422
+        r = client.post(self.URL, json={**base, "new_date": (today - timedelta(days=3)).isoformat()})
+        assert r.json()["after"]["date"] == (today - timedelta(days=3)).isoformat()
+
+    def test_no_action_is_error(self, client, db_session):
+        d = datetime.now(MSK).date() - timedelta(days=1)
+        self._add(db_session, "Магний", d)
+        r = client.post(self.URL, json={"date": d.isoformat(), "supplement": "Магний"})
+        assert r.status_code == 422
+
+
 class TestLatestBiomarkers:
     """GET /latest_biomarkers — per-marker aggregated view with staleness."""
 
