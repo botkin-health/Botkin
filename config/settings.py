@@ -24,6 +24,9 @@ class Settings:
         # Load environment variables from .env file
         from dotenv import load_dotenv
 
+        # override=True: .env главнее окружения. Под pytest tests/conftest.py
+        # подменяет load_dotenv на no-op, иначе Settings(), созданный в тесте,
+        # вернул бы в env прод-токен поверх dummy (утечка в прод-бот 19.10.2026).
         load_dotenv(override=True)  # Load from .env in current directory
         load_dotenv(Path(__file__).parent.parent / ".env", override=True)  # Load from project root
 
