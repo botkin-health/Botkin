@@ -214,6 +214,28 @@ US_TO_METRIC: dict[str, float] = {
     "MCHC": 10.0,  # g/dL → г/л
 }
 
+# Правдоподобный диапазон СЫРОГО значения в US-единицах (мг/дл, г/дл, мкг/дл) по
+# каноническому ключу. На US-записи множитель US_TO_METRIC применяется, только если сырое
+# значение попало в диапазон; иначе оно уже метрическое и не трогается. Нужно для смешанных
+# записей (ИНВИТРО: Hb в г/дл, остальная биохимия в метрике). Границы выбраны так, чтобы
+# US- и метрические диапазоны не пересекались; тем самым guard идемпотентен.
+# Не включены (диапазоны пересекаются, надёжно не различить → прежнее поведение «×множитель»):
+#   iron: µg/dL 10–500 vs мкмоль/л 3–60;  bilirubin_total: mg/dL 0.1–30 vs мкмоль/л 3–500.
+_US_RAW_RANGE: dict[str, tuple[float, float]] = {
+    "albumin_g_l": (1.0, 10.0),  # г/дл 1–7 vs г/л 20–60
+    "total_protein": (2.0, 15.0),  # г/дл 3–12 vs г/л 40–100
+    "glucose": (30.0, 1500.0),  # мг/дл 30–1000 vs ммоль/л 1.5–55
+    "creatinine": (0.1, 15.0),  # мг/дл 0.1–15 vs мкмоль/л 20–1500
+    "uric_acid": (0.5, 25.0),  # мг/дл 0.5–20 vs мкмоль/л 100–1000
+    "calcium": (4.0, 20.0),  # мг/дл 4–15 vs ммоль/л 1.5–3.5
+    "cholesterol_total": (30.0, 800.0),  # мг/дл 70–500 vs ммоль/л 2–15
+    "HDL": (10.0, 300.0),  # мг/дл 15–150 vs ммоль/л 0.4–4
+    "LDL": (15.0, 600.0),  # мг/дл 20–400 vs ммоль/л 0.5–10
+    "triglycerides": (25.0, 5000.0),  # мг/дл 25–2000 vs ммоль/л 0.3–20
+    "Hb": (1.0, 30.0),  # г/дл 5–25 vs г/л 50–250
+    "MCHC": (20.0, 60.0),  # г/дл 25–40 vs г/л 250–400
+}
+
 # Read-time защита от US-панелей, НЕ помеченных _unit_system="US" (напр. maccabi:
 # единицы заданы инлайновыми _ref-диапазонами вместо поля "units", поэтому импорт US
 # не задетектил). Для маркеров, чья g/dL-величина физиологически несовместима с
@@ -338,22 +360,63 @@ def _explicit_unit_factor(canon_key: str, unit: str) -> float | None:
     return raw[1] * mw / canon[1]  # моль/л → г/л
 
 
+def _num(v) -> float | None:
+    return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else None
+
+
+def _canon_numeric(values: dict) -> dict[str, float]:
+    """Сырые числовые значения по каноническим ключам (без конверсии единиц)."""
+    out: dict[str, float] = {}
+    for key, val in values.items():
+        n = _num(val)
+        hit = _REVERSE.get(key.lower()) if isinstance(key, str) else None
+        if n is not None and hit is not None:
+            out.setdefault(hit[0], n)
+    return out
+
+
 def looks_like_us_units(values: dict) -> bool:
-    """US-панель без явного поля units: единицы заданы величиной маркера-индикатора.
+    """US-панель без явного поля units: единицы заданы величиной маркеров-индикаторов.
 
-    Гемоглобин — надёжный признак: метрический Hb всегда 3-значный (г/л, ~120-180),
-    а в g/dL — 1-значный/2-значный (< 30). Покрывает maccabi-CBC с инлайновыми
-    _ref-диапазонами вместо поля units (issue #295) и документы из /doc, где поля
-    units нет вовсе (issue #281).
+    Одного Hb < 30 мало: ИНВИТРО печатает гемоглобин в г/дл, а остальную биохимию в
+    метрике. Нужен Hb < 30 И второй US-признак: glucose > 30 (мг/дл), cholesterol_total
+    или LDL > 30 (мг/дл), creatinine < 15 (мг/дл). Только Hb в г/дл → False; такой Hb
+    конвертируется явной единицей (см. ``mark_gdl_units``).
 
-    Вызывается на записи (импорт KB, /doc), чтобы проставить ``_unit_system="US"``;
-    саму конверсию делает ``to_canonical`` на чтении.
+    Покрывает maccabi-CBC с инлайновыми _ref-диапазонами (issue #295) и документы из
+    /doc без поля units (issue #281). Вызывается на записи (импорт KB, /doc), чтобы
+    проставить ``_unit_system="US"``; конверсию делает ``to_canonical`` на чтении.
     """
-    for key in ("hemoglobin", "Hb", "HGB"):
-        hb = values.get(key)
-        if isinstance(hb, (int, float)) and not isinstance(hb, bool) and 0 < hb < 30:
-            return True
-    return False
+    c = _canon_numeric(values)
+    hb = c.get("Hb")
+    if hb is None or not 0 < hb < 30:
+        return False
+    if c.get("glucose", 0) > 30:
+        return True
+    if c.get("cholesterol_total", 0) > 30 or c.get("LDL", 0) > 30:
+        return True
+    creat = c.get("creatinine")
+    return creat is not None and 0 < creat < 15
+
+
+def mark_gdl_units(values: dict) -> dict:
+    """Копия values с явными ``<ключ>_unit="g/dl"`` для Hb (< 30) и MCHC (< 60).
+
+    Для записей, где только гемоглобин в г/дл, а прочее в метрике: to_canonical
+    сконвертирует эти маркеры в г/л через явную единицу, не трогая остальные.
+    Существующая явная единица не перезаписывается.
+    """
+    out = dict(values)
+    limits = {"Hb": 30.0, "MCHC": 60.0}
+    for key, val in values.items():
+        n = _num(val)
+        hit = _REVERSE.get(key.lower()) if isinstance(key, str) else None
+        if n is None or hit is None or hit[0] not in limits:
+            continue
+        unit_key = key + UNIT_FIELD_SUFFIX
+        if 0 < n < limits[hit[0]] and not out.get(unit_key):
+            out[unit_key] = "g/dl"
+    return out
 
 
 def _build_reverse() -> dict[str, tuple[str, float]]:
@@ -427,7 +490,11 @@ def to_canonical(
         else:
             new_val = raw_val * factor
             if is_us:
-                new_val *= US_TO_METRIC.get(canon_key, 1.0)
+                rng = _US_RAW_RANGE.get(canon_key)
+                # Диапазон задан → конвертируем только правдоподобное US-значение;
+                # вне диапазона оно уже метрическое (смешанная запись ИНВИТРО).
+                if rng is None or rng[0] <= new_val <= rng[1]:
+                    new_val *= US_TO_METRIC.get(canon_key, 1.0)
         high_guard = _MGDL_MAGNITUDE_GUARD.get(canon_key)
         if high_guard is not None and new_val > high_guard[0]:
             new_val *= high_guard[1]
