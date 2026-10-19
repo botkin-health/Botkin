@@ -284,12 +284,51 @@ def detect_slot_prefix(text: str) -> str | None:
     return _SLOT_PREFIX_MAP.get(m.group(1).lower())
 
 
+_CLOCK_PATTERNS = [
+    # «18:00», «в 18:00» — двоеточие однозначно, предлог не нужен
+    re.compile(r"(?<![\d.,:])(\d{1,2}):(\d{2})(?![\d:])"),
+    # «в 7.30», «в 18-00» — точка/дефис только с предлогом «в» (иначе «1.50 кусочка»)
+    re.compile(r"\bв\s+(\d{1,2})[.\-](\d{2})(?![\d.,%])"),
+]
+# «в 9 часов», «в 7 вечера», «в 13» в конце фразы / перед знаком препинания
+_HOUR_PATTERN = re.compile(r"\bв\s+(\d{1,2})(?:\s*(час\w*|ч\b|утра|дня|вечера|ночи)|(?=\s*(?:$|[,;!?)])))")
+
+
+def _explicit_clock_time(text_lower: str) -> str | None:
+    """Явное время суток из текста → «HH:MM», иначе None."""
+    for pattern in _CLOCK_PATTERNS:
+        m = pattern.search(text_lower)
+        if m:
+            hour, minute = int(m.group(1)), int(m.group(2))
+            if hour <= 23 and minute <= 59:
+                return f"{hour:02d}:{minute:02d}"
+    m = _HOUR_PATTERN.search(text_lower)
+    if not m:
+        return None
+    hour, suffix = int(m.group(1)), m.group(2) or ""
+    if suffix in ("дня", "вечера") and hour < 12:
+        hour += 12
+    elif suffix == "ночи":
+        if hour == 12:
+            hour = 0
+        elif 6 <= hour < 12:
+            hour += 12  # «в 10 ночи» = 22:00
+    if hour > 23:
+        return None
+    return f"{hour:02d}:00"
+
+
 def _temporal_phrase_to_time(text: str) -> str | None:
     """Извлекает meal_time из временны́х фраз в тексте.
 
     Возвращает HH:MM строку если найдена фраза, иначе None.
     """
     text_lower = text.lower()
+    # Явное время («в 18:00», «в 7.30», «в 9 часов», «в 7 вечера») приоритетнее
+    # фраз о времени суток (#629): раньше оно игнорировалось → время сообщения.
+    explicit = _explicit_clock_time(text_lower)
+    if explicit:
+        return explicit
     # Порядок важен: более специфичные паттерны первыми.
     #
     # ⚠️ Здесь ТОЛЬКО настоящие фразы о времени суток («утром», «вечером»,
