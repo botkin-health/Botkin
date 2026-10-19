@@ -926,7 +926,8 @@ TOOLS: list[dict[str, Any]] = [
             "назад») — это СОБЫТИЕ, а не только повод для save_health_profile. Даже "
             "если из фразы заодно ясно, что это постоянная терапия — сначала залогируй "
             "фактический приём здесь, отдельным вызовом сохранив терапию в медпрофиль "
-            "(save_health_profile). НЕ теряй событие приёма, выбрав только медпрофиль."
+            "(save_health_profile). НЕ теряй событие приёма, выбрав только медпрофиль.\n\n"
+            "Для исправления существующей записи используй edit_supplement_log, а не новую запись."
         ),
         "input_schema": {
             "type": "object",
@@ -951,6 +952,34 @@ TOOLS: list[dict[str, Any]] = [
                 },
             },
             "required": ["supplement_name"],
+        },
+    },
+    {
+        "name": "edit_supplement_log",
+        "description": (
+            "Исправить или удалить УЖЕ записанный приём добавки (доза, дата, название). "
+            "Сначала уточни у пользователя дату и препарат. Передай date и supplement "
+            "(и dosage_from, если в тот день несколько записей) плюс ОДНО действие: "
+            "new_dosage, new_date, new_supplement_name или delete=true. "
+            "При status=ambiguous или not_found покажи пользователю candidates и переспроси; "
+            "после выбора повтори вызов с log_id из candidates. "
+            "delete=true — только когда пользователь явно просит удалить запись."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "date": {"type": "string", "description": "Дата записанного приёма YYYY-MM-DD"},
+                "supplement": {"type": "string", "description": "Название добавки"},
+                "dosage_from": {
+                    "type": "string",
+                    "description": "Текущая доза записи, чтобы выбрать одну из нескольких",
+                },
+                "log_id": {"type": "integer", "description": "id записи из candidates (точный выбор)"},
+                "new_dosage": {"type": "string", "description": "Новая доза"},
+                "new_date": {"type": "string", "description": "Новая дата YYYY-MM-DD (не в будущем)"},
+                "new_supplement_name": {"type": "string", "description": "Новое название"},
+                "delete": {"type": "boolean", "description": "true — удалить запись (только по явной просьбе)"},
+            },
         },
     },
     {
@@ -1437,6 +1466,8 @@ def _call_tool(name: str, args: dict, token: str) -> str:
             r = requests.post(f"{TOOLS_API_BASE}/log_bp", json=args, headers=headers, timeout=10)
         elif name == "log_supplement":
             r = requests.post(f"{TOOLS_API_BASE}/log_supplement", json=args, headers=headers, timeout=10)
+        elif name == "edit_supplement_log":
+            r = requests.post(f"{TOOLS_API_BASE}/edit_supplement_log", json=args, headers=headers, timeout=10)
         elif name == "log_workout":
             r = requests.post(f"{TOOLS_API_BASE}/log_workout", json=args, headers=headers, timeout=10)
         elif name == "render_report":
@@ -2500,6 +2531,7 @@ _TOOL_PROGRESS_LABEL = {
     "delete_meal": "🗑 удаляю запись о еде",
     "adjust_meal_items": "📋 свожу план к факту",
     "log_supplement": "✍️ отмечаю добавку",
+    "edit_supplement_log": "✏️ правлю запись о добавке",
     "log_bp": "✍️ записываю давление",
     "log_workout": "✍️ записываю тренировку",
     "regenerate_health_token": "🔑 пересоздаю токен",
