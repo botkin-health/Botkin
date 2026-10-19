@@ -1487,6 +1487,62 @@ class TestSupplementDailyLog:
         body = client.get("/api/agent/supplement_daily_log?days=30&supplement=магний").json()
         assert {s["supplement"] for s in body["supplements"]} == {"Магний"}
 
+    def test_name_variants_merge_with_dose_history(self, client, db_session):
+        today = datetime.now(MSK).date()
+        d1, d2, d3 = (today - timedelta(days=n) for n in (14, 7, 0))
+        self._add(db_session, "Витамин B12", d1, dosage="0.25 мг")
+        self._add(db_session, "Витамин B12 (цианокобаламин)", d2, dosage="0.5 мг")
+        self._add(db_session, "Витамин B12 (цианокобаламин) 1 мг", d3)  # доза только в имени
+        db_session.commit()
+        body = client.get("/api/agent/supplement_daily_log?days=30").json()
+        assert len(body["supplements"]) == 1
+        g = body["supplements"][0]
+        assert g["days_taken"] == 3
+        assert sorted(g["name_variants"]) == sorted(
+            ["Витамин B12", "Витамин B12 (цианокобаламин)", "Витамин B12 (цианокобаламин) 1 мг"]
+        )
+        assert [(i["date"], i["dosage"]) for i in g["intakes"]] == [
+            (d1.isoformat(), "0.25 мг"),
+            (d2.isoformat(), "0.5 мг"),
+            (d3.isoformat(), "1 мг"),
+        ]
+        assert g["intakes"][0]["time"] == "09:00"
+        assert g["last_dosage"] == "1 мг"
+        assert "dosage_constant" not in g
+
+    def test_constant_dose_is_compact(self, client, db_session):
+        today = datetime.now(MSK).date()
+        for n in range(5):
+            self._add(db_session, "Витамин D", today - timedelta(days=n), dosage="5000 МЕ")
+        db_session.commit()
+        g = client.get("/api/agent/supplement_daily_log?days=30").json()["supplements"][0]
+        assert g["dosage_constant"] is True
+        assert "intakes" not in g
+        assert "name_variants" not in g
+        assert g["last_dosage"] == "5000 МЕ"
+
+    def test_empty_or_spaced_dose_is_not_a_dose_change(self, client, db_session):
+        today = datetime.now(MSK).date()
+        self._add(db_session, "Магний", today - timedelta(days=2), dosage="1 мг")
+        self._add(db_session, "Магний", today - timedelta(days=1))
+        self._add(db_session, "Магний", today, dosage="1мг")
+        db_session.commit()
+        g = client.get("/api/agent/supplement_daily_log?days=30").json()["supplements"][0]
+        assert g["dosage_constant"] is True
+        assert "intakes" not in g
+
+    def test_filter_substring_matches_original_name_across_variants(self, client, db_session):
+        today = datetime.now(MSK).date()
+        self._add(db_session, "Витамин B12", today - timedelta(days=3), dosage="0.5 мг")
+        self._add(db_session, "Витамин B12 (цианокобаламин)", today, dosage="1 мг")
+        self._add(db_session, "Магний", today)
+        db_session.commit()
+        body = client.get("/api/agent/supplement_daily_log?days=30&supplement=цианокобаламин").json()
+        assert len(body["supplements"]) == 1
+        g = body["supplements"][0]
+        assert g["supplement"] == "Витамин B12 (цианокобаламин)"
+        assert g["days_taken"] == 1
+
     def test_window_excludes_old(self, client, db_session):
         today = datetime.now(MSK).date()
         self._add(db_session, "магний", today - timedelta(days=40))  # вне окна 30д
