@@ -68,5 +68,8 @@ def notify_owner_low_anthropic_balance() -> None:
     notify_owner(
         "anthropic_low_balance",
         "⚠️ Botkin: у Anthropic закончился баланс API — BotkinClaw не отвечает пользователям.\n\n"
-        "Пополни на platform.claude.com/dashboard → Add funds.",
+        "Ключ бота — healthvault-bot в личной организации «Individual Org», а не в рабочей "
+        "(Zurbagun Robotics): у них разные балансы.\n\n"
+        "Пополни: platform.claude.com/settings/billing → «Пополнить баланс». "
+        "Перед оплатой проверь внизу слева, что выбрана Individual Org.",
     )
