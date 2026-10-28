@@ -51,3 +51,20 @@ def test_merge_writes_to_existing_synonym_key(test_db):
 
 def test_merge_missing_user_returns_empty(test_db):
     assert merge_onboarding_lists(test_db, 999, {"allergies": ["X"], "chronic_conditions": []}) == {}
+
+
+def test_merge_skips_reworded_duplicates_and_refines(test_db):
+    """#645: повторная загрузка документа с другой формулировкой не плодит дубли."""
+    _add_user(test_db, 555, {"chronic_conditions": ["Артериальная гипертензия"], "allergies": ["кошка"]})
+    added = merge_onboarding_lists(
+        test_db,
+        555,
+        {
+            "allergies": ["Кот", "Пыльца трав"],
+            "chronic_conditions": ["Артериальная гипертензия (I10)", "артериальная гипертензия", "Предиабет"],
+        },
+    )
+    assert added == {"allergies": 1, "chronic_conditions": 1}
+    u = test_db.query(User).filter_by(telegram_id=555).one()
+    assert u.onboarding_data["chronic_conditions"] == ["Артериальная гипертензия (I10)", "Предиабет"]
+    assert u.onboarding_data["allergies"] == ["кошка", "Пыльца трав"]

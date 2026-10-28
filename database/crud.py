@@ -93,10 +93,12 @@ def merge_onboarding_lists(db: Session, telegram_id: int, additions: dict[str, l
 
     additions: {"allergies": [...], "chronic_conditions": [...]}.
     Пишет в тот ключ-синоним, что уже читается отчётом (первый непустой),
-    иначе — в дефолтный ('allergies'/'chronic_conditions'). Дедуп case-insensitive.
+    иначе — в дефолтный ('allergies'/'chronic_conditions'). Дубли отсекаются
+    по смыслу, а не по точной строке (`merge_items`, #645): другая формулировка
+    того же диагноза не добавляется, более подробная — заменяет старую.
     Возвращает {"allergies": n_added, "chronic_conditions": m_added}.
     """
-    from core.health.onboarding_lists import ALLERGY_KEYS, CONDITION_KEYS, split_freetext
+    from core.health.onboarding_lists import ALLERGY_KEYS, CONDITION_KEYS, merge_items, split_freetext
 
     user = get_user_by_telegram_id(db, telegram_id)
     if not user:
@@ -115,21 +117,13 @@ def merge_onboarding_lists(db: Session, telegram_id: int, additions: dict[str, l
                 break
         existing = data.get(target)
         if isinstance(existing, list):
-            merged = [str(v).strip() for v in existing if str(v).strip()]
+            current = [str(v) for v in existing]
         elif isinstance(existing, str):
-            merged = split_freetext(existing)
+            current = split_freetext(existing)
         else:
-            merged = []
-        seen = {s.strip().lower() for s in merged}
-        n_added = 0
-        for item in new_items:
-            s = str(item).strip()
-            if not s or s.lower() in seen:
-                continue
-            merged.append(s)
-            seen.add(s.lower())
-            n_added += 1
-        if n_added:
+            current = []
+        merged, n_added, n_refined = merge_items(current, new_items)
+        if n_added or n_refined:
             data[target] = merged
         added[kind] = n_added
 

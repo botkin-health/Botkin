@@ -27,7 +27,7 @@ from aiogram.types import (
     Message,
 )
 
-from core.health.onboarding_lists import ALLERGY_KEYS, CONDITION_KEYS, onboarding_list
+from core.health.onboarding_lists import ALLERGY_KEYS, CONDITION_KEYS, is_known, onboarding_list
 from database import SessionLocal
 from database.crud import merge_onboarding_lists
 from handlers import doc_dedup
@@ -290,8 +290,8 @@ def _preview_text(extracted: dict[str, Any], existing: Optional[dict] = None) ->
     """Форматирует превью найденных данных. existing — текущий onboarding_data юзера
     (для пометки «новое» vs «уже в профиле»)."""
     existing = existing or {}
-    existing_allergies = {s.lower() for s in onboarding_list(existing, ALLERGY_KEYS)}
-    existing_conditions = {s.lower() for s in onboarding_list(existing, CONDITION_KEYS)}
+    existing_allergies = onboarding_list(existing, ALLERGY_KEYS)
+    existing_conditions = onboarding_list(existing, CONDITION_KEYS)
 
     if not _has_content(extracted):
         if extracted and (extracted.get("_unverified_labels") or extracted.get("_unreadable_text")):
@@ -369,8 +369,8 @@ def _preview_text(extracted: dict[str, Any], existing: Optional[dict] = None) ->
     if len(values) > 15:
         lines.append(f"  <i>...и ещё {len(values) - 15} показателей</i>")
 
-    def _mark(item: str, existing_set: set) -> str:
-        marker = "✓ уже в профиле" if item.lower() in existing_set else "🆕"
+    def _mark(item: str, existing_items: list[str]) -> str:
+        marker = "✓ уже в профиле" if is_known(item, existing_items) else "🆕"
         return f"• {_esc(item)} — {marker}"
 
     allergies = extracted.get("allergies") or []

@@ -183,7 +183,7 @@ async def save_health_profile(
 
     Пишет в те же ключи `users.onboarding_data`, откуда читают промпт-блок,
     отчёт для врача и /meal_context (реестр — core/health/onboarding_lists.py),
-    через `merge_onboarding_lists` (дедуп case-insensitive).
+    через `merge_onboarding_lists` (дедуп по смыслу, #645).
 
     Флаг `health_profile_asked` ставится в любом случае — и когда что-то
     записали, и когда пользователю нечего сообщить: вопрос задан, повторять
