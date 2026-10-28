@@ -1822,3 +1822,14 @@ def test_duplicate_note_names_already_saved_document(tmp_path, monkeypatch):
     assert "Общий анализ крови" in note
     assert mod._duplicate_note(555, {"date": "2026-01-01", "values": dict(values)}) == ""
     assert mod._duplicate_note(999, {"date": "2026-09-13", "values": dict(values)}) == ""
+
+
+def test_preview_marks_reworded_condition_as_known():
+    """#645: «уже в профиле» — по тому же правилу, что и запись."""
+    from handlers.doc_upload import _preview_text
+
+    extracted = {"values": {}, "allergies": ["Кот"], "conditions": ["Гипертоническая болезнь II степени (I10)"]}
+    existing = {"allergies": ["кошка"], "chronic_conditions": ["Гипертоническая болезнь II ст. (I10)"]}
+    text = _preview_text(extracted, existing)
+    assert "🆕" not in text
+    assert text.count("уже в профиле") == 2
