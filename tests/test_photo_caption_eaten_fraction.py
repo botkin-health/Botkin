@@ -1,8 +1,10 @@
 """Фото + подпись «съел примерно 35%» → доля доходит до деления (30.10.2026).
 
-Путь фото с подписью: роутер → menu_data_from_router_data → menu_data в state →
-build_router_result_from_menu_data → process_llm_food_data. Раньше eaten_fraction
-терялся на первых двух шагах, и в превью шёл итог всего стола: 1887 ккал вместо ~660.
+Путь фото с подписью: роутер → menu_data_from_router_data → menu_data в state
+(Pydantic MenuData) → build_router_result_from_menu_data → process_llm_food_data.
+Раньше eaten_fraction терялся на каждом из первых трёх шагов, и в превью шёл итог
+всего стола: 1887 ккал вместо ~660. Тест идёт через state, как бот: первый фикс
+(30.10) обходил state и пропустил, что MenuData выкидывает незнакомые поля.
 """
 
 import sys
@@ -12,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "telegram-bot"))
 
 from core.food.nutrition import process_llm_food_data
 from handlers.photo import build_router_result_from_menu_data, menu_data_from_router_data
+from services.state_helpers import create_photo_state
 
 CAPTION = "ужин. из этой кучи японских суши и сашими съел примерно 35%"
 
@@ -42,6 +45,8 @@ def _router_data(fraction=0.35, with_total=False):
 
 def _totals(router_data):
     menu_data = menu_data_from_router_data(router_data)
+    state = create_photo_state(user_id="1", photo_paths=[], photo_file_ids=[], caption=CAPTION, menu_data=menu_data)
+    menu_data = state.data["menu_data"]
     result = build_router_result_from_menu_data(menu_data, caption=CAPTION)
     _, totals = process_llm_food_data(result, CAPTION)
     return totals
