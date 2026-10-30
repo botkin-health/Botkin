@@ -32,6 +32,11 @@ _DUMMY_KEYS = {
 for _k, _v in _DUMMY_KEYS.items():
     os.environ.setdefault(_k, _v)
 
+# Глобальный state_manager (services/state.py) в тестах — только в памяти:
+# иначе хендлерные тесты писали бы JSON-состояния в data/state/ рабочей копии.
+# Персистентность проверяет tests/test_state_persistence.py на tmp_path.
+os.environ["BOT_STATE_DIR"] = ""
+
 # .env под pytest НЕ читаем вовсе. config/settings.py и telegram-bot/bot.py делают
 # load_dotenv(override=True): любой Settings(), созданный внутри теста, возвращал
 # в os.environ настоящий TELEGRAM_BOT_TOKEN из .env поверх dummy. При прогоне из
