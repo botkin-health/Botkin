@@ -206,34 +206,7 @@ async def process_photos_list(
             lambda: analyze_message(text=prompt_text, image_paths=paths_for_llm, user_id=int(user_id)),
         )
         if router_result and router_result.get("type") == "food" and router_result.get("data"):
-            data = router_result["data"]
-            items = data.get("items") or []
-            total_nutrition = data.get("total_nutrition")
-            if total_nutrition:
-                menu_data = {
-                    "dish_name": data.get("dish_name") or (items[0].get("name") if items else "Блюдо"),
-                    "calories": total_nutrition.get("calories", 0),
-                    "protein": total_nutrition.get("protein", 0),
-                    "fats": total_nutrition.get("fats", 0),
-                    "carbs": total_nutrition.get("carbs", 0),
-                    "weight": items[0].get("weight") if items else None,
-                    # Issue #115: сохраняем покомпонентную разбивку зрения, чтобы не
-                    # схлопывать фото-блюдо в один item при наличии подписи.
-                    "components": items,
-                    # #255: этикетка продукта → предложение «Запомнить продукт»
-                    "product_label": data.get("product_label"),
-                }
-            elif items:
-                menu_data = {
-                    "dish_name": data.get("dish_name") or items[0].get("name", "Блюдо"),
-                    "calories": sum(i.get("calories", 0) for i in items),
-                    "protein": sum(i.get("protein", 0) for i in items),
-                    "fats": sum(i.get("fats", 0) for i in items),
-                    "carbs": sum(i.get("carbs", 0) for i in items),
-                    "weight": items[0].get("weight") if items else None,
-                    "components": items,
-                    "product_label": data.get("product_label"),
-                }
+            menu_data = menu_data_from_router_data(router_result["data"])
             if menu_data and (menu_data.get("calories") or menu_data.get("protein") is not None):
                 logger.info(f"Распознано через LLM: {menu_data.get('dish_name')}, {menu_data.get('calories')} ккал")
         else:
@@ -1754,6 +1727,44 @@ async def handle_description(
     await safe_edit_text(processing_message, response, parse_mode="HTML", reply_markup=keyboard)
 
 
+def menu_data_from_router_data(data: dict) -> Optional[dict]:
+    """Ответ роутера (type=food) по фото → menu_data; None, если ни итога, ни items."""
+    items = data.get("items") or []
+    total_nutrition = data.get("total_nutrition")
+    if total_nutrition:
+        menu_data = {
+            "dish_name": data.get("dish_name") or (items[0].get("name") if items else "Блюдо"),
+            "calories": total_nutrition.get("calories", 0),
+            "protein": total_nutrition.get("protein", 0),
+            "fats": total_nutrition.get("fats", 0),
+            "carbs": total_nutrition.get("carbs", 0),
+        }
+    elif items:
+        menu_data = {
+            "dish_name": data.get("dish_name") or items[0].get("name", "Блюдо"),
+            "calories": sum(i.get("calories", 0) for i in items),
+            "protein": sum(i.get("protein", 0) for i in items),
+            "fats": sum(i.get("fats", 0) for i in items),
+            "carbs": sum(i.get("carbs", 0) for i in items),
+        }
+    else:
+        return None
+    menu_data.update(
+        {
+            "weight": items[0].get("weight") if items else None,
+            # Issue #115: сохраняем покомпонентную разбивку зрения, чтобы не
+            # схлопывать фото-блюдо в один item при наличии подписи.
+            "components": items,
+            # #255: этикетка продукта → предложение «Запомнить продукт»
+            "product_label": data.get("product_label"),
+            # «съел 35% этой кучи» по фото с подписью: без проброса доля терялась,
+            # и в превью шёл итог всего стола (1887 ккал вместо ~660, 30.10.2026).
+            "eaten_fraction": data.get("eaten_fraction"),
+        }
+    )
+    return menu_data
+
+
 def build_router_result_from_menu_data(menu_data: dict, caption: str = "") -> dict:
     """Собирает router_result из ранее распознанного menu_data (issue #115).
 
@@ -1806,6 +1817,8 @@ def build_router_result_from_menu_data(menu_data: dict, caption: str = "") -> di
         "items": items,
         "product_label": menu_data.get("product_label"),
     }
+    if menu_data.get("eaten_fraction") is not None:
+        data["eaten_fraction"] = menu_data["eaten_fraction"]
 
     # #427: карточка с покомпонентной разбивкой несёт СВОЙ заявленный итог
     # (menu_data["calories"] и т.д.) — до этой правки он терялся здесь, и
