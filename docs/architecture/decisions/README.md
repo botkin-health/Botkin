@@ -42,6 +42,7 @@
 | # | Название | Status |
 |---|---|---|
 | [0008](0008-doctor-report-ips-pdf.md) | Отчёт для врача: содержание по IPS, артефакт — человекочитаемый PDF | Accepted |
+| [0012](0012-persistent-user-state-json-files.md) | Состояние пользователя (превью еды) — JSON-файлы в `/app/data/state`, не Postgres | Accepted |
 | [0011](0011-food-router-sonnet-5-5-no-cheap-tier.md) | Роутер еды — Sonnet 5.5 без дешёвого tier; regex-веса в пост-проверку | Accepted |
 | [0010](0010-doc-extractor-model-and-rules.md) | Разбор медицинских документов: Sonnet 5, дата взятия, тип и резюме, дубли | Accepted |
 | [0009](0009-food-parsing-model-and-prompt.md) | Парсинг еды: Sonnet 5 + короткий промпт, выбор по eval на 111 реальных кейсах | Accepted |
