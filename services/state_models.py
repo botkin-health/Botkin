@@ -30,6 +30,8 @@ class MenuData(BaseModel):
     # между распознаванием фото и разбором подписи (31.10.2026). Валидирует роутер
     # (core.llm.models.FoodData), здесь только переносим.
     eaten_fraction: Optional[float] = Field(None, description="Доля съеденного от блюда на фото (0..1)")
+    # #255/#409: этикетка «на 100 г» — сверка КБЖУ и «Запомнить продукт» на пути фото + подпись.
+    product_label: Optional[Dict[str, Any]] = Field(None, description="Прочитанная этикетка продукта")
 
     class Config:
         json_schema_extra = {

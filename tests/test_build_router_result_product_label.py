@@ -19,3 +19,14 @@ def test_product_label_survives_rebuild():
     menu_data = {"dish_name": "X", "calories": 1, "weight": 10, "product_label": LABEL}
     result = build_router_result_from_menu_data(menu_data)
     assert result["data"]["product_label"] == LABEL
+
+
+def test_product_label_survives_photo_state():
+    # Фото + подпись: menu_data идёт через state (Pydantic MenuData), которая молча
+    # выкидывала незнакомые поля — этикетка терялась, «Запомнить продукт» не предлагался.
+    from services.state_helpers import create_photo_state
+
+    menu_data = {"dish_name": "X", "calories": 1, "protein": 0, "fats": 0, "carbs": 0, "product_label": LABEL}
+    state = create_photo_state(user_id="1", photo_paths=[], photo_file_ids=[], caption="c", menu_data=menu_data)
+    result = build_router_result_from_menu_data(state.data["menu_data"])
+    assert result["data"]["product_label"] == LABEL
