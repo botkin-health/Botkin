@@ -26,6 +26,10 @@ class MenuData(BaseModel):
     source: Optional[str] = Field(None, description="Источник распознавания: chatgpt_vision, gemini_vision, ocr")
     raw_text: Optional[str] = Field(None, description="Сырой текст из OCR")
     nutrition_not_found: Optional[bool] = Field(False, description="Флаг что КБЖУ не найдено")
+    # Модель молча отбрасывает незнакомые поля: без этого «съел 35%» терялось
+    # между распознаванием фото и разбором подписи (31.10.2026). Валидирует роутер
+    # (core.llm.models.FoodData), здесь только переносим.
+    eaten_fraction: Optional[float] = Field(None, description="Доля съеденного от блюда на фото (0..1)")
 
     class Config:
         json_schema_extra = {
