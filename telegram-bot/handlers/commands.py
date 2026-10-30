@@ -347,6 +347,47 @@ async def cmd_vitamins(message: Message, user_id: int):
         await message.answer(f"❌ Ошибка: {e}")
 
 
+WEEK_DEFICIT_TARGET_PCT = 15  # цель дефицита, как в /today (×0.85)
+WEEK_DEFICIT_MAX_PCT = 30  # глубже — слишком резкий дефицит
+
+
+def format_week_balance(avg_consumed: float, avg_tdee: float, avg_bmr: float, avg_active_cal: float) -> list[str]:
+    """Блок «баланс калорий» для /week: расход, дефицит, цель и вывод словами.
+
+    Раньше была одна строка «Цель 1922 (-15%) : 263 (11.7%) ✅» — галочка стояла и при
+    дефиците 11%, ниже цели, и было непонятно, выполнена ли цель (31.10.2026).
+    """
+    if avg_tdee <= 0:
+        return ["⚖️ Расход калорий неизвестен (нет данных активности) — дефицит не посчитать."]
+
+    deficit = avg_tdee - avg_consumed
+    deficit_pct = deficit / avg_tdee * 100
+    target_cal = avg_tdee * (1 - WEEK_DEFICIT_TARGET_PCT / 100)
+
+    lines = [
+        "⚖️ Баланс (в среднем за день):",
+        f"• Расход: {avg_tdee:.0f} ккал ({avg_bmr:.0f} в покое + {avg_active_cal:.0f} активность)",
+    ]
+    if deficit > 0:
+        lines.append(f"• Дефицит: {deficit:.0f} ккал ({deficit_pct:.1f}% от расхода)")
+    else:
+        lines.append(f"• Профицит: {-deficit:.0f} ккал (съедено больше расхода)")
+    lines.append(f"🎯 Цель: дефицит {WEEK_DEFICIT_TARGET_PCT}% → есть до {target_cal:.0f} ккал")
+
+    if deficit <= 0:
+        lines.append("⚠️ Дефицита нет.")
+    elif deficit_pct < WEEK_DEFICIT_TARGET_PCT:
+        lines.append(
+            f"🟡 Дефицит есть, но меньше цели. Чтобы выйти на {WEEK_DEFICIT_TARGET_PCT}%, "
+            f"ешь в среднем на ~{avg_consumed - target_cal:.0f} ккал в день меньше."
+        )
+    elif deficit_pct <= WEEK_DEFICIT_MAX_PCT:
+        lines.append("✅ Цель выполнена.")
+    else:
+        lines.append(f"⚠️ Дефицит больше {WEEK_DEFICIT_MAX_PCT}% — слишком резко, стоит есть больше.")
+    return lines
+
+
 @router.message(Command("week"))
 async def cmd_week(message: Message, user_id: int):
     """Анализ недели"""
@@ -372,23 +413,6 @@ async def cmd_week(message: Message, user_id: int):
         avg_active_cal = totals.get("avg_active_cal", 0)
         avg_bmr = totals.get("avg_bmr", 1700)
 
-        # Расчет дефицита
-        deficit = avg_tdee - avg_consumed
-        deficit_pct = (deficit / avg_tdee * 100) if avg_tdee > 0 else 0
-
-        # Цель с дефицитом 15%
-        target_cal = avg_tdee * 0.85
-
-        # Эмодзи для оценки дефицита
-        if deficit_pct < 10:
-            deficit_emoji = "⚠️"  # Слишком мало
-        elif 10 <= deficit_pct <= 20:
-            deficit_emoji = "✅"  # Отлично
-        elif 20 < deficit_pct <= 30:
-            deficit_emoji = "👍"  # Хорошо
-        else:
-            deficit_emoji = "⚠️"  # Слишком много
-
         # Целевые значения БЖУ
         target_protein = 150  # Целевое значение
 
@@ -410,8 +434,7 @@ async def cmd_week(message: Message, user_id: int):
             f"• Углеводы: {avg_carbs:.0f} г",
             f"• Клетчатка: {avg_fiber:.0f} г (Норма: > 30г)",
             "",
-            f"🔥 Расход {avg_tdee:.0f} = {avg_bmr:.0f}😴 + {avg_active_cal:.0f}🏃",
-            f"🎯 Цель {target_cal:.0f} (-15%) : {deficit:.0f} ({deficit_pct:.1f}%) {deficit_emoji}",
+            *format_week_balance(avg_consumed, avg_tdee, avg_bmr, avg_active_cal),
             "",
             "🔍 Анализ питания:",
         ]
