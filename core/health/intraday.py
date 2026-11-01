@@ -152,7 +152,7 @@ def build_timeline(stress_payload: dict, hr_payload: Optional[dict], fallback_of
         if c["active"] and c["active"] >= len(c["stress"]):
             item["note"] = "движение/активность (стресс не считается)"
         elif c["no_data"] and not c["stress"]:
-            item["note"] = "нет данных (часы сняты или в воде)"
+            item["note"] = "пропуск: часы сняты или в воде"
         timeline.append(item)
 
     # Эпизоды стресса ≥ HIGH_STRESS подряд ≥ MIN_EPISODE_MIN (по сырым точкам,
@@ -175,6 +175,10 @@ def build_timeline(stress_payload: dict, hr_payload: Optional[dict], fallback_of
 
     hr_resting = (hr_payload or {}).get("restingHeartRate")
     return {
+        "window": (
+            "календарный день 00:00–24:00 по часам устройства; точки до засыпания в начале "
+            "суток — хвост ПРЕДЫДУЩЕГО вечера, а не ночь после событий этого дня"
+        ),
         "device_utc_offset_hours": round(offset.total_seconds() / 3600, 2),
         "resting_hr": hr_resting,
         "avg_stress": stress_payload.get("avgStressLevel"),
