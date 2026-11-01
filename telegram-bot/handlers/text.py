@@ -209,49 +209,25 @@ async def show_agent_meal_preview(message: Message, user_id: str, preview: dict,
         state_manager.set_state(user_id, new_state)
 
 
-def _inject_bp_to_agent_conv(
-    user_id: int,
-    raw_text: str,
-    conf_text: str,
-    include_user_turn: bool = True,
+def _log_tracker(
+    user_id, user_text: str, what: str, when, user_tz, is_e2e: bool = False, date_str: str | None = None
 ) -> None:
-    """После save_bp_to_db() — записать в agent_conversations оба хода диалога
-    (user-turn + assistant-confirmation), чтобы BotkinClaw видел сохранённые
-    замеры при последующих вопросах о динамике АД.
+    """Быстрая запись → пара ходов в историю агента: «реплика» → «✅ записал X — дата время».
 
-    Regex-путь (include_user_turn=True): обходит весь agent pipeline, user-turn
-    не логируется нигде → добавляем оба.
-    LLM-путь (include_user_turn=False): log_router_raw_text уже сохранил
-    user-turn → добавляем только assistant-подтверждение.
-
-    Ошибки подавляются — не должны ломать основной хэндлер. Прецедент #71.
+    Агент видит, что и когда записано, в хронологии разговора (задача 5 аудита
+    обвязки). Раньше #71-инъекция АД писала source, который агент не читал.
     """
-    try:
-        from core.agent_chat import _save_message
-        from database.session import SessionLocal
+    from core.agent_chat import log_tracker_event
 
-        _db = SessionLocal()
-        try:
-            if include_user_turn:
-                _save_message(
-                    _db,
-                    user_id,
-                    "user",
-                    [{"type": "text", "text": raw_text}],
-                    source="bp_fast_handler",
-                )
-            _save_message(
-                _db,
-                user_id,
-                "assistant",
-                [{"type": "text", "text": conf_text}],
-                source="bp_fast_handler",
-            )
-            _db.commit()
-        finally:
-            _db.close()
-    except Exception as _e:
-        pass  # non-critical, never break the main handler
+    if when is None:
+        when = datetime.now(user_tz)
+        if date_str:
+            try:
+                d = datetime.strptime(date_str, "%Y-%m-%d").date()
+                when = when.replace(year=d.year, month=d.month, day=d.day)
+            except ValueError:
+                pass
+    log_tracker_event(int(user_id), user_text, f"✅ записал {what} — {when.strftime('%d.%m %H:%M')}", is_e2e=is_e2e)
 
 
 async def _bp_confirmation_with_answer(is_question: bool, user_id: int, raw_text: str, confirmation_html: str) -> str:
@@ -1087,12 +1063,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext,
                 # Regex path bypasses the agent pipeline entirely — without this
                 # the agent has no memory of these saves and falsely reports
                 # "no measurements today". Прецедент 26.05.2026 (семейный юзер).
-                _inject_bp_to_agent_conv(
-                    user_id=int(user_id),
-                    raw_text=text,
-                    conf_text=f"🩺 АД: {sys_v}/{dia_v}{pulse_part}{date_part}{time_part}. Записано.",
-                    include_user_turn=True,
-                )
+                _log_tracker(user_id, agent_text, f"АД {sys_v}/{dia_v}{pulse_part}", measured_at, user_tz, is_e2e)
                 # Замер сохранён детерминированно ВНЕ ЗАВИСИМОСТИ от того, был ли
                 # это вопрос («…, это нормально?») — вопрос дополнительно уходит
                 # агенту за ответом по существу, без повторного log_bp.
@@ -1408,6 +1379,9 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext,
             status_text = "✅ <b>Записано</b>" if saved else "⚠️ <b>Ошибка записи</b>"
 
             response = f"💊 <b>Витамины:</b>\n{items_list}\n\n{status_text}"
+            if saved:
+                names = ", ".join(i["name"] if isinstance(i, dict) else str(i) for i in items)
+                _log_tracker(user_id, agent_text, f"приём добавок: {names}", None, user_tz, is_e2e, custom_date)
 
             await processing_msg.edit_text(response, parse_mode="HTML")
             return
@@ -1557,6 +1531,8 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext,
             e2e_prefix = "🧪 [E2E] " if is_e2e else ""
             date_part = f" за {measured_at.strftime('%d.%m')}" if custom_date else ""
             status = "✅ Записано" if saved else "⚠️ Ошибка записи"
+            if saved:
+                _log_tracker(user_id, agent_text, f"вес {w_val} кг", measured_at, user_tz, is_e2e)
             await processing_msg.edit_text(
                 f"{e2e_prefix}⚖️ <b>Вес:</b> {w_val} кг{date_part}\n{status}",
                 parse_mode="HTML",
@@ -1599,12 +1575,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext,
             if saved:
                 # LLM router path: log_router_raw_text already saved the user
                 # turn → inject only the assistant confirmation (#71).
-                _inject_bp_to_agent_conv(
-                    user_id=int(user_id),
-                    raw_text=text,
-                    conf_text=f"🩺 АД: {sys_v}/{dia_v}{pulse_part}{date_part}{time_part}. Записано.",
-                    include_user_turn=False,
-                )
+                _log_tracker(user_id, agent_text, f"АД {sys_v}/{dia_v}{pulse_part}", measured_at, user_tz, is_e2e)
                 confirmation_html = await _bp_confirmation_with_answer(
                     _is_bp_question, int(user_id), text, confirmation_html
                 )

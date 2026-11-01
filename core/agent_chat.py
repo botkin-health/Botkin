@@ -25,7 +25,6 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from sqlalchemy import text
 from typing import Any, Callable, Optional
 
 import jwt as pyjwt
@@ -61,6 +60,7 @@ MAX_TOKENS = 4000  # 2000 обрезал развёрнутые многофак
 # на полный разбор с таблицей; короткие ответы лимит не трогает (бот сам краток).
 MAX_TOOL_ITERATIONS = 6  # safety net against tool loops
 HISTORY_WINDOW = 20  # last N messages from agent_conversations
+TRACKER_HISTORY_ROWS = 12  # до 6 пар быстрых записей поверх окна диалога
 
 # Универсальные правила агента поверх per-user промпта. Сжаты 28.09.2026:
 # 14.5K → 6.1K токенов на каждом вызове, правила и якоря тестов сохранены.
@@ -1765,7 +1765,7 @@ def _load_history(db, user_id: int, limit: int = HISTORY_WINDOW) -> list[dict]:
     # пищевые сообщения.
     sql = text(
         """
-        SELECT role, content
+        SELECT id, role, content
         FROM agent_conversations
         WHERE user_id = :uid AND (source IS NULL OR source = 'botkinclaw')
           AND role <> 'error'
@@ -1774,7 +1774,25 @@ def _load_history(db, user_id: int, limit: int = HISTORY_WINDOW) -> list[dict]:
         """
     )
     rows = db.execute(sql, {"uid": user_id, "lim": limit}).fetchall()
-    rows = list(reversed(rows))  # chronological
+    # Быстрые записи (АД, вес, еда по кнопке, добавки) — парами «реплика →
+    # ✅ записал …» с source='tracker'. Подмешиваем их в хронологию отдельным
+    # лимитом, чтобы десяток записей за день не вытеснил сам разговор. Так агент
+    # видит, что и когда записано, и не говорит «ты не вносил».
+    min_id = min((r[0] for r in rows), default=0)
+    tracker_rows = db.execute(
+        text(
+            """
+            SELECT id, role, content
+            FROM agent_conversations
+            WHERE user_id = :uid AND source = 'tracker' AND id > :min_id
+            ORDER BY id DESC
+            LIMIT :lim
+            """
+        ),
+        {"uid": user_id, "min_id": min_id, "lim": TRACKER_HISTORY_ROWS},
+    ).fetchall()
+    rows = sorted([*rows, *tracker_rows], key=lambda r: r[0])  # chronological
+    rows = [(r[1], r[2]) for r in rows]
     # Map our role values → Anthropic roles.
     # We store 'user' / 'assistant' (verbatim from API) and intermediary
     # 'tool_use' / 'tool_result' are part of assistant / user messages
@@ -1807,82 +1825,6 @@ def _load_history(db, user_id: int, limit: int = HISTORY_WINDOW) -> list[dict]:
     # Truncate large tool_results in history to save input tokens on each call
     messages = _truncate_tool_results_in_history(messages)
     return _validate_history(messages)
-
-
-def _recent_tracker_events(db, user_id: int, limit: int = 8, tz=None) -> str:
-    """Краткая сводка последних записей пользователя через быстрые парсеры
-    (вес/еда/добавки/АД) — source `router_*`/`llm_text`.
-
-    Эти сообщения намеренно исключены из истории диалога агента (`_load_history`),
-    поэтому без сводки агент «не знает», что пользователь только что записал, и
-    противоречит ему («ты не вносил вес»). Возвращает блок для system-prompt или
-    '' если событий нет. Issue #169.
-    """
-    sql = text(
-        """
-        SELECT source, content, created_at
-        FROM agent_conversations
-        WHERE user_id = :uid AND role = 'user'
-          AND (source LIKE 'router_%' OR source = 'llm_text')
-        ORDER BY id DESC
-        LIMIT :lim
-        """
-    )
-    rows = db.execute(sql, {"uid": user_id, "lim": limit}).fetchall()
-    if not rows:
-        return ""
-
-    labels = {
-        "router_weight": "вес",
-        "router_food": "еда",
-        "router_vitamins": "добавки",
-        "router_bp": "давление",
-        "llm_text": "запись",
-    }
-
-    def _text_of(content) -> str:
-        data = content
-        if isinstance(data, str):
-            try:
-                data = json.loads(data)
-            except Exception:
-                return data.strip()[:120]
-        if isinstance(data, list):
-            parts = [b.get("text", "") for b in data if isinstance(b, dict) and b.get("type") == "text"]
-            return " ".join(p for p in parts if p).strip()[:120]
-        return ""
-
-    # Время записи обязательно: без него агент гадает, когда это было
-    # (E2E 01.11.2026: шампанское, упомянутое две минуты назад, агент назвал
-    # «упоминал пару дней назад»).
-    lines = []
-    for source, content, created_at in reversed(rows):  # chronological
-        txt = _text_of(content)
-        if not txt:
-            continue
-        when = ""
-        if isinstance(created_at, str):  # SQLite в тестах отдаёт строку
-            try:
-                created_at = datetime.fromisoformat(created_at)
-            except ValueError:
-                created_at = None
-        if created_at is not None:
-            if created_at.tzinfo is None:
-                created_at = created_at.replace(tzinfo=timezone.utc)
-            when = ", " + (created_at.astimezone(tz) if tz else created_at).strftime("%d.%m %H:%M")
-        lines.append(f"• [{labels.get(source, 'запись')}{when}] {txt}")
-    if not lines:
-        return ""
-
-    return (
-        "# 📝 ПОЛЬЗОВАТЕЛЬ НЕДАВНО ЗАПИСАЛ ЧЕРЕЗ ТРЕКЕР (вне истории чата)\n"
-        "\n"
-        "Эти записи прошли через быстрый обработчик и НЕ видны в истории диалога,\n"
-        "но они РЕАЛЬНЫ и уже в БД. Учитывай их, НЕ переспрашивай и НЕ отрицай:\n"
-        + "\n".join(lines)
-        + "\nДля точных цифр всё равно вызывай соответствующий инструмент.\n"
-        "\n---\n\n"
-    )
 
 
 DIALOG_WINDOW_MINUTES = 20
@@ -2524,6 +2466,34 @@ def _persist_turns(db, user_id: int, turns: list[tuple[str, str | list[dict]]], 
             logger.exception("agent_chat: rollback после сбоя сохранения не удался")
 
 
+def log_tracker_event(user_id: int, user_text: str, confirmation: str, is_e2e: bool = False) -> None:
+    """Быстрая запись мимо агента → пара ходов в его историю (source='tracker').
+
+    Заменяет блок «последние записи» в system и #71-инъекцию АД, которую агент не
+    видел (source 'bp_fast_handler' не попадал в _load_history). Ошибки глушим:
+    запись в журнал уже сделана, история — вторична.
+    """
+    if not user_text or not confirmation:
+        return
+    src = "e2e_test" if is_e2e else "tracker"
+    try:
+        db = SessionLocal()
+        try:
+            _save_message(db, user_id, "user", [{"type": "text", "text": user_text}], source=src)
+            _save_message(
+                db,
+                user_id,
+                "assistant",
+                [{"type": "text", "text": f"[быстрая запись, без агента] {confirmation}"}],
+                source=src,
+            )
+            db.commit()
+        finally:
+            db.close()
+    except Exception as e:
+        logger.warning(f"log_tracker_event failed for {user_id}: {e}")
+
+
 def log_router_raw_text(user_id: int, raw_text: str, msg_type: str) -> None:
     """Логирует raw текст сообщения, ушедшего НЕ в BotkinClaw, а в роутер
     (food / vitamins / bp / weight / mixed / body_measurements).
@@ -2966,7 +2936,7 @@ def ask_agent(
             "Это ЕДИНСТВЕННЫЙ достоверный источник текущего времени: любые упоминания "
             "времени/«сейчас» в истории диалога относятся к моменту тех сообщений и УСТАРЕЛИ.\n"
         )
-        tracker_block = _time_line + _recent_tracker_events(db, user_id, tz=_now_local.tzinfo)
+        tracker_block = _time_line
         # #269: триаж-тулы инбокса — только админам; остальные их не видят.
         _admin_only = {"list_feedback", "triage_feedback"}
         _tool_defs = TOOLS if _is_admin(user_id) else [t for t in TOOLS if t["name"] not in _admin_only]
