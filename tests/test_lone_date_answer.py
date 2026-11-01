@@ -165,7 +165,7 @@ async def test_lone_dd_mm_slash_date_reaches_agent_as_raw_text_not_cut_date():
 @pytest.mark.asyncio
 async def test_lone_date_without_prior_question_still_reaches_agent_not_food_parser():
     agent_text = await _run_and_capture_agent_text("позавчера", agent_last_turn_was_question=False)
-    assert _ago(2) in agent_text
+    assert agent_text.strip() == "позавчера"
 
 
 # ── Негативный случай: обычная еда со словом «вчера» — НЕ сломано ───────────
