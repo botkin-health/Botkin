@@ -157,7 +157,7 @@ git log origin/main..origin/dev --no-merges --format='  %ad | %an | %s' --date=s
 
 **в) Гигиена git-идентичности**
 
-Мусорное авторство ломает `git blame`, атрибуцию в Хронологе и правило CLAUDE.md
+Мусорное авторство ломает `git blame` и правило CLAUDE.md
 «сверять авторство PR перед похвалой».
 
 ```bash

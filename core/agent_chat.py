@@ -82,56 +82,59 @@ JWT_TTL_HOURS = int(os.getenv("AGENT_JWT_TTL_HOURS", "1"))
 # Tool schema (BotkinClaw tools — wrap webhook/agent_tools_api.py endpoints)
 # ---------------------------------------------------------------------------
 
+# Описания — только то, что помогает выбрать тул и заполнить аргументы.
+# Общие правила (свежий вызов на любой вопрос о данных, план→факт, глюкоза,
+# протокол медвопроса, добавки vs медпрофиль, дата при записи прошлого)
+# живут в agent_meta_system.txt и в _date_line — здесь их не повторяем:
+# схемы тулов идут в каждый промпт и пишутся в кэш на каждом ходе после паузы.
+_DAYS = {"type": "integer", "minimum": 1}
+_DATE_ARG = {"type": "string", "description": "YYYY-MM-DD"}
+_NO_ARGS = {"type": "object", "properties": {}}
+_SLOT = {"type": "string", "enum": ["breakfast", "lunch", "dinner", "snack"]}
+_WHEN_ARG = {
+    "type": "string",
+    "description": "ISO datetime или YYYY-MM-DD, только если пользователь назвал день/время; иначе не передавай (=сейчас).",
+}
+
 TOOLS: list[dict[str, Any]] = [
     {
         "name": "get_user_profile",
-        "description": "Базовый профиль: имя, возраст, рост, пол, когорта, pack_name. Обычно не нужен — контекст уже в system prompt.",
-        "input_schema": {"type": "object", "properties": {}},
+        "description": "Базовый профиль: имя, возраст, рост, пол, когорта. Обычно не нужен — он уже в system prompt.",
+        "input_schema": _NO_ARGS,
     },
     {
         "name": "get_dashboard_summary",
-        "description": "ГЛАВНЫЙ tool: сводка здоровья за последние 7 дней — средние шаги, пульс, активные ккал, ккал съеденные, последний вес+%жира. Также возвращает `dashboard_url` — прямая ссылка на персональный веб-дашборд пользователя. Используй для любых вопросов 'как мои дела/неделя/прогресс' и когда пользователь просит показать дашборд.",
-        "input_schema": {"type": "object", "properties": {}},
+        "description": (
+            "Сводка за 7 дней: средние шаги, пульс, активные и съеденные ккал, последний вес и % жира, "
+            "плюс `dashboard_url` — ссылка на веб-дашборд. Для «как мои дела / неделя / прогресс» и просьб "
+            "показать дашборд."
+        ),
+        "input_schema": _NO_ARGS,
     },
     {
         "name": "meal_context",
         "description": (
-            "Контекст для вопросов «что мне съесть / что ещё можно сейчас / что на ужин»: остаток "
-            "КБЖУ на сегодня (target/consumed/remaining), съеденные макросы, ОГРАНИЧЕНИЯ-ДИАГНОЗЫ "
-            "(constraints), АЛЛЕРГИИ (allergies) и любимые продукты юзера — всё ОДНИМ вызовом. "
-            "При таких вопросах зови ЭТОТ tool вместо нескольких отдельных. По результату дай "
-            "СРАЗУ 2-3 конкретных варианта под остаток калорий, под constraints (диагнозы — "
-            "критично: подагра, демпинг и т.п.) и БЕЗ продуктов из allergies; уточняющий вопрос "
-            "(«где ты», «что дома») задавай ТОЛЬКО если без него никак, не гоняй юзера по 3-4 "
-            "репликам. constraints_source показывает откуда взяты диагнозы: kb (knowledge base), "
-            "onboarding (со слов пациента / из его документов) или none (данных нет — не "
-            "выдумывай ограничения)."
+            "Всё для «что мне съесть / что на ужин» одним вызовом: остаток КБЖУ на сегодня, constraints "
+            "(диагнозы-ограничения), allergies, любимые продукты. Варианты — без продуктов из allergies. "
+            "constraints_source=none — данных нет, ограничения не выдумывай."
         ),
-        "input_schema": {"type": "object", "properties": {}},
+        "input_schema": _NO_ARGS,
     },
     {
         "name": "get_recent_meals",
         "description": (
-            "Недавние приёмы пищи. days=1..90, по умолчанию 3. "
-            "Для поиска по длинному периоду («ел ли я X за месяцы», «как часто пельмени») "
-            "ставь большой days и compact=true — вернёт компактно (имена продуктов + калории), "
-            "без раздувания контекста. days>14 авто-включает compact. "
-            "Каждая запись имеет status: eaten | plan. Для «минус N …», «съела всё», "
-            "«остаток на обед» — вызывай с only_open_plans=true."
+            "Приёмы пищи за days дней (у записи есть id и status eaten|plan). Поиск по длинному периоду "
+            "(«ел ли я X за месяц») — большой days и compact=true; при days>14 compact включается сам."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "days": {"type": "integer", "minimum": 1, "maximum": 90, "default": 3},
-                "compact": {
-                    "type": "boolean",
-                    "default": False,
-                    "description": "Лёгкий формат (имена продуктов + калории) для поиска по длинному периоду.",
-                },
+                "days": {**_DAYS, "maximum": 90, "default": 3},
+                "compact": {"type": "boolean", "default": False, "description": "Только имена продуктов и ккал."},
                 "only_open_plans": {
                     "type": "boolean",
                     "default": False,
-                    "description": "Только открытые планы за сегодня (записи, внесённые авансом, status=plan)",
+                    "description": "Только открытые планы за сегодня (status=plan).",
                 },
             },
         },
@@ -139,166 +142,94 @@ TOOLS: list[dict[str, Any]] = [
     {
         "name": "get_recent_glucose",
         "description": (
-            "Глюкоза CGM (FreeStyle Libre 3): точки (ts/value mmol/L/trend) + сводка (avg, min, max, TIR%). "
-            "Окно: либо hours=1..168 (последние N часов, по умолчанию 24), либо date='YYYY-MM-DD' "
-            "(конкретный календарный день — для «глюкоза за вчера / за 17 июня»; приоритетнее hours). "
-            "Точки прорежены равномерно по всему окну (downsampled=true если прорежено), "
-            "min/max в stats — по ВСЕМ точкам. Для сопоставления еды с дневной кривой бери конкретный день через date. "
-            "Для вопросов про сахар «какой сейчас / после еды / ночью / скачки». "
-            "Точки в ответе = CGM подключён; пусто = нет свежих данных (НЕ значит «сенсора нет»). "
-            "В пустом ответе приходят `last_point_ever_local`, `days_since_last_point` и "
-            "`all_time_count` — последняя точка за ВСЮ историю; бери историю оттуда, а не из памяти. "
-            "is_stale=true / refresh_skipped=true / большой last_point_age_min → данные несвежие, "
-            "не выдавай за «сейчас/весь день» (см. правило свежести)."
+            "Глюкоза CGM: точки (ts, mmol/L, trend) и stats (avg/min/max/TIR) за последние hours часов или за "
+            "календарный день date. Точки прорежены по окну, stats — по всем точкам. В пустом ответе "
+            "`last_point_ever_local`/`days_since_last_point` — последняя точка за всю историю. "
+            "is_stale / refresh_skipped — данные несвежие."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "hours": {"type": "integer", "minimum": 1, "maximum": 168, "default": 24},
-                "date": {
-                    "type": "string",
-                    "description": "YYYY-MM-DD — конкретный день в TZ юзера; приоритетнее hours",
-                },
+                "hours": {**_DAYS, "maximum": 168, "default": 24},
+                "date": {"type": "string", "description": "YYYY-MM-DD в TZ пользователя; приоритетнее hours"},
             },
         },
     },
     {
         "name": "get_glucose_stats",
-        "description": (
-            "Сводная статистика глюкозы CGM за N дней: TIR% (время в диапазоне 3.9–10 mmol/L), "
-            "среднее, разброс (std), min/max, % ниже/выше. days=1..90, по умолчанию 7. "
-            "Для вопросов «как мой сахар за неделю/месяц», «какой TIR»."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "days": {"type": "integer", "minimum": 1, "maximum": 90, "default": 7},
-            },
-        },
+        "description": "Статистика глюкозы CGM за days дней: TIR% (3.9–10), среднее, std, min/max, % ниже/выше.",
+        "input_schema": {"type": "object", "properties": {"days": {**_DAYS, "maximum": 90, "default": 7}}},
     },
     {
         "name": "get_daily_metrics",
         "description": (
-            "Посуточные метрики Apple Health, которых нет отдельными колонками: сатурация "
-            "(spo2_pct), VO2max, частота дыхания, температура запястья, min/max пульса, "
-            "фазы сна (sleep_deep_h/rem/core/awake), метрики походки, этажи, active energy Apple. "
-            "days=1..180, по умолчанию 14. Для вопросов «какая у меня сатурация», «сколько "
-            "глубокого сна», «какой VO2max», «температура во сне», «максимальный пульс за день». "
-            "Поле `available` говорит, по скольким дням окна метрика реально есть: если её там "
-            "нет — телефон её не присылает; НЕ говори «таких данных не собирается», не заглянув сюда."
+            "Посуточные метрики Apple Health: сатурация, VO2max, частота дыхания, температура запястья, "
+            "min/max пульса, фазы сна (deep/rem/core/awake), походка, этажи. `available` — по скольким дням "
+            "метрика есть; не говори «такое не собирается», не заглянув сюда."
         ),
-        "input_schema": {
-            "type": "object",
-            "properties": {"days": {"type": "integer", "minimum": 1, "maximum": 180, "default": 14}},
-        },
+        "input_schema": {"type": "object", "properties": {"days": {**_DAYS, "maximum": 180, "default": 14}}},
     },
     {
         "name": "get_recent_ecg",
         "description": (
-            "Записи ЭКГ с Apple Watch: дата/время, заключение (sinusRhythm, atrialFibrillation, "
-            "inconclusive и т.п.), средний пульс, длительность, симптомы. days=1..365, по умолчанию 90. "
-            "Для вопросов «покажи мои ЭКГ», «что показала кардиограмма», «есть ли мерцалка по часам». "
-            "Это ОТДЕЛЬНЫЙ источник от клинических ЭКГ в KB — там сканы из клиники, здесь записи с часов."
+            "ЭКГ с Apple Watch: дата, заключение (sinusRhythm, atrialFibrillation…), пульс, симптомы. "
+            "Отдельный источник от клинических ЭКГ в KB."
         ),
-        "input_schema": {
-            "type": "object",
-            "properties": {"days": {"type": "integer", "minimum": 1, "maximum": 365, "default": 90}},
-        },
+        "input_schema": {"type": "object", "properties": {"days": {**_DAYS, "maximum": 365, "default": 90}}},
     },
     {
         "name": "get_heart_rate_events",
         "description": (
-            "Уведомления Apple Watch о пульсе вне нормы В ПОКОЕ: начало/конец, тип (высокий/низкий/"
-            "нерегулярный), порог, min/max/средний пульс, длительность. days=1..365, по умолчанию 90. "
-            "Для вопросов «были ли уведомления о высоком пульсе», «когда была тахикардия», "
-            "а также когда надо сопоставить эпизод тахикардии с гипогликемией по времени."
+            "Уведомления Apple Watch о пульсе вне нормы в покое (высокий/низкий/нерегулярный): время, порог, "
+            "пульс, длительность. Для «была ли тахикардия» и сопоставления эпизодов с глюкозой по времени."
         ),
-        "input_schema": {
-            "type": "object",
-            "properties": {"days": {"type": "integer", "minimum": 1, "maximum": 365, "default": 90}},
-        },
+        "input_schema": {"type": "object", "properties": {"days": {**_DAYS, "maximum": 365, "default": 90}}},
     },
     {
         "name": "list_kb_keys",
         "description": (
-            "Список реальных топ-уровневых ключей knowledge_base ЭТОГО пользователя "
-            "(у разных людей схемы расходятся: у кого-то `echocardiogram`/`current_medications`, "
-            "у кого-то `mrt`/`tumor_markers`, у кого-то `cardio`/`endoscopy`). "
-            "ВСЕГДА зови это первым, если юзер спрашивает про специфичный вид обследования "
-            "(ЭхоКГ, холтер, МРТ, КТ, операции, текущие препараты, диагнозы) и ты не уверен "
-            "под каким именно ключом эти данные лежат. Для каждого ключа возвращает "
-            "type (list/dict) и count — видно есть ли там данные или секция пустая. "
-            "Ключ `documents` — файлы, которые пользователь сам загрузил через /doc "
-            "(заключения врачей, УЗИ, выписки, сканы анализов)."
+            "Ключи knowledge_base этого пользователя с type и count (схемы у людей разные: echocardiogram, "
+            "mrt, cardio, current_medications…). Зови первым, если не уверен, под каким ключом лежит "
+            "обследование (ЭхоКГ, холтер, МРТ, операции, препараты, диагнозы). `documents` — файлы из /doc."
         ),
-        "input_schema": {"type": "object", "properties": {}},
+        "input_schema": _NO_ARGS,
     },
     {
         "name": "get_kb_value",
         "description": (
-            "Значение из knowledge base по ключу (поддерживает dot-notation, например "
-            "'blood_tests.0.values.cholesterol'). Распространённые ключи: 'blood_tests', "
-            "'hormones', 'vitamins', 'ultrasound', 'ecg', 'echocardiogram', 'holter_ecg', "
-            "'current_medications', 'medications', 'chronic_diagnoses', 'diagnoses', "
-            "'operations', 'imaging', 'mrt', 'endoscopy', 'cardio', 'documents'. "
-            "'documents' — то, что пользователь загрузил через /doc: "
-            "'documents.0.extracted' даёт дату, лабораторию и распознанный текст документа, "
-            "'documents.0.file' — имя файла. Полезно для НЕлабораторных документов "
-            "(заключение врача, УЗИ) и чтобы сослаться на конкретный файл. "
-            "Числовые лабораторные показатели из загруженных документов спрашивать здесь НЕ надо — "
-            "они уже лежат в blood_tests, бери их через get_recent_biomarkers. "
-            "ВАЖНО: если не уверен какой именно ключ есть у этого юзера — сначала позови `list_kb_keys`."
+            "Значение из knowledge base по ключу, dot-notation ('ultrasound.0', 'agent_corrections.X'). "
+            "'documents.N.extracted' — дата, лаборатория и текст загруженного документа, 'documents.N.file' — "
+            "имя файла. Лабораторные показатели здесь не ищи — они в get_recent_biomarkers."
         ),
-        "input_schema": {
-            "type": "object",
-            "properties": {"key": {"type": "string"}},
-            "required": ["key"],
-        },
+        "input_schema": {"type": "object", "properties": {"key": {"type": "string"}}, "required": ["key"]},
     },
     {
         "name": "list_documents",
         "description": (
-            "Список ВСЕХ документов профиля пользователя (issue #370): и лабораторные, "
-            "загруженные через /doc, и общие — полис ОМС, справка, памятка страховой, "
-            "визитка врача, что угодно, что пользователь попросил «сохранить на всякий "
-            "случай». Каждый: id, title, category (insurance/certificate/contact/medical/"
-            "other), added_at, is_lab (есть ли извлечённые лабораторные показатели). "
-            "Зови когда пользователь спрашивает «что у меня сохранено», «покажи мои "
-            "документы», или перед send_document, чтобы найти нужный id по названию."
+            "Все сохранённые документы профиля — анализы из /doc и прочее (полис, справка, визитка врача): "
+            "id, title, category, added_at, is_lab. Для «что у меня сохранено» и чтобы найти id для send_document."
         ),
-        "input_schema": {"type": "object", "properties": {}},
+        "input_schema": _NO_ARGS,
     },
     {
         "name": "update_document",
         "description": (
-            "Проставить/изменить title и/или category у уже сохранённого документа "
-            "профиля (issue #370). Зови сразу после того, как пользователь попросил "
-            "сохранить фото/файл «про запас» — НЕ отказывай в сохранении: документ уже "
-            "лежит в архиве, но название «Документ от <дата>» неинформативно. Уточни "
-            "у пользователя что это (если не очевидно) и запиши сюда. document_id — из "
-            "list_documents."
+            "Дать название/категорию сохранённому документу. Пользователь прислал файл «про запас» — он уже "
+            "в архиве, не отказывай: узнай, что это (если не очевидно), и запиши. document_id — из list_documents."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "document_id": {"type": "string"},
-                "title": {"type": "string", "description": "Человекочитаемое название, напр. «Полис ОМС»"},
-                "category": {
-                    "type": "string",
-                    "enum": ["insurance", "certificate", "contact", "medical", "other"],
-                },
+                "title": {"type": "string", "description": "Напр. «Полис ОМС»"},
+                "category": {"type": "string", "enum": ["insurance", "certificate", "contact", "medical", "other"]},
             },
             "required": ["document_id"],
         },
     },
     {
         "name": "send_document",
-        "description": (
-            "Прислать пользователю обратно в Telegram ранее сохранённый документ "
-            "профиля — полис, справку, анализ и т.п. (issue #370). Зови когда "
-            "пользователь просит «покажи/пришли мой полис/справку/документ». "
-            "Сначала list_documents, чтобы найти document_id."
-        ),
+        "description": "Прислать пользователю в Telegram сохранённый документ («пришли мой полис»). id — из list_documents.",
         "input_schema": {
             "type": "object",
             "properties": {"document_id": {"type": "string"}},
@@ -308,122 +239,66 @@ TOOLS: list[dict[str, Any]] = [
     {
         "name": "get_open_questions",
         "description": (
-            "Открытые клинические вопросы и красные флаги пользователя из его KB. "
-            "ОБЯЗАТЕЛЬНО зови этот tool в начале ЛЮБОГО медицинского диалога — "
-            "разбор анализов, диагнозов, препаратов, симптомов, планирование "
-            "обследований. Это «висящие» вопросы которые ждут решения врача или "
-            "повторного анализа: пропущенные маркеры, не закрытые followup'ы, "
-            "клинические red flags. Прецедент 25.05.2026: папа Александра "
-            "спрашивал «какие у меня диагнозы», бот ответил списком из 8 — но "
-            "не упомянул что K+/Mg+/ТТГ ни разу не сдавались при QTc 0.60 (это "
-            "висело в open_questions). Цель этого tool — чтобы такое не повторялось. "
-            "Если в ответе questions=[] и source='not-tracked' — у пользователя "
-            "ещё нет ведённого списка, это нормально, просто продолжай. "
-            "Когда questions есть — упомяни ХОТЯ БЫ ОДИН релевантный текущему "
-            "вопросу пункт в своём ответе, даже если юзер про него не спрашивал. "
-            "Не вываливай весь список — отбери 1-3 самых релевантных."
+            "Открытые клинические вопросы и red flags из KB (несданные маркеры, незакрытые follow-up). "
+            "questions=[] и source='not-tracked' — списка нет, это нормально."
         ),
-        "input_schema": {"type": "object", "properties": {}},
+        "input_schema": _NO_ARGS,
     },
     {
         "name": "get_recent_bp",
-        "description": "Измерения артериального давления за последние N дней (1-90, по умолчанию 14). Возвращает каждый замер + статистику: средние систолика/диастолика, max/min, % замеров выше 140/90 (порог гипертонии 1 ст).",
-        "input_schema": {
-            "type": "object",
-            "properties": {"days": {"type": "integer", "minimum": 1, "maximum": 90, "default": 14}},
-        },
+        "description": "Давление за days дней: каждый замер + средние, max/min, % замеров выше 140/90.",
+        "input_schema": {"type": "object", "properties": {"days": {**_DAYS, "maximum": 90, "default": 14}}},
     },
     {
         "name": "get_intraday_timeline",
         "description": (
-            "Хронология дня по получасам: пульс (средний/макс), стресс Garmin, Body Battery "
-            "(было→стало), пометки «движение» и «нет данных» (часы сняты, вода), плюс эпизоды "
-            "высокого стресса с временем начала и конца. Время — по часам устройства.\n\n"
-            "ОБЯЗАТЕЛЬНО вызывай, когда человек спрашивает о самочувствии в конкретный день или "
-            "присылает скрин отклонений из Garmin/часов: «что со мной», «когда это началось», "
-            "«стресс вырос до или после…», «почему разряжена батарейка», «заснул в машине». "
-            "Суточные средние на такие вопросы не отвечают. Сопоставь хронологию с тем, что "
-            "человек рассказал (дорога, зарядка, купание, еда, алкоголь), и назови время событий. "
-            "Если `available=false` — честно скажи, что почасовых данных нет, и работай с суточными."
+            "Хронология дня по получасам: пульс, стресс Garmin, Body Battery, «движение» / «нет данных», "
+            "эпизоды высокого стресса с началом и концом. Обязательно при вопросах о самочувствии в конкретный "
+            "день и скринах отклонений с часов — суточные средние на них не отвечают. available=false — "
+            "почасовых данных нет."
         ),
         "input_schema": {
             "type": "object",
-            "properties": {
-                "date": {"type": "string", "description": "YYYY-MM-DD; по умолчанию сегодня"},
-            },
+            "properties": {"date": {"type": "string", "description": "YYYY-MM-DD; по умолчанию сегодня"}},
         },
     },
     {
         "name": "get_recent_sleep",
         "description": (
-            "Сон за последние N дней (1-90, по умолчанию 14). Возвращает каждую ночь + средняя "
-            "продолжительность, качество, deep/REM минуты, и поле `latest_available_date` — "
-            "последняя ночь, по которой ЕСТЬ данные.\n\n"
-            "ЕСЛИ за прошедшую ночь данных нет (count=0 или последняя ночь в items не сегодняшняя/"
-            "вчерашняя) — НЕ говори расплывчато «подожди 10-15 минут». Скажи честно: назови "
-            "`latest_available_date` («последние данные о сне — за DATE»), объясни, что данные с "
-            "часов появляются у Garmin с задержкой и подтягиваются автоматически каждые ~30 минут, "
-            "и предложи заглянуть позже или прислать `/sync`. Не выдумывай конкретные часы/минуты."
+            "Сон по ночам + средние (длительность, качество, deep/REM), `latest_available_date` — последняя ночь "
+            "с данными. Нет прошлой ночи — назови эту дату и скажи, что данные с часов приходят с задержкой "
+            "и подтягиваются каждые ~30 минут (или /sync); конкретное время не выдумывай."
         ),
-        "input_schema": {
-            "type": "object",
-            "properties": {"days": {"type": "integer", "minimum": 1, "maximum": 90, "default": 14}},
-        },
+        "input_schema": {"type": "object", "properties": {"days": {**_DAYS, "maximum": 90, "default": 14}}},
     },
     {
         "name": "get_recent_supplements",
         "description": (
-            "ЕДИНСТВЕННЫЙ источник для вопросов 'какие витамины/добавки я "
-            "принимаю', 'сколько раз в неделю пил магний', 'когда последний "
-            "раз принимал креатин', 'насколько я придерживаюсь схемы'. "
-            "Возвращает агрегацию по каждой добавке за период: days_taken, "
-            "total_intakes (несколько раз в день — норма), adherence_pct "
-            "(% дней приёма от периода), last_date, last_dosage. "
-            "Период по умолчанию 30 дней. НЕ используй контекст из system "
-            "prompt — там может быть устаревший список, реальный лог здесь."
+            "Лог приёма добавок по каждой: days_taken, total_intakes, adherence_pct, last_date, last_dosage. "
+            "Источник для «что я принимаю / как часто пил магний»; список из system prompt может устареть."
         ),
-        "input_schema": {
-            "type": "object",
-            "properties": {"days": {"type": "integer", "minimum": 1, "maximum": 180, "default": 30}},
-        },
+        "input_schema": {"type": "object", "properties": {"days": {**_DAYS, "maximum": 180, "default": 30}}},
     },
     {
         "name": "get_supplement_daily_log",
         "description": (
-            "Для КОРРЕЛЯЦИОННОГО анализа приёма добавки с метриками по дням "
-            "(напр. «влияет ли магний на качество сна», «алкоголь и HRV»). "
-            "В отличие от get_recent_supplements (только агрегаты), возвращает "
-            "для каждой добавки список ДАТ приёма (taken_dates) за период + "
-            "границы окна [start_date, end_date]. День без даты в списке = "
-            "не принимал → можно сопоставлять с get_recent_sleep / get_recent_bp "
-            "и т.п. по дням. Опц. параметр supplement — фильтр по одному "
-            "препарату (подстрока имени). Период по умолчанию 30 дней. "
-            "Разные написания одного препарата уже слиты в одну группу "
-            "(name_variants). ДОЗА ПО ДАТАМ — в intakes [{date,time,dosage}] "
-            "(есть, если доза менялась; иначе dosage_constant=true). "
-            "last_dosage — только ПОСЛЕДНЯЯ доза: не растягивай её на прошлые "
-            "даты, для таблицы доз бери intakes."
+            "Даты приёма каждой добавки (taken_dates) за окно — для корреляций по дням («влияет ли магний "
+            "на сон»): дня нет в списке = не принимал. Дозы по датам — в intakes (если доза менялась); "
+            "last_dosage на прошлые даты не растягивай."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "days": {"type": "integer", "minimum": 1, "maximum": 180, "default": 30},
-                "supplement": {"type": "string", "description": "опц. фильтр по имени добавки (подстрока)"},
+                "days": {**_DAYS, "maximum": 180, "default": 30},
+                "supplement": {"type": "string", "description": "Фильтр по подстроке имени"},
             },
         },
     },
     {
         "name": "get_recent_biomarkers",
         "description": (
-            "ЕДИНСТВЕННЫЙ источник для вопросов про анализы крови, гормоны, "
-            "витамины, биомаркеры. Возвращает строки blood_tests из Postgres: "
-            "дата + тип + values (dict со значениями маркеров типа vitamin_d, "
-            "LDL, HDL, glucose, HbA1c, testosterone, TSH, ferritin, ApoB и т.п.). "
-            "Используй ВСЕГДА когда юзер спрашивает про любые лабораторные показатели: "
-            "'какой у меня витамин Д', 'как менялся холестерин', 'какие гормоны сдавал', "
-            "'покажи динамику ЛПНП', 'какие анализы за последний год'. "
-            "limit по умолчанию 20 (история на год), увеличь до 50 для 'всё что есть'. "
-            "НЕ ИСПОЛЬЗУЙ get_kb_value для анализов — оно ничего не вернёт."
+            "История анализов крови, гормонов, витаминов (blood_tests): дата, тип, values по маркерам. "
+            "Для динамики («как менялся ЛПНП», «какие анализы за год»). limit 20 ≈ год, 50 — всё."
         ),
         "input_schema": {
             "type": "object",
@@ -433,70 +308,34 @@ TOOLS: list[dict[str, Any]] = [
     {
         "name": "get_latest_biomarkers",
         "description": (
-            "Актуальное состояние всех биомаркеров: последнее значение каждого маркера "
-            "с полями days_ago, threshold_days, is_stale и stale_label. "
-            "Используй вместо get_recent_biomarkers когда нужно текущее значение маркера "
-            "(«какой у меня витамин D?», «мои анализы в норме?»). "
-            "Если is_stale=true — ОБЯЗАТЕЛЬНО упомяни давность: "
-            "'Последний анализ от [дата] — рекомендую обновить (прошло [N] мес)'. "
-            "Используй get_recent_biomarkers для исторических трендов."
+            "Последнее значение каждого биомаркера с days_ago, is_stale, stale_label — для текущего "
+            "значения («какой у меня витамин D»)."
         ),
-        "input_schema": {"type": "object", "properties": {}},
+        "input_schema": _NO_ARGS,
     },
     {
         "name": "get_phenoage",
         "description": (
-            "Биологический возраст по формуле Levine 2018 (Aging Cell). "
-            "Возвращает bio_age, chronological_age, delta_years, и 9 маркеров "
-            "(albumin, creatinine, glucose, hs_CRP, lymphocytes, MCV, RDW, ALP, WBC) "
-            "с пометкой 'younger'/'older' vs NHANES median. Используй для "
-            "вопросов 'какой мой биологический возраст', 'PhenoAge', "
-            "'на сколько я моложе/старше паспорта', 'состав панели биовозраста'. "
-            "Если каких-то маркеров не хватает — вернёт error со списком."
+            "Биологический возраст PhenoAge (Levine 2018): bio_age, delta_years и 9 маркеров с younger/older. "
+            "Не хватает маркеров — вернёт error со списком."
         ),
-        "input_schema": {"type": "object", "properties": {}},
+        "input_schema": _NO_ARGS,
     },
     {
         "name": "get_recent_workouts",
         "description": (
-            "Анализ тренировок по канонам Seiler 80/20 / Attia Z2 / норвежский 4x4. "
-            "Возвращает: by_type (счётчик по Garmin type — running, walking, "
-            "strength_training, yoga и т.п.), Z2 min/week, HIIT min/week, A:C "
-            "load ratio (sweet spot 0.8-1.3), polarized distribution Z1+Z2/Z3/Z4+Z5 %, "
-            "extremes_by_type (рекорды на каждый тип — longest_by_duration и "
-            "longest_by_distance, считаются по ВСЕМ тренировкам в окне), "
-            "список последних 15 тренировок с type+name+distance_km+duration_min. "
-            "Используй для 'сколько раз я бегал', 'сколько Z2 в неделю', "
-            "'каков мой A:C ratio', 'правильное ли распределение зон'. "
-            "Для вопросов 'самая длинная пробежка / самая дальняя пробежка' — "
-            "ВСЕГДА смотри в extremes_by_type[бег|ходьба|...].longest_by_distance "
-            "(или longest_by_duration), НЕ в items[] — items обрезан до 15 свежих "
-            "и редкие длинные сессии туда не попадают. "
-            "ВАЖНО: для классификации (бег/ходьба/силовая) ВСЕГДА смотри поле "
-            "`type` (Garmin classification), а НЕ `name` (user-set route label "
-            "типа 'Москва - База' который может быть бегом ИЛИ ходьбой). "
-            "Используй by_type для прямых вопросов типа 'сколько раз я бегал'. "
-            "По умолчанию days=30; для вопросов 'за год' / 'в этом году' "
-            "ставь days=180 (максимум). "
-            "Multi-user: owner-cohort использует file-source (rich data со Z2/zones/load), "
-            "остальные пользователи — DB-fallback (только базовые поля type/duration/distance), "
-            "поле `source` в ответе показывает откуда взялись данные."
+            "Тренировки: by_type (счётчик по типу), Z2 и HIIT мин/нед, A:C load ratio, распределение по зонам, "
+            "extremes_by_type, последние 15 тренировок. Тип определяй по `type`, не по `name` (это название "
+            "маршрута). «Самая длинная/дальняя» — из extremes_by_type, не из items. «За год» — days=180. "
+            "`source` — полные данные (file) или только базовые поля (db)."
         ),
-        "input_schema": {
-            "type": "object",
-            "properties": {"days": {"type": "integer", "minimum": 1, "maximum": 180, "default": 30}},
-        },
+        "input_schema": {"type": "object", "properties": {"days": {**_DAYS, "maximum": 180, "default": 30}}},
     },
     {
         "name": "get_menstrual_data",
         "description": (
-            "Данные менструального цикла из Apple Health (таблица menstrual_log). "
-            "Возвращает: список дней с flow (none/light/medium/heavy/spotting), "
-            "вычисленные начала циклов (period_starts), длины циклов в днях, "
-            "статистику: avg_cycle_days, variation_days, total_periods. "
-            "Используй для вопросов 'насколько ровный у меня цикл', "
-            "'какая длина цикла', 'регулярен ли цикл', 'когда началась последняя менструация'. "
-            "По умолчанию months=6. Передавай months=12 для годовой статистики."
+            "Менструальный цикл из Apple Health: дни с flow, начала циклов, длины циклов, "
+            "avg_cycle_days, variation_days."
         ),
         "input_schema": {
             "type": "object",
@@ -506,25 +345,18 @@ TOOLS: list[dict[str, Any]] = [
     {
         "name": "get_recent_trends",
         "description": (
-            "Per-day тренды HRV, Body Battery, Stress, Steps, RHR, Sleep + "
-            "флаг alcohol (был ли в этот день алкоголь, из nutrition_log) "
-            "за N дней (по умолчанию 14, до 180). В отличие от get_dashboard_summary "
-            "который даёт только AVG за 7 дней — тут видно динамику ДЕНЬ ЗА ДНЁМ. "
-            "Используй для 'падает ли мой HRV', 'когда у меня был стресс', "
-            "'какой у меня body battery утром', 'как менялся пульс покоя', "
-            "а также для корреляций 'алкоголь → HRV/стресс следующего дня'. "
-            "Возвращает items (per-day, поле alcohol:bool) + stats (avg/min/max + alcohol_days). "
-            "Для КОРРЕЛЯЦИЙ и ГРАФИКОВ на длинном окне ставь full_series=true "
-            "(вернёт ВСЕ точки окна, а не последние 30) и days=90..180."
+            "По дням: HRV, Body Battery, стресс, шаги, пульс покоя, сон и флаг alcohol (из лога еды) + stats. "
+            "Для динамики и корреляций («алкоголь → HRV следующего дня»). Корреляции и графики — "
+            "full_series=true и days=90..180."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "days": {"type": "integer", "minimum": 1, "maximum": 180, "default": 14},
+                "days": {**_DAYS, "maximum": 180, "default": 14},
                 "full_series": {
                     "type": "boolean",
                     "default": False,
-                    "description": "Вернуть все точки окна (для корреляций/графиков). Дефолт false (последние 30).",
+                    "description": "Все точки окна, а не последние 30.",
                 },
             },
         },
@@ -532,27 +364,10 @@ TOOLS: list[dict[str, Any]] = [
     {
         "name": "get_weight_history",
         "description": (
-            "История веса и состава тела (жир %, мышечная масса, висцеральный жир, BMI). "
-            "У замеров с весов Withings в latest есть ещё `heart_rate` (пульс — меряется "
-            "стоя натощак, годится как пульс покоя), `bmr_kcal` (ИЗМЕРЕННЫЙ основной обмен — "
-            "бери его, а не считай по формуле Миффлина), `fat_mass_kg` и `lean_mass_kg` "
-            "(жировая и тощая масса в КИЛОГРАММАХ, а не в %). ВАЖНО: в тот же день HAE пишет "
-            "свою строку позже, и в `latest` эти поля будут пустыми — тогда бери их из блока "
-            "`body_composition` (там своя дата: это последний замер С СОСТАВОМ ТЕЛА, он может "
-            "быть на день-два старше `latest`; дату проговаривай). "
-            "Пульс по весам — источник для "
-            "вопроса «растёт ли у меня пульс»: с series=true он приходит в каждой точке как `pulse`. "
-            "Источник — таблица `weights` (с 2015 у долгих пользователей). "
-            "Возвращает: latest (текущий замер), all_time (рекорды за всю историю — "
-            "min/max веса и жира с датами), и опционально in_window (рекорды в окне days). "
-            "Используй для вопросов 'самый низкий жир за всё время', 'минимальный вес', "
-            "'как изменился жир за полгода', 'когда был в лучшей форме'. "
-            "\n\n"
-            "Параметр `series=true` ДОБАВЛЯЕТ поле `points` с массивом всех "
-            "ежедневных замеров {date, weight_kg, body_fat_pct, pulse} в окне. "
-            "Используй когда собираешься рисовать график (render_chart / "
-            "render_report). БЕЗ series ответ короткий — это нормально для "
-            "текстовых вопросов."
+            "Вес и состав тела: latest, all_time (рекорды с датами), in_window (при days). У замеров Withings "
+            "есть heart_rate (пульс покоя натощак), bmr_kcal (измеренный — бери его, а не формулу), "
+            "fat_mass_kg / lean_mass_kg. Если в latest они пустые — бери из `body_composition` и назови его дату. "
+            "series=true добавляет `points` (дата, вес, жир, pulse) — для графиков и тренда пульса."
         ),
         "input_schema": {
             "type": "object",
@@ -561,99 +376,61 @@ TOOLS: list[dict[str, Any]] = [
                     "type": "integer",
                     "minimum": 7,
                     "maximum": 365,
-                    "description": "Окно в днях. Без параметра — only all_time.",
+                    "description": "Окно; без него — только all_time.",
                 },
-                "series": {
-                    "type": "boolean",
-                    "default": False,
-                    "description": "Вернуть все точки в `points` для рисования графика. Дефолт false.",
-                },
+                "series": {"type": "boolean", "default": False},
             },
         },
     },
     {
         "name": "get_body_measurements",
-        "description": (
-            "Антропометрия: талия, шея, бёдра, грудь, бедро, бицепс (см). "
-            "Источник — ручной ввод. Возвращает latest, extremes (min/max) "
-            "по каждой метрике, и тренд талии (waist) за последние 6 замеров. "
-            "Используй для 'какая у меня талия сейчас', 'как изменилась талия за полгода', "
-            "'сравни мою фигуру до и после'. Талия — главная метрика метаболического "
-            "здоровья (важнее BMI для ССЗ-риска)."
-        ),
-        "input_schema": {"type": "object", "properties": {}},
+        "description": "Обхваты (талия, шея, бёдра, грудь, бедро, бицепс, см): latest, min/max, тренд талии.",
+        "input_schema": _NO_ARGS,
     },
     {
         "name": "get_user_settings",
         "description": (
-            "Настройки и цели пользователя: target_weight_kg + date (цель веса), "
-            "supplements_regimen (JSONB список ежедневных добавок с дозами и слотами "
-            "morning_with/evening), calorie_goal_pct (дефицит/профицит), BMR-источник, "
-            "reminders (напоминания о добавках), profile (sex/height/birth_date/timezone). "
-            "Используй для 'какие у меня цели', 'что я регулярно принимаю', 'какой "
-            "дефицит', 'когда напоминания'. Полезно сверять `supplements_log` (что "
-            "реально принял) против `supplements_regimen` (что планировал)."
+            "Цели и настройки: target_weight_kg и дата, supplements_regimen (запланированные добавки со слотами), "
+            "calorie_goal_pct, BMR-источник, напоминания, профиль."
         ),
-        "input_schema": {"type": "object", "properties": {}},
+        "input_schema": _NO_ARGS,
     },
     {
         "name": "get_profile_questionnaire",
         "description": (
-            "Анкета пользователя из users table: sex, height_cm, birth_date (+ возраст), "
-            "timezone, smoking_status (never/former/current/occasional), kb_status "
-            "(приватность knowledge_base: shared = доступно AI, private = только юзеру), "
-            "garmin_connected, pack_name, превью agent_system_prompt (500 симв). "
-            "Используй для 'что я указывал в анкете', 'мои настройки приватности', "
-            "'подключён ли Garmin', 'какой у меня возраст в системе'. "
-            "Также вызывай ПЕРЕД update_profile_questionnaire чтобы показать что меняется."
+            "Анкета: пол, рост, дата рождения, timezone, smoking_status, kb_status (приватность KB), "
+            "garmin_connected, превью agent_system_prompt. Вызывай перед update_profile_questionnaire."
         ),
-        "input_schema": {"type": "object", "properties": {}},
+        "input_schema": _NO_ARGS,
     },
     {
         "name": "update_profile_questionnaire",
         "description": (
-            "Изменить анкетные поля в users table. Все поля опциональны — обновятся "
-            "только переданные. ПЕРЕД использованием — обязательно подтверди с юзером "
-            "что именно меняешь (особенно agent_system_prompt — длинная строка, влияет "
-            "на поведение агента). Допустимые значения: smoking_status ∈ "
-            "{never,former,current,occasional}, kb_status ∈ {shared,private}, sex ∈ "
-            "{male,female,other}, birth_date YYYY-MM-DD."
+            "Изменить поля анкеты (только переданные). Сначала подтверди с пользователем, что меняешь — "
+            "особенно agent_system_prompt."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "sex": {"type": "string", "enum": ["male", "female", "other"]},
                 "height_cm": {"type": "integer", "minimum": 100, "maximum": 250},
-                "birth_date": {"type": "string", "description": "YYYY-MM-DD"},
+                "birth_date": _DATE_ARG,
                 "timezone": {"type": "string"},
                 "smoking_status": {"type": "string", "enum": ["never", "former", "current", "occasional"]},
                 "kb_status": {"type": "string", "enum": ["shared", "private"]},
                 "pack_name": {"type": "string"},
-                "agent_system_prompt": {
-                    "type": "string",
-                    "description": "Полная замена промпта. Длинная (5-10К). Опасное поле.",
-                },
+                "agent_system_prompt": {"type": "string", "description": "Полная замена промпта агента."},
             },
         },
     },
     {
         "name": "save_health_profile",
         "description": (
-            "Сохранить медпрофиль СО СЛОВ пользователя: хронические диагнозы/состояния, "
-            "постоянная терапия (лекарство, которое принимает регулярно) и/или аллергии. "
-            "Зови когда пользователь сам описал ПОСТОЯННОЕ состояние или схему («у меня "
-            "гипертония», «постоянно пью розувастатин») — или когда ответил на твой "
-            "вопрос про это. Записывай короткими пунктами как сказал человек "
-            "(«Гипотиреоз, принимаю Эутирокс 50 мкг»), НЕ переформулируй в диагнозы, "
-            "которых он не называл. Дубли отсекаются автоматически. Если у пользователя "
-            "ничего нет или он не хочет отвечать — вызови с nothing_to_report=true: "
-            "это пометит, что вопрос задан, и больше спрашивать не нужно. НЕ придумывай "
-            "содержимое сам и НЕ переноси сюда диагнозы из документов или KB — документы "
-            "попадают в профиль своим путём (/doc).\n\n"
-            "НЕ подменяй этим тулом log_supplement: разовый приём или пропуск конкретной "
-            "дозы (даже упомянутый в прошлом — «принял вчера», «забыл выпить позавчера») "
-            "это СОБЫТИЕ, а не факт медпрофиля. Если сообщение называет и то, и другое — "
-            "вызови оба тула, не выбирай один вместо другого."
+            "Медпрофиль со слов пользователя: ПОСТОЯННОЕ состояние, постоянная терапия, аллергии («у меня "
+            "гипертония», «постоянно пью розувастатин») — или его ответ на твой вопрос об этом. Пиши короткими "
+            "пунктами его словами, без своих диагнозов и без данных из документов/KB. Нечего сообщить или не хочет "
+            "отвечать — nothing_to_report=true (больше не спрашивать). Разовый приём или пропуск дозы — СОБЫТИЕ "
+            "для log_supplement, не замена ему."
         ),
         "input_schema": {
             "type": "object",
@@ -661,33 +438,30 @@ TOOLS: list[dict[str, Any]] = [
                 "chronic_conditions": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "Хронические диагнозы/состояния и постоянные лекарства, как назвал пользователь",
+                    "description": "Хронические состояния и постоянные лекарства, как назвал пользователь",
                 },
                 "allergies": {"type": "array", "items": {"type": "string"}},
-                "nothing_to_report": {
-                    "type": "boolean",
-                    "description": "true — пользователю нечего сообщить или он не хочет отвечать",
-                },
+                "nothing_to_report": {"type": "boolean"},
             },
         },
     },
     {
         "name": "update_user_settings",
         "description": (
-            "Изменить настройки в user_settings table: target_weight_kg + target_weight_date "
-            "(цель веса), calorie_goal_pct (-15 = дефицит 15%), bmr_override/bmr_source, "
-            "supplements (ПОЛНАЯ замена списка добавок — каждая {name, dose?, slot?}, slots: "
-            "morning_before / morning_with / evening), reminders. Все поля опциональны. "
-            "ВАЖНО: чтобы добавить ОДНУ добавку — сначала get_user_settings, модифицируй "
-            "список локально, потом update с полным новым списком. ПЕРЕД изменением — "
-            "подтверди с юзером."
+            "Изменить настройки (только переданные поля). supplements — ПОЛНАЯ замена списка: чтобы добавить "
+            "одну, сначала get_user_settings, затем весь новый список. Перед изменением подтверди с пользователем."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "target_weight_kg": {"type": "number", "minimum": 30, "maximum": 300},
-                "target_weight_date": {"type": "string", "description": "YYYY-MM-DD"},
-                "calorie_goal_pct": {"type": "integer", "minimum": -50, "maximum": 50},
+                "target_weight_date": _DATE_ARG,
+                "calorie_goal_pct": {
+                    "type": "integer",
+                    "minimum": -50,
+                    "maximum": 50,
+                    "description": "-15 = дефицит 15%",
+                },
                 "bmr_override": {"type": "integer", "minimum": 500, "maximum": 5000},
                 "bmr_source": {"type": "string", "enum": ["auto", "override", "fixed"]},
                 "supplement_reminders_enabled": {"type": "boolean"},
@@ -695,7 +469,6 @@ TOOLS: list[dict[str, Any]] = [
                 "show_calorie_budget_bar": {"type": "boolean"},
                 "supplements": {
                     "type": "array",
-                    "description": "Полный новый список добавок (заменяет все).",
                     "items": {
                         "type": "object",
                         "properties": {
@@ -711,84 +484,37 @@ TOOLS: list[dict[str, Any]] = [
     },
     {
         "name": "get_indoor_air",
-        "description": (
-            "Воздух дома: CO2 ppm, температура, влажность, шум. Источник — Netatmo "
-            "Healthy Home Coach. Только для owner-cohort (Alex). Возвращает latest "
-            "(текущий замер) + history по комнатам (агрегаты за N дней). "
-            "Используй для 'CO2 в спальне', 'духота', 'температура дома'. "
-            "Норма CO2 < 1000 ppm, >1400 — критично для сна/концентрации."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {"days": {"type": "integer", "minimum": 1, "maximum": 60, "default": 7}},
-        },
+        "description": "Воздух дома (Netatmo, только owner-cohort): CO2, температура, влажность, шум. CO2 >1400 ppm — плохо для сна.",
+        "input_schema": {"type": "object", "properties": {"days": {**_DAYS, "maximum": 60, "default": 7}}},
     },
     {
         "name": "get_outdoor_weather",
-        "description": (
-            "Погода снаружи (Open-Meteo, Москва): температура max/min/средняя, "
-            "давление, влажность, UV, осадки, словесное описание. Без параметра — "
-            "последний день; с date='YYYY-MM-DD' — конкретный. Используй для "
-            "'какая погода сегодня', 'давление', 'был ли дождь', анализа корреляций "
-            "(например 'влияет ли давление на пульс покоя')."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {"date": {"type": "string", "description": "YYYY-MM-DD (optional)"}},
-        },
+        "description": "Погода в Москве (Open-Meteo): температура, давление, влажность, UV, осадки. Без date — последний день.",
+        "input_schema": {"type": "object", "properties": {"date": _DATE_ARG}},
     },
     {
         "name": "get_day_summary",
-        "description": (
-            "Точечная сводка за конкретный день (date='YYYY-MM-DD'): ккал/БЖУ, был ли "
-            "воркаут, часов сна, вес, АД. Источник — таблица daily_summaries (агрегаты "
-            "от ночного sync). В отличие от get_dashboard_summary который даёт AVG за 7 дней, "
-            "тут конкретный день. Используй для 'что у меня было 14 марта', 'сравни этот "
-            "понедельник с прошлым'. Если данных за день нет — вернёт no_data."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "date": {"type": "string", "description": "YYYY-MM-DD"},
-            },
-            "required": ["date"],
-        },
+        "description": "Сводка за конкретный день: ккал/БЖУ, тренировка, сон, вес, АД. Нет данных — no_data.",
+        "input_schema": {"type": "object", "properties": {"date": _DATE_ARG}, "required": ["date"]},
     },
     {
         "name": "log_meal_text",
         "description": (
-            "Залогировать приём пищи из текстового описания. Вызывай, когда юзер просит "
-            "записать («запиши», «да, внеси») или когда сообщение — сам отчёт о еде "
-            "(«на обед гречка с котлетой», «съел 2 яйца»). Еду, упомянутую в разговоре "
-            "(«у меня есть квашеная капуста», «вчера пил шампанское» в обсуждении самочувствия), "
-            "не записывай — ответь по сути и предложи записать. В чате бота инструмент "
-            "показывает карточку «Сохранить/Отмена», запись — после нажатия.\n\n"
-            "Если юзер указал ДЕНЬ приёма («вчера», «позавчера», «29 мая», «в "
-            "понедельник») — вычисли конкретную дату и передай её в `date` "
-            "(YYYY-MM-DD), опираясь на сегодняшнее число. Без указания дня `date` "
-            "НЕ передавай (запишется на сегодня). После записи ОБЯЗАТЕЛЬНО назови "
-            "дату в ответе, если она не сегодняшняя («записал на 29 мая»).\n\n"
-            "When handling addendum messages ('забыл добавить', 'забыл упомянуть', etc.): "
-            "first call get_recent_meals(days=2) to find the most recent meal slot "
-            "(days=2 to catch yesterday's meals — users often write in the morning about yesterday), "
-            "then use that same slot parameter when calling log_meal_text."
+            "Записать еду из текста — по просьбе («запиши», «да, внеси») или когда сообщение и есть отчёт о еде "
+            "(«на обед гречка с котлетой»). Еду, упомянутую в разговоре о другом, не пиши — предложи записать. "
+            "Показывает карточку «Сохранить/Отмена». Прошлый день — в date, и назови дату в ответе. "
+            "Дописка («забыл добавить») — сначала get_recent_meals(days=2) и тот же slot."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "text": {"type": "string"},
-                "date": {
-                    "type": "string",
-                    "description": "Дата приёма YYYY-MM-DD. Только если юзер указал день; иначе не передавать (=сегодня).",
-                },
-                "slot": {
-                    "type": "string",
-                    "enum": ["breakfast", "lunch", "dinner", "snack"],
-                },
+                "date": {"type": "string", "description": "YYYY-MM-DD, только если назван день; иначе сегодня."},
+                "slot": _SLOT,
                 "as_plan": {
                     "type": "boolean",
                     "default": False,
-                    "description": "Записать как план — еда внесена авансом («план:», «на день:», «планирую»)",
+                    "description": "Еда внесена авансом («план:», «на день:», «планирую»)",
                 },
             },
             "required": ["text"],
@@ -797,46 +523,35 @@ TOOLS: list[dict[str, Any]] = [
     {
         "name": "edit_meal",
         "description": (
-            "Изменить УЖЕ залогированный приём пищи: перенести на другой день (new_date), "
-            "сменить слот/время (new_slot), переименовать (new_name). "
-            "meal_id бери из get_recent_meals (поле id). "
-            "ИСПОЛЬЗОВАТЬ когда юзер просит «перенеси/исправь/измени/это был не обед а ужин» "
-            "про уже записанную еду. Передавай только те поля, что меняются."
+            "Изменить записанный приём: перенести на день (new_date), сменить слот (new_slot), переименовать. "
+            "Передавай только меняемые поля."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "meal_id": {"type": "integer", "description": "id записи из get_recent_meals"},
-                "new_date": {"type": "string", "description": "Новая дата YYYY-MM-DD (перенос на другой день)"},
-                "new_slot": {"type": "string", "enum": ["breakfast", "lunch", "dinner", "snack"]},
-                "new_name": {"type": "string", "description": "Новое название приёма"},
+                "meal_id": {"type": "integer", "description": "id из get_recent_meals"},
+                "new_date": _DATE_ARG,
+                "new_slot": _SLOT,
+                "new_name": {"type": "string"},
             },
             "required": ["meal_id"],
         },
     },
     {
         "name": "delete_meal",
-        "description": (
-            "Удалить залогированный приём пищи по meal_id (из get_recent_meals, поле id). "
-            "ИСПОЛЬЗОВАТЬ когда юзер просит «удали/убери» запись о еде. "
-            "Если нужно перенести на другой день — используй edit_meal с new_date, не delete+log."
-        ),
+        "description": "Удалить запись о еде по просьбе. Перенос на другой день — edit_meal, не delete+log.",
         "input_schema": {
             "type": "object",
-            "properties": {"meal_id": {"type": "integer", "description": "id записи из get_recent_meals"}},
+            "properties": {"meal_id": {"type": "integer", "description": "id из get_recent_meals"}},
             "required": ["meal_id"],
         },
     },
     {
         "name": "adjust_meal_items",
         "description": (
-            "Свести запись-план к факту: изменить вес item (new_weight, граммы) или убрать item (remove) "
-            "ВНУТРИ конкретной записи meal_id (из get_recent_meals; items адресуются индексом idx в массиве items). "
-            "Остаток можно перенести новой записью-планом: leftover_to_slot=lunch/dinner/snack/breakfast "
-            "(+leftover_to_date YYYY-MM-DD, по умолчанию сегодня). close_plan=true — закрыть план (status→eaten); "
-            "changes=[] с close_plan=true — просто закрыть план («съела всё»). "
-            "ВСЕГДА сначала dry_run=true: покажи пользователю, что изменится (было → станет, ккал), дождись «да», "
-            "затем повтори с dry_run=false. Штучные продукты — пропорционально: 3 яйца=165 г → 1 яйцо=55 г."
+            "Свести план к факту внутри записи meal_id: new_weight (г) или remove для item по индексу idx. "
+            "Остаток — новой записью-планом в leftover_to_slot (+leftover_to_date). close_plan=true закрывает "
+            "план; changes=[] + close_plan — «съела всё». Сначала dry_run=true и подтверждение, потом dry_run=false."
         ),
         "input_schema": {
             "type": "object",
@@ -854,8 +569,8 @@ TOOLS: list[dict[str, Any]] = [
                         "required": ["idx"],
                     },
                 },
-                "leftover_to_slot": {"type": "string", "enum": ["breakfast", "lunch", "dinner", "snack"]},
-                "leftover_to_date": {"type": "string"},
+                "leftover_to_slot": _SLOT,
+                "leftover_to_date": _DATE_ARG,
                 "close_plan": {"type": "boolean", "default": False},
                 "dry_run": {"type": "boolean", "default": True},
             },
@@ -864,12 +579,7 @@ TOOLS: list[dict[str, Any]] = [
     },
     {
         "name": "log_bp",
-        "description": (
-            "Залогировать измерение давления. Если пользователь указал, когда мерил "
-            "(«вчера», «три дня назад», «в 8 утра») — вычисли и передай `measured_at`, "
-            "опираясь на сегодняшнюю дату. Без указания — не передавай (запишется "
-            "текущим моментом). После записи назови дату в ответе, если она не сегодняшняя."
-        ),
+        "description": "Записать давление. Прошлый день — назови дату в ответе.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -877,16 +587,9 @@ TOOLS: list[dict[str, Any]] = [
                 "diastolic": {"type": "integer"},
                 "pulse": {"type": "integer"},
                 "measured_at": {
-                    "type": "string",
-                    "description": (
-                        "ISO datetime или YYYY-MM-DD измерения. Передавай явно, если "
-                        "пользователь указал день/время (даже относительное — «вчера»). "
-                        "Без указания — не передавай, запишется текущим моментом. Если "
-                        "пользователь назвал часть суток («утром», «вечером») — передавай "
-                        "ПОЛНОЕ время (утро ~08:00, вечер ~20:00), не только дату: два "
-                        "замера за один день с одной лишь датой без времени могут "
-                        "перепутаться между собой."
-                    ),
+                    **_WHEN_ARG,
+                    "description": _WHEN_ARG["description"]
+                    + " «Утром/вечером» — с временем (~08:00 / ~20:00), не одной датой.",
                 },
             },
             "required": ["systolic", "diastolic"],
@@ -895,60 +598,33 @@ TOOLS: list[dict[str, Any]] = [
     {
         "name": "log_weight",
         "description": (
-            "Записать вес тела, который пользователь назвал сам («82,5», «вешу 80 кг», "
-            "ответ на твой вопрос о весе). Если назван день («вчера») — передай `measured_at`. "
-            "Не вызывай для чужого веса, целевого веса и веса продуктов."
+            "Записать вес тела, названный пользователем («82,5», «вешу 80», ответ на твой вопрос). "
+            "Не для чужого, целевого веса и веса продуктов."
         ),
         "input_schema": {
             "type": "object",
-            "properties": {
-                "weight": {"type": "number", "description": "Вес, кг"},
-                "measured_at": {
-                    "type": "string",
-                    "description": "ISO datetime или YYYY-MM-DD; без указания дня — не передавай (=сейчас).",
-                },
-            },
+            "properties": {"weight": {"type": "number", "description": "кг"}, "measured_at": _WHEN_ARG},
             "required": ["weight"],
         },
     },
     {
         "name": "log_workout",
         "description": (
-            "Залогировать тренировку вручную (когда нет интеграции с часами/трекером — "
-            "напр. Huawei Health, или пользователь просто рассказал о тренировке словами). "
-            "Пиши только по явной просьбе записать/залогировать, не по любому упоминанию спорта.\n\n"
-            "Если пользователь указал, когда это было («вчера», «в понедельник», время) — "
-            "вычисли и передай start_time (YYYY-MM-DDTHH:MM:SS). Без указания — не передавай "
-            "(запишется текущим моментом). Дату не сегодняшнего дня назови в ответе.\n\n"
-            "Ключ записи — start_time: повторный вызов с тем же start_time ОБНОВЛЯЕТ существующую "
-            "запись (вернёт updated=true), а не создаёт вторую — это нужно и для ретраев, и для "
-            "уточнений («40 минут» → «нет, погоди, 45 минут» — просто вызови снова с тем же "
-            "start_time и новой длительностью, старая запись перезапишется).\n\n"
-            "Если на это же start_time уже есть тренировка из ДРУГОГО источника (часы/трекер, "
-            "напр. HAE/Garmin) — вернётся status=conflict_other_source, запись НЕ создастся и "
-            "существующая НЕ изменится. Прочитай hint: скажи пользователю, что тренировка уже "
-            "учтена, либо, если это правда другое событие, переспроси точное время."
+            "Записать тренировку вручную (нет интеграции с часами или рассказал словами) — только по явной "
+            "просьбе. Повтор с тем же start_time обновляет запись (уточнение «нет, 45 минут»). "
+            "status=conflict_other_source — тренировка уже есть с часов, ничего не записано: скажи об этом "
+            "или уточни время."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "workout_type": {
-                    "type": "string",
-                    "description": "Тип тренировки, напр. 'велотренажёр', 'бег', 'силовая'",
-                },
-                "duration_minutes": {"type": "integer", "description": "Длительность, минут"},
-                "distance_km": {"type": "number", "description": "Дистанция, км"},
-                "calories_burned": {"type": "integer", "description": "Сожжено ккал"},
-                "avg_heart_rate": {"type": "integer", "description": "Средний пульс, уд/мин"},
-                "max_heart_rate": {"type": "integer", "description": "Максимальный пульс, уд/мин"},
-                "start_time": {
-                    "type": "string",
-                    "description": (
-                        "ISO datetime начала тренировки (YYYY-MM-DDTHH:MM:SS). Передавай явно, "
-                        "если пользователь указал день/время (даже относительное — «вчера»). "
-                        "Без указания — не передавай, запишется текущим моментом."
-                    ),
-                },
+                "workout_type": {"type": "string", "description": "Напр. 'бег', 'силовая'"},
+                "duration_minutes": {"type": "integer"},
+                "distance_km": {"type": "number"},
+                "calories_burned": {"type": "integer"},
+                "avg_heart_rate": {"type": "integer"},
+                "max_heart_rate": {"type": "integer"},
+                "start_time": {**_WHEN_ARG, "description": "YYYY-MM-DDTHH:MM:SS, только если назван день/время."},
             },
             "required": ["workout_type"],
         },
@@ -956,43 +632,19 @@ TOOLS: list[dict[str, Any]] = [
     {
         "name": "log_supplement",
         "description": (
-            "Залогировать приём добавки/витамина. Если та же добавка уже логировалась "
-            "в этот день, вернётся status=duplicate_warning и запись НЕ создастся — "
-            "уточни у пользователя, реально ли это повторный приём, и при подтверждении "
-            "повтори вызов с force=true. Описание схемы приёма («принимаю утром…») — "
-            "НЕ повод логировать: логируй только фактический приём.\n\n"
-            "Если пользователь указал ДЕНЬ/ВРЕМЯ приёма («вчера», «позавчера», «в 9 "
-            "утра») — вычисли и передай `date`/`time`, опираясь на сегодняшнее число. "
-            "Без указания дня — не передавай (запишется на сегодня, текущим временем).\n\n"
-            "Упоминание конкретного факта приёма или пропуска дозы в прошлом («выпил "
-            "капотен позавчера», «забыл принять утренние таблетки несколько дней "
-            "назад») — это СОБЫТИЕ, а не только повод для save_health_profile. Даже "
-            "если из фразы заодно ясно, что это постоянная терапия — сначала залогируй "
-            "фактический приём здесь, отдельным вызовом сохранив терапию в медпрофиль "
-            "(save_health_profile). НЕ теряй событие приёма, выбрав только медпрофиль.\n\n"
-            "Для исправления существующей записи используй edit_supplement_log, а не новую запись."
+            "Записать фактический приём добавки/лекарства (не описание схемы). Приём или пропуск дозы в прошлом "
+            "(«выпил капотен позавчера») — тоже событие: запиши его с `date`/`time`, даже если заодно "
+            "сохраняешь терапию в save_health_profile. status=duplicate_warning — уже было сегодня, ничего не "
+            "записано: уточни и при подтверждении повтори с force=true. Исправить запись — edit_supplement_log."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "supplement_name": {"type": "string"},
                 "dosage": {"type": "string"},
-                "date": {
-                    "type": "string",
-                    "description": (
-                        "Дата приёма YYYY-MM-DD. Передавай явно, если пользователь указал "
-                        "день (даже относительный — «вчера»). Без указания — не передавай, "
-                        "запишется на сегодня."
-                    ),
-                },
-                "time": {
-                    "type": "string",
-                    "description": "Время приёма HH:MM. Только если пользователь его назвал; иначе не передавать.",
-                },
-                "force": {
-                    "type": "boolean",
-                    "description": "true — записать несмотря на duplicate_warning (подтверждённый повторный приём)",
-                },
+                "date": {"type": "string", "description": "YYYY-MM-DD, только если назван день; иначе сегодня."},
+                "time": {"type": "string", "description": "HH:MM, только если назвал."},
+                "force": {"type": "boolean", "description": "Подтверждённый повторный приём."},
             },
             "required": ["supplement_name"],
         },
@@ -1000,62 +652,39 @@ TOOLS: list[dict[str, Any]] = [
     {
         "name": "edit_supplement_log",
         "description": (
-            "Исправить или удалить УЖЕ записанный приём добавки (доза, дата, название). "
-            "Сначала уточни у пользователя дату и препарат. Передай date и supplement "
-            "(и dosage_from, если в тот день несколько записей) плюс ОДНО действие: "
-            "new_dosage, new_date, new_supplement_name или delete=true. "
-            "При status=ambiguous или not_found покажи пользователю candidates и переспроси; "
-            "после выбора повтори вызов с log_id из candidates. "
-            "delete=true — только когда пользователь явно просит удалить запись."
+            "Исправить или удалить записанный приём добавки. Передай date и supplement (и dosage_from, если "
+            "записей несколько) плюс одно действие: new_dosage, new_date, new_supplement_name или delete=true "
+            "(только по явной просьбе). ambiguous / not_found — покажи candidates, после выбора повтори с log_id."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "date": {"type": "string", "description": "Дата записанного приёма YYYY-MM-DD"},
-                "supplement": {"type": "string", "description": "Название добавки"},
-                "dosage_from": {
-                    "type": "string",
-                    "description": "Текущая доза записи, чтобы выбрать одну из нескольких",
-                },
-                "log_id": {"type": "integer", "description": "id записи из candidates (точный выбор)"},
-                "new_dosage": {"type": "string", "description": "Новая доза"},
-                "new_date": {"type": "string", "description": "Новая дата YYYY-MM-DD (не в будущем)"},
-                "new_supplement_name": {"type": "string", "description": "Новое название"},
-                "delete": {"type": "boolean", "description": "true — удалить запись (только по явной просьбе)"},
+                "date": _DATE_ARG,
+                "supplement": {"type": "string"},
+                "dosage_from": {"type": "string"},
+                "log_id": {"type": "integer"},
+                "new_dosage": {"type": "string"},
+                "new_date": _DATE_ARG,
+                "new_supplement_name": {"type": "string"},
+                "delete": {"type": "boolean"},
             },
         },
     },
     {
         "name": "render_chart",
         "description": (
-            "Универсальный рендер графика через QuickChart → Telegram. Для всего что "
-            "не покрывает render_report (тот быстрее для типовых случаев).\n\n"
-            "КОГДА: «нарисуй», «график», «инфографика», «сравни X и Y», «корреляция».\n\n"
-            "ФОРМАТ spec — Chart.js v4. Пиши МИНИМАЛЬНО, только данные и тип; "
-            "стиль (цвета, шрифты, легенду, сетку, размеры) сервер ставит сам "
-            "из Botkin-палитры. НЕ заполняй borderColor / backgroundColor / "
-            "tension / pointRadius — сервер заполнит. Заполняй ТОЛЬКО:\n"
-            "  • type ('line'|'bar'|'scatter'|'doughnut'|'pie'|'radar'|'polarArea')\n"
-            "  • data.labels, data.datasets[].label, data.datasets[].data\n"
-            "  • options.plugins.title.text — заголовок графика (обязательно)\n"
-            "  • options.scales — только если нужны нестандартные оси (multi-axis: yAxisID на datasets + scales.y/y1)\n\n"
-            "Минимальный пример:\n"
-            "{type:'line', data:{labels:['янв','фев','мар'], datasets:[{label:'Вес', data:[82,81,80]}]}, "
-            "options:{plugins:{title:{text:'Вес за квартал'}}}}\n\n"
-            "Кириллица в labels/title работает нормально. После render — короткий "
-            "комментарий (1-3 предложения), не пересказывай содержимое картинки."
+            "Нарисовать график (QuickChart → Telegram) для всего, что не покрывает render_report. "
+            "chart — Chart.js v4, минимально: type, data.labels, data.datasets[].label/data, "
+            "options.plugins.title.text (обязательно); options.scales — только для нестандартных осей. "
+            "Цвета и стиль ставит сервер — не заполняй. Пример: {type:'line', data:{labels:['янв','фев'], "
+            "datasets:[{label:'Вес', data:[82,81]}]}, options:{plugins:{title:{text:'Вес'}}}}. "
+            "Потом — 1–3 предложения, картинку не пересказывай."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "chart": {
-                    "type": "object",
-                    "description": "Chart.js v4 config: {type, data, options}",
-                },
-                "caption": {
-                    "type": "string",
-                    "description": "Подпись под фото в Telegram (1 строка, без markdown).",
-                },
+                "chart": {"type": "object"},
+                "caption": {"type": "string", "description": "Подпись к фото, 1 строка без markdown"},
                 "width": {"type": "integer", "default": 600, "minimum": 200, "maximum": 1600},
                 "height": {"type": "integer", "default": 400, "minimum": 200, "maximum": 1200},
             },
@@ -1065,27 +694,9 @@ TOOLS: list[dict[str, Any]] = [
     {
         "name": "render_report",
         "description": (
-            "Сгенерировать и ОТПРАВИТЬ юзеру в Telegram PNG-инфографику. "
-            "Tool сам делает sendPhoto — тебе НЕ надо ничего возвращать в тексте, "
-            "Telegram уже получил картинку к моменту когда ты увидишь результат. "
-            "После использования напиши КОРОТКИЙ комментарий-резюме к картинке "
-            "(2-4 предложения), не пытайся пересказать всё что на ней. "
-            "\n\n"
-            "КОГДА ИСПОЛЬЗОВАТЬ: ВМЕСТО рисования markdown-таблицы с динамикой "
-            "лабораторных значений. Триггеры: «динамика анализов», «разбери "
-            "анализы», «график X», «нарисуй», «как менялся X», «покажи отчёт», "
-            "«инфографика», «сделай разбор для врача». "
-            "\n\n"
-            "Два режима:\n"
-            "  • report_type='biomarker_dynamics' (DEFAULT) — общая панель 2×3 "
-            "    с 6 ключевыми маркерами (липиды + метаболизм + печень и т.п.). "
-            "    Зови когда юзер просит общую картину / разбор / для врача.\n"
-            "  • report_type='single_biomarker' + marker='<имя>' — большой график "
-            "    одного маркера. Зови когда юзер спрашивает про конкретный "
-            "    показатель: «график витамина Д», «как менялся ЛПНП», «динамика "
-            "    глюкозы». Параметр marker принимает русские названия (витамин Д, "
-            "    глюкоза, ЛПНП, холестерин, гликированный, ферритин, тестостерон) "
-            "    и латинские (LDL, HDL, HbA1c, ALT, TSH, vitamin_d, и т.п.)."
+            "Отправить в Telegram PNG-инфографику по анализам — вместо markdown-таблицы с динамикой. "
+            "biomarker_dynamics — панель 6 ключевых маркеров (общая картина, для врача); single_biomarker + "
+            "marker — график одного маркера (рус. или лат.: «витамин Д», LDL, HbA1c). Потом — 2–4 предложения."
         ),
         "input_schema": {
             "type": "object",
@@ -1095,130 +706,77 @@ TOOLS: list[dict[str, Any]] = [
                     "enum": ["biomarker_dynamics", "single_biomarker"],
                     "default": "biomarker_dynamics",
                 },
-                "marker": {
-                    "type": "string",
-                    "description": ("Имя биомаркера для режима single_biomarker. Игнорируется для biomarker_dynamics."),
-                },
+                "marker": {"type": "string"},
             },
         },
     },
     {
         "name": "generate_doctor_report",
         "description": (
-            "Сгенерировать и ОТПРАВИТЬ пользователю PDF-отчёт о здоровье для врача. "
-            "Tool сам шлёт PDF Telegram-документом — тебе НЕ надо ничего прикладывать, "
-            "файл уже в чате к моменту результата. После вызова напиши КОРОТКОЕ "
-            "подтверждение (1-2 предложения): отчёт отправлен, его можно переслать врачу.\n\n"
-            "КОГДА ИСПОЛЬЗОВАТЬ: пользователь просит «отчёт для врача», «сводку для доктора», "
-            "«выгрузи мои данные для приёма», «PDF для врача». Отчёт — секции в клиническом "
-            "порядке (проблемы, аллергии, лекарства, результаты анализов, витальные, образ жизни). "
-            "Это НЕ график динамики — для инфографики используй render_report.\n\n"
-            "ЯЗЫК: если пользователь просит отчёт на английском (или пишет по-английски) — "
-            "передай language='en'; для русского — 'ru'. Не указан — язык по умолчанию."
+            "Отправить в Telegram PDF-отчёт для врача (проблемы, аллергии, лекарства, анализы, витальные). "
+            "Не график — для него render_report. Потом коротко: отчёт отправлен, можно переслать врачу."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "language": {
-                    "type": "string",
-                    "enum": ["ru", "en"],
-                    "description": "Язык отчёта: 'en' если пользователь просит на английском, иначе 'ru'.",
-                },
+                "language": {"type": "string", "enum": ["ru", "en"], "description": "'en' — если просят на английском"}
             },
         },
     },
     {
         "name": "add_agent_correction",
         "description": (
-            "Сохранить поправку или новый факт в KB пользователя. "
-            "Вызывай СРАЗУ когда пользователь исправляет факт или сообщает новые данные — "
-            "дату операции, диагноз, аллергию, новый препарат, любую другую медицинскую деталь. "
-            "Ключ — короткое snake_case имя (surgery_year, diabetes_status, new_medication). "
-            "Данные сохраняются в секцию agent_corrections KB и будут доступны при следующем разговоре."
+            "Сохранить в KB поправку или новый медицинский факт (дата операции, диагноз, препарат) сразу, "
+            "как пользователь его сообщил. Будет доступен в следующих разговорах."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "key": {"type": "string", "description": "Уникальный ключ факта (snake_case, ≤100 символов)"},
-                "value": {"type": "string", "description": "Значение (≤2000 символов)"},
-                "reason": {"type": "string", "description": "Откуда факт — цитата или пересказ слов пользователя"},
+                "key": {"type": "string", "description": "snake_case, напр. surgery_year"},
+                "value": {"type": "string"},
+                "reason": {"type": "string", "description": "Слова пользователя"},
             },
             "required": ["key", "value"],
         },
     },
     {
         "name": "flag_for_devs",
-        "description": (
-            "Зафиксировать пожелание/багрепорт пользователя для разработчиков. "
-            "Вызывай, когда: не смог закрыть запрос (нет тула/данных), пользователь "
-            "недоволен/переспрашивает, или прямо указал на баг/пожелание."
-        ),
+        "description": "Передать разработчикам баг или пожелание пользователя.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "category": {
-                    "type": "string",
-                    "enum": ["bug", "feature", "question"],
-                    "description": "Тип: баг / пожелание фичи / вопрос.",
-                },
-                "user_msg": {"type": "string", "description": "Суть запроса словами пользователя."},
-                "agent_note": {"type": "string", "description": "Твоя короткая заметка для разработчиков."},
+                "category": {"type": "string", "enum": ["bug", "feature", "question"]},
+                "user_msg": {"type": "string", "description": "Суть словами пользователя"},
+                "agent_note": {"type": "string"},
             },
             "required": ["category", "user_msg"],
         },
     },
     {
         "name": "list_feedback",
-        "description": (
-            "АДМИН-ТУЛ (#269): показать записи инбокса обратной связи для триажа. "
-            "Возвращает структурный список (id/kind/status/priority/text/agent_note/…). "
-            "По умолчанию status='new'; status='all' — все статусы."
-        ),
+        "description": "Админ: записи инбокса обратной связи. По умолчанию status='new'; 'all' — все.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "status": {
-                    "type": "string",
-                    "description": "Фильтр статуса: new/triaged/in_progress/done/wontfix/duplicate или 'all'.",
-                },
-                "limit": {"type": "integer", "description": "Сколько записей (макс 100, дефолт 20)."},
+                "status": {"type": "string", "description": "new/triaged/in_progress/done/wontfix/duplicate/all"},
+                "limit": {"type": "integer", "description": "до 100, по умолчанию 20"},
             },
-            "required": [],
         },
     },
     {
         "name": "triage_feedback",
         "description": (
-            "АДМИН-ТУЛ (#269): триаж записи инбокса — сменить статус/приоритет/привязать "
-            "GitHub-issue. Частичное обновление: передавай только меняемые поля. "
-            "Возвращает обновлённую запись.\n"
-            "Фаза 3 (#188): при переводе в done/wontfix бот САМ шлёт автору уведомление о "
-            "разборе (один раз, guard по notified_at). Для вопроса (kind=question) передай "
-            "`notify_text` — твой человеческий ответ уйдёт автору напрямую и закроет обращение. "
-            "В ответе поля `notified` и `notify_skipped` (opt_out/already_notified/send_failed)."
+            "Админ: сменить статус/приоритет записи инбокса, привязать GitHub-issue (только меняемые поля). "
+            "На done/wontfix бот сам уведомит автора; для вопроса передай notify_text — ответ уйдёт автору."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "feedback_id": {"type": "integer", "description": "id записи из list_feedback."},
-                "status": {
-                    "type": "string",
-                    "enum": ["new", "triaged", "in_progress", "done", "wontfix", "duplicate"],
-                    "description": "Новый статус.",
-                },
-                "priority": {
-                    "type": "string",
-                    "enum": ["P0", "P1", "P2", "P3"],
-                    "description": "Приоритет.",
-                },
-                "github_issue": {"type": "string", "description": "Номер GitHub-issue (напр. '300')."},
-                "notify_text": {
-                    "type": "string",
-                    "description": (
-                        "Явный ответ автору (перекрывает авто-текст, уходит при любом статусе). "
-                        "Используй для kind=question, чтобы ответить человеку по существу."
-                    ),
-                },
+                "feedback_id": {"type": "integer"},
+                "status": {"type": "string", "enum": ["new", "triaged", "in_progress", "done", "wontfix", "duplicate"]},
+                "priority": {"type": "string", "enum": ["P0", "P1", "P2", "P3"]},
+                "github_issue": {"type": "string"},
+                "notify_text": {"type": "string"},
             },
             "required": ["feedback_id"],
         },
