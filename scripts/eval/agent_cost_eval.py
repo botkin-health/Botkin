@@ -11,8 +11,10 @@ llm_usage_log, инструменты записи заглушены. Резу�
 кешируются в --tool-cache: второй прогон видит те же данные, что и первый,
 и не дёргает внешние сервисы повторно (LibreLinkUp банит за частые логины).
 
-cases.json — список {"id", "user_id", "text"}; хранится вне репозитория
-(реальные сообщения пользователей).
+cases.json — список {"id", "user_id", "text", "history"?}; хранится вне
+репозитория (реальные сообщения пользователей). history — текстовые реплики
+диалога до этого сообщения ([{"role", "content"}]): без неё follow-up вроде
+«да, запиши» теряет смысл.
 """
 
 import argparse
@@ -55,7 +57,7 @@ def main() -> None:
 
     cache_path = Path(args.tool_cache)
     cache = json.loads(cache_path.read_text()) if cache_path.exists() else {}
-    state = {"calls": [], "usage": [], "uid": None}
+    state = {"calls": [], "usage": [], "uid": None, "history": []}
 
     real_call_tool = ac._call_tool
 
@@ -88,14 +90,14 @@ def main() -> None:
     ac._persist_turns = lambda *a, **k: None
     ac._log_first_question = lambda *a, **k: None
     ac.record_failed_turn = lambda *a, **k: None
-    ac._load_history = lambda db, user_id, limit=None: []
+    ac._load_history = lambda db, user_id, limit=None: state["history"]
     lu.log_anthropic_response = fake_log
 
     cases = json.loads(Path(args.cases).read_text())
     total_usd = 0.0
     with open(args.out, "w") as out:
         for case in cases:
-            state.update(calls=[], usage=[], uid=case["user_id"])
+            state.update(calls=[], usage=[], uid=case["user_id"], history=case.get("history", []))
             t0 = time.monotonic()
             reply, error = "", None
             try:
