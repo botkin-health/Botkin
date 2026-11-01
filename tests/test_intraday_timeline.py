@@ -78,3 +78,12 @@ def test_body_battery_and_heart_rate_buckets():
     assert rows["09:30"]["hr_max"] == 98
     assert "→" in rows["08:00"]["body_battery"]
     assert result["resting_hr"] == 51
+
+
+def test_gap_note_does_not_trip_no_data_detector():
+    # Агент цитирует пометки хронологии; «нет данных» в них запускало нудж #477
+    # и подменяло полный разбор коротким оправданием (E2E 01.11.2026).
+    from core.agent_chat import claims_data_unavailable
+
+    rows = _by_time(build_timeline(_payload(), None, timedelta(hours=4)))
+    assert not claims_data_unavailable(f"В 13:30 {rows['13:30']['note']}.")
