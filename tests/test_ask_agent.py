@@ -430,47 +430,64 @@ def _insert_router_row(TestSession, user_id, source, text_str):
     s.close()
 
 
-def test_recent_tracker_events_summarizes_parser_rows(agent_db):
-    """router_*/llm_text user-строки попадают в сводку (issue #169)."""
-    _insert_router_row(agent_db, 895655, "router_weight", "54")
-    _insert_router_row(agent_db, 895655, "router_food", "съела яблоко")
-
-    s = agent_db()
-    block = agent_chat._recent_tracker_events(s, 895655)
-    s.close()
-
-    assert "54" in block
-    assert "яблоко" in block
-    assert "[вес" in block and "[еда" in block
-    # Время записи в сводке — иначе агент гадает, когда это было.
-    import re
-
-    assert re.search(r"\[еда, \d{2}\.\d{2} \d{2}:\d{2}\]", block)
+def _history_text(msgs) -> str:
+    """Текст истории; на SQLite content приходит JSON-строкой, на проде — списком."""
+    out = []
+    for m in msgs:
+        c = m["content"]
+        if isinstance(c, str):
+            try:
+                c = json.loads(c)
+            except ValueError:
+                pass
+        out.append(c if isinstance(c, str) else json.dumps(c, ensure_ascii=False))
+    return "\n".join(out)
 
 
-def test_recent_tracker_events_empty_when_no_parser_rows(agent_db):
-    """Без parser-записей сводка пустая (не мусорит system-prompt)."""
-    s = agent_db()
-    block = agent_chat._recent_tracker_events(s, 895655)
-    s.close()
-    assert block == ""
-
-
-def test_parser_rows_injected_into_system_prompt(agent_db, monkeypatch):
-    """ask_agent подмешивает parser-записи в system — агент видит, что вес записан."""
-    _insert_router_row(agent_db, 895655, "router_weight", "54")
-    fake = FakeRequests([_anthropic_text("Твой вес 54 кг.")])
+def test_tracker_pair_reaches_agent_history(agent_db, monkeypatch):
+    """Быстрая запись (АД/вес/еда по кнопке) — пара ходов в истории агента (задача 5)."""
+    agent_chat.log_tracker_event(895655, "130/85 пульс 62", "✅ записал АД 130/85 пульс 62 — 01.11 09:12")
+    fake = FakeRequests([_anthropic_text("Сегодня 130/85.")])
     monkeypatch.setattr(agent_chat, "requests", fake)
 
-    agent_chat.ask_agent(895655, "какой у меня вес?")
+    agent_chat.ask_agent(895655, "какое у меня было давление сегодня?")
 
-    system_blocks = fake.anthropic_calls[0]["payload"]["system"]
-    sys_text = " ".join(b["text"] for b in system_blocks)
-    assert "ЗАПИСАЛ ЧЕРЕЗ ТРЕКЕР" in sys_text
-    assert "54" in sys_text
-    # tracker — отдельный блок БЕЗ cache_control (не бьёт prompt-кэш)
-    tracker_blocks = [b for b in system_blocks if "ЗАПИСАЛ ЧЕРЕЗ ТРЕКЕР" in b["text"]]
-    assert tracker_blocks and "cache_control" not in tracker_blocks[0]
+    flat = _history_text(fake.anthropic_calls[0]["payload"]["messages"])
+    assert "130/85 пульс 62" in flat
+    assert "[быстрая запись, без агента] ✅ записал АД 130/85" in flat
+    # Пара идёт до текущего вопроса — в хронологии, а не отдельным блоком system.
+    assert flat.index("быстрая запись") < flat.index("какое у меня было давление")
+
+
+def test_router_raw_rows_stay_out_of_history(agent_db, monkeypatch):
+    """router_* (сырой текст для product-review) в историю не попадает — только пары tracker."""
+    _insert_router_row(agent_db, 895655, "router_weight", "54")
+    fake = FakeRequests([_anthropic_text("ок")])
+    monkeypatch.setattr(agent_chat, "requests", fake)
+
+    agent_chat.ask_agent(895655, "привет")
+
+    flat = _history_text(fake.anthropic_calls[0]["payload"]["messages"])
+    assert '"54"' not in flat
+
+
+def test_tracker_rows_do_not_push_out_dialog(agent_db, monkeypatch):
+    """Десяток быстрых записей не вытесняет разговор: у них свой лимит."""
+    s = agent_db()
+    agent_chat._save_message(s, 895655, "user", [{"type": "text", "text": "старый вопрос про сон"}])
+    agent_chat._save_message(s, 895655, "assistant", [{"type": "text", "text": "ответ про сон"}])
+    s.commit()
+    s.close()
+    for i in range(30):
+        agent_chat.log_tracker_event(895655, f"запись {i}", f"✅ записал вес {80 + i / 10} кг — 01.11 09:{i:02d}")
+    fake = FakeRequests([_anthropic_text("ок")])
+    monkeypatch.setattr(agent_chat, "requests", fake)
+
+    agent_chat.ask_agent(895655, "что я спрашивал?")
+
+    flat = _history_text(fake.anthropic_calls[0]["payload"]["messages"])
+    assert "старый вопрос про сон" in flat
+    assert "запись 29" in flat and "запись 10" not in flat
 
 
 def test_per_user_prompt_takes_precedence_over_default(agent_db, monkeypatch):

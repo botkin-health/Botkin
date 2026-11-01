@@ -1262,6 +1262,20 @@ def merge_caption_and_description(caption: str, description: str) -> str:
     return f"{cap}\n{desc}".strip()
 
 
+def _log_meal_tracker(user_id: int, data: dict, meal_name: str, kcal, is_plan: bool = False) -> None:
+    """Сохранённая по кнопке еда → пара ходов в историю агента (задача 5 аудита).
+
+    Без этого агент через две минуты говорил «шампанское ты упоминал пару дней назад».
+    """
+    from core.agent_chat import log_tracker_event
+
+    when_date = data.get("date") or now_in_user_tz(user_id).strftime("%Y-%m-%d")
+    when = f"{when_date[8:10]}.{when_date[5:7]} {data.get('meal_time') or ''}".strip()
+    what = "план" if is_plan else "приём пищи"
+    user_text = data.get("description") or "[фото еды]"
+    log_tracker_event(user_id, user_text, f"✅ записал {what}: {meal_name}, {float(kcal or 0):.0f} ккал — {when}")
+
+
 async def handle_description(
     message: Message,
     description: str = None,
@@ -2118,6 +2132,9 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
                         "multi_food: save_meal_to_db failed for %r (user %s)", m["meal_name"], telegram_user_id
                     )
 
+            if saved_count:
+                names = ", ".join(m["meal_name"] for m in multi_meals if m["meal_name"] not in failed)
+                _log_meal_tracker(telegram_user_id, user_state.data, names, total_kcal)
             confirm = f"✅ <b>Сохранено приёмов: {saved_count}</b> · {total_kcal} ккал"
             if failed:
                 confirm += "\n⚠️ Не удалось сохранить: " + ", ".join(failed) + " — отправь их отдельно."
@@ -2199,6 +2216,7 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
                     "напиши мне, например «минус 2 яйца» или «съела всё».</i>"
                 )
             await safe_edit_text(callback.message, confirm_text, parse_mode="HTML")
+            _log_meal_tracker(telegram_user_id, user_state.data, meal_name, meal_kcal, is_plan=is_plan)
 
             await _maybe_record_first_food(telegram_user_id, callback.message)
 
