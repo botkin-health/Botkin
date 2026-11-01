@@ -255,6 +255,27 @@ def save_meal_to_db(meal_data: dict, meal_name: str = None, user_id: int = None)
         return None
 
 
+def user_measured_at(
+    user_id: int, date_str: Optional[str] = None, hh: Optional[int] = None, mm: Optional[int] = None
+) -> datetime:
+    """Момент замера в TZ пользователя: дата из текста («вчера» → custom_date)
+    плюс названное время, иначе текущее время суток.
+
+    Быстрые пути (regex АД, вес текстом и голосом) раньше брали «сейчас» и теряли
+    дату: «вчера 150/95 пульс 70» ложился на сегодня.
+    """
+    dt = now_in_user_tz(user_id)
+    if date_str:
+        try:
+            d = datetime.strptime(date_str, "%Y-%m-%d").date()
+            dt = dt.replace(year=d.year, month=d.month, day=d.day)
+        except ValueError:
+            logger.warning(f"user_measured_at: bad date {date_str!r}, using today")
+    if hh is not None and mm is not None and 0 <= hh <= 23 and 0 <= mm <= 59:
+        dt = dt.replace(hour=hh, minute=mm, second=0, microsecond=0)
+    return dt
+
+
 def save_weight_to_db(data: Dict[str, Any], user_id: int = None) -> str:
     """
     Saves a weight measurement to PostgreSQL

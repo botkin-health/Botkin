@@ -1321,7 +1321,9 @@ async def handle_description(
     if not custom_date:
         from handlers.text import extract_date_from_text
 
-        extracted_date, clean_description = extract_date_from_text(full_description)
+        extracted_date, clean_description = extract_date_from_text(
+            full_description, user_tz=now_in_user_tz(user_id).tzinfo
+        )
         if extracted_date:
             custom_date = extracted_date
             full_description = clean_description
@@ -1371,6 +1373,16 @@ async def handle_description(
             logger.error(f"LLM Router Error: {e}")
             router_result = None
 
+    # Упоминание добавки без приёма («кончился магний») и нереалистичный вес — не
+    # запись: такие сообщения идут ниже по пути «не еда» к агенту.
+    if router_result and router_result.get("type") in ("vitamins", "weight"):
+        _rd = router_result.get("data") or {}
+        _w = _rd.get("weight")
+        if (router_result["type"] == "vitamins" and (_rd.get("action") == "metadata" or not _rd.get("items"))) or (
+            router_result["type"] == "weight" and (not isinstance(_w, (int, float)) or not (20 <= _w <= 400))
+        ):
+            router_result = {**router_result, "type": "other"}
+
     if not router_result or router_result.get("type") != "food":
         # Fallback или ошибка
         # Если Router решил что это НЕ еда, но мы в хендлере описания еды?
@@ -1381,13 +1393,10 @@ async def handle_description(
             # Обработка витаминов
             data = router_result.get("data", {})
             items = data.get("items", [])
-            action = data.get("action")
-
-            # Сохраняем реально
             from core.health.supplements import save_supplements
 
             telegram_user_id = int(message.from_user.id)
-            saved = save_supplements(items, user_id=telegram_user_id)
+            saved = save_supplements(items, user_id=telegram_user_id, date_str=custom_date)
 
             # Формируем красивый список
             items_list = "\n".join([f"• {html.escape(i['name'] if isinstance(i, dict) else str(i))}" for i in items])
@@ -1404,8 +1413,19 @@ async def handle_description(
             # Обработка веса
             data = router_result.get("data", {})
             w_val = data.get("weight")
-            await processing_message.edit_text(f"⚖️ <b>Вес:</b> {w_val} кг\n✅ Записано", parse_mode="HTML")
-            # Тут надо бы сохранить, но пока просто ответим, т.к. этот флоу редок при вводе описания
+            from helpers.db_save import save_weight_to_db, user_measured_at
+
+            telegram_user_id = int(message.from_user.id)
+            measured_at = user_measured_at(telegram_user_id, custom_date)
+            # Раньше ветка отвечала «✅ Записано», ничего не сохраняя: голосовое
+            # «вес 82,5» терялось.
+            saved = save_weight_to_db(
+                {"weight": w_val, "date": measured_at.strftime("%Y-%m-%d %H:%M"), "source": "llm_text"},
+                user_id=telegram_user_id,
+            )
+            date_part = f" за {measured_at.strftime('%d.%m')}" if custom_date else ""
+            status = "✅ Записано" if saved else "⚠️ Ошибка записи"
+            await processing_message.edit_text(f"⚖️ <b>Вес:</b> {w_val} кг{date_part}\n{status}", parse_mode="HTML")
             state_manager.clear_state(user_id)
             return
 
