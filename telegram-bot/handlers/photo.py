@@ -619,8 +619,11 @@ async def process_photos_list(
             )
             state_manager.set_state(user_id, user_state)
 
-        # Caption уже в state, передаем None чтобы функция взяла caption из состояния
-        await handle_description(message, None, processing_message=processing_msg, state=state)
+        # Caption уже в state, передаем None чтобы функция взяла caption из состояния.
+        # Роутер уже видел эти фото с этой подписью — второй вызов не нужен.
+        await handle_description(
+            message, None, processing_message=processing_msg, state=state, prior_router_result=router_result
+        )
     else:
         # Issue #439/#441: фото анализа/заключения БЕЗ подписи — маршрутизация
         # в doc-пайплайн через единую `is_medical_document` (полное правило и
@@ -661,6 +664,29 @@ async def process_photos_list(
                     auto=True,
                 )
                 routed_to_doc_pipeline = True
+
+        _reply = ((router_result or {}).get("data") or {}).get("reply") or ""
+        _rtype = (router_result or {}).get("type")
+        if (
+            not routed_to_doc_pipeline
+            and _rtype in ("other", "medical")
+            and _looks_like_health_app_screenshot("", _reply)
+        ):
+            # Скрин Garmin/Apple Health без подписи — это вопрос «что со мной?»,
+            # а не «не распознал еду»: агент разбирает картинку (аудит, задача 6).
+            state_manager.set_state(
+                user_id,
+                create_photo_state(
+                    user_id=user_id,
+                    photo_paths=photo_paths,
+                    photo_file_ids=[message.photo[-1].file_id if message.photo else ""],
+                    caption="",
+                ),
+            )
+            await handle_description(
+                message, None, processing_message=processing_msg, state=state, prior_router_result=router_result
+            )
+            return
 
         if not routed_to_doc_pipeline:
             # 🐛 FIX 26.05.2026: фото которое LLM-роутер НЕ распознал как еду
@@ -1282,9 +1308,13 @@ async def handle_description(
     processing_message: Message = None,
     custom_date: str = None,
     state: FSMContext = None,
+    prior_router_result: dict = None,
 ):
     """
     Обработка описания блюда после получения фото.
+
+    prior_router_result — ответ роутера, уже полученный на эти же фото с этой же
+    подписью (process_photos_list); тогда повторно роутер не зовём.
 
     Args:
         message: Исходное сообщение
@@ -1306,6 +1336,10 @@ async def handle_description(
     if not user_state or user_state.state != "waiting_description":
         return
 
+    # Новый текст пришёл от вызывающего (ответ после фото) — тогда ответ роутера
+    # на одни фото с подписью уже не подходит.
+    has_new_text = description is not None
+
     # Если description не передан, берем из сообщения или из состояния (для фото с caption)
     if description is None:
         if message.text:
@@ -1315,7 +1349,7 @@ async def handle_description(
         else:
             description = ""
 
-    if not description:
+    if not description and prior_router_result is None:
         await message.answer("Пожалуйста, отправь описание блюда")
         return
 
@@ -1380,12 +1414,15 @@ async def handle_description(
         else:
             processing_message = await message.answer("🤖 Думаю... 🧠")
 
-        try:
-            uid_int = int(message.from_user.id) if message and message.from_user else None
-            router_result = analyze_message(text=full_description, image_paths=paths_to_analyze, user_id=uid_int)
-        except Exception as e:
-            logger.error(f"LLM Router Error: {e}")
-            router_result = None
+        if prior_router_result is not None and not has_new_text:
+            router_result = prior_router_result
+        else:
+            try:
+                uid_int = int(message.from_user.id) if message and message.from_user else None
+                router_result = analyze_message(text=full_description, image_paths=paths_to_analyze, user_id=uid_int)
+            except Exception as e:
+                logger.error(f"LLM Router Error: {e}")
+                router_result = None
 
     # Упоминание добавки без приёма («кончился магний») и нереалистичный вес — не
     # запись: такие сообщения идут ниже по пути «не еда» к агенту.
@@ -1633,7 +1670,12 @@ async def handle_description(
 
                     await processing_message.edit_text("🤔 думаю...")
                     loop = asyncio.get_running_loop()
-                    reply = await loop.run_in_executor(None, ask_agent, int(user_id), user_text_for_agent)
+                    # Скрин приложения здоровья агент получает картинкой: пересказ
+                    # роутера теряет цифры и подписи графиков (аудит обвязки, задача 6).
+                    agent_images = list(photo_paths) if is_health_app_screen and photo_paths else None
+                    reply = await loop.run_in_executor(
+                        None, lambda: ask_agent(int(user_id), user_text_for_agent, images=agent_images)
+                    )
 
                     if reply:
                         chunks = split_markdown_for_telegram(reply)

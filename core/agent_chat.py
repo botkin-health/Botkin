@@ -60,6 +60,7 @@ MAX_TOKENS = 4000  # 2000 обрезал развёрнутые многофак
 # на полный разбор с таблицей; короткие ответы лимит не трогает (бот сам краток).
 MAX_TOOL_ITERATIONS = 6  # safety net against tool loops
 HISTORY_WINDOW = 20  # last N messages from agent_conversations
+STALE_HISTORY_GUARD = os.getenv("AGENT_STALE_HISTORY_GUARD") == "1"  # P-003, см. цикл инструментов
 TRACKER_HISTORY_ROWS = 12  # до 6 пар быстрых записей поверх окна диалога
 
 # Универсальные правила агента поверх per-user промпта. Сжаты 28.09.2026:
@@ -1261,6 +1262,28 @@ def _generate_jwt(user: User) -> str:
 # ---------------------------------------------------------------------------
 # Tool dispatch
 # ---------------------------------------------------------------------------
+
+
+def _user_content_with_images(user_text: str, images: Optional[list]):
+    """Текст хода + до трёх картинок (image-блоки Messages API)."""
+    if not images:
+        return user_text
+    import base64
+
+    blocks: list[dict] = []
+    for p in list(images)[:3]:
+        try:
+            raw = Path(p).read_bytes()
+        except OSError:
+            logger.warning("agent image unreadable: %s", p)
+            continue
+        media = "image/png" if raw[:8] == b"\x89PNG\r\n\x1a\n" else "image/jpeg"
+        blocks.append(
+            {"type": "image", "source": {"type": "base64", "media_type": media, "data": base64.b64encode(raw).decode()}}
+        )
+    if not blocks:
+        return user_text
+    return blocks + [{"type": "text", "text": user_text}]
 
 
 _SLOT_NAMES = {"breakfast": "Завтрак", "lunch": "Обед", "dinner": "Ужин", "snack": "Перекус"}
@@ -2823,12 +2846,17 @@ def ask_agent(
     progress_cb: Optional[Callable[[str], None]] = None,
     is_e2e: bool = False,
     meal_preview_sink: Optional[list] = None,
+    images: Optional[list] = None,
 ) -> str:
     """Synchronous — call from `run_in_executor`.
 
     meal_preview_sink: если передан (чат в боте), `log_meal_text` не пишет в БД,
     а кладёт сюда черновик — бот покажет ту же карточку «Сохранить/Отмена», что и
     у быстрого пути. Без sink (MCP, проактивные вызовы) запись идёт сразу.
+
+    images: пути к фото (скрин Garmin/Apple Health и т.п.) — уходят модели
+    картинкой в текущем ходе. В историю пишется только текст: base64 в
+    agent_conversations раздул бы каждый следующий ход.
 
     Returns assistant's text reply. Empty string if nothing produced.
     Errors are raised; caller (handler) catches and replies "технически не вышло".
@@ -2866,7 +2894,8 @@ def ask_agent(
         # P-003: всё ДО текущего user-сообщения — кандидаты на инвалидацию, если
         # свежий tool_result этого хода им противоречит (см. _invalidate_stale_history).
         prior_history_len = len(history)
-        history.append({"role": "user", "content": user_text})
+        user_content = _user_content_with_images(user_text, images)
+        history.append({"role": "user", "content": user_content})
 
         # Persist user turn immediately so a crash mid-call doesn't lose it.
         # Намеренно НЕ через _persist_turns: тут сбой БД должен всплыть наружу.
@@ -3035,7 +3064,7 @@ def ask_agent(
                     len(history),
                     err_body,
                 )
-                history = [{"role": "user", "content": user_text}]
+                history = [{"role": "user", "content": user_content}]
                 payload["messages"] = history
                 r = _post_with_overload_retry(payload)
             if r.status_code >= 400 and "credit balance" in r.text.lower():
@@ -3113,13 +3142,20 @@ def ask_agent(
                 # нейтрализуем те, что противоречат (иначе агент парротит старое
                 # вместо свежего — прецедент 09.06.2026, F-001). Мутирует turn'ы
                 # in-place → следующая итерация увидит чистую историю.
-                try:
-                    fresh_text = "\n".join(tr["content"] for tr in tool_results if isinstance(tr.get("content"), str))
-                    stale_notes = _invalidate_stale_history(history[:prior_history_len], fresh_text)
-                    for note in stale_notes:
-                        logger.info("P-003 invalidated stale turn: user=%s %s", user_id, note)
-                except Exception:
-                    logger.exception("P-003 stale-history invalidation failed (non-fatal)")
+                # Выключено по умолчанию (аудит обвязки, ноябрь 2026): за 05.09–01.11
+                # на проде 7 срабатываний из ~380 вызовов инструментов, все по Z2 с
+                # разными окнами (35 → «свежее» 67) — ложные. Включить: env
+                # AGENT_STALE_HISTORY_GUARD=1. Удалить, если не понадобится.
+                if STALE_HISTORY_GUARD:
+                    try:
+                        fresh_text = "\n".join(
+                            tr["content"] for tr in tool_results if isinstance(tr.get("content"), str)
+                        )
+                        stale_notes = _invalidate_stale_history(history[:prior_history_len], fresh_text)
+                        for note in stale_notes:
+                            logger.info("P-003 invalidated stale turn: user=%s %s", user_id, note)
+                    except Exception:
+                        logger.exception("P-003 stale-history invalidation failed (non-fatal)")
 
                 # tool_use + tool_result — одной транзакцией (см. _persist_turns).
                 turn_tool_result_texts.extend(
