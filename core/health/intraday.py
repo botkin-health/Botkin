@@ -192,7 +192,8 @@ def build_timeline(stress_payload: dict, hr_payload: Optional[dict], fallback_of
 
 
 def get_intraday(user_id: int, day: str, user_tz_offset: timedelta) -> dict:
-    primary_id = int(os.getenv("BOTKIN_USER_ID") or os.getenv("HEALTHVAULT_USER_ID") or "895655")
+    # Файлы синка в data/garmin/ — только владельца стенда (id из окружения).
+    primary_id = int(os.getenv("BOTKIN_USER_ID") or os.getenv("HEALTHVAULT_USER_ID") or 0)
     stress, hr, source = _fetch(user_id, day, primary_id)
     if not stress:
         return {
