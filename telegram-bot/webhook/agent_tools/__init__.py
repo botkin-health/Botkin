@@ -20,6 +20,7 @@ from .reports import router as _reports_router
 from .dashboard import router as _dashboard_router
 from .menstrual import router as _menstrual_router
 from .sleep import router as _sleep_router
+from .intraday import router as _intraday_router
 from .biomarkers import router as _biomarkers_router
 from .workouts import router as _workouts_router
 from .profile import router as _profile_router
@@ -40,6 +41,7 @@ for _sub_router in (
     _dashboard_router,
     _menstrual_router,
     _sleep_router,
+    _intraday_router,
     _biomarkers_router,
     _workouts_router,
     _profile_router,

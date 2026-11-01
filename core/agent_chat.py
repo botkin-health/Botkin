@@ -333,6 +333,26 @@ TOOLS: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "get_intraday_timeline",
+        "description": (
+            "Хронология дня по получасам: пульс (средний/макс), стресс Garmin, Body Battery "
+            "(было→стало), пометки «движение» и «нет данных» (часы сняты, вода), плюс эпизоды "
+            "высокого стресса с временем начала и конца. Время — по часам устройства.\n\n"
+            "ОБЯЗАТЕЛЬНО вызывай, когда человек спрашивает о самочувствии в конкретный день или "
+            "присылает скрин отклонений из Garmin/часов: «что со мной», «когда это началось», "
+            "«стресс вырос до или после…», «почему разряжена батарейка», «заснул в машине». "
+            "Суточные средние на такие вопросы не отвечают. Сопоставь хронологию с тем, что "
+            "человек рассказал (дорога, зарядка, купание, еда, алкоголь), и назови время событий. "
+            "Если `available=false` — честно скажи, что почасовых данных нет, и работай с суточными."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "date": {"type": "string", "description": "YYYY-MM-DD; по умолчанию сегодня"},
+            },
+        },
+    },
+    {
         "name": "get_recent_sleep",
         "description": (
             "Сон за последние N дней (1-90, по умолчанию 14). Возвращает каждую ночь + средняя "
@@ -1273,6 +1293,13 @@ def _call_tool(name: str, args: dict, token: str) -> str:
                 headers=headers,
                 timeout=15,
             )
+        elif name == "get_intraday_timeline":
+            r = requests.get(
+                f"{TOOLS_API_BASE}/intraday",
+                params={"date": args["date"]} if args.get("date") else {},
+                headers=headers,
+                timeout=45,
+            )
         elif name == "get_recent_sleep":
             r = requests.get(
                 f"{TOOLS_API_BASE}/recent_sleep",
@@ -1695,7 +1722,7 @@ def _load_history(db, user_id: int, limit: int = HISTORY_WINDOW) -> list[dict]:
     return _validate_history(messages)
 
 
-def _recent_tracker_events(db, user_id: int, limit: int = 8) -> str:
+def _recent_tracker_events(db, user_id: int, limit: int = 8, tz=None) -> str:
     """Краткая сводка последних записей пользователя через быстрые парсеры
     (вес/еда/добавки/АД) — source `router_*`/`llm_text`.
 
@@ -1706,7 +1733,7 @@ def _recent_tracker_events(db, user_id: int, limit: int = 8) -> str:
     """
     sql = text(
         """
-        SELECT source, content
+        SELECT source, content, created_at
         FROM agent_conversations
         WHERE user_id = :uid AND role = 'user'
           AND (source LIKE 'router_%' OR source = 'llm_text')
@@ -1738,11 +1765,25 @@ def _recent_tracker_events(db, user_id: int, limit: int = 8) -> str:
             return " ".join(p for p in parts if p).strip()[:120]
         return ""
 
+    # Время записи обязательно: без него агент гадает, когда это было
+    # (E2E 01.11.2026: шампанское, упомянутое две минуты назад, агент назвал
+    # «упоминал пару дней назад»).
     lines = []
-    for source, content in reversed(rows):  # chronological
+    for source, content, created_at in reversed(rows):  # chronological
         txt = _text_of(content)
-        if txt:
-            lines.append(f"• [{labels.get(source, 'запись')}] {txt}")
+        if not txt:
+            continue
+        when = ""
+        if isinstance(created_at, str):  # SQLite в тестах отдаёт строку
+            try:
+                created_at = datetime.fromisoformat(created_at)
+            except ValueError:
+                created_at = None
+        if created_at is not None:
+            if created_at.tzinfo is None:
+                created_at = created_at.replace(tzinfo=timezone.utc)
+            when = ", " + (created_at.astimezone(tz) if tz else created_at).strftime("%d.%m %H:%M")
+        lines.append(f"• [{labels.get(source, 'запись')}{when}] {txt}")
     if not lines:
         return ""
 
@@ -2286,7 +2327,9 @@ NO_TOOL_NUDGE = (
     "но в этом ходе не вызвал ни одного инструмента — значит, утверждение ничем "
     "не подтверждено. Вызови подходящий инструмент ПРЯМО СЕЙЧАС и ответь по его "
     "результату. Если инструмент действительно вернёт пусто — так и скажи, "
-    "сославшись на него. Пользователю про эту служебную реплику не упоминай."
+    "сославшись на него. Пользователю про эту служебную реплику не упоминай. "
+    "Предыдущий черновик пользователь НЕ увидит: напиши ответ заново целиком, "
+    "а не дополнение к нему."
 )
 
 
@@ -2345,7 +2388,8 @@ _DEV_FLAG_CLAIM = re.compile(
 
 NO_DEV_FLAG_NUDGE = (
     "[Система] Ты утверждаешь, что передал разработчикам, но flag_for_devs не вызван: "
-    "вызови его или не утверждай. Пользователю про эту служебную реплику не упоминай."
+    "вызови его или не утверждай. Пользователю про эту служебную реплику не упоминай. "
+    "Предыдущий черновик пользователь НЕ увидит: напиши ответ заново целиком."
 )
 
 
@@ -2524,6 +2568,7 @@ _TOOL_PROGRESS_LABEL = {
     "get_outdoor_weather": "🌤 смотрю погоду",
     "get_phenoage": "🧬 считаю PhenoAge",
     "get_day_summary": "📅 свожу день",
+    "get_intraday_timeline": "⏱ смотрю день по часам",
     "get_profile_questionnaire": "📝 читаю анкету",
     # Write tools
     "log_meal_text": "✍️ записываю еду",
@@ -2881,7 +2926,7 @@ def ask_agent(
             "Это ЕДИНСТВЕННЫЙ достоверный источник текущего времени: любые упоминания "
             "времени/«сейчас» в истории диалога относятся к моменту тех сообщений и УСТАРЕЛИ.\n"
         )
-        tracker_block = _time_line + _recent_tracker_events(db, user_id)
+        tracker_block = _time_line + _recent_tracker_events(db, user_id, tz=_now_local.tzinfo)
         # #269: триаж-тулы инбокса — только админам; остальные их не видят.
         _admin_only = {"list_feedback", "triage_feedback"}
         _tool_defs = TOOLS if _is_admin(user_id) else [t for t in TOOLS if t["name"] not in _admin_only]
@@ -2896,6 +2941,11 @@ def ask_agent(
         # лимиту MAX_TOOL_ITERATIONS добавляется максимум один.
         tool_called_this_turn = False
         nudged = False
+        # Пустой финальный ход (только пустой thinking, без текста) — повторяем
+        # один раз. E2E на деве 01.11.2026: на «или лимонады — в них же сахар»
+        # модель вернула один пустой thinking-блок, пользователь получил
+        # «нет внятного ответа».
+        empty_retried = False
         tools_called_this_turn: set[str] = set()
         # Тексты всех tool_result этого хода — по ним проверяем, подкреплено ли
         # заявление «данных нет» (см. tool_results_report_emptiness).
@@ -3069,6 +3119,11 @@ def ask_agent(
             # stop_reason in ("end_turn", "max_tokens", "stop_sequence") — final.
             text_parts = [b["text"] for b in blocks if b.get("type") == "text"]
             reply_text = "\n".join(text_parts).strip()
+
+            if not reply_text and not empty_retried:
+                empty_retried = True
+                logger.warning("agent_chat: пустой финальный ход — повтор (user=%s)", user_id)
+                continue
 
             # 🚦 #477: «данных нет», а инструмент ни разу не вызван — утверждение
             # ничем не подтверждено. Толкаем модель в тул ОДИН раз и НЕ сохраняем
