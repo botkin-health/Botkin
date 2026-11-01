@@ -12,6 +12,7 @@ Pydantic-модели для ответов LLM Router.
 """
 
 import logging
+import re
 from typing import Any, List, Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
@@ -106,7 +107,35 @@ class ProductLabel(BaseModel):
             return None
 
 
-class FoodData(BaseModel):
+_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}")  # префикс: OCR весов отдаёт и «… 09:27»
+_TIME_RE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
+
+
+def _clean_when(v: Any, pattern: "re.Pattern") -> Optional[str]:
+    """data.date / data.time от роутера: только строгий формат, иначе None (= сейчас)."""
+    if isinstance(v, str) and pattern.match(v.strip()):
+        return v.strip()
+    return None
+
+
+class WhenMixin(BaseModel):
+    """Когда произошло событие — роутер считает по строке [NOW: …] (аудит обвязки, задача 4)."""
+
+    date: Optional[str] = None
+    time: Optional[str] = None
+
+    @field_validator("date", mode="before")
+    @classmethod
+    def coerce_date(cls, v: Any) -> Optional[str]:
+        return _clean_when(v, _DATE_RE)
+
+    @field_validator("time", mode="before")
+    @classmethod
+    def coerce_time(cls, v: Any) -> Optional[str]:
+        return _clean_when(v, _TIME_RE)
+
+
+class FoodData(WhenMixin):
     dish_name: str = ""
     meal_type: str = "snack"
     items: List[FoodItem] = Field(default_factory=list)
@@ -145,7 +174,7 @@ class MultiFoodResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class WeightData(BaseModel):
+class WeightData(WhenMixin):
     """Данные с весов/скриншота смарт-весов."""
 
     weight: float  # Обязательное — если null от GPT, валидация упадёт
@@ -153,7 +182,6 @@ class WeightData(BaseModel):
     muscle_mass: Optional[float] = None
     visceral_fat: Optional[float] = None
     water_percent: Optional[float] = None
-    date: Optional[str] = None
 
     @field_validator("body_fat", "muscle_mass", "visceral_fat", "water_percent", mode="before")
     @classmethod
@@ -176,7 +204,7 @@ class WeightResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class VitaminsData(BaseModel):
+class VitaminsData(WhenMixin):
     items: List[str] = Field(default_factory=list)
     action: str = "logged"
 

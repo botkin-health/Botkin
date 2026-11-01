@@ -131,6 +131,25 @@ _EXPLICIT_LOG_RE = re.compile(
 )
 
 
+def _router_when(data: dict, user_tz) -> tuple[str | None, str | None]:
+    """data.date / data.time роутера → (дата не из будущего и не сегодня, время HH:MM)."""
+    if not isinstance(data, dict):
+        return None, None
+    today = datetime.now(user_tz).date()
+    d = data.get("date")
+    router_date = None
+    if isinstance(d, str) and re.match(r"^\d{4}-\d{2}-\d{2}$", d):
+        try:
+            parsed = datetime.strptime(d, "%Y-%m-%d").date()
+            if today - timedelta(days=366) <= parsed < today:
+                router_date = d
+        except ValueError:
+            pass
+    t = data.get("time")
+    router_time = t if isinstance(t, str) and re.match(r"^([01]\d|2[0-3]):[0-5]\d$", t) else None
+    return router_date, router_time
+
+
 def _looks_like_log_entry(text: str) -> bool:
     """В разговоре с агентом — похоже ли сообщение на явную запись в дневник.
 
@@ -681,28 +700,6 @@ def extract_date_from_text(text: str, user_tz=None) -> tuple[str, str]:
     return None, text
 
 
-def _agent_text_with_date_hint(text: str, custom_date: str | None) -> str:
-    """Восстанавливает для агента дату, которую `extract_date_from_text()` уже
-    вырезала из текста ("вчера" / "позавчера" / "yesterday" / ДД.ММ / ДД/ММ / ...).
-
-    Парсерам еды и добавок вырезание нужно (не мешает регэкспам), а BotkinClaw
-    получал бы текст уже без слова о дате и без custom_date — и логировал
-    событие на сегодня (#510: «вчера крутил велотренажёр…» → workouts.date =
-    сегодня). Директива короткая и однозначная, согласована с блоком
-    "📅 Сегодня: ..." в системном промпте (#502, core/agent_chat.py) — та
-    учит агента СЧИТАТЬ относительные даты от текущего дня, эта же говорит,
-    какая дата уже посчитана для конкретного сообщения (раз слово вырезано).
-    """
-    if not custom_date:
-        return text
-    return (
-        f"[Система: пользователь говорит про дату {custom_date} — слово об этом "
-        "уже распознано и вырезано из текста ниже, само вырезанное слово не "
-        "восстанавливай. Используй эту дату, а не сегодняшнюю, — и при записи "
-        f"(start_time/date), и при запросе данных за этот день.] {text}"
-    )
-
-
 async def _replace_preview(message: Message, user_id: str, new_data: dict, text_html: str, keyboard) -> None:
     """Обновить карточку превью: правим уже отправленное сообщение, если можем.
 
@@ -934,8 +931,10 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext,
 
     in_dialog = dialog_active(int(user_id))
 
+    # Агенту уходит исходный текст: дату он считает сам по 📅 в system. Вырезание
+    # слова о дате нужно только парсерам (regex АД, подсказка роутеру).
+    agent_text = text
     custom_date = None
-    agent_date_hint = None
     if not in_dialog and not _is_clearly_conversational(text) and not _looks_like_short_value(text):
         custom_date, clean_text = extract_date_from_text(text, user_tz=user_tz)
         if custom_date:
@@ -948,12 +947,6 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext,
             # custom_date для food-парсера ниже по коду остаётся как есть.
             if clean_text != text:
                 text = clean_text
-                agent_date_hint = custom_date
-            else:
-                debug_logger.info(
-                    f"🌙 #518: эвристика 'вечером/перед сном' (custom_date={custom_date!r}) "
-                    "— директива агенту не отправляется, только food-парсеру"
-                )
 
     # /my_products feature removed — no early-exit product matching, LLM handles all.
     router_result = None
@@ -969,7 +962,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext,
     if _is_lone_date_answer(custom_date, text):
         debug_logger.info(f"🔀 #514 reroute: одинокая дата (custom_date={custom_date!r}) → BotkinClaw")
         router_result = {"type": "other", "data": {}}
-        text = ""  # никаких огрызков пунктуации агенту — только директива о дате ниже
+        text = ""  # парсерам нечего разбирать; агент получит исходную реплику (agent_text)
 
     # ── BP regex pre-check ──────────────────────────────────────────────────
     # Детерминированный паттерн «XXX/YY пульс ZZ» — мимо LLM-роутера.
@@ -1140,7 +1133,8 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext,
                 debug_logger.info("⏳ Calling analyze_message in executor...")
                 loop = asyncio.get_running_loop()
                 router_result = await loop.run_in_executor(
-                    None, lambda: analyze_message(text=text, user_id=int(user_id))
+                    None,
+                    lambda: analyze_message(text=text, user_id=int(user_id), now_local=datetime.now(user_tz)),
                 )
                 debug_logger.info(
                     f"✅ analyze_message returned type: {router_result.get('type') if router_result else 'None'}"
@@ -1164,6 +1158,12 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext,
         loop = asyncio.get_running_loop()
         msg_type = router_result.get("type")
         data = router_result.get("data", {})
+        # Задача 4 аудита: роутер видит [NOW] и сам решает «вчера вечером» / «в 23:00
+        # после полуночи». Регэксп дат — первичен (он уже вырезал слово), роутер
+        # закрывает остальное («в понедельник», «позавчера вечером»).
+        router_date, router_time = _router_when(data, user_tz)
+        if custom_date is None and router_date:
+            custom_date = router_date
 
         # Guard'ы weight/bp решают «сохранять ли замер» ДО выбора ветки.
         # Раньше они стояли ВНУТРИ `elif msg_type == "weight"/"bp"` и делали
@@ -1252,7 +1252,6 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext,
                 # #510: если extract_date_from_text() вырезала «вчера»/«позавчера»/
                 # дату — восстанавливаем её агенту служебной директивой, иначе
                 # событие ложится на сегодня.
-                agent_text = _agent_text_with_date_hint(text, agent_date_hint)
                 meal_previews: list = []
                 reply = await loop.run_in_executor(
                     None,
@@ -1498,7 +1497,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext,
                     description=text,
                     meal_items=meal_items,
                     meal_totals=meal_totals,
-                    meal_time=_temporal_phrase_to_time(text) or datetime.now(user_tz).strftime("%H:%M"),
+                    meal_time=_temporal_phrase_to_time(text) or router_time or datetime.now(user_tz).strftime("%H:%M"),
                     meal_name=meal_name,
                     date=custom_date,
                     is_plan=is_plan or None,
@@ -1573,7 +1572,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext,
             from helpers.db_save import save_bp_to_db, user_measured_at
 
             hh = mm = None
-            time_str = data.get("measured_at_time")
+            time_str = data.get("measured_at_time") or router_time
             if time_str and ":" in time_str:
                 try:
                     hh, mm = map(int, time_str.split(":")[:2])
@@ -1699,7 +1698,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext,
                     description=text,
                     meal_items=meal_items,
                     meal_totals=meal_totals,
-                    meal_time=_temporal_phrase_to_time(text) or datetime.now(user_tz).strftime("%H:%M"),
+                    meal_time=_temporal_phrase_to_time(text) or router_time or datetime.now(user_tz).strftime("%H:%M"),
                     meal_name=meal_name,
                     date=custom_date,
                     # #255: пользователь дал точные КБЖУ с этикетки текстом
@@ -1808,10 +1807,6 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext,
 
             await processing_msg.edit_text("⏳ Думаю…")
             try:
-                # #510: та же служебная директива с датой, что и в основной
-                # 'other'-ветке выше — здесь тоже вырезанные «вчера»/«позавчера»/
-                # дата должны дойти до агента.
-                agent_text = _agent_text_with_date_hint(text, agent_date_hint)
                 reply = await loop.run_in_executor(None, lambda: ask_agent(int(user_id), agent_text))
                 if not reply:
                     reply = "Хм, у меня нет внятного ответа. Попробуй переформулировать."
