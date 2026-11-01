@@ -93,6 +93,7 @@ async def test_weight_text_yesterday_saved_on_yesterday():
     data = save_w.call_args.args[0]
     assert data["weight"] == 82.5
     assert data["date"].startswith(_yesterday(uid))
+    assert "+" in data["date"][10:] or data["date"].endswith("Z"), "время без пояса уедет в UTC"
 
 
 @pytest.mark.asyncio

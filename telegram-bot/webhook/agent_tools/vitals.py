@@ -115,6 +115,30 @@ async def log_bp(
     }
 
 
+class LogWeightRequest(BaseModel):
+    weight: float = Field(..., gt=20, le=400, description="Вес, кг")
+    measured_at: Optional[str] = None  # ISO datetime или YYYY-MM-DD; по умолчанию сейчас
+
+
+@router.post("/log_weight")
+async def log_weight(
+    req: LogWeightRequest,
+    user=Depends(require_agent_scope("rw")),
+    db: Session = Depends(get_db),
+):
+    """Ручной вес из диалога («82,5» в ответ на «сколько весишь?»).
+
+    Тот же апсерт, что у текстового ввода: один ручной вес на календарный день (#170).
+    """
+    from database.crud import upsert_manual_weight
+
+    measured_at = parse_agent_date_or_datetime(req.measured_at, user)
+    row = upsert_manual_weight(
+        db, user_id=user.telegram_id, measured_at=measured_at, weight=req.weight, source="manual"
+    )
+    return {"status": "ok", "weight": row.weight, "measured_at": _dt_isoformat_local(row.measured_at, user)}
+
+
 @router.post("/log_body_composition")
 async def log_body_composition(
     req: LogBodyCompositionRequest,

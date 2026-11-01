@@ -756,9 +756,12 @@ TOOLS: list[dict[str, Any]] = [
     {
         "name": "log_meal_text",
         "description": (
-            "Залогировать приём пищи из текстового описания. ИСПОЛЬЗОВАТЬ ТОЛЬКО "
-            "если юзер ЯВНО просит 'запиши' или 'залогируй'. Не пытайся логировать "
-            "каждое упоминание еды.\n\n"
+            "Залогировать приём пищи из текстового описания. Вызывай, когда юзер просит "
+            "записать («запиши», «да, внеси») или когда сообщение — сам отчёт о еде "
+            "(«на обед гречка с котлетой», «съел 2 яйца»). Еду, упомянутую в разговоре "
+            "(«у меня есть квашеная капуста», «вчера пил шампанское» в обсуждении самочувствия), "
+            "не записывай — ответь по сути и предложи записать. В чате бота инструмент "
+            "показывает карточку «Сохранить/Отмена», запись — после нажатия.\n\n"
             "Если юзер указал ДЕНЬ приёма («вчера», «позавчера», «29 мая», «в "
             "понедельник») — вычисли конкретную дату и передай её в `date` "
             "(YYYY-MM-DD), опираясь на сегодняшнее число. Без указания дня `date` "
@@ -886,6 +889,25 @@ TOOLS: list[dict[str, Any]] = [
                 },
             },
             "required": ["systolic", "diastolic"],
+        },
+    },
+    {
+        "name": "log_weight",
+        "description": (
+            "Записать вес тела, который пользователь назвал сам («82,5», «вешу 80 кг», "
+            "ответ на твой вопрос о весе). Если назван день («вчера») — передай `measured_at`. "
+            "Не вызывай для чужого веса, целевого веса и веса продуктов."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "weight": {"type": "number", "description": "Вес, кг"},
+                "measured_at": {
+                    "type": "string",
+                    "description": "ISO datetime или YYYY-MM-DD; без указания дня — не передавай (=сейчас).",
+                },
+            },
+            "required": ["weight"],
         },
     },
     {
@@ -1241,6 +1263,69 @@ def _generate_jwt(user: User) -> str:
 # ---------------------------------------------------------------------------
 
 
+_SLOT_NAMES = {"breakfast": "Завтрак", "lunch": "Обед", "dinner": "Ужин", "snack": "Перекус"}
+
+
+def _preview_meal_text(user_id: int, args: dict, sink: list) -> str:
+    """`log_meal_text` в чате бота: распарсить еду и отдать черновик карточки.
+
+    Запись появляется только после «Сохранить» — как у еды, присланной напрямую.
+    """
+    from core.food.nutrition import process_llm_food_data
+    from core.llm.router import analyze_message
+
+    text = (args.get("text") or "").strip()
+    try:
+        llm_result = analyze_message(text=text, user_id=user_id)
+    except Exception as e:
+        logger.exception("meal preview: parser failed")
+        return json.dumps({"status": "rejected", "reason": f"парсер упал: {e}"}, ensure_ascii=False)
+    if not llm_result or llm_result.get("type") not in ("food", "multi_food"):
+        return json.dumps(
+            {"status": "rejected", "reason": "это не распозналось как еда — уточни продукт и количество"},
+            ensure_ascii=False,
+        )
+    if llm_result.get("type") == "multi_food":
+        meals = (llm_result.get("data") or {}).get("meals") or []
+        if not meals:
+            return json.dumps({"status": "rejected", "reason": "пустой список"}, ensure_ascii=False)
+        llm_result = {"type": "food", "data": meals[0]}
+    items, totals = process_llm_food_data(llm_result, text, True)
+    if not items or not (totals.get("calories") or 0):
+        return json.dumps(
+            {"status": "rejected", "reason": "не удалось посчитать КБЖУ — нужен продукт и примерный вес"},
+            ensure_ascii=False,
+        )
+    data = llm_result.get("data") or {}
+    meal_name = (
+        _SLOT_NAMES.get(args.get("slot") or "") or data.get("dish_name") or data.get("meal_type") or "Приём пищи"
+    )
+    sink.append(
+        {
+            "text": text,
+            "date": args.get("date"),
+            "slot": args.get("slot"),
+            "as_plan": bool(args.get("as_plan")),
+            "meal_name": meal_name,
+            "items": items,
+            "totals": totals,
+        }
+    )
+    return json.dumps(
+        {
+            "status": "preview_shown",
+            "meal_name": meal_name,
+            "date": args.get("date") or "сегодня",
+            "calories": round(totals.get("calories") or 0),
+            "note": (
+                "Пользователь видит карточку с КБЖУ и кнопками «Сохранить/Отмена»; запись появится "
+                "после нажатия. Не пиши «записал» — коротко скажи, что карточка ниже."
+            ),
+        },
+        ensure_ascii=False,
+    )
+
+
 def _call_tool(name: str, args: dict, token: str) -> str:
     """Synchronous HTTP call to tools API. Returns raw response body as string."""
     headers = {
@@ -1491,6 +1576,8 @@ def _call_tool(name: str, args: dict, token: str) -> str:
             r = requests.post(f"{TOOLS_API_BASE}/adjust_meal_items", json=args, headers=headers, timeout=15)
         elif name == "log_bp":
             r = requests.post(f"{TOOLS_API_BASE}/log_bp", json=args, headers=headers, timeout=10)
+        elif name == "log_weight":
+            r = requests.post(f"{TOOLS_API_BASE}/log_weight", json=args, headers=headers, timeout=10)
         elif name == "log_supplement":
             r = requests.post(f"{TOOLS_API_BASE}/log_supplement", json=args, headers=headers, timeout=10)
         elif name == "edit_supplement_log":
@@ -1798,69 +1885,16 @@ def _recent_tracker_events(db, user_id: int, limit: int = 8, tz=None) -> str:
     )
 
 
-def agent_last_turn_was_question(user_id: int, within_minutes: int = 10) -> bool:
-    """#198: True если ПОСЛЕДНИЙ ход бота — вопрос агента (BotkinClaw), свежий и
-    заканчивается «?».
+DIALOG_WINDOW_MINUTES = 20
 
-    Нужно, чтобы короткий ответ пользователя («54», «120/80») после вопроса
-    агента («сколько весишь?») уходил в агента, а не перехватывался weight/BP-
-    парсером (диалог рвался). Берём АБСОЛЮТНО последний assistant-ход: если это
-    парсер-подтверждение (source bp_fast_handler/llm_text/…) или старый ход
-    (>within_minutes) — False, чтобы не спутать standalone-лог с ответом.
+
+def dialog_active(user_id: int, within_minutes: int = DIALOG_WINDOW_MINUTES) -> bool:
+    """Идёт ли разговор с агентом: последний ответ бота — ход агента не старше окна.
+
+    Пока разговор идёт, реплики («у меня есть квашеная капуста», «54», «позавчера»)
+    уходят агенту, а не парсеру: он видит историю и знает, о чём речь.
     """
-    from sqlalchemy import text as sql_text
-    from datetime import datetime, timezone, timedelta
-
-    def _text_of(content) -> str:
-        data = content
-        if isinstance(data, str):
-            try:
-                data = json.loads(data)
-            except Exception:
-                return data
-        if isinstance(data, list):
-            return " ".join(b.get("text", "") for b in data if isinstance(b, dict) and b.get("type") == "text")
-        return ""
-
-    try:
-        db = SessionLocal()
-    except Exception:
-        return False
-    try:
-        row = db.execute(
-            sql_text(
-                """
-                SELECT content, source, created_at
-                FROM agent_conversations
-                WHERE user_id = :uid AND role = 'assistant'
-                ORDER BY id DESC
-                LIMIT 1
-                """
-            ),
-            {"uid": user_id},
-        ).fetchone()
-        if row is None:
-            return False
-        content, source, created_at = row
-        # Только реальный ход агента, не парсер-инъекция.
-        if source not in (None, "botkinclaw"):
-            return False
-        if created_at is None:
-            return False
-        if created_at.tzinfo is None:
-            created_at = created_at.replace(tzinfo=timezone.utc)
-        if datetime.now(timezone.utc) - created_at > timedelta(minutes=within_minutes):
-            return False
-        # #198: вопрос агента часто кончается эмодзи/пунктуацией после «?»
-        # («Какой вес записать? 😊») — простой endswith("?") давал False, и
-        # короткий ответ юзера перехватывался парсером. Матчим «?», за которым до
-        # конца строки идут только не-словесные символы (эмодзи, пробелы, скобки),
-        # но НЕ буквы/цифры — так «? 😊» и «?» True, а «? Напиши число» False.
-        return bool(re.search(r"\?[\s\W]*$", _text_of(content)))
-    except Exception:
-        return False
-    finally:
-        db.close()
+    return agent_last_turn_is_fresh(user_id, within_minutes=within_minutes)
 
 
 def agent_last_turn_is_fresh(user_id: int, within_minutes: int = 10) -> bool:
@@ -1888,7 +1922,7 @@ def agent_last_turn_is_fresh(user_id: int, within_minutes: int = 10) -> bool:
         if row is None:
             return False
         source, created_at = row
-        if source not in (None, "botkinclaw") or created_at is None:
+        if source not in (None, "botkinclaw", "e2e_test") or created_at is None:
             return False
         if created_at.tzinfo is None:
             created_at = created_at.replace(tzinfo=timezone.utc)
@@ -2578,6 +2612,7 @@ _TOOL_PROGRESS_LABEL = {
     "log_supplement": "✍️ отмечаю добавку",
     "edit_supplement_log": "✏️ правлю запись о добавке",
     "log_bp": "✍️ записываю давление",
+    "log_weight": "✍️ записываю вес",
     "log_workout": "✍️ записываю тренировку",
     "regenerate_health_token": "🔑 пересоздаю токен",
     "update_profile_questionnaire": "📝 обновляю анкету",
@@ -2817,8 +2852,13 @@ def ask_agent(
     user_text: str,
     progress_cb: Optional[Callable[[str], None]] = None,
     is_e2e: bool = False,
+    meal_preview_sink: Optional[list] = None,
 ) -> str:
     """Synchronous — call from `run_in_executor`.
+
+    meal_preview_sink: если передан (чат в боте), `log_meal_text` не пишет в БД,
+    а кладёт сюда черновик — бот покажет ту же карточку «Сохранить/Отмена», что и
+    у быстрого пути. Без sink (MCP, проактивные вызовы) запись идёт сразу.
 
     Returns assistant's text reply. Empty string if nothing produced.
     Errors are raised; caller (handler) catches and replies "технически не вышло".
@@ -3086,7 +3126,10 @@ def ask_agent(
                     tu_id = block["id"]
                     logger.info("agent_chat tool: %s args=%s", name, args)
                     tools_called_this_turn.add(name)
-                    result_text = _call_tool(name, args, token)
+                    if name == "log_meal_text" and meal_preview_sink is not None:
+                        result_text = _preview_meal_text(user_id, args, meal_preview_sink)
+                    else:
+                        result_text = _call_tool(name, args, token)
                     tool_results.append(
                         {
                             "type": "tool_result",

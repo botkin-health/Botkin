@@ -45,7 +45,7 @@ MSK = timezone(timedelta(hours=3))
 
 LLM_ANALYZE = "core.llm.router.analyze_message"
 ASK_AGENT = "core.agent_chat.ask_agent"
-AGENT_LAST_TURN_WAS_QUESTION = "core.agent_chat.agent_last_turn_was_question"
+AGENT_LAST_TURN_WAS_QUESTION = "core.agent_chat.dialog_active"
 GET_USER_TZ = "handlers.text.get_user_tz"
 
 USER_ID = 895655
@@ -138,8 +138,9 @@ async def test_numeric_answer_55_reaches_agent_as_number_not_date():
 
 @pytest.mark.asyncio
 async def test_pozavchera_still_reaches_agent_as_explicit_date():
+    # Реплика в диалоге уходит агенту как есть: дату он считает сам по 📅 в system.
     agent_text = await _run_and_capture_agent_text("позавчера")
-    assert _ago(2) in agent_text
+    assert agent_text.strip() == "позавчера"
 
 
 # ── Регрессия #510 — дата в начале фразы всё ещё должна доходить ────────────
@@ -148,8 +149,7 @@ async def test_pozavchera_still_reaches_agent_as_explicit_date():
 @pytest.mark.asyncio
 async def test_dd_mm_date_with_extra_text_still_reaches_agent_as_explicit_date():
     agent_text = await _run_and_capture_agent_text("15.09 была тренировка")
-    assert "2026-09-15" in agent_text or "-09-15" in agent_text
-    assert "тренировка" in agent_text
+    assert agent_text.strip() == "15.09 была тренировка"
 
 
 # ── Эвристика "вечером" не должна уходить агенту директивой ─────────────────

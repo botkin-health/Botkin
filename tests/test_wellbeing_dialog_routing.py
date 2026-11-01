@@ -15,7 +15,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "telegram-bot"))
 
 from handlers.photo import _looks_like_health_app_screenshot
-from handlers.text import _is_food_mention_in_dialog, extract_date_from_text
+from handlers.text import _looks_like_log_entry, extract_date_from_text
 
 TZ = ZoneInfo("Asia/Dubai")
 
@@ -33,7 +33,7 @@ def _yesterday() -> str:
     ],
 )
 def test_food_mention_in_dialog_goes_to_agent(text):
-    assert _is_food_mention_in_dialog(text)
+    assert not _looks_like_log_entry(text)
 
 
 @pytest.mark.parametrize(
@@ -46,7 +46,7 @@ def test_food_mention_in_dialog_goes_to_agent(text):
     ],
 )
 def test_explicit_log_stays_with_parser(text):
-    assert not _is_food_mention_in_dialog(text)
+    assert _looks_like_log_entry(text)
 
 
 @pytest.mark.parametrize(
