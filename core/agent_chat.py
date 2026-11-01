@@ -2941,6 +2941,11 @@ def ask_agent(
         # лимиту MAX_TOOL_ITERATIONS добавляется максимум один.
         tool_called_this_turn = False
         nudged = False
+        # Пустой финальный ход (только пустой thinking, без текста) — повторяем
+        # один раз. E2E на деве 01.11.2026: на «или лимонады — в них же сахар»
+        # модель вернула один пустой thinking-блок, пользователь получил
+        # «нет внятного ответа».
+        empty_retried = False
         tools_called_this_turn: set[str] = set()
         # Тексты всех tool_result этого хода — по ним проверяем, подкреплено ли
         # заявление «данных нет» (см. tool_results_report_emptiness).
@@ -3114,6 +3119,11 @@ def ask_agent(
             # stop_reason in ("end_turn", "max_tokens", "stop_sequence") — final.
             text_parts = [b["text"] for b in blocks if b.get("type") == "text"]
             reply_text = "\n".join(text_parts).strip()
+
+            if not reply_text and not empty_retried:
+                empty_retried = True
+                logger.warning("agent_chat: пустой финальный ход — повтор (user=%s)", user_id)
+                continue
 
             # 🚦 #477: «данных нет», а инструмент ни разу не вызван — утверждение
             # ничем не подтверждено. Толкаем модель в тул ОДИН раз и НЕ сохраняем
