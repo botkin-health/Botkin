@@ -40,6 +40,7 @@ def _make_message(user_id: int = 895655, caption: str | None = None):
     msg.from_user = MagicMock()
     msg.from_user.id = user_id
     msg.caption = caption
+    msg.text = None  # у фото-сообщения в Telegram text всегда None
     msg.photo = [MagicMock(file_id="fake_file_id")]
     msg.media_group_id = None
     msg.answer = AsyncMock(return_value=processing_msg)
@@ -1326,3 +1327,65 @@ async def test_food_type_without_items_still_runs_legacy_menu_parser(tmp_path):
         await process_photos_list(msg, [photo])
 
     menu_parser.assert_called_once()
+
+
+# ── Аудит обвязки, задача 6: скрины здоровья — агенту картинкой, роутер один раз ──
+
+
+@pytest.mark.asyncio
+async def test_health_screen_without_caption_goes_to_agent_with_image(tmp_path):
+    """Скрин Garmin без подписи: не «не распознал еду», а разбор агентом с картинкой."""
+    from handlers.photo import process_photos_list
+    from services.state import state_manager
+
+    state_manager.clear_state("895655")
+    msg, processing_msg = _make_message(caption=None)
+    photo = _fake_photo(tmp_path)
+    agent = MagicMock(return_value="Пульс покоя выше нормы на 8 ударов.")
+
+    with (
+        patch(OCR_WEIGHT, return_value=None),
+        patch(
+            LLM_ANALYZE, return_value={"type": "other", "data": {"reply": "Скриншот Garmin: HRV 36, пульс покоя 66"}}
+        ),
+        patch("core.agent_chat.ask_agent", agent),
+        patch("handlers.doc_upload.archive_photo_as_document") as archive,
+    ):
+        await process_photos_list(msg, [photo])
+
+    assert agent.called
+    assert [str(p) for p in agent.call_args.kwargs["images"]] == [str(photo)]
+    archive.assert_not_called()
+    texts = " ".join(str(c.args[0]) for c in processing_msg.edit_text.call_args_list if c.args)
+    assert "не распознал еду" not in texts
+
+
+@pytest.mark.asyncio
+async def test_caption_non_food_photo_calls_router_once(tmp_path):
+    """Подпись + не-еда: роутер уже видел эти фото с подписью — второго вызова нет."""
+    from handlers.photo import process_photos_list
+    from services.state import state_manager
+
+    state_manager.clear_state("895655")
+    msg, _ = _make_message(caption="что это со мной? отклонения в гармин")
+    photo = _fake_photo(tmp_path)
+    router = MagicMock(return_value={"type": "other", "data": {"reply": "Скриншот Garmin"}})
+
+    with (
+        patch(OCR_WEIGHT, return_value=None),
+        patch(LLM_ANALYZE, router),
+        patch("core.agent_chat.ask_agent", MagicMock(return_value="ок")),
+    ):
+        await process_photos_list(msg, [photo])
+
+    assert router.call_count == 1
+
+
+def test_user_content_with_images_builds_blocks(tmp_path):
+    from core.agent_chat import _user_content_with_images
+
+    photo = _fake_photo(tmp_path)
+    content = _user_content_with_images("что со мной?", [photo])
+    assert content[0]["type"] == "image" and content[0]["source"]["media_type"] == "image/jpeg"
+    assert content[-1] == {"type": "text", "text": "что со мной?"}
+    assert _user_content_with_images("текст", None) == "текст"
