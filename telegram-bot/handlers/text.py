@@ -124,22 +124,6 @@ _ADDENDUM_RE = re.compile(
 )
 
 
-# Реплика-продолжение/правка к только что полученному ответу агента:
-# «да, и утренний приём неточно», «ты не указал X», «ты забыл», «поправь»…
-# Узкий список: используется ТОЛЬКО когда роутер вернул vitamins и последний
-# ход агента свежий (<=10 мин). К еде/весу/АД не применяется.
-_AGENT_FOLLOWUP_RE = re.compile(
-    r"^\s*(?:да[,.!\s]+и\b|а\s+(?:ещё|еще)\b)"
-    r"|\b(?:неточно|неверно|ты\s+(?:не\s+указал[а]?|не\s+учёл|не\s+учел|забыл[а]?|пропустил[а]?|ошибся|перепутал[а]?)"
-    r"|поправь|исправь|не\s+так)\b",
-    re.IGNORECASE,
-)
-
-
-def _is_agent_followup_text(text: str) -> bool:
-    return bool(text and _AGENT_FOLLOWUP_RE.search(text))
-
-
 # Явное намерение записать еду: «запиши», «внеси», «залогируй», «добавь в дневник».
 _EXPLICIT_LOG_RE = re.compile(
     r"\b(?:запиш\w*|внес\w*|внёс\w*|занес\w*|залогир\w*|логир\w*|отметь|добавь\s+в\s+(?:дневник|журнал))",
@@ -147,23 +131,63 @@ _EXPLICIT_LOG_RE = re.compile(
 )
 
 
-def _is_food_mention_in_dialog(text: str) -> bool:
-    """Еда/напиток упомянуты как часть разговора, а не как запись в дневник.
+def _looks_like_log_entry(text: str) -> bool:
+    """В разговоре с агентом — похоже ли сообщение на явную запись в дневник.
 
-    Прецедент E2E 01.11.2026: в разговоре о самочувствии после поездки
-    «вчера выпил пару бокалов шампанского» и «у меня есть квашеная капуста»
-    ушли в парсер еды — человек получил карточку «Сохранить/Отмена» вместо
-    ответа. Применяется только при свежем ходе агента. Запись остаётся за
-    парсером, если есть явная команда, количество (200 г, 2 шт) или слот
-    в начале («Обед: …»).
+    Явная команда («запиши», «внеси»), количество (200 г, 2 шт, 120/80) или слот
+    в начале («Обед: …») — парсер и карточка, как вне диалога. Остальное
+    («вчера выпил пару бокалов шампанского», «у меня есть квашеная капуста»,
+    «54» на вопрос о весе) — реплика агенту. Прецедент E2E 01.11.2026.
     """
     if not text:
         return False
-    if _EXPLICIT_LOG_RE.search(text) or _NUMERIC_DOSE_RE.search(text):
-        return False
-    if detect_slot_prefix(text):
-        return False
-    return True
+    return bool(_EXPLICIT_LOG_RE.search(text) or _NUMERIC_DOSE_RE.search(text) or detect_slot_prefix(text))
+
+
+async def show_agent_meal_preview(message: Message, user_id: str, preview: dict, user_tz) -> None:
+    """Карточка «Сохранить/Отмена» для еды, которую агент предложил записать.
+
+    Тот же state и рендер, что у еды, присланной напрямую: запись — по кнопке.
+    """
+    from handlers.meal_preview import meal_confirm_keyboard, render_meal_preview
+    from services.state import UserState
+
+    slot_times = {"breakfast": "08:00", "lunch": "13:00", "dinner": "19:00", "snack": "16:00"}
+    is_plan = bool(preview.get("as_plan"))
+    meal_time = (
+        slot_times.get(preview.get("slot") or "")
+        or _temporal_phrase_to_time(preview.get("text") or "")
+        or datetime.now(user_tz).strftime("%H:%M")
+    )
+    new_state = UserState(
+        user_id=user_id,
+        state="waiting_confirmation",
+        data=build_meal_state_data(
+            source="text",
+            description=preview.get("text") or "",
+            meal_items=preview["items"],
+            meal_totals=preview["totals"],
+            meal_time=meal_time,
+            meal_name=preview["meal_name"],
+            date=preview.get("date"),
+            is_plan=is_plan or None,
+        ),
+    )
+    state_manager.set_state(user_id, new_state)
+    response = render_meal_preview(
+        preview["meal_name"],
+        preview["items"],
+        preview["totals"],
+        is_plan=is_plan,
+        custom_date=preview.get("date"),
+        date_style="weekday",
+        with_macros=True,
+    )
+    sent = await message.answer(response, parse_mode="HTML", reply_markup=meal_confirm_keyboard(is_plan=is_plan))
+    preview_message_id = getattr(sent, "message_id", None)
+    if preview_message_id is not None:
+        new_state.data = {**new_state.data, "preview_message_id": preview_message_id}
+        state_manager.set_state(user_id, new_state)
 
 
 def _inject_bp_to_agent_conv(
@@ -706,7 +730,7 @@ async def _replace_preview(message: Message, user_id: str, new_data: dict, text_
     state_manager.set_state(user_id, UserState(user_id=user_id, state="waiting_confirmation", data=refreshed_data))
 
 
-async def _try_refine_pending_preview(message: Message, user_id: str, user_state) -> bool:
+async def _try_refine_pending_preview(message: Message, user_id: str, user_state, text: str | None = None) -> bool:
     """Применить текстовую правку («без X», «половину», «N г») к висящему превью.
 
     Возвращает True, если сообщение было распознано как правка и обработано
@@ -717,7 +741,7 @@ async def _try_refine_pending_preview(message: Message, user_id: str, user_state
     from handlers.meal_preview import meal_confirm_keyboard, render_meal_preview
     from services.state import UserState
 
-    mods = parse_modifiers(message.text or "")
+    mods = parse_modifiers(text if text is not None else (message.text or ""))
     if not mods.is_modifier:
         return False
 
@@ -762,15 +786,20 @@ async def _try_refine_pending_preview(message: Message, user_id: str, user_state
 # (мастер /profile в handlers/setup.py). Без этого catch-all съедал ввод шагов
 # мастера, и профиль нельзя было заполнить вводом — только «пропустить». См. #44.
 @router.message(F.text & ~F.text.startswith("/"), StateFilter(None))
-async def handle_text_message(message: Message, user_id: int, state: FSMContext):
-    """Обработчик текстовых сообщений (БЕЗ фото)"""
+async def handle_text_message(message: Message, user_id: int, state: FSMContext, text_override: str | None = None):
+    """Единый вход для текста: сообщение, расшифровка голоса (text_override).
+
+    Голос раньше шёл своим путём без regex АД, режима диалога и дат — одна и та
+    же фраза голосом и текстом давала разный результат.
+    """
     import logging
 
     logger = logging.getLogger(__name__)
+    raw_text = text_override if text_override is not None else (message.text or "")
 
     # Не обрабатываем команды (они обрабатываются в handlers/commands.py)
-    if message.text and message.text.startswith("/"):
-        logger.debug(f"Пропущена команда: {message.text}")
+    if raw_text.startswith("/"):
+        logger.debug(f"Пропущена команда: {raw_text}")
         return
 
     # Дополнительная проверка на случай, если фильтр не сработал
@@ -782,7 +811,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
     user_state = state_manager.get_state(user_id)
 
     # Логируем ВСЕ текстовые сообщения для отладки
-    text_preview = message.text[:100] if message.text else "None"
+    text_preview = raw_text[:100] or "None"
     logger.info(f"📝 Обработчик текста: получено сообщение от {user_id}: '{text_preview}...'")
 
     if user_state:
@@ -800,7 +829,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
         # Прецедент: Александр прислал 2 скриншота Garmin → бот не распознал
         # → state=waiting_description → текст «Сейчас утро вторника. Ты видишь
         # сон?» снова попал в food-handler → опять «не еда». Цикл 3+ раз.
-        text_stripped = (message.text or "").strip()
+        text_stripped = raw_text.strip()
         if _is_clearly_conversational(text_stripped):
             logger.info(
                 f"⚡ User {user_id} in waiting_description sent conversational text "
@@ -813,14 +842,14 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             # Это похоже на описание еды — обрабатываем как раньше
             from handlers.photo import handle_description
 
-            await handle_description(message, message.text, state=state)
+            await handle_description(message, raw_text, state=state)
             return
 
     # #427: текстовая правка уже показанного превью («без кускуса», «половину»,
     # «180 г») ДО подтверждения. multi_meals исключён — там meal_items/meal_totals
     # не на верхнем уровне state.data, эта ветка их не найдёт.
     if user_state and user_state.state == "waiting_confirmation" and not user_state.data.get("multi_meals"):
-        handled = await _try_refine_pending_preview(message, user_id, user_state)
+        handled = await _try_refine_pending_preview(message, user_id, user_state, raw_text)
         if handled:
             return
 
@@ -840,7 +869,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
         fh.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
         debug_logger.addHandler(fh)
 
-    text = message.text.strip()
+    text = raw_text.strip()
 
     # ── E2E test mode (task #62) ────────────────────────────────────────────
     # Маркер 🧪 в начале — Claude через MCP помечает свои тестовые сообщения
@@ -899,9 +928,15 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
     # неоднозначной одиночной цифро-точечной строки безопаснее пропустить
     # извлечение даты вообще и отдать агенту исходный текст: он видит историю
     # диалога и знает, какой вопрос задавал.
+    # Режим диалога: пока идёт разговор с агентом, реплики уходят ему целиком —
+    # без вырезания дат и без парсера (кроме явной записи, см. ниже).
+    from core.agent_chat import dialog_active
+
+    in_dialog = dialog_active(int(user_id))
+
     custom_date = None
     agent_date_hint = None
-    if not _is_clearly_conversational(text) and not _looks_like_short_value(text):
+    if not in_dialog and not _is_clearly_conversational(text) and not _looks_like_short_value(text):
         custom_date, clean_text = extract_date_from_text(text, user_tz=user_tz)
         if custom_date:
             # #518: эвристика «вечером/перед сном» (case 4 внутри
@@ -928,25 +963,13 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
     # агента «какой именно день?» (#507), либо голое упоминание даты без
     # контекста — в обоих случаях это НЕ еда, и агент справится лучше парсера
     # (переспросит по-человечески, если пендинг-вопроса не было). Всегда в
-    # BotkinClaw, независимо от agent_last_turn_was_question — в отличие от
+    # BotkinClaw, независимо от того, спрашивал ли агент — в отличие от
     # #198 ниже, которое ловит короткие ЧИСЛОВЫЕ ответы и без вопроса агента
     # рискует утащить в агента случайное короткое число.
     if _is_lone_date_answer(custom_date, text):
         debug_logger.info(f"🔀 #514 reroute: одинокая дата (custom_date={custom_date!r}) → BotkinClaw")
         router_result = {"type": "other", "data": {}}
         text = ""  # никаких огрызков пунктуации агенту — только директива о дате ниже
-
-    # ── #198: короткий ответ после вопроса агента → агенту, не парсеру ───────
-    # «сколько весишь?» → «54» перехватывался бы weight/BP-парсером, и агент не
-    # получал ответ — диалог рвался. Если предыдущий ход агента был свежим (<10
-    # мин) вопросом («?»), маршрутизируем короткое значение в BotkinClaw, минуя
-    # парсеры. Проверка истории — только для коротких значений (дёшево, редко).
-    if not router_result and _looks_like_short_value(text):
-        from core.agent_chat import agent_last_turn_was_question
-
-        if agent_last_turn_was_question(int(user_id)):
-            debug_logger.info(f"🔀 #198 reroute: короткий ответ {text[:20]!r} после вопроса агента → BotkinClaw")
-            router_result = {"type": "other", "data": {}}
 
     # ── BP regex pre-check ──────────────────────────────────────────────────
     # Детерминированный паттерн «XXX/YY пульс ZZ» — мимо LLM-роутера.
@@ -1023,7 +1046,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
         bp_match = None
     else:
         bp_match = _BP_RE.search(text)
-    # router_result уже задан (#198 reroute) → не перехватываем АД, отдаём агенту.
+    # router_result уже задан (#514) → не перехватываем АД, отдаём агенту.
     if bp_match and router_result is None:
         sys_v = int(bp_match.group(1))
         dia_v = int(bp_match.group(2))
@@ -1089,6 +1112,12 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                     f"Попробуй ещё раз через минуту."
                 )
                 return
+
+    # В диалоге всё, что не похоже на явную запись, — реплика агенту. Явная запись
+    # («запиши…», «Обед: …», «200 г») идёт парсером к карточке, как вне диалога.
+    if in_dialog and not router_result and not _looks_like_log_entry(text):
+        debug_logger.info("💬 dialog mode → BotkinClaw")
+        router_result = {"type": "other", "data": {}}
 
     # Проверки добавок по подстроке без LLM («омега», «магний» в ≤6 словах) больше
     # нет: «забыл выпить омегу», «магний в анализе низкий» записывались как приём.
@@ -1163,27 +1192,6 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             if data.get("action") == "metadata":
                 debug_logger.info("🔀 vitamins/metadata → BotkinClaw (шаблон «не приём» отключён)")
                 msg_type = "other"
-            elif _is_agent_followup_text(text):
-                try:
-                    from core.agent_chat import agent_last_turn_is_fresh
-
-                    if agent_last_turn_is_fresh(int(user_id)):
-                        debug_logger.info("🔀 vitamins + правка после свежего хода агента → BotkinClaw")
-                        msg_type = "other"
-                except Exception as _e:
-                    debug_logger.warning(f"agent followup guard failed: {_e}")
-
-        # Еда, упомянутая посреди разговора с агентом, — реплика диалога, а не
-        # запись. Агент ответит по существу и сам предложит записать.
-        if msg_type in ("food", "multi_food") and _is_food_mention_in_dialog(text):
-            try:
-                from core.agent_chat import agent_last_turn_is_fresh
-
-                if agent_last_turn_is_fresh(int(user_id), within_minutes=20):
-                    debug_logger.info("🔀 food-упоминание в свежем диалоге с агентом → BotkinClaw")
-                    msg_type = "other"
-            except Exception as _e:
-                debug_logger.warning(f"food-in-dialog guard failed: {_e}")
 
         # Логируем raw text для не-BotkinClaw веток (food / vitamins / bp / weight / ...).
         # BotkinClaw-ветка ('other') сама пишет user-turn внутри ask_agent.
@@ -1245,9 +1253,12 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                 # дату — восстанавливаем её агенту служебной директивой, иначе
                 # событие ложится на сегодня.
                 agent_text = _agent_text_with_date_hint(text, agent_date_hint)
+                meal_previews: list = []
                 reply = await loop.run_in_executor(
                     None,
-                    lambda: ask_agent(int(user_id), agent_text, _progress, is_e2e=is_e2e),
+                    lambda: ask_agent(
+                        int(user_id), agent_text, _progress, is_e2e=is_e2e, meal_preview_sink=meal_previews
+                    ),
                 )
                 if not reply:
                     reply = "Хм, у меня нет внятного ответа. Попробуй переформулировать."
@@ -1283,6 +1294,8 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
 
                 for i, chunk in enumerate(chunks):
                     await _send_chunk(chunk, edit_target=progress_msg if i == 0 else None)
+                if meal_previews:
+                    await show_agent_meal_preview(message, user_id, meal_previews[-1], user_tz)
             except RuntimeError as e:
                 # Промпт-гейта больше нет — у каждого юзера есть дефолтный
                 # системный промпт (#165). ask_agent кидает RuntimeError только
@@ -1537,7 +1550,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             saved = save_weight_to_db(
                 {
                     "weight": w_val,
-                    "date": measured_at.strftime("%Y-%m-%d %H:%M"),
+                    "date": measured_at.isoformat(),
                     "source": "e2e_test" if is_e2e else "llm_text",
                 },
                 user_id=int(user_id),

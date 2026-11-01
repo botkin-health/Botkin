@@ -22,7 +22,7 @@ import pytest
 
 LLM_ANALYZE = "core.llm.router.analyze_message"
 ASK_AGENT = "core.agent_chat.ask_agent"
-AGENT_LAST_TURN_WAS_QUESTION = "core.agent_chat.agent_last_turn_was_question"
+AGENT_LAST_TURN_WAS_QUESTION = "core.agent_chat.dialog_active"
 SAVE_WEIGHT = "helpers.db_save.save_weight_to_db"
 
 USER_ID = 895655

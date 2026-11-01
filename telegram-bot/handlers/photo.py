@@ -1420,7 +1420,7 @@ async def handle_description(
             # Раньше ветка отвечала «✅ Записано», ничего не сохраняя: голосовое
             # «вес 82,5» терялось.
             saved = save_weight_to_db(
-                {"weight": w_val, "date": measured_at.strftime("%Y-%m-%d %H:%M"), "source": "llm_text"},
+                {"weight": w_val, "date": measured_at.isoformat(), "source": "llm_text"},
                 user_id=telegram_user_id,
             )
             date_part = f" за {measured_at.strftime('%d.%m')}" if custom_date else ""
