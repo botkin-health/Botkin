@@ -9,6 +9,7 @@ import base64
 import sys
 import requests
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import List, Optional, Dict, Union
 
@@ -220,10 +221,26 @@ def analyze_message_claude(
     return None
 
 
+_WEEKDAYS_RU = ("пн", "вт", "ср", "чт", "пт", "сб", "вс")
+
+
+def with_now_line(text: Optional[str], now_local: Optional[datetime]) -> Optional[str]:
+    """Префикс «[NOW: …]» — текущие дата и время пользователя для поля date/time.
+
+    Без него роутер не мог решить, что «вечером выпила кефир» в 07:43 — это вчера,
+    и это делали регэкспы в text.py.
+    """
+    if not text or now_local is None:
+        return text
+    stamp = f"{now_local.strftime('%Y-%m-%d')} {_WEEKDAYS_RU[now_local.weekday()]} {now_local.strftime('%H:%M')}"
+    return f"[NOW: {stamp} local]\n{text}"
+
+
 def analyze_message(
     text: str = None,
     image_paths: List[Union[str, Path]] = None,
     user_id: Optional[int] = None,
+    now_local: Optional[datetime] = None,
 ) -> Optional[Dict]:
     """
     Analyzes message content using Claude (primary) → GPT-4o → Gemini.
@@ -231,7 +248,9 @@ def analyze_message(
 
     user_id (optional) is threaded down so per-call costs in llm_usage_log
     are attributed to the right user instead of NULL.
+    now_local — текущее время пользователя: роутер вернёт data.date/data.time события.
     """
+    text = with_now_line(text, now_local)
     # 1. Try Claude first
     result = analyze_message_claude(text, image_paths, user_id=user_id)
     if result is not None:

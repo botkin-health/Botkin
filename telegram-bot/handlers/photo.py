@@ -619,8 +619,11 @@ async def process_photos_list(
             )
             state_manager.set_state(user_id, user_state)
 
-        # Caption уже в state, передаем None чтобы функция взяла caption из состояния
-        await handle_description(message, None, processing_message=processing_msg, state=state)
+        # Caption уже в state, передаем None чтобы функция взяла caption из состояния.
+        # Роутер уже видел эти фото с этой подписью — второй вызов не нужен.
+        await handle_description(
+            message, None, processing_message=processing_msg, state=state, prior_router_result=router_result
+        )
     else:
         # Issue #439/#441: фото анализа/заключения БЕЗ подписи — маршрутизация
         # в doc-пайплайн через единую `is_medical_document` (полное правило и
@@ -661,6 +664,29 @@ async def process_photos_list(
                     auto=True,
                 )
                 routed_to_doc_pipeline = True
+
+        _reply = ((router_result or {}).get("data") or {}).get("reply") or ""
+        _rtype = (router_result or {}).get("type")
+        if (
+            not routed_to_doc_pipeline
+            and _rtype in ("other", "medical")
+            and _looks_like_health_app_screenshot("", _reply)
+        ):
+            # Скрин Garmin/Apple Health без подписи — это вопрос «что со мной?»,
+            # а не «не распознал еду»: агент разбирает картинку (аудит, задача 6).
+            state_manager.set_state(
+                user_id,
+                create_photo_state(
+                    user_id=user_id,
+                    photo_paths=photo_paths,
+                    photo_file_ids=[message.photo[-1].file_id if message.photo else ""],
+                    caption="",
+                ),
+            )
+            await handle_description(
+                message, None, processing_message=processing_msg, state=state, prior_router_result=router_result
+            )
+            return
 
         if not routed_to_doc_pipeline:
             # 🐛 FIX 26.05.2026: фото которое LLM-роутер НЕ распознал как еду
@@ -1262,15 +1288,33 @@ def merge_caption_and_description(caption: str, description: str) -> str:
     return f"{cap}\n{desc}".strip()
 
 
+def _log_meal_tracker(user_id: int, data: dict, meal_name: str, kcal, is_plan: bool = False) -> None:
+    """Сохранённая по кнопке еда → пара ходов в историю агента (задача 5 аудита).
+
+    Без этого агент через две минуты говорил «шампанское ты упоминал пару дней назад».
+    """
+    from core.agent_chat import log_tracker_event
+
+    when_date = data.get("date") or now_in_user_tz(user_id).strftime("%Y-%m-%d")
+    when = f"{when_date[8:10]}.{when_date[5:7]} {data.get('meal_time') or ''}".strip()
+    what = "план" if is_plan else "приём пищи"
+    user_text = data.get("description") or "[фото еды]"
+    log_tracker_event(user_id, user_text, f"✅ записал {what}: {meal_name}, {float(kcal or 0):.0f} ккал — {when}")
+
+
 async def handle_description(
     message: Message,
     description: str = None,
     processing_message: Message = None,
     custom_date: str = None,
     state: FSMContext = None,
+    prior_router_result: dict = None,
 ):
     """
     Обработка описания блюда после получения фото.
+
+    prior_router_result — ответ роутера, уже полученный на эти же фото с этой же
+    подписью (process_photos_list); тогда повторно роутер не зовём.
 
     Args:
         message: Исходное сообщение
@@ -1292,6 +1336,10 @@ async def handle_description(
     if not user_state or user_state.state != "waiting_description":
         return
 
+    # Новый текст пришёл от вызывающего (ответ после фото) — тогда ответ роутера
+    # на одни фото с подписью уже не подходит.
+    has_new_text = description is not None
+
     # Если description не передан, берем из сообщения или из состояния (для фото с caption)
     if description is None:
         if message.text:
@@ -1301,7 +1349,7 @@ async def handle_description(
         else:
             description = ""
 
-    if not description:
+    if not description and prior_router_result is None:
         await message.answer("Пожалуйста, отправь описание блюда")
         return
 
@@ -1321,7 +1369,9 @@ async def handle_description(
     if not custom_date:
         from handlers.text import extract_date_from_text
 
-        extracted_date, clean_description = extract_date_from_text(full_description)
+        extracted_date, clean_description = extract_date_from_text(
+            full_description, user_tz=now_in_user_tz(user_id).tzinfo
+        )
         if extracted_date:
             custom_date = extracted_date
             full_description = clean_description
@@ -1364,12 +1414,25 @@ async def handle_description(
         else:
             processing_message = await message.answer("🤖 Думаю... 🧠")
 
-        try:
-            uid_int = int(message.from_user.id) if message and message.from_user else None
-            router_result = analyze_message(text=full_description, image_paths=paths_to_analyze, user_id=uid_int)
-        except Exception as e:
-            logger.error(f"LLM Router Error: {e}")
-            router_result = None
+        if prior_router_result is not None and not has_new_text:
+            router_result = prior_router_result
+        else:
+            try:
+                uid_int = int(message.from_user.id) if message and message.from_user else None
+                router_result = analyze_message(text=full_description, image_paths=paths_to_analyze, user_id=uid_int)
+            except Exception as e:
+                logger.error(f"LLM Router Error: {e}")
+                router_result = None
+
+    # Упоминание добавки без приёма («кончился магний») и нереалистичный вес — не
+    # запись: такие сообщения идут ниже по пути «не еда» к агенту.
+    if router_result and router_result.get("type") in ("vitamins", "weight"):
+        _rd = router_result.get("data") or {}
+        _w = _rd.get("weight")
+        if (router_result["type"] == "vitamins" and (_rd.get("action") == "metadata" or not _rd.get("items"))) or (
+            router_result["type"] == "weight" and (not isinstance(_w, (int, float)) or not (20 <= _w <= 400))
+        ):
+            router_result = {**router_result, "type": "other"}
 
     if not router_result or router_result.get("type") != "food":
         # Fallback или ошибка
@@ -1381,13 +1444,10 @@ async def handle_description(
             # Обработка витаминов
             data = router_result.get("data", {})
             items = data.get("items", [])
-            action = data.get("action")
-
-            # Сохраняем реально
             from core.health.supplements import save_supplements
 
             telegram_user_id = int(message.from_user.id)
-            saved = save_supplements(items, user_id=telegram_user_id)
+            saved = save_supplements(items, user_id=telegram_user_id, date_str=custom_date)
 
             # Формируем красивый список
             items_list = "\n".join([f"• {html.escape(i['name'] if isinstance(i, dict) else str(i))}" for i in items])
@@ -1404,8 +1464,19 @@ async def handle_description(
             # Обработка веса
             data = router_result.get("data", {})
             w_val = data.get("weight")
-            await processing_message.edit_text(f"⚖️ <b>Вес:</b> {w_val} кг\n✅ Записано", parse_mode="HTML")
-            # Тут надо бы сохранить, но пока просто ответим, т.к. этот флоу редок при вводе описания
+            from helpers.db_save import save_weight_to_db, user_measured_at
+
+            telegram_user_id = int(message.from_user.id)
+            measured_at = user_measured_at(telegram_user_id, custom_date)
+            # Раньше ветка отвечала «✅ Записано», ничего не сохраняя: голосовое
+            # «вес 82,5» терялось.
+            saved = save_weight_to_db(
+                {"weight": w_val, "date": measured_at.isoformat(), "source": "llm_text"},
+                user_id=telegram_user_id,
+            )
+            date_part = f" за {measured_at.strftime('%d.%m')}" if custom_date else ""
+            status = "✅ Записано" if saved else "⚠️ Ошибка записи"
+            await processing_message.edit_text(f"⚖️ <b>Вес:</b> {w_val} кг{date_part}\n{status}", parse_mode="HTML")
             state_manager.clear_state(user_id)
             return
 
@@ -1599,7 +1670,12 @@ async def handle_description(
 
                     await processing_message.edit_text("🤔 думаю...")
                     loop = asyncio.get_running_loop()
-                    reply = await loop.run_in_executor(None, ask_agent, int(user_id), user_text_for_agent)
+                    # Скрин приложения здоровья агент получает картинкой: пересказ
+                    # роутера теряет цифры и подписи графиков (аудит обвязки, задача 6).
+                    agent_images = list(photo_paths) if is_health_app_screen and photo_paths else None
+                    reply = await loop.run_in_executor(
+                        None, lambda: ask_agent(int(user_id), user_text_for_agent, images=agent_images)
+                    )
 
                     if reply:
                         chunks = split_markdown_for_telegram(reply)
@@ -2098,6 +2174,9 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
                         "multi_food: save_meal_to_db failed for %r (user %s)", m["meal_name"], telegram_user_id
                     )
 
+            if saved_count:
+                names = ", ".join(m["meal_name"] for m in multi_meals if m["meal_name"] not in failed)
+                _log_meal_tracker(telegram_user_id, user_state.data, names, total_kcal)
             confirm = f"✅ <b>Сохранено приёмов: {saved_count}</b> · {total_kcal} ккал"
             if failed:
                 confirm += "\n⚠️ Не удалось сохранить: " + ", ".join(failed) + " — отправь их отдельно."
@@ -2179,6 +2258,7 @@ async def handle_meal_confirmation(callback: CallbackQuery, callback_data: MealC
                     "напиши мне, например «минус 2 яйца» или «съела всё».</i>"
                 )
             await safe_edit_text(callback.message, confirm_text, parse_mode="HTML")
+            _log_meal_tracker(telegram_user_id, user_state.data, meal_name, meal_kcal, is_plan=is_plan)
 
             await _maybe_record_first_food(telegram_user_id, callback.message)
 

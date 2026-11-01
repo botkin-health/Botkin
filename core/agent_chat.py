@@ -25,7 +25,6 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from sqlalchemy import text
 from typing import Any, Callable, Optional
 
 import jwt as pyjwt
@@ -61,6 +60,8 @@ MAX_TOKENS = 4000  # 2000 обрезал развёрнутые многофак
 # на полный разбор с таблицей; короткие ответы лимит не трогает (бот сам краток).
 MAX_TOOL_ITERATIONS = 6  # safety net against tool loops
 HISTORY_WINDOW = 20  # last N messages from agent_conversations
+STALE_HISTORY_GUARD = os.getenv("AGENT_STALE_HISTORY_GUARD") == "1"  # P-003, см. цикл инструментов
+TRACKER_HISTORY_ROWS = 12  # до 6 пар быстрых записей поверх окна диалога
 
 # Универсальные правила агента поверх per-user промпта. Сжаты 28.09.2026:
 # 14.5K → 6.1K токенов на каждом вызове, правила и якоря тестов сохранены.
@@ -756,9 +757,12 @@ TOOLS: list[dict[str, Any]] = [
     {
         "name": "log_meal_text",
         "description": (
-            "Залогировать приём пищи из текстового описания. ИСПОЛЬЗОВАТЬ ТОЛЬКО "
-            "если юзер ЯВНО просит 'запиши' или 'залогируй'. Не пытайся логировать "
-            "каждое упоминание еды.\n\n"
+            "Залогировать приём пищи из текстового описания. Вызывай, когда юзер просит "
+            "записать («запиши», «да, внеси») или когда сообщение — сам отчёт о еде "
+            "(«на обед гречка с котлетой», «съел 2 яйца»). Еду, упомянутую в разговоре "
+            "(«у меня есть квашеная капуста», «вчера пил шампанское» в обсуждении самочувствия), "
+            "не записывай — ответь по сути и предложи записать. В чате бота инструмент "
+            "показывает карточку «Сохранить/Отмена», запись — после нажатия.\n\n"
             "Если юзер указал ДЕНЬ приёма («вчера», «позавчера», «29 мая», «в "
             "понедельник») — вычисли конкретную дату и передай её в `date` "
             "(YYYY-MM-DD), опираясь на сегодняшнее число. Без указания дня `date` "
@@ -886,6 +890,25 @@ TOOLS: list[dict[str, Any]] = [
                 },
             },
             "required": ["systolic", "diastolic"],
+        },
+    },
+    {
+        "name": "log_weight",
+        "description": (
+            "Записать вес тела, который пользователь назвал сам («82,5», «вешу 80 кг», "
+            "ответ на твой вопрос о весе). Если назван день («вчера») — передай `measured_at`. "
+            "Не вызывай для чужого веса, целевого веса и веса продуктов."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "weight": {"type": "number", "description": "Вес, кг"},
+                "measured_at": {
+                    "type": "string",
+                    "description": "ISO datetime или YYYY-MM-DD; без указания дня — не передавай (=сейчас).",
+                },
+            },
+            "required": ["weight"],
         },
     },
     {
@@ -1241,6 +1264,91 @@ def _generate_jwt(user: User) -> str:
 # ---------------------------------------------------------------------------
 
 
+def _user_content_with_images(user_text: str, images: Optional[list]):
+    """Текст хода + до трёх картинок (image-блоки Messages API)."""
+    if not images:
+        return user_text
+    import base64
+
+    blocks: list[dict] = []
+    for p in list(images)[:3]:
+        try:
+            raw = Path(p).read_bytes()
+        except OSError:
+            logger.warning("agent image unreadable: %s", p)
+            continue
+        media = "image/png" if raw[:8] == b"\x89PNG\r\n\x1a\n" else "image/jpeg"
+        blocks.append(
+            {"type": "image", "source": {"type": "base64", "media_type": media, "data": base64.b64encode(raw).decode()}}
+        )
+    if not blocks:
+        return user_text
+    return blocks + [{"type": "text", "text": user_text}]
+
+
+_SLOT_NAMES = {"breakfast": "Завтрак", "lunch": "Обед", "dinner": "Ужин", "snack": "Перекус"}
+
+
+def _preview_meal_text(user_id: int, args: dict, sink: list) -> str:
+    """`log_meal_text` в чате бота: распарсить еду и отдать черновик карточки.
+
+    Запись появляется только после «Сохранить» — как у еды, присланной напрямую.
+    """
+    from core.food.nutrition import process_llm_food_data
+    from core.llm.router import analyze_message
+
+    text = (args.get("text") or "").strip()
+    try:
+        llm_result = analyze_message(text=text, user_id=user_id)
+    except Exception as e:
+        logger.exception("meal preview: parser failed")
+        return json.dumps({"status": "rejected", "reason": f"парсер упал: {e}"}, ensure_ascii=False)
+    if not llm_result or llm_result.get("type") not in ("food", "multi_food"):
+        return json.dumps(
+            {"status": "rejected", "reason": "это не распозналось как еда — уточни продукт и количество"},
+            ensure_ascii=False,
+        )
+    if llm_result.get("type") == "multi_food":
+        meals = (llm_result.get("data") or {}).get("meals") or []
+        if not meals:
+            return json.dumps({"status": "rejected", "reason": "пустой список"}, ensure_ascii=False)
+        llm_result = {"type": "food", "data": meals[0]}
+    items, totals = process_llm_food_data(llm_result, text, True)
+    if not items or not (totals.get("calories") or 0):
+        return json.dumps(
+            {"status": "rejected", "reason": "не удалось посчитать КБЖУ — нужен продукт и примерный вес"},
+            ensure_ascii=False,
+        )
+    data = llm_result.get("data") or {}
+    meal_name = (
+        _SLOT_NAMES.get(args.get("slot") or "") or data.get("dish_name") or data.get("meal_type") or "Приём пищи"
+    )
+    sink.append(
+        {
+            "text": text,
+            "date": args.get("date"),
+            "slot": args.get("slot"),
+            "as_plan": bool(args.get("as_plan")),
+            "meal_name": meal_name,
+            "items": items,
+            "totals": totals,
+        }
+    )
+    return json.dumps(
+        {
+            "status": "preview_shown",
+            "meal_name": meal_name,
+            "date": args.get("date") or "сегодня",
+            "calories": round(totals.get("calories") or 0),
+            "note": (
+                "Пользователь видит карточку с КБЖУ и кнопками «Сохранить/Отмена»; запись появится "
+                "после нажатия. Не пиши «записал» — коротко скажи, что карточка ниже."
+            ),
+        },
+        ensure_ascii=False,
+    )
+
+
 def _call_tool(name: str, args: dict, token: str) -> str:
     """Synchronous HTTP call to tools API. Returns raw response body as string."""
     headers = {
@@ -1491,6 +1599,8 @@ def _call_tool(name: str, args: dict, token: str) -> str:
             r = requests.post(f"{TOOLS_API_BASE}/adjust_meal_items", json=args, headers=headers, timeout=15)
         elif name == "log_bp":
             r = requests.post(f"{TOOLS_API_BASE}/log_bp", json=args, headers=headers, timeout=10)
+        elif name == "log_weight":
+            r = requests.post(f"{TOOLS_API_BASE}/log_weight", json=args, headers=headers, timeout=10)
         elif name == "log_supplement":
             r = requests.post(f"{TOOLS_API_BASE}/log_supplement", json=args, headers=headers, timeout=10)
         elif name == "edit_supplement_log":
@@ -1678,7 +1788,7 @@ def _load_history(db, user_id: int, limit: int = HISTORY_WINDOW) -> list[dict]:
     # пищевые сообщения.
     sql = text(
         """
-        SELECT role, content
+        SELECT id, role, content
         FROM agent_conversations
         WHERE user_id = :uid AND (source IS NULL OR source = 'botkinclaw')
           AND role <> 'error'
@@ -1687,7 +1797,25 @@ def _load_history(db, user_id: int, limit: int = HISTORY_WINDOW) -> list[dict]:
         """
     )
     rows = db.execute(sql, {"uid": user_id, "lim": limit}).fetchall()
-    rows = list(reversed(rows))  # chronological
+    # Быстрые записи (АД, вес, еда по кнопке, добавки) — парами «реплика →
+    # ✅ записал …» с source='tracker'. Подмешиваем их в хронологию отдельным
+    # лимитом, чтобы десяток записей за день не вытеснил сам разговор. Так агент
+    # видит, что и когда записано, и не говорит «ты не вносил».
+    min_id = min((r[0] for r in rows), default=0)
+    tracker_rows = db.execute(
+        text(
+            """
+            SELECT id, role, content
+            FROM agent_conversations
+            WHERE user_id = :uid AND source = 'tracker' AND id > :min_id
+            ORDER BY id DESC
+            LIMIT :lim
+            """
+        ),
+        {"uid": user_id, "min_id": min_id, "lim": TRACKER_HISTORY_ROWS},
+    ).fetchall()
+    rows = sorted([*rows, *tracker_rows], key=lambda r: r[0])  # chronological
+    rows = [(r[1], r[2]) for r in rows]
     # Map our role values → Anthropic roles.
     # We store 'user' / 'assistant' (verbatim from API) and intermediary
     # 'tool_use' / 'tool_result' are part of assistant / user messages
@@ -1722,145 +1850,16 @@ def _load_history(db, user_id: int, limit: int = HISTORY_WINDOW) -> list[dict]:
     return _validate_history(messages)
 
 
-def _recent_tracker_events(db, user_id: int, limit: int = 8, tz=None) -> str:
-    """Краткая сводка последних записей пользователя через быстрые парсеры
-    (вес/еда/добавки/АД) — source `router_*`/`llm_text`.
+DIALOG_WINDOW_MINUTES = 20
 
-    Эти сообщения намеренно исключены из истории диалога агента (`_load_history`),
-    поэтому без сводки агент «не знает», что пользователь только что записал, и
-    противоречит ему («ты не вносил вес»). Возвращает блок для system-prompt или
-    '' если событий нет. Issue #169.
+
+def dialog_active(user_id: int, within_minutes: int = DIALOG_WINDOW_MINUTES) -> bool:
+    """Идёт ли разговор с агентом: последний ответ бота — ход агента не старше окна.
+
+    Пока разговор идёт, реплики («у меня есть квашеная капуста», «54», «позавчера»)
+    уходят агенту, а не парсеру: он видит историю и знает, о чём речь.
     """
-    sql = text(
-        """
-        SELECT source, content, created_at
-        FROM agent_conversations
-        WHERE user_id = :uid AND role = 'user'
-          AND (source LIKE 'router_%' OR source = 'llm_text')
-        ORDER BY id DESC
-        LIMIT :lim
-        """
-    )
-    rows = db.execute(sql, {"uid": user_id, "lim": limit}).fetchall()
-    if not rows:
-        return ""
-
-    labels = {
-        "router_weight": "вес",
-        "router_food": "еда",
-        "router_vitamins": "добавки",
-        "router_bp": "давление",
-        "llm_text": "запись",
-    }
-
-    def _text_of(content) -> str:
-        data = content
-        if isinstance(data, str):
-            try:
-                data = json.loads(data)
-            except Exception:
-                return data.strip()[:120]
-        if isinstance(data, list):
-            parts = [b.get("text", "") for b in data if isinstance(b, dict) and b.get("type") == "text"]
-            return " ".join(p for p in parts if p).strip()[:120]
-        return ""
-
-    # Время записи обязательно: без него агент гадает, когда это было
-    # (E2E 01.11.2026: шампанское, упомянутое две минуты назад, агент назвал
-    # «упоминал пару дней назад»).
-    lines = []
-    for source, content, created_at in reversed(rows):  # chronological
-        txt = _text_of(content)
-        if not txt:
-            continue
-        when = ""
-        if isinstance(created_at, str):  # SQLite в тестах отдаёт строку
-            try:
-                created_at = datetime.fromisoformat(created_at)
-            except ValueError:
-                created_at = None
-        if created_at is not None:
-            if created_at.tzinfo is None:
-                created_at = created_at.replace(tzinfo=timezone.utc)
-            when = ", " + (created_at.astimezone(tz) if tz else created_at).strftime("%d.%m %H:%M")
-        lines.append(f"• [{labels.get(source, 'запись')}{when}] {txt}")
-    if not lines:
-        return ""
-
-    return (
-        "# 📝 ПОЛЬЗОВАТЕЛЬ НЕДАВНО ЗАПИСАЛ ЧЕРЕЗ ТРЕКЕР (вне истории чата)\n"
-        "\n"
-        "Эти записи прошли через быстрый обработчик и НЕ видны в истории диалога,\n"
-        "но они РЕАЛЬНЫ и уже в БД. Учитывай их, НЕ переспрашивай и НЕ отрицай:\n"
-        + "\n".join(lines)
-        + "\nДля точных цифр всё равно вызывай соответствующий инструмент.\n"
-        "\n---\n\n"
-    )
-
-
-def agent_last_turn_was_question(user_id: int, within_minutes: int = 10) -> bool:
-    """#198: True если ПОСЛЕДНИЙ ход бота — вопрос агента (BotkinClaw), свежий и
-    заканчивается «?».
-
-    Нужно, чтобы короткий ответ пользователя («54», «120/80») после вопроса
-    агента («сколько весишь?») уходил в агента, а не перехватывался weight/BP-
-    парсером (диалог рвался). Берём АБСОЛЮТНО последний assistant-ход: если это
-    парсер-подтверждение (source bp_fast_handler/llm_text/…) или старый ход
-    (>within_minutes) — False, чтобы не спутать standalone-лог с ответом.
-    """
-    from sqlalchemy import text as sql_text
-    from datetime import datetime, timezone, timedelta
-
-    def _text_of(content) -> str:
-        data = content
-        if isinstance(data, str):
-            try:
-                data = json.loads(data)
-            except Exception:
-                return data
-        if isinstance(data, list):
-            return " ".join(b.get("text", "") for b in data if isinstance(b, dict) and b.get("type") == "text")
-        return ""
-
-    try:
-        db = SessionLocal()
-    except Exception:
-        return False
-    try:
-        row = db.execute(
-            sql_text(
-                """
-                SELECT content, source, created_at
-                FROM agent_conversations
-                WHERE user_id = :uid AND role = 'assistant'
-                ORDER BY id DESC
-                LIMIT 1
-                """
-            ),
-            {"uid": user_id},
-        ).fetchone()
-        if row is None:
-            return False
-        content, source, created_at = row
-        # Только реальный ход агента, не парсер-инъекция.
-        if source not in (None, "botkinclaw"):
-            return False
-        if created_at is None:
-            return False
-        if created_at.tzinfo is None:
-            created_at = created_at.replace(tzinfo=timezone.utc)
-        if datetime.now(timezone.utc) - created_at > timedelta(minutes=within_minutes):
-            return False
-        # #198: вопрос агента часто кончается эмодзи/пунктуацией после «?»
-        # («Какой вес записать? 😊») — простой endswith("?") давал False, и
-        # короткий ответ юзера перехватывался парсером. Матчим «?», за которым до
-        # конца строки идут только не-словесные символы (эмодзи, пробелы, скобки),
-        # но НЕ буквы/цифры — так «? 😊» и «?» True, а «? Напиши число» False.
-        return bool(re.search(r"\?[\s\W]*$", _text_of(content)))
-    except Exception:
-        return False
-    finally:
-        db.close()
+    return agent_last_turn_is_fresh(user_id, within_minutes=within_minutes)
 
 
 def agent_last_turn_is_fresh(user_id: int, within_minutes: int = 10) -> bool:
@@ -1888,7 +1887,7 @@ def agent_last_turn_is_fresh(user_id: int, within_minutes: int = 10) -> bool:
         if row is None:
             return False
         source, created_at = row
-        if source not in (None, "botkinclaw") or created_at is None:
+        if source not in (None, "botkinclaw", "e2e_test") or created_at is None:
             return False
         if created_at.tzinfo is None:
             created_at = created_at.replace(tzinfo=timezone.utc)
@@ -2490,6 +2489,34 @@ def _persist_turns(db, user_id: int, turns: list[tuple[str, str | list[dict]]], 
             logger.exception("agent_chat: rollback после сбоя сохранения не удался")
 
 
+def log_tracker_event(user_id: int, user_text: str, confirmation: str, is_e2e: bool = False) -> None:
+    """Быстрая запись мимо агента → пара ходов в его историю (source='tracker').
+
+    Заменяет блок «последние записи» в system и #71-инъекцию АД, которую агент не
+    видел (source 'bp_fast_handler' не попадал в _load_history). Ошибки глушим:
+    запись в журнал уже сделана, история — вторична.
+    """
+    if not user_text or not confirmation:
+        return
+    src = "e2e_test" if is_e2e else "tracker"
+    try:
+        db = SessionLocal()
+        try:
+            _save_message(db, user_id, "user", [{"type": "text", "text": user_text}], source=src)
+            _save_message(
+                db,
+                user_id,
+                "assistant",
+                [{"type": "text", "text": f"[быстрая запись, без агента] {confirmation}"}],
+                source=src,
+            )
+            db.commit()
+        finally:
+            db.close()
+    except Exception as e:
+        logger.warning(f"log_tracker_event failed for {user_id}: {e}")
+
+
 def log_router_raw_text(user_id: int, raw_text: str, msg_type: str) -> None:
     """Логирует raw текст сообщения, ушедшего НЕ в BotkinClaw, а в роутер
     (food / vitamins / bp / weight / mixed / body_measurements).
@@ -2578,6 +2605,7 @@ _TOOL_PROGRESS_LABEL = {
     "log_supplement": "✍️ отмечаю добавку",
     "edit_supplement_log": "✏️ правлю запись о добавке",
     "log_bp": "✍️ записываю давление",
+    "log_weight": "✍️ записываю вес",
     "log_workout": "✍️ записываю тренировку",
     "regenerate_health_token": "🔑 пересоздаю токен",
     "update_profile_questionnaire": "📝 обновляю анкету",
@@ -2817,8 +2845,18 @@ def ask_agent(
     user_text: str,
     progress_cb: Optional[Callable[[str], None]] = None,
     is_e2e: bool = False,
+    meal_preview_sink: Optional[list] = None,
+    images: Optional[list] = None,
 ) -> str:
     """Synchronous — call from `run_in_executor`.
+
+    meal_preview_sink: если передан (чат в боте), `log_meal_text` не пишет в БД,
+    а кладёт сюда черновик — бот покажет ту же карточку «Сохранить/Отмена», что и
+    у быстрого пути. Без sink (MCP, проактивные вызовы) запись идёт сразу.
+
+    images: пути к фото (скрин Garmin/Apple Health и т.п.) — уходят модели
+    картинкой в текущем ходе. В историю пишется только текст: base64 в
+    agent_conversations раздул бы каждый следующий ход.
 
     Returns assistant's text reply. Empty string if nothing produced.
     Errors are raised; caller (handler) catches and replies "технически не вышло".
@@ -2856,7 +2894,8 @@ def ask_agent(
         # P-003: всё ДО текущего user-сообщения — кандидаты на инвалидацию, если
         # свежий tool_result этого хода им противоречит (см. _invalidate_stale_history).
         prior_history_len = len(history)
-        history.append({"role": "user", "content": user_text})
+        user_content = _user_content_with_images(user_text, images)
+        history.append({"role": "user", "content": user_content})
 
         # Persist user turn immediately so a crash mid-call doesn't lose it.
         # Намеренно НЕ через _persist_turns: тут сбой БД должен всплыть наружу.
@@ -2926,7 +2965,7 @@ def ask_agent(
             "Это ЕДИНСТВЕННЫЙ достоверный источник текущего времени: любые упоминания "
             "времени/«сейчас» в истории диалога относятся к моменту тех сообщений и УСТАРЕЛИ.\n"
         )
-        tracker_block = _time_line + _recent_tracker_events(db, user_id, tz=_now_local.tzinfo)
+        tracker_block = _time_line
         # #269: триаж-тулы инбокса — только админам; остальные их не видят.
         _admin_only = {"list_feedback", "triage_feedback"}
         _tool_defs = TOOLS if _is_admin(user_id) else [t for t in TOOLS if t["name"] not in _admin_only]
@@ -3025,7 +3064,7 @@ def ask_agent(
                     len(history),
                     err_body,
                 )
-                history = [{"role": "user", "content": user_text}]
+                history = [{"role": "user", "content": user_content}]
                 payload["messages"] = history
                 r = _post_with_overload_retry(payload)
             if r.status_code >= 400 and "credit balance" in r.text.lower():
@@ -3086,7 +3125,10 @@ def ask_agent(
                     tu_id = block["id"]
                     logger.info("agent_chat tool: %s args=%s", name, args)
                     tools_called_this_turn.add(name)
-                    result_text = _call_tool(name, args, token)
+                    if name == "log_meal_text" and meal_preview_sink is not None:
+                        result_text = _preview_meal_text(user_id, args, meal_preview_sink)
+                    else:
+                        result_text = _call_tool(name, args, token)
                     tool_results.append(
                         {
                             "type": "tool_result",
@@ -3100,13 +3142,20 @@ def ask_agent(
                 # нейтрализуем те, что противоречат (иначе агент парротит старое
                 # вместо свежего — прецедент 09.06.2026, F-001). Мутирует turn'ы
                 # in-place → следующая итерация увидит чистую историю.
-                try:
-                    fresh_text = "\n".join(tr["content"] for tr in tool_results if isinstance(tr.get("content"), str))
-                    stale_notes = _invalidate_stale_history(history[:prior_history_len], fresh_text)
-                    for note in stale_notes:
-                        logger.info("P-003 invalidated stale turn: user=%s %s", user_id, note)
-                except Exception:
-                    logger.exception("P-003 stale-history invalidation failed (non-fatal)")
+                # Выключено по умолчанию (аудит обвязки, ноябрь 2026): за 05.09–01.11
+                # на проде 7 срабатываний из ~380 вызовов инструментов, все по Z2 с
+                # разными окнами (35 → «свежее» 67) — ложные. Включить: env
+                # AGENT_STALE_HISTORY_GUARD=1. Удалить, если не понадобится.
+                if STALE_HISTORY_GUARD:
+                    try:
+                        fresh_text = "\n".join(
+                            tr["content"] for tr in tool_results if isinstance(tr.get("content"), str)
+                        )
+                        stale_notes = _invalidate_stale_history(history[:prior_history_len], fresh_text)
+                        for note in stale_notes:
+                            logger.info("P-003 invalidated stale turn: user=%s %s", user_id, note)
+                    except Exception:
+                        logger.exception("P-003 stale-history invalidation failed (non-fatal)")
 
                 # tool_use + tool_result — одной транзакцией (см. _persist_turns).
                 turn_tool_result_texts.extend(

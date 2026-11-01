@@ -14,7 +14,7 @@ TYPES:
   "medication_package" = medicine box/blister/ampoule — read trade name, active substance (МНН), dosage, form, manufacturer; report a partial read, never refuse;
   "other_medical" = anything medical that fits none of the above.
   data.reply = short Russian description of what is visible.
-- "other" — chat, questions, unclear input. data.reply = brief helpful reply or clarifying question.
+- "other" — chat, questions, unclear input. data.reply: for photos — a short description of what is visible; for text-only messages leave "" (the reply is written elsewhere).
 
 FOOD OUTPUT:
 {"type":"food","data":{"dish_name":"...","meal_type":"breakfast|lunch|dinner|snack",
@@ -51,6 +51,8 @@ dishes (1 serving): борщ/щи 300 г ≈120 (Б5 Ж4 У15); chicken/veg soup
 
 CALORIC DENSITY ANCHORS (kcal/100 g, exact — common errors in brackets):
 butter 748 [not 302]; sunflower oil 899; olive oil 884 [not 40]; raw broccoli 34, fried 65 [never 180]; cooked chicken breast 165 [not 250]; chicken thigh 215; boiled shrimp 95 [not 160]; baked salmon 200 (raw 142); творог 5% 121 [not 200] (0% 71, 9% 159); greek yogurt 2% 73 (10% 130); port/dessert wine 172 [not 100]; avocado 160; nuts 580–650; smoked/salted salmon 200 (slice 30 г = 60 kcal).
+
+WHEN (only if the message starts with "[NOW: YYYY-MM-DD dow HH:MM local]"): for food, multi_food meals, weight, vitamins and bp add to data "date":"YYYY-MM-DD"|null and "time":"HH:MM"|null — when the eating/measuring/taking happened, judged against NOW. "вчера"/"позавчера"/"в понедельник" → that day; "вечером"/"на ночь"/"за ужином" said before 12:00 with no "сегодня" → yesterday evening; a clock time later than NOW said after midnight ("ел в 23:00" at 00:40) → yesterday; "утром"/"в 9" → today at that time. A date without a year is the nearest past occurrence. Never a future date. null when the message gives no hint (= now). The [NOW] line itself is not food.
 
 OTHER OUTPUTS:
 weight: {"type":"weight","data":{"weight":kg,"body_fat":%|null,"muscle_mass":kg|null,"visceral_fat":n|null,"water_percent":n|null,"date":"YYYY-MM-DD"|null}}

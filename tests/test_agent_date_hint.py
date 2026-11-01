@@ -1,5 +1,8 @@
 """Регрессия #510: «вчера»/«позавчера»/дата должны доходить до агента.
 
+С задачи 4 аудита обвязки (ноябрь 2026) агент получает исходный текст со словом
+о дате и считает дату сам по 📅 в system — директива [Система: …] больше не нужна.
+
 `extract_date_from_text()` (handlers/text.py) вырезает из сообщения слова
 «вчера» / «позавчера» / «yesterday» и даты вида ДД.ММ, возвращая дату отдельно
 в `custom_date`. Раньше `custom_date` применялась только детерминированными
@@ -85,47 +88,39 @@ async def _run_and_capture_agent_text(text: str) -> str:
 @pytest.mark.asyncio
 async def test_yesterday_reaches_agent_as_explicit_date():
     agent_text = await _run_and_capture_agent_text("вчера крутил велотренажёр 40 минут, 12 км, сжёг 300 ккал")
-    assert _ago(1) in agent_text
-    # Слово вырезано парсером дат (как и раньше) — агент получает вместо него
-    # служебную директиву с явной датой.
-    assert "велотренажёр" in agent_text
+    assert agent_text == "вчера крутил велотренажёр 40 минут, 12 км, сжёг 300 ккал"
 
 
 @pytest.mark.asyncio
 async def test_day_before_yesterday_reaches_agent_as_explicit_date():
     agent_text = await _run_and_capture_agent_text("позавчера бегал 5 км")
-    assert _ago(2) in agent_text
-    assert "бегал" in agent_text
+    assert agent_text == "позавчера бегал 5 км"
 
 
 @pytest.mark.asyncio
 async def test_english_yesterday_reaches_agent_as_explicit_date():
     agent_text = await _run_and_capture_agent_text("yesterday did strength training")
-    assert _ago(1) in agent_text
-    assert "strength training" in agent_text
+    assert agent_text == "yesterday did strength training"
 
 
 @pytest.mark.asyncio
 async def test_english_day_before_yesterday_reaches_agent_as_explicit_date():
     agent_text = await _run_and_capture_agent_text("day before yesterday did yoga")
-    assert _ago(2) in agent_text
-    assert "yoga" in agent_text
+    assert agent_text == "day before yesterday did yoga"
 
 
 @pytest.mark.asyncio
 async def test_dd_mm_dot_date_reaches_agent_as_explicit_date():
     text = "15.03 была силовая тренировка"
     agent_text = await _run_and_capture_agent_text(text)
-    assert "2026-03-15" in agent_text or "-03-15" in agent_text
-    assert "силовая" in agent_text
+    assert agent_text == text
 
 
 @pytest.mark.asyncio
 async def test_dd_mm_slash_date_reaches_agent_as_explicit_date():
     text = "15/03 была силовая тренировка"
     agent_text = await _run_and_capture_agent_text(text)
-    assert "-03-15" in agent_text
-    assert "силовая" in agent_text
+    assert agent_text == text
 
 
 @pytest.mark.asyncio
@@ -134,14 +129,3 @@ async def test_no_date_leaves_text_untouched():
     agent_text = await _run_and_capture_agent_text("сегодня бегал 5 км")
     assert agent_text == "сегодня бегал 5 км"
     assert "[Система" not in agent_text
-
-
-def test_date_hint_covers_reading_not_only_writing():
-    """«что я ел вчера?» режется до «что я ел ?» — агенту дата нужна и для
-    ЧТЕНИЯ, не только для инструментов записи (аудит перед релизом #510)."""
-    from handlers.text import _agent_text_with_date_hint
-
-    hint = _agent_text_with_date_hint("что я ел ?", "2026-09-21")
-    assert "2026-09-21" in hint
-    assert "при запросе данных" in hint
-    assert "при записи" in hint

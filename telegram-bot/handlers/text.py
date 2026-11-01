@@ -124,22 +124,6 @@ _ADDENDUM_RE = re.compile(
 )
 
 
-# Реплика-продолжение/правка к только что полученному ответу агента:
-# «да, и утренний приём неточно», «ты не указал X», «ты забыл», «поправь»…
-# Узкий список: используется ТОЛЬКО когда роутер вернул vitamins и последний
-# ход агента свежий (<=10 мин). К еде/весу/АД не применяется.
-_AGENT_FOLLOWUP_RE = re.compile(
-    r"^\s*(?:да[,.!\s]+и\b|а\s+(?:ещё|еще)\b)"
-    r"|\b(?:неточно|неверно|ты\s+(?:не\s+указал[а]?|не\s+учёл|не\s+учел|забыл[а]?|пропустил[а]?|ошибся|перепутал[а]?)"
-    r"|поправь|исправь|не\s+так)\b",
-    re.IGNORECASE,
-)
-
-
-def _is_agent_followup_text(text: str) -> bool:
-    return bool(text and _AGENT_FOLLOWUP_RE.search(text))
-
-
 # Явное намерение записать еду: «запиши», «внеси», «залогируй», «добавь в дневник».
 _EXPLICIT_LOG_RE = re.compile(
     r"\b(?:запиш\w*|внес\w*|внёс\w*|занес\w*|залогир\w*|логир\w*|отметь|добавь\s+в\s+(?:дневник|журнал))",
@@ -147,68 +131,103 @@ _EXPLICIT_LOG_RE = re.compile(
 )
 
 
-def _is_food_mention_in_dialog(text: str) -> bool:
-    """Еда/напиток упомянуты как часть разговора, а не как запись в дневник.
+def _router_when(data: dict, user_tz) -> tuple[str | None, str | None]:
+    """data.date / data.time роутера → (дата не из будущего и не сегодня, время HH:MM)."""
+    if not isinstance(data, dict):
+        return None, None
+    today = datetime.now(user_tz).date()
+    d = data.get("date")
+    router_date = None
+    if isinstance(d, str) and re.match(r"^\d{4}-\d{2}-\d{2}$", d):
+        try:
+            parsed = datetime.strptime(d, "%Y-%m-%d").date()
+            if today - timedelta(days=366) <= parsed < today:
+                router_date = d
+        except ValueError:
+            pass
+    t = data.get("time")
+    router_time = t if isinstance(t, str) and re.match(r"^([01]\d|2[0-3]):[0-5]\d$", t) else None
+    return router_date, router_time
 
-    Прецедент E2E 01.11.2026: в разговоре о самочувствии после поездки
-    «вчера выпил пару бокалов шампанского» и «у меня есть квашеная капуста»
-    ушли в парсер еды — человек получил карточку «Сохранить/Отмена» вместо
-    ответа. Применяется только при свежем ходе агента. Запись остаётся за
-    парсером, если есть явная команда, количество (200 г, 2 шт) или слот
-    в начале («Обед: …»).
+
+def _looks_like_log_entry(text: str) -> bool:
+    """В разговоре с агентом — похоже ли сообщение на явную запись в дневник.
+
+    Явная команда («запиши», «внеси»), количество (200 г, 2 шт, 120/80) или слот
+    в начале («Обед: …») — парсер и карточка, как вне диалога. Остальное
+    («вчера выпил пару бокалов шампанского», «у меня есть квашеная капуста»,
+    «54» на вопрос о весе) — реплика агенту. Прецедент E2E 01.11.2026.
     """
     if not text:
         return False
-    if _EXPLICIT_LOG_RE.search(text) or _NUMERIC_DOSE_RE.search(text):
-        return False
-    if detect_slot_prefix(text):
-        return False
-    return True
+    return bool(_EXPLICIT_LOG_RE.search(text) or _NUMERIC_DOSE_RE.search(text) or detect_slot_prefix(text))
 
 
-def _inject_bp_to_agent_conv(
-    user_id: int,
-    raw_text: str,
-    conf_text: str,
-    include_user_turn: bool = True,
-) -> None:
-    """После save_bp_to_db() — записать в agent_conversations оба хода диалога
-    (user-turn + assistant-confirmation), чтобы BotkinClaw видел сохранённые
-    замеры при последующих вопросах о динамике АД.
+async def show_agent_meal_preview(message: Message, user_id: str, preview: dict, user_tz) -> None:
+    """Карточка «Сохранить/Отмена» для еды, которую агент предложил записать.
 
-    Regex-путь (include_user_turn=True): обходит весь agent pipeline, user-turn
-    не логируется нигде → добавляем оба.
-    LLM-путь (include_user_turn=False): log_router_raw_text уже сохранил
-    user-turn → добавляем только assistant-подтверждение.
-
-    Ошибки подавляются — не должны ломать основной хэндлер. Прецедент #71.
+    Тот же state и рендер, что у еды, присланной напрямую: запись — по кнопке.
     """
-    try:
-        from core.agent_chat import _save_message
-        from database.session import SessionLocal
+    from handlers.meal_preview import meal_confirm_keyboard, render_meal_preview
+    from services.state import UserState
 
-        _db = SessionLocal()
-        try:
-            if include_user_turn:
-                _save_message(
-                    _db,
-                    user_id,
-                    "user",
-                    [{"type": "text", "text": raw_text}],
-                    source="bp_fast_handler",
-                )
-            _save_message(
-                _db,
-                user_id,
-                "assistant",
-                [{"type": "text", "text": conf_text}],
-                source="bp_fast_handler",
-            )
-            _db.commit()
-        finally:
-            _db.close()
-    except Exception as _e:
-        pass  # non-critical, never break the main handler
+    slot_times = {"breakfast": "08:00", "lunch": "13:00", "dinner": "19:00", "snack": "16:00"}
+    is_plan = bool(preview.get("as_plan"))
+    meal_time = (
+        slot_times.get(preview.get("slot") or "")
+        or _temporal_phrase_to_time(preview.get("text") or "")
+        or datetime.now(user_tz).strftime("%H:%M")
+    )
+    new_state = UserState(
+        user_id=user_id,
+        state="waiting_confirmation",
+        data=build_meal_state_data(
+            source="text",
+            description=preview.get("text") or "",
+            meal_items=preview["items"],
+            meal_totals=preview["totals"],
+            meal_time=meal_time,
+            meal_name=preview["meal_name"],
+            date=preview.get("date"),
+            is_plan=is_plan or None,
+        ),
+    )
+    state_manager.set_state(user_id, new_state)
+    response = render_meal_preview(
+        preview["meal_name"],
+        preview["items"],
+        preview["totals"],
+        is_plan=is_plan,
+        custom_date=preview.get("date"),
+        date_style="weekday",
+        with_macros=True,
+    )
+    sent = await message.answer(response, parse_mode="HTML", reply_markup=meal_confirm_keyboard(is_plan=is_plan))
+    preview_message_id = getattr(sent, "message_id", None)
+    if preview_message_id is not None:
+        new_state.data = {**new_state.data, "preview_message_id": preview_message_id}
+        state_manager.set_state(user_id, new_state)
+
+
+def _log_tracker(
+    user_id, user_text: str, what: str, when, user_tz, is_e2e: bool = False, date_str: str | None = None
+) -> None:
+    """Быстрая запись → пара ходов в историю агента: «реплика» → «✅ записал X — дата время».
+
+    Агент видит, что и когда записано, в хронологии разговора (задача 5 аудита
+    обвязки). Раньше #71-инъекция АД писала source, который агент не читал.
+    """
+    from core.agent_chat import log_tracker_event
+
+    if when is None:
+        when = datetime.now(user_tz)
+        if date_str:
+            try:
+                d = datetime.strptime(date_str, "%Y-%m-%d").date()
+                when = when.replace(year=d.year, month=d.month, day=d.day)
+            except ValueError:
+                pass
+    log_tracker_event(int(user_id), user_text, f"✅ записал {what} — {when.strftime('%d.%m %H:%M')}", is_e2e=is_e2e)
 
 
 async def _bp_confirmation_with_answer(is_question: bool, user_id: int, raw_text: str, confirmation_html: str) -> str:
@@ -496,6 +515,12 @@ def extract_meal_name(text: str, meal_time: str = None, user_tz=None) -> str:
         return "Вечерний перекус"
 
 
+# Дата без года чуть впереди — это ближайшее будущее («3 ноября приём у врача»
+# 1 ноября), а не прошлый год. На прошлый год переносим только далёкую:
+# «29.12», написанное 2 января.
+_FUTURE_DATE_WINDOW = timedelta(days=30)
+
+
 def extract_date_from_text(text: str, user_tz=None) -> tuple[str, str]:
     """
     Извлекает дату "вчера" из начала текста.
@@ -528,8 +553,13 @@ def extract_date_from_text(text: str, user_tz=None) -> tuple[str, str]:
     # слово стоит после "Обед", прежний startswith его не ловил → запись шла
     # на сегодня. Порядок relative_keywords (позавчера раньше вчера) + границы
     # слова \b защищают от ложного совпадения "вчера" внутри "позавчера".
+    has_today = bool(re.search(r"\bсегодня\b", text_lower))
     for kw, days_ago in relative_keywords:
         m = re.search(rf"\b{kw}\b", text_lower)
+        # «Сегодня плохо после вчерашнего» — речь про сегодня, прилагательное
+        # лишь ссылается на вчера. Дату не переносим и слово не вырезаем.
+        if m and has_today and m.group(0).startswith("вчерашн"):
+            return None, text
         if m:
             target_date = datetime.now(_tz) - timedelta(days=days_ago)
             date_str = target_date.strftime("%Y-%m-%d")
@@ -552,7 +582,7 @@ def extract_date_from_text(text: str, user_tz=None) -> tuple[str, str]:
             current_year = datetime.now(_tz).year
             # Если дата в будущем (например, сегодня 01.02, а ввели 29.01) - это ок
             target_date = datetime(current_year, month, day, tzinfo=_tz)
-            if target_date > datetime.now(_tz) + timedelta(days=1):
+            if target_date > datetime.now(_tz) + _FUTURE_DATE_WINDOW:
                 target_date = datetime(current_year - 1, month, day, tzinfo=_tz)
 
             date_str = target_date.strftime("%Y-%m-%d")
@@ -598,7 +628,7 @@ def extract_date_from_text(text: str, user_tz=None) -> tuple[str, str]:
             try:
                 current_year = datetime.now(_tz).year
                 target_date = datetime(current_year, month, day, tzinfo=_tz)
-                if target_date > datetime.now(_tz) + timedelta(days=1):
+                if target_date > datetime.now(_tz) + _FUTURE_DATE_WINDOW:
                     target_date = datetime(current_year - 1, month, day, tzinfo=_tz)
 
                 date_str = target_date.strftime("%Y-%m-%d")
@@ -646,28 +676,6 @@ def extract_date_from_text(text: str, user_tz=None) -> tuple[str, str]:
     return None, text
 
 
-def _agent_text_with_date_hint(text: str, custom_date: str | None) -> str:
-    """Восстанавливает для агента дату, которую `extract_date_from_text()` уже
-    вырезала из текста ("вчера" / "позавчера" / "yesterday" / ДД.ММ / ДД/ММ / ...).
-
-    Парсерам еды и добавок вырезание нужно (не мешает регэкспам), а BotkinClaw
-    получал бы текст уже без слова о дате и без custom_date — и логировал
-    событие на сегодня (#510: «вчера крутил велотренажёр…» → workouts.date =
-    сегодня). Директива короткая и однозначная, согласована с блоком
-    "📅 Сегодня: ..." в системном промпте (#502, core/agent_chat.py) — та
-    учит агента СЧИТАТЬ относительные даты от текущего дня, эта же говорит,
-    какая дата уже посчитана для конкретного сообщения (раз слово вырезано).
-    """
-    if not custom_date:
-        return text
-    return (
-        f"[Система: пользователь говорит про дату {custom_date} — слово об этом "
-        "уже распознано и вырезано из текста ниже, само вырезанное слово не "
-        "восстанавливай. Используй эту дату, а не сегодняшнюю, — и при записи "
-        f"(start_time/date), и при запросе данных за этот день.] {text}"
-    )
-
-
 async def _replace_preview(message: Message, user_id: str, new_data: dict, text_html: str, keyboard) -> None:
     """Обновить карточку превью: правим уже отправленное сообщение, если можем.
 
@@ -695,7 +703,7 @@ async def _replace_preview(message: Message, user_id: str, new_data: dict, text_
     state_manager.set_state(user_id, UserState(user_id=user_id, state="waiting_confirmation", data=refreshed_data))
 
 
-async def _try_refine_pending_preview(message: Message, user_id: str, user_state) -> bool:
+async def _try_refine_pending_preview(message: Message, user_id: str, user_state, text: str | None = None) -> bool:
     """Применить текстовую правку («без X», «половину», «N г») к висящему превью.
 
     Возвращает True, если сообщение было распознано как правка и обработано
@@ -706,7 +714,7 @@ async def _try_refine_pending_preview(message: Message, user_id: str, user_state
     from handlers.meal_preview import meal_confirm_keyboard, render_meal_preview
     from services.state import UserState
 
-    mods = parse_modifiers(message.text or "")
+    mods = parse_modifiers(text if text is not None else (message.text or ""))
     if not mods.is_modifier:
         return False
 
@@ -751,15 +759,20 @@ async def _try_refine_pending_preview(message: Message, user_id: str, user_state
 # (мастер /profile в handlers/setup.py). Без этого catch-all съедал ввод шагов
 # мастера, и профиль нельзя было заполнить вводом — только «пропустить». См. #44.
 @router.message(F.text & ~F.text.startswith("/"), StateFilter(None))
-async def handle_text_message(message: Message, user_id: int, state: FSMContext):
-    """Обработчик текстовых сообщений (БЕЗ фото)"""
+async def handle_text_message(message: Message, user_id: int, state: FSMContext, text_override: str | None = None):
+    """Единый вход для текста: сообщение, расшифровка голоса (text_override).
+
+    Голос раньше шёл своим путём без regex АД, режима диалога и дат — одна и та
+    же фраза голосом и текстом давала разный результат.
+    """
     import logging
 
     logger = logging.getLogger(__name__)
+    raw_text = text_override if text_override is not None else (message.text or "")
 
     # Не обрабатываем команды (они обрабатываются в handlers/commands.py)
-    if message.text and message.text.startswith("/"):
-        logger.debug(f"Пропущена команда: {message.text}")
+    if raw_text.startswith("/"):
+        logger.debug(f"Пропущена команда: {raw_text}")
         return
 
     # Дополнительная проверка на случай, если фильтр не сработал
@@ -771,7 +784,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
     user_state = state_manager.get_state(user_id)
 
     # Логируем ВСЕ текстовые сообщения для отладки
-    text_preview = message.text[:100] if message.text else "None"
+    text_preview = raw_text[:100] or "None"
     logger.info(f"📝 Обработчик текста: получено сообщение от {user_id}: '{text_preview}...'")
 
     if user_state:
@@ -789,7 +802,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
         # Прецедент: Александр прислал 2 скриншота Garmin → бот не распознал
         # → state=waiting_description → текст «Сейчас утро вторника. Ты видишь
         # сон?» снова попал в food-handler → опять «не еда». Цикл 3+ раз.
-        text_stripped = (message.text or "").strip()
+        text_stripped = raw_text.strip()
         if _is_clearly_conversational(text_stripped):
             logger.info(
                 f"⚡ User {user_id} in waiting_description sent conversational text "
@@ -802,14 +815,14 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             # Это похоже на описание еды — обрабатываем как раньше
             from handlers.photo import handle_description
 
-            await handle_description(message, message.text, state=state)
+            await handle_description(message, raw_text, state=state)
             return
 
     # #427: текстовая правка уже показанного превью («без кускуса», «половину»,
     # «180 г») ДО подтверждения. multi_meals исключён — там meal_items/meal_totals
     # не на верхнем уровне state.data, эта ветка их не найдёт.
     if user_state and user_state.state == "waiting_confirmation" and not user_state.data.get("multi_meals"):
-        handled = await _try_refine_pending_preview(message, user_id, user_state)
+        handled = await _try_refine_pending_preview(message, user_id, user_state, raw_text)
         if handled:
             return
 
@@ -829,7 +842,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
         fh.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
         debug_logger.addHandler(fh)
 
-    text = message.text.strip()
+    text = raw_text.strip()
 
     # ── E2E test mode (task #62) ────────────────────────────────────────────
     # Маркер 🧪 в начале — Claude через MCP помечает свои тестовые сообщения
@@ -888,9 +901,17 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
     # неоднозначной одиночной цифро-точечной строки безопаснее пропустить
     # извлечение даты вообще и отдать агенту исходный текст: он видит историю
     # диалога и знает, какой вопрос задавал.
+    # Режим диалога: пока идёт разговор с агентом, реплики уходят ему целиком —
+    # без вырезания дат и без парсера (кроме явной записи, см. ниже).
+    from core.agent_chat import dialog_active
+
+    in_dialog = dialog_active(int(user_id))
+
+    # Агенту уходит исходный текст: дату он считает сам по 📅 в system. Вырезание
+    # слова о дате нужно только парсерам (regex АД, подсказка роутеру).
+    agent_text = text
     custom_date = None
-    agent_date_hint = None
-    if not _is_clearly_conversational(text) and not _looks_like_short_value(text):
+    if not in_dialog and not _is_clearly_conversational(text) and not _looks_like_short_value(text):
         custom_date, clean_text = extract_date_from_text(text, user_tz=user_tz)
         if custom_date:
             # #518: эвристика «вечером/перед сном» (case 4 внутри
@@ -902,12 +923,6 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             # custom_date для food-парсера ниже по коду остаётся как есть.
             if clean_text != text:
                 text = clean_text
-                agent_date_hint = custom_date
-            else:
-                debug_logger.info(
-                    f"🌙 #518: эвристика 'вечером/перед сном' (custom_date={custom_date!r}) "
-                    "— директива агенту не отправляется, только food-парсеру"
-                )
 
     # /my_products feature removed — no early-exit product matching, LLM handles all.
     router_result = None
@@ -917,25 +932,13 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
     # агента «какой именно день?» (#507), либо голое упоминание даты без
     # контекста — в обоих случаях это НЕ еда, и агент справится лучше парсера
     # (переспросит по-человечески, если пендинг-вопроса не было). Всегда в
-    # BotkinClaw, независимо от agent_last_turn_was_question — в отличие от
+    # BotkinClaw, независимо от того, спрашивал ли агент — в отличие от
     # #198 ниже, которое ловит короткие ЧИСЛОВЫЕ ответы и без вопроса агента
     # рискует утащить в агента случайное короткое число.
     if _is_lone_date_answer(custom_date, text):
         debug_logger.info(f"🔀 #514 reroute: одинокая дата (custom_date={custom_date!r}) → BotkinClaw")
         router_result = {"type": "other", "data": {}}
-        text = ""  # никаких огрызков пунктуации агенту — только директива о дате ниже
-
-    # ── #198: короткий ответ после вопроса агента → агенту, не парсеру ───────
-    # «сколько весишь?» → «54» перехватывался бы weight/BP-парсером, и агент не
-    # получал ответ — диалог рвался. Если предыдущий ход агента был свежим (<10
-    # мин) вопросом («?»), маршрутизируем короткое значение в BotkinClaw, минуя
-    # парсеры. Проверка истории — только для коротких значений (дёшево, редко).
-    if not router_result and _looks_like_short_value(text):
-        from core.agent_chat import agent_last_turn_was_question
-
-        if agent_last_turn_was_question(int(user_id)):
-            debug_logger.info(f"🔀 #198 reroute: короткий ответ {text[:20]!r} после вопроса агента → BotkinClaw")
-            router_result = {"type": "other", "data": {}}
+        text = ""  # парсерам нечего разбирать; агент получит исходную реплику (agent_text)
 
     # ── BP regex pre-check ──────────────────────────────────────────────────
     # Детерминированный паттерн «XXX/YY пульс ZZ» — мимо LLM-роутера.
@@ -1012,7 +1015,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
         bp_match = None
     else:
         bp_match = _BP_RE.search(text)
-    # router_result уже задан (#198 reroute) → не перехватываем АД, отдаём агенту.
+    # router_result уже задан (#514) → не перехватываем АД, отдаём агенту.
     if bp_match and router_result is None:
         sys_v = int(bp_match.group(1))
         dia_v = int(bp_match.group(2))
@@ -1020,16 +1023,17 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
         # Валидация: реалистичные границы. Иначе это не АД (может, размер обуви
         # «42/12» или что-то ещё). Систолика >= диастолики обязательно.
         if (70 <= sys_v <= 250) and (40 <= dia_v <= 150) and (sys_v > dia_v):
-            # Опциональное время «15:07» в тексте — привязываем к сегодня
-            measured_at = None
+            # Опциональное время «15:07» в тексте; дата — из «вчера/ДД.ММ»
+            # (custom_date), иначе сегодня. Раньше дата терялась: «вчера 150/95»
+            # ложился на сегодня.
+            from helpers.db_save import user_measured_at
+
+            hh = mm = None
             time_match = _TIME_RE.search(text)
             if time_match:
                 hh, mm = int(time_match.group(1)), int(time_match.group(2))
-                if 0 <= hh <= 23 and 0 <= mm <= 59:
-                    from datetime import datetime as _dt
-
-                    # user_tz загружен в начале handle_text_message — используем его.
-                    measured_at = _dt.now(user_tz).replace(hour=hh, minute=mm, second=0, microsecond=0)
+            has_time = hh is not None and 0 <= hh <= 23 and 0 <= mm <= 59
+            measured_at = user_measured_at(int(user_id), custom_date, hh, mm) if (has_time or custom_date) else None
 
             if pulse_v is not None and not (30 <= pulse_v <= 220):
                 pulse_v = None  # неправдоподобный пульс — отбрасываем но BP сохраняем
@@ -1047,21 +1051,19 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             )
             if saved:
                 pulse_part = f" пульс {pulse_v}" if pulse_v else ""
-                time_part = f" в {measured_at.strftime('%H:%M')}" if measured_at else ""
+                time_part = f" в {measured_at.strftime('%H:%M')}" if has_time else ""
+                date_part = f" за {measured_at.strftime('%d.%m')}" if custom_date else ""
                 e2e_prefix = "🧪 [E2E] " if is_e2e else ""
-                confirmation_html = f"{e2e_prefix}🩺 <b>АД:</b> {sys_v}/{dia_v}{pulse_part}{time_part}\n✅ Записано"
-                debug_logger.info(f"✅ BP regex pre-check matched: {sys_v}/{dia_v} pulse={pulse_v}")
+                confirmation_html = (
+                    f"{e2e_prefix}🩺 <b>АД:</b> {sys_v}/{dia_v}{pulse_part}{date_part}{time_part}\n✅ Записано"
+                )
+                debug_logger.info(f"✅ BP regex pre-check matched: {sys_v}/{dia_v} pulse={pulse_v} at {measured_at}")
                 # Inject both turns into agent_conversations so BotkinClaw sees
                 # this save when later asked about BP dynamics (fix: #71).
                 # Regex path bypasses the agent pipeline entirely — without this
                 # the agent has no memory of these saves and falsely reports
                 # "no measurements today". Прецедент 26.05.2026 (семейный юзер).
-                _inject_bp_to_agent_conv(
-                    user_id=int(user_id),
-                    raw_text=text,
-                    conf_text=f"🩺 АД: {sys_v}/{dia_v}{pulse_part}{time_part}. Записано.",
-                    include_user_turn=True,
-                )
+                _log_tracker(user_id, agent_text, f"АД {sys_v}/{dia_v}{pulse_part}", measured_at, user_tz, is_e2e)
                 # Замер сохранён детерминированно ВНЕ ЗАВИСИМОСТИ от того, был ли
                 # это вопрос («…, это нормально?») — вопрос дополнительно уходит
                 # агенту за ответом по существу, без повторного log_bp.
@@ -1075,71 +1077,15 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                 )
                 return
 
-    if not router_result and not _is_clearly_conversational(text):
-        # Предварительная проверка экей витаминов ДО вызова LLM — если все слова входят в словарь, не зовём LLM.
-        # ВАЖНО: только для НЕ-вопросов. Иначе «Какой у меня витамин Д?» (вопрос про анализ) ловится
-        # как факт приёма Витамина D3 и логируется. Прецедент 26.05.2026 17:43: Александр спросил
-        # про уровень витамина D — бот ответил «💊 Витамины: Витамин D3 ✅ Записано».
-        _SUPPLEMENT_KEYWORDS = {
-            "стирол": "Plant Sterols",
-            "стиролы": "Plant Sterols",
-            "стирола": "Plant Sterols",
-            "стерол": "Plant Sterols",
-            "стеролы": "Plant Sterols",
-            "стерола": "Plant Sterols",
-            "растительные стеролы": "Plant Sterols",
-            "растительные стиролы": "Plant Sterols",
-            "plant sterols": "Plant Sterols",
-            "plant sterol": "Plant Sterols",
-            "sterols": "Plant Sterols",
-            "sterol": "Plant Sterols",
-            "омега": "Омега 3",
-            "омегу": "Омега 3",
-            "omega": "Омега 3",
-            "омега-3": "Омега 3",
-            "омега 3-6-9": "Омега 3",
-            "ѓ3": "Витамин D3",
-            "витамин д": "Витамин D3",
-            "витамин d": "Витамин D3",
-            "d3": "Витамин D3",
-            "псиллиум": "Псиллиум",
-            "псилиум": "Псиллиум",
-            "psyllium": "Псиллиум",
-            "магний": "Магний",
-            "магне": "Магний",
-            "magnesium": "Магний",
-            "цинк": "Цинк",
-            "zinc": "Цинк",
-            "креатин": "Креатин",
-            "creatine": "Креатин",
-            "kreatin": "Креатин",
-            "кретин": "Креатин",
-            "моногидрат": "Креатин",
-            "метилфолат": "Метилфолат",
-            "метилофолат": "Метилфолат",
-            "фолат": "Метилфолат",
-            "metafolin": "Метилфолат",
-            "methylfolate": "Метилфолат",
-            "5-mthf": "Метилфолат",
-            "ашваганд": "Ашвагандха",
-            "коллаген": "Коллаген",
-            "витамины": None,  # общее слово — только в комбинации с другими
-        }
-        text_lower_pre = text.lower().strip()
-        # Разбиваем на слова и ищем совпадения с ключами (по целым словам)
-        words = text_lower_pre.split()
-        pre_found = {}
-        for kw, canonical in _SUPPLEMENT_KEYWORDS.items():
-            if canonical is None:
-                continue
-            # Проверяем через contains для многословных ключей (растительные стеролы)
-            if kw in text_lower_pre and canonical not in pre_found.values():
-                pre_found[kw] = canonical
-        # Применяем pre-check только если хотя бы один супплемент найден и часть слов = ключевые
-        if pre_found and len(text.split()) <= 6:  # Короткое сообщение с витаминами
-            unique_supplements = list(dict.fromkeys(pre_found.values()))
-            router_result = {"type": "vitamins", "data": {"items": unique_supplements}}
-            debug_logger.info(f"✅ Supplement pre-check found: {unique_supplements}")
+    # В диалоге всё, что не похоже на явную запись, — реплика агенту. Явная запись
+    # («запиши…», «Обед: …», «200 г») идёт парсером к карточке, как вне диалога.
+    if in_dialog and not router_result and not _looks_like_log_entry(text):
+        debug_logger.info("💬 dialog mode → BotkinClaw")
+        router_result = {"type": "other", "data": {}}
+
+    # Проверки добавок по подстроке без LLM («омега», «магний» в ≤6 словах) больше
+    # нет: «забыл выпить омегу», «магний в анализе низкий» записывались как приём.
+    # Приём от упоминания отличает роутер (action logged/metadata).
 
     if not router_result:
         # Conversational pre-filter: skip the Sonnet-4.5 LLM router for
@@ -1158,7 +1104,8 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                 debug_logger.info("⏳ Calling analyze_message in executor...")
                 loop = asyncio.get_running_loop()
                 router_result = await loop.run_in_executor(
-                    None, lambda: analyze_message(text=text, user_id=int(user_id))
+                    None,
+                    lambda: analyze_message(text=text, user_id=int(user_id), now_local=datetime.now(user_tz)),
                 )
                 debug_logger.info(
                     f"✅ analyze_message returned type: {router_result.get('type') if router_result else 'None'}"
@@ -1169,55 +1116,10 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                 router_result = None
 
     if not router_result:
-        # Fallback: Regex for Vitamins
-        # from core.health.supplements import supplement_service (DEPRECATED)
-
-        # Simple keywords mapping
-        vitamin_map = {
-            "омега": "Омега 3-6-9",
-            "омегу": "Омега 3-6-9",
-            "omega": "Омега 3-6-9",
-            "д3": "Витамин D3",
-            "d3": "Витамин D3",
-            "витамин д": "Витамин D3",
-            # Plant Sterols — через Е (стерол) И (стирол) и латиницей
-            "стирол": "Plant Sterols",
-            "стиролы": "Plant Sterols",
-            "стерол": "Plant Sterols",
-            "стеролы": "Plant Sterols",
-            "растительные стеролы": "Plant Sterols",
-            "растительные стиролы": "Plant Sterols",
-            "plant sterol": "Plant Sterols",
-            "sterol": "Plant Sterols",
-            "sterols": "Plant Sterols",
-            "магний": "Магний",
-            "magne": "Магний",
-            "цинк": "Цинк",
-            "zinc": "Цинк",
-            "псиллиум": "Псиллиум",
-            "псилиум": "Псиллиум",
-            "psyllium": "Псиллиум",
-            "ашваганд": "Ашвагандха",
-        }
-
-        found_items = []
-        text_lower = text.lower()
-        for kw, name in vitamin_map.items():
-            if kw in text_lower:
-                if name not in found_items:
-                    found_items.append(name)
-
-        if found_items and not _is_clearly_conversational(text):
-            logger.info(f"Regex Fallback found vitamins: {found_items}")
-            router_result = {"type": "vitamins", "data": {"items": found_items}}
-        elif found_items:
-            logger.info(f"Regex Fallback found vitamins {found_items} but text is conversational — routing to agent")
-            router_result = {"type": "other", "data": {}}
-        else:
-            await processing_msg.edit_text(
-                "🤷‍♂️ Не понял, что это. Это еда? Попробуй описать точнее.\n⚠️ <b>OpenAI не отвечает</b> — доложи баланс в OpenAI или проверь ключ."
-            )
-            return
+        # Роутер упал: угадывать запись по подстроке нельзя (портит журнал добавок),
+        # отдаём текст агенту — у него свои инструменты записи и он переспросит.
+        logger.warning("Router returned nothing — routing text to BotkinClaw")
+        router_result = {"type": "other", "data": {}}
 
     # Wrap the rest in try..except to catch formatting/sending errors
     try:
@@ -1227,6 +1129,12 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
         loop = asyncio.get_running_loop()
         msg_type = router_result.get("type")
         data = router_result.get("data", {})
+        # Задача 4 аудита: роутер видит [NOW] и сам решает «вчера вечером» / «в 23:00
+        # после полуночи». Регэксп дат — первичен (он уже вырезал слово), роутер
+        # закрывает остальное («в понедельник», «позавчера вечером»).
+        router_date, router_time = _router_when(data, user_tz)
+        if custom_date is None and router_date:
+            custom_date = router_date
 
         # Guard'ы weight/bp решают «сохранять ли замер» ДО выбора ветки.
         # Раньше они стояли ВНУТРИ `elif msg_type == "weight"/"bp"` и делали
@@ -1255,27 +1163,6 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             if data.get("action") == "metadata":
                 debug_logger.info("🔀 vitamins/metadata → BotkinClaw (шаблон «не приём» отключён)")
                 msg_type = "other"
-            elif _is_agent_followup_text(text):
-                try:
-                    from core.agent_chat import agent_last_turn_is_fresh
-
-                    if agent_last_turn_is_fresh(int(user_id)):
-                        debug_logger.info("🔀 vitamins + правка после свежего хода агента → BotkinClaw")
-                        msg_type = "other"
-                except Exception as _e:
-                    debug_logger.warning(f"agent followup guard failed: {_e}")
-
-        # Еда, упомянутая посреди разговора с агентом, — реплика диалога, а не
-        # запись. Агент ответит по существу и сам предложит записать.
-        if msg_type in ("food", "multi_food") and _is_food_mention_in_dialog(text):
-            try:
-                from core.agent_chat import agent_last_turn_is_fresh
-
-                if agent_last_turn_is_fresh(int(user_id), within_minutes=20):
-                    debug_logger.info("🔀 food-упоминание в свежем диалоге с агентом → BotkinClaw")
-                    msg_type = "other"
-            except Exception as _e:
-                debug_logger.warning(f"food-in-dialog guard failed: {_e}")
 
         # Логируем raw text для не-BotkinClaw веток (food / vitamins / bp / weight / ...).
         # BotkinClaw-ветка ('other') сама пишет user-turn внутри ask_agent.
@@ -1336,10 +1223,12 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                 # #510: если extract_date_from_text() вырезала «вчера»/«позавчера»/
                 # дату — восстанавливаем её агенту служебной директивой, иначе
                 # событие ложится на сегодня.
-                agent_text = _agent_text_with_date_hint(text, agent_date_hint)
+                meal_previews: list = []
                 reply = await loop.run_in_executor(
                     None,
-                    lambda: ask_agent(int(user_id), agent_text, _progress, is_e2e=is_e2e),
+                    lambda: ask_agent(
+                        int(user_id), agent_text, _progress, is_e2e=is_e2e, meal_preview_sink=meal_previews
+                    ),
                 )
                 if not reply:
                     reply = "Хм, у меня нет внятного ответа. Попробуй переформулировать."
@@ -1375,6 +1264,8 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
 
                 for i, chunk in enumerate(chunks):
                     await _send_chunk(chunk, edit_target=progress_msg if i == 0 else None)
+                if meal_previews:
+                    await show_agent_meal_preview(message, user_id, meal_previews[-1], user_tz)
             except RuntimeError as e:
                 # Промпт-гейта больше нет — у каждого юзера есть дефолтный
                 # системный промпт (#165). ask_agent кидает RuntimeError только
@@ -1488,6 +1379,9 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             status_text = "✅ <b>Записано</b>" if saved else "⚠️ <b>Ошибка записи</b>"
 
             response = f"💊 <b>Витамины:</b>\n{items_list}\n\n{status_text}"
+            if saved:
+                names = ", ".join(i["name"] if isinstance(i, dict) else str(i) for i in items)
+                _log_tracker(user_id, agent_text, f"приём добавок: {names}", None, user_tz, is_e2e, custom_date)
 
             await processing_msg.edit_text(response, parse_mode="HTML")
             return
@@ -1577,7 +1471,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                     description=text,
                     meal_items=meal_items,
                     meal_totals=meal_totals,
-                    meal_time=_temporal_phrase_to_time(text) or datetime.now(user_tz).strftime("%H:%M"),
+                    meal_time=_temporal_phrase_to_time(text) or router_time or datetime.now(user_tz).strftime("%H:%M"),
                     meal_name=meal_name,
                     date=custom_date,
                     is_plan=is_plan or None,
@@ -1621,89 +1515,72 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
             return
 
         elif msg_type == "weight":
-            w_val = data.get("weight")
-            # Guard: сохраняем только правдоподобный вес тела; иначе отдаём в агент
-            # (тот же приём, что и в ветке bp выше).
-            if not isinstance(w_val, (int, float)) or not (20 <= w_val <= 400):
-                router_result = None
-                msg_type = None
-            else:
-                from helpers.db_save import save_weight_to_db
+            # Диапазон уже проверен guard'ом до выбора ветки.
+            from helpers.db_save import save_weight_to_db, user_measured_at
 
-                saved = save_weight_to_db(
-                    {"weight": w_val, "source": "e2e_test" if is_e2e else "llm_text"},
-                    user_id=int(user_id),
-                )
-                e2e_prefix = "🧪 [E2E] " if is_e2e else ""
-                status = "✅ Записано" if saved else "⚠️ Ошибка записи"
-                await processing_msg.edit_text(
-                    f"{e2e_prefix}⚖️ <b>Вес:</b> {w_val} кг\n{status}",
-                    parse_mode="HTML",
-                )
-                return
+            w_val = data.get("weight")
+            measured_at = user_measured_at(int(user_id), custom_date)
+            saved = save_weight_to_db(
+                {
+                    "weight": w_val,
+                    "date": measured_at.isoformat(),
+                    "source": "e2e_test" if is_e2e else "llm_text",
+                },
+                user_id=int(user_id),
+            )
+            e2e_prefix = "🧪 [E2E] " if is_e2e else ""
+            date_part = f" за {measured_at.strftime('%d.%m')}" if custom_date else ""
+            status = "✅ Записано" if saved else "⚠️ Ошибка записи"
+            if saved:
+                _log_tracker(user_id, agent_text, f"вес {w_val} кг", measured_at, user_tz, is_e2e)
+            await processing_msg.edit_text(
+                f"{e2e_prefix}⚖️ <b>Вес:</b> {w_val} кг{date_part}\n{status}",
+                parse_mode="HTML",
+            )
+            return
 
         elif msg_type == "bp":
             # 🩺 BP (task #53): LLM-роутер распознал замер АД (если regex
             # pre-check выше не сработал — например необычная формулировка).
             data = router_result.get("data", {})
             sys_v, dia_v, pulse_v = data.get("systolic"), data.get("diastolic"), data.get("pulse")
-            # Тот же guard, что и в regex-пути выше: если сообщение — описание
-            # диапазона или прошедшее время, не сохраняем замер. Сбрасываем
-            # router_result/msg_type и выпадаем ниже к BotkinClaw. Вопрос сам
-            # по себе НЕ сбрасывается здесь — если код дошёл до этой ветки,
-            # значит LLM-роутер (SCENARIO 7) уже решил, что это СВОЙ свежий
-            # замер, а не число в отвлечённом/нормативном вопросе, и явно
-            # классифицировал сообщение как "bp" — см. FIX 06.09.2026.
-            if _is_bp_range or _is_bp_past:
-                debug_logger.info(
-                    f"🩺 BP LLM-router SKIPPED for user {user_id}: "
-                    f"range={_is_bp_range} past={_is_bp_past} — передаём в агент"
+            # Диапазон/прошлое/нереалистичные цифры уже отсеяны guard'ом до выбора ветки.
+            from helpers.db_save import save_bp_to_db, user_measured_at
+
+            hh = mm = None
+            time_str = data.get("measured_at_time") or router_time
+            if time_str and ":" in time_str:
+                try:
+                    hh, mm = map(int, time_str.split(":")[:2])
+                except (ValueError, IndexError):
+                    hh = mm = None
+            has_time = hh is not None and 0 <= hh <= 23 and 0 <= mm <= 59
+            measured_at = user_measured_at(int(user_id), custom_date, hh, mm) if (has_time or custom_date) else None
+
+            saved = save_bp_to_db(
+                systolic=sys_v,
+                diastolic=dia_v,
+                pulse=pulse_v,
+                user_id=int(user_id),
+                measured_at=measured_at,
+                source="llm_text",
+                is_e2e=is_e2e,
+            )
+            pulse_part = f" пульс {pulse_v}" if pulse_v else ""
+            time_part = f" в {measured_at.strftime('%H:%M')}" if has_time else ""
+            date_part = f" за {measured_at.strftime('%d.%m')}" if custom_date else ""
+            e2e_prefix = "🧪 [E2E] " if is_e2e else ""
+            status = "✅ Записано" if saved else "⚠️ Ошибка записи"
+            confirmation_html = f"{e2e_prefix}🩺 <b>АД:</b> {sys_v}/{dia_v}{pulse_part}{date_part}{time_part}\n{status}"
+            if saved:
+                # LLM router path: log_router_raw_text already saved the user
+                # turn → inject only the assistant confirmation (#71).
+                _log_tracker(user_id, agent_text, f"АД {sys_v}/{dia_v}{pulse_part}", measured_at, user_tz, is_e2e)
+                confirmation_html = await _bp_confirmation_with_answer(
+                    _is_bp_question, int(user_id), text, confirmation_html
                 )
-                router_result = None
-                msg_type = None
-            elif sys_v and dia_v and (70 <= sys_v <= 250) and (40 <= dia_v <= 150) and (sys_v > dia_v):
-                from helpers.db_save import save_bp_to_db
-
-                measured_at = None
-                time_str = data.get("measured_at_time")
-                if time_str and ":" in time_str:
-                    try:
-                        from datetime import datetime as _dt
-
-                        hh, mm = map(int, time_str.split(":")[:2])
-                        if 0 <= hh <= 23 and 0 <= mm <= 59:
-                            measured_at = _dt.now(user_tz).replace(hour=hh, minute=mm, second=0, microsecond=0)
-                    except (ValueError, IndexError):
-                        pass
-
-                saved = save_bp_to_db(
-                    systolic=sys_v,
-                    diastolic=dia_v,
-                    pulse=pulse_v,
-                    user_id=int(user_id),
-                    measured_at=measured_at,
-                    source="llm_text",
-                    is_e2e=is_e2e,
-                )
-                pulse_part = f" пульс {pulse_v}" if pulse_v else ""
-                time_part = f" в {time_str}" if time_str else ""
-                e2e_prefix = "🧪 [E2E] " if is_e2e else ""
-                status = "✅ Записано" if saved else "⚠️ Ошибка записи"
-                confirmation_html = f"{e2e_prefix}🩺 <b>АД:</b> {sys_v}/{dia_v}{pulse_part}{time_part}\n{status}"
-                if saved:
-                    # LLM router path: log_router_raw_text already saved the user
-                    # turn → inject only the assistant confirmation (#71).
-                    _inject_bp_to_agent_conv(
-                        user_id=int(user_id),
-                        raw_text=text,
-                        conf_text=f"🩺 АД: {sys_v}/{dia_v}{pulse_part}{time_part}. Записано.",
-                        include_user_turn=False,
-                    )
-                    confirmation_html = await _bp_confirmation_with_answer(
-                        _is_bp_question, int(user_id), text, confirmation_html
-                    )
-                await processing_msg.edit_text(confirmation_html, parse_mode="HTML")
-                return
+            await processing_msg.edit_text(confirmation_html, parse_mode="HTML")
+            return
 
         elif msg_type == "body_measurements":
             # Обработка замеров тела
@@ -1792,7 +1669,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                     description=text,
                     meal_items=meal_items,
                     meal_totals=meal_totals,
-                    meal_time=_temporal_phrase_to_time(text) or datetime.now(user_tz).strftime("%H:%M"),
+                    meal_time=_temporal_phrase_to_time(text) or router_time or datetime.now(user_tz).strftime("%H:%M"),
                     meal_name=meal_name,
                     date=custom_date,
                     # #255: пользователь дал точные КБЖУ с этикетки текстом
@@ -1901,10 +1778,6 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
 
             await processing_msg.edit_text("⏳ Думаю…")
             try:
-                # #510: та же служебная директива с датой, что и в основной
-                # 'other'-ветке выше — здесь тоже вырезанные «вчера»/«позавчера»/
-                # дата должны дойти до агента.
-                agent_text = _agent_text_with_date_hint(text, agent_date_hint)
                 reply = await loop.run_in_executor(None, lambda: ask_agent(int(user_id), agent_text))
                 if not reply:
                     reply = "Хм, у меня нет внятного ответа. Попробуй переформулировать."

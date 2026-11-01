@@ -38,7 +38,7 @@ MSK = timezone(timedelta(hours=3))
 
 LLM_ANALYZE = "core.llm.router.analyze_message"
 ASK_AGENT = "core.agent_chat.ask_agent"
-AGENT_LAST_TURN_WAS_QUESTION = "core.agent_chat.agent_last_turn_was_question"
+AGENT_LAST_TURN_WAS_QUESTION = "core.agent_chat.dialog_active"
 PROCESS_LLM_FOOD_DATA = "core.food.nutrition.process_llm_food_data"
 
 USER_ID = 895655
@@ -107,25 +107,29 @@ async def _run_and_capture_agent_text(text: str, agent_last_turn_was_question: b
 async def test_lone_day_before_yesterday_after_agent_question_reaches_agent():
     """Сценарий issue #514 дословно: «позавчера» одним словом после вопроса агента."""
     agent_text = await _run_and_capture_agent_text("позавчера", agent_last_turn_was_question=True)
-    assert _ago(2) in agent_text
+    # Режим диалога: агент получает реплику как есть и сам считает дату по 📅 в system.
+    assert agent_text.strip() == "позавчера"
 
 
 @pytest.mark.asyncio
 async def test_lone_yesterday_after_agent_question_reaches_agent():
     agent_text = await _run_and_capture_agent_text("вчера", agent_last_turn_was_question=True)
-    assert _ago(1) in agent_text
+    # Режим диалога: агент получает реплику как есть и сам считает дату по 📅 в system.
+    assert agent_text.strip() == "вчера"
 
 
 @pytest.mark.asyncio
 async def test_lone_english_yesterday_reaches_agent():
     agent_text = await _run_and_capture_agent_text("yesterday", agent_last_turn_was_question=True)
-    assert _ago(1) in agent_text
+    # Режим диалога: агент получает реплику как есть и сам считает дату по 📅 в system.
+    assert agent_text.strip() == "yesterday"
 
 
 @pytest.mark.asyncio
 async def test_lone_english_day_before_yesterday_reaches_agent():
     agent_text = await _run_and_capture_agent_text("day before yesterday", agent_last_turn_was_question=True)
-    assert _ago(2) in agent_text
+    # Режим диалога: агент получает реплику как есть и сам считает дату по 📅 в system.
+    assert agent_text.strip() == "day before yesterday"
 
 
 @pytest.mark.asyncio
@@ -161,7 +165,7 @@ async def test_lone_dd_mm_slash_date_reaches_agent_as_raw_text_not_cut_date():
 @pytest.mark.asyncio
 async def test_lone_date_without_prior_question_still_reaches_agent_not_food_parser():
     agent_text = await _run_and_capture_agent_text("позавчера", agent_last_turn_was_question=False)
-    assert _ago(2) in agent_text
+    assert agent_text.strip() == "позавчера"
 
 
 # ── Негативный случай: обычная еда со словом «вчера» — НЕ сломано ───────────

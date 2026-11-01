@@ -1904,3 +1904,22 @@ def test_adjust_meal_items_rejects_negative_weight(client, db_session):
         "/api/agent/adjust_meal_items", json={"meal_id": plan.id, "changes": [{"idx": 0, "new_weight": -5}]}
     )
     assert r.status_code == 422
+
+
+# ── /log_weight (аудит обвязки, задача 3) ─────────────────────────────────────
+
+
+def test_log_weight_saves_manual_weight(client, db_session):
+    """POST /log_weight — вес из диалога («82,5» на вопрос агента)."""
+    from database.models import Weight
+
+    r = client.post("/api/agent/log_weight", json={"weight": 82.5, "measured_at": "2026-05-04T08:30:00"})
+    assert r.status_code == 200, r.text
+    assert r.json()["weight"] == 82.5
+    row = db_session.query(Weight).order_by(Weight.id.desc()).first()
+    assert row.weight == 82.5 and row.source == "manual"
+
+
+def test_log_weight_rejects_implausible(client):
+    r = client.post("/api/agent/log_weight", json={"weight": 5})
+    assert r.status_code == 422

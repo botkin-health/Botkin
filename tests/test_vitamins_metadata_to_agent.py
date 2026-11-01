@@ -13,7 +13,7 @@ import pytest
 
 LLM_ANALYZE = "core.llm.router.analyze_message"
 ASK_AGENT = "core.agent_chat.ask_agent"
-LAST_QUESTION = "core.agent_chat.agent_last_turn_was_question"
+LAST_QUESTION = "core.agent_chat.dialog_active"
 LAST_FRESH = "core.agent_chat.agent_last_turn_is_fresh"
 SAVE_SUPP = "core.health.supplements.save_supplements"
 
@@ -58,7 +58,7 @@ async def _run(text: str, router_result: dict, fresh: bool = False):
     with (
         patch(LLM_ANALYZE, return_value=router_result),
         patch(ASK_AGENT, side_effect=_fake_ask_agent),
-        patch(LAST_QUESTION, return_value=False),
+        patch(LAST_QUESTION, return_value=fresh),
         patch(LAST_FRESH, return_value=fresh),
         patch(SAVE_SUPP, save_supp),
         patch("logging.FileHandler", return_value=logging.NullHandler()),
@@ -107,19 +107,19 @@ async def test_followup_without_fresh_agent_turn_not_hijacked():
 
 
 @pytest.mark.asyncio
-async def test_plain_intake_still_logged_even_after_fresh_agent_turn():
+async def test_intake_in_fresh_dialog_goes_to_agent():
+    """Режим диалога: в свежем разговоре реплику ведёт агент (у него log_supplement)."""
     agent_text, save_supp, _ = await _run(
         "выпил магний", {"type": "vitamins", "data": {"action": "logged", "items": ["Магний"]}}, fresh=True
     )
-    assert agent_text is None
-    save_supp.assert_called_once()
+    assert agent_text == "выпил магний"
+    save_supp.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_food_followup_not_affected_by_guard():
-    """Guard только для vitamins: еда с «и ещё» после хода агента не уходит в агента."""
-    from handlers.text import _is_agent_followup_text
-
-    assert not _is_agent_followup_text("и ещё банан")
-    assert _is_agent_followup_text("ты не указал аспирин")
-    assert _is_agent_followup_text("Да, и утренний приём неточно")
+async def test_intake_outside_dialog_logged_by_parser():
+    agent_text, save_supp, _ = await _run(
+        "выпил магний", {"type": "vitamins", "data": {"action": "logged", "items": ["Магний"]}}, fresh=False
+    )
+    assert agent_text is None
+    save_supp.assert_called_once()
