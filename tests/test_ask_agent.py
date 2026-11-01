@@ -1053,3 +1053,32 @@ def test_meta_prompt_garmin_and_commands_rules():
     assert "Health Auto Export" in src
     assert "/connect_garmin" not in src
     assert "подтверждён на дату анализа" in src
+
+
+def _anthropic_empty_thinking():
+    return FakeResp(
+        {
+            "stop_reason": "end_turn",
+            "content": [{"type": "thinking", "thinking": "", "signature": "sig"}],
+            "usage": {"input_tokens": 100, "output_tokens": 5},
+        }
+    )
+
+
+def test_empty_final_turn_is_retried_once(agent_db, monkeypatch):
+    """Ход из одного пустого thinking — повторяем, а не отдаём «нет внятного ответа»."""
+    fake = FakeRequests([_anthropic_empty_thinking(), _anthropic_text("Сладкие лимонады для этого не годятся.")])
+    monkeypatch.setattr(agent_chat, "requests", fake)
+
+    reply = agent_chat.ask_agent(895655, "или лимонады — в них же сахар")
+
+    assert reply == "Сладкие лимонады для этого не годятся."
+    assert len(fake.anthropic_calls) == 2
+
+
+def test_empty_final_turn_retry_is_single(agent_db, monkeypatch):
+    fake = FakeRequests([_anthropic_empty_thinking(), _anthropic_empty_thinking()])
+    monkeypatch.setattr(agent_chat, "requests", fake)
+
+    assert agent_chat.ask_agent(895655, "или лимонады?") == ""
+    assert len(fake.anthropic_calls) == 2
