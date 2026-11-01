@@ -23,7 +23,6 @@
 | Пайплайн данных здоровья (KB, HAE, XML, импортёры) | [`ai_context/06_health_data_pipeline.md`](ai_context/06_health_data_pipeline.md) |
 | AI-агент BotkinClaw | [`ai_context/botkinclaw.md`](ai_context/botkinclaw.md) |
 | Vision проекта | [`architecture/vision.md`](architecture/vision.md) |
-| Хронолог в Notion: формат и как писать | [`operations/notion-chronolog.md`](operations/notion-chronolog.md) |
 | Секреты, токены, Zepp reauth | [`operations/secrets-and-tokens.md`](operations/secrets-and-tokens.md) |
 | Схема БД, таблицы, конвенции | [`ai_context/03_database_schema.md`](ai_context/03_database_schema.md) |
 | Workflow'ы разработки | [`ai_context/04_workflows.md`](ai_context/04_workflows.md) |
