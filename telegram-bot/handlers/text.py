@@ -140,6 +140,32 @@ def _is_agent_followup_text(text: str) -> bool:
     return bool(text and _AGENT_FOLLOWUP_RE.search(text))
 
 
+# Явное намерение записать еду: «запиши», «внеси», «залогируй», «добавь в дневник».
+_EXPLICIT_LOG_RE = re.compile(
+    r"\b(?:запиш\w*|внес\w*|внёс\w*|занес\w*|залогир\w*|логир\w*|отметь|добавь\s+в\s+(?:дневник|журнал))",
+    re.IGNORECASE,
+)
+
+
+def _is_food_mention_in_dialog(text: str) -> bool:
+    """Еда/напиток упомянуты как часть разговора, а не как запись в дневник.
+
+    Прецедент E2E 01.11.2026: в разговоре о самочувствии после поездки
+    «вчера выпил пару бокалов шампанского» и «у меня есть квашеная капуста»
+    ушли в парсер еды — человек получил карточку «Сохранить/Отмена» вместо
+    ответа. Применяется только при свежем ходе агента. Запись остаётся за
+    парсером, если есть явная команда, количество (200 г, 2 шт) или слот
+    в начале («Обед: …»).
+    """
+    if not text:
+        return False
+    if _EXPLICIT_LOG_RE.search(text) or _NUMERIC_DOSE_RE.search(text):
+        return False
+    if detect_slot_prefix(text):
+        return False
+    return True
+
+
 def _inject_bp_to_agent_conv(
     user_id: int,
     raw_text: str,
@@ -486,11 +512,15 @@ def extract_date_from_text(text: str, user_tz=None) -> tuple[str, str]:
     _tz = user_tz or ZoneInfo("Europe/Moscow")
 
     # Ключевые слова для "вчера" / "позавчера"
+    # Регэкспы, не слова: ловим прилагательные («вчерашней еды», прецедент
+    # E2E 01.11.2026 — запись ушла на сегодня) и частые опечатки с телефона
+    # («вяера», «вчра»). Позавчера — раньше вчера.
     relative_keywords = [
-        ("позавчера", 2),
-        ("day before yesterday", 2),
-        ("вчера", 1),
-        ("yesterday", 1),
+        (r"позавчера\w*", 2),
+        (r"day before yesterday", 2),
+        (r"вчерашн\w*", 1),
+        (r"в[чя]е?ра", 1),
+        (r"yesterday", 1),
     ]
 
     # 1. "вчера" / "позавчера" / "yesterday" — ищем в ЛЮБОМ месте строки, не
@@ -499,7 +529,7 @@ def extract_date_from_text(text: str, user_tz=None) -> tuple[str, str]:
     # на сегодня. Порядок relative_keywords (позавчера раньше вчера) + границы
     # слова \b защищают от ложного совпадения "вчера" внутри "позавчера".
     for kw, days_ago in relative_keywords:
-        m = re.search(rf"\b{re.escape(kw)}\b", text_lower)
+        m = re.search(rf"\b{kw}\b", text_lower)
         if m:
             target_date = datetime.now(_tz) - timedelta(days=days_ago)
             date_str = target_date.strftime("%Y-%m-%d")
@@ -1234,6 +1264,18 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext)
                         msg_type = "other"
                 except Exception as _e:
                     debug_logger.warning(f"agent followup guard failed: {_e}")
+
+        # Еда, упомянутая посреди разговора с агентом, — реплика диалога, а не
+        # запись. Агент ответит по существу и сам предложит записать.
+        if msg_type in ("food", "multi_food") and _is_food_mention_in_dialog(text):
+            try:
+                from core.agent_chat import agent_last_turn_is_fresh
+
+                if agent_last_turn_is_fresh(int(user_id), within_minutes=20):
+                    debug_logger.info("🔀 food-упоминание в свежем диалоге с агентом → BotkinClaw")
+                    msg_type = "other"
+            except Exception as _e:
+                debug_logger.warning(f"food-in-dialog guard failed: {_e}")
 
         # Логируем raw text для не-BotkinClaw веток (food / vitamins / bp / weight / ...).
         # BotkinClaw-ветка ('other') сама пишет user-turn внутри ask_agent.

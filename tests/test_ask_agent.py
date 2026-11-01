@@ -441,7 +441,11 @@ def test_recent_tracker_events_summarizes_parser_rows(agent_db):
 
     assert "54" in block
     assert "яблоко" in block
-    assert "[вес]" in block and "[еда]" in block
+    assert "[вес" in block and "[еда" in block
+    # Время записи в сводке — иначе агент гадает, когда это было.
+    import re
+
+    assert re.search(r"\[еда, \d{2}\.\d{2} \d{2}:\d{2}\]", block)
 
 
 def test_recent_tracker_events_empty_when_no_parser_rows(agent_db):

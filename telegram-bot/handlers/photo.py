@@ -17,6 +17,7 @@ import html
 import math
 import os
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,19 @@ NON_FOOD_ROUTER_TYPES = frozenset({"medical", "other", "weight", "vitamins", "bp
 MAX_CAPTION_HINT_LEN = 200  # подпись юзера → dish_name (Telegram caption ≤ 1024)
 MAX_COMPONENT_NAME_LEN = 100
 MAX_COMPONENTS = 20  # верхняя граница числа items из одного фото
+
+
+_HEALTH_APP_SCREEN_RE = re.compile(
+    r"garmin|гармин|apple\s*health|oura|whoop|\bhrv\b|\bвсп\b|\bвчп\b|body\s*battery|"
+    r"пульс|стресс|сатурац|spo2|пульсоксиметр|показател\w*\s+сна",
+    re.IGNORECASE,
+)
+
+
+def _looks_like_health_app_screenshot(caption: str, recognized_reply: str) -> bool:
+    """Скрин показателей из Garmin/Apple Health/кольца, а не документ для архива."""
+    text = f"{caption or ''} {recognized_reply or ''}"
+    return bool(_HEALTH_APP_SCREEN_RE.search(text))
 
 
 def _safe_float(value: object) -> float | None:
@@ -1532,11 +1546,15 @@ async def handle_description(
             # Не распознали как еду/вес/добавки/АД/замеры и не похоже на документ —
             # прежде фото просто терялось (issue #370: папа Александра прислал фото
             # страховки, BotkinClaw мог только посоветовать /doc). Архивируем сразу.
+            # Скриншот приложения здоровья (Garmin, Apple Health, кольцо) — это
+            # вопрос о показателях, а не документ: в архив не кладём (E2E
+            # 01.11.2026 — скрин «Отклонений: 2» из Garmin ушёл в документы).
+            is_health_app_screen = _looks_like_health_app_screenshot(actual_caption, recognized_reply)
             archived_names: list[str] = []
             try:
                 from handlers.doc_upload import archive_photo_as_document
 
-                for ph_path in photo_paths:
+                for ph_path in [] if is_health_app_screen else photo_paths:
                     archived_names.append(
                         archive_photo_as_document(
                             int(user_id), Path(ph_path), reason="не распознано как еда/вес/добавки/АД/замеры"
@@ -1565,10 +1583,18 @@ async def handle_description(
                             "Это вероятно скриншот приложения, медицинский документ, фото объекта "
                             "или вопрос с контекстом.)"
                         )
+                    if archived_names:
+                        storage_note = (
+                            " Фото уже сохранено в архив документов профиля — "
+                            "НЕ предлагай пользователю /doc или другое хранилище, оно уже сохранено."
+                        )
+                    else:
+                        storage_note = (
+                            " Это скриншот приложения здоровья: в документы НЕ сохранён и не нужно. "
+                            "Сверь показатели со скрина с данными через свои tools."
+                        )
                     user_text_for_agent = (
-                        caption_line + vision_note + " Фото уже сохранено в архив документов профиля — "
-                        "НЕ предлагай пользователю /doc или другое хранилище, оно уже сохранено. "
-                        "Разберись через свои tools и ответь по существу."
+                        caption_line + vision_note + storage_note + " Разберись через свои tools и ответь по существу."
                     )
 
                     await processing_message.edit_text("🤔 думаю...")
