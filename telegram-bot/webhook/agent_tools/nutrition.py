@@ -253,15 +253,46 @@ async def adjust_meal_items_ep(
     return {"status": "ok", "dry_run": req.dry_run, **res}
 
 
+MAX_MEALS_DAYS = 366
+DAILY_AUTO_FROM_DAYS = 90
+_DAILY_KEYS = ("calories", "protein", "fats", "carbs", "fiber")
+
+
+def _daily_nutrition(logs) -> list[dict]:
+    """Подневные суммы КБЖУ+клетчатка по eaten-записям; дни без записей пропускаются."""
+    by_day: dict = {}
+    for log in logs:
+        if log.status == "plan":
+            continue
+        d = by_day.setdefault(log.date, {"meals": 0, **{k: 0.0 for k in _DAILY_KEYS}})
+        d["meals"] += 1
+        totals = log.totals or {}
+        for k in _DAILY_KEYS:
+            try:
+                d[k] += float(totals.get(k) or 0)
+            except (TypeError, ValueError):
+                pass
+    return [
+        {"date": day.isoformat(), "meals": v["meals"], **{k: round(v[k], 1) for k in _DAILY_KEYS}}
+        for day, v in sorted(by_day.items())
+    ]
+
+
 @router.get("/recent_meals")
 async def recent_meals(
     days: int = 7,
     compact: bool = False,
     only_open_plans: bool = False,
+    daily: bool = False,
     user=Depends(get_agent_user),
     db: Session = Depends(get_db),
 ):
-    """Return nutrition_log rows for the last N days.
+    """Return nutrition_log rows for the last N days (1..MAX_MEALS_DAYS).
+
+    daily=True — подневной агрегат вместо списка приёмов: на каждый день с записями
+    {date, meals, calories, protein, fats, carbs, fiber} (только status=eaten).
+    Включается сам при days > 90: «как я ела за полгода/год» одним вызовом, а не
+    сотней day_summary (прецедент 06.11.2026 — 147 вызовов из Claude Desktop).
 
     compact=True — лёгкий формат для поиска по длинному периоду («ел ли я X за
     3 месяца»): `items` становится списком имён продуктов (строки), `totals`
@@ -274,12 +305,17 @@ async def recent_meals(
     """
     from database.crud import get_nutrition_logs_by_period
 
-    if days < 1 or days > 90:
-        raise HTTPException(status_code=400, detail="days must be between 1 and 90")
+    if days < 1 or days > MAX_MEALS_DAYS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"days must be between 1 and {MAX_MEALS_DAYS} (больше 90 дней — подневной агрегат, daily=true)",
+        )
 
     # Длинные окна по умолчанию компактны (защита от token-blowup).
     if days > 14:
         compact = True
+    if days > DAILY_AUTO_FROM_DAYS:
+        daily = True
 
     end_date = _today_in_user_tz(user)
     start_date = end_date - timedelta(days=days - 1)
@@ -287,6 +323,16 @@ async def recent_meals(
     logs = get_nutrition_logs_by_period(db, user.telegram_id, start_date, end_date)
     if only_open_plans:
         logs = [log for log in logs if log.status == "plan" and log.date == end_date]
+
+    if daily:
+        return {
+            "status": "ok",
+            "days": days,
+            "daily": True,
+            "start_date": start_date.isoformat(),
+            "end_date": end_date.isoformat(),
+            "by_day": _daily_nutrition(logs),
+        }
 
     result = []
     for log in logs:

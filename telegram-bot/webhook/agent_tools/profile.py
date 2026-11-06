@@ -2,11 +2,11 @@
 
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from webhook.jwt_auth import get_agent_user, get_db, require_agent_scope
+from webhook.jwt_auth import DEFAULT_SCOPE, get_agent_user, get_db, require_agent_scope
 
 router = APIRouter(prefix="/api/agent", tags=["agent-tools-profile"])
 
@@ -366,9 +366,15 @@ async def user_settings(
 
 @router.get("/user_profile")
 async def user_profile(
+    request: Request,
     user=Depends(get_agent_user),
 ):
-    """Return non-sensitive user profile info."""
+    """Return non-sensitive user profile info.
+
+    health_token — ключ на ЗАПИСЬ в /apple_health_v2 и /android_health_v1, поэтому
+    отдаём его только 'rw'-токену. Иначе 'ro'-PAT, выданный врачу, давал бы ему запись.
+    """
+    scope = getattr(request.state, "agent_scope", DEFAULT_SCOPE)
     return {
         "status": "ok",
         "telegram_id": user.telegram_id,
@@ -379,7 +385,7 @@ async def user_profile(
         "pack_name": user.pack_name,
         "garmin_email": user.garmin_email,  # intentionally included: agent needs to label data sources
         # NOTE: garmin_password is intentionally excluded
-        "health_token": user.health_token,
+        "health_token": user.health_token if scope == "rw" else None,
         "timezone": getattr(user, "timezone", "Europe/Moscow"),
         "sex": getattr(user, "sex", None),
         "height_cm": getattr(user, "height_cm", None),

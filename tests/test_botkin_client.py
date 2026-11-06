@@ -11,12 +11,18 @@ bc = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(bc)
 
 
+_NO_JSON = object()
+
+
 class FakeResponse:
-    def __init__(self, status_code=200, json_data=None):
+    def __init__(self, status_code=200, json_data=None, text=""):
         self.status_code = status_code
         self._json = json_data if json_data is not None else {}
+        self.text = text
 
     def json(self):
+        if self._json is _NO_JSON:
+            raise ValueError("not json")
         return self._json
 
     def raise_for_status(self):
@@ -119,6 +125,35 @@ def test_403_raises_auth_error():
     c = _client([JWT_OK, FakeResponse(403)])
     with pytest.raises(bc.BotkinAuthError):
         c.post("/api/agent/log_bp", {"systolic": 120, "diastolic": 80})
+
+
+def test_400_error_carries_server_detail():
+    # Ника: get_recent_meals(days=180) → голый «400», лимит пришлось угадывать перебором.
+    c = _client([JWT_OK, FakeResponse(400, {"detail": "days must be between 1 and 90"})])
+    with pytest.raises(bc.BotkinAPIError) as ei:
+        c.get("/api/agent/recent_meals", days=180)
+    assert ei.value.status_code == 400
+    assert "days must be between 1 and 90" in str(ei.value)
+
+
+def test_422_validation_detail_is_flattened():
+    detail = [{"loc": ["query", "days"], "msg": "Input should be a valid integer", "type": "int_parsing"}]
+    c = _client([JWT_OK, FakeResponse(422, {"detail": detail})])
+    with pytest.raises(bc.BotkinAPIError, match="days: Input should be a valid integer"):
+        c.get("/api/agent/recent_meals", days="abc")
+
+
+def test_non_json_error_falls_back_to_text():
+    c = _client([JWT_OK, FakeResponse(502, _NO_JSON, text="Bad Gateway")])
+    with pytest.raises(bc.BotkinAPIError, match="502.*Bad Gateway"):
+        c.get("/api/agent/user_profile")
+
+
+def test_requirements_pin_mcp_below_2():
+    # mcp 2.x удалил mcp.server.fastmcp — коннектор падал на импорте при свежей установке.
+    req = (_PATH.parent / "requirements.txt").read_text()
+    line = next(ln for ln in req.splitlines() if ln.startswith("mcp"))
+    assert "<2" in line, line
 
 
 # ── param handling ─────────────────────────────────────────────────────────

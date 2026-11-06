@@ -27,6 +27,39 @@ class BotkinAuthError(Exception):
     """PAT недействителен/отозван или у токена не хватает прав (ro на write)."""
 
 
+class BotkinAPIError(Exception):
+    """Сервер вернул 4xx/5xx. Сообщение несёт `detail` сервера (напр. «days must be
+    between 1 and 90»), чтобы Claude пользователя видел причину, а не голый «400»."""
+
+    def __init__(self, status_code: int, detail: str, method: str = "", path: str = ""):
+        self.status_code = status_code
+        self.detail = detail
+        where = f" ({method} {path})" if method or path else ""
+        super().__init__(f"Botkin API {status_code}{where}: {detail}")
+
+
+def _error_detail(resp: Any) -> str:
+    """Достаёт FastAPI `detail` из тела ошибки; иначе — кусок текста ответа."""
+    try:
+        body = resp.json()
+    except Exception:
+        body = None
+    if isinstance(body, dict) and "detail" in body:
+        d = body["detail"]
+        if isinstance(d, list):  # 422 от pydantic: [{"loc": [...], "msg": "..."}]
+            parts = []
+            for e in d:
+                if isinstance(e, dict):
+                    loc = ".".join(str(x) for x in e.get("loc", []) if x not in ("query", "body"))
+                    parts.append(f"{loc}: {e.get('msg')}" if loc else str(e.get("msg")))
+                else:
+                    parts.append(str(e))
+            return "; ".join(parts)
+        return str(d)
+    text = (getattr(resp, "text", "") or "").strip()
+    return text[:300] or "без описания"
+
+
 class BotkinClient:
     def __init__(
         self,
@@ -102,7 +135,8 @@ class BotkinClient:
             resp = _do()
         if resp.status_code == 403:
             raise BotkinAuthError("Недостаточно прав: токен только для чтения (ro), запись запрещена")
-        resp.raise_for_status()
+        if resp.status_code >= 400:
+            raise BotkinAPIError(resp.status_code, _error_detail(resp), method, path)
         return resp.json()
 
     def get(self, path: str, **params: Any) -> Any:

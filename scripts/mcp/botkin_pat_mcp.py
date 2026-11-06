@@ -55,9 +55,13 @@ def get_day_summary(date: str) -> Any:
 
 
 @mcp.tool()
-def get_recent_meals(days: int = 7, compact: bool = False) -> Any:
-    """Приёмы пищи за последние `days` дней (калории, БЖУ). compact=True — сжатый вид."""
-    return _api().get("/api/agent/recent_meals", days=days, compact=compact)
+def get_recent_meals(days: int = 7, compact: bool = False, daily: bool = False) -> Any:
+    """Питание за последние `days` дней (1..366).
+
+    До 14 дней — приёмы пищи целиком (продукты, КБЖУ). 15–90 дней — compact (имена продуктов + ккал).
+    daily=True — по дням: число приёмов, ккал, белки, жиры, углеводы, клетчатка (только съеденное);
+    при days > 90 включается сам — так смотреть тренды за полгода/год одним вызовом."""
+    return _api().get("/api/agent/recent_meals", days=days, compact=compact or None, daily=daily or None)
 
 
 @mcp.tool()
@@ -80,14 +84,82 @@ def get_recent_workouts(days: int = 30) -> Any:
 
 @mcp.tool()
 def get_recent_bp(days: int = 14) -> Any:
-    """Измерения артериального давления за последние `days` дней."""
+    """Измерения артериального давления за последние `days` дней (максимум 90, больше — обрезается до 90)."""
     return _api().get("/api/agent/recent_bp", days=days)
 
 
 @mcp.tool()
 def get_user_profile() -> Any:
-    """Профиль пользователя: пол, рост, возраст, цели."""
+    """Профиль пользователя: имя, пол, рост, дата рождения, часовой пояс."""
     return _api().get("/api/agent/user_profile")
+
+
+@mcp.tool()
+def get_user_settings() -> Any:
+    """Цели и настройки: целевой вес и дата, режим калорий, BMR, схема добавок, напоминания."""
+    return _api().get("/api/agent/user_settings")
+
+
+@mcp.tool()
+def get_dashboard_summary() -> Any:
+    """Сводка за последние 7 дней: средние шаги, пульс, съеденные калории, последний вес."""
+    return _api().get("/api/agent/dashboard_summary")
+
+
+@mcp.tool()
+def get_recent_sleep(days: int = 14) -> Any:
+    """Сон за последние `days` дней (максимум 90): длительность, оценка сна, глубокий/REM."""
+    return _api().get("/api/agent/recent_sleep", days=days)
+
+
+@mcp.tool()
+def get_daily_metrics(days: int = 14) -> Any:
+    """По дням (до 180) из Apple Health: сатурация, VO2max, дыхание, температура запястья, min/max пульса,
+    фазы сна, походка, этажи. `available` — по скольким дням метрика реально пришла."""
+    return _api().get("/api/agent/daily_metrics", days=days)
+
+
+@mcp.tool()
+def get_recent_trends(days: int = 14, full_series: bool = False) -> Any:
+    """По дням: HRV, Body Battery, стресс, шаги, был ли алкоголь. Для вопросов «падает ли HRV»,
+    «когда стресс выше». full_series=True — весь ряд без прореживания."""
+    return _api().get("/api/agent/recent_trends", days=days, full_series=full_series or None)
+
+
+@mcp.tool()
+def get_recent_supplements(days: int = 30) -> Any:
+    """Добавки за последние `days` дней: по каждой — сколько дней принималась, последний приём и дозировка."""
+    return _api().get("/api/agent/recent_supplements", days=days)
+
+
+@mcp.tool()
+def get_glucose_stats(days: int = 7) -> Any:
+    """Глюкоза с CGM за `days` дней (1..90): среднее, вариабельность, время в диапазоне."""
+    return _api().get("/api/agent/glucose_stats", days=days)
+
+
+@mcp.tool()
+def get_latest_biomarkers() -> Any:
+    """Последнее значение каждого биомаркера из анализов + насколько оно устарело."""
+    return _api().get("/api/agent/latest_biomarkers")
+
+
+@mcp.tool()
+def get_body_measurements() -> Any:
+    """Антропометрия: талия, шея, бёдра, грудь, бедро, бицепс (см), сила хвата (кг)."""
+    return _api().get("/api/agent/body_measurements")
+
+
+@mcp.tool()
+def get_menstrual_data(months: int = 6) -> Any:
+    """Менструальный цикл за `months` месяцев (до 24): записи flow и рассчитанные длины циклов."""
+    return _api().get("/api/agent/menstrual_data", months=months)
+
+
+@mcp.tool()
+def list_documents() -> Any:
+    """Документы профиля (загруженные анализы через /doc в боте, полисы, справки): id, название, дата."""
+    return _api().get("/api/agent/list_documents")
 
 
 @mcp.tool()
@@ -96,6 +168,10 @@ def botkin_api(method: str, path: str, params: Optional[dict] = None) -> Any:
 
     Escape-hatch для эндпоинтов без отдельной обёртки. method — GET/POST,
     path — например '/api/agent/phenoage', params — query (GET) или тело (POST).
+    Прочие GET без обёрток: /api/agent/phenoage (биологический возраст),
+    /api/agent/recent_glucose?hours=24, /api/agent/recent_ecg, /api/agent/heart_rate_events,
+    /api/agent/intraday?date=YYYY-MM-DD, /api/agent/supplement_daily_log, /api/agent/kb_value?key=...,
+    /api/agent/list_kb_keys, /api/agent/open_questions, /api/agent/outdoor_weather, /api/agent/indoor_air.
     Сервер сам проверит права: write по ro-токену вернёт ошибку.
     """
     method = method.upper()
