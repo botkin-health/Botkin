@@ -255,7 +255,7 @@ core/
 
 Второй потребитель того же пакета `agent_tools/` — не BotkinClaw, а **личный Claude пользователя** на его компьютере, согласно vision-схеме в корневом `CLAUDE.md` («гибридная приватность»).
 
-**Поток:** `/connect_mcp` в боте (`handlers/connect_claude.py`) → пользователь выбирает scope (`rw`/`ro`) → выпускается PAT-токен (`pat_<telegram_id>_<hex32>`, таблица `personal_access_tokens`) → пользователь один раз копирует его в конфиг Claude Desktop (MCP-бандл `scripts/mcp/manifest.json`, entry point `scripts/mcp/botkin_pat_mcp.py`).
+**Поток:** `/connect_mcp` в боте (`handlers/connect_claude.py`) → пользователь выбирает scope (`rw`/`ro`) → выпускается PAT-токен (`pat_<telegram_id>_<hex64>`; в БД — только sha256-хэш, таблица `personal_access_tokens`) → пользователь один раз копирует его в конфиг Claude Desktop (MCP-бандл `scripts/mcp/manifest.json`, entry point `scripts/mcp/botkin_pat_mcp.py`).
 
 **`botkin_pat_mcp.py`** — stdio MCP-сервер (`FastMCP("Botkin")`), сам не хранит и не читает локальные файлы пользователя (KB, дневники) — это оставлено файловому коннектору Claude Desktop. Обменивает PAT на короткоживущий JWT через `POST /api/agent/exchange_pat_for_jwt` (единственный публичный, не-JWT endpoint в `agent_tools/auth.py`, rate-limit 10 req/мин/IP), кэширует JWT до истечения. Даёт набор read-tools (`get_day_summary`, `get_recent_meals`, `get_recent_biomarkers`, …) + write-tools (`log_meal_text`, `log_bp`) под `rw`-скоупом, плюс generic `botkin_api(method, path, params)` escape-hatch.
 

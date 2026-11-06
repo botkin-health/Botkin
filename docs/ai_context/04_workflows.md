@@ -280,7 +280,7 @@ python3 scripts/generate_exam_journal.py "Имя — Здоровье" --update-
 ## 15. Подключить MCP-коннектор (Claude Desktop) — со стороны пользователя
 
 1. В боте: `/connect_mcp [опциональное имя]` → выбрать scope («🖊 Полный доступ» = `rw` или «👁 Только чтение» = `ro`).
-2. Бот один раз показывает PAT-токен (`pat_<telegram_id>_<hex32>`) — сохранить его, повторно не покажет.
+2. Бот один раз показывает PAT-токен (`pat_<telegram_id>_<hex64>`; в БД — только sha256-хэш) — сохранить его, повторно не покажет.
 3. Установить MCP-бандл (`scripts/mcp/manifest.json`, entry point `botkin_pat_mcp.py`) в Claude Desktop, вставить PAT в `user_config.pat` (хранится в системном keychain, не в открытом виде).
 4. Проверка: спросить личного Claude что-то про данные из Botkin (например «какой у меня был вес на этой неделе») — должен вызвать `botkin_api`/`get_weight_history`.
 5. **Отозвать доступ**: `/my_connections` в боте → «❌ Отозвать» у нужного токена (soft-delete через `revoked_at`; уже выданные JWT ещё поработают до истечения своего ~5-минутного TTL).
