@@ -75,3 +75,11 @@ def test_format_lists_name_scope_and_usage():
     assert "(без имени)" in text
     assert "только чтение" in text
     assert "ещё не использовался" in text
+
+
+def test_format_shows_token_prefix_only():
+    pats = [{"id": 1, "name": "ноут", "scope": "rw", "last_used_at": None, "token_prefix": "pat_895655_ab12cd"}]
+
+    text = cc.format_connections(pats)
+
+    assert "pat_895655_ab12cd…" in text

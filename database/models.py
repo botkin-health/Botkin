@@ -913,7 +913,11 @@ class PersonalAccessToken(Base):
     выдачи Александром). Коннектор обменивает его на короткоживущий JWT через
     POST /api/agent/exchange_pat_for_jwt, дальше дёргает существующие /api/agent/*.
 
-    Формат токена: ``pat_<telegram_id>_<hex32>`` (зеркалит ``hvt_`` Apple Health).
+    Формат токена: ``pat_<telegram_id>_<hex64>`` (зеркалит ``hvt_`` Apple Health).
+    В БД токен НЕ хранится: только ``token_hash`` = sha256(token) hex и короткий
+    ``token_prefix`` для показа в /my_connections. Секрет высокоэнтропийный
+    (256 бит), поэтому соль/bcrypt не нужны, а поиск по уникальному индексу
+    сохраняется. Открытый токен пользователь видит один раз — в момент выпуска.
     Scope:
       • ``rw`` — личный токен владельца (чтение + запись);
       • ``ro`` — read-only, эту строку владелец отдаёт врачу/близкому, чтобы
@@ -924,7 +928,7 @@ class PersonalAccessToken(Base):
     __tablename__ = "personal_access_tokens"
     __table_args__ = (
         CheckConstraint("scope IN ('ro', 'rw')", name="personal_access_tokens_scope_check"),
-        Index("ix_personal_access_tokens_token", "token", unique=True),
+        Index("ix_personal_access_tokens_token_hash", "token_hash", unique=True),
         Index("ix_personal_access_tokens_user_id", "user_id"),
     )
 
@@ -936,11 +940,12 @@ class PersonalAccessToken(Base):
     user_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), nullable=False
     )
-    # Уникальность обеспечивает явный индекс ix_personal_access_tokens_token (см. __table_args__),
-    # который зеркалит миграцию pat0token01. Column-level unique=True здесь НЕ ставим — иначе
-    # SQLAlchemy добавит вдобавок безымянный UniqueConstraint, которого нет в миграции, и alembic
-    # check ловит расхождение ORM↔схема ("New upgrade operations detected: add UniqueConstraint(token)").
-    token: Mapped[str] = mapped_column(String(128), nullable=False)
+    # sha256(token) hex. Уникальность — явный индекс ix_personal_access_tokens_token_hash
+    # (см. __table_args__, зеркалит миграцию pathash01). Column-level unique=True НЕ ставим —
+    # иначе SQLAlchemy добавит безымянный UniqueConstraint и alembic check поймает расхождение.
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    # Видимое начало токена (``pat_<id>_<hex6>``) — чтобы пользователь узнал токен в списке.
+    token_prefix: Mapped[str] = mapped_column(String(32), nullable=False)
     # Человекочитаемая метка («Мой ноут», «Психолог Ника») — задаёт пользователь.
     name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     scope: Mapped[str] = mapped_column(String(2), default="rw", server_default="rw", nullable=False)

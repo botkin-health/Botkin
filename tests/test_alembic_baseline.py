@@ -45,7 +45,7 @@ EXPECTED_TABLES = {
 }
 
 # Актуальный head миграций. Обновляется при каждой новой ревизии.
-HEAD_REVISION = "fbatt01"
+HEAD_REVISION = "pathash01"
 
 
 def _alembic_config() -> Config:

@@ -77,7 +77,7 @@ def _exchange(client, pat_token):
 def test_exchange_valid_pat_returns_jwt(client, db_session):
     pat = create_pat(db_session, OWNER, name="ноут", scope="rw")
 
-    resp = _exchange(client, pat.token)
+    resp = _exchange(client, pat.plaintext_token)
 
     assert resp.status_code == 200
     body = resp.json()
@@ -90,7 +90,7 @@ def test_exchange_valid_pat_returns_jwt(client, db_session):
 def test_exchange_echoes_ro_scope(client, db_session):
     pat = create_pat(db_session, OWNER, scope="ro")
 
-    assert _exchange(client, pat.token).json()["scope"] == "ro"
+    assert _exchange(client, pat.plaintext_token).json()["scope"] == "ro"
 
 
 def test_exchange_invalid_token_401(client):
@@ -101,13 +101,13 @@ def test_exchange_revoked_token_401(client, db_session):
     pat = create_pat(db_session, OWNER)
     revoke_pat(db_session, OWNER, pat.id)
 
-    assert _exchange(client, pat.token).status_code == 401
+    assert _exchange(client, pat.plaintext_token).status_code == 401
 
 
 def test_exchange_rate_limited_after_10(client, db_session):
     pat = create_pat(db_session, OWNER)
 
-    statuses = [_exchange(client, pat.token).status_code for _ in range(11)]
+    statuses = [_exchange(client, pat.plaintext_token).status_code for _ in range(11)]
 
     assert statuses[:10] == [200] * 10
     assert statuses[10] == 429
@@ -124,7 +124,7 @@ def _auth(client, pat_token):
 def test_ro_token_blocked_on_write_endpoint(client, db_session):
     ro = create_pat(db_session, OWNER, scope="ro")
 
-    resp = client.post("/api/agent/regenerate_health_token", headers=_auth(client, ro.token))
+    resp = client.post("/api/agent/regenerate_health_token", headers=_auth(client, ro.plaintext_token))
 
     assert resp.status_code == 403
 
@@ -132,7 +132,7 @@ def test_ro_token_blocked_on_write_endpoint(client, db_session):
 def test_rw_token_allowed_on_write_endpoint(client, db_session):
     rw = create_pat(db_session, OWNER, scope="rw")
 
-    resp = client.post("/api/agent/regenerate_health_token", headers=_auth(client, rw.token))
+    resp = client.post("/api/agent/regenerate_health_token", headers=_auth(client, rw.plaintext_token))
 
     assert resp.status_code == 200
     assert resp.json()["health_token"].startswith(f"hvt_{OWNER}_")
@@ -142,6 +142,18 @@ def test_ro_token_allowed_on_read_endpoint(client, db_session):
     """ro-токен врача должен читать данные — на read-эндпоинте scope не блокирует."""
     ro = create_pat(db_session, OWNER, scope="ro")
 
-    resp = client.get("/api/agent/user_settings", headers=_auth(client, ro.token))
+    resp = client.get("/api/agent/user_settings", headers=_auth(client, ro.plaintext_token))
 
     assert resp.status_code not in (401, 403)
+
+
+def test_exchange_works_after_session_reload(client, db_session):
+    """Обмен идёт по хэшу: открытый токен знает только клиент, в БД его нет."""
+    pat = create_pat(db_session, OWNER, scope="ro")
+    plaintext = pat.plaintext_token
+    db_session.expunge_all()
+
+    resp = _exchange(client, plaintext)
+
+    assert resp.status_code == 200
+    assert resp.json()["scope"] == "ro"
