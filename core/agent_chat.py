@@ -124,13 +124,15 @@ TOOLS: list[dict[str, Any]] = [
         "name": "get_recent_meals",
         "description": (
             "Приёмы пищи за days дней (у записи есть id и status eaten|plan). Поиск по длинному периоду "
-            "(«ел ли я X за месяц») — большой days и compact=true; при days>14 compact включается сам."
+            "(«ел ли я X за месяц») — большой days и compact=true; при days>14 compact включается сам. "
+            "Тренд за полгода/год — days до 366 и daily=true (по дням ккал/БЖУ; при days>90 сам)."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "days": {**_DAYS, "maximum": 90, "default": 3},
+                "days": {**_DAYS, "maximum": 366, "default": 3},
                 "compact": {"type": "boolean", "default": False, "description": "Только имена продуктов и ккал."},
+                "daily": {"type": "boolean", "default": False, "description": "Подневные суммы КБЖУ вместо приёмов."},
                 "only_open_plans": {
                     "type": "boolean",
                     "default": False,
@@ -927,6 +929,8 @@ def _call_tool(name: str, args: dict, token: str) -> str:
                 params["compact"] = "true"
             if args.get("only_open_plans"):
                 params["only_open_plans"] = "true"
+            if args.get("daily"):
+                params["daily"] = "true"
             r = requests.get(
                 f"{TOOLS_API_BASE}/recent_meals",
                 params=params,
