@@ -56,7 +56,8 @@ def get_day_summary(date: str) -> Any:
 
 @mcp.tool()
 def get_recent_meals(days: int = 7, compact: bool = False) -> Any:
-    """Приёмы пищи за последние `days` дней (калории, БЖУ). compact=True — сжатый вид."""
+    """Приёмы пищи за последние `days` дней (калории, БЖУ), days от 1 до 90 — больше сервер не отдаёт.
+    Для периода длиннее 90 дней — недоступно. compact=True — сжатый вид (при days > 14 включается сам)."""
     return _api().get("/api/agent/recent_meals", days=days, compact=compact)
 
 
@@ -80,7 +81,7 @@ def get_recent_workouts(days: int = 30) -> Any:
 
 @mcp.tool()
 def get_recent_bp(days: int = 14) -> Any:
-    """Измерения артериального давления за последние `days` дней."""
+    """Измерения артериального давления за последние `days` дней (максимум 90, больше — обрезается до 90)."""
     return _api().get("/api/agent/recent_bp", days=days)
 
 

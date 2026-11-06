@@ -1124,6 +1124,33 @@ def test_user_profile_returns_profile(client):
     assert "timezone" in body
 
 
+def test_user_profile_hides_health_token_for_ro_scope(db_session, monkeypatch):
+    """'ro'-PAT (выданный врачу) не должен получать health_token — это ключ на запись
+    в /apple_health_v2 и /android_health_v1."""
+    from fastapi import Request
+
+    from webhook import agent_tools as agent_tools_api
+    from webhook.jwt_auth import get_agent_user, get_db
+
+    monkeypatch.setattr(db_session, "close", lambda: None)
+    app = FastAPI()
+    app.include_router(agent_tools_api.router)
+    mock_user = _make_mock_user()
+
+    def _ro_user(request: Request):
+        request.state.agent_scope = "ro"
+        return mock_user
+
+    app.dependency_overrides[get_agent_user] = _ro_user
+    app.dependency_overrides[get_db] = lambda: db_session
+
+    r = TestClient(app).get("/api/agent/user_profile")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["health_token"] is None
+    assert body["telegram_id"] == 895655
+
+
 # ── New tools (post-NanoClaw, added 21.05.2026) ─────────────────────────────
 
 
