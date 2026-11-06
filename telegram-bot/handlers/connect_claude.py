@@ -94,7 +94,8 @@ def format_connections(pats: list[dict]) -> str:
         name = p.get("name") or "(без имени)"
         kind = "чтение+запись" if p.get("scope") == "rw" else "только чтение"
         used = p["last_used_at"].strftime("%d.%m.%Y") if p.get("last_used_at") else "ещё не использовался"
-        lines.append(f"• {name} — {kind}; последнее использование: {used}")
+        prefix = f" ({p['token_prefix']}…)" if p.get("token_prefix") else ""
+        lines.append(f"• {name}{prefix} — {kind}; последнее использование: {used}")
     return "\n".join(lines)
 
 
@@ -121,7 +122,7 @@ def _create_pat(telegram_id: int, name: Optional[str], scope: str) -> Optional[s
     db = SessionLocal()
     try:
         pat = create_pat(db, telegram_id, name=name, scope=scope)
-        return pat.token
+        return pat.plaintext_token
     except Exception as e:
         logger.error(f"connect_mcp: не смог создать PAT для {telegram_id}: {e}")
         return None
@@ -137,7 +138,13 @@ def _list_pats(telegram_id: int) -> list[dict]:
     try:
         # Читаем поля внутри сессии — наружу отдаём простые dict (без DetachedInstanceError).
         return [
-            {"id": p.id, "name": p.name, "scope": p.scope, "last_used_at": p.last_used_at}
+            {
+                "id": p.id,
+                "name": p.name,
+                "scope": p.scope,
+                "last_used_at": p.last_used_at,
+                "token_prefix": p.token_prefix,
+            }
             for p in list_pats(db, telegram_id)
         ]
     finally:

@@ -22,7 +22,7 @@
 | `body_measurements` | Замеры тела (талия, шея, хват кисти) | `id` autoinc | `waist_cm`, `neck_cm`, `grip_right_kg`, `grip_left_kg` |
 | `verified_products` | Справочник проверенных продуктов (#255) | `id` autoinc | `name_norm`, `*_per_100g`, `portion_g`, `barcode`; `user_id NULL` = общая запись |
 | **`agent_conversations`** | История диалога BotkinClaw (in-process AI-агент) | `id` autoinc (BigInt) | `role` (`user`/`assistant`/`tool_use`/`tool_result`), `content` JSONB, `source` |
-| **`personal_access_tokens`** | PAT для MCP-коннектора Claude Desktop (#228) | `id` autoinc (BigInt) | `token` (`pat_<telegram_id>_<hex32>`), `scope` (`ro`/`rw`), `revoked_at` |
+| **`personal_access_tokens`** | PAT для MCP-коннектора Claude Desktop (#228) | `id` autoinc (BigInt) | `token_hash` (sha256 от `pat_<telegram_id>_<hex64>`), `token_prefix`, `scope` (`ro`/`rw`), `revoked_at` |
 | **`glucose_readings`** | Точки CGM-глюкозы (LibreLinkUp, #96) | `id` autoinc (BigInt) | `ts`, `value` (mmol/L), `trend`, `source` |
 | **`cgm_connections`** | Маппинг LibreLinkUp `patient_id` → `telegram_id` | `id` autoinc (BigInt) | `patient_id` (unique), `telegram_id` |
 | **`cgm_followers`** | Креды follower-аккаунта LibreLinkUp (per-region, #381) | `id` autoinc (BigInt) | `region`, `email`, `password_enc`, `owner_user_id` |
@@ -407,14 +407,17 @@ class AgentConversation(Base):
 class PersonalAccessToken(Base):
     id: BigInteger                       # autoinc PK
     user_id: BigInteger                  # FK → users.telegram_id — чьи данные открывает токен
-    token: str(128)                      # 'pat_<telegram_id>_<hex32>'
+    token_hash: str(64)                  # sha256(token) hex; открытый токен в БД НЕ хранится (pathash01)
+    token_prefix: str(32)                # 'pat_<telegram_id>_<hex6>' — для показа в /my_connections
     name: str?                           # метка от пользователя ("Мой ноут")
     scope: str = "rw"                    # 'ro' (read-only, для врача/близкого) | 'rw' (CHECK)
     created_at, last_used_at, revoked_at: timestamp?
     created_by_user: BigInteger           # обычно == user_id (self-service)
 ```
 
-**Indexes:** уникальный `ix_personal_access_tokens_token`, `ix_personal_access_tokens_user_id`. **Без RLS** — обмен PAT→JWT (`POST /api/agent/exchange_pat_for_jwt`) происходит ДО того, как известен `app.user_id`.
+**Indexes:** уникальный `ix_personal_access_tokens_token_hash`, `ix_personal_access_tokens_user_id`. **Без RLS** — обмен PAT→JWT (`POST /api/agent/exchange_pat_for_jwt`) происходит ДО того, как известен `app.user_id`.
+
+Токен `pat_<telegram_id>_<hex64>` пользователь видит один раз при выпуске (`create_pat` отдаёт его в несохраняемом `pat.plaintext_token`); обмен ищет строку по `crud.hash_pat(token)`. Соль/bcrypt не нужны — секрет 256-битный.
 
 `is_active` — python-property (`revoked_at IS NULL`), не колонка. Отзыв — soft delete через `revoked_at`, без удаления строки (уже выданные JWT остаются валидны до истечения своего TTL ~5 мин). Подробности потока — [ADR-0006](../architecture/decisions/0006-mcp-connector-pat-jwt.md) и раздел workflow в `04_workflows.md`.
 

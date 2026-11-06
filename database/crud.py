@@ -10,6 +10,7 @@ This module provides database operations for all tables:
 - BloodTests: create, get latest, get all
 """
 
+import hashlib
 import secrets
 from datetime import datetime, date, time, timedelta, timezone
 from typing import Optional, List, Dict, Any
@@ -217,6 +218,24 @@ def reset_health_token(db: Session, telegram_id: int) -> str:
 # выпускает их в боте, коннектор меняет на короткоживущий JWT через /api/agent/exchange_pat_for_jwt.
 
 ALLOWED_PAT_SCOPES = ("ro", "rw")
+# Сколько hex-символов секрета оставлять в видимом префиксе (pat_<id>_<hex6>).
+PAT_PREFIX_HEX_CHARS = 6
+
+
+def hash_pat(token: str) -> str:
+    """sha256 hex от строки PAT — то, что лежит в personal_access_tokens.token_hash.
+
+    Соль/bcrypt не нужны: секрет — 256 бит случайности, перебор бессмыслен, а
+    детерминированный хэш позволяет искать по уникальному индексу.
+    Миграция pathash01 считает хэш тем же способом (sha256 от UTF-8).
+    """
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def pat_display_prefix(token: str) -> str:
+    """Видимое начало токена для /my_connections: ``pat_<id>_<hex6>``."""
+    head, _, secret = token.rpartition("_")
+    return f"{head}_{secret[:PAT_PREFIX_HEX_CHARS]}" if head else token[:12]
 
 
 def create_pat(
@@ -228,7 +247,10 @@ def create_pat(
 ) -> PersonalAccessToken:
     """Выпустить новый PAT для пользователя.
 
-    Формат токена зеркалит Apple Health: ``pat_<telegram_id>_<hex32>``.
+    Формат токена зеркалит Apple Health: ``pat_<telegram_id>_<hex64>``.
+    В БД пишется только sha256-хэш и видимый префикс. Открытый токен возвращается
+    один раз — в несохраняемом атрибуте ``pat.plaintext_token``; после закрытия
+    сессии/повторной загрузки строки его уже не восстановить.
     scope: 'rw' — личный токен (чтение+запись), 'ro' — для шаринга врачу (только чтение).
     created_by — кто выпустил (telegram_id); по умолчанию сам владелец (self-service).
     """
@@ -239,9 +261,11 @@ def create_pat(
     if not user:
         raise ValueError(f"User {telegram_id} not found")
 
+    plaintext = f"pat_{telegram_id}_{secrets.token_hex(32)}"
     pat = PersonalAccessToken(
         user_id=telegram_id,
-        token=f"pat_{telegram_id}_{secrets.token_hex(32)}",
+        token_hash=hash_pat(plaintext),
+        token_prefix=pat_display_prefix(plaintext),
         name=name,
         scope=scope,
         created_by_user=created_by if created_by is not None else telegram_id,
@@ -249,11 +273,15 @@ def create_pat(
     db.add(pat)
     db.commit()
     db.refresh(pat)
+    # Не mapped-атрибут: живёт только на этом объекте в памяти, в БД не попадает.
+    pat.plaintext_token = plaintext
     return pat
 
 
 def get_active_pat_by_token(db: Session, token: str) -> Optional[PersonalAccessToken]:
     """Найти активный (не отозванный) PAT по строке токена и отметить факт использования.
+
+    Ищем по sha256(token) — открытого текста в БД нет.
 
     Используется публичным exchange-эндпоинтом ДО установки app.user_id — поэтому
     таблица без RLS (см. миграцию pat0token01). Возвращает None для отозванных/несуществующих.
@@ -262,7 +290,7 @@ def get_active_pat_by_token(db: Session, token: str) -> Optional[PersonalAccessT
         return None
     pat = (
         db.query(PersonalAccessToken)
-        .filter(PersonalAccessToken.token == token, PersonalAccessToken.revoked_at.is_(None))
+        .filter(PersonalAccessToken.token_hash == hash_pat(token), PersonalAccessToken.revoked_at.is_(None))
         .first()
     )
     if pat:
