@@ -756,6 +756,49 @@ def test_recent_meals_invalid_days(client):
     assert r.status_code == 400
 
 
+def test_recent_meals_long_window_returns_daily_aggregate(client, db_session):
+    """days>90 → подневной агрегат КБЖУ одним вызовом (а не 400 и сотня day_summary)."""
+    today = date.today()
+    t = {"calories": 500, "protein": 30, "fats": 20, "carbs": 50, "fiber": 5}
+    create_nutrition_log(db_session, 895655, today, time(9, 0), "Завтрак", [], t)
+    create_nutrition_log(db_session, 895655, today, time(13, 0), "Обед", [], t)
+    create_nutrition_log(db_session, 895655, today - timedelta(days=150), time(13, 0), "Обед", [], t)
+    # план не считается съеденным
+    create_nutrition_log(db_session, 895655, today, time(19, 0), "Ужин", [], t, status="plan")
+    # чужой приём не попадает
+    db_session.add(User(telegram_id=111, first_name="Other", is_active=True, cohort="external", pack_name="generic"))
+    db_session.commit()
+    create_nutrition_log(db_session, 111, today, time(9, 0), "Чужой", [], t)
+
+    r = client.get("/api/agent/recent_meals?days=180")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["daily"] is True and "meals" not in body
+    by_day = {d["date"]: d for d in body["by_day"]}
+    assert set(by_day) == {today.isoformat(), (today - timedelta(days=150)).isoformat()}
+    assert by_day[today.isoformat()] == {
+        "date": today.isoformat(),
+        "meals": 2,
+        "calories": 1000.0,
+        "protein": 60.0,
+        "fats": 40.0,
+        "carbs": 100.0,
+        "fiber": 10.0,
+    }
+
+
+def test_recent_meals_daily_flag_on_short_window(client, db_session):
+    create_nutrition_log(db_session, 895655, date.today(), time(9, 0), "Завтрак", [], {"calories": 300})
+    body = client.get("/api/agent/recent_meals?days=7&daily=true").json()
+    assert body["by_day"][0]["calories"] == 300.0 and body["by_day"][0]["protein"] == 0.0
+
+
+def test_recent_meals_over_year_is_clear_400(client):
+    r = client.get("/api/agent/recent_meals?days=400")
+    assert r.status_code == 400
+    assert "366" in r.json()["detail"]
+
+
 def test_recent_meals_compact_returns_product_names(client, db_session):
     """compact=true → items как список имён, totals только калории (F-006)."""
     create_nutrition_log(
@@ -1122,6 +1165,33 @@ def test_user_profile_returns_profile(client):
     assert body["health_token"] == "hvt_old_token"
     assert body["garmin_email"] == "test@garmin.com"
     assert "timezone" in body
+
+
+def test_user_profile_hides_health_token_for_ro_scope(db_session, monkeypatch):
+    """'ro'-PAT (выданный врачу) не должен получать health_token — это ключ на запись
+    в /apple_health_v2 и /android_health_v1."""
+    from fastapi import Request
+
+    from webhook import agent_tools as agent_tools_api
+    from webhook.jwt_auth import get_agent_user, get_db
+
+    monkeypatch.setattr(db_session, "close", lambda: None)
+    app = FastAPI()
+    app.include_router(agent_tools_api.router)
+    mock_user = _make_mock_user()
+
+    def _ro_user(request: Request):
+        request.state.agent_scope = "ro"
+        return mock_user
+
+    app.dependency_overrides[get_agent_user] = _ro_user
+    app.dependency_overrides[get_db] = lambda: db_session
+
+    r = TestClient(app).get("/api/agent/user_profile")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["health_token"] is None
+    assert body["telegram_id"] == 895655
 
 
 # ── New tools (post-NanoClaw, added 21.05.2026) ─────────────────────────────
@@ -1923,3 +1993,20 @@ def test_log_weight_saves_manual_weight(client, db_session):
 def test_log_weight_rejects_implausible(client):
     r = client.post("/api/agent/log_weight", json={"weight": 5})
     assert r.status_code == 422
+
+
+def test_mcp_connector_paths_exist_on_server():
+    """Каждый /api/agent/* путь, упомянутый в MCP-коннекторе (обёртки и подсказки в
+    botkin_api), реально есть в роутере — иначе Claude пользователя получит 404."""
+    import re
+    from pathlib import Path
+
+    from webhook import agent_tools as agent_tools_api
+
+    src = (Path(__file__).resolve().parent.parent / "scripts" / "mcp" / "botkin_pat_mcp.py").read_text()
+    used = set(re.findall(r"/api/agent/([a-z_]+)", src))
+    app = FastAPI()
+    app.include_router(agent_tools_api.router)
+    routes = {path.rsplit("/", 1)[-1] for path in app.openapi()["paths"] if path.startswith("/api/agent/")}
+    assert used, "в коннекторе не найдено ни одного пути"
+    assert used <= routes, f"нет на сервере: {sorted(used - routes)}"
