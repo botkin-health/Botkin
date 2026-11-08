@@ -44,20 +44,46 @@ BACKUPS_DIR = Path("/app/backups")  # mounted from /opt/backups on host
 
 # ─── Auth ──────────────────────────────────────────────────────────────────
 
-# «Запомнить меня»: после успешного Basic Auth ставим подписанную куку, чтобы
-# не вводить пароль на каждом заходе с того же браузера. Токен = HMAC от
-# ADMIN_PASSWORD → сменили пароль ⇒ все куки сразу невалидны (отдельный секрет
-# не нужен). Кука httpOnly+Secure, scope /admin, живёт ADMIN_COOKIE_DAYS дней.
+# «Запомнить меня»: после успешного входа ставим подписанную куку, чтобы
+# не вводить пароль на каждом заходе с того же браузера.
+#
+# Токен v2 = "<issued_at>.<HMAC(ADMIN_PASSWORD, issued_at)>". Срок жизни
+# проверяет СЕРВЕР (не только max_age в браузере): украденная кука живёт не
+# дольше ADMIN_COOKIE_DAYS от входа и не продлевается заходами. Сменили
+# пароль ⇒ все куки сразу невалидны. Старый детерминированный формат v1
+# (HMAC без времени, жил вечно) больше не принимается — security review 11.2026.
 ADMIN_COOKIE_NAME = "botkin_admin"
-ADMIN_COOKIE_DAYS = 90
+ADMIN_COOKIE_DAYS = 14
+_COOKIE_KEY_LABEL = b"botkin-admin-cookie-v2"
 
 
-def _expected_cookie_token() -> Optional[str]:
-    """Детерминированный токен, привязанный к текущему ADMIN_PASSWORD."""
+def _cookie_sig(pw: str, issued_at: int) -> str:
+    key = hmac.new(_COOKIE_KEY_LABEL, pw.encode(), hashlib.sha256).digest()
+    return hmac.new(key, str(issued_at).encode(), hashlib.sha256).hexdigest()
+
+
+def _make_cookie_token(now: Optional[float] = None) -> Optional[str]:
+    """Новый токен сессии, привязанный к текущему ADMIN_PASSWORD и времени входа."""
     pw = os.getenv("ADMIN_PASSWORD", "")
     if not pw:
         return None
-    return hmac.new(b"botkin-admin-cookie-v1", pw.encode(), hashlib.sha256).hexdigest()
+    issued_at = int(now if now is not None else time.time())
+    return f"{issued_at}.{_cookie_sig(pw, issued_at)}"
+
+
+def _cookie_token_valid(token: Optional[str], now: Optional[float] = None) -> bool:
+    pw = os.getenv("ADMIN_PASSWORD", "")
+    if not pw or not token or "." not in token:
+        return False
+    ts_raw, sig = token.split(".", 1)
+    if not ts_raw.isdigit():
+        return False
+    issued_at = int(ts_raw)
+    now_ts = now if now is not None else time.time()
+    age = now_ts - issued_at
+    if age < -300 or age > ADMIN_COOKIE_DAYS * 24 * 3600:
+        return False
+    return secrets.compare_digest(sig, _cookie_sig(pw, issued_at))
 
 
 def _password_ok(password: str) -> bool:
@@ -77,9 +103,8 @@ def _is_authed(creds: Optional[HTTPBasicCredentials], request: Optional[Request]
     if not os.getenv("ADMIN_PASSWORD", ""):
         return False
     # 1) Валидная «remember-me» кука → пускаем без Basic Auth
-    expected_token = _expected_cookie_token()
     cookie_token = request.cookies.get(ADMIN_COOKIE_NAME) if request else None
-    if cookie_token and expected_token and secrets.compare_digest(cookie_token, expected_token):
+    if _cookie_token_valid(cookie_token):
         return True
     # 2) Иначе — обычный Basic Auth
     expected_user = os.getenv("ADMIN_USERNAME", "admin")
@@ -95,7 +120,14 @@ def _check_auth(creds: Optional[HTTPBasicCredentials], request: Optional[Request
     if not os.getenv("ADMIN_PASSWORD", ""):
         # Safety: if ADMIN_PASSWORD env not set, refuse all admin access
         raise HTTPException(status_code=503, detail="Admin not configured")
+    ip = _client_ip(request) if request is not None else "unknown"
+    # Basic Auth перебирали в обход троттлинга формы (~90 req/s, security
+    # review 11.2026). Теперь у формы и API один счётчик неудач на IP клиента.
+    if creds is not None and _is_locked(ip):
+        raise HTTPException(status_code=429, detail="Too many attempts")
     if not _is_authed(creds, request):
+        if creds is not None:
+            _record_failed_login(ip)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Auth required",
@@ -119,7 +151,14 @@ _login_attempts: dict[str, list[float]] = {}
 
 
 def _client_ip(request: Request) -> str:
-    return request.client.host if request.client else "unknown"
+    """IP клиента для троттлинга — через общий доверенный резолвер.
+
+    Раньше брали request.client.host, а в контейнере это адрес docker-шлюза:
+    все клиенты попадали в один бакет (5 неудач с одного IP лочили вход всем).
+    """
+    from webhook.client_ip import client_ip
+
+    return client_ip(request)
 
 
 def _is_locked(ip: str) -> bool:
@@ -131,12 +170,17 @@ def _is_locked(ip: str) -> bool:
 
 
 def _record_failed_login(ip: str) -> None:
-    _login_attempts.setdefault(ip, []).append(time.monotonic())
+    now = time.monotonic()
+    # Перебор с тысяч прокси-IP не должен раздувать стор: периодически чистим протухшие.
+    if len(_login_attempts) > 10_000:
+        for key in [k for k, v in _login_attempts.items() if not v or now - v[-1] >= LOGIN_LOCKOUT_SECONDS]:
+            _login_attempts.pop(key, None)
+    _login_attempts.setdefault(ip, []).append(now)
 
 
 def _set_admin_cookie(resp) -> None:
-    """Ставит/продлевает подписанную remember-me cookie (httpOnly+Secure, /admin)."""
-    token = _expected_cookie_token()
+    """Ставит подписанную remember-me cookie (httpOnly+Secure, /admin) — только при входе."""
+    token = _make_cookie_token()
     if token:
         resp.set_cookie(
             ADMIN_COOKIE_NAME,
@@ -310,7 +354,12 @@ input.editable:focus{border-color:var(--b);outline:none;background:var(--bg2)}
 const $ = (id) => document.getElementById(id);
 function fmt(n){ if(n===null||n===undefined)return '—'; if(typeof n!=='number')return n; if(n>=1024*1024*1024)return(n/1024/1024/1024).toFixed(2)+' ГБ'; if(n>=1024*1024)return(n/1024/1024).toFixed(1)+' МБ'; if(n>=1024)return(n/1024).toFixed(1)+' КБ'; return n+' Б' }
 function fmtDate(s){ if(!s)return '—'; const d=new Date(s); const now=new Date(); const diff=(now-d)/1000; if(diff<60)return Math.round(diff)+'с назад'; if(diff<3600)return Math.round(diff/60)+'м назад'; if(diff<86400)return Math.round(diff/3600)+'ч назад'; if(diff<86400*30)return Math.round(diff/86400)+'д назад'; return d.toISOString().slice(0,10) }
-function toast(msg, kind){ const t=$('toast'); t.innerHTML='<div class="toast '+(kind||'ok')+'">'+msg+'</div>'; setTimeout(()=>{t.innerHTML=''}, 3500) }
+// Всё, что пришло с сервера (имена из Telegram, тексты ошибок, имена файлов),
+// перед вставкой в innerHTML проходит через esc(). Security review 11.2026: имя
+// пользователя `<img onerror=...>` исполнялось в браузере админа (stored XSS).
+function esc(v){ return String(v===null||v===undefined?'':v).replace(/[&<>"'`]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;'}[c])) }
+function num(v){ const n=Number(v); return Number.isFinite(n) ? n : 0 }
+function toast(msg, kind){ const t=$('toast'); t.textContent=''; const div=document.createElement('div'); div.className='toast '+(kind==='err'?'err':'ok'); div.textContent=String(msg); t.appendChild(div); setTimeout(()=>{t.textContent=''}, 3500) }
 async function api(path, opts){ const r=await fetch(path, opts); if(!r.ok) throw new Error(await r.text()); return r.json() }
 
 async function loadUsers(){
@@ -333,34 +382,35 @@ async function loadUsers(){
     const rows = d.users.map(u => {
       const cohorts = ['owner','family','early_user','external'].map(c =>
         `<option value="${c}"${c===u.cohort?' selected':''}>${c}</option>`).join('');
+      const tid = num(u.telegram_id);
       const kbCurrent = u.kb_status || 'none';
       const kbOpts = KB_OPTS.map(([v,lbl]) =>
         `<option value="${v}"${v===kbCurrent?' selected':''}>${lbl}</option>`).join('');
-      const kbCls = 'kb-pill k-' + kbCurrent;
+      const kbCls = 'kb-pill k-' + esc(kbCurrent);
       const blockBtn = u.is_active
-        ? `<button class="danger icon-btn" title="Заблокировать" onclick="toggleActive(${u.telegram_id}, false)">🚫</button>`
-        : `<button class="ok icon-btn" title="Разблокировать" onclick="toggleActive(${u.telegram_id}, true)">✅</button>`;
+        ? `<button class="danger icon-btn" title="Заблокировать" onclick="toggleActive(${tid}, false)">🚫</button>`
+        : `<button class="ok icon-btn" title="Разблокировать" onclick="toggleActive(${tid}, true)">✅</button>`;
       const canDelete = u.cohort !== 'owner' && u.cohort !== 'family';
       const deleteBtn = canDelete
-        ? `<button class="danger icon-btn" title="Удалить навсегда" onclick="deleteUser(${u.telegram_id}, '${(u.username||'').replace(/'/g,"")}', ${u.meals_total}, ${u.supps_total})">🗑️</button>`
+        ? `<button class="danger icon-btn" title="Удалить навсегда" onclick="deleteUser(${tid}, '${esc((u.username||'').replace(/[^A-Za-z0-9_]/g,''))}', ${num(u.meals_total)}, ${num(u.supps_total)})">🗑️</button>`
         : '';
       const sx = (u.sex||'').toLowerCase();
       const sexEmoji = (sx==='male'||sx==='m') ? '♂' : ((sx==='female'||sx==='f') ? '♀' : '');
-      const ageStr = u.age!==null ? `${u.age}л ${sexEmoji}` : '<span class="dim">—</span>';
+      const ageStr = u.age!==null ? `${esc(u.age)}л ${sexEmoji}` : '<span class="dim">—</span>';
       // [test] badge для тестовых юзеров (deploy_smoke, имена начинающиеся с deploy/test/smoke)
       const isTest = (u.username||'').toLowerCase().includes('deploy') || (u.username||'').toLowerCase().includes('smoke') || (u.username||'').toLowerCase().startsWith('test_');
       const testBadge = isTest ? ' <span style="background:#3a2a2a;color:#ff9966;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:600;letter-spacing:.5px">[test]</span>' : '';
       return `<tr${isTest ? ' style="opacity:.55"' : ''}>
-        <td>${u.first_name||''} ${u.last_name||''}${testBadge}</td>
-        <td class="mono muted">@${u.username||'—'}</td>
-        <td class="mono dim">${u.telegram_id}</td>
-        <td><select onchange="changeCohort(${u.telegram_id}, this.value)" class="cohort-pill c-${u.cohort}">${cohorts}</select></td>
+        <td>${esc(u.first_name)} ${esc(u.last_name)}${testBadge}</td>
+        <td class="mono muted">@${esc(u.username||'—')}</td>
+        <td class="mono dim">${tid}</td>
+        <td><select onchange="changeCohort(${tid}, this.value)" class="cohort-pill c-${esc(u.cohort)}">${cohorts}</select></td>
         <td>${ageStr}</td>
         <td class="muted">${fmtDate(u.registered_at)}</td>
         <td class="muted">${fmtDate(u.last_active)}</td>
-        <td><span class="${u.meals_7d?'':'dim'}">${u.meals_7d}</span> / <span class="muted">${u.meals_total}</span></td>
-        <td><span class="${u.supps_7d?'':'dim'}">${u.supps_7d}</span> / <span class="muted">${u.supps_total}</span></td>
-        <td><select onchange="changeKB(${u.telegram_id}, this.value)" class="${kbCls}">${kbOpts}</select></td>
+        <td><span class="${u.meals_7d?'':'dim'}">${num(u.meals_7d)}</span> / <span class="muted">${num(u.meals_total)}</span></td>
+        <td><span class="${u.supps_7d?'':'dim'}">${num(u.supps_7d)}</span> / <span class="muted">${num(u.supps_total)}</span></td>
+        <td><select onchange="changeKB(${tid}, this.value)" class="${kbCls}">${kbOpts}</select></td>
         <td class="actions">${blockBtn}${deleteBtn}</td>
       </tr>`;
     }).join('');
@@ -374,19 +424,19 @@ async function loadServer(){
     const dp = d.disk;
     const dbsize = d.db.total_size;
     const tableHTML = (d.db.top_tables||[]).map(t =>
-      `<tr><td class="mono">${t.name}</td><td>${t.size_pretty}</td><td class="muted">${t.rows} строк</td></tr>`).join('');
+      `<tr><td class="mono">${esc(t.name)}</td><td>${esc(t.size_pretty)}</td><td class="muted">${esc(t.rows)} строк</td></tr>`).join('');
     $('server-data').innerHTML = `
       <div class="kpi-row">
-        <div class="kpi"><div class="l">Postgres всего</div><div class="v">${dbsize}</div></div>
-        <div class="kpi"><div class="l">Диск занято</div><div class="v">${dp.used_pretty}<span class="muted" style="font-size:13px"> / ${dp.total_pretty}</span></div>
-          <div class="bar ${dp.percent>80?'crit':dp.percent>60?'warn':''}"><div style="width:${dp.percent}%"></div></div>
-          <div class="n">${dp.percent}%</div></div>
-        <div class="kpi"><div class="l">/opt/healthvault</div><div class="v">${d.paths.healthvault}</div></div>
-        <div class="kpi"><div class="l">/opt/backups</div><div class="v">${d.paths.backups}</div></div>
+        <div class="kpi"><div class="l">Postgres всего</div><div class="v">${esc(dbsize)}</div></div>
+        <div class="kpi"><div class="l">Диск занято</div><div class="v">${esc(dp.used_pretty)}<span class="muted" style="font-size:13px"> / ${esc(dp.total_pretty)}</span></div>
+          <div class="bar ${dp.percent>80?'crit':dp.percent>60?'warn':''}"><div style="width:${num(dp.percent)}%"></div></div>
+          <div class="n">${num(dp.percent)}%</div></div>
+        <div class="kpi"><div class="l">/opt/healthvault</div><div class="v">${esc(d.paths.healthvault)}</div></div>
+        <div class="kpi"><div class="l">/opt/backups</div><div class="v">${esc(d.paths.backups)}</div></div>
       </div>
       <h3 style="font-size:13px;font-weight:500;color:var(--mu);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Топ таблиц</h3>
       <table><thead><tr><th>Таблица</th><th>Размер</th><th>Строк</th></tr></thead><tbody>${tableHTML}</tbody></table>`;
-  } catch(e){ $('server-data').innerHTML = '<div class="placeholder">Ошибка: '+e.message+'</div>' }
+  } catch(e){ $('server-data').innerHTML = '<div class="placeholder">Ошибка: '+esc(e.message)+'</div>' }
 }
 
 async function loadBackups(){
@@ -398,9 +448,9 @@ async function loadBackups(){
       return;
     }
     const rows = d.backups.map(b =>
-      `<tr><td class="mono">${b.name}</td><td>${b.size_pretty}</td><td class="muted">${fmtDate(b.created)}</td></tr>`).join('');
+      `<tr><td class="mono">${esc(b.name)}</td><td>${esc(b.size_pretty)}</td><td class="muted">${esc(fmtDate(b.created))}</td></tr>`).join('');
     $('backups-data').innerHTML = `<table><thead><tr><th>Файл</th><th>Размер</th><th>Создан</th></tr></thead><tbody>${rows}</tbody></table>`;
-  } catch(e){ $('backups-data').innerHTML = '<div class="placeholder">Ошибка: '+e.message+'</div>' }
+  } catch(e){ $('backups-data').innerHTML = '<div class="placeholder">Ошибка: '+esc(e.message)+'</div>' }
 }
 
 async function makeBackup(){
@@ -468,22 +518,22 @@ async function loadLLM(){
       d.totals.input_tokens.toLocaleString() + ' in / ' +
       d.totals.output_tokens.toLocaleString() + ' out';
     document.getElementById('llm-by-purpose').innerHTML = d.by_purpose.map(r =>
-      '<tr><td>' + labelForPurpose(r.purpose) + '</td>' +
+      '<tr><td>' + esc(labelForPurpose(r.purpose)) + '</td>' +
       '<td>' + r.calls + '</td>' +
       '<td>' + r.input_tokens.toLocaleString() + ' → ' + r.output_tokens.toLocaleString() + '</td>' +
       '<td>' + r.cache_read_tokens.toLocaleString() + ' / ' + r.cache_creation_tokens.toLocaleString() + '</td>' +
       '<td><b>$' + r.cost_usd.toFixed(2) + '</b></td></tr>'
     ).join('');
     document.getElementById('llm-by-day').innerHTML = d.by_day.map(r =>
-      '<tr><td>' + r.day + '</td>' +
+      '<tr><td>' + esc(r.day) + '</td>' +
       '<td>$' + (r.food_text_usd||0).toFixed(2) + '</td>' +
       '<td>$' + (r.food_photo_usd||0).toFixed(2) + '</td>' +
       '<td>$' + (r.agent_chat_usd||0).toFixed(2) + '</td>' +
       '<td><b>$' + r.total_usd.toFixed(2) + '</b></td></tr>'
     ).join('');
     document.getElementById('llm-by-user').innerHTML = d.by_user.map(r =>
-      '<tr><td class="mono">' + (r.user_id || '—') + '</td>' +
-      '<td>' + (r.first_name || '') + '</td>' +
+      '<tr><td class="mono">' + esc(r.user_id || '—') + '</td>' +
+      '<td>' + esc(r.first_name) + '</td>' +
       '<td>' + r.calls + '</td>' +
       '<td><b>$' + r.cost_usd.toFixed(2) + '</b></td></tr>'
     ).join('');
@@ -504,12 +554,12 @@ async function loadBotHealth(){
       <div class="kpi" title="Сколько сообщений от пользователей обработал бот сегодня (с полуночи UTC) — источник: agent_conversations"><div class="l">Сообщений сегодня</div><div class="v">${d.messages_today}</div></div>
       <div class="kpi" title="Получал ли бот активность от пользователей за последние 30 минут — простой индикатор «бот на связи», не проверка самого Telegram-вебхука"><div class="l">Webhook</div><div class="v" style="font-size:14px">${d.webhook_ok?'✓ ok':'✗ down'}</div></div>`;
     const arows = (d.audit_recent||[]).map(e =>
-      `<tr><td class="mono dim" style="font-size:10px">${fmtDate(e.ts)}</td><td class="mono">${e.user_id||'—'}</td><td>${e.table_name}</td><td class="muted">${e.action}</td></tr>`).join('');
+      `<tr><td class="mono dim" style="font-size:10px">${esc(fmtDate(e.ts))}</td><td class="mono">${esc(e.user_id||'—')}</td><td>${esc(e.table_name)}</td><td class="muted">${esc(e.action)}</td></tr>`).join('');
     $('bothealth-audit').innerHTML = arows || '<tr><td colspan="4" class="placeholder">Тихо</td></tr>';
   } catch(e) {
     $('bothealth-badge').textContent = '✗ ошибка';
     $('bothealth-badge').className = 'badge r';
-    $('bothealth-kpis').innerHTML = '<div class="placeholder">Ошибка: '+e.message+'</div>';
+    $('bothealth-kpis').innerHTML = '<div class="placeholder">Ошибка: '+esc(e.message)+'</div>';
   }
 }
 function setLLMWindow(days){
@@ -611,10 +661,9 @@ async def admin_index(request: Request, creds: Optional[HTTPBasicCredentials] = 
     # Браузерный вход: нет сессии → форма логина (не нативный Basic-popup).
     if not _is_authed(creds, request):
         return RedirectResponse("/admin/login", status_code=303)
-    resp = HTMLResponse(content=ADMIN_HTML)
-    # «Запомнить меня»: продлеваем куку при каждом успешном заходе.
-    _set_admin_cookie(resp)
-    return resp
+    # Куку НЕ продлеваем на каждом заходе: срок считается от входа по паролю,
+    # иначе утёкшую куку можно было бы держать живой бесконечно.
+    return HTMLResponse(content=ADMIN_HTML)
 
 
 # ─── API: Users ────────────────────────────────────────────────────────────

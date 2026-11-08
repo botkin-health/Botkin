@@ -140,7 +140,10 @@ def whoop_connect(uid: str, sig: str):
 def whoop_callback(code: str = "", state: str = "", error: str = ""):
     """WHOOP редиректит сюда после авторизации юзера."""
     if error:
-        return HTMLResponse(f"<h2>Не удалось подключить Whoop</h2><p>{error}</p>", status_code=400)
+        # error приходит из query-строки → никогда не отражаем его в HTML как есть
+        # (reflected XSS, security review 11.2026, F18). Показываем фиксированный текст.
+        logger.info("WHOOP callback error param: %r", error[:200])
+        return HTMLResponse("<h2>Не удалось подключить Whoop</h2><p>Попробуйте ещё раз из бота.</p>", status_code=400)
     uid = _parse_state(state)
     if not uid:
         return HTMLResponse("<h2>Ошибка: невалидный state</h2>", status_code=403)

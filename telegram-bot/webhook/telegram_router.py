@@ -37,13 +37,14 @@ def _verify_webhook_secret(secret_header: str | None) -> None:
 
     Telegram шлёт этот заголовок, если секрет передан в setWebhook. Без проверки
     любой в docker-сети может слать поддельные Update от чужого user_id.
-    Если секрет не сконфигурирован — пропускаем (обратная совместимость на время
-    выкатки), но логируем предупреждение.
+    Секрет не сконфигурирован → отказываем (fail-closed). Раньше пропускали всё,
+    и потеря переменной в .env открывала подделку апдейтов от любого user_id,
+    включая владельца (security review 11.2026, F14).
     """
     expected = os.getenv("TELEGRAM_WEBHOOK_SECRET", "")
     if not expected:
-        logger.error("TELEGRAM_WEBHOOK_SECRET не задан — /telegram/webhook без аутентификации")
-        return
+        logger.error("TELEGRAM_WEBHOOK_SECRET не задан — /telegram/webhook отклоняет все апдейты")
+        raise HTTPException(status_code=503, detail="Webhook secret not configured")
     if not secret_header or not hmac.compare_digest(secret_header, expected):
         raise HTTPException(status_code=403, detail="Invalid webhook secret")
 

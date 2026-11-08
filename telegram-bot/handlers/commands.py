@@ -3,6 +3,8 @@
 Обработчик команд бота (/start, /help, /day, /week, /vitamins и т.д.)
 """
 
+import html
+
 from aiogram import Router
 from aiogram.types import Message
 from aiogram.filters import Command
@@ -65,7 +67,7 @@ async def cmd_start(message: Message, user_id: int, username: str, first_name: s
         )
 
     await message.answer(
-        f"👋 Привет, {first_name}! Я <b>Botkin</b> — твой трекер питания, добавок и здоровья.\n\n"
+        f"👋 Привет, {html.escape(first_name or '')}! Я <b>Botkin</b> — твой трекер питания, добавок и здоровья.\n\n"
         "📸 Отправь фото еды — распознаю состав и КБЖУ.\n"
         "🗣 Или голосом: «Съел яблоко», «Принял Омега-3 1000 мг».\n"
         "📝 Или текстом: «Завтрак: овсянка 200г, кофе».\n\n"
@@ -722,7 +724,7 @@ async def cmd_block(message: Message, user_id: int):
             return
         user.is_active = False
         db.commit()
-        name = f"@{user.username}" if user.username else user.first_name or str(target_id)
+        name = html.escape(f"@{user.username}" if user.username else user.first_name or str(target_id))
         await message.answer(f"🚫 Пользователь {name} ({target_id}) заблокирован.")
     finally:
         db.close()
@@ -750,7 +752,7 @@ async def cmd_unblock(message: Message, user_id: int):
             return
         user.is_active = True
         db.commit()
-        name = f"@{user.username}" if user.username else user.first_name or str(target_id)
+        name = html.escape(f"@{user.username}" if user.username else user.first_name or str(target_id))
         await message.answer(f"✅ Пользователь {name} ({target_id}) разблокирован.")
     finally:
         db.close()
@@ -778,7 +780,7 @@ async def cmd_users(message: Message, user_id: int):
     lines = [f"👥 <b>Пользователи ({len(users)}):</b>\n"]
     for u in users:
         status = "✅" if u.is_active else "🚫"
-        name = f"@{u.username}" if u.username else u.first_name or "—"
+        name = html.escape(f"@{u.username}" if u.username else u.first_name or "—")
         reg = u.registered_at.strftime("%d.%m.%Y") if u.registered_at else "?"
         lines.append(f"{status} <code>{u.telegram_id}</code> {name} · с {reg}")
 
