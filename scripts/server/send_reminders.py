@@ -8,6 +8,7 @@ Cron на сервере (каждые 15 мин в дневном окне):
 - Идемпотентно: по каждому слоту/добавке шлём максимум раз в день (last_sent в UserSettings).
 - Питание: фиксированные слоты (meal_reminder_times). Если приём уже залогирован рядом — пропускаем.
 - Добавки: оживляет ранее «мёртвый» тумблер supplement_reminders_enabled.
+  Если приём уже отмечен в supplements_log за сегодня — не напоминаем.
 
 Запуск вручную:
     python scripts/server/send_reminders.py            # боевой прогон
@@ -92,6 +93,17 @@ def _logged_labels(db, NutritionLog, uid, today, tz, meal_times, grace=DEFAULT_G
         if any(slot_min - LOGGED_PRE_MINUTES <= m <= slot_min + grace for m in logged_minutes):
             labels.add(label)
     return labels
+
+
+def _supplement_taken_today(db, SupplementLog, uid, today) -> bool:
+    """Отмечен ли сегодня (локальная дата пользователя) хоть один приём добавок/лекарств.
+
+    Напоминание о добавках одно в день, поэтому любая отметка за сегодня означает
+    «уже принял» — напоминать не надо. Дата в supplements_log пишется локальная.
+    """
+    return (
+        db.query(SupplementLog.id).filter(SupplementLog.user_id == uid, SupplementLog.date == today).first() is not None
+    )
 
 
 def dispatch_plan_close(db, token: str, dry: bool = False, now_fn=None) -> int:
@@ -181,7 +193,7 @@ def run(dry: bool = False) -> int:
         return 1
 
     from database import SessionLocal
-    from database.models import NutritionLog, User, UserSettings
+    from database.models import NutritionLog, SupplementLog, User, UserSettings
 
     db = SessionLocal()
     sent_total = 0
@@ -226,11 +238,17 @@ def run(dry: bool = False) -> int:
                     slot_dt = now_local.replace(hour=st.hour, minute=st.minute, second=0, microsecond=0)
                     mins_since = (now_local - slot_dt).total_seconds() / 60.0
                     if 0 <= mins_since <= SUPPLEMENT_WINDOW_MIN:
-                        text = "💊 Напоминание: не забудьте принять добавки/лекарства и отметить приём."
-                        if _send(token, uid, text, dry):
+                        if _supplement_taken_today(db, SupplementLog, uid, today):
+                            # Уже отметил приём сегодня — не напоминаем и закрываем день,
+                            # чтобы не дёргать БД каждые 15 минут окна.
                             last_sent[SUPPLEMENT_KEY] = today_iso
-                            sent_total += 1
                             changed = True
+                        else:
+                            text = "💊 Напоминание: не забудьте принять добавки/лекарства и отметить приём."
+                            if _send(token, uid, text, dry):
+                                last_sent[SUPPLEMENT_KEY] = today_iso
+                                sent_total += 1
+                                changed = True
 
             if changed:
                 settings.meal_reminder_last_sent = last_sent
