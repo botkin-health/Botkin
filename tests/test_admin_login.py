@@ -77,7 +77,7 @@ def test_is_authed_accepts_valid_cookie(admin):
     """Валидная подписанная cookie → авторизован без Basic."""
 
     class _Req:
-        cookies = {admin.ADMIN_COOKIE_NAME: admin._expected_cookie_token()}
+        cookies = {admin.ADMIN_COOKIE_NAME: admin._make_cookie_token()}
 
     assert admin._is_authed(None, _Req()) is True
 
@@ -96,7 +96,7 @@ def test_index_without_session_redirects_to_login(client, admin):
 
 def test_index_with_valid_cookie_serves_html(client, admin):
     """С валидной cookie главная отдаёт HTML админки (200)."""
-    client.cookies.set(admin.ADMIN_COOKIE_NAME, admin._expected_cookie_token())
+    client.cookies.set(admin.ADMIN_COOKIE_NAME, admin._make_cookie_token())
     r = client.get("/admin/")
     assert r.status_code == 200
     assert "Botkin Admin" in r.text
@@ -113,7 +113,7 @@ def test_login_page_renders_form(client):
 
 
 def test_login_page_redirects_if_already_authed(client, admin):
-    client.cookies.set(admin.ADMIN_COOKIE_NAME, admin._expected_cookie_token())
+    client.cookies.set(admin.ADMIN_COOKIE_NAME, admin._make_cookie_token())
     r = client.get("/admin/login")
     assert r.status_code == 303
     assert r.headers["location"] == "/admin/"
@@ -137,7 +137,7 @@ def test_login_correct_password_sets_cookie_and_redirects(client, admin):
     assert r.headers["location"] == "/admin/"
     set_cookie = r.headers.get("set-cookie", "")
     assert admin.ADMIN_COOKIE_NAME in set_cookie
-    assert admin._expected_cookie_token() in set_cookie
+    assert admin._cookie_token_valid(r.cookies.get(admin.ADMIN_COOKIE_NAME))
 
 
 # ─── Троттлинг ──────────────────────────────────────────────────────────────
@@ -158,7 +158,7 @@ def test_login_throttles_after_max_attempts(client, admin):
 
 
 def test_logout_clears_cookie_and_redirects(client, admin):
-    client.cookies.set(admin.ADMIN_COOKIE_NAME, admin._expected_cookie_token())
+    client.cookies.set(admin.ADMIN_COOKIE_NAME, admin._make_cookie_token())
     r = client.get("/admin/logout")
     assert r.status_code == 303
     assert r.headers["location"] == "/admin/login"
