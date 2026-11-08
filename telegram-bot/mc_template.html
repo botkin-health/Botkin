@@ -706,6 +706,9 @@ html.embed { overflow-x: hidden; }
 
 <script id="payload" type="application/json">{{PAYLOAD}}</script>
 <script>
+// Строки из данных пользователя перед вставкой в innerHTML — через esc()
+// (security review 11.2026: тип тренировки из Apple Health исполнялся как HTML).
+function esc(v){ return String(v===null||v===undefined?'':v).replace(/[&<>"'`]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;'}[c])) }
 const D = JSON.parse(document.getElementById('payload').textContent);
 const COLOR = { g:'#00ff9d', g2:'#00c878', y:'#ffb800', r:'#ff3b6d', b:'#3b82f6', p:'#a855f7',
                 muted:'#7a879f', grid:'#1f2940', text:'#e8eef7' };
@@ -1074,7 +1077,7 @@ streams.forEach((s, i) => {
       const pct = Math.round(b.n / maxN * 100);
       const extra = b.km > 0 ? `<span style="color:var(--muted);font-size:10px;margin-left:4px;">${b.km} км</span>` : '';
       return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
-        <span style="font-size:10px;color:var(--muted);width:44px;text-align:right;flex-shrink:0;">${b.label}</span>
+        <span style="font-size:10px;color:var(--muted);width:44px;text-align:right;flex-shrink:0;">${esc(b.label)}</span>
         <div style="flex:1;height:4px;background:var(--bg2);border-radius:2px;overflow:hidden;">
           <div style="width:${pct}%;height:100%;background:${s.color};border-radius:2px;opacity:0.85;"></div>
         </div>
@@ -1670,8 +1673,8 @@ renderHeatmap();
   } else {
     S.workouts.slice().reverse().forEach(w => {
       const dt = new Date(w.date).toLocaleDateString('ru-RU', {day:'numeric', month:'short'});
-      const typeLabel = TYPE_LABELS[w.type] || w.type;
-      const suggested = w.is_misnamed && w.suggested_type ? TYPE_LABELS[w.suggested_type] || w.suggested_type : null;
+      const typeLabel = esc(TYPE_LABELS[w.type] || w.type);
+      const suggested = w.is_misnamed && w.suggested_type ? esc(TYPE_LABELS[w.suggested_type] || w.suggested_type) : null;
       const synthPrefix = w.is_synthesized ? '<span title="Восстановлено из данных ЧСС" style="color:var(--muted);margin-right:3px;">ψ</span>' : '';
       const typeHtml = suggested
         ? `${synthPrefix}<span class="wo-type-strike">${typeLabel}</span> → <span class="wo-type-suggest">${suggested}</span>`

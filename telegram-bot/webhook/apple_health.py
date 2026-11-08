@@ -9,6 +9,7 @@ Auth: Bearer token (APPLE_HEALTH_TOKEN из .env)
 
 import hmac
 import os
+import re
 import logging
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional, List
@@ -22,7 +23,38 @@ from core.health.hr_artifact import classify_hr_min
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Botkin Apple Health Webhook", docs_url=None, redoc_url=None)
+app = FastAPI(title="Botkin Apple Health Webhook", docs_url=None, redoc_url=None, openapi_url=None)
+
+# ── Security headers (security review 11.2026, F7) ───────────────────────────
+# /mc/{token} и /r/{token} — bearer-URL с медданными: не кэшировать, не индексировать,
+# не утекать токен через Referer. /admin — запрет фреймов и CSP, которая не даёт
+# внедрённому скрипту грузить внешний код и слать данные наружу (connect-src 'self').
+# /mc/ сознательно без X-Frame-Options: его встраивает мини-апп.
+_ADMIN_CSP = (
+    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; "
+    "img-src 'self' data:; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; "
+    "base-uri 'none'; object-src 'none'"
+)
+_BEARER_PREFIXES = ("/mc/", "/r/", "/admin", "/whoop/")
+
+
+@app.middleware("http")
+async def _security_headers(request: Request, call_next):
+    response = await call_next(request)
+    path = request.url.path
+    h = response.headers
+    h.setdefault("X-Content-Type-Options", "nosniff")
+    h.setdefault("Referrer-Policy", "no-referrer")
+    if path.startswith(_BEARER_PREFIXES):
+        h["Cache-Control"] = "no-store"
+        h.setdefault("X-Robots-Tag", "noindex, nofollow")
+    if path.startswith("/admin"):
+        h.setdefault("X-Frame-Options", "DENY")
+        h.setdefault("Content-Security-Policy", _ADMIN_CSP)
+    elif path.startswith("/whoop/"):
+        h.setdefault("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'")
+    return response
+
 
 # ── Telegram webhook dispatcher (set by bot.py at startup) ───────────────────
 # These are populated by set_telegram_dispatcher() so the /telegram/webhook
@@ -433,9 +465,12 @@ async def receive_apple_health(
         finally:
             db.close()
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Apple Health webhook error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"DB error: {str(e)}")
+        # Текст исключения наружу не отдаём (утечка внутренностей БД).
+        raise HTTPException(status_code=500, detail="Internal error")
 
     logger.info(f"✅ Apple Health import [{payload.date}]: {'; '.join(saved)}")
 
@@ -729,7 +764,11 @@ def _hae_workout_type(rec: dict) -> str:
         return "Workout"
     raw = str(raw)
     prefix = "HKWorkoutActivityType"
-    return raw[len(prefix) :] if raw.startswith(prefix) else raw
+    raw = raw[len(prefix) :] if raw.startswith(prefix) else raw
+    # Тип тренировки попадает в расшаренный дашборд /mc и отчёты /r —
+    # HTML-спецсимволы вырезаем на входе (stored XSS, security review 11.2026).
+    raw = re.sub(r"[<>\"'`&]", "", raw).strip()[:100]
+    return raw or "Workout"
 
 
 def _hae_workout_duration_min(rec: dict) -> int | None:
@@ -1646,10 +1685,13 @@ async def receive_apple_health_v2(
             logger.info("HAE_v2 medications inserted: %s", medications_inserted)
 
         db.commit()
+    except HTTPException:
+        db.rollback()
+        raise
     except Exception as e:
         db.rollback()
         logger.error(f"Apple Health v2 error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"DB error: {e}")
+        raise HTTPException(status_code=500, detail="Internal error")
     finally:
         db.close()
 
@@ -1920,10 +1962,12 @@ async def telegram_webhook(request: Request):
     from aiogram.types import Update as TgUpdate  # lazy import — avoids breaking tests
 
     _expected_secret = os.getenv("TELEGRAM_WEBHOOK_SECRET", "")
-    if _expected_secret:
-        _got = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
-        if not hmac.compare_digest(_got, _expected_secret):
-            raise HTTPException(status_code=403, detail="Invalid webhook secret")
+    if not _expected_secret:
+        # fail-closed: без секрета не принимаем ничего (security review 11.2026, F14)
+        raise HTTPException(status_code=503, detail="Webhook secret not configured")
+    _got = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
+    if not hmac.compare_digest(_got, _expected_secret):
+        raise HTTPException(status_code=403, detail="Invalid webhook secret")
 
     if _tg_bot is None or _tg_dp is None:
         logger.error("Telegram dispatcher not initialised — update dropped")
