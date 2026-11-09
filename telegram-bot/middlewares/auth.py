@@ -47,6 +47,7 @@ class AuthMiddleware(BaseMiddleware):
             try:
                 user = ensure_user_exists(db, telegram_id=user_id, username=username, first_name=first_name)
                 is_active = user.is_active
+                cohort = getattr(user, "cohort", None)
             finally:
                 db.close()
         except Exception as e:
@@ -64,5 +65,6 @@ class AuthMiddleware(BaseMiddleware):
         data["user_id"] = user_id
         data["username"] = username
         data["first_name"] = first_name
+        data["cohort"] = cohort  # для LlmGuardMiddleware (лимиты LLM)
 
         return await handler(event, data)
