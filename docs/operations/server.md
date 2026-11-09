@@ -51,27 +51,24 @@ LLM-proxy на `127.0.0.1:4000`). Отсюда правила для депло�
   (трогает другие проекты). Решение — открытый вопрос, см. ROADMAP/issue.
 - Деплой не трогает контейнеры/volume/образы других стеков.
 
-## Ночной синк данных прод → дев
+## Данные дев-стенда — только синтетика
 
-Дев-стенд (`/opt/botkin-dev`, project `botkin-dev`, контейнеры `botkin_dev_*`)
-еженощно получает данные с прода — workflow **«Sync prod → dev»**
-(`.github/workflows/sync-prod-to-dev.yml`, cron `0 0 * * *` = 03:00 МСК) заходит
-по SSH и запускает `scripts/ci/sync-prod-to-dev.sh`. Обоснование и детали —
-[ADR-0004](../architecture/decisions/0004-nightly-prod-to-dev-data-sync.md).
+Прод-данные на дев-стенд (`/opt/botkin-dev`, контейнеры `botkin_dev_*`) **не
+копируются** — ни строки БД, ни файлы `/opt/botkin/data`, ни секреты
+пользователей. Ночной синк прод→дев (ADR-0004) удалён, обоснование —
+[ADR-0013](../architecture/decisions/0013-dev-stand-without-prod-data.md).
 
-| Что | Как |
-|---|---|
-| Направление | **строго prod → dev**, прод read-only (только `\copy … TO STDOUT`) |
-| Стратегия | гибрид: natural-key таблицы — **upsert** (дев-тест цел), serial-only — **full-replace**, служебные/orphan — **skip** |
-| БД-роль | `healthvault` (владелец/superuser → RLS bypass); заливка под `session_replication_role=replica` (глушит аудит-триггер + FK) |
-| data-файлы | `rsync -a` без `--delete`, `/opt/botkin/data → /opt/botkin-dev/data` через privileged-контейнер (uid 10001) |
-| Дев-бот | останавливается на время БД-заливки, поднимается обратно |
+Данные для проверки фич — синтетические, скриптом в дев-контейнере
+(`BOTKIN_ENV=dev` задан в `docker-compose.dev.yml`, на других окружениях скрипт
+откажется работать):
 
-**Ручной запуск / проверка:**
-- GitHub → Actions → «Sync prod → dev» → `Run workflow`, `dry_run=true` — сухой
-  прогон (счётчики строк, без изменений). Затем `dry_run=false` — боевой.
-- Локально из чекаута репо (скрипт стримится по SSH, на сервере не хранится):
-  `ssh <user>@<host> bash -s -- --dry-run < scripts/ci/sync-prod-to-dev.sh`.
+```bash
+# 3 выдуманных пользователя, данные за 60 дней
+docker exec botkin_dev_bot python scripts/dev/seed_synthetic.py --users 3 --days 60
+# синтетика в свой дев-аккаунт (после онбординга в @botkin_dev_bot)
+docker exec botkin_dev_bot python scripts/dev/seed_synthetic.py --attach <telegram_id>
+# удалить всю синтетику
+docker exec botkin_dev_bot python scripts/dev/seed_synthetic.py --reset
+```
 
-⚠️ `schedule`/`workflow_dispatch` активны только когда workflow на ветке `main`
-(после `dev→main`). Дев одноразовый — pre-sync бэкап дева не делается.
+Нужен кейс из прода — переносить его вручную, как фикстуру без PII.
