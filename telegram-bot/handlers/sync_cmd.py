@@ -28,6 +28,7 @@ MVP-ограничения:
 """
 
 import asyncio
+import os
 import logging
 import re
 import time
@@ -204,6 +205,14 @@ def _classify_failure(source_key: str, output: str) -> tuple[str, str]:
     return OUTCOME_ERROR, "не удалось обновить — записал в журнал, разберёмся"
 
 
+def _system_db_env() -> dict:
+    """Окружение для скриптов синка: они межпользовательские → роль hv_system (ADR-0013)."""
+    env = dict(os.environ)
+    if env.get("SYSTEM_DATABASE_URL"):
+        env["DATABASE_URL"] = env["SYSTEM_DATABASE_URL"]
+    return env
+
+
 async def _run_script(source_key: str, script_path: str, timeout: int = 300) -> tuple[str, str]:
     """Запускает скрипт источника и классифицирует исход (см. #138).
 
@@ -216,6 +225,7 @@ async def _run_script(source_key: str, script_path: str, timeout: int = 300) -> 
             script_path,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
+            env=_system_db_env(),
         )
         try:
             stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout)

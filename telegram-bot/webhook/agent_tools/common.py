@@ -160,7 +160,8 @@ def _resolve_user_kb_path(user) -> tuple[Optional[Path], str]:
       2. ``kb_<telegram_id>.json`` at repo root — legacy layout, kept for
          backward-compat during the rolling migration. Required per-file
          bind-mounts in docker-compose.prod.yml (now removed).
-      3. ``knowledge_base.json`` at repo root — owner-cohort fallback (Alex).
+      3. ``knowledge_base.json`` at repo root — fallback только для владельца
+         инсталляции (``config.users.OWNER_USER_ID``), не по cohort — ADR-0013.
 
     Returns ``(path, source_label)``. Path is None when no KB available;
     caller should return ``"kb-not-available"`` sentinel to the agent.
@@ -174,7 +175,9 @@ def _resolve_user_kb_path(user) -> tuple[Optional[Path], str]:
         return new_path, f"data/kb/kb_{user.telegram_id}.json"
     if legacy_path.exists():
         return legacy_path, f"kb_{user.telegram_id}.json"
-    if user.cohort == "owner":
+    from config.users import is_installation_owner
+
+    if is_installation_owner(user):
         owner_kb = project_root / "knowledge_base.json"
         if owner_kb.exists():
             return owner_kb, "knowledge_base.json"

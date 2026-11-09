@@ -191,3 +191,38 @@ def mock_session_local(test_db):
 
     for p in patches:
         p.stop()
+
+
+class _SharedSessionProxy:
+    """system_session() для тестов: отдаёт общую тестовую сессию, не закрывая её."""
+
+    def __init__(self, db):
+        self._db = db
+
+    def __enter__(self):
+        return self._db
+
+    def __exit__(self, *exc):
+        return False
+
+    def close(self):
+        pass
+
+    def __getattr__(self, name):
+        return getattr(self._db, name)
+
+
+@pytest.fixture
+def route_system_session(monkeypatch):
+    """Направить database.system_session() (ADR-0013) в переданную тестовую сессию.
+
+    Использование: ``route_system_session(db_session)`` в фикстуре теста, который
+    подменяет get_db на SQLite — иначе system-путь (админка, триаж, bootstrap по
+    токену) пошёл бы в реальный DATABASE_URL.
+    """
+    import database
+
+    def _route(db):
+        monkeypatch.setattr(database, "system_session", lambda: _SharedSessionProxy(db))
+
+    return _route

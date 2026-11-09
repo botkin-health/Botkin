@@ -57,9 +57,11 @@ def _patch_rls_and_limiter(monkeypatch):
 
 
 @pytest.fixture
-def client(db_session):
+def client(db_session, route_system_session):
     from webhook import agent_tools as agent_tools_api
     from webhook.jwt_auth import get_db
+
+    route_system_session(db_session)  # bootstrap-поиск PAT идёт через system_session
 
     app = FastAPI()
     app.include_router(agent_tools_api.router)

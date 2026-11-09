@@ -19,6 +19,12 @@
 
 set -u
 
+# ADR-0013: все скрипты синка межпользовательские — БД ролью hv_system
+# (BYPASSRLS), если она заведена на стенде. Иначе DATABASE_URL как есть.
+if [ -n "${SYSTEM_DATABASE_URL:-}" ]; then
+    export DATABASE_URL="$SYSTEM_DATABASE_URL"
+fi
+
 echo "=========================================="
 echo "🔄 Botkin sync run: $(date -u +%Y-%m-%d\ %H:%M:%S) UTC"
 echo "=========================================="

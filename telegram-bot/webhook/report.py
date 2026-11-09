@@ -30,10 +30,12 @@ async def public_report(token: str = Path(..., min_length=10, max_length=100)):
 
     Возвращает 404 для неизвестного/невалидного токена без пояснений.
     """
-    from database import SessionLocal
+    from database import system_session
     from services.report_generator import get_report_by_token
 
-    db = SessionLocal()
+    # Bootstrap по публичному токену (ADR-0013): владелец отчёта ещё не известен,
+    # читаем одну строку health_reports по токену через system-сессию.
+    db = system_session()
     try:
         report = get_report_by_token(db, token)
         if report is None:

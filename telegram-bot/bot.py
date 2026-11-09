@@ -312,6 +312,12 @@ def register_handlers(dp: Dispatcher):
         logger.error(f"❌ Не удалось подключить IdempotencyMiddleware: {e}")
         errors.append(f"Middleware: {e}")
 
+    # RLS-контекст (ADR-0013): app.user_id = автор update для всех сессий БД.
+    # Без него рантайм-роль hv_app не видит ни одной пользовательской строки.
+    from middlewares.rls_context import RLSContextMiddleware
+
+    dp.update.outer_middleware(RLSContextMiddleware())
+
     # Middleware для сборки медиагрупп
     try:
         from middlewares.media_group import MediaGroupMiddleware

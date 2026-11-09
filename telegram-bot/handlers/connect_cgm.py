@@ -63,10 +63,10 @@ def _fetch_patient_ids() -> list[str]:
 
 def _mapped_patient_ids() -> set[str]:
     """patient_id, уже привязанные к кому-либо (из cgm_connections)."""
-    from database import SessionLocal
+    from database import system_session  # межпользовательский путь (ADR-0013)
     from database.models import CgmConnection
 
-    db = SessionLocal()
+    db = system_session()
     try:
         return {row.patient_id for row in db.query(CgmConnection.patient_id).all()}
     finally:
@@ -100,10 +100,10 @@ def _mapping_owner(patient_id: str) -> int | None:
     получал пугающее «привязан к другому профилю» — так и вышло на первом
     живом прогоне 21.08.2026, когда patient_id был привязан вручную заранее.
     """
-    from database import SessionLocal
+    from database import system_session  # межпользовательский путь (ADR-0013)
     from database.models import CgmConnection
 
-    db = SessionLocal()
+    db = system_session()
     try:
         row = db.query(CgmConnection.telegram_id).filter(CgmConnection.patient_id == patient_id).first()
         return row[0] if row else None

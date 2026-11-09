@@ -122,10 +122,15 @@ async def list_feedback(
 
     if not is_admin(user.telegram_id):
         raise HTTPException(status_code=403, detail="триаж доступен только администраторам")
-    status = req.status if req.status not in (None, "", "all") else None
-    limit = max(1, min(req.limit, 100))
-    rows = list_recent_feedback(db, status=status, limit=limit)
-    return {"status": "ok", "count": len(rows), "feedback": [_feedback_to_dict(r) for r in rows]}
+    # Триаж — межпользовательский путь: только после is_admin и только
+    # system-сессией (ADR-0013). Сессия запроса (hv_app) видит лишь свой фидбек.
+    from database import system_session
+
+    with system_session() as db:
+        status = req.status if req.status not in (None, "", "all") else None
+        limit = max(1, min(req.limit, 100))
+        rows = list_recent_feedback(db, status=status, limit=limit)
+        return {"status": "ok", "count": len(rows), "feedback": [_feedback_to_dict(r) for r in rows]}
 
 
 @router.post("/triage_feedback")
@@ -151,59 +156,64 @@ async def triage_feedback(
 
     if not is_admin(user.telegram_id):
         raise HTTPException(status_code=403, detail="триаж доступен только администраторам")
-    row = get_feedback(db, req.feedback_id)
-    if row is None:
-        raise HTTPException(status_code=404, detail=f"фидбек #{req.feedback_id} не найден")
-    # #269: провалидировать ВСЕ поля ДО первой мутации — каждый CRUD-хелпер
-    # коммитит отдельно, поэтому иначе невалидный priority после валидного status
-    # оставил бы частичное изменение при ответе 400 (неатомарность).
-    if req.status is not None and req.status not in FEEDBACK_STATUSES:
-        raise HTTPException(status_code=400, detail=f"невалидный статус {req.status!r}")
-    if req.priority is not None and req.priority not in FEEDBACK_PRIORITIES:
-        raise HTTPException(status_code=400, detail=f"невалидный приоритет {req.priority!r}")
-    if req.github_issue and len(req.github_issue) > 64:
-        raise HTTPException(status_code=400, detail="github_issue слишком длинный (макс 64; передавай номер)")
-    try:
-        if req.status is not None:
-            row = update_feedback_status(db, req.feedback_id, req.status)
-        if req.priority is not None:
-            row = set_feedback_priority(db, req.feedback_id, req.priority)
-        if req.github_issue is not None:
-            row = set_feedback_github(db, req.feedback_id, req.github_issue)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    # Триаж — межпользовательский путь: только после is_admin и только
+    # system-сессией (ADR-0013). Сессия запроса (hv_app) видит лишь свой фидбек.
+    from database import system_session
 
-    # Фаза 3 (#188): уведомить автора, когда обращение разобрано (done/wontfix) или
-    # когда админ явно ответил (notify_text). Идемпотентность — guard по notified_at:
-    # штампуем ТОЛЬКО после успешной отправки, поэтому сбой сети → повтор на след. триаже,
-    # а второй done по уже уведомлённой записи молча пропускается.
-    from core.feedback_notify import build_notification_text
-    from database.crud import is_feedback_opted_out, mark_feedback_notified
+    with system_session() as db:
+        row = get_feedback(db, req.feedback_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail=f"фидбек #{req.feedback_id} не найден")
+        # #269: провалидировать ВСЕ поля ДО первой мутации — каждый CRUD-хелпер
+        # коммитит отдельно, поэтому иначе невалидный priority после валидного status
+        # оставил бы частичное изменение при ответе 400 (неатомарность).
+        if req.status is not None and req.status not in FEEDBACK_STATUSES:
+            raise HTTPException(status_code=400, detail=f"невалидный статус {req.status!r}")
+        if req.priority is not None and req.priority not in FEEDBACK_PRIORITIES:
+            raise HTTPException(status_code=400, detail=f"невалидный приоритет {req.priority!r}")
+        if req.github_issue and len(req.github_issue) > 64:
+            raise HTTPException(status_code=400, detail="github_issue слишком длинный (макс 64; передавай номер)")
+        try:
+            if req.status is not None:
+                row = update_feedback_status(db, req.feedback_id, req.status)
+            if req.priority is not None:
+                row = set_feedback_priority(db, req.feedback_id, req.priority)
+            if req.github_issue is not None:
+                row = set_feedback_github(db, req.feedback_id, req.github_issue)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
-    notified = False
-    notify_skipped: Optional[str] = None
-    msg = build_notification_text(
-        kind=row.kind,
-        status=row.status,
-        text=row.text,
-        custom=req.notify_text,
-    )
-    if msg:
-        if row.notified_at is not None:
-            notify_skipped = "already_notified"
-        elif is_feedback_opted_out(db, row.user_id):
-            # opt-out = никаких исходящих контактов по фидбеку; не шлём и не штампуем.
-            notify_skipped = "opt_out"
-        elif await _send_feedback_notification(row.user_id, msg):
-            mark_feedback_notified(db, row.id)
-            db.refresh(row)
-            notified = True
-        else:
-            notify_skipped = "send_failed"
+        # Фаза 3 (#188): уведомить автора, когда обращение разобрано (done/wontfix) или
+        # когда админ явно ответил (notify_text). Идемпотентность — guard по notified_at:
+        # штампуем ТОЛЬКО после успешной отправки, поэтому сбой сети → повтор на след. триаже,
+        # а второй done по уже уведомлённой записи молча пропускается.
+        from core.feedback_notify import build_notification_text
+        from database.crud import is_feedback_opted_out, mark_feedback_notified
 
-    return {
-        "status": "ok",
-        "feedback": _feedback_to_dict(row),
-        "notified": notified,
-        "notify_skipped": notify_skipped,
-    }
+        notified = False
+        notify_skipped: Optional[str] = None
+        msg = build_notification_text(
+            kind=row.kind,
+            status=row.status,
+            text=row.text,
+            custom=req.notify_text,
+        )
+        if msg:
+            if row.notified_at is not None:
+                notify_skipped = "already_notified"
+            elif is_feedback_opted_out(db, row.user_id):
+                # opt-out = никаких исходящих контактов по фидбеку; не шлём и не штампуем.
+                notify_skipped = "opt_out"
+            elif await _send_feedback_notification(row.user_id, msg):
+                mark_feedback_notified(db, row.id)
+                db.refresh(row)
+                notified = True
+            else:
+                notify_skipped = "send_failed"
+
+        return {
+            "status": "ok",
+            "feedback": _feedback_to_dict(row),
+            "notified": notified,
+            "notify_skipped": notify_skipped,
+        }

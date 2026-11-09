@@ -5,6 +5,7 @@
 
 import re
 import asyncio
+import contextvars
 import html
 import logging
 from datetime import datetime, timedelta
@@ -257,7 +258,9 @@ async def _bp_confirmation_with_answer(is_question: bool, user_id: int, raw_text
             f"повторно, просто ответь на вопрос пользователя по существу.)"
         )
         loop = asyncio.get_running_loop()
-        agent_reply = await loop.run_in_executor(None, ask_agent, int(user_id), agent_prompt)
+        agent_reply = await loop.run_in_executor(
+            None, contextvars.copy_context().run, ask_agent, int(user_id), agent_prompt
+        )
     except Exception as e:
         logger.warning(f"BP question follow-up to agent failed: {e}")
         agent_reply = None
@@ -1105,6 +1108,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext,
                 loop = asyncio.get_running_loop()
                 router_result = await loop.run_in_executor(
                     None,
+                    contextvars.copy_context().run,
                     lambda: analyze_message(text=text, user_id=int(user_id), now_local=datetime.now(user_tz)),
                 )
                 debug_logger.info(
@@ -1226,6 +1230,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext,
                 meal_previews: list = []
                 reply = await loop.run_in_executor(
                     None,
+                    contextvars.copy_context().run,
                     lambda: ask_agent(
                         int(user_id), agent_text, _progress, is_e2e=is_e2e, meal_preview_sink=meal_previews
                     ),
@@ -1444,7 +1449,7 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext,
                 food_router_result = {"type": "food", "data": food_data}
                 # True: текст — один приём пищи, названный итог ккал = якорь (#629)
                 meal_items, meal_totals = await loop.run_in_executor(
-                    None, process_llm_food_data, food_router_result, text, True
+                    None, contextvars.copy_context().run, process_llm_food_data, food_router_result, text, True
                 )
             else:
                 meal_items, meal_totals = [], {}
@@ -1646,7 +1651,9 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext,
 
             # Using run_in_executor to not block the main loop
             # True: текст — один приём пищи, названный итог ккал = якорь (#629)
-            meal_items, meal_totals = await loop.run_in_executor(None, process_llm_food_data, router_result, text, True)
+            meal_items, meal_totals = await loop.run_in_executor(
+                None, contextvars.copy_context().run, process_llm_food_data, router_result, text, True
+            )
             debug_logger.info(f"✅ process_llm_food_data finished in executor. Items: {len(meal_items)}")
 
             if not meal_items:
@@ -1717,7 +1724,9 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext,
             skipped = []
             for meal in meals_data:
                 sub_router = {"type": "food", "data": meal}
-                sub_items, sub_totals = await loop.run_in_executor(None, process_llm_food_data, sub_router, text)
+                sub_items, sub_totals = await loop.run_in_executor(
+                    None, contextvars.copy_context().run, process_llm_food_data, sub_router, text
+                )
                 meal_name = meal.get("dish_name") or meal.get("meal_type", "Приём пищи").capitalize()
                 if not sub_items:
                     skipped.append(meal_name)
@@ -1778,7 +1787,9 @@ async def handle_text_message(message: Message, user_id: int, state: FSMContext,
 
             await processing_msg.edit_text("⏳ Думаю…")
             try:
-                reply = await loop.run_in_executor(None, lambda: ask_agent(int(user_id), agent_text))
+                reply = await loop.run_in_executor(
+                    None, contextvars.copy_context().run, lambda: ask_agent(int(user_id), agent_text)
+                )
                 if not reply:
                     reply = "Хм, у меня нет внятного ответа. Попробуй переформулировать."
                 chunks = split_markdown_for_telegram(reply)

@@ -98,11 +98,12 @@ def log_usage(
     """
     try:
         from sqlalchemy import text as _text
-        from database import SessionLocal
+        from database import system_session
 
         cost = compute_cost(model, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens)
 
-        db = SessionLocal()
+        # Телеметрия, в т.ч. с user_id=None (системные вызовы) — мимо RLS (ADR-0013).
+        db = system_session()
         try:
             db.execute(
                 _text(
