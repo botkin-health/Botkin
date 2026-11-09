@@ -34,8 +34,12 @@ set_env() {
 }
 gen() { openssl rand -hex 24; }
 
-APP_PW="$(get_env HV_APP_DB_PASSWORD)";    [ -n "$APP_PW" ] || { APP_PW="$(gen)"; set_env HV_APP_DB_PASSWORD "$APP_PW"; }
-SYS_PW="$(get_env HV_SYSTEM_DB_PASSWORD)"; [ -n "$SYS_PW" ] || { SYS_PW="$(gen)"; set_env HV_SYSTEM_DB_PASSWORD "$SYS_PW"; }
+# Пароль идёт в URL и в SQL-литерал — допускаем только [A-Za-z0-9]. Старый
+# HV_APP_DB_PASSWORD со спецсимволами перегенерируется (роль hv_app до ADR-0013
+# не использовалась, менять её пароль безопасно).
+safe() { [[ -n "$1" && "$1" =~ ^[A-Za-z0-9]+$ ]]; }
+APP_PW="$(get_env HV_APP_DB_PASSWORD)";    safe "$APP_PW" || { APP_PW="$(gen)"; set_env HV_APP_DB_PASSWORD "$APP_PW"; }
+SYS_PW="$(get_env HV_SYSTEM_DB_PASSWORD)"; safe "$SYS_PW" || { SYS_PW="$(gen)"; set_env HV_SYSTEM_DB_PASSWORD "$SYS_PW"; }
 
 DB="$(get_env POSTGRES_DB)";   DB="${DB:-healthvault}"
 OWNER="$(get_env POSTGRES_USER)"; OWNER="${OWNER:-healthvault}"
