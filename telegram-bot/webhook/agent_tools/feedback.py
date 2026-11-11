@@ -123,7 +123,7 @@ async def list_feedback(
     if not is_admin(user.telegram_id):
         raise HTTPException(status_code=403, detail="триаж доступен только администраторам")
     # Триаж — межпользовательский путь: только после is_admin и только
-    # system-сессией (ADR-0013). Сессия запроса (hv_app) видит лишь свой фидбек.
+    # system-сессией (ADR-0014). Сессия запроса (hv_app) видит лишь свой фидбек.
     from database import system_session
 
     with system_session() as db:
@@ -157,7 +157,7 @@ async def triage_feedback(
     if not is_admin(user.telegram_id):
         raise HTTPException(status_code=403, detail="триаж доступен только администраторам")
     # Триаж — межпользовательский путь: только после is_admin и только
-    # system-сессией (ADR-0013). Сессия запроса (hv_app) видит лишь свой фидбек.
+    # system-сессией (ADR-0014). Сессия запроса (hv_app) видит лишь свой фидбек.
     from database import system_session
 
     with system_session() as db:

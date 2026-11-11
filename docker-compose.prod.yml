@@ -29,7 +29,7 @@ services:
     env_file:
       - .env
     environment:
-      # ADR-0013: рантайм ходит ролью hv_app (RLS), если в .env задан APP_DATABASE_URL;
+      # ADR-0014: рантайм ходит ролью hv_app (RLS), если в .env задан APP_DATABASE_URL;
       # иначе — как раньше, владельцем healthvault (откат = убрать APP_DATABASE_URL).
       # SYSTEM_DATABASE_URL (hv_system) приходит из .env через env_file.
       - DATABASE_URL=${APP_DATABASE_URL:-postgresql://healthvault:${POSTGRES_PASSWORD}@postgres:5432/healthvault}

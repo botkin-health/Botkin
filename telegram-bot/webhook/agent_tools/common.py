@@ -161,7 +161,7 @@ def _resolve_user_kb_path(user) -> tuple[Optional[Path], str]:
          backward-compat during the rolling migration. Required per-file
          bind-mounts in docker-compose.prod.yml (now removed).
       3. ``knowledge_base.json`` at repo root — fallback только для владельца
-         инсталляции (``config.users.OWNER_USER_ID``), не по cohort — ADR-0013.
+         инсталляции (``config.users.OWNER_USER_ID``), не по cohort — ADR-0014.
 
     Returns ``(path, source_label)``. Path is None when no KB available;
     caller should return ``"kb-not-available"`` sentinel to the agent.

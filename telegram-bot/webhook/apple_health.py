@@ -252,7 +252,7 @@ async def public_stats():
         from database import system_session as _sys_session
         from sqlalchemy import text as sql_text
 
-        db = _sys_session()  # межпользовательская статистика (ADR-0013)
+        db = _sys_session()  # межпользовательская статистика (ADR-0014)
         try:
             meals = db.execute(sql_text("SELECT COUNT(*) FROM nutrition_log")).scalar() or 0
             users = db.execute(sql_text("SELECT COUNT(*) FROM users WHERE is_active=true")).scalar() or 0
@@ -330,7 +330,7 @@ async def receive_apple_health(
             target_user_id = _target_user_id
         else:
             # Per-user token: look up in DB
-            # Bootstrap по health_token (ADR-0013): пользователь ещё не известен.
+            # Bootstrap по health_token (ADR-0014): пользователь ещё не известен.
             from database import system_session as _system_session
 
             _db_auth = _system_session()
@@ -345,7 +345,7 @@ async def receive_apple_health(
         db = SessionLocal()
         from database.rls import bind_user as _bind_user
 
-        _bind_user(db, target_user_id)  # RLS-контекст (ADR-0013)
+        _bind_user(db, target_user_id)  # RLS-контекст (ADR-0014)
         try:
             # ── 1. activity_log (шаги, пульс, дистанция, калории) ───────────
             heart_rate = payload.resting_heart_rate or payload.heart_rate_avg
@@ -1531,7 +1531,7 @@ async def receive_apple_health_v2(
     if APPLE_HEALTH_TOKEN and hmac.compare_digest(bearer_token, APPLE_HEALTH_TOKEN):
         target_user_id = _target_user_id
     else:
-        # Bootstrap по health_token (ADR-0013): пользователь ещё не известен.
+        # Bootstrap по health_token (ADR-0014): пользователь ещё не известен.
         from database import system_session as _system_session
 
         _db_auth = _system_session()
@@ -1548,7 +1548,7 @@ async def receive_apple_health_v2(
     db = SessionLocal()
     from database.rls import bind_user as _bind_user
 
-    _bind_user(db, target_user_id)  # RLS-контекст (ADR-0013)
+    _bind_user(db, target_user_id)  # RLS-контекст (ADR-0014)
     try:
         # Давление с реальным временем замера (отдельная автоматизация без суточной
         # группировки). Пишем ДО посуточного прохода: тот увидит их через _has_timed_bp

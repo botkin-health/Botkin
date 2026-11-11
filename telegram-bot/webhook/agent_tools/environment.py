@@ -33,7 +33,7 @@ async def indoor_air(
     import time as _time
     from pathlib import Path as _Path
 
-    # Только владелец инсталляции (стабильный ID, не cohort — ADR-0013)
+    # Только владелец инсталляции (стабильный ID, не cohort — ADR-0014)
     from config.users import is_installation_owner
 
     if not is_installation_owner(user):

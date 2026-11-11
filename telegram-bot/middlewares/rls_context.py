@@ -1,4 +1,4 @@
-"""RLS-контекст на каждый update (ADR-0013).
+"""RLS-контекст на каждый update (ADR-0014).
 
 Outer-middleware уровня Update: берёт ``event_from_user`` (aiogram кладёт его
 для message, callback_query, inline и пр.) и выставляет contextvar

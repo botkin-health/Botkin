@@ -69,7 +69,7 @@ engine = create_engine(
 # Session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# ── RLS (ADR-0013) ─────────────────────────────────────────────────────────
+# ── RLS (ADR-0014) ─────────────────────────────────────────────────────────
 # Каждая транзакция SessionLocal получает app.user_id из контекста запроса.
 from database import rls as _rls  # noqa: E402
 

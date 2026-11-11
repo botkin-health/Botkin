@@ -157,7 +157,7 @@ async def telegram_webhook(
     if not from_id:
         return {"status": "ok", "action": "ignored_no_from_id"}
 
-    # RLS-контекст (ADR-0013) на весь запрос: _load_user_flags, онбординг и
+    # RLS-контекст (ADR-0014) на весь запрос: _load_user_flags, онбординг и
     # /setup идут мимо aiogram и его RLSContextMiddleware. Секрет вебхука уже
     # проверен выше, from_id пришёл от Telegram.
     set_current_user(int(from_id))

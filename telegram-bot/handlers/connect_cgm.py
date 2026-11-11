@@ -63,7 +63,7 @@ def _fetch_patient_ids() -> list[str]:
 
 def _mapped_patient_ids() -> set[str]:
     """patient_id, уже привязанные к кому-либо (из cgm_connections)."""
-    from database import system_session  # межпользовательский путь (ADR-0013)
+    from database import system_session  # межпользовательский путь (ADR-0014)
     from database.models import CgmConnection
 
     db = system_session()
@@ -100,7 +100,7 @@ def _mapping_owner(patient_id: str) -> int | None:
     получал пугающее «привязан к другому профилю» — так и вышло на первом
     живом прогоне 21.08.2026, когда patient_id был привязан вручную заранее.
     """
-    from database import system_session  # межпользовательский путь (ADR-0013)
+    from database import system_session  # межпользовательский путь (ADR-0014)
     from database.models import CgmConnection
 
     db = system_session()

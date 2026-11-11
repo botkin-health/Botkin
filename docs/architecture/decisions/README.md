@@ -41,7 +41,7 @@
 
 | # | Название | Status |
 |---|---|---|
-| [0013](0013-db-runtime-role-and-rls.md) | Рантайм-роль БД без superuser, RLS как второй рубеж; ресурсы владельца по стабильному ID | Proposed |
+| [0014](0014-db-runtime-role-and-rls.md) | Рантайм-роль БД без superuser, RLS как второй рубеж; ресурсы владельца по стабильному ID | Proposed |
 | [0008](0008-doctor-report-ips-pdf.md) | Отчёт для врача: содержание по IPS, артефакт — человекочитаемый PDF | Accepted |
 | [0012](0012-persistent-user-state-json-files.md) | Состояние пользователя (превью еды) — JSON-файлы в `/app/data/state`, не Postgres | Accepted |
 | [0011](0011-food-router-sonnet-5-5-no-cheap-tier.md) | Роутер еды — Sonnet 5.5 без дешёвого tier; regex-веса в пост-проверку | Accepted |

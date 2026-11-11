@@ -99,7 +99,7 @@ async def get_agent_user(
     if not user_id:
         raise HTTPException(status_code=401, detail="JWT missing user_id claim")
 
-    # RLS (ADR-0013): строку users под hv_app видно только «изнутри» контекста.
+    # RLS (ADR-0014): строку users под hv_app видно только «изнутри» контекста.
     # Подпись ещё не проверена, но читаем только строку заявленного
     # пользователя (за его jwt_secret); при неверной подписи запрос упадёт 401.
     bind_user(db, int(user_id))

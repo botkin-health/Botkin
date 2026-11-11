@@ -206,7 +206,7 @@ def _classify_failure(source_key: str, output: str) -> tuple[str, str]:
 
 
 def _system_db_env() -> dict:
-    """Окружение для скриптов синка: они межпользовательские → роль hv_system (ADR-0013)."""
+    """Окружение для скриптов синка: они межпользовательские → роль hv_system (ADR-0014)."""
     env = dict(os.environ)
     if env.get("SYSTEM_DATABASE_URL"):
         env["DATABASE_URL"] = env["SYSTEM_DATABASE_URL"]

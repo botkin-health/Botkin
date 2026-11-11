@@ -639,7 +639,7 @@ async def receive_android_health(
     from webhook.apple_health import _insert_new_workouts
 
     # ── Resolve user ──────────────────────────────────────────────────────────
-    # Bootstrap по health_token (ADR-0013): пользователь ещё не известен.
+    # Bootstrap по health_token (ADR-0014): пользователь ещё не известен.
     from database import system_session as _system_session
 
     _db_auth = _system_session()
@@ -678,7 +678,7 @@ async def receive_android_health(
     db = SessionLocal()
     from database.rls import bind_user as _bind_user
 
-    _bind_user(db, target_user_id)  # RLS-контекст (ADR-0013)
+    _bind_user(db, target_user_id)  # RLS-контекст (ADR-0014)
     try:
         for d, agg in sorted(daily.items()):
             record_date = d

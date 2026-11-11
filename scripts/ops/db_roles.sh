@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Включить рантайм-роли БД на стенде (ADR-0013). Запускать НА СЕРВЕРЕ после
+# Включить рантайм-роли БД на стенде (ADR-0014). Запускать НА СЕРВЕРЕ после
 # миграции rls02:
 #
 #   bash db_roles.sh /opt/botkin-dev botkin_dev_postgres     # дев
@@ -35,7 +35,7 @@ set_env() {
 gen() { openssl rand -hex 24; }
 
 # Пароль идёт в URL и в SQL-литерал — допускаем только [A-Za-z0-9]. Старый
-# HV_APP_DB_PASSWORD со спецсимволами перегенерируется (роль hv_app до ADR-0013
+# HV_APP_DB_PASSWORD со спецсимволами перегенерируется (роль hv_app до ADR-0014
 # не использовалась, менять её пароль безопасно).
 safe() { [[ -n "$1" && "$1" =~ ^[A-Za-z0-9]+$ ]]; }
 APP_PW="$(get_env HV_APP_DB_PASSWORD)";    safe "$APP_PW" || { APP_PW="$(gen)"; set_env HV_APP_DB_PASSWORD "$APP_PW"; }

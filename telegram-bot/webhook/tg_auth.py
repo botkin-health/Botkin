@@ -53,7 +53,7 @@ def verify_telegram_init_data(init_data_str: str) -> dict:
 async def get_tg_user(authorization: str = Header(...)) -> dict:
     """FastAPI dependency: validates TMA token, returns Telegram user dict.
 
-    Заодно ставит RLS-контекст запроса (ADR-0013): все SessionLocal(), которые
+    Заодно ставит RLS-контекст запроса (ADR-0014): все SessionLocal(), которые
     эндпоинт мини-аппа откроет дальше, работают от имени этого пользователя.
     Зависимость async намеренно: contextvar, выставленный в sync-зависимости,
     остаётся в потоке threadpool и до эндпоинта не доходит.

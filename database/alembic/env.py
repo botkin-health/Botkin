@@ -25,7 +25,7 @@ from database.models import Base  # noqa: E402
 target_metadata = Base.metadata
 
 # DATABASE_URL из окружения — единый источник истины; alembic.ini URL не хранит.
-# MIGRATIONS_DATABASE_URL — роль-владелец (healthvault). С ADR-0013 DATABASE_URL
+# MIGRATIONS_DATABASE_URL — роль-владелец (healthvault). С ADR-0014 DATABASE_URL
 # рантайма указывает на hv_app без прав на DDL, поэтому миграции берут свой URL,
 # а без него (локально, CI, стенд до переключения ролей) — DATABASE_URL.
 _db_url = os.getenv("MIGRATIONS_DATABASE_URL") or os.getenv("DATABASE_URL")

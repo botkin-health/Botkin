@@ -679,7 +679,7 @@ def refresh_glucose_for_telegram(telegram_id: int, db_url: str | None = None) ->
     if not db_url:
         return 0
     conn = psycopg2.connect(db_url)
-    # RLS (ADR-0013): отдельное соединение одного пользователя — контекст на
+    # RLS (ADR-0014): отдельное соединение одного пользователя — контекст на
     # всю сессию соединения (оно закрывается в finally ниже).
     with conn.cursor() as _cur:
         _cur.execute("SELECT set_config('app.user_id', %s, false)", (str(int(telegram_id)),))

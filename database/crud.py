@@ -1703,7 +1703,7 @@ def set_user_session_var(db: Session, user_id: int) -> None:
             set_user_session_var(db, user_id=123456789)
             logs = db.execute(text("SELECT * FROM nutrition_log")).fetchall()
     """
-    # ADR-0013: делегируем в database.rls.bind_user — он переживает commit()
+    # ADR-0014: делегируем в database.rls.bind_user — он переживает commit()
     # (SET LOCAL сбрасывался после первого коммита).
     from database.rls import bind_user
 

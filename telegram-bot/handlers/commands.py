@@ -713,7 +713,7 @@ async def cmd_block(message: Message, user_id: int):
         await message.answer("❌ Нельзя заблокировать администратора.")
         return
 
-    from database import system_session  # межпользовательский путь (ADR-0013)
+    from database import system_session  # межпользовательский путь (ADR-0014)
     from database.models import User
 
     db = system_session()
@@ -741,7 +741,7 @@ async def cmd_unblock(message: Message, user_id: int):
         return
     target_id = int(parts[1])
 
-    from database import system_session  # межпользовательский путь (ADR-0013)
+    from database import system_session  # межпользовательский путь (ADR-0014)
     from database.models import User
 
     db = system_session()
@@ -764,7 +764,7 @@ async def cmd_users(message: Message, user_id: int):
     if not is_admin(user_id):
         return
 
-    from database import system_session  # межпользовательский путь (ADR-0013)
+    from database import system_session  # межпользовательский путь (ADR-0014)
     from database.models import User
 
     db = system_session()

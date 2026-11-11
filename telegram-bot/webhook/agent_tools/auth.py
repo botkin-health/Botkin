@@ -45,7 +45,7 @@ async def exchange_pat_for_jwt(
     if not _exchange_limiter.allow(client_ip):
         raise HTTPException(status_code=429, detail="Слишком много запросов. Попробуйте через минуту.")
 
-    # Bootstrap (ADR-0013): владелец PAT ещё не известен — поиск по хэшу токена
+    # Bootstrap (ADR-0014): владелец PAT ещё не известен — поиск по хэшу токена
     # через system-сессию; дальше работаем в обычной сессии от его имени.
     from database import system_session
     from database.rls import bind_user

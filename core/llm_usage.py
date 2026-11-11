@@ -102,7 +102,7 @@ def log_usage(
 
         cost = compute_cost(model, input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens)
 
-        # Телеметрия, в т.ч. с user_id=None (системные вызовы) — мимо RLS (ADR-0013).
+        # Телеметрия, в т.ч. с user_id=None (системные вызовы) — мимо RLS (ADR-0014).
         db = system_session()
         try:
             db.execute(

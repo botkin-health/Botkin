@@ -31,7 +31,7 @@ async def share_dashboard(token: str, embed: bool = False):
     from database.rls import bind_user
     from dashboard_generator import generate_dashboard_html
 
-    # Bootstrap (ADR-0013): кто владелец токена — до того, как пользователь
+    # Bootstrap (ADR-0014): кто владелец токена — до того, как пользователь
     # известен, поэтому через system-сессию; наружу выходит только telegram_id.
     with system_session() as sdb:
         owner = get_user_by_share_token(sdb, token)

@@ -214,7 +214,7 @@ class _SharedSessionProxy:
 
 @pytest.fixture
 def route_system_session(monkeypatch):
-    """Направить database.system_session() (ADR-0013) в переданную тестовую сессию.
+    """Направить database.system_session() (ADR-0014) в переданную тестовую сессию.
 
     Использование: ``route_system_session(db_session)`` в фикстуре теста, который
     подменяет get_db на SQLite — иначе system-путь (админка, триаж, bootstrap по

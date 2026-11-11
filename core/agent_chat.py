@@ -2413,7 +2413,7 @@ def ask_agent(
 ) -> str:
     """Synchronous — call from `run_in_executor`. См. :func:`_ask_agent_impl`.
 
-    Обёртка ставит RLS-контекст (ADR-0013) на весь ход агента и снимает его на
+    Обёртка ставит RLS-контекст (ADR-0014) на весь ход агента и снимает его на
     выходе: executor-потоки переиспользуются, контекст не должен утечь к
     следующей задаче в этом потоке.
     """
@@ -2460,7 +2460,7 @@ def _ask_agent_impl(
         raise RuntimeError("ANTHROPIC_API_KEY not configured")
 
     db = SessionLocal()
-    # RLS (ADR-0013): ask_agent синхронный и зовётся из executor-потока —
+    # RLS (ADR-0014): ask_agent синхронный и зовётся из executor-потока —
     # привязываем сессию и contextvar потока к пользователю явно, не полагаясь
     # на то, что вызывающий скопировал контекст.
     bind_user(db, user_id)

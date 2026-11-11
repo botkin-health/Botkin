@@ -30,7 +30,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from sqlalchemy import text
 
-# Админка — межпользовательский путь: только system-сессия (роль hv_system, ADR-0013).
+# Админка — межпользовательский путь: только system-сессия (роль hv_system, ADR-0014).
 from database import system_session
 from database.models import User
 
@@ -765,7 +765,7 @@ async def api_user_active(tg_id: int, request: Request, _: str = Depends(admin_a
 async def api_user_cohort(tg_id: int, request: Request, _: str = Depends(admin_auth)) -> JSONResponse:
     body = await request.json()
     cohort = body.get("cohort")
-    # «owner» из админки не выставляется: cohort доступа не даёт (ADR-0013), но
+    # «owner» из админки не выставляется: cohort доступа не даёт (ADR-0014), но
     # метка «owner» должна оставаться у одного пользователя, заданного в .env.
     if cohort not in ("family", "early_user", "external"):
         raise HTTPException(400, "Invalid cohort")
@@ -1300,7 +1300,7 @@ async def api_backups_create(_: str = Depends(admin_auth)) -> JSONResponse:
         except Exception as e:
             raise HTTPException(500, f"Cannot create {BACKUPS_DIR}: {e}")
 
-    # Пароль владельца: DATABASE_URL рантайма с ADR-0013 — роль hv_app.
+    # Пароль владельца: DATABASE_URL рантайма с ADR-0014 — роль hv_app.
     db_url = os.getenv("MIGRATIONS_DATABASE_URL") or os.getenv("DATABASE_URL", "")
     # Parse DSN
     pg_password = os.getenv("POSTGRES_PASSWORD") or os.getenv("PGPASSWORD") or ""

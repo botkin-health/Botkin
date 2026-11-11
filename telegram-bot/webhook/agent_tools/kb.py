@@ -19,7 +19,7 @@ async def kb_value(
       1. Per-user KB at `kb_<telegram_id>.json` at repo root (any cohort) —
          synced from FamilyHealth/<user>/knowledge_base.json on demand.
       2. Legacy `knowledge_base.json` — только владельцу инсталляции
-         (`config.users.OWNER_USER_ID`, не cohort — ADR-0013).
+         (`config.users.OWNER_USER_ID`, не cohort — ADR-0014).
       3. Otherwise: returns null with source='kb-not-available'.
     """
     kb_path, source = _resolve_user_kb_path(user)

@@ -74,7 +74,7 @@ async def cmd_feedback_queue(message: Message) -> None:
         await message.answer("Команда доступна только администраторам.")
         return
 
-    from database import system_session  # межпользовательский путь (ADR-0013)
+    from database import system_session  # межпользовательский путь (ADR-0014)
     from database.crud import list_recent_feedback
 
     db = system_session()
