@@ -1336,6 +1336,15 @@ def _process_llm_food_items(
         # а items — состав ВСЕГО набора (см. handlers/, которые проставляют этот флаг после
         # разбора caption). Тогда масштабируем items под заявленный итог, а не игнорируем его.
         stated_calories = float(total_nutrition.get("calories") or 0)
+        if anchor == "card" and not _stated_total_self_consistent(total_nutrition, meal_items):
+            # Фото тарелки тоже идёт с anchor=card (photo.py), а итог там — оценка той же LLM.
+            # Если её ккал не сходятся с её же БЖУ, ошибка в итоге, а не в компонентах:
+            # якорь не берём (11.11.2026: итог 218 при БЖУ на 385 ккал → курица 100 г = 94 ккал).
+            logger.warning(
+                f"⚠️ Card anchor skipped: stated {stated_calories} kcal не сходится со своими БЖУ "
+                f"{total_nutrition}; берём сумму компонентов {computed_totals.get('calories')}"
+            )
+            anchor = None
         if anchor in ("card", "text") and len(meal_items) > 1 and stated_calories > 0:
             computed_calories = float(computed_totals.get("calories") or 0)
             factor = stated_calories / computed_calories if computed_calories > 0 else 1.0
@@ -1386,6 +1395,25 @@ def _process_llm_food_items(
     if warns:
         computed_totals["kcal_warnings"] = warns
     return meal_items, computed_totals
+
+
+_ANCHOR_MAX_ATWATER_DIFF = 0.25
+
+
+def _stated_total_self_consistent(total_nutrition: Dict, meal_items: List[Dict]) -> bool:
+    """Заявленный итог согласован сам с собой: ккал ≈ 4·Б + 9·Ж + 4·У (±25%).
+
+    Без БЖУ или с алкоголем (этанол 7 ккал/г формула не видит) проверять нечем — считаем согласованным.
+    """
+    try:
+        cal = float(total_nutrition.get("calories") or 0)
+        p, f, c = (float(total_nutrition.get(k) or 0) for k in ("protein", "fats", "carbs"))
+    except (TypeError, ValueError):
+        return True
+    atwater = 4 * p + 9 * f + 4 * c
+    if cal <= 0 or atwater <= 0 or detect_alcohol(meal_items):
+        return True
+    return abs(atwater - cal) / max(atwater, cal) <= _ANCHOR_MAX_ATWATER_DIFF
 
 
 def _apply_eaten_fraction(
