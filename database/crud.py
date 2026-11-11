@@ -15,7 +15,7 @@ import secrets
 from datetime import datetime, date, time, timedelta, timezone
 from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
-from sqlalchemy import desc, func, text
+from sqlalchemy import desc, func
 import logging
 
 from database.models import (
@@ -1703,8 +1703,11 @@ def set_user_session_var(db: Session, user_id: int) -> None:
             set_user_session_var(db, user_id=123456789)
             logs = db.execute(text("SELECT * FROM nutrition_log")).fetchall()
     """
-    # SET LOCAL only accepts string literals, not parameterized values — str() cast required
-    db.execute(text("SET LOCAL app.user_id = :uid"), {"uid": str(user_id)})
+    # ADR-0014: делегируем в database.rls.bind_user — он переживает commit()
+    # (SET LOCAL сбрасывался после первого коммита).
+    from database.rls import bind_user
+
+    bind_user(db, user_id)
 
 
 # ==================== FEEDBACK INBOX (#188) ====================

@@ -69,6 +69,54 @@ engine = create_engine(
 # Session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+# ── RLS (ADR-0014) ─────────────────────────────────────────────────────────
+# Каждая транзакция SessionLocal получает app.user_id из контекста запроса.
+from database import rls as _rls  # noqa: E402
+
+_rls.install(SessionLocal)
+
+# System-движок: роль hv_system (BYPASSRLS, не superuser). Только для явных
+# межпользовательских путей — планировщик, админка, bootstrap-аутентификация
+# по токену. Пока SYSTEM_DATABASE_URL не задан (до переключения ролей на
+# стенде) — тот же движок, что у приложения, поведение не меняется.
+SYSTEM_DATABASE_URL = os.getenv("SYSTEM_DATABASE_URL") or ""
+if SYSTEM_DATABASE_URL and SYSTEM_DATABASE_URL != DATABASE_URL:
+    system_engine = create_engine(
+        SYSTEM_DATABASE_URL,
+        echo=False,
+        pool_pre_ping=True,
+        pool_size=3,
+        max_overflow=5,
+        connect_args=_build_connect_args(SYSTEM_DATABASE_URL),
+        hide_parameters=True,
+    )
+else:
+    system_engine = engine
+
+SystemSessionLocal = sessionmaker(
+    autocommit=False, autoflush=False, bind=system_engine, info={_rls.INFO_SYSTEM_KEY: True}
+)
+
+
+def system_session() -> Session:
+    """Сессия БЕЗ RLS (роль hv_system). Только для явных межпользовательских путей.
+
+    Каждый новый вызов — повод для ревью: в пользовательском пути (хендлер,
+    дашборд, агент) нужна обычная ``SessionLocal()`` с контекстом.
+    Использование: ``with system_session() as db: ...``.
+    """
+    if system_engine is engine:
+        # Роли ещё не разведены (или тесты): обычная фабрика модуля, взятая в
+        # момент вызова — тесты подменяют database.SessionLocal на SQLite.
+        factory = globals()["SessionLocal"]
+        try:
+            return factory(info={_rls.INFO_SYSTEM_KEY: True})
+        except TypeError:
+            db = factory()
+            db.info[_rls.INFO_SYSTEM_KEY] = True
+            return db
+    return SystemSessionLocal()
+
 
 def init_db():
     """Initialize database - create all tables"""
@@ -134,6 +182,7 @@ from database.crud import (
 
 __all__ = [
     "SessionLocal",
+    "system_session",
     "init_db",
     "get_db",
     "get_user_by_telegram_id",

@@ -30,7 +30,8 @@ TEST_SECRET = "test_secret_64chars_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
 def test_generate_and_decode_jwt():
     token = generate_agent_jwt(user_id=895655, container_id="nc-test", secret=TEST_SECRET)
-    decoded = jwt.decode(token, TEST_SECRET, algorithms=["HS256"])
+    # aud обязателен (ADR-0013): без audience PyJWT отвергает токен с aud.
+    decoded = jwt.decode(token, TEST_SECRET, algorithms=["HS256"], audience="botkin-agent-api-local")
     assert decoded["user_id"] == 895655
     assert decoded["container_id"] == "nc-test"
     assert "exp" in decoded

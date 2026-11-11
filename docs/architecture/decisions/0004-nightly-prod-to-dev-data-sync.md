@@ -1,7 +1,7 @@
 # ADR-0004: Ночной синк данных прод→дев (гибрид upsert/replace)
 
 **Дата:** 2026-06-17
-**Статус:** Accepted
+**Статус:** Superseded by [ADR-0013](0013-dev-stand-without-prod-data.md) (09.11.2026: прод-данные на дев больше не копируются; скрипт и workflow удалены)
 **Автор:** Игорь Николаев
 **Связи:** [#101](https://github.com/botkin-health/Botkin/issues/101), [ADR-0003](0003-alembic-for-db-migrations.md) (единый baseline-схемы prod/dev)
 

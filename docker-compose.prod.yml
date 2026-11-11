@@ -29,7 +29,14 @@ services:
     env_file:
       - .env
     environment:
-      - DATABASE_URL=postgresql://healthvault:${POSTGRES_PASSWORD}@postgres:5432/healthvault
+      # Окружение для JWT iss/aud и гардов дев-скриптов (core/env.py, ADR-0013).
+      - BOTKIN_ENV=prod
+      # ADR-0014: рантайм ходит ролью hv_app (RLS), если в .env задан APP_DATABASE_URL;
+      # иначе — как раньше, владельцем healthvault (откат = убрать APP_DATABASE_URL).
+      # SYSTEM_DATABASE_URL (hv_system) приходит из .env через env_file.
+      - DATABASE_URL=${APP_DATABASE_URL:-postgresql://healthvault:${POSTGRES_PASSWORD}@postgres:5432/healthvault}
+      # Миграции (alembic в этом контейнере) — всегда владельцем.
+      - MIGRATIONS_DATABASE_URL=postgresql://healthvault:${POSTGRES_PASSWORD}@postgres:5432/healthvault
     depends_on:
       postgres:
         condition: service_healthy

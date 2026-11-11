@@ -30,7 +30,11 @@ services:
     environment:
       # Polling: дев-бот сам опрашивает Telegram (без webhook/TLS); сервер живёт.
       - BOTKIN_FORCE_POLLING=1
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-healthvault}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-healthvault}
+      # Окружение для JWT iss/aud и гарда синтетического сида (core/env.py, ADR-0013).
+      - BOTKIN_ENV=dev
+      # ADR-0014: см. docker-compose.prod.yml — APP_DATABASE_URL (hv_app) из .env, иначе владелец.
+      - DATABASE_URL=${APP_DATABASE_URL:-postgresql://${POSTGRES_USER:-healthvault}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-healthvault}}
+      - MIGRATIONS_DATABASE_URL=postgresql://${POSTGRES_USER:-healthvault}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-healthvault}
     depends_on:
       postgres:
         condition: service_healthy

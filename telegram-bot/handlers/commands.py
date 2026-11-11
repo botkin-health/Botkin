@@ -713,10 +713,10 @@ async def cmd_block(message: Message, user_id: int):
         await message.answer("❌ Нельзя заблокировать администратора.")
         return
 
-    from database import SessionLocal
+    from database import system_session  # межпользовательский путь (ADR-0014)
     from database.models import User
 
-    db = SessionLocal()
+    db = system_session()
     try:
         user = db.query(User).filter(User.telegram_id == target_id).first()
         if not user:
@@ -741,10 +741,10 @@ async def cmd_unblock(message: Message, user_id: int):
         return
     target_id = int(parts[1])
 
-    from database import SessionLocal
+    from database import system_session  # межпользовательский путь (ADR-0014)
     from database.models import User
 
-    db = SessionLocal()
+    db = system_session()
     try:
         user = db.query(User).filter(User.telegram_id == target_id).first()
         if not user:
@@ -764,10 +764,10 @@ async def cmd_users(message: Message, user_id: int):
     if not is_admin(user_id):
         return
 
-    from database import SessionLocal
+    from database import system_session  # межпользовательский путь (ADR-0014)
     from database.models import User
 
-    db = SessionLocal()
+    db = system_session()
     try:
         users = db.query(User).order_by(User.registered_at.desc()).all()
     finally:
