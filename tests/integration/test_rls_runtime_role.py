@@ -13,11 +13,12 @@
 from __future__ import annotations
 
 import os
-from datetime import date, datetime, timezone
+from datetime import date
 
 import pytest
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
+from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import sessionmaker
 
@@ -192,16 +193,27 @@ def test_context_does_not_stick_to_pooled_connection(app_engine):
         assert (c.execute(text("SELECT current_setting('app.user_id', true)")).scalar() or "") == ""
 
 
-def test_funnel_events_write_only(AppSession):
+def test_funnel_events_own_rows_via_orm(AppSession):
+    """ORM-вставка идёт с RETURNING → нужна и SELECT-политика (rls03).
+
+    Регрессия e2e 11.11.2026: log_event под hv_app падал с InsufficientPrivilege.
+    """
+    from database.models import log_event
     from database.rls import user_context
 
     with user_context(A), AppSession() as db:
-        db.execute(
-            text("INSERT INTO funnel_events (user_id, event, meta, ts) VALUES (:u, 'rls_test', '{}'::jsonb, :t)"),
-            {"u": A, "t": datetime.now(timezone.utc)},
-        )
+        log_event(db, user_id=A, event="rls_test")
+        log_event(db, user_id=A, event="first_food_logged", once=True)
         db.commit()
-        assert db.execute(text("SELECT count(*) FROM funnel_events")).scalar() == 0
+        own = db.execute(text("SELECT user_id FROM funnel_events")).all()
+    assert own and _owners(own) == {A}
+
+    with user_context(B), AppSession() as db:
+        assert db.execute(text("SELECT count(*) FROM funnel_events WHERE user_id = :a"), {"a": A}).scalar() == 0
+        # чужое событие записать нельзя
+        with pytest.raises(ProgrammingError):
+            log_event(db, user_id=A, event="forged")
+            db.flush()
 
 
 def test_system_role_sees_everyone(system_engine):
