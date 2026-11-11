@@ -88,10 +88,10 @@ async def cmd_food_audit(message: Message) -> None:
 
     target_user, limit = parse_audit_args(message.text or "", caller_id=message.from_user.id)
 
-    from database import SessionLocal
+    from database import system_session  # межпользовательский путь (ADR-0014)
     from core.food.interaction_log import get_food_interactions
 
-    db = SessionLocal()
+    db = system_session()
     try:
         rows = get_food_interactions(db, target_user, limit=limit)
     except Exception as e:

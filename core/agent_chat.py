@@ -35,6 +35,7 @@ sys.path.insert(0, str(project_root))
 
 from config import get_settings
 from database import SessionLocal
+from database.rls import bind_user, user_context
 from database.models import User, log_event
 from core.env import agent_jwt_env_claims
 
@@ -2412,6 +2413,31 @@ def ask_agent(
     meal_preview_sink: Optional[list] = None,
     images: Optional[list] = None,
 ) -> str:
+    """Synchronous — call from `run_in_executor`. См. :func:`_ask_agent_impl`.
+
+    Обёртка ставит RLS-контекст (ADR-0014) на весь ход агента и снимает его на
+    выходе: executor-потоки переиспользуются, контекст не должен утечь к
+    следующей задаче в этом потоке.
+    """
+    with user_context(user_id):
+        return _ask_agent_impl(
+            user_id,
+            user_text,
+            progress_cb=progress_cb,
+            is_e2e=is_e2e,
+            meal_preview_sink=meal_preview_sink,
+            images=images,
+        )
+
+
+def _ask_agent_impl(
+    user_id: int,
+    user_text: str,
+    progress_cb: Optional[Callable[[str], None]] = None,
+    is_e2e: bool = False,
+    meal_preview_sink: Optional[list] = None,
+    images: Optional[list] = None,
+) -> str:
     """Synchronous — call from `run_in_executor`.
 
     meal_preview_sink: если передан (чат в боте), `log_meal_text` не пишет в БД,
@@ -2436,6 +2462,10 @@ def ask_agent(
         raise RuntimeError("ANTHROPIC_API_KEY not configured")
 
     db = SessionLocal()
+    # RLS (ADR-0014): ask_agent синхронный и зовётся из executor-потока —
+    # привязываем сессию и contextvar потока к пользователю явно, не полагаясь
+    # на то, что вызывающий скопировал контекст.
+    bind_user(db, user_id)
     try:
         user = db.query(User).filter_by(telegram_id=user_id).first()
         if not user or not user.is_active:

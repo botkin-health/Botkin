@@ -180,7 +180,10 @@ def test_no_prod_to_dev_copy_in_repo():
     for path in list((ROOT / "scripts").rglob("*")) + list((ROOT / ".github").rglob("*")):
         if not path.is_file() or path.suffix not in {".sh", ".py", ".yml", ".yaml"}:
             continue
-        text = path.read_text(errors="ignore")
+        # Комментарии (примеры запуска вроде db_roles.sh) не считаем — ищем код.
+        text = "\n".join(
+            line for line in path.read_text(errors="ignore").splitlines() if not line.lstrip().startswith("#")
+        )
         if ("healthvault_postgres" in text or "/opt/botkin/data" in text) and (
             "botkin_dev" in text or "/opt/botkin-dev" in text
         ):

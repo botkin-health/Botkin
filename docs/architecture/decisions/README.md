@@ -41,6 +41,7 @@
 
 | # | Название | Status |
 |---|---|---|
+| [0014](0014-db-runtime-role-and-rls.md) | Рантайм-роль БД без superuser, RLS как второй рубеж; ресурсы владельца по стабильному ID | Proposed |
 | [0008](0008-doctor-report-ips-pdf.md) | Отчёт для врача: содержание по IPS, артефакт — человекочитаемый PDF | Accepted |
 | [0013](0013-dev-stand-without-prod-data.md) | Дев-стенд без прод-данных и прод-секретов; JWT привязан к окружению (iss/aud) | Accepted |
 | [0012](0012-persistent-user-state-json-files.md) | Состояние пользователя (превью еды) — JSON-файлы в `/app/data/state`, не Postgres | Accepted |

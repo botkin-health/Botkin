@@ -26,16 +26,23 @@ async def share_dashboard(token: str, embed: bool = False):
     embed=1 (mini-app iframe): renders a scale-to-fit variant for narrow screens.
     Without the param the standalone/shared dashboard renders unchanged.
     """
-    from database import SessionLocal
+    from database import SessionLocal, system_session
     from database.crud import get_user_by_share_token
+    from database.rls import bind_user
     from dashboard_generator import generate_dashboard_html
 
+    # Bootstrap (ADR-0014): кто владелец токена — до того, как пользователь
+    # известен, поэтому через system-сессию; наружу выходит только telegram_id.
+    with system_session() as sdb:
+        owner = get_user_by_share_token(sdb, token)
+        owner_id = owner.telegram_id if owner is not None and owner.is_active else None
+    if owner_id is None:
+        raise HTTPException(status_code=404, detail="Not found")
+
     db = SessionLocal()
+    bind_user(db, owner_id)
     try:
-        user = get_user_by_share_token(db, token)
-        if not user or not user.is_active:
-            raise HTTPException(status_code=404, detail="Not found")
-        html = generate_dashboard_html(db, user.telegram_id, embed=embed)
+        html = generate_dashboard_html(db, owner_id, embed=embed)
         return HTMLResponse(content=html)
     except HTTPException:
         raise

@@ -26,6 +26,7 @@ from fastapi import APIRouter, Header, HTTPException
 
 from bot_token import resolve_bot_token
 from database import SessionLocal
+from database.rls import set_current_user
 from database.models import User
 
 logger = logging.getLogger(__name__)
@@ -155,6 +156,11 @@ async def telegram_webhook(
     from_id = msg.get("from", {}).get("id")
     if not from_id:
         return {"status": "ok", "action": "ignored_no_from_id"}
+
+    # RLS-контекст (ADR-0014) на весь запрос: _load_user_flags, онбординг и
+    # /setup идут мимо aiogram и его RLSContextMiddleware. Секрет вебхука уже
+    # проверен выше, from_id пришёл от Telegram.
+    set_current_user(int(from_id))
 
     # Сессия БД живёт только на время чтения профиля и закрывается ДО передачи
     # обновления в обработчики: они делают долгие сетевые вызовы (LLM, фото),

@@ -87,11 +87,12 @@ def test_list_all_statuses(db_session):
 
 
 @pytest.fixture
-def client(db_session, monkeypatch):
+def client(db_session, monkeypatch, route_system_session):
     from webhook import agent_tools as agent_tools_api
     from webhook.jwt_auth import get_agent_user, get_db
 
     monkeypatch.setattr(db_session, "close", lambda: None)
+    route_system_session(db_session)  # триаж — system-путь (ADR-0014)
 
     app = FastAPI()
     app.include_router(agent_tools_api.router)

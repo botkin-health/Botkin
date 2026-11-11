@@ -25,9 +25,12 @@ from database.models import Base  # noqa: E402
 target_metadata = Base.metadata
 
 # DATABASE_URL из окружения — единый источник истины; alembic.ini URL не хранит.
-_db_url = os.getenv("DATABASE_URL")
+# MIGRATIONS_DATABASE_URL — роль-владелец (healthvault). С ADR-0014 DATABASE_URL
+# рантайма указывает на hv_app без прав на DDL, поэтому миграции берут свой URL,
+# а без него (локально, CI, стенд до переключения ролей) — DATABASE_URL.
+_db_url = os.getenv("MIGRATIONS_DATABASE_URL") or os.getenv("DATABASE_URL")
 if not _db_url:
-    raise RuntimeError("DATABASE_URL не задана — нужна для запуска миграций alembic.")
+    raise RuntimeError("MIGRATIONS_DATABASE_URL / DATABASE_URL не заданы — нужны для запуска миграций alembic.")
 config.set_main_option("sqlalchemy.url", _db_url)
 
 # other values from the config, defined by the needs of env.py,

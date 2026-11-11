@@ -87,7 +87,7 @@ async def get_agent_user(
     """
     # Import here to avoid circular imports and to support testing with mocks
     from database.models import User
-    from database.crud import set_user_session_var
+    from database.rls import bind_user
 
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing Bearer token")
@@ -103,6 +103,10 @@ async def get_agent_user(
     if not user_id:
         raise HTTPException(status_code=401, detail="JWT missing user_id claim")
 
+    # RLS (ADR-0014): строку users под hv_app видно только «изнутри» контекста.
+    # Подпись ещё не проверена, но читаем только строку заявленного
+    # пользователя (за его jwt_secret); при неверной подписи запрос упадёт 401.
+    bind_user(db, int(user_id))
     user = db.query(User).filter_by(telegram_id=user_id).first()
     if not user or not user.is_active:
         raise HTTPException(status_code=401, detail="User not found or inactive")
@@ -145,8 +149,9 @@ async def get_agent_user(
     if request is not None:
         request.state.agent_scope = scope
 
-    # Set RLS session variable for any DB queries in this request
-    set_user_session_var(db, user.telegram_id)
+    # RLS-контекст на весь запрос: session.info переживает commit(), contextvar —
+    # для сессий, которые тул откроет сам (get_daily_budget, get_user_tz, …).
+    bind_user(db, user.telegram_id)
 
     return user
 
