@@ -43,6 +43,31 @@ def is_admin(telegram_id: int) -> bool:
     return telegram_id in ADMIN_USER_IDS
 
 
+def _parse_owner_id() -> int:
+    raw = (os.getenv("BOTKIN_OWNER_ID", "") or "").strip()
+    if raw.isdigit() and int(raw) != 0:
+        return int(raw)
+    return ADMIN_USER_ID
+
+
+# Владелец инсталляции (ADR-0014): только ему открыты ресурсы, привязанные к
+# серверу, а не к пользователю — legacy knowledge_base.json в корне репо,
+# генетика из него, датчик Netatmo. Источник — env BOTKIN_OWNER_ID, без него —
+# основной админ. Оба задаёт оператор в .env; из админки не меняются.
+# users.cohort доступа НЕ даёт: его можно сменить в админке (пентест 08.11.2026).
+OWNER_USER_ID: int = _parse_owner_id()
+
+
+def is_installation_owner(user_or_id) -> bool:
+    """True, если пользователь — владелец инсталляции (по стабильному ID, не по cohort)."""
+    tid = getattr(user_or_id, "telegram_id", user_or_id)
+    try:
+        tid = int(tid)
+    except (TypeError, ValueError):
+        return False
+    return OWNER_USER_ID != 0 and tid == OWNER_USER_ID
+
+
 # ---------------------------------------------------------------------------
 # KB user mapping — единый маппинг telegram_id → имя папки FamilyHealth.
 # Реальные ФИО — PII, вынесены в приватный config/users_private.py (.gitignore).

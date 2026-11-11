@@ -16,6 +16,7 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from config.users import is_installation_owner
 from database.models import ActivityLog, NutritionLog, User, Weight
 
 
@@ -71,7 +72,7 @@ def has_blood_test_data(db: Session, user: User) -> bool:
             pass
 
     # Legacy: owner's knowledge_base.json
-    if user.cohort == "owner":
+    if is_installation_owner(user):
         kb_path = Path(__file__).resolve().parents[1] / "knowledge_base.json"
         if not kb_path.exists():
             return False
@@ -123,6 +124,6 @@ def get_available_blocks(db: Session, user: User) -> dict:
         "blood_tests": has_blood_test_data(db, user),
         "blood_pressure": apple,
         # Netatmo air quality — only the owner has the sensor
-        "air": user.cohort == "owner",
+        "air": is_installation_owner(user),
         "glucose": has_cgm_data(db, user),
     }

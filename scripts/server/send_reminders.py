@@ -27,6 +27,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT))
 
+# Cron-процесс межпользовательский (ADR-0014): БД — ролью hv_system, если она
+# заведена на стенде. Должно стоять ДО импорта database (движок строится при импорте).
+if os.getenv("SYSTEM_DATABASE_URL"):
+    os.environ["DATABASE_URL"] = os.environ["SYSTEM_DATABASE_URL"]
+
 try:
     from dotenv import load_dotenv
 

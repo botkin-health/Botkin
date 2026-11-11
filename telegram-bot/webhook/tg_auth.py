@@ -50,12 +50,24 @@ def verify_telegram_init_data(init_data_str: str) -> dict:
     return json.loads(params.get("user", "{}"))
 
 
-def get_tg_user(authorization: str = Header(...)) -> dict:
-    """FastAPI dependency: validates TMA token, returns Telegram user dict."""
+async def get_tg_user(authorization: str = Header(...)) -> dict:
+    """FastAPI dependency: validates TMA token, returns Telegram user dict.
+
+    Заодно ставит RLS-контекст запроса (ADR-0014): все SessionLocal(), которые
+    эндпоинт мини-аппа откроет дальше, работают от имени этого пользователя.
+    Зависимость async намеренно: contextvar, выставленный в sync-зависимости,
+    остаётся в потоке threadpool и до эндпоинта не доходит.
+    """
     if not authorization.startswith("tma "):
         raise HTTPException(status_code=401, detail="Expected 'tma <initData>'")
     init_data = authorization.removeprefix("tma ").strip()
     try:
-        return verify_telegram_init_data(init_data)
+        tg_user = verify_telegram_init_data(init_data)
     except ValueError as e:
         raise HTTPException(status_code=403, detail=str(e))
+    uid = tg_user.get("id") if isinstance(tg_user, dict) else None
+    if uid is not None:
+        from database.rls import set_current_user
+
+        set_current_user(int(uid))
+    return tg_user

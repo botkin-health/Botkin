@@ -45,22 +45,30 @@ async def exchange_pat_for_jwt(
     if not _exchange_limiter.allow(client_ip):
         raise HTTPException(status_code=429, detail="Слишком много запросов. Попробуйте через минуту.")
 
-    pat = get_active_pat_by_token(db, body.pat)
-    if not pat:
+    # Bootstrap (ADR-0014): владелец PAT ещё не известен — поиск по хэшу токена
+    # через system-сессию; дальше работаем в обычной сессии от его имени.
+    from database import system_session
+    from database.rls import bind_user
+
+    with system_session() as sdb:
+        pat = get_active_pat_by_token(sdb, body.pat)
+        pat_user_id, pat_scope = (pat.user_id, pat.scope) if pat else (None, None)
+    if pat_user_id is None:
         raise HTTPException(status_code=401, detail="Недействительный или отозванный токен")
 
-    user = db.query(User).filter_by(telegram_id=pat.user_id).first()
+    bind_user(db, pat_user_id)
+    user = db.query(User).filter_by(telegram_id=pat_user_id).first()
     if not user or not user.is_active:
         raise HTTPException(status_code=401, detail="Пользователь не найден или неактивен")
     if not user.jwt_secret:
         raise HTTPException(status_code=401, detail="Пользователь не инициализирован (нет jwt_secret)")
 
-    token = generate_agent_jwt(user.telegram_id, agent_id_for(user), user.jwt_secret, scope=pat.scope)
+    token = generate_agent_jwt(user.telegram_id, agent_id_for(user), user.jwt_secret, scope=pat_scope)
     return {
         "access_token": token,
         "token_type": "Bearer",
         "expires_in": JWT_TTL_HOURS * 3600,
-        "scope": pat.scope,
+        "scope": pat_scope,
     }
 
 

@@ -33,8 +33,10 @@ async def indoor_air(
     import time as _time
     from pathlib import Path as _Path
 
-    # Owner-only — у других пользователей датчиков нет
-    if user.cohort != "owner":
+    # Только владелец инсталляции (стабильный ID, не cohort — ADR-0014)
+    from config.users import is_installation_owner
+
+    if not is_installation_owner(user):
         return {"status": "no_data", "reason": "Netatmo датчик только у owner"}
 
     log_path = _Path("/app/data/environment/netatmo_log.json")

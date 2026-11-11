@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import hashlib
 import html
 import json
@@ -741,7 +742,9 @@ async def run_doc_pipeline(
         if is_pdf:
             # Сводное досье бывает на 15+ страниц (#559): прежние 10 страниц молча
             # теряли хвост, длинный текст экстрактор режет на части сам.
-            pdf_pages = await loop.run_in_executor(None, lambda: _extract_pdf_pages(tmp_path, max_pages=_MAX_PDF_PAGES))
+            pdf_pages = await loop.run_in_executor(
+                None, contextvars.copy_context().run, lambda: _extract_pdf_pages(tmp_path, max_pages=_MAX_PDF_PAGES)
+            )
             if pdf_pages:
                 if needs_chunking(pdf_pages):
                     # 15 страниц — это минуты, а не секунды: без пометки «Читаю…»
@@ -755,7 +758,9 @@ async def run_doc_pipeline(
                 extracted = await extract_medical_data_from_pages(pdf_pages, user_id=user_id)
             else:
                 # Сканированный PDF — берём первую страницу как изображение
-                pages = await loop.run_in_executor(None, lambda: _pdf_to_images(tmp_path, max_pages=1))
+                pages = await loop.run_in_executor(
+                    None, contextvars.copy_context().run, lambda: _pdf_to_images(tmp_path, max_pages=1)
+                )
                 if pages:
                     extracted = await extract_medical_data(pages[0].read_bytes(), "image/jpeg", user_id=user_id)
                 else:
@@ -1118,7 +1123,9 @@ async def doc_confirm(callback: CallbackQuery, state: FSMContext) -> None:
 
         loop = asyncio.get_event_loop()
         try:
-            reply = await loop.run_in_executor(None, lambda: ask_agent(int(user_id), caption_question))
+            reply = await loop.run_in_executor(
+                None, contextvars.copy_context().run, lambda: ask_agent(int(user_id), caption_question)
+            )
         except Exception:
             logger.exception("doc_upload: не удалось ответить на вопрос из подписи (user %s)", user_id)
             reply = None

@@ -13,6 +13,7 @@ from aiogram.exceptions import TelegramBadRequest
 from core.infra.tz import now_in_user_tz  # noqa: E402  (время в TZ пользователя)
 from pathlib import Path
 import asyncio
+import contextvars
 import html
 import math
 import os
@@ -217,6 +218,7 @@ async def process_photos_list(
         loop = asyncio.get_running_loop()
         router_result = await loop.run_in_executor(
             None,
+            contextvars.copy_context().run,
             lambda: analyze_message(text=prompt_text, image_paths=paths_for_llm, user_id=int(user_id)),
         )
         if router_result and router_result.get("type") == "food" and router_result.get("data"):
@@ -1100,7 +1102,9 @@ async def handle_document_image(message: Message, album: list = None, state: FSM
                 await processing_msg.edit_text("⏳ Анализирую документ…")
                 loop = asyncio.get_event_loop()
                 try:
-                    reply = await loop.run_in_executor(None, lambda: ask_agent(int(user_id), prompt))
+                    reply = await loop.run_in_executor(
+                        None, contextvars.copy_context().run, lambda: ask_agent(int(user_id), prompt)
+                    )
                     if reply:
                         # Помечаем «разобрано» только ПОСЛЕ успешного ответа
                         # (урок #516/P6): отменённый/упавший разбор не должен

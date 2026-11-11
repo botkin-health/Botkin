@@ -30,7 +30,8 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from sqlalchemy import text
 
-from database import SessionLocal
+# Админка — межпользовательский путь: только system-сессия (роль hv_system, ADR-0014).
+from database import system_session
 from database.models import User
 
 logger = logging.getLogger(__name__)
@@ -380,7 +381,7 @@ async function loadUsers(){
       ['none',    '⚪ None'],
     ];
     const rows = d.users.map(u => {
-      const cohorts = ['owner','family','early_user','external'].map(c =>
+      const cohorts = (u.cohort==='owner' ? ['owner','family','early_user','external'] : ['family','early_user','external']).map(c =>
         `<option value="${c}"${c===u.cohort?' selected':''}>${c}</option>`).join('');
       const tid = num(u.telegram_id);
       const kbCurrent = u.kb_status || 'none';
@@ -671,7 +672,7 @@ async def admin_index(request: Request, creds: Optional[HTTPBasicCredentials] = 
 
 @router.get("/api/users")
 async def api_users(_: str = Depends(admin_auth)) -> JSONResponse:
-    db = SessionLocal()
+    db = system_session()
     try:
         # Aggregate metrics in raw SQL for performance
         sql = text("""
@@ -747,7 +748,7 @@ async def api_users(_: str = Depends(admin_auth)) -> JSONResponse:
 async def api_user_active(tg_id: int, request: Request, _: str = Depends(admin_auth)) -> JSONResponse:
     body = await request.json()
     is_active = bool(body.get("is_active"))
-    db = SessionLocal()
+    db = system_session()
     try:
         u = db.query(User).filter_by(telegram_id=tg_id).first()
         if not u:
@@ -764,9 +765,11 @@ async def api_user_active(tg_id: int, request: Request, _: str = Depends(admin_a
 async def api_user_cohort(tg_id: int, request: Request, _: str = Depends(admin_auth)) -> JSONResponse:
     body = await request.json()
     cohort = body.get("cohort")
-    if cohort not in ("owner", "family", "early_user", "external"):
+    # «owner» из админки не выставляется: cohort доступа не даёт (ADR-0014), но
+    # метка «owner» должна оставаться у одного пользователя, заданного в .env.
+    if cohort not in ("family", "early_user", "external"):
         raise HTTPException(400, "Invalid cohort")
-    db = SessionLocal()
+    db = system_session()
     try:
         u = db.query(User).filter_by(telegram_id=tg_id).first()
         if not u:
@@ -797,7 +800,7 @@ async def api_user_delete(tg_id: int, confirm: bool = False, admin: str = Depend
     """
     if not confirm:
         raise HTTPException(400, "confirm=true required")
-    db = SessionLocal()
+    db = system_session()
     try:
         u = db.query(User).filter_by(telegram_id=tg_id).first()
         if not u:
@@ -826,7 +829,7 @@ async def api_user_kb(tg_id: int, request: Request, _: str = Depends(admin_auth)
     kb = body.get("kb_status")
     if kb not in ("shared", "private", "none", None):
         raise HTTPException(400, "Invalid kb_status")
-    db = SessionLocal()
+    db = system_session()
     try:
         u = db.query(User).filter_by(telegram_id=tg_id).first()
         if not u:
@@ -884,7 +887,7 @@ async def api_llm_usage(days: int = 7, _: str = Depends(admin_auth)) -> JSONResp
     from sqlalchemy import text as _text
 
     days = max(1, min(days, 365))
-    db = SessionLocal()
+    db = system_session()
     try:
         # Totals
         totals_row = db.execute(
@@ -1046,7 +1049,7 @@ async def api_funnel(days: int = 30, track: Optional[str] = None, _: str = Depen
     Активация (MVP на событиях): пользователи, у кого есть И first_food_logged,
     И first_agent_question. Порог «3 лога за 3 дня» — отдельный запрос команды
     по nutrition_log (не здесь); тут — событийный прокси."""
-    db = SessionLocal()
+    db = system_session()
     try:
         counts = _funnel_counts(db, days=days, track=track)
         started = counts["onboarding_started"] or 1
@@ -1158,7 +1161,7 @@ async def api_bothealth(_: str = Depends(admin_auth)) -> JSONResponse:
 
     error_counts = _count_log_errors("/app/logs/bot_debug.log")
 
-    db = SessionLocal()
+    db = system_session()
     try:
         midnight = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
         messages_today = (
@@ -1210,7 +1213,7 @@ async def api_bothealth(_: str = Depends(admin_auth)) -> JSONResponse:
 
 @router.get("/api/server")
 async def api_server(_: str = Depends(admin_auth)) -> JSONResponse:
-    db = SessionLocal()
+    db = system_session()
     try:
         # Database size and top tables
         size_row = db.execute(
@@ -1297,7 +1300,8 @@ async def api_backups_create(_: str = Depends(admin_auth)) -> JSONResponse:
         except Exception as e:
             raise HTTPException(500, f"Cannot create {BACKUPS_DIR}: {e}")
 
-    db_url = os.getenv("DATABASE_URL", "")
+    # Пароль владельца: DATABASE_URL рантайма с ADR-0014 — роль hv_app.
+    db_url = os.getenv("MIGRATIONS_DATABASE_URL") or os.getenv("DATABASE_URL", "")
     # Parse DSN
     pg_password = os.getenv("POSTGRES_PASSWORD") or os.getenv("PGPASSWORD") or ""
     if not pg_password:
@@ -1373,7 +1377,7 @@ async def cleanup_e2e_test_data(
     if not (1 <= minutes <= 1440):
         raise HTTPException(status_code=400, detail="minutes must be 1..1440")
 
-    db = SessionLocal()
+    db = system_session()
     try:
         params = {"uid": user_id, "minutes": minutes}
 

@@ -97,6 +97,16 @@ async def log_meal_text(
     from core.llm.router import analyze_message
     from core.food.nutrition import process_llm_food_data
 
+    from core.llm_budget import check_llm_allowed
+
+    verdict = check_llm_allowed(int(user.telegram_id), getattr(user, "cohort", None))
+    if not verdict.allowed:
+        raise HTTPException(
+            status_code=429,
+            detail=verdict.user_message,
+            headers={"Retry-After": str(verdict.retry_after_sec)},
+        )
+
     record_date = _parse_date(req.date, user)
     meal_time, meal_name = _slot_to_meal_time(req.slot)
 

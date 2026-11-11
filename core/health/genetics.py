@@ -45,7 +45,9 @@ def kb_path_for(user) -> Optional[Path]:
     legacy = _PROJECT_ROOT / f"kb_{tid}.json"
     if legacy.exists():
         return legacy
-    if getattr(user, "cohort", None) == "owner":
+    from config.users import is_installation_owner
+
+    if is_installation_owner(user):
         owner_kb = _PROJECT_ROOT / "knowledge_base.json"
         if owner_kb.exists():
             return owner_kb
