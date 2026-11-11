@@ -6,7 +6,8 @@ BotkinClaw — in-process AI-агент внутри @Botkin_md_bot (см. ADR-0
 агенты (Claude Desktop через MCP, etc).
 
 Контракт:
-- payload = {user_id, container_id, exp, iat}
+- payload = {user_id, container_id, scope, exp, iat, iss, aud}
+- iss/aud = botkin-<env> / botkin-agent-api-<env> (core.env, ADR-0013)
 - jwt_secret хранится в users.jwt_secret (per-user)
 - container_id — agent identifier через core.agent_chat.agent_id_for(user):
   либо устаревшее значение из users.container_id (для legacy NanoClaw-юзеров),
@@ -23,6 +24,8 @@ from datetime import datetime, timedelta, timezone
 import jwt
 from fastapi import Depends, Header, HTTPException, Request
 from sqlalchemy.orm import Session
+
+from core.env import agent_jwt_env_claims, jwt_audience, jwt_issuer
 
 JWT_TTL_HOURS = int(os.getenv("AGENT_JWT_TTL_HOURS", "1"))
 
@@ -57,6 +60,7 @@ def generate_agent_jwt(user_id: int, container_id: str, secret: str, scope: str 
         "scope": scope,
         "exp": datetime.now(timezone.utc) + timedelta(hours=JWT_TTL_HOURS),
         "iat": datetime.now(timezone.utc),
+        **agent_jwt_env_claims(),
     }
     return jwt.encode(payload, secret, algorithm="HS256")
 
@@ -109,11 +113,24 @@ async def get_agent_user(
     if not user.jwt_secret:
         raise HTTPException(status_code=401, detail="User not provisioned (no jwt_secret)")
 
-    # Now verify with user's actual secret
+    # Now verify with user's actual secret. iss/aud обязательны и привязаны к
+    # окружению (ADR-0013): токен прода не проходит на деве и наоборот, даже если
+    # per-user jwt_secret совпал (раньше дев держал копию прод-секретов).
     try:
-        verified = jwt.decode(token, user.jwt_secret, algorithms=["HS256"])
+        verified = jwt.decode(
+            token,
+            user.jwt_secret,
+            algorithms=["HS256"],
+            issuer=jwt_issuer(),
+            audience=jwt_audience(),
+            options={"require": ["exp", "iat", "iss", "aud"]},
+        )
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="JWT expired")
+    except (jwt.InvalidIssuerError, jwt.InvalidAudienceError):
+        raise HTTPException(status_code=401, detail="JWT issued for another environment")
+    except jwt.MissingRequiredClaimError:
+        raise HTTPException(status_code=401, detail="JWT missing required claim")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="JWT signature invalid")
 

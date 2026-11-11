@@ -29,6 +29,8 @@ services:
     env_file:
       - .env
     environment:
+      # Окружение для JWT iss/aud и гардов дев-скриптов (core/env.py, ADR-0013).
+      - BOTKIN_ENV=prod
       # ADR-0014: рантайм ходит ролью hv_app (RLS), если в .env задан APP_DATABASE_URL;
       # иначе — как раньше, владельцем healthvault (откат = убрать APP_DATABASE_URL).
       # SYSTEM_DATABASE_URL (hv_system) приходит из .env через env_file.
