@@ -42,6 +42,7 @@
 | # | Название | Status |
 |---|---|---|
 | [0008](0008-doctor-report-ips-pdf.md) | Отчёт для врача: содержание по IPS, артефакт — человекочитаемый PDF | Accepted |
+| [0013](0013-dev-stand-without-prod-data.md) | Дев-стенд без прод-данных и прод-секретов; JWT привязан к окружению (iss/aud) | Accepted |
 | [0012](0012-persistent-user-state-json-files.md) | Состояние пользователя (превью еды) — JSON-файлы в `/app/data/state`, не Postgres | Accepted |
 | [0011](0011-food-router-sonnet-5-5-no-cheap-tier.md) | Роутер еды — Sonnet 5.5 без дешёвого tier; regex-веса в пост-проверку | Accepted |
 | [0010](0010-doc-extractor-model-and-rules.md) | Разбор медицинских документов: Sonnet 5, дата взятия, тип и резюме, дубли | Accepted |
@@ -49,7 +50,7 @@
 | [0007](0007-verified-products-catalog.md) | Справочник проверенных продуктов: двухступенчатый матчинг, автонаполнение вместо CRUD | Accepted |
 | [0006](0006-mcp-connector-pat-jwt.md) | MCP-коннектор для Claude Desktop через PAT→JWT | Proposed |
 | [0005](0005-cgm-librelinkup-integration.md) | Интеграция CGM (глюкоза) через LibreLinkUp | Accepted |
-| [0004](0004-nightly-prod-to-dev-data-sync.md) | Ночной синк данных prod→dev | Accepted |
+| [0004](0004-nightly-prod-to-dev-data-sync.md) | Ночной синк данных prod→dev | Superseded by [0013](0013-dev-stand-without-prod-data.md) |
 | [0003](0003-alembic-for-db-migrations.md) | Alembic как фреймворк миграций БД (вместо ручного SQL/Flyway) | Accepted |
 | [0002](0002-rejecting-nanoclaw-for-simpler-agent.md) | Отказ от NanoClaw в пользу более простой схемы AI-агента | Accepted |
 | [0001](0001-nanoclaw-ephemeral-not-persistent.md) | NanoClaw: ephemeral spawn-containers per session, не persistent per user | Accepted |

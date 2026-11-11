@@ -36,6 +36,7 @@ sys.path.insert(0, str(project_root))
 from config import get_settings
 from database import SessionLocal
 from database.models import User, log_event
+from core.env import agent_jwt_env_claims
 
 logger = logging.getLogger(__name__)
 
@@ -815,6 +816,7 @@ def _generate_jwt(user: User) -> str:
         "container_id": agent_id_for(user),
         "exp": datetime.now(timezone.utc) + timedelta(hours=JWT_TTL_HOURS),
         "iat": datetime.now(timezone.utc),
+        **agent_jwt_env_claims(),
     }
     return pyjwt.encode(payload, user.jwt_secret, algorithm="HS256")
 
