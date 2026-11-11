@@ -123,8 +123,8 @@ def _seed_user_data(db: Session, telegram_id: int, days: int, rng: random.Random
             items = [
                 {
                     "food": name,
-                    "amount": f"{grams} г",
-                    "weight_g": grams,
+                    "amount": grams,
+                    "unit": "г",
                     "calories": kcal,
                     "protein": p,
                     "fats": f,
@@ -133,6 +133,8 @@ def _seed_user_data(db: Session, telegram_id: int, days: int, rng: random.Random
                 for name, grams, kcal, p, f, c in picked
             ]
             enrich_items_with_fiber(items)
+            for it in items:
+                it.setdefault("fiber", 0)  # как в проде: ключ есть всегда, даже при нуле
             totals = {
                 key: round(sum(float(it.get(key) or 0) for it in items), 1)
                 for key in ("calories", "protein", "fats", "carbs", "fiber")

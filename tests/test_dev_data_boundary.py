@@ -141,6 +141,10 @@ def test_seed_creates_synthetic_users_with_fresh_secrets(monkeypatch, test_db):
     assert test_db.query(BloodTest).filter_by(user_id=uid).count() == 2
     meal = test_db.query(NutritionLog).filter_by(user_id=uid).first()
     assert "fats" in meal.totals and "fiber" in meal.totals
+    # Схема позиций как у реального парсера: amount — число (дашборд делает float(amount)).
+    for it in meal.items:
+        assert isinstance(it["amount"], (int, float)) and it["unit"] == "г" and it["food"]
+        assert isinstance(it["fiber"], (int, float))
 
     # Повторный запуск добавляет новых, а не падает на занятых id.
     seed_synthetic.seed(test_db, users=1, days=2, today=date(2026, 11, 9))
