@@ -328,6 +328,17 @@ def register_handlers(dp: Dispatcher):
         logger.error(f"❌ Не удалось подключить MediaGroupMiddleware: {e}")
         errors.append(f"MediaGroupMiddleware: {e}")
 
+    # Middleware: частота и дневной бюджет LLM на пользователя (пентест F15).
+    # После MediaGroup — альбом считается одним сообщением; до Typing — на отказ не «печатаем».
+    try:
+        from middlewares.llm_guard import LlmGuardMiddleware
+
+        dp.message.middleware(LlmGuardMiddleware())
+        logger.info("✅ LlmGuardMiddleware подключен")
+    except Exception as e:
+        logger.error(f"❌ Не удалось подключить LlmGuardMiddleware: {e}")
+        errors.append(f"LlmGuardMiddleware: {e}")
+
     # Middleware: индикатор "печатает..." в Telegram пока handler работает
     try:
         from middlewares.typing_indicator import TypingMiddleware
