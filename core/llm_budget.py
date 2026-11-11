@@ -247,9 +247,13 @@ def check_llm_allowed(
 
     db = None
     try:
-        from database import SessionLocal
+        # Учёт трат — явный межпользовательский путь (общий потолок суммирует всех),
+        # поэтому сессия без RLS. Под рантайм-ролью hv_app обычная сессия видела бы
+        # только строки текущего пользователя, а без контекста — ноль, и лимит
+        # молча не срабатывал бы (ADR-0014).
+        from database import system_session
 
-        db = SessionLocal()
+        db = system_session()
         if cohort is None:
             cohort = _lookup_cohort(db, user_id)
         if is_exempt(user_id, cohort, cfg):

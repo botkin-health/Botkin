@@ -208,3 +208,23 @@ def test_middleware_passes_free_commands_and_allowed(monkeypatch):
     assert calls == []  # /start не проверяется
     assert asyncio.run(mw(handler, _message("как мой сон?"), {"user_id": USER})) == "ok"
     assert calls == [USER]
+
+
+def test_budget_check_uses_system_session(db, monkeypatch):
+    """Учёт трат межпользовательский → сессия без RLS (ADR-0014).
+
+    Под рантайм-ролью hv_app обычная сессия видела бы только строки текущего
+    пользователя (или ноль без контекста), и общий потолок занижался бы.
+    """
+    import database
+
+    calls = []
+    real = database.system_session
+
+    def spy():
+        calls.append(1)
+        return real()
+
+    monkeypatch.setattr("database.system_session", spy)
+    llm_budget.check_llm_allowed(USER, cfg=_cfg())
+    assert calls, "check_llm_allowed должен открывать system_session()"
