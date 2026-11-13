@@ -407,7 +407,7 @@ async def process_photos_list(
                     "protein": meal_totals.get("protein", 0),
                     "fats": meal_totals.get("fats", 0),
                     "carbs": meal_totals.get("carbs", 0),
-                    "weight": meal_items[0].get("weight_g") if meal_items else menu_data.get("weight"),
+                    "weight": dish_weight_from_components(meal_items, "weight_g") or menu_data.get("weight"),
                 }
                 logger.info(
                     f"Пересчитаны КБЖУ (LLM вернул 0): {menu_data.get('dish_name')}, {menu_data.get('calories')} ккал"
@@ -1833,6 +1833,22 @@ async def handle_description(
     await safe_edit_text(processing_message, response, parse_mode="HTML", reply_markup=keyboard)
 
 
+def dish_weight_from_components(items: list, key: str) -> Optional[float]:
+    """Вес блюда = сумма весов компонентов (раньше брали вес первого: «курица с гречкой 120 г»).
+
+    Компоненты без веса пропускаем; если веса нет ни у одного — None.
+    """
+    total = 0.0
+    for it in items or []:
+        try:
+            w = float(it.get(key) or 0)
+        except (TypeError, ValueError):
+            continue
+        if w > 0:
+            total += w
+    return round(total, 1) if total > 0 else None
+
+
 def menu_data_from_router_data(data: dict) -> Optional[dict]:
     """Ответ роутера (type=food) по фото → menu_data; None, если ни итога, ни items."""
     items = data.get("items") or []
@@ -1857,7 +1873,7 @@ def menu_data_from_router_data(data: dict) -> Optional[dict]:
         return None
     menu_data.update(
         {
-            "weight": items[0].get("weight") if items else None,
+            "weight": dish_weight_from_components(items, "weight"),
             # Issue #115: сохраняем покомпонентную разбивку зрения, чтобы не
             # схлопывать фото-блюдо в один item при наличии подписи.
             "components": items,
