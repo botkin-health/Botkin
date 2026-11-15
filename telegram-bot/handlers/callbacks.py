@@ -20,6 +20,13 @@ class SupplementConfirmationCallback(CallbackData, prefix="suppl"):
     action: str  # "save" или "cancel"
 
 
+class DayCheckCallback(CallbackData, prefix="daychk"):
+    """Кнопки утреннего вопроса «вчера внёс всё?» (адаптивная цель, ADR-0015)."""
+
+    answer: str  # "yes" — день полный | "no" — что-то пропустил
+    date: str  # YYYY-MM-DD
+
+
 class PlanCloseCallback(CallbackData, prefix="plan"):
     """Кнопки вечернего вопроса «план на сегодня доеден целиком?» (#407)."""
 

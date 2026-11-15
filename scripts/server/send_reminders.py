@@ -49,6 +49,7 @@ from core.reminders.meal_reminders import (  # noqa: E402
     normalize_times,
     parse_hhmm,
 )
+from core.reminders import day_check  # noqa: E402
 from core.reminders.plan_close import (  # noqa: E402
     PLAN_CLOSE_KEY,
     build_keyboard,
@@ -191,6 +192,70 @@ def dispatch_plan_close(db, token: str, dry: bool = False, now_fn=None) -> int:
     return sent
 
 
+def dispatch_day_check(db, token: str, dry: bool = False, now_fn=None) -> int:
+    """Утренний вопрос «вчера внёс всё?» (ADR-0015) — всем, у кого вчера есть лог
+    заметно меньше обычного и ещё нет отметки в nutrition_day_status."""
+    from core.infra.tz import get_user_tz  # lazy: патчится в тестах поверх модуля
+    from database.crud import get_daily_calories_by_period, get_day_statuses_by_period
+    from database.models import NutritionLog, UserSettings
+
+    if now_fn is None:
+
+        def now_fn(tz):
+            return datetime.now(tz)
+
+    sent = 0
+    today_utc = now_fn(timezone.utc).date()
+    date_window = [today_utc - timedelta(days=2), today_utc - timedelta(days=1), today_utc]
+    candidate_uids = [
+        row[0]
+        for row in db.query(NutritionLog.user_id).filter(NutritionLog.date.in_(date_window)).distinct().all()
+        if row[0] is not None
+    ]
+
+    for uid in candidate_uids:
+        try:
+            tz = get_user_tz(uid)
+            now_local = now_fn(tz)
+            today = now_local.date()
+            today_iso = today.isoformat()
+
+            settings = db.query(UserSettings).filter(UserSettings.user_id == uid).first()
+            last_sent = dict((settings.meal_reminder_last_sent if settings else None) or {})
+            if not day_check.in_window(now_local, last_sent, today_iso):
+                continue
+
+            yesterday = today - timedelta(days=1)
+            start = today - timedelta(days=day_check.HISTORY_DAYS + 1)
+            intake = get_daily_calories_by_period(db, uid, start, yesterday)
+            statuses = get_day_statuses_by_period(db, uid, start, yesterday)
+            typical = day_check.typical_day_kcal(intake, statuses, before=yesterday)
+            y_kcal = intake.get(yesterday, 0.0)
+            ask = day_check.should_ask_about(y_kcal, typical, yesterday in statuses)
+
+            if ask:
+                text = day_check.build_question(yesterday, y_kcal, typical)
+                if not _send(token, uid, text, dry, reply_markup=day_check.build_keyboard(yesterday.isoformat())):
+                    continue
+                sent += 1
+
+            # Дедуп ставим и когда не спросили: решение на сегодня принято,
+            # не пересчитывать каждые 15 минут окна.
+            if settings is None:
+                settings = UserSettings(user_id=uid)
+                db.add(settings)
+            last_sent[day_check.DAY_CHECK_KEY] = today_iso
+            settings.meal_reminder_last_sent = last_sent
+            if not dry:
+                db.commit()
+        except Exception:  # noqa: BLE001 — один пользователь не должен срывать рассылку остальным
+            logger.exception("day_check: ошибка для user_id=%s, пропускаю", uid)
+            db.rollback()
+            continue
+
+    return sent
+
+
 def run(dry: bool = False) -> int:
     token = os.environ.get("TELEGRAM_BOT_TOKEN")
     if not token and not dry:
@@ -266,6 +331,9 @@ def run(dry: bool = False) -> int:
         # включены meal_reminders_enabled/supplement_reminders_enabled выше). ---
         plan_close_sent = dispatch_plan_close(db, token, dry)
         sent_total += plan_close_sent
+
+        # --- Утренний вопрос «вчера внёс всё?» (ADR-0015) — тоже для всех. ---
+        sent_total += dispatch_day_check(db, token, dry)
     finally:
         db.close()
 

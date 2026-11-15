@@ -291,6 +291,17 @@ def register_handlers(dp: Dispatcher):
         errors.append(f"Обработчик plan-close: {e}")
         logger.error(f"❌ Ошибка регистрации обработчика plan-close: {e}")
 
+    try:
+        from handlers.day_check import router as day_check_router
+
+        dp.include_router(day_check_router)
+        count = len(day_check_router.observers) if hasattr(day_check_router, "observers") else 0
+        handlers_count += count
+        registered_modules.append("day-check")
+    except Exception as e:
+        errors.append(f"Обработчик day-check: {e}")
+        logger.error(f"❌ Ошибка регистрации обработчика day-check: {e}")
+
     # Apple Health handlers removed
     pass
 
