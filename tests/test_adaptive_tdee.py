@@ -140,7 +140,7 @@ def test_get_adaptive_tdee_from_db(test_db):
     create_weight(test_db, uid, datetime(2026, 7, 19, 8, 0, tzinfo=timezone.utc), 84.0)
     create_weight(test_db, uid, datetime(2026, 8, 15, 8, 0, tzinfo=timezone.utc), 83.0)
 
-    r = get_adaptive_tdee(uid, as_of=AS_OF, db=test_db)
+    r = get_adaptive_tdee(uid, as_of=AS_OF, db=test_db, stable=False)
     assert r is not None
     assert r["tdee"] == round(1900 + KCAL_PER_KG_FAT / 27)
     assert r["days_used"] == 30
@@ -193,7 +193,7 @@ def test_weight_dates_converted_to_user_timezone(test_db):
     create_weight(test_db, uid, w2, 83.0)
 
     with patch("core.infra.tz.get_user_tz", return_value=timezone(timedelta(hours=3))):
-        r = get_adaptive_tdee(uid, as_of=AS_OF, db=test_db)
+        r = get_adaptive_tdee(uid, as_of=AS_OF, db=test_db, stable=False)
 
     assert r is not None
     assert r["span_days"] == 27
@@ -223,7 +223,7 @@ def test_smoothing_includes_weights_after_as_of(test_db):
     create_weight(test_db, uid, datetime.combine(AS_OF + timedelta(days=3), time(8, 0), tzinfo=timezone.utc), 82.0)
 
     with patch("core.infra.tz.get_user_tz", return_value=timezone.utc):
-        r = get_adaptive_tdee(uid, as_of=AS_OF, db=test_db)
+        r = get_adaptive_tdee(uid, as_of=AS_OF, db=test_db, stable=False)
 
     # анкер конца = mean(83.0, 82.0) = 82.5 → Δ = -1.5 кг за 27 дней
     assert r["tdee"] == round(1900 + KCAL_PER_KG_FAT * 1.5 / 27)
@@ -396,7 +396,9 @@ def test_get_day_stats_uses_adaptive(test_db, mock_session_local):
 
     uid = 895655
     today = datetime.now(timezone.utc).date()
-    for i in range(30):
+    # Цель считается на недельном анкере (последнее закрытое воскресенье) —
+    # ровный ряд 80 дней, вес −1 кг каждые 27 дней: сырой TDEE на всех анкерах одинаков.
+    for i in range(80):
         create_nutrition_log(
             db=test_db,
             user_id=uid,
@@ -406,17 +408,16 @@ def test_get_day_stats_uses_adaptive(test_db, mock_session_local):
             items=[],
             totals={"calories": 1900},
         )
-    t0 = datetime.combine(today - timedelta(days=27), time(8, 0), tzinfo=timezone.utc)
-    t1 = datetime.combine(today, time(8, 0), tzinfo=timezone.utc)
-    create_weight(test_db, uid, t0, 84.0)
-    create_weight(test_db, uid, t1, 83.0)
+    for i in range(0, 81, 3):
+        t = datetime.combine(today - timedelta(days=i), time(8, 0), tzinfo=timezone.utc)
+        create_weight(test_db, uid, t, 83.0 + i / 27)
 
     with patch("core.infra.tz.get_user_tz", return_value=timezone.utc):
         stats = NutritionService(user_id=uid).get_day_stats(today)
 
     expected_tdee = round(1900 + KCAL_PER_KG_FAT / 27)
     assert stats["targets"]["tdee_source"] == "adaptive"
-    assert stats["targets"]["tdee_days"] == 30
+    assert stats["targets"]["tdee_days"] == 42
     assert stats["targets"]["avg_tdee"] == expected_tdee
     assert stats["targets"]["calories"] == round(expected_tdee * 0.85)
 
@@ -441,3 +442,160 @@ def test_compute_goals_passes_adaptive_source():
         g = compute_goals(user_id=895655)
     assert g["tdee_source"] == "adaptive"
     assert g["tdee_days"] == 40
+
+
+# ── Защита от недолога (15.11.2026, ADR-0015) ────────────────────────────────
+
+
+def test_day_below_70pct_of_median_excluded():
+    """Порог неполного дня 0.7: день с забытым рестораном (1300 при медиане 2000) не в среднем."""
+    intake = _intake(30, kcal=2000)
+    intake[AS_OF - timedelta(days=5)] = 1300
+    weights = [(AS_OF - timedelta(days=27), 84.0), (AS_OF, 84.0)]
+    r = compute_adaptive_tdee(intake, weights, AS_OF)
+    assert r["tdee"] == 2000
+    assert r["excluded_days"] == 1
+
+
+def test_user_flag_incomplete_excludes_day_above_threshold():
+    """«Что-то пропустил» исключает день, даже если эвристика сочла бы его полным."""
+    intake = _intake(30, kcal=2000)
+    intake[AS_OF - timedelta(days=5)] = 1700
+    weights = [(AS_OF - timedelta(days=27), 84.0), (AS_OF, 84.0)]
+    r = compute_adaptive_tdee(intake, weights, AS_OF, day_status={AS_OF - timedelta(days=5): False})
+    assert r["tdee"] == 2000
+    assert r["days_used"] == 29
+
+
+def test_user_flag_complete_keeps_light_day():
+    """«Да, всё» оставляет лёгкий день (1000 ккал) в среднем — пользователю виднее."""
+    intake = _intake(30, kcal=2000)
+    light = AS_OF - timedelta(days=5)
+    intake[light] = 1000
+    weights = [(AS_OF - timedelta(days=27), 84.0), (AS_OF, 84.0)]
+    r = compute_adaptive_tdee(intake, weights, AS_OF, day_status={light: True})
+    assert r["days_used"] == 30
+    assert r["avg_intake"] == round((29 * 2000 + 1000) / 30)
+
+
+def test_stale_weight_freezes_estimate():
+    """Взвешиваний нет 10 дней — расчёт замораживается на последнем замере + 3 дня,
+    и поздний недолог (дни по 1000 ккал без отметок) в него не попадает."""
+    last_w = AS_OF - timedelta(days=10)
+    intake = _intake(50, kcal=2000)
+    for i in range(7):
+        intake[AS_OF - timedelta(days=i)] = 1500
+    weights = [(last_w - timedelta(days=27), 84.0), (last_w, 84.0)]
+    r = compute_adaptive_tdee(intake, weights, AS_OF)
+    assert r["frozen"] is True
+    assert r["as_of_effective"] == last_w + timedelta(days=3)
+    assert r["tdee"] == 2000
+
+
+def test_no_weighing_before_as_of_returns_none():
+    intake = _intake(30)
+    assert compute_adaptive_tdee(intake, [(AS_OF + timedelta(days=1), 80.0)], AS_OF) is None
+
+
+def _steady(days: int, kcal: float, end: date):
+    return {end - timedelta(days=i): kcal for i in range(days)}
+
+
+def test_stable_uses_last_closed_sunday():
+    """Цель стабильна всю неделю: анкер — воскресенье перед as_of."""
+    from core.health.adaptive_tdee import compute_stable_adaptive_tdee, stable_anchor
+
+    assert AS_OF.weekday() == 5  # суббота
+    assert stable_anchor(AS_OF) == date(2026, 8, 9)
+    assert stable_anchor(date(2026, 8, 10)) == date(2026, 8, 9)  # понедельник
+    intake = _steady(90, 2000, AS_OF)
+    weights = [(AS_OF - timedelta(days=i), 84.0) for i in range(0, 90, 3)]
+    r = compute_stable_adaptive_tdee(intake, weights, AS_OF)
+    assert r["anchor"] == date(2026, 8, 9)
+    assert r["tdee"] == 2000
+
+
+def test_stable_caps_weekly_drop_at_100():
+    """Резкий провал сырой оценки (недолог последних недель) опускает цель не больше чем на 100/нед."""
+    from core.health.adaptive_tdee import MAX_WEEKLY_STEP_KCAL, compute_stable_adaptive_tdee
+
+    intake = _steady(120, 2200, AS_OF)
+    for i in range(14):  # две последние недели — сплошной недолог, но выше порога 0.7
+        intake[AS_OF - timedelta(days=i)] = 1600
+    weights = [(AS_OF - timedelta(days=i), 84.0) for i in range(0, 120, 2)]
+    r = compute_stable_adaptive_tdee(intake, weights, AS_OF)
+    assert r["raw_tdee"] < 2200 - MAX_WEEKLY_STEP_KCAL
+    assert r["tdee"] >= 2200 - MAX_WEEKLY_STEP_KCAL * 2
+
+
+def test_stable_floor_bmr_x_1_2():
+    from core.health.adaptive_tdee import compute_stable_adaptive_tdee
+
+    intake = _steady(120, 1500, AS_OF)
+    weights = [(AS_OF - timedelta(days=i), 84.0) for i in range(0, 120, 2)]
+    r = compute_stable_adaptive_tdee(intake, weights, AS_OF, bmr=1600)
+    assert r["floored"] is True
+    assert r["tdee"] == 1920
+    r2 = compute_stable_adaptive_tdee(intake, weights, AS_OF, bmr=None)
+    assert r2["floored"] is False
+    assert r2["tdee"] == 1500
+
+
+def test_mifflin_bmr():
+    from core.health.adaptive_tdee import mifflin_bmr
+
+    assert mifflin_bmr("male", 77, 170, 49) == 1592
+    assert mifflin_bmr("female", 60, 165, 40) == round(600 + 1031.25 - 200 - 161)
+    assert mifflin_bmr(None, 77, 170, 49) is None
+
+
+def test_get_adaptive_tdee_reads_day_status_and_profile_floor(test_db):
+    """Обвязка: отметки дня из БД исключают день, пол берётся из профиля (Миффлин)."""
+    from database.crud import create_nutrition_log, create_weight, set_day_status
+    from database.models import User
+
+    uid = 895655
+    user = test_db.query(User).filter(User.telegram_id == uid).first()
+    if user is None:
+        user = User(telegram_id=uid, first_name="T")
+        test_db.add(user)
+    user.birth_date = date(1977, 5, 15)
+    user.height_cm = 170
+    user.sex = "male"
+    test_db.commit()
+
+    for i in range(120):
+        create_nutrition_log(
+            db=test_db,
+            user_id=uid,
+            date=AS_OF - timedelta(days=i),
+            meal_time=time(12, 0),
+            meal_name="lunch",
+            items=[],
+            totals={"calories": 1500},
+        )
+    for i in range(0, 120, 3):
+        create_weight(test_db, uid, datetime.combine(AS_OF - timedelta(days=i), time(8, 0), tzinfo=timezone.utc), 77.0)
+    set_day_status(test_db, uid, AS_OF - timedelta(days=10), False, source="morning_check")
+
+    with patch("core.infra.tz.get_user_tz", return_value=timezone.utc):
+        raw = get_adaptive_tdee(uid, as_of=AS_OF, db=test_db, stable=False)
+        r = get_adaptive_tdee(uid, as_of=AS_OF, db=test_db)
+
+    assert raw["excluded_days"] == 1
+    assert r["floored"] is True
+    assert r["tdee"] == round(1592 * 1.2)
+
+
+def test_set_day_status_upserts(test_db):
+    from database.crud import get_day_statuses_by_period, set_day_status
+    from database.models import User
+
+    uid = 895655
+    if test_db.query(User).filter(User.telegram_id == uid).first() is None:
+        test_db.add(User(telegram_id=uid, first_name="T"))
+        test_db.commit()
+    d = date(2026, 11, 14)
+    set_day_status(test_db, uid, d, False)
+    set_day_status(test_db, uid, d, True, source="agent")
+    assert get_day_statuses_by_period(test_db, uid, d, d) == {d: True}

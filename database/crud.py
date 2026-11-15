@@ -21,6 +21,7 @@ import logging
 from database.models import (
     User,
     NutritionLog,
+    NutritionDayStatus,
     Weight,
     SupplementLog,
     ActivityLog,
@@ -517,6 +518,31 @@ def get_daily_calories_by_period(db: Session, user_id: int, start_date: date, en
         .all()
     )
     return {d: float(total or 0) for d, total in rows}
+
+
+def get_day_statuses_by_period(db: Session, user_id: int, start_date: date, end_date: date) -> Dict[date, bool]:
+    """Отметки полноты дней питания за период: дата → complete. Нет строки — нет отметки."""
+    rows = (
+        db.query(NutritionDayStatus.date, NutritionDayStatus.complete)
+        .filter(
+            NutritionDayStatus.user_id == user_id,
+            NutritionDayStatus.date >= start_date,
+            NutritionDayStatus.date <= end_date,
+        )
+        .all()
+    )
+    return {d: bool(c) for d, c in rows}
+
+
+def set_day_status(db: Session, user_id: int, for_date: date, complete: bool, source: str = "manual") -> None:
+    """Upsert отметки полноты дня. Коммитит сам."""
+    row = db.get(NutritionDayStatus, (user_id, for_date))
+    if row is None:
+        db.add(NutritionDayStatus(user_id=user_id, date=for_date, complete=complete, source=source))
+    else:
+        row.complete = complete
+        row.source = source
+    db.commit()
 
 
 def get_activity_logs_by_period(db: Session, user_id: int, start_date: date, end_date: date) -> List[ActivityLog]:
