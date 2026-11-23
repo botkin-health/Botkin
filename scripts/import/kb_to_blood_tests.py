@@ -179,7 +179,9 @@ import psycopg2
 from urllib.parse import urlparse
 
 rows = json.loads(sys.stdin.read())
-p = urlparse(os.environ["DATABASE_URL"])
+# Бот ходит в БД ролью hv_app (RLS, не владелец): ей нельзя ни CREATE INDEX, ни писать
+# чужому user_id. Синк — админская операция, поэтому берём роль владельца.
+p = urlparse(os.environ.get("MIGRATIONS_DATABASE_URL") or os.environ["DATABASE_URL"])
 conn = psycopg2.connect(host=p.hostname, port=p.port or 5432, dbname=p.path[1:], user=p.username, password=p.password)
 cur = conn.cursor()
 cur.execute(
@@ -234,7 +236,10 @@ def _psql_copy_via_python(rows: list[dict]) -> tuple[int, int]:
     try:
         subprocess.run(base_scp + [local_script, f"{SERVER}:/tmp/kb_upsert.py"], check=True, capture_output=True)
         subprocess.run(
-            base_ssh + [SERVER, "docker cp /tmp/kb_upsert.py healthvault_bot:/tmp/kb_upsert.py"],
+            # tempfile создаёт 0600, scp поверх старого файла права не меняет, docker cp их
+            # сохраняет (владелец root), а бот в контейнере работает от uid botkin — нужен 0644.
+            base_ssh
+            + [SERVER, "chmod 644 /tmp/kb_upsert.py && docker cp /tmp/kb_upsert.py healthvault_bot:/tmp/kb_upsert.py"],
             check=True,
             capture_output=True,
         )
