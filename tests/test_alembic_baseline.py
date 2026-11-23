@@ -42,10 +42,11 @@ EXPECTED_TABLES = {
     "verified_products",
     "user_feedback",
     "funnel_events",
+    "nutrition_day_status",
 }
 
 # Актуальный head миграций. Обновляется при каждой новой ревизии.
-HEAD_REVISION = "rls03"
+HEAD_REVISION = "ndstat01"
 
 
 def _alembic_config() -> Config:

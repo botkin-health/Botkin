@@ -190,6 +190,29 @@ class NutritionLog(Base):
     user: Mapped["User"] = relationship(back_populates="nutrition_logs")
 
 
+class NutritionDayStatus(Base):
+    """Отметка «день питания внесён полностью / неполностью» (ответ пользователя).
+
+    Нужна адаптивному TDEE: частично внесённый день (забыл ресторан, пиво)
+    занижает средний рацион, а с ним и цель на следующие недели. Строки нет —
+    решает эвристика (core/health/adaptive_tdee.py), строка есть — ответ
+    пользователя главнее эвристики в обе стороны.
+    """
+
+    __tablename__ = "nutrition_day_status"
+
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), primary_key=True
+    )
+    date: Mapped[date] = mapped_column(Date, primary_key=True)
+    complete: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    # 'morning_check' — кнопка утреннего вопроса | 'agent' | 'manual'
+    source: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=True
+    )
+
+
 # UserProduct + UserProductVariant models removed Apr 2026 (/my_products feature retired).
 # DB tables user_products + user_product_variants are dropped in the matching migration.
 
