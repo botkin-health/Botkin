@@ -24,6 +24,7 @@ from __future__ import annotations
 import contextvars
 import logging
 import os
+import weakref
 from contextlib import contextmanager
 from typing import Iterator, Optional
 
@@ -115,7 +116,21 @@ def _after_begin(session: Session, transaction, connection) -> None:
     _apply(connection, uid)
 
 
+# Фабрики, на которые слушатель уже повешен. Слабые ссылки: запись исчезает
+# вместе с фабрикой, раньше чем её адрес может достаться другому объекту.
+_installed: "weakref.WeakSet" = weakref.WeakSet()
+
+
 def install(session_factory) -> None:
-    """Повесить слушатель на фабрику сессий (идемпотентно)."""
-    if not event.contains(session_factory, "after_begin", _after_begin):
-        event.listen(session_factory, "after_begin", _after_begin)
+    """Повесить слушатель на фабрику сессий (идемпотентно).
+
+    Идемпотентность — по собственному реестру, НЕ через ``event.contains()``:
+    реестр событий SQLAlchemy ключуется по ``id()`` цели и держит запись о
+    мёртвой фабрике, поэтому новая фабрика с переиспользованным адресом
+    выглядела «уже со слушателем» и оставалась без него — её транзакции шли
+    без ``app.user_id`` (CI 15–23.11.2026, tests/test_rls_install.py).
+    """
+    if session_factory in _installed:
+        return
+    event.listen(session_factory, "after_begin", _after_begin)
+    _installed.add(session_factory)
